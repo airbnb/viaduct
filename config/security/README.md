@@ -37,6 +37,30 @@ ls -R */build/reports/{trivy,sbom,license}
 Trivy auto-fetches its vulnerability DB on first run and caches it at
 `~/.cache/trivy/`. Subsequent runs reuse the cache.
 
+## SBOM in the CI job summary
+
+The `cve-parity` job in `.github/workflows/security-scan.yml` renders every
+publication's CycloneDX SBOM into the **GitHub Actions job summary** — an
+overview table plus a collapsible component list (dependency, version, license)
+per fat JAR — and uploads the raw `cyclonedx.json` files in the
+`security-scan-reports` artifact. This lets you see what each published fat JAR
+bundles without building or downloading anything.
+
+To reproduce that summary locally:
+
+```bash
+# Generate the SBOMs (no Trivy required for SBOM generation alone)
+./gradlew -p publications cyclonedxBom
+
+# Format them into the same Markdown CI appends to the job summary
+python3 .github/scripts/format_sbom_summary.py publications
+```
+
+> `cyclonedxBom` runs without Gradle's configuration cache by design: the
+> CycloneDX 1.10.0 plugin is config-cache-incompatible and would otherwise emit
+> an empty SBOM. The `conventions.security-scanning` plugin marks the task so
+> this is handled automatically — no extra flags needed.
+
 ## Suppression Policy
 
 `.trivyignore` is plain text — one CVE ID per line. To suppress a finding:
