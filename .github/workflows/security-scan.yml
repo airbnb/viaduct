@@ -52,7 +52,7 @@ jobs:
         # (fast via ghcr.io inside Actions, and a cached DB goes stale after ~6h anyway).
         uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514  # v0.2.6
         with:
-          version: v0.68.2
+          version: v0.71.0
           cache: true
 
       # Fine-grained: trivy sbom over each publication's CycloneDX SBOM.
