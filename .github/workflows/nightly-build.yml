@@ -22,3 +22,30 @@ jobs:
       ref: main
       run_ci_check: true
     secrets: inherit
+
+  windows-check:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        java: ["17", "21"]
+    name: Full Check (Windows, Java ${{ matrix.java }})
+    env:
+      # fromEnv lets Gradle's daemon JVM discovery find Java 21 via JAVA_HOME_21_X64 when JAVA_HOME != Java 21.
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
+    steps:
+      # Ensure Windows runners use core.autocrlf=false for parity with Linux/macOS.
+      - name: Disable autocrlf
+        shell: bash
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: ${{ matrix.java }}
+
+      - name: Check
+        run: ./gradlew check --scan
+        shell: bash
