@@ -48,6 +48,20 @@ abstract class SecurityScanningExtension @Inject constructor(objects: ObjectFact
 
 val securityScanning = extensions.create<SecurityScanningExtension>("securityScanning")
 
+// CycloneDX 1.10.0 invokes Task.project at execution time, which is unsupported under
+// Gradle's configuration cache. With the cache on (the repo default) the task doesn't
+// fail loudly — it silently resolves nothing and writes an EMPTY SBOM (no `components`).
+// Declaring it incompatible makes Gradle run it without the config cache, so the
+// dependency graph is actually resolved. This is marked unconditionally (not only inside
+// the `java` guard below): the plugin is applied to every project this convention touches,
+// including the java-platform `bom`, whose unmarked cyclonedxBom would otherwise hard-fail
+// the build under the config cache. Upstream: https://github.com/CycloneDX/cyclonedx-gradle-plugin
+tasks.withType(CycloneDxTask::class.java).configureEach {
+    notCompatibleWithConfigurationCache(
+        "CycloneDX 1.10.0 accesses Task.project at execution time (config-cache incompatible)"
+    )
+}
+
 // Only configure scans for projects with a Java/Kotlin runtimeClasspath.
 // java-platform (BOM) projects are skipped — their dependencies are constraints,
 // not a resolvable runtime classpath.
