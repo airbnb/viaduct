@@ -59,8 +59,10 @@ gradlePlugin {
 }
 
 tasks.named<ProcessResources>("processResources") {
+    val pluginVersion = project.version.toString()
+    inputs.property("pluginVersion", pluginVersion)
     filesMatching("viaduct-plugin-version.properties") {
-        expand("version" to project.version)
+        expand("version" to pluginVersion)
     }
 }
 
