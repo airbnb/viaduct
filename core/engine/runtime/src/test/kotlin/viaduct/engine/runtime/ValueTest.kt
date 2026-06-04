@@ -6,6 +6,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -508,6 +509,72 @@ class ValueTest {
             value
         )
     }
+
+    @Test
+    fun `fromValue -- awaitOrElse`(): Unit =
+        runBlocking {
+            var blockCalled = false
+            val result = Value.fromValue(42).awaitOrElse {
+                blockCalled = true
+                -1
+            }
+            assertEquals(42, result)
+            assertFalse(blockCalled)
+        }
+
+    @Test
+    fun `fromThrowable -- awaitOrElse`(): Unit =
+        runBlocking {
+            var blockCalled = false
+            val exception = TestException()
+            val result = Value.fromThrowable<Int>(exception).awaitOrElse { e ->
+                blockCalled = true
+                assertSame(exception, e)
+                -1
+            }
+            assertEquals(-1, result)
+            assertTrue(blockCalled)
+        }
+
+    @Test
+    fun `fromDeferred -- awaitOrElse pending completing successfully`(): Unit =
+        runBlocking {
+            val def = CompletableDeferred<Int>()
+            var blockCalled = false
+            val value = Value.fromDeferred(def)
+            def.complete(42)
+            val result = value.awaitOrElse {
+                blockCalled = true
+                -1
+            }
+            assertEquals(42, result)
+            assertFalse(blockCalled)
+        }
+
+    @Test
+    fun `fromDeferred -- awaitOrElse pending completing exceptionally`(): Unit =
+        runBlocking {
+            val def = CompletableDeferred<Int>()
+            var blockCalled = false
+            val exception = TestException()
+            val value = Value.fromDeferred(def)
+            def.completeExceptionally(exception)
+            val result = value.awaitOrElse { e ->
+                blockCalled = true
+                assertSame(exception, e)
+                -1
+            }
+            assertEquals(-1, result)
+            assertTrue(blockCalled)
+        }
+
+    @Test
+    fun `fromThrowable -- awaitOrElse block throws`(): Unit =
+        runBlocking {
+            assertThrows<TestException> {
+                Value.fromThrowable<Int>(RuntimeException()).awaitOrElse { throw TestException() }
+            }
+        }
 
     @Test
     fun `fromResult -- successful result`() {

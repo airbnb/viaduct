@@ -50,6 +50,13 @@ sealed interface Value<T> {
     suspend fun await(): T
 
     /**
+     * Awaits the value and returns it, or invokes [block] with the exception and returns its result.
+     * Does not throw for errors in this Value — they are passed to [block]. Exceptions thrown by
+     * [block] itself will propagate to the caller.
+     */
+    suspend fun awaitOrElse(block: (Throwable) -> @UnsafeVariance T): T
+
+    /**
      * Return the completed value, or throw if this Value is not yet completed or is in an exceptional state.
      */
     fun getCompleted(): T
@@ -103,6 +110,8 @@ sealed interface Value<T> {
 
         override fun recover(block: (Throwable) -> Value<T>): Value<T> = this
 
+        override suspend fun awaitOrElse(block: (Throwable) -> @UnsafeVariance T): T = value
+
         override fun <U> thenApply(block: (T?, Throwable?) -> U): Value<U> = SyncValue(block(value, null))
 
         override fun <U> thenCompose(block: (T?, Throwable?) -> Value<U>): Value<U> = block(value, null)
@@ -121,6 +130,8 @@ sealed interface Value<T> {
         override fun asDeferred(): Deferred<T> = exceptionalDeferred(throwable)
 
         override fun recover(block: (Throwable) -> Value<T>): Value<T> = block(throwable)
+
+        override suspend fun awaitOrElse(block: (Throwable) -> @UnsafeVariance T): T = block(throwable)
 
         override fun <U> thenApply(block: (T?, Throwable?) -> U): Value<U> = SyncValue(block(null, throwable))
 
@@ -149,6 +160,8 @@ sealed interface Value<T> {
 
         override suspend fun await() = deferred.await()
 
+        override suspend fun awaitOrElse(block: (Throwable) -> @UnsafeVariance T): T = thenApply { v, e -> if (e != null) block(e) else v as T }.await()
+
         @OptIn(ExperimentalCoroutinesApi::class)
         override fun getCompleted(): T = deferred.getCompleted()
 
@@ -175,6 +188,14 @@ sealed interface Value<T> {
         /** Create a synchronous [Value] from the provided [Throwable]. */
         fun <T> fromThrowable(throwable: Throwable): Sync<T> = SyncThrow(throwable)
 
+        /**
+         * Returns a [Value] that completes when all [values] complete.
+         *
+         * Fast-path: if any value is a synchronous [SyncThrow], returns that throwable immediately
+         * without awaiting the remaining values. Callers that need to survive errors in individual
+         * values (e.g. to store them per-field rather than propagate them) should use
+         * [Value.awaitOrElse] on the result.
+         */
         fun <T> waitAll(values: Collection<Value<T>>): Value<Unit> {
             if (values.isEmpty()) return fromValue(Unit)
 

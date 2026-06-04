@@ -137,8 +137,9 @@ object SyncEngineObjectDataFactory {
             }
         }
 
-        // Single suspension point: await all incomplete cell slot values concurrently.
-        Value.waitAll(cellValues).await()
+        // Await all async cell slots concurrently. awaitOrElse rather than await() so that a
+        // SyncThrow fast-path in waitAll doesn't escape — errors stay in the slots for unwrap().
+        Value.waitAll(cellValues).awaitOrElse { }
 
         // Phase 2: assemble results. Cell slots are now complete; unwrap() does not suspend
         // for the Cell case.
@@ -237,7 +238,16 @@ object SyncEngineObjectDataFactory {
             }
 
             is Cell -> {
-                val cellRaw = value.fetch(RAW_VALUE_SLOT)
+                // Use awaitOrElse rather than fetch() so that a SyncThrow slot does not
+                // throw here. The error is folded into cellRaw as the exception object itself, which
+                // then falls through to the `else` branch of the recursive unwrap() call and gets
+                // stored in the backing map. It will be thrown when the field is accessed.
+                @Suppress("UNCHECKED_CAST")
+                val cellRaw = (value.getValue(RAW_VALUE_SLOT) as Value<Any?>).awaitOrElse { it }
+                // If the raw slot already has an exception, skip the checker — a resolver failure
+                // can leave both slots exceptional (e.g. via combineWithTypeCheck), and fetching
+                // the checker slot would throw and escape resolveImpl.
+                if (cellRaw is Exception) return cellRaw
                 val cellChecker = value.fetch(ACCESS_CHECK_SLOT)
                 val checkerException = extractCheckerException(cellChecker)
                 if (checkerException != null) {

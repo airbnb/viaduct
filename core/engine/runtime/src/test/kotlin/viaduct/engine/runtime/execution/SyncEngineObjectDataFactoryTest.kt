@@ -1507,4 +1507,65 @@ class SyncEngineObjectDataFactoryTest {
             nameRecords.forEach { assertEquals("Item", it.parentType) }
         }
     }
+
+    @Test
+    fun `resolve does not throw when both RAW_VALUE_SLOT and ACCESS_CHECK_SLOT are exceptional`() {
+        // Regression: when a resolver throws, combineWithTypeCheck can leave both slots exceptional.
+        // Previously, awaitOrElse folded the raw exception but then value.fetch(ACCESS_CHECK_SLOT)
+        // threw, escaping resolveImpl. The fix returns early when cellRaw is already an exception.
+        Fixture("type Query { failingField: String succeedingField: String }") {
+            val fieldError = RuntimeException("intentional field error")
+            val checkerError = RuntimeException("checker also failed")
+
+            val oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Query"))
+            oer.fieldResolutionState.complete(Unit)
+
+            oer.computeIfAbsent(ObjectEngineResult.Key("failingField")) { slotSetter ->
+                slotSetter.setRawValue(Value.fromThrowable(fieldError))
+                slotSetter.setCheckerValue(Value.fromThrowable(checkerError))
+            }
+            oer.computeIfAbsent(ObjectEngineResult.Key("succeedingField")) { slotSetter ->
+                slotSetter.setRawValue(
+                    Value.fromValue(FieldResolutionResult("ok", emptyList(), CompositeLocalContext.empty, emptyMap(), "succeedingField"))
+                )
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+
+            val selectionSet = mkSelectionSet("Query", "failingField succeedingField")
+
+            val syncData = resolveSyncData(oer, "error", selectionSet)
+
+            assertEquals("ok", syncData.get("succeedingField"))
+
+            val thrown = assertThrows<Exception> { syncData.get("failingField") }
+            assertSame(fieldError, thrown)
+        }
+    }
+
+    @Test
+    fun `resolve does not throw when RAW_VALUE_SLOT contains SyncThrow -- error stored in backing map`() {
+        Fixture("type Query { failingField: String succeedingField: String }") {
+            val fieldError = RuntimeException("intentional field error")
+
+            // mkOER with a null value + matching error entry → Value.fromThrowable in RAW_VALUE_SLOT
+            // (matching how NodeWithoutDataImpl.getFetchedObject() throws, producing SyncThrow in the cell)
+            val oer = mkOER(
+                "Query",
+                resultMap = mapOf("failingField" to null, "succeedingField" to "ok"),
+                errors = listOf("failingField" to fieldError),
+                selections = "failingField succeedingField",
+            )
+            val selectionSet = mkSelectionSet("Query", "failingField succeedingField")
+
+            // resolve() must NOT throw — errors are stored per-field
+            val syncData = resolveSyncData(oer, "error", selectionSet)
+
+            // succeedingField resolves normally
+            assertEquals("ok", syncData.get("succeedingField"))
+
+            // failingField error surfaces at access time, not during resolve()
+            val thrown = assertThrows<Exception> { syncData.get("failingField") }
+            assertSame(fieldError, thrown)
+        }
+    }
 }
