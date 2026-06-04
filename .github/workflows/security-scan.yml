@@ -62,6 +62,14 @@ jobs:
         continue-on-error: true
         run: ./gradlew -p publications securityScan --no-daemon --continue
 
+      # Render the CycloneDX SBOMs generated above into the job summary, so reviewers
+      # can see what each publication fat JAR bundles without downloading anything.
+      - name: SBOM summary (job summary)
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: python3 .github/scripts/format_sbom_summary.py publications >> "$GITHUB_STEP_SUMMARY"
+
       # Build the shadow (fat) JARs so we can scan them as binaries.
       - name: Build fat JARs (publications)
         continue-on-error: true
@@ -134,6 +142,7 @@ jobs:
           path: |
             security-scan-report.md
             publications/*/build/reports/trivy/cve-report.json
+            publications/*/build/reports/sbom/cyclonedx.json
             build/reports/trivy-fatjar/*.json
 
       # Sticky PR comment via github-script (the repo's PR-interaction convention;
