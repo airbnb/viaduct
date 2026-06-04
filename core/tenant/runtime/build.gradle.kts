@@ -8,7 +8,9 @@ plugins {
 }
 
 viaductFeatureAppContracts {
-    contractsFrom(":tenant:runtime")
+    kotlin {
+        contractsFrom(":tenant:runtime")
+    }
 }
 
 val testFileBasedBootstrap by tasks.registering(Test::class) {
@@ -97,7 +99,4 @@ dependencies {
     testImplementation(libs.guice)
     testImplementation(libs.assertj.core)
     testImplementation(libs.slf4j.api)
-
-    /** Codegen classpath for test-feature-app worker isolation **/
-    viaductCodegenClasspath(libs.viaduct.tenant.codegen)
 }

@@ -92,7 +92,7 @@ class ContractSchemaPublisherPluginTest {
                 """
                 package com.example.contracts.alpha;
 
-                import viaduct.tenant.runtime.fixtures.TestSchema;
+                import viaduct.api.testing.TestSchema;
 
                 @TestSchema("type Query { hello: String }")
                 public abstract class AlphaContractTest {}
@@ -142,7 +142,7 @@ class ContractSchemaPublisherPluginTest {
                 """
                 package com.example.contracts.beta
 
-                import viaduct.tenant.runtime.fixtures.TestSchema
+                import viaduct.api.testing.TestSchema
 
                 @TestSchema("type Query { world: Int }")
                 abstract class BetaContractTest

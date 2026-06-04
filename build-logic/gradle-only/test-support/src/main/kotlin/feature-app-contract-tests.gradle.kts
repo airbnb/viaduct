@@ -1,7 +1,7 @@
-import viaduct.gradle.featureappcontract.KotlinFeatureAppContractPlugin
+import viaduct.gradle.featureappcontract.FeatureAppContractTestsPlugin
 
 /**
- * Kotlin contract test code generation plugin.
+ * Bilingual contract test code generation plugin (Kotlin and/or Java).
  * id("feature-app-contract-tests")
  */
-apply<KotlinFeatureAppContractPlugin>()
+apply<FeatureAppContractTestsPlugin>()

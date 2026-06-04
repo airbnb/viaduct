@@ -81,8 +81,8 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
 
     @TaskAction
     fun assemble(inputChanges: InputChanges) {
-        if (!contractSchemaDir.isPresent) {
-            logger.info("No contract schemas configured — nothing to assemble")
+        if (!contractSchemaDir.isPresent || !descriptorDir.isPresent) {
+            logger.info("No contract schemas or KSP descriptors configured — nothing to assemble")
             return
         }
         val schemasDir = contractSchemaDir.get().asFile

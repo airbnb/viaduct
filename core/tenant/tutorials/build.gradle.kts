@@ -7,7 +7,9 @@ plugins {
 }
 
 viaductFeatureAppContracts {
-    contractsFrom(":tenant:tutorials")
+    kotlin {
+        contractsFrom(":tenant:tutorials")
+    }
 }
 
 val testFileBasedBootstrap by tasks.registering(Test::class) {
@@ -26,8 +28,6 @@ tasks.named("check") {
 }
 
 dependencies {
-    viaductCodegenClasspath(libs.viaduct.tenant.codegen)
-
     testFixturesImplementation(testFixtures(libs.viaduct.tenant.runtime))
     testFixturesImplementation(libs.viaduct.tenant.runtime)
 

@@ -18,7 +18,9 @@ viaductPublishing {
 }
 
 viaductFeatureAppContracts {
-    contractsFrom(":tenant:api")
+    kotlin {
+        contractsFrom(":tenant:api")
+    }
 }
 
 val testFileBasedBootstrap by tasks.registering(Test::class) {
@@ -96,9 +98,6 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.strikt.core)
-
-    /** Codegen classpath for test-feature-app worker isolation **/
-    viaductCodegenClasspath(libs.viaduct.tenant.codegen)
 
     /** JMH dependencies **/
     jmh(libs.jmh.annotation.processor)
