@@ -213,14 +213,19 @@ jobs:
           }
         shell: bash
 
-      - name: Upload coverage reports (core)
+      - name: Upload coverage reports (core jacoco)
         if: always() && matrix.project == 'core'
         uses: actions/upload-artifact@v6
         with:
           name: coverage-core
-          path: |
-            core/**/build/reports/jacoco
-            core/build/reports/coverage
+          path: core/**/build/reports/jacoco
+
+      - name: Upload coverage HTML index (core)
+        if: always() && matrix.project == 'core'
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-core-html
+          path: core/build/reports/coverage
 
       - name: Upload coverage reports
         if: always() && matrix.project != 'core'
