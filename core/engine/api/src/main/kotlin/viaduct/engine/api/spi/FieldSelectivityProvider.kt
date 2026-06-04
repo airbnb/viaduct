@@ -9,6 +9,13 @@ fun interface FieldSelectivityProvider {
     /** return `true` if the field at [coordinate] is selective */
     fun isSelective(coordinate: Coordinate): Boolean
 
+    /** Returns a provider that is selective when either this provider or [other] is selective. */
+    infix fun or(other: FieldSelectivityProvider): FieldSelectivityProvider =
+        FieldSelectivityProvider {
+                coordinate ->
+            isSelective(coordinate) || other.isSelective(coordinate)
+        }
+
     companion object {
         /** An instance of [FieldSelectivityProvider] that never returns true. */
         val Never: FieldSelectivityProvider = Const(false)
