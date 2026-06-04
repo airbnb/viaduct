@@ -7,7 +7,6 @@ plugins {
 }
 
 viaductApplication {
-    grtPackageName.set("viaduct.api.grts")
     modulePackagePrefix.set("com.example.starwars")
 }
 
