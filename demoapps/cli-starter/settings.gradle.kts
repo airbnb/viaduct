@@ -13,7 +13,6 @@ pluginManagement {
             if (System.getenv("USE_VIADUCT_SNAPSHOT_REPO")?.toBoolean() == true) {
                 maven("https://central.sonatype.com/repository/maven-snapshots/")
             }
-            mavenCentral()
             gradlePluginPortal()
         }
     }
@@ -26,7 +25,6 @@ dependencyResolutionManagement {
             maven("https://central.sonatype.com/repository/maven-snapshots/")
         }
         mavenCentral()
-        gradlePluginPortal()
     }
     versionCatalogs {
         create("libs") {
