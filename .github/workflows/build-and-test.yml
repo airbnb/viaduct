@@ -265,7 +265,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Coverage Summary
     needs: coverage-reports
-    if: always()
+    if: needs.coverage-reports.result == 'success'
     steps:
       - uses: actions/checkout@v6
 
