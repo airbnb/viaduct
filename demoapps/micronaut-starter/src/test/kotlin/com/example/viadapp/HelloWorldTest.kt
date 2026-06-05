@@ -84,4 +84,18 @@ class HelloWorldTest {
         result.errors!!.isNotEmpty() shouldBe true
         result.errors!![0].message shouldContain "Invalid syntax"
     }
+
+    @Test
+    fun `greet resolver returns personalised greeting`() {
+        val result = execute("""query { greet(name: "Viaduct") }""")
+        result.errors shouldBe emptyList()
+        result.getData().shouldNotBeNull()["greet"] shouldBe "Hello, Viaduct!"
+    }
+
+    @Test
+    fun `echo mutation returns the message`() {
+        val result = execute("""mutation { echo(message: "hello world") }""")
+        result.errors shouldBe emptyList()
+        result.getData().shouldNotBeNull()["echo"] shouldBe "hello world"
+    }
 }

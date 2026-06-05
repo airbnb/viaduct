@@ -2,4 +2,9 @@
 extend type Query {
   greeting: String @resolver
   author: String @resolver
+  greet(name: String!): String @resolver
+}
+
+extend type Mutation {
+  echo(message: String!): String @resolver
 }
