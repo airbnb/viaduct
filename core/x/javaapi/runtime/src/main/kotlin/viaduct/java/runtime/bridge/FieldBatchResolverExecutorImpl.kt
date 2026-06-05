@@ -111,13 +111,11 @@ class FieldBatchResolverExecutorImpl(
 
     private suspend fun createObjectValue(selector: FieldResolverExecutor.Selector): Any? {
         if (objectValueClass == null) return null
-        val syncGetter = selector.syncObjectValueGetter ?: return null
-        return convertSyncEngineDataToJavaObject(objectValueClass, syncGetter())
+        return convertSyncEngineDataToJavaObject(objectValueClass, selector.syncObjectValueGetter())
     }
 
     private suspend fun createQueryValue(selector: FieldResolverExecutor.Selector): Any? {
         if (queryValueClass == null) return null
-        val syncGetter = selector.syncQueryValueGetter ?: return null
-        return convertSyncEngineDataToJavaObject(queryValueClass, syncGetter())
+        return convertSyncEngineDataToJavaObject(queryValueClass, selector.syncQueryValueGetter())
     }
 }

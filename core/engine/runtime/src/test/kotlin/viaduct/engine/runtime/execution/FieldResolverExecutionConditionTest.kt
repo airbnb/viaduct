@@ -114,7 +114,7 @@ class FieldResolverExecutionConditionTest {
                     fn { selectors, _ ->
                         childResolverCallCount.incrementAndGet()
                         selectors.associateWith { selector ->
-                            Result.success((selector.objectValue.fetch("x") as Int) + 1)
+                            Result.success((selector.syncObjectValueGetter().get("x") as Int) + 1)
                         }
                     }
                 }

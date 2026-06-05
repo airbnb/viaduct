@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
@@ -47,15 +46,13 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val mockResolverMetadata = ResolverMetadata.forMock("mock-resolver")
 
             every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
-            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), any()) } returns "result"
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
 
             // When
             val result = testClass.resolve(
                 emptyMap(),
-                mockk(),
-                mockk(),
                 stubSyncObjectValue,
                 stubSyncQueryValue,
                 null,
@@ -81,12 +78,12 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val coordinate = "User" to "name"
 
             every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
-            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), any()) } returns "result"
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation, coordinate)
 
             // When
-            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
+            testClass.resolve(emptyMap(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
 
             // Then
             val executeContext = instrumentation.executeResolverContexts.first()
@@ -101,12 +98,12 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val instrumentation = RecordingResolverInstrumentation()
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
-            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), any()) } returns "result"
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
 
             // When
-            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
+            testClass.resolve(emptyMap(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
 
             // Then
             val executeContext = instrumentation.executeResolverContexts.first()
@@ -123,7 +120,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val exception = RuntimeException("test error")
 
             every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
-            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), any()) } throws exception
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } throws exception
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
 
@@ -131,8 +128,6 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val thrown = assertThrows<RuntimeException> {
                 testClass.resolve(
                     emptyMap(),
-                    mockk(),
-                    mockk(),
                     stubSyncObjectValue,
                     stubSyncQueryValue,
                     null,
@@ -147,33 +142,6 @@ internal class InstrumentedFieldResolverDispatcherTest {
             assertEquals(mockResolverMetadata, executeContext.parameters.resolverMetadata)
             assertNull(executeContext.result)
             assertSame(thrown, executeContext.error)
-        }
-
-    @Test
-    fun `resolve passes raw object and query values when shouldInstrumentFetchSelections is false`() =
-        runBlocking {
-            // Given
-            val mockDispatcher: FieldResolverDispatcher = mockk()
-            val rawObjectValue: EngineObjectData = mockk()
-            val rawQueryValue: EngineObjectData = mockk()
-            val capturedObjectValue = slot<EngineObjectData>()
-            val capturedQueryValue = slot<EngineObjectData>()
-
-            every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
-            coEvery {
-                mockDispatcher.resolve(any(), capture(capturedObjectValue), capture(capturedQueryValue), any(), any(), any(), any())
-            } returns "result"
-
-            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, ViaductResolverInstrumentation.DEFAULT)
-
-            // When
-            testClass.resolve(emptyMap(), rawObjectValue, rawQueryValue, stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
-
-            // Then — raw values passed through, not wrapped in InstrumentedEngineObjectData
-            assertSame(rawObjectValue, capturedObjectValue.captured)
-            assertSame(rawQueryValue, capturedQueryValue.captured)
-            assertFalse(capturedObjectValue.captured is InstrumentedEngineObjectData)
-            assertFalse(capturedQueryValue.captured is InstrumentedEngineObjectData)
         }
 
     @Test
@@ -192,8 +160,6 @@ internal class InstrumentedFieldResolverDispatcherTest {
             assertThrows<RuntimeException> {
                 testClass.resolve(
                     emptyMap(),
-                    mockk(),
-                    mockk(),
                     stubSyncObjectValue,
                     stubSyncQueryValue,
                     null,
@@ -214,7 +180,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
 
             every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
             coEvery {
-                mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), capture(capturedContext))
+                mockDispatcher.resolve(any(), any(), any(), any(), capture(capturedContext))
             } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
@@ -222,8 +188,6 @@ internal class InstrumentedFieldResolverDispatcherTest {
             // When
             testClass.resolve(
                 emptyMap(),
-                mockk(),
-                mockk(),
                 stubSyncObjectValue,
                 stubSyncQueryValue,
                 null,
@@ -238,37 +202,6 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve wraps objectValue in InstrumentedEngineObjectData`() =
-        runBlocking {
-            // Given
-            val mockDispatcher: FieldResolverDispatcher = mockk()
-            val instrumentation = RecordingResolverInstrumentation()
-            val rawObjectValue: EngineObjectData = mockk()
-            val capturedObjectValue = slot<EngineObjectData>()
-
-            every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
-            coEvery {
-                mockDispatcher.resolve(any(), capture(capturedObjectValue), any(), any(), any(), any(), any())
-            } returns "result"
-
-            val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
-
-            // When
-            testClass.resolve(
-                emptyMap(),
-                rawObjectValue,
-                mockk(),
-                stubSyncObjectValue,
-                stubSyncQueryValue,
-                null,
-                defaultContext
-            )
-
-            // Then
-            assertTrue(capturedObjectValue.captured is InstrumentedEngineObjectData)
-        }
-
-    @Test
     fun `resolve wraps context in InstrumentedEngineExecutionContext when shouldInstrumentFetchSelections is true`() =
         runBlocking {
             // Given
@@ -278,13 +211,13 @@ internal class InstrumentedFieldResolverDispatcherTest {
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
             coEvery {
-                mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), capture(capturedContext))
+                mockDispatcher.resolve(any(), any(), any(), any(), capture(capturedContext))
             } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
 
             // When
-            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
+            testClass.resolve(emptyMap(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
 
             // Then — the context passed to the inner dispatcher is wrapped in InstrumentedEngineExecutionContext
             assertInstanceOf(InstrumentedEngineExecutionContext::class.java, capturedContext.captured)
@@ -299,13 +232,13 @@ internal class InstrumentedFieldResolverDispatcherTest {
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
             coEvery {
-                mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), capture(capturedContext))
+                mockDispatcher.resolve(any(), any(), any(), any(), capture(capturedContext))
             } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, ViaductResolverInstrumentation.DEFAULT)
 
             // When
-            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
+            testClass.resolve(emptyMap(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
 
             // Then — context is a plain EngineExecutionContextImpl, not wrapped
             assertFalse(capturedContext.captured is InstrumentedEngineExecutionContext)
@@ -322,7 +255,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val expectedPath = ResultPath.parse("/Query/user")
 
             every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
-            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), any()) } returns "result"
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } returns "result"
 
             val mockExecutionStepInfo = mockk<ExecutionStepInfo>()
             every { mockExecutionStepInfo.path } returns expectedPath
@@ -333,7 +266,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
 
             // When
-            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, contextWithDfe)
+            testClass.resolve(emptyMap(), stubSyncObjectValue, stubSyncQueryValue, null, contextWithDfe)
 
             // Then
             val executeContext = instrumentation.executeResolverContexts.first()
@@ -348,13 +281,13 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val instrumentation = RecordingResolverInstrumentation()
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
-            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any(), any()) } returns "result"
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } returns "result"
 
             // defaultContext has no dataFetchingEnvironment set
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
 
             // When
-            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
+            testClass.resolve(emptyMap(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
 
             // Then
             val executeContext = instrumentation.executeResolverContexts.first()
@@ -371,13 +304,13 @@ internal class InstrumentedFieldResolverDispatcherTest {
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
             coEvery {
-                mockDispatcher.resolve(any(), any(), any(), capture(capturedSyncObjectGetter), any(), any(), any())
+                mockDispatcher.resolve(any(), capture(capturedSyncObjectGetter), any(), any(), any())
             } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
 
             // When
-            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
+            testClass.resolve(emptyMap(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
 
             // Then — sync getter returns InstrumentedEngineObjectData.Sync
             assertInstanceOf(InstrumentedEngineObjectData.Sync::class.java, capturedSyncObjectGetter.captured())
@@ -392,13 +325,13 @@ internal class InstrumentedFieldResolverDispatcherTest {
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
             coEvery {
-                mockDispatcher.resolve(any(), any(), any(), capture(capturedSyncObjectGetter), any(), any(), any())
+                mockDispatcher.resolve(any(), capture(capturedSyncObjectGetter), any(), any(), any())
             } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, ViaductResolverInstrumentation.DEFAULT)
 
             // When
-            testClass.resolve(emptyMap(), mockk(), mockk(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
+            testClass.resolve(emptyMap(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
 
             // Then — sync getter still returns InstrumentedEngineObjectData.Sync regardless of the debug gate
             assertInstanceOf(InstrumentedEngineObjectData.Sync::class.java, capturedSyncObjectGetter.captured())

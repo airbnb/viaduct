@@ -26,8 +26,6 @@ interface FieldResolverDispatcher {
 
     suspend fun resolve(
         arguments: Map<String, Any?>,
-        objectValue: EngineObjectData,
-        queryValue: EngineObjectData,
         syncObjectValueGetter: suspend () -> EngineObjectData.Sync,
         syncQueryValueGetter: suspend () -> EngineObjectData.Sync,
         selections: EngineSelectionSet?,

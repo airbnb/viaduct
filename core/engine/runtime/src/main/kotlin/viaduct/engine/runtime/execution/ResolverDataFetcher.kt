@@ -16,7 +16,6 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelecti
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FieldResolverDispatcher
 import viaduct.engine.runtime.ObjectEngineResult
-import viaduct.engine.runtime.ProxyEngineObjectData
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.context.findLocalContextForType
 import viaduct.engine.runtime.dfe.engineExecutionContext
@@ -30,13 +29,7 @@ class ResolverDataFetcher(
     private val tenantNameResolver: TenantNameResolver = TenantNameResolver(),
 ) : DataFetcher<CompletableFuture<*>> {
     companion object {
-        /**
-         * Data class to hold the resolver and query proxy engine object data.
-         * This is used to resolve the field in the resolver executor.
-         */
         private data class EngineObjectData(
-            val objectValue: ProxyEngineObjectData,
-            val queryValue: ProxyEngineObjectData,
             val syncObjectValueGetter: suspend () -> EngineObjectDataApi.Sync,
             val syncQueryValueGetter: suspend () -> EngineObjectDataApi.Sync,
         )
@@ -73,8 +66,8 @@ class ResolverDataFetcher(
     }
 
     /**
-     * Builds the objectValue and queryValue proxies for this resolver.
-     * It also picks the selection set each proxy should use for OER key lookups.
+     * Builds the sync object/query value getters for this resolver.
+     * It also picks the selection set each getter should use for OER key lookups.
      */
     private suspend fun getFieldResolverDispatcherEOD(
         localExecutionContext: EngineExecutionContext,
@@ -110,13 +103,6 @@ class ResolverDataFetcher(
         }
         val objectEngineSelectionSet = objectRssData?.first
         val objectOERSelections: ObjectEngineResult.Selections? = objectRssData?.second
-        val objectValue = ProxyEngineObjectData(
-            engineResults.parentResult,
-            objectErrorMessage,
-            objectEngineSelectionSet,
-            isResolverSelective,
-            objectOERSelections,
-        )
         val syncObjectValueGetter: suspend () -> EngineObjectDataApi.Sync = {
             SyncEngineObjectDataFactory.resolve(
                 engineResults.parentResult,
@@ -156,13 +142,6 @@ class ResolverDataFetcher(
         }
         val queryEngineSelectionSet = queryRssData?.first
         val queryOERSelections: ObjectEngineResult.Selections? = queryRssData?.second
-        val queryValue = ProxyEngineObjectData(
-            engineResults.queryResult,
-            queryErrorMessage,
-            queryEngineSelectionSet,
-            isResolverSelective,
-            queryOERSelections,
-        )
         val syncQueryValueGetter: suspend () -> EngineObjectDataApi.Sync = {
             SyncEngineObjectDataFactory.resolve(
                 engineResults.queryResult,
@@ -175,8 +154,6 @@ class ResolverDataFetcher(
         }
 
         return EngineObjectData(
-            objectValue = objectValue,
-            queryValue = queryValue,
             syncObjectValueGetter = syncObjectValueGetter,
             syncQueryValueGetter = syncQueryValueGetter,
         )
@@ -189,8 +166,6 @@ class ResolverDataFetcher(
         engineExecutionContext: EngineExecutionContext
     ) = fieldResolverDispatcher.resolve(
         environment.arguments,
-        engineObjectData.objectValue,
-        engineObjectData.queryValue,
         engineObjectData.syncObjectValueGetter,
         engineObjectData.syncQueryValueGetter,
         engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(environment),

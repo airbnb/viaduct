@@ -54,7 +54,7 @@ class FieldDataLoaderTest {
                         }
                         selectors.associateWith { selector ->
                             // Return the batch size to prove batching happened
-                            Result.success("name-${selector.objectValue.fetch("id")}-batch:${selectors.size}")
+                            Result.success("name-${selector.syncObjectValueGetter().get("id")}-batch:${selectors.size}")
                         }
                     }
                 }

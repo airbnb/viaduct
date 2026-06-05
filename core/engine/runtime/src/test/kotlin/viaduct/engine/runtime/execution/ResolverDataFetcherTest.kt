@@ -44,7 +44,7 @@ import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.FieldResolverDispatcherImpl
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
-import viaduct.engine.runtime.ProxyEngineObjectData
+import viaduct.engine.runtime.SyncProxyEngineObjectData
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.context.getLocalContextForType
@@ -231,6 +231,8 @@ class ResolverDataFetcherTest {
                     ),
                     flagManager = allDisabledFlags
                 ).apply {
+                    engineResultLocalContext.parentEngineResult.putResolvedValue("testField", expectedResult)
+
                     val receivedResult = resolverDataFetcher.get(dataFetchingEnvironment).join()
                     assertEquals(expectedResult, receivedResult)
 
@@ -241,7 +243,7 @@ class ResolverDataFetcherTest {
         }
 
     @Test
-    fun `test sync value getter passes ProxyEngineObjectData as objectValue to resolver`(): Unit =
+    fun `test sync value getter passes SyncProxyEngineObjectData as objectValue to resolver`(): Unit =
         runBlocking(Dispatchers.Default) {
             withThreadLocalCoroutineContext {
                 Fixture(
@@ -275,7 +277,7 @@ class ResolverDataFetcherTest {
                     val receivedResult = resolverDataFetcher.get(dataFetchingEnvironment).join()
                     assertEquals(expectedResult, receivedResult)
                     assertTrue(resolverRan)
-                    assertTrue(lastReceivedObjectValue is ProxyEngineObjectData)
+                    assertTrue(lastReceivedObjectValue is SyncProxyEngineObjectData)
                 }
             }
         }
@@ -304,6 +306,15 @@ class ResolverDataFetcherTest {
                             },
                         flagManager = flags
                     ).apply {
+                        every { dataFetchingEnvironment.arguments } returns mapOf("id" to 1)
+                        val bazResult = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Baz")!!)
+                        bazResult.putResolvedInt("x", 123)
+                        engineResultLocalContext.parentEngineResult.putResolvedObject(
+                            fieldName = "baz",
+                            value = bazResult,
+                            arguments = mapOf("id" to 1),
+                        )
+
                         val receivedResult = resolverDataFetcher.get(dataFetchingEnvironment).join()
                         assertEquals(expectedResult, receivedResult)
 
@@ -391,19 +402,21 @@ class ResolverDataFetcherTest {
         assertTrue(projectedSelections is ProjectedEngineSelectionSet)
 
         val sourceSelections = (projectedSelections as ProjectedEngineSelectionSet).sourceImpl
-        val objectValue = mockk<EngineObjectData>()
-        val queryValue = mockk<EngineObjectData>()
+        val objectValue = mockk<EngineObjectData.Sync>()
+        val queryValue = mockk<EngineObjectData.Sync>()
+        val sharedObjectGetter: suspend () -> EngineObjectData.Sync = { objectValue }
+        val sharedQueryGetter: suspend () -> EngineObjectData.Sync = { queryValue }
         val selector = FieldResolverExecutor.Selector(
             arguments = mapOf("arg1" to "param1"),
-            objectValue = objectValue,
-            queryValue = queryValue,
-            selections = sourceSelections
+            selections = sourceSelections,
+            syncObjectValueGetter = sharedObjectGetter,
+            syncQueryValueGetter = sharedQueryGetter,
         )
         val other = FieldResolverExecutor.Selector(
             arguments = mapOf("arg1" to "param1"),
-            objectValue = objectValue,
-            queryValue = queryValue,
-            selections = projectedSelections
+            selections = projectedSelections,
+            syncObjectValueGetter = sharedObjectGetter,
+            syncQueryValueGetter = sharedQueryGetter,
         )
 
         assertEquals(selector, other)
@@ -438,6 +451,12 @@ private fun ObjectEngineResultImpl.putResolvedInt(
     fieldName: String,
     value: Int,
     arguments: Map<String, Any?> = emptyMap(),
+) = putResolvedValue(fieldName, value, arguments)
+
+private fun ObjectEngineResultImpl.putResolvedValue(
+    fieldName: String,
+    value: Any?,
+    arguments: Map<String, Any?> = emptyMap(),
 ) {
     computeIfAbsent(ObjectEngineResult.Key(fieldName, fieldName, arguments)) { setter ->
         setter.set(
@@ -455,3 +474,9 @@ private fun ObjectEngineResultImpl.putResolvedInt(
         setter.set(ObjectEngineResultImpl.ACCESS_CHECK_SLOT, Value.fromValue(null))
     }
 }
+
+private fun ObjectEngineResultImpl.putResolvedObject(
+    fieldName: String,
+    value: ObjectEngineResultImpl,
+    arguments: Map<String, Any?> = emptyMap(),
+) = putResolvedValue(fieldName, value, arguments)

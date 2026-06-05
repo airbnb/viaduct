@@ -108,10 +108,11 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
 
                 arb.forAll { (weight, instr) ->
-                    val selector = instr.resolver("Query" to "x").recorder.singleEntry().arg.selector
+                    val params = instr.recorder.log
+                        .first { it.arg.coordinate == ("Query" to "x") }
+                        .arg
 
-                    val hasRequiredSelections = selector.objectValue.fetchSelections().toList().isNotEmpty() ||
-                        selector.queryValue.fetchSelections().toList().isNotEmpty()
+                    val hasRequiredSelections = params.objectSelectionSet != null || params.querySelectionSet != null
 
                     (weight.weight == 1.0) == hasRequiredSelections
                 }

@@ -59,8 +59,8 @@ typealias NodeBatchResolverFn = suspend (selectors: List<NodeResolverExecutor.Se
 typealias NodeUnbatchedResolverFn = suspend (id: String, selections: EngineSelectionSet?, context: EngineExecutionContext) -> EngineObjectData
 typealias FieldUnbatchedResolverFn = suspend (
     arguments: Map<String, Any?>,
-    objectValue: EngineObjectData,
-    queryValue: EngineObjectData,
+    objectValue: EngineObjectData.Sync,
+    queryValue: EngineObjectData.Sync,
     selections: EngineSelectionSet?,
     context: EngineExecutionContext
 ) -> Any?
@@ -173,7 +173,7 @@ open class MockFieldUnbatchedResolverExecutor(
     ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
         require(selectors.size == 1) { "Unbatched resolver should only receive single selector, got {}".format(selectors.size) }
         val selector = selectors.first()
-        return mapOf(selector to runCatching { unbatchedResolveFn(selector.arguments, selector.objectValue, selector.queryValue, selector.selections, context) })
+        return mapOf(selector to runCatching { unbatchedResolveFn(selector.arguments, selector.syncObjectValueGetter(), selector.syncQueryValueGetter(), selector.selections, context) })
     }
 
     companion object {
@@ -214,11 +214,13 @@ fun FieldResolverExecutor.invoke(
     selections: EngineSelectionSet? = null,
     context: EngineExecutionContext = ContextMocks(fullSchema).engineExecutionContext,
 ) = runBlocking(MockNextTickDispatcher(testScheduler, internalDispatcher)) {
+    val objectData = createEngineObjectData(fullSchema.schema.getObjectType(coord.first), objectValue)
+    val queryData = createEngineObjectData(fullSchema.schema.queryType, queryValue)
     val selector = FieldResolverExecutor.Selector(
         arguments = arguments,
-        objectValue = createEngineObjectData(fullSchema.schema.getObjectType(coord.first), objectValue),
-        queryValue = createEngineObjectData(fullSchema.schema.queryType, queryValue),
         selections = selections,
+        syncObjectValueGetter = { objectData },
+        syncQueryValueGetter = { queryData },
     )
     batchResolve(listOf(selector), context)[selector]?.getOrNull()
 }

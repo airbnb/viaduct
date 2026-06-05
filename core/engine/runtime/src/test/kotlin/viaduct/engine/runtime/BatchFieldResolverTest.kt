@@ -47,7 +47,7 @@ class BatchFieldResolverTest {
                     objectSelections("x")
                     fn { selectors, _ ->
                         selectors.associateWith { selector ->
-                            Result.success(selector.objectValue.fetch("x") as Int + 1)
+                            Result.success(selector.syncObjectValueGetter().get("x") as Int + 1)
                         }
                     }
                 }
@@ -151,7 +151,7 @@ class BatchFieldResolverTest {
                     objectSelections("x")
                     fn { selectors, _ ->
                         selectors.associateWith { selector ->
-                            val x = selector.objectValue.fetch("x") as Int
+                            val x = selector.syncObjectValueGetter().get("x") as Int
                             if (x % 2 == 0) {
                                 Result.failure(IllegalArgumentException("Even idx for item: $x"))
                             } else {
@@ -206,7 +206,7 @@ class BatchFieldResolverTest {
                     fn { selectors, _ ->
                         selectors.associateWith { selector ->
                             execCounts.computeIfAbsent(resolverId) { AtomicInteger(0) }.incrementAndGet()
-                            val x = selector.objectValue.fetch("x") as Int
+                            val x = selector.syncObjectValueGetter().get("x") as Int
                             Result.success(x)
                         }
                     }

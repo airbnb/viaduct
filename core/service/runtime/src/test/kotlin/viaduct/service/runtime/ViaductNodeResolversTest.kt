@@ -314,9 +314,9 @@ class ViaductNodeResolversTest {
 
             val mockSelector = FieldResolverExecutor.Selector(
                 arguments = mapOf("id" to 123), // Non-string id
-                objectValue = createEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap()),
-                queryValue = createEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap()),
-                selections = null
+                selections = null,
+                syncObjectValueGetter = { createEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap()) },
+                syncQueryValueGetter = { createEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap()) }
             )
 
             runBlocking {
@@ -333,9 +333,9 @@ class ViaductNodeResolversTest {
 
             val mockSelector = FieldResolverExecutor.Selector(
                 arguments = mapOf("ids" to "123"), // Non-list ids
-                objectValue = createEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap()),
-                queryValue = createEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap()),
-                selections = null
+                selections = null,
+                syncObjectValueGetter = { createEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap()) },
+                syncQueryValueGetter = { createEngineObjectData(MockSchema.minimal.schema.queryType, emptyMap()) }
             )
 
             runBlocking {

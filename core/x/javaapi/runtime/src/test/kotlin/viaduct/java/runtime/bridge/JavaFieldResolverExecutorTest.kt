@@ -31,17 +31,17 @@ class JavaFieldResolverExecutorTest {
             )
 
             // Create mock selector and context
-            val mockObjectValue = mockk<EngineObjectData>()
-            val mockQueryValue = mockk<EngineObjectData>()
+            val mockObjectValue = mockk<EngineObjectData.Sync>()
+            val mockQueryValue = mockk<EngineObjectData.Sync>()
             val mockEngineContext = mockk<EngineExecutionContext> {
                 every { requestContext } returns null
             }
 
             val selector = FieldResolverExecutor.Selector(
                 arguments = emptyMap(),
-                objectValue = mockObjectValue,
-                queryValue = mockQueryValue,
-                selections = null
+                selections = null,
+                syncObjectValueGetter = { mockObjectValue },
+                syncQueryValueGetter = { mockQueryValue }
             )
 
             // Execute
@@ -84,17 +84,17 @@ class JavaFieldResolverExecutorTest {
                 resolverName = "FailingResolver"
             )
 
-            val mockObjectValue = mockk<EngineObjectData>()
-            val mockQueryValue = mockk<EngineObjectData>()
+            val mockObjectValue = mockk<EngineObjectData.Sync>()
+            val mockQueryValue = mockk<EngineObjectData.Sync>()
             val mockEngineContext = mockk<EngineExecutionContext> {
                 every { requestContext } returns null
             }
 
             val selector = FieldResolverExecutor.Selector(
                 arguments = emptyMap(),
-                objectValue = mockObjectValue,
-                queryValue = mockQueryValue,
-                selections = null
+                selections = null,
+                syncObjectValueGetter = { mockObjectValue },
+                syncQueryValueGetter = { mockQueryValue }
             )
 
             val results = executor.batchResolve(listOf(selector), mockEngineContext)
@@ -119,17 +119,17 @@ class JavaFieldResolverExecutorTest {
             resolverName = "CancelledResolver"
         )
 
-        val mockObjectValue = mockk<EngineObjectData>()
-        val mockQueryValue = mockk<EngineObjectData>()
+        val mockObjectValue = mockk<EngineObjectData.Sync>()
+        val mockQueryValue = mockk<EngineObjectData.Sync>()
         val mockEngineContext = mockk<EngineExecutionContext> {
             every { requestContext } returns null
         }
 
         val selector = FieldResolverExecutor.Selector(
             arguments = emptyMap(),
-            objectValue = mockObjectValue,
-            queryValue = mockQueryValue,
-            selections = null
+            selections = null,
+            syncObjectValueGetter = { mockObjectValue },
+            syncQueryValueGetter = { mockQueryValue }
         )
 
         assertThrows<CancellationException> {

@@ -13,7 +13,6 @@ import viaduct.api.ResolverBase
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -111,9 +110,9 @@ class BatchResolverExecutorTest {
     private fun createFieldSelector(): FieldResolverExecutor.Selector =
         FieldResolverExecutor.Selector(
             arguments = emptyMap(),
-            objectValue = mockk<EngineObjectData>(relaxed = true),
-            queryValue = mockk<EngineObjectData>(relaxed = true),
             selections = null,
+            syncObjectValueGetter = { mockk(relaxed = true) },
+            syncQueryValueGetter = { mockk(relaxed = true) },
         )
 
     private fun createExecutionContext(): EngineExecutionContext =

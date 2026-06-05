@@ -34,8 +34,6 @@ class InstrumentedFieldResolverDispatcher(
 
     override suspend fun resolve(
         arguments: Map<String, Any?>,
-        objectValue: EngineObjectData,
-        queryValue: EngineObjectData,
         syncObjectValueGetter: suspend () -> EngineObjectData.Sync,
         syncQueryValueGetter: suspend () -> EngineObjectData.Sync,
         selections: EngineSelectionSet?,
@@ -51,15 +49,11 @@ class InstrumentedFieldResolverDispatcher(
         )
 
         val wrapFetchSelections = instrumentation.shouldInstrumentFetchSelections(state)
-        // Lazy object/query values are wrapped with InstrumentedEngineObjectData when
-        // shouldInstrumentFetchSelections is true (debug / opt-in feature flag).
-        // Sync getters are always wrapped with InstrumentedEngineObjectData.Sync so that
-        // instrumentReadSelection fires for every field read — independent of the debug gate.
+        // Sync getters are wrapped with InstrumentedEngineObjectData.Sync so that
+        // instrumentFetchSelection fires for every field read.
         // The withContext(ResolverInstrumentationContext) around the getter is scoped to
         // shouldInstrumentFetchSelections so that SyncEngineObjectDataFactory fires
         // instrumentFetchSelection during pre-resolution only when that path is enabled.
-        val resolvedObjectValue = if (wrapFetchSelections) InstrumentedEngineObjectData(objectValue, instrumentation, state) else objectValue
-        val resolvedQueryValue = if (wrapFetchSelections) InstrumentedEngineObjectData(queryValue, instrumentation, state) else queryValue
         val instrumentationContext = ResolverInstrumentationContext(instrumentation, state)
         val resolvedSyncObjectGetter: suspend () -> EngineObjectData.Sync = {
             val syncData = if (wrapFetchSelections) {
@@ -92,8 +86,6 @@ class InstrumentedFieldResolverDispatcher(
             ResolverFunction {
                 dispatcher.resolve(
                     arguments,
-                    resolvedObjectValue,
-                    resolvedQueryValue,
                     resolvedSyncObjectGetter,
                     resolvedSyncQueryGetter,
                     selections,

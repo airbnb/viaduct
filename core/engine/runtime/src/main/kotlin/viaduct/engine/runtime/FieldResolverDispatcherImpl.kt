@@ -33,8 +33,6 @@ class FieldResolverDispatcherImpl(
 
     override suspend fun resolve(
         arguments: Map<String, Any?>,
-        objectValue: EngineObjectData,
-        queryValue: EngineObjectData,
         syncObjectValueGetter: suspend () -> EngineObjectData.Sync,
         syncQueryValueGetter: suspend () -> EngineObjectData.Sync,
         selections: EngineSelectionSet?,
@@ -45,8 +43,6 @@ class FieldResolverDispatcherImpl(
 
         val selector = FieldResolverExecutor.Selector(
             arguments = arguments,
-            objectValue = objectValue,
-            queryValue = queryValue,
             selections = selections,
             syncObjectValueGetter = syncObjectValueGetter,
             syncQueryValueGetter = syncQueryValueGetter,

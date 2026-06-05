@@ -114,9 +114,9 @@ class FieldBatchResolverExecutorImplTest {
     private fun selector(): FieldResolverExecutor.Selector =
         FieldResolverExecutor.Selector(
             arguments = emptyMap(),
-            objectValue = objectData,
-            queryValue = objectData,
             selections = null,
+            syncObjectValueGetter = { objectData },
+            syncQueryValueGetter = { objectData },
         )
 
     class TestBatchResolver(

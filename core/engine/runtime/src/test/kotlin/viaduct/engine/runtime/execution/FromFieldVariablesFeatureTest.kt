@@ -468,7 +468,9 @@ class FromFieldVariablesFeatureTest {
             }
             fieldWithValue("Query" to "z", true)
         }.runFeatureTest {
-            runQuery("{x}").assertJson("{data: {x: \"UnsetFieldException\"}}")
+            // Sync path returns null for conditionally-excluded keys (@skip); fetchAs<Boolean>
+            // on a null value throws NullPointerException rather than UnsetFieldException.
+            runQuery("{x}").assertJson("{data: {x: \"NullPointerException\"}}")
         }
 
         assertFalse(yResolved)

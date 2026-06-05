@@ -121,9 +121,7 @@ class JavaFieldResolverExecutorImpl(
      */
     private suspend fun createQueryValue(selector: FieldResolverExecutor.Selector): Any? {
         if (queryValueClass == null) return null
-        val syncGetter = selector.syncQueryValueGetter ?: return null
-        val syncData = syncGetter()
-        return convertSyncEngineDataToJavaObject(queryValueClass, syncData)
+        return convertSyncEngineDataToJavaObject(queryValueClass, selector.syncQueryValueGetter())
     }
 
     /**
@@ -138,9 +136,7 @@ class JavaFieldResolverExecutorImpl(
      */
     private suspend fun createObjectValue(selector: FieldResolverExecutor.Selector): Any? {
         if (objectValueClass == null) return null
-        val syncGetter = selector.syncObjectValueGetter ?: return null
-        val syncData = syncGetter()
-        return convertSyncEngineDataToJavaObject(objectValueClass, syncData)
+        return convertSyncEngineDataToJavaObject(objectValueClass, selector.syncObjectValueGetter())
     }
 
     /**

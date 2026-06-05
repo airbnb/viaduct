@@ -186,8 +186,6 @@ class MockLegacyTenantModuleBootstrapperDSLTest {
         runBlocking {
             val result = reg.getFieldResolverDispatcher("TestType", "aField")!!.resolve(
                 emptyArgs,
-                testObject,
-                testQuery,
                 { testObject },
                 { testQuery },
                 null,
@@ -224,8 +222,6 @@ class MockLegacyTenantModuleBootstrapperDSLTest {
         runBlocking {
             val result = reg.getFieldResolverDispatcher("TestType", "aField")!!.resolve(
                 mapOf("input" to "test-input"),
-                testObject,
-                testQuery,
                 { testObject },
                 { testQuery },
                 null,
@@ -411,8 +407,6 @@ class MockLegacyTenantModuleBootstrapperDSLTest {
         runBlocking {
             val result = reg.getFieldResolverDispatcher("TestType", "aField")!!.resolve(
                 emptyArgs,
-                testObject,
-                testQuery,
                 { testObject },
                 { testQuery },
                 null,

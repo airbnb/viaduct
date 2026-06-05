@@ -191,10 +191,10 @@ fun interface FieldResolver {
                 ): Any? {
                     if (params.exerciseRequiredSelections) {
                         params.objectSelectionSet?.also { rss ->
-                            EngineDataExerciser.exercise(selector.objectValue, ctx, rss)
+                            EngineDataExerciser.exercise(selector.syncObjectValueGetter(), ctx, rss)
                         }
                         params.querySelectionSet?.also { rss ->
-                            EngineDataExerciser.exercise(selector.queryValue, ctx, rss)
+                            EngineDataExerciser.exercise(selector.syncQueryValueGetter(), ctx, rss)
                         }
                     }
 
