@@ -27,11 +27,16 @@ Notes:
     object with `id` (SPDX), a license object with `name` (non-SPDX), or an SPDX
     `expression`. All three are handled; the bulky embedded license `text` is
     ignored.
+  - With multiple scan dirs, SBOMs are de-duplicated by file path (so passing a
+    parent dir and a nested module dir doesn't double-count), and a module name
+    found in more than one root is qualified with its scan root so same-named
+    modules stay distinct instead of overwriting each other.
 """
 
 import json
 import os
 import sys
+from collections import Counter
 
 
 def find_sbom_reports(scan_dir):
@@ -102,27 +107,53 @@ def format_component_table(rows):
 
 
 def format_summary(scan_dirs):
-    reports = []
+    # Collect one record per SBOM, keyed by absolute path — NOT by module name.
+    # De-duping by path means a file reached via overlapping roots (e.g. a parent
+    # dir and a nested module dir) is summarized once; keeping records in a list
+    # means same-named modules from different roots don't overwrite each other
+    # (which would silently drop components and skew the total).
+    records = []  # each: {module, path, scan_dir, label, rows, error}
+    seen_paths = set()
     for d in scan_dirs:
-        if os.path.isdir(d):
-            reports.extend(find_sbom_reports(d))
+        if not os.path.isdir(d):
+            continue
+        for module, path in find_sbom_reports(d):
+            abs_path = os.path.abspath(path)
+            if abs_path in seen_paths:
+                continue
+            seen_paths.add(abs_path)
+            records.append({"module": module, "path": path, "scan_dir": d})
 
-    if not reports:
+    if not records:
         return "⚠️ No SBOM reports found (build/reports/sbom/cyclonedx.json)."
 
-    # Parse each module once; remember failures so the overview can flag them.
-    parsed = {}  # module -> sorted rows
-    failed = {}  # module -> error message
-    for module, path in sorted(reports):
+    # If a module name maps to more than one distinct file (i.e. two scan roots),
+    # qualify each colliding label with its scan root so the sections stay
+    # distinct. Unique names keep their bare label, so single-directory output
+    # (the CI path) is unchanged.
+    name_counts = Counter(r["module"] for r in records)
+    for r in records:
+        r["label"] = (
+            f"{r['module']} ({r['scan_dir']})"
+            if name_counts[r["module"]] > 1
+            else r["module"]
+        )
+
+    # Parse each SBOM; attach its rows or a parse error to the record.
+    for r in records:
         try:
-            components = load_components(path)
-            rows = sorted(
+            components = load_components(r["path"])
+            r["rows"] = sorted(
                 (component_row(c) for c in components),
-                key=lambda r: (r[0].lower(), r[1]),
+                key=lambda row: (row[0].lower(), row[1]),
             )
-            parsed[module] = rows
+            r["error"] = None
         except (OSError, ValueError) as err:
-            failed[module] = str(err)
+            r["rows"] = None
+            r["error"] = str(err)
+
+    ok = sorted((r for r in records if r["error"] is None), key=lambda r: r["label"])
+    bad = sorted((r for r in records if r["error"] is not None), key=lambda r: r["label"])
 
     lines = ["### SBOM: fat JAR contents", ""]
     lines.append(
@@ -136,20 +167,19 @@ def format_summary(scan_dirs):
     lines.append("| Publication | Components |")
     lines.append("|---|---:|")
     total = 0
-    for module in sorted(parsed):
-        count = len(parsed[module])
-        total += count
-        lines.append(f"| `{module}` | {count} |")
-    for module in sorted(failed):
-        lines.append(f"| `{module}` | ⚠️ unreadable |")
+    for r in ok:
+        total += len(r["rows"])
+        lines.append(f"| `{r['label']}` | {len(r['rows'])} |")
+    for r in bad:
+        lines.append(f"| `{r['label']}` | ⚠️ unreadable |")
     lines.append(f"| **Total** | {total} |")
     lines.append("")
 
     # Per-publication detail.
-    for module in sorted(parsed):
-        rows = parsed[module]
+    for r in ok:
+        rows = r["rows"]
         lines.append("<details>")
-        lines.append(f"<summary>{module} — {len(rows)} components</summary>")
+        lines.append(f"<summary>{r['label']} — {len(rows)} components</summary>")
         lines.append("")
         if rows:
             lines.append(format_component_table(rows))
@@ -159,11 +189,11 @@ def format_summary(scan_dirs):
         lines.append("</details>")
         lines.append("")
 
-    for module in sorted(failed):
+    for r in bad:
         lines.append("<details>")
-        lines.append(f"<summary>{module} — ⚠️ unreadable</summary>")
+        lines.append(f"<summary>{r['label']} — ⚠️ unreadable</summary>")
         lines.append("")
-        lines.append(f"Could not parse SBOM: {failed[module]}")
+        lines.append(f"Could not parse SBOM: {r['error']}")
         lines.append("")
         lines.append("</details>")
         lines.append("")

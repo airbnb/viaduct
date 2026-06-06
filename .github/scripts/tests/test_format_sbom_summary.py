@@ -236,6 +236,52 @@ class TestFormatSummaryBehavior(unittest.TestCase):
         self.assertIn("Could not parse SBOM", result)
 
 
+class TestFormatSummaryMultiRoot(unittest.TestCase):
+
+    def test_same_name_across_roots_no_data_loss(self):
+        # Two scan roots that each contain a DISTINCT module named `api`.
+        root_a = tempfile.mkdtemp()
+        root_b = tempfile.mkdtemp()
+        _write_sbom(
+            root_a,
+            "api",
+            [{"group": "g", "name": "only-in-a", "version": "1", "licenses": []}],
+        )
+        _write_sbom(
+            root_b,
+            "api",
+            [
+                {"group": "g", "name": "only-in-b", "version": "2", "licenses": []},
+                {"group": "g", "name": "also-in-b", "version": "3", "licenses": []},
+            ],
+        )
+        result = format_summary([root_a, root_b])
+        # No data loss: components from BOTH api's are present...
+        self.assertIn("`g:only-in-a`", result)
+        self.assertIn("`g:only-in-b`", result)
+        self.assertIn("`g:also-in-b`", result)
+        # ...and the total sums both rather than collapsing to one `api`.
+        self.assertIn("| **Total** | 3 |", result)
+        # Colliding labels are disambiguated by their scan root.
+        self.assertIn(f"api ({root_a})", result)
+        self.assertIn(f"api ({root_b})", result)
+
+    def test_overlapping_roots_dedupe_same_file(self):
+        # A parent dir and one of its nested module dirs resolve to the SAME file.
+        parent = tempfile.mkdtemp()
+        _write_sbom(
+            parent,
+            "api",
+            [{"group": "g", "name": "n", "version": "1", "licenses": []}],
+        )
+        nested = os.path.join(parent, "api")
+        result = format_summary([parent, nested])
+        # Counted exactly once (path de-dupe), not doubled, not disambiguated.
+        self.assertIn("| **Total** | 1 |", result)
+        self.assertEqual(result.count("<summary>api"), 1)
+        self.assertIn("<summary>api — 1 components</summary>", result)
+
+
 class TestMain(unittest.TestCase):
 
     def test_usage_error_without_args(self):
