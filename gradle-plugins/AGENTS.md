@@ -24,6 +24,6 @@ Included builds under `execution-tests/` contain small Viaduct projects used to 
 - `one-project` - a single Gradle project containing both the application and module plugins
 - `two-project` - two Gradle projects separating the application and module plugins
 
-These builds exercise task-execution paths of the plugins, including codegen execution and `serve` behavior.
+These builds exercise task-execution paths of the plugins, including codegen execution and schema assembly behavior.
 
 Note that the demoapps represent an additional source of task-execution testing.  The execution tests here are a deliberately designed test suite; the demoapps supplement that with less surgical, real-worldish test cases.

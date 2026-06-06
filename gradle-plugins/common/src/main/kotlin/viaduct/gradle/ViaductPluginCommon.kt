@@ -1,6 +1,7 @@
 package viaduct.gradle
 
 import java.util.Properties
+import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.attributes.Attribute
@@ -11,6 +12,10 @@ import org.jetbrains.gradle.ext.taskTriggers
 import viaduct.gradle.shared.BuildFlags
 
 object ViaductPluginCommon {
+    val APPLICATION_PLUGIN_IDS = listOf(
+        "com.airbnb.viaduct.application-gradle-plugin",
+    )
+
     val VIADUCT_KIND: Attribute<String> =
         Attribute.of("viaduct.kind", String::class.java)
 
@@ -121,4 +126,30 @@ object ViaductPluginCommon {
      * Generates the content for a Viaduct build flags file in .bzl format.
      */
     fun buildFlagFileContent(flags: Map<String, String>): String = BuildFlags.toFileContent(flags)
+
+    fun Project.findContainingViaductApplicationProject(): Project? =
+        generateSequence(this) { it.parent }
+            .firstOrNull { candidate -> candidate.hasViaductApplicationPlugin() }
+
+    fun Project.requireContainingViaductApplicationProject(modulePluginId: String): Project =
+        findContainingViaductApplicationProject()
+            ?: throw GradleException(
+                "Apply one of ${APPLICATION_PLUGIN_IDS.joinToString(", ") { "'$it'" }} " +
+                    "to this project or an ancestor project before applying '$modulePluginId'.",
+            )
+
+    fun Project.validateApplicationProjectPlacement() {
+        val containingAncestor = parent?.findContainingViaductApplicationProject()
+        if (containingAncestor != null) {
+            throw GradleException(
+                "Project ${prettyPath()} cannot apply 'com.airbnb.viaduct.application-gradle-plugin' " +
+                    "because ancestor ${containingAncestor.prettyPath()} is already the containing " +
+                    "Viaduct application project for this subtree.",
+            )
+        }
+    }
+
+    fun Project.hasViaductApplicationPlugin(): Boolean = APPLICATION_PLUGIN_IDS.any { pluginId -> plugins.hasPlugin(pluginId) }
+
+    fun Project.prettyPath(): String = if (path == ":") ": (root)" else path
 }

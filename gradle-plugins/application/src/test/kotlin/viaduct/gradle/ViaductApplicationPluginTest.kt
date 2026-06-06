@@ -5,10 +5,12 @@ import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import viaduct.gradle.task.AssembleCentralSchemaTask
 
@@ -43,6 +45,67 @@ class ViaductApplicationPluginTest {
     fun `task should be created successfully`() {
         assertNotNull(task)
         assertTrue(task is AssembleCentralSchemaTask)
+    }
+
+    @Test
+    fun `application plugin can be applied to a non-root project`() {
+        val rootDir = tempDir.resolve("root").toFile().apply { mkdirs() }
+        val appDir = tempDir.resolve("root/app").toFile().apply { mkdirs() }
+
+        val root = ProjectBuilder.builder()
+            .withName("root")
+            .withProjectDir(rootDir)
+            .build()
+        root.pluginManager.apply("java-library")
+
+        val appProject = ProjectBuilder.builder()
+            .withName("app")
+            .withParent(root)
+            .withProjectDir(appDir)
+            .build()
+        appProject.pluginManager.apply("java-library")
+
+        appProject.pluginManager.apply(ViaductApplicationPlugin::class.java)
+
+        assertNotNull(appProject.extensions.findByType(ViaductApplicationExtension::class.java))
+    }
+
+    @Test
+    fun `application plugin rejects nested application projects`() {
+        val rootDir = tempDir.resolve("tree").toFile().apply { mkdirs() }
+        val appDir = tempDir.resolve("tree/app").toFile().apply { mkdirs() }
+        val nestedDir = tempDir.resolve("tree/app/nested").toFile().apply { mkdirs() }
+
+        val root = ProjectBuilder.builder()
+            .withName("root")
+            .withProjectDir(rootDir)
+            .build()
+        root.pluginManager.apply("java-library")
+
+        val appProject = ProjectBuilder.builder()
+            .withName("app")
+            .withParent(root)
+            .withProjectDir(appDir)
+            .build()
+        appProject.pluginManager.apply("java-library")
+
+        val nestedProject = ProjectBuilder.builder()
+            .withName("nested")
+            .withParent(appProject)
+            .withProjectDir(nestedDir)
+            .build()
+        nestedProject.pluginManager.apply("java-library")
+
+        appProject.pluginManager.apply(ViaductApplicationPlugin::class.java)
+
+        val ex = assertThrows<GradleException> {
+            nestedProject.pluginManager.apply(ViaductApplicationPlugin::class.java)
+        }
+        val allMessages = generateSequence(ex as Throwable?) { it.cause }
+            .mapNotNull { it.message }
+            .joinToString("\n")
+        assertTrue(allMessages.contains(":app"))
+        assertTrue(allMessages.contains("containing Viaduct application project"))
     }
 
     @Test
