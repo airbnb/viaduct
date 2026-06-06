@@ -88,6 +88,80 @@ class ViaductModulePluginFunctionalTest {
     }
 
     @Test
+    fun `module resolves schema and grt dependencies from nearest application ancestor`() {
+        File(projectDir, "settings.gradle.kts").writeText(
+            """
+            rootProject.name = "test"
+            include("app")
+            include("app:mymodule")
+            """.trimIndent()
+        )
+        File(projectDir, "build.gradle.kts").writeText("")
+
+        val appDir = File(projectDir, "app").also { it.mkdirs() }
+        File(appDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                `java-library`
+                id("com.airbnb.viaduct.application-gradle-plugin")
+            }
+            viaductApplication {
+                modulePackagePrefix.set("com.example.test")
+            }
+            """.trimIndent()
+        )
+
+        val moduleDir = File(projectDir, "app/mymodule").also { it.mkdirs() }
+        File(moduleDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                `java-library`
+                kotlin("jvm")
+                id("com.airbnb.viaduct.module-gradle-plugin")
+                id("com.google.devtools.ksp")
+            }
+            viaductModule {
+                modulePackageSuffix.set("mymodule")
+            }
+
+            tasks.register("printViaductApplicationAnchor") {
+                doLast {
+                    val projectDependencyType = org.gradle.api.artifacts.ProjectDependency::class.java
+                    val centralSchemaProject =
+                        configurations.getByName("viaductCentralSchemaIn")
+                            .dependencies
+                            .withType(projectDependencyType)
+                            .single()
+                            .dependencyProject
+                            .path
+                    val grtProject =
+                        configurations.getByName("viaductKotlinGRTClassesIn")
+                            .dependencies
+                            .withType(projectDependencyType)
+                            .single()
+                            .dependencyProject
+                            .path
+
+                    println("CENTRAL_SCHEMA_PROJECT=${'$'}centralSchemaProject")
+                    println("KOTLIN_GRT_PROJECT=${'$'}grtProject")
+                }
+            }
+            """.trimIndent()
+        )
+        val schemaDir = File(moduleDir, "src/main/viaduct/schema").also { it.mkdirs() }
+        File(schemaDir, "schema.graphqls").writeText("type Query { field: String }")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withPluginClasspath(combinedPluginClasspath())
+            .withArguments(":app:mymodule:printViaductApplicationAnchor")
+            .build()
+
+        assertTrue(result.output.contains("CENTRAL_SCHEMA_PROJECT=:app"), "Expected central schema dependency to target ':app'")
+        assertTrue(result.output.contains("KOTLIN_GRT_PROJECT=:app"), "Expected Kotlin GRT dependency to target ':app'")
+    }
+
+    @Test
     fun `missing modulePackagePrefix fails with clear message`() {
         File(projectDir, "settings.gradle.kts").writeText(
             """

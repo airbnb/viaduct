@@ -20,6 +20,7 @@ import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.createOrGetJavaCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.createOrGetJavaGRTCompileClasspath
 import viaduct.gradle.ViaductPluginCommon.pluginVersion
+import viaduct.gradle.ViaductPluginCommon.validateApplicationProjectPlacement
 import viaduct.gradle.task.AssembleCentralSchemaTask
 import viaduct.gradle.task.GenerateGRTClassFilesTask
 import viaduct.gradle.task.GenerateJavaGRTSourcesTask
@@ -27,9 +28,7 @@ import viaduct.gradle.task.GenerateJavaGRTSourcesTask
 abstract class ViaductApplicationPlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
-            require(this == rootProject) {
-                "Apply 'com.airbnb.viaduct.application-gradle-plugin' only to the root project."
-            }
+            validateApplicationProjectPlacement()
 
             extensions.create("viaductApplication", ViaductApplicationExtension::class.java, objects)
 
@@ -52,8 +51,8 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
                 javaGRTJar.flatMap { it.archiveFile },
             )
 
-            // Expose the Kotlin GRT jar on the root project's own classpath so root sources
-            // (main + tests) can reference generated types. Java-specific root projects can
+            // Expose the Kotlin GRT jar on the application project's own classpath so local sources
+            // (main + tests) can reference generated types. Java-specific application projects can
             // depend on generateViaductJavaGRTs explicitly.
             this.dependencies.add("api", files(kotlinGRTJar.flatMap { it.archiveFile }))
         }
