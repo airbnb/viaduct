@@ -42,9 +42,7 @@ dependencies {
     testFixturesImplementation(libs.clikt.jvm)
     testFixturesImplementation(libs.guava)
     testFixturesImplementation(libs.kotlin.reflect)
-    testFixturesImplementation(libs.logback.classic)
     testFixturesImplementation(libs.reflections)
-    testFixturesImplementation(libs.slf4j.api)
     testFixturesImplementation(libs.viaduct.shared.graphql)
 
     testImplementation(libs.kotlin.test)

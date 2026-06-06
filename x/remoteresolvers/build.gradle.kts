@@ -60,8 +60,6 @@ dependencies {
     implementation(libs.guice)
 
     api(libs.slf4j.api)
-    // Composite builds use isolated classloaders, so each module ships its own SLF4J provider.
-    runtimeOnly(libs.slf4j.simple)
 
     // Testing dependencies
     testImplementation(libs.junit)
