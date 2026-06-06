@@ -23,8 +23,6 @@ dependencies {
     implementation(libs.viaduct.shared.utils)
     implementation(libs.kotest.common.jvm)
     implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.coroutines.core.jvm)
-    implementation(libs.kotlinx.coroutines.test)
 
     testImplementation(libs.graphql.java.extension)
     testImplementation(libs.kotest.assertions.shared)
@@ -33,7 +31,6 @@ dependencies {
     testImplementation(testFixtures(libs.viaduct.engine.api))
     testImplementation(testFixtures(libs.viaduct.shared.arbitrary))
 
-    testFixturesImplementation(libs.kotlinx.coroutines.test)
     testFixturesImplementation(libs.kotest.property.jvm)
     testFixturesImplementation(libs.viaduct.shared.arbitrary)
     testFixturesImplementation(testFixtures(libs.viaduct.shared.arbitrary))

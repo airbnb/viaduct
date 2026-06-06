@@ -20,7 +20,6 @@ dependencies {
     implementation(libs.slf4j.api)
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.coroutines.core.jvm)
     implementation(libs.viaduct.tenant.runtime)
 
     testImplementation(libs.guice)

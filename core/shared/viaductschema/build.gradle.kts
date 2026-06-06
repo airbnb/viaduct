@@ -48,7 +48,7 @@ dependencies {
     testFixturesImplementation(libs.viaduct.shared.graphql)
 
     testImplementation(libs.kotlin.test)
-    testImplementation(libs.kotlinx.coroutines.core.jvm)
+    testImplementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.io.mockk.dsl)
     testImplementation(libs.kotest.assertions.core.jvm)

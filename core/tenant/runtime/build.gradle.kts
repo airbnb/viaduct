@@ -52,7 +52,6 @@ dependencies {
     implementation(libs.slf4j.api)
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.coroutines.core.jvm)
     implementation(libs.viaduct.shared.apiannotations)
 
     testFixturesCompileOnly(libs.junit)
@@ -71,7 +70,6 @@ dependencies {
     testFixturesImplementation(libs.kotlin.reflect)
     testFixturesImplementation(libs.kotlinx.coroutines.core)
     testFixturesImplementation(libs.kotlinx.coroutines.jdk8)
-    testFixturesImplementation(libs.kotlinx.coroutines.test)
     testFixturesImplementation(libs.assertj.core)
     testFixturesImplementation(libs.kotlin.test)
     testFixturesImplementation(libs.strikt.core)

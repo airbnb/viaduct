@@ -24,8 +24,6 @@ dependencies {
 
     implementation(libs.kotest.common.jvm)
     implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.coroutines.core.jvm)
-    implementation(libs.kotlinx.coroutines.test)
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.engine.runtime)
     implementation(libs.viaduct.engine.wiring)

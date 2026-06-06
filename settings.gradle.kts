@@ -21,6 +21,11 @@ run {
 
     val kotlin = versionOf("kotlin")
     val ksp = versionOf("ksp")
+    require(lines.none { it.contains("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm") }) {
+        "Use org.jetbrains.kotlinx:kotlinx-coroutines-core in gradle/libs.versions.toml; " +
+            "kotlinx-coroutines-core-jvm is redundant."
+    }
+
     if (kotlin != null && ksp != null) {
         require(ksp.startsWith("$kotlin-")) {
             "KSP version ($ksp) must start with the Kotlin version ($kotlin-). " +

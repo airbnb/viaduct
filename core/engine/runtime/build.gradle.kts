@@ -17,7 +17,7 @@ dependencies {
     implementation(libs.jackson.databind)
     implementation(libs.jackson.module)
     implementation(libs.javax.inject)
-    implementation(libs.kotlinx.coroutines.core.jvm)
+    implementation(libs.kotlinx.coroutines.core)
 
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.shared.apiannotations)
@@ -37,7 +37,7 @@ dependencies {
 
     testFixturesApi(libs.graphql.java)
     testFixturesApi(libs.kotest.property.jvm)
-    testFixturesApi(libs.kotlinx.coroutines.core.jvm)
+    testFixturesApi(libs.kotlinx.coroutines.core)
     testFixturesApi(libs.viaduct.engine.api)
     testFixturesApi(libs.viaduct.engine.runtime)
     testFixturesApi(libs.viaduct.service.api)
@@ -77,7 +77,7 @@ dependencies {
 
     jmhImplementation(libs.graphql.java)
     jmhImplementation(libs.kotest.property.jvm)
-    jmhImplementation(libs.kotlinx.coroutines.core.jvm)
+    jmhImplementation(libs.kotlinx.coroutines.core)
     jmhImplementation(libs.kotlinx.coroutines.jdk8)
     jmhImplementation(libs.viaduct.engine.runtime)
     jmhImplementation(testFixtures(libs.viaduct.engine.runtime))

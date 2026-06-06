@@ -26,7 +26,7 @@ dependencies {
     implementation(libs.viaduct.shared.graphql)
     implementation(libs.classgraph)
     implementation(libs.slf4j.api)
-    implementation(libs.kotlinx.coroutines.core.jvm)
+    implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.jdk8)
     implementation(libs.micrometer.core)
 

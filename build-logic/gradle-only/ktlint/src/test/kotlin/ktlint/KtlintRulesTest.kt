@@ -368,4 +368,63 @@ class KtlintRulesTest {
         )
         assertThat(violations).isNotEmpty
     }
+
+    // --- CoroutinesDependencyUsageRule ---
+
+    @Test
+    fun `CoroutinesDependencyUsage - flags coroutines test in implementation dependencies`() {
+        lint(
+            "build.gradle.kts",
+            """
+            dependencies {
+                implementation(libs.kotlinx.coroutines.test)
+            }
+            """.trimIndent(),
+            CoroutinesDependencyUsageRule(),
+        )
+        assertThat(violations).hasSize(1)
+        assertThat(violations.first().second).contains("test-scoped configurations")
+    }
+
+    @Test
+    fun `CoroutinesDependencyUsage - allows coroutines test in test implementation dependencies`() {
+        lint(
+            "build.gradle.kts",
+            """
+            dependencies {
+                testImplementation(libs.kotlinx.coroutines.test)
+            }
+            """.trimIndent(),
+            CoroutinesDependencyUsageRule(),
+        )
+        assertThat(violations).isEmpty()
+    }
+
+    @Test
+    fun `CoroutinesDependencyUsage - allows coroutines test in test fixtures dependencies`() {
+        lint(
+            "build.gradle.kts",
+            """
+            dependencies {
+                testFixturesImplementation(libs.kotlinx.coroutines.test)
+            }
+            """.trimIndent(),
+            CoroutinesDependencyUsageRule(),
+        )
+        assertThat(violations).isEmpty()
+    }
+
+    @Test
+    fun `CoroutinesDependencyUsage - ignores regular kt files`() {
+        lint(
+            "Build.kt",
+            """
+            dependencies {
+                implementation(libs.kotlinx.coroutines.test)
+            }
+            """.trimIndent(),
+            CoroutinesDependencyUsageRule(),
+        )
+        assertThat(violations).isEmpty()
+    }
 }
