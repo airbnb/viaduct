@@ -10,7 +10,7 @@ import org.junit.jupiter.api.io.TempDir
  * TestKit functional tests for the module plugin.
  *
  * These tests cover diagnostics, configuration-time enforcement, and model wiring only.
- * Real execution (codegen, serve) is validated through demoapps.
+ * Real execution (codegen, schema assembly) is validated through demoapps.
  */
 class ViaductModulePluginFunctionalTest {
     @TempDir

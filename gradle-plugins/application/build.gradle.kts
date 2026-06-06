@@ -15,8 +15,8 @@ dependencies {
     implementation(project(":common"))
 
     // Libraries the plugin source imports directly (binary schema generation).
-    // tenant-codegen and serve are NOT here — they are external tool artifacts resolved at
-    // build time via viaductCodegenClasspath / viaductServeClasspath Configurations.
+    // tenant-codegen is NOT here — it is an external tool artifact resolved at
+    // build time via the viaductCodegenClasspath Configuration.
     implementation(libs.viaduct.shared.graphql)
     implementation(libs.viaduct.shared.viaductschema)
     // Do NOT leak the Kotlin Gradle Plugin at runtime

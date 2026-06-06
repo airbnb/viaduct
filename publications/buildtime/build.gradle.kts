@@ -4,7 +4,7 @@ plugins {
 
 viaductPublishing {
     name.set("Build Time Tools")
-    description.set("Fat jar bundling all Viaduct build-time tools (codegen and serve) for plugin tool classpaths")
+    description.set("Fat jar bundling Viaduct build-time code generation tools for plugin tool classpaths")
 }
 
 dependencies {
