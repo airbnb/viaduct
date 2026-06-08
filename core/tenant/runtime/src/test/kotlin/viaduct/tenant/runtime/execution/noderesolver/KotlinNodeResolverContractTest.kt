@@ -50,6 +50,16 @@ class KotlinNodeResolverContractTest : NodeResolverContractTest() {
         }
     }
 
+    @Resolver
+    class NodeRefWithIllegalAccessResolver : QueryResolvers.NodeRefWithIllegalAccess() {
+        override suspend fun resolve(ctx: Context): NodeObj {
+            val ref = ctx.nodeRef(ctx.globalIDFor(NodeObj.Reflection, "1"))
+            ref.getId() // valid — id can always be read
+            ref.getValue() // illegal — must throw
+            return ref
+        }
+    }
+
     @Test
     fun `node resolver may not return a NodeReference`() {
         NodeObjResolver.shouldReturnNodeReference = true

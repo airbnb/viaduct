@@ -85,6 +85,19 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                         returnTypeName = "ObjectWithNodeField",
                     ),
                 ),
+                FieldEntry(
+                    typeName = "Query",
+                    fieldName = "nodeRefWithIllegalAccess",
+                    isBatching = false,
+                    isSelective = false,
+                    attribution = "Query.nodeRefWithIllegalAccess",
+                    tenantAPIData = FieldAPIData(
+                        resolverClass = "$base\$NodeRefWithIllegalAccessResolver",
+                        resolverBaseClass = "$resolverBases.QueryResolvers\$NodeRefWithIllegalAccess",
+                        queryTypeName = "Query",
+                        returnTypeName = "NodeObj",
+                    ),
+                ),
             ),
         )
 
@@ -100,6 +113,7 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                     bind(resolverClass("NodeReferenceResolver")).`in`(Singleton::class.java)
                     bind(resolverClass("ObjectWithNodeFieldResolver")).`in`(Singleton::class.java)
                     bind(resolverClass("NodeObjResolver")).`in`(Singleton::class.java)
+                    bind(resolverClass("NodeRefWithIllegalAccessResolver")).`in`(Singleton::class.java)
                 }
             }
         )

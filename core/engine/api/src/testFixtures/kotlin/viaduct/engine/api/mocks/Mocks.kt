@@ -24,6 +24,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import viaduct.dataloader.mocks.MockNextTickDispatcher
 import viaduct.engine.ViaductSchemaLoadException
 import viaduct.engine.ViaductWiringFactory
+import viaduct.engine.api.CheckerMetadata
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.Coordinate
@@ -251,7 +252,8 @@ class MockCheckerErrorResult(override val error: Exception) : CheckerResult.Erro
 
 class MockCheckerExecutor(
     override val requiredSelectionSets: Map<String, RequiredSelectionSet?> = emptyMap(),
-    val executeFn: CheckerFn = { _, _ -> }
+    override val checkerMetadata: CheckerMetadata? = null,
+    val executeFn: CheckerFn = { _, _ -> },
 ) : CheckerExecutor {
     override suspend fun execute(
         arguments: Map<String, Any?>,

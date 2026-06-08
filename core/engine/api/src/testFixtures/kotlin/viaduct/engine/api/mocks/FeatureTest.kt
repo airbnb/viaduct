@@ -102,6 +102,7 @@ private fun MockLegacyTenantModuleBootstrapper.toEngineFactory(
         }
     }.map { it.create() }.flatten()
 
+    val config = engineConfig ?: EngineConfiguration.featureTestDefault
     val checkerExecutorFactory = MockCheckerExecutorFactory(
         checkerExecutors = checkerExecutors,
         typeCheckerExecutors = typeCheckerExecutors
@@ -110,9 +111,9 @@ private fun MockLegacyTenantModuleBootstrapper.toEngineFactory(
     val dispatcherRegistry = DispatcherRegistryFactory(
         tenantAPIBootstrapper,
         validator,
-        checkerExecutorFactory
+        checkerExecutorFactory,
+        resolverInstrumentation = config.resolverInstrumentation,
     ).create(fullSchema)
-    val config = engineConfig ?: EngineConfiguration.featureTestDefault
     return EngineFactory(config, dispatcherRegistry)
 }
 

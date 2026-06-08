@@ -1,5 +1,7 @@
 package viaduct.tenant.runtime.execution.noderesolver
 
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
 import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
@@ -35,6 +37,8 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
         nodeReference(id: String!): NodeObj! @resolver
         "Return ObjectWithNodeField with node=nodeRef(\"NodeObj\", \"nestedNode\"); resolved node has value=\"foo\""
         objectWithNodeField: ObjectWithNodeField @resolver
+        "Call ctx.nodeRef(...) then attempt ctx.nodeRef(...).getValue() — must surface as a field error"
+        nodeRefWithIllegalAccess: NodeObj @resolver
     }
 """
 )
@@ -87,6 +91,27 @@ abstract class NodeResolverContractTest : KotlinFeatureAppTestContractBase() {
                 }
             }
         }
+    }
+
+    @Test
+    fun `accessing non-id field on unresolved node reference surfaces as a field error`() {
+        val result = execute(
+            query = """
+                query {
+                    nodeRefWithIllegalAccess {
+                        id
+                    }
+                }
+            """.trimIndent()
+        )
+        assertEquals(1, result.errors.size)
+        val error = result.errors.single()
+        assertTrue(
+            error.message.contains("Attempted to access field") ||
+                error.message.contains("only id can be accessed on an unresolved Node reference") ||
+                error.message.contains("cannot be accessed on an unresolved Node reference"),
+            "Expected error about unresolved node reference field access, got: ${error.message}"
+        )
     }
 
     @Test

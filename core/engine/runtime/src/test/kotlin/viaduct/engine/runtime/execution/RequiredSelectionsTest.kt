@@ -1764,4 +1764,59 @@ class RequiredSelectionsTest {
             runQuery("{ a }").assertJson("{data: {a: 1}}")
         }
     }
+
+    /**
+     * Regression: a field-level checker RSS rooted on Query (the origin-coordinate leaker shape)
+     * must not fire when the runtime type is Foo, not Bar. Before the fix, Bar.value's checker
+     * could leak into resolution of Foo.value because isRootType permitted any root-type parent.
+     */
+    @Test
+    fun `field-level checker RSS rooted on Query does not leak into sibling interface implementor`() {
+        val sdl = """
+            interface Iface { value: String }
+            type Foo implements Iface { value: String }
+            type Bar implements Iface { value: String }
+            extend type Query { iface: Iface, string1: String }
+        """.trimIndent()
+
+        val checkerInvocations = ConcurrentHashMap<String, AtomicInteger>()
+
+        MockLegacyTenantModuleBootstrapper(sdl) {
+            field("Query" to "iface") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        createEngineObjectData(ctx.fullSchema.schema.getObjectType("Foo"), mapOf("value" to "foo-value"))
+                    }
+                }
+            }
+            fieldWithValue("Query" to "string1", "irrelevant")
+            field("Foo" to "value") {
+                resolver { fn { _, _, _, _, _ -> "foo-value" } }
+                // Checker RSS rooted on Foo — should fire when resolving Foo.value
+                checker {
+                    objectSelections("fooKey", "value")
+                    fn { _, _ ->
+                        checkerInvocations.computeIfAbsent("Foo.value") { AtomicInteger() }.incrementAndGet()
+                        viaduct.engine.api.CheckerResult.Success
+                    }
+                }
+            }
+            field("Bar" to "value") {
+                resolver { fn { _, _, _, _, _ -> "bar-value" } }
+                // Checker RSS rooted on Query (the prod-observed leaker shape) — must NOT fire for Foo
+                checker {
+                    querySelections("barKey", "string1")
+                    fn { _, _ ->
+                        checkerInvocations.computeIfAbsent("Bar.value") { AtomicInteger() }.incrementAndGet()
+                        viaduct.engine.api.CheckerResult.Success
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ iface { value } }").assertJson("""{"data": {"iface": {"value": "foo-value"}}}""")
+
+            assertEquals(1, checkerInvocations["Foo.value"]?.get()) { "Foo.value checker should run exactly once" }
+            assertEquals(null, checkerInvocations["Bar.value"]) { "Bar.value checker must not run when resolving Foo.value" }
+        }
+    }
 }

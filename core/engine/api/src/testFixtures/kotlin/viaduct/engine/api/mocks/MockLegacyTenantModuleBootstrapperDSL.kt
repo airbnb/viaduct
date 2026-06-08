@@ -2,8 +2,10 @@ package viaduct.engine.api.mocks
 
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
+import viaduct.engine.api.CheckerMetadata
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
@@ -205,14 +207,15 @@ class MockLegacyTenantModuleBootstrapperDSL<F : Any>(
         fun resolver(block: ResolverScope.() -> Unit) {
             resolverExecutor {
                 val r = ResolverScope().apply { block() }
+                val attribution = ExecutionAttribution.fromResolver(r.resolverName)
                 when {
                     r.unbatchedResolveFn != null && r.batchResolveFn != null -> {
                         throw IllegalArgumentException("resolver block cannot define both unbatched and batch resolver functions.")
                     }
                     r.unbatchedResolveFn != null -> {
                         MockFieldUnbatchedResolverExecutor(
-                            objectSelectionSet = r.objectSelections?.toRSS(),
-                            querySelectionSet = r.querySelections?.toRSS(),
+                            objectSelectionSet = r.objectSelections?.toRSS(attribution),
+                            querySelectionSet = r.querySelections?.toRSS(attribution),
                             resolverName = r.resolverName,
                             resolverId = resolverId,
                             unbatchedResolveFn = r.unbatchedResolveFn!!
@@ -220,8 +223,8 @@ class MockLegacyTenantModuleBootstrapperDSL<F : Any>(
                     }
                     r.batchResolveFn != null -> {
                         MockFieldBatchResolverExecutor(
-                            objectSelectionSet = r.objectSelections?.toRSS(),
-                            querySelectionSet = r.querySelections?.toRSS(),
+                            objectSelectionSet = r.objectSelections?.toRSS(attribution),
+                            querySelectionSet = r.querySelections?.toRSS(attribution),
                             resolverName = r.resolverName,
                             resolverId = resolverId,
                             batchResolveFn = r.batchResolveFn!!
@@ -248,7 +251,11 @@ class MockLegacyTenantModuleBootstrapperDSL<F : Any>(
                 val c = CheckerScope().apply { block() }
                 val fn = c.executeFn
                     ?: throw IllegalArgumentException("checker block must define a checker function.")
-                MockCheckerExecutor(c.requiredSelectionSets, fn)
+                MockCheckerExecutor(
+                    requiredSelectionSets = c.requiredSelectionSets,
+                    executeFn = fn,
+                    checkerMetadata = CheckerMetadata("MockChecker", coord.first, coord.second),
+                )
             }
         }
 
@@ -272,7 +279,8 @@ class MockLegacyTenantModuleBootstrapperDSL<F : Any>(
                 variableProviders.add(MockVariablesResolver(*names, requiredSelectionSet = rss, resolveFn = resolveFn))
             }
 
-            internal fun toRSS() = createRSS(typeName, objectSelectionsText, variableProviders, forChecker = forChecker)
+            internal fun toRSS(attribution: ExecutionAttribution = ExecutionAttribution.DEFAULT) =
+                createRSS(typeName, objectSelectionsText, variableProviders, forChecker = forChecker, attribution = attribution)
         }
 
         @TenantModuleBootstrapperDsl
@@ -394,7 +402,11 @@ class MockLegacyTenantModuleBootstrapperDSL<F : Any>(
             typeCheckerExecutors.putIfMissingOrFail(typeName) {
                 val c = CheckerScope().apply { block() }
                 val fn = c.executeFn
-                MockCheckerExecutor(c.requiredSelectionSets, fn)
+                MockCheckerExecutor(
+                    requiredSelectionSets = c.requiredSelectionSets,
+                    executeFn = fn,
+                    checkerMetadata = CheckerMetadata("MockChecker", typeName),
+                )
             }
 
         @TenantModuleBootstrapperDsl

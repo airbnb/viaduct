@@ -42,6 +42,22 @@ class ExceptionsTest {
         assertTrue(exception is FieldFetchingException, "Expected FieldFetchingException but got ${exception?.javaClass}: $exception")
     }
 
+    @Test
+    fun `resolver returning a non-iterable for a list field surfaces a field error`() =
+        runExecutionTest {
+            val result = ExecutionTestHelpers.executeViaductModernGraphQL(
+                sdl = "type Query { items: [String] }",
+                // Resolver returns a scalar where the schema declares a list type
+                resolvers = mapOf("Query" to mapOf("items" to DataFetcher { "not-a-list" })),
+                query = "{ items }",
+            )
+            assertTrue(result.errors.isNotEmpty(), "Expected an error when a list field resolves to a non-iterable")
+            assertTrue(
+                result.errors[0].message.contains("Expected data to be an Iterable"),
+                "Expected 'Expected data to be an Iterable' error, got: ${result.errors[0].message}",
+            )
+        }
+
     private val defaultSdl = "type Query { field: Int }"
 
     private fun execute(

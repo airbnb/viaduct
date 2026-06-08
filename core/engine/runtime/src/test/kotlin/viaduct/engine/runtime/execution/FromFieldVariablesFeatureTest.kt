@@ -846,6 +846,146 @@ class FromFieldVariablesFeatureTest {
         }
 
     @Test
+    fun `from arg -- simple`() =
+        MockLegacyTenantModuleBootstrapper("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }") {
+            fieldWithFromFieldVariables(
+                coord = "Query" to "foo",
+                objectSelectionsText = "bar(x:\$y)",
+                variables = listOf(FromArgumentVariable("y", "y")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<Int>("bar") * 5 }
+            field("Query" to "bar") {
+                resolver { fn { args, _, _, _, _ -> args.getAs<Int>("x") * 3 } }
+            }
+        }.runFeatureTest {
+            runQuery("{foo(y:2)}").assertJson("{data: {foo: 30}}")
+        }
+
+    @Test
+    fun `from arg -- binds argument to variable with a different name`() =
+        MockLegacyTenantModuleBootstrapper("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }") {
+            fieldWithFromFieldVariables(
+                coord = "Query" to "foo",
+                objectSelectionsText = "bar(x:\$vary)",
+                variables = listOf(FromArgumentVariable("vary", "y")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<Int>("bar") * 5 }
+            field("Query" to "bar") {
+                resolver { fn { args, _, _, _, _ -> args.getAs<Int>("x") * 3 } }
+            }
+        }.runFeatureTest {
+            runQuery("{foo(y:2)}").assertJson("{data: {foo: 30}}")
+        }
+
+    @Test
+    fun `from arg -- path traverses nested input`() =
+        MockLegacyTenantModuleBootstrapper(
+            """
+                input Inp { x:Int! }
+                extend type Query { foo(inp:Inp!): Int!, bar(x:Int!):Int! }
+            """.trimIndent()
+        ) {
+            fieldWithFromFieldVariables(
+                coord = "Query" to "foo",
+                objectSelectionsText = "bar(x:\$x)",
+                variables = listOf(FromArgumentVariable("x", "inp.x")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<Int>("bar") * 5 }
+            field("Query" to "bar") {
+                resolver { fn { args, _, _, _, _ -> args.getAs<Int>("x") * 3 } }
+            }
+        }.runFeatureTest {
+            runQuery("{foo(inp:{x:2})}").assertJson("{data: {foo: 30}}")
+        }
+
+    @Test
+    fun `from arg -- path traverses through null object`() =
+        MockLegacyTenantModuleBootstrapper(
+            """
+                input Inp { x:Int!=2 }
+                extend type Query { foo(inp:Inp):Int, bar(x:Int):Int }
+            """.trimIndent()
+        ) {
+            fieldWithFromFieldVariables(
+                coord = "Query" to "foo",
+                objectSelectionsText = "bar(x:\$x)",
+                variables = listOf(FromArgumentVariable("x", "inp.x")),
+            ) { _, obj, _, _, _ -> (obj.fetchAs<Int?>("bar")?.let { it * 5 }) ?: 7 }
+            field("Query" to "bar") {
+                resolver { fn { args, _, _, _, _ -> (args["x"] as? Int)?.let { it * 3 } } }
+            }
+        }.runFeatureTest {
+            runQuery("{foo(inp:null)}").assertJson("{data: {foo: 7}}")
+        }
+
+    @Test
+    fun `from arg -- arg has default value`() =
+        MockLegacyTenantModuleBootstrapper("extend type Query { foo(x:Int!=2):Int!, bar(x:Int):Int }") {
+            fieldWithFromFieldVariables(
+                coord = "Query" to "foo",
+                objectSelectionsText = "bar(x:\$x)",
+                variables = listOf(FromArgumentVariable("x", "x")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<Int>("bar") * 5 }
+            field("Query" to "bar") {
+                resolver { fn { args, _, _, _, _ -> args.getAs<Int>("x") * 3 } }
+            }
+        }.runFeatureTest {
+            runQuery("{foo}").assertJson("{data: {foo: 30}}")
+            runQuery("{foo(x:3)}").assertJson("{data: {foo: 45}}")
+        }
+
+    @Test
+    fun `from arg -- arg from operation variable`() =
+        MockLegacyTenantModuleBootstrapper("extend type Query { foo(y:Int!):Int!, bar(x:Int!): Int! }") {
+            fieldWithFromFieldVariables(
+                coord = "Query" to "foo",
+                objectSelectionsText = "bar(x:\$y)",
+                variables = listOf(FromArgumentVariable("y", "y")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<Int>("bar") * 5 }
+            field("Query" to "bar") {
+                resolver { fn { args, _, _, _, _ -> args.getAs<Int>("x") * 3 } }
+            }
+        }.runFeatureTest {
+            runQuery("query Q(\$vary:Int!) {foo(y:\$vary)}", mapOf("vary" to 2)).assertJson("{data: {foo: 30}}")
+        }
+
+    @Test
+    fun `from arg -- same variable name used in same argument with different values`() =
+        MockLegacyTenantModuleBootstrapper("extend type Query { foo(x:Int):Int, bar(x:Int):Int, baz(x:Int):Int }") {
+            fieldWithFromFieldVariables(
+                coord = "Query" to "foo",
+                objectSelectionsText = "baz(x:\$x)",
+                variables = listOf(FromArgumentVariable("x", "x")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<Int>("baz") * 11 }
+            fieldWithFromFieldVariables(
+                coord = "Query" to "bar",
+                objectSelectionsText = "baz(x:\$x)",
+                variables = listOf(FromArgumentVariable("x", "x")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<Int>("baz") * 7 }
+            field("Query" to "baz") {
+                resolver { fn { args, _, _, _, _ -> args.getAs<Int>("x") * 5 } }
+            }
+        }.runFeatureTest {
+            runQuery("{foo(x:2) bar(x:3)}").assertJson("{data:{foo:110, bar:105}}")
+        }
+
+    @Test
+    fun `from arg -- uses an arg variable with the same name as an unbound argument`() =
+        MockLegacyTenantModuleBootstrapper("extend type Query { foo(x:Int):Int, bar(x:Int):Int, baz(x:Int):Int }") {
+            fieldWithFromFieldVariables(
+                coord = "Query" to "foo",
+                objectSelectionsText = "baz(x:\$x)",
+                variables = listOf(FromArgumentVariable("x", "x")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<Int>("baz") * 11 }
+            fieldWithFromFieldVariables(
+                coord = "Query" to "bar",
+                variables = listOf(),
+            ) { _, _, _, _, _ -> 7 }
+            field("Query" to "baz") {
+                resolver { fn { args, _, _, _, _ -> (args["x"] as? Int)?.let { it * 5 } ?: 0 } }
+            }
+        }.runFeatureTest {
+            runQuery("{foo(x:2) bar(x:3)}").assertJson("{data:{foo:110, bar:7}}")
+        }
+
+    @Test
     fun `mixed variables -- non-root resolver uses fromObjectField in queryFragment`() =
         MockLegacyTenantModuleBootstrapper(
             """

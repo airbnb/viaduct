@@ -67,4 +67,16 @@ public class JavaNodeResolverContractTest extends NodeResolverContractTest {
       return CompletableFuture.completedFuture(NodeObj.builder().value("foo").build());
     }
   }
+
+  @Resolver
+  public static class NodeRefWithIllegalAccessResolver
+      extends QueryResolvers.NodeRefWithIllegalAccess {
+    @Override
+    public CompletableFuture<NodeObj> resolve(Context ctx) {
+      NodeObj ref = ctx.nodeRef(ctx.globalIDFor(Type.ofClass(NodeObj.class), "1"));
+      ref.getId(); // valid — id can always be read
+      ref.getValue(); // illegal — must throw
+      return CompletableFuture.completedFuture(ref);
+    }
+  }
 }
