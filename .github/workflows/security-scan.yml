@@ -132,6 +132,18 @@ jobs:
             } > security-scan-report.md
           fi
 
+      # Surface the CVE-parity report in the job summary too, so it's visible on
+      # every run — including fork PRs, where the read-only token can't post the
+      # sticky comment below. Writing a job summary needs no token or permissions.
+      - name: CVE parity summary (job summary)
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ -f security-scan-report.md ]; then
+            cat security-scan-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Upload scan reports
         if: always()
         continue-on-error: true
