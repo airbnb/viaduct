@@ -28,6 +28,7 @@ dependencies {
     implementation(plugin(libs.plugins.shadow))
     implementation(plugin(libs.plugins.cyclonedx.bom))
     implementation(plugin(libs.plugins.jk1.license.report))
+    implementation(plugin(libs.plugins.test.retry))
     compileOnly(libs.detekt.api)
 
     // settings dependencies
