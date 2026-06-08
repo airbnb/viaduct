@@ -3,7 +3,6 @@ import viaduct.gradle.resetCoverageThresholds
 plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
-    id("conventions.viaduct-publishing")
     `java-test-fixtures`
 }
 

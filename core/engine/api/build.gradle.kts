@@ -4,14 +4,12 @@ plugins {
     `java-test-fixtures`
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
-    id("conventions.viaduct-publishing")
 }
 
 resetCoverageThresholds(instructionMinimum = "0.35", branchMinimum = "0.40")
 
-viaductPublishing {
-    name.set("Engine API")
-    description.set("The API exposed by the Viaduct engine.")
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileTestFixturesKotlin") {
+    compilerOptions.moduleName.set("engine-api_testFixtures")
 }
 
 dependencies {

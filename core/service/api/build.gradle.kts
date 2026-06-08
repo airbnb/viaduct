@@ -2,18 +2,15 @@ import viaduct.gradle.internal.repoRoot
 
 plugins {
     `java-library`
-    `maven-publish`
     `java-test-fixtures`
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
     id("conventions.dokka")
     id("conventions.bcv-api")
-    id("conventions.viaduct-publishing")
 }
 
-viaductPublishing {
-    name.set("Service API")
-    description.set("The API/SPI exposed for consumption by Viaduct implementing services.")
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileTestFixturesKotlin") {
+    compilerOptions.moduleName.set("service-api_testFixtures")
 }
 
 dependencies {

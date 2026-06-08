@@ -3,12 +3,6 @@ plugins {
     id("me.champeau.jmh").version("0.7.3")
     `java-test-fixtures`
     id("conventions.kotlin-static-analysis")
-    id("conventions.viaduct-publishing")
-}
-
-viaductPublishing {
-    name.set("Engine Runtime")
-    description.set("The Viaduct engine runtime.")
 }
 
 dependencies {

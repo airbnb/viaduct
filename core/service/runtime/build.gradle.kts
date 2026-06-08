@@ -1,11 +1,5 @@
 plugins {
     id("conventions.kotlin")
-    id("conventions.viaduct-publishing")
-}
-
-viaductPublishing {
-    name.set("Service Runtime")
-    description.set("The main entrypoint for Viaduct at runtime.")
 }
 
 dependencies {

@@ -1,12 +1,6 @@
 plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
-    id("conventions.viaduct-publishing")
-}
-
-viaductPublishing {
-    name.set("Tenant KSP")
-    description.set("KSP symbol traversal utilities for Viaduct tenant annotation processing")
 }
 
 dependencies {

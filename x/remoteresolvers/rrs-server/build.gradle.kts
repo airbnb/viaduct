@@ -14,12 +14,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.reactor)
     implementation(libs.jackson.module.kotlin)
 
-    // Viaduct core - for engine API and tenant registration
-    implementation(libs.viaduct.engine.api)
-    implementation(libs.viaduct.engine.wiring)
-    implementation(libs.viaduct.tenant.api)
-    implementation(libs.viaduct.tenant.wiring)
-    implementation(libs.viaduct.service.wiring)
+    // Viaduct core - fat jars bundle all engine, tenant, and service classes
+    implementation(libs.viaduct.api)
+    implementation(libs.viaduct.runtime)
 
     // Remote Resolver module - provides RemoteResolverServiceImpl and registries
     implementation(libs.viaduct.x.remoteresolvers)

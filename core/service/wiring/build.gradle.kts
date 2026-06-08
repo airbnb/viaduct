@@ -6,15 +6,9 @@ plugins {
     id("conventions.kotlin")
     id("conventions.dokka")
     id("conventions.bcv-api")
-    id("conventions.viaduct-publishing")
 }
 
 resetCoverageThresholds(instructionMinimum = "0.70")
-
-viaductPublishing {
-    name.set("Viaduct Service Wiring")
-    description.set("Bindings between the tenant and engine runtimes.")
-}
 
 dependencies {
     implementation(libs.viaduct.service.api)

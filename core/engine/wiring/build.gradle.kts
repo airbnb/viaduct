@@ -2,15 +2,9 @@ import viaduct.gradle.resetCoverageThresholds
 
 plugins {
     id("conventions.kotlin")
-    id("conventions.viaduct-publishing")
 }
 
 resetCoverageThresholds(instructionMinimum = "0.25", branchMinimum = "0.25")
-
-viaductPublishing {
-    name.set("Engine Wiring")
-    description.set("The main entrypoint for the Viaduct engine.")
-}
 
 dependencies {
 
