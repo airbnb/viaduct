@@ -23,8 +23,6 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 """
 )
 abstract class FileBasedBootstrapContractTest : KotlinFeatureAppTestContractBase() {
-    override val useFileBasedBootstrap: Boolean = true
-
     private val codec = GlobalIDCodecDefault
 
     protected fun itemGlobalId(internalId: String): String = codec.serialize("Item", internalId)

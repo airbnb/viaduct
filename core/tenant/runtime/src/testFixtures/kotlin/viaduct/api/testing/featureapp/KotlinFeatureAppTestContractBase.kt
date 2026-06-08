@@ -7,7 +7,6 @@ import com.google.inject.Guice
 import com.google.inject.Injector
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
-import viaduct.api.bootstrap.ViaductTenantAPIBootstrapper
 import viaduct.api.internal.NodeResolverFor
 import viaduct.api.internal.ResolverFor
 import viaduct.api.reflect.Type
@@ -56,50 +55,26 @@ abstract class KotlinFeatureAppTestContractBase : AbstractFeatureAppTestContract
         grtPackagePrefix = derivedClassPackagePrefix
     )
 
-    /**
-     * When true, bootstraps resolvers from the KSP-generated classpath registry
-     * (`META-INF/viaduct/modules/<pkg>.json`) instead of ClassGraph scanning.
-     *
-     * Defaults to `true` when the `USE_FILE_BASED_BOOTSTRAP` environment variable is set,
-     * allowing CI to run the full contract test suite against the file-based bootstrap
-     * without code changes.
-     *
-     * Requires the registry JSON to be present on the test classpath. The file is generated
-     * at build time by the KSP registry-extractor processor (enabled via the `ksp` Gradle plugin).
-     * If the file is absent, tests that set this flag will be skipped automatically.
-     *
-     * Override to `true` in test classes that always exercise the file-based bootstrap path
-     * regardless of the environment variable.
-     */
-    protected open val useFileBasedBootstrap: Boolean =
-        System.getenv("USE_FILE_BASED_BOOTSTRAP") != null
-
     @BeforeEach
     fun skipIfFileBasedRegistryAbsent() {
-        if (!useFileBasedBootstrap) return
+        // A subclass that overrides createBootstrapperBuilder supplies its own bootstrapper
+        // and does not depend on the file-based registry being present. ( ie x:javaapi tests override file based bootstrapping )
+        val overridesBootstrapper = generateSequence<Class<*>>(this::class.java) { it.superclass }
+            .takeWhile { it != KotlinFeatureAppTestContractBase::class.java }
+            .any { cls -> cls.declaredMethods.any { it.name == "createBootstrapperBuilder" } }
+        if (overridesBootstrapper) return
         val registryPath = "META-INF/viaduct/modules/$derivedClassPackagePrefix.json"
         val isOnClasspath = Thread.currentThread().contextClassLoader.getResource(registryPath) != null
         assumeTrue(isOnClasspath, "Skipping: registry not on classpath ($registryPath)")
     }
 
-    protected open val viaductTenantAPIBootstrapperBuilder by lazy {
-        ViaductTenantAPIBootstrapper.Builder()
-            .tenantCodeInjector(guiceCodeInjector)
-            .tenantResolverClassFinderFactory(tenantResolverClassFinderFactory)
-            .tenantPackagePrefix(derivedClassPackagePrefix)
-    }
-
     override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> =
-        if (useFileBasedBootstrap) {
-            object : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
-                override fun create() =
-                    BootstrapperFactory.fromResources(
-                        tenantModuleBootstrapper = SharedTenantModuleBootstrapper(guiceCodeInjector),
-                        packagePrefix = derivedClassPackagePrefix,
-                    )
-            }
-        } else {
-            viaductTenantAPIBootstrapperBuilder
+        object : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
+            override fun create() =
+                BootstrapperFactory.fromResources(
+                    tenantModuleBootstrapper = SharedTenantModuleBootstrapper(guiceCodeInjector),
+                    packagePrefix = derivedClassPackagePrefix,
+                )
         }
 
     override fun onBeforeBuild() {
