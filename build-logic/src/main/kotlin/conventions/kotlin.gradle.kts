@@ -4,6 +4,7 @@ plugins {
     id("conventions.kotlin-compile-config")
     id("conventions.kotlin-without-tests")
     id("conventions.jacoco")
+    id("conventions.test-retry")
 }
 
 val libs = extensions.getByType(VersionCatalogsExtension::class.java).named("libs")
