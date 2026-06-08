@@ -947,6 +947,93 @@ class SubqueryExecutionTest {
     }
 
     @Test
+    fun `ctx query from mutation resolver does not serialize namespaced query fields`() {
+        val q1Started = CompletableDeferred<Unit>()
+        val q2Started = CompletableDeferred<Unit>()
+        val q1CanFinish = CompletableDeferred<Unit>()
+        val parallelObservations = Collections.synchronizedList(mutableListOf<String>())
+
+        MockLegacyTenantModuleBootstrapper(
+            """
+            extend type Query {
+                namespace: QueryNamespace
+            }
+
+            extend type Mutation {
+                triggerQuery: String
+            }
+
+            type QueryNamespace @namespaceType {
+                q1: Int
+                q2: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "namespace") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("QueryNamespace"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("QueryNamespace" to "q1") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        q1Started.complete(Unit)
+                        q1CanFinish.await()
+                        1
+                    }
+                }
+            }
+
+            field("QueryNamespace" to "q2") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        if (!q1CanFinish.isCompleted) {
+                            parallelObservations.add("q2 started before q1 completed")
+                        }
+                        q2Started.complete(Unit)
+                        2
+                    }
+                }
+            }
+
+            field("Mutation" to "triggerQuery") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "namespace { q1 q2 }", emptyMap())
+
+                        val queryResult = scopedAsync {
+                            ctx.query(selectionSet = rss)
+                        }
+
+                        withTimeout(1000) { q1Started.await() }
+                        withTimeout(1000) { q2Started.await() }
+                        q1CanFinish.complete(Unit)
+
+                        val namespace = queryResult.await().fetchAs<EngineObjectData>("namespace")
+                        "${namespace.fetchAs<Int>("q1")}:${namespace.fetchAs<Int>("q2")}"
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("mutation { triggerQuery }")
+                .assertJson("""{"data": {"triggerQuery": "1:2"}}""")
+
+            assertEquals(
+                listOf("q2 started before q1 completed"),
+                parallelObservations,
+                "Query namespace fields should stay parallel when selected by ctx.query from a mutation resolver"
+            )
+        }
+    }
+
+    @Test
     fun `nested subqueries with different variables are isolated`() {
         MockLegacyTenantModuleBootstrapper(
             """

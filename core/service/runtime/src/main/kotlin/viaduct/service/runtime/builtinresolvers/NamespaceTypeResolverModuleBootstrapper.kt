@@ -14,6 +14,7 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.graphql.utils.DefaultSchemaFactory
 
 /**
  * Registers synthetic field resolvers for fields returning `@namespaceType` types.
@@ -44,7 +45,10 @@ class NamespaceTypeResolverModuleBootstrapper : LegacyTenantModuleBootstrapper {
     ) {
         for (field in parent.fieldDefinitions) {
             val baseType = GraphQLTypeUtil.unwrapAll(field.type)
-            if (baseType is GraphQLObjectType && baseType.hasAppliedDirective(DIRECTIVE_NAME)) {
+            if (
+                baseType is GraphQLObjectType &&
+                baseType.hasAppliedDirective(DefaultSchemaFactory.DefaultDirective.NAMESPACE_TYPE.directiveName)
+            ) {
                 check(!GraphQLTypeUtil.isWrapped(field.type)) {
                     "Field '${parent.name}.${field.name}' has wrapped namespace type ${baseType.name}"
                 }
@@ -60,10 +64,6 @@ class NamespaceTypeResolverModuleBootstrapper : LegacyTenantModuleBootstrapper {
     }
 
     override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> = emptyList()
-
-    companion object {
-        private const val DIRECTIVE_NAME = "namespaceType"
-    }
 }
 
 /**

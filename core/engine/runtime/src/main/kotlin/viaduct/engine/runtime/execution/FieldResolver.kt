@@ -344,7 +344,12 @@ class FieldResolver(
                 parameters.executionContext.locale,
             )
             val planParameters = parameters.forChildPlan(plan, variables, target)
-            fetchObject(plan.parentType as GraphQLObjectType, planParameters)
+            val objectType = plan.parentType as GraphQLObjectType
+            if (isMutationNamespace(planParameters, objectType)) {
+                fetchObjectSerially(objectType, planParameters)
+            } else {
+                fetchObject(objectType, planParameters)
+            }
         }
     }
 
@@ -635,10 +640,13 @@ class FieldResolver(
             else -> {
                 // if engineResult is a scalar or simple value, then no nesting is possible and we can return
                 val oer = fieldResolutionResult.engineResult as? ObjectEngineResultImpl ?: return Value.fromValue(Unit)
-                fetchObject(
-                    oer.type,
+                val traversalParameters =
                     parameters.forObjectTraversal(field, oer, fieldResolutionResult.localContext, fieldResolutionResult.originalSource, fieldResolutionResult.resolutionPolicy)
-                )
+                if (isMutationNamespace(parameters, oer.type)) {
+                    fetchObjectSerially(oer.type, traversalParameters)
+                } else {
+                    fetchObject(oer.type, traversalParameters)
+                }
             }
         }
     }
@@ -708,11 +716,7 @@ class FieldResolver(
 
             // For top-level mutation and subscription fields, execute the data fetcher only if the access check succeeds.
             // For everything else, execute the access check in parallel with the data fetcher.
-            val executeCheckerSequentially = when (parameters.executionStepInfo.objectType.name) {
-                parameters.graphQLSchema.mutationType?.name,
-                parameters.graphQLSchema.subscriptionType?.name -> true
-                else -> false
-            }
+            val executeCheckerSequentially = shouldExecuteCheckerSequentially(parameters)
 
             val fieldType = parameters.executionStepInfo.unwrappedNonNullType
             val fieldCheckerResultValue = accessCheckRunner.fieldCheck(parameters, dataFetchingEnvironmentProvider)
@@ -887,4 +891,18 @@ class FieldResolver(
         } catch (e: Exception) {
             Value.fromThrowable(e)
         }
+
+    private fun shouldExecuteCheckerSequentially(parameters: ExecutionParameters): Boolean {
+        val parentType = parameters.executionStepInfo.objectType
+        return when (parentType.name) {
+            parameters.graphQLSchema.mutationType?.name,
+            parameters.graphQLSchema.subscriptionType?.name -> true
+            else -> isMutationNamespace(parameters, parentType)
+        }
+    }
+
+    private fun isMutationNamespace(
+        parameters: ExecutionParameters,
+        objectType: GraphQLObjectType,
+    ): Boolean = parameters.engineExecutionContext.fullSchema.isMutationNamespaceType(objectType.name)
 }
