@@ -31,6 +31,10 @@ tasks.named("check") {
     dependsOn(testFileBasedBootstrap)
 }
 
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
+    compilerOptions.moduleName.set("tenant-api")
+}
+
 tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileTestFixturesKotlin") {
     compilerOptions.moduleName.set("tenant-api_testFixtures")
 }

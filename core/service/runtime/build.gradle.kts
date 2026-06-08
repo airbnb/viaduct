@@ -2,6 +2,10 @@ plugins {
     id("conventions.kotlin")
 }
 
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
+    compilerOptions.moduleName.set("service-runtime")
+}
+
 dependencies {
     api(libs.micrometer.core)
 

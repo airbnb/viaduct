@@ -8,6 +8,10 @@ plugins {
 
 resetCoverageThresholds(instructionMinimum = "0.35", branchMinimum = "0.40")
 
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
+    compilerOptions.moduleName.set("engine-api")
+}
+
 tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileTestFixturesKotlin") {
     compilerOptions.moduleName.set("engine-api_testFixtures")
 }

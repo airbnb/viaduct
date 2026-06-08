@@ -5,6 +5,10 @@ plugins {
     id("conventions.kotlin-static-analysis")
 }
 
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
+    compilerOptions.moduleName.set("engine-runtime")
+}
+
 dependencies {
     implementation(libs.graphql.java)
     implementation(libs.jackson.annotations)

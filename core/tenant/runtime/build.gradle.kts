@@ -12,6 +12,10 @@ viaductFeatureAppContracts {
     }
 }
 
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
+    compilerOptions.moduleName.set("tenant-runtime")
+}
+
 val testFileBasedBootstrap by tasks.registering(Test::class) {
     description = "Runs all contract tests using the file-based bootstrap"
     group = "verification"

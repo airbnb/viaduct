@@ -10,6 +10,10 @@ plugins {
     id("conventions.viaduct-publishing")
 }
 
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
+    compilerOptions.moduleName.set("service-api")
+}
+
 tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileTestFixturesKotlin") {
     compilerOptions.moduleName.set("service-api_testFixtures")
 }
