@@ -43,8 +43,12 @@ jobs:
           REF: ${{ inputs.ref }}
           DEMOAPP: ${{ matrix.demoapp }}
         run: |
-          git clone --branch "$REF" --depth 1 \
-            "https://github.com/viaduct-dev/${DEMOAPP}.git" app
+          if ! git clone --branch "$REF" --depth 1 \
+              "https://github.com/viaduct-dev/${DEMOAPP}.git" app; then
+            echo "::error::Could not clone '${REF}' from viaduct-dev/${DEMOAPP} — the branch may not exist."
+            echo "::error::Ephemeral tmp/* branches are cleaned up after a run; 'Re-run failed jobs' will not recreate them. Dispatch a fresh run instead."
+            exit 1
+          fi
         shell: bash
 
       - uses: actions/setup-java@v5

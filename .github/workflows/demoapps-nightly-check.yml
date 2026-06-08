@@ -169,11 +169,14 @@ jobs:
     secrets: inherit
 
   # ---------------------------------------------------------------------------
-  # Delete temporary branches in viaduct-dev/* repos (ephemeral refs only)
+  # Delete temporary branches in viaduct-dev/* repos (ephemeral refs only).
+  # Runs only when check-demoapps succeeded, so a failed run keeps its branches and
+  # "Re-run failed jobs" can re-clone them. Stale tmp/* branches from failed or
+  # cleanup-less runs are reaped by sweep-tmp-branches.yml.
   # ---------------------------------------------------------------------------
   cleanup:
     needs: [push-demoapps, check-demoapps]
-    if: always() && startsWith(needs.push-demoapps.outputs.destination_branch, 'tmp/')
+    if: always() && startsWith(needs.push-demoapps.outputs.destination_branch, 'tmp/') && needs.check-demoapps.result == 'success'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
