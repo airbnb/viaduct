@@ -16,6 +16,10 @@ tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
     compilerOptions.moduleName.set("tenant-runtime")
 }
 
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileTestFixturesKotlin") {
+    compilerOptions.moduleName.set("tenant-runtime_testFixtures")
+}
+
 val testFileBasedBootstrap by tasks.registering(Test::class) {
     description = "Runs all contract tests using the file-based bootstrap"
     group = "verification"

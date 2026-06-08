@@ -9,6 +9,10 @@ tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
     compilerOptions.moduleName.set("engine-runtime")
 }
 
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileTestFixturesKotlin") {
+    compilerOptions.moduleName.set("engine-runtime_testFixtures")
+}
+
 dependencies {
     implementation(libs.graphql.java)
     implementation(libs.jackson.annotations)

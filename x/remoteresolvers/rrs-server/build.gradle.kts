@@ -17,6 +17,7 @@ dependencies {
     // Viaduct core - fat jars bundle all engine, tenant, and service classes
     implementation(libs.viaduct.api)
     implementation(libs.viaduct.runtime)
+    implementation(libs.kotlinx.coroutines.jdk8)
 
     // Remote Resolver module - provides RemoteResolverServiceImpl and registries
     implementation(libs.viaduct.x.remoteresolvers)
