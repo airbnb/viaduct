@@ -161,7 +161,11 @@ jobs:
       # no peter-evans actions are used here). Finds the existing comment by the
       # marker the script emits and updates it, else creates one.
       - name: Post sticky PR comment
-        if: always() && github.event_name == 'pull_request'
+        # Same-repo PRs only: PRs from forks get a read-only GITHUB_TOKEN that can't
+        # post comments. Those still get the report via the job summary + artifact.
+        if: >-
+          always() && github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
         continue-on-error: true
         uses: actions/github-script@v8
         with:
@@ -191,19 +195,35 @@ jobs:
               core.info('No PR context; skipping comment.');
               return;
             }
-            const comments = await github.paginate(
-              github.rest.issues.listComments,
-              { owner, repo, issue_number, per_page: 100 },
-            );
-            const existing = comments.find(c => c.body && c.body.includes(marker));
-            if (existing) {
-              await github.rest.issues.updateComment(
-                { owner, repo, comment_id: existing.id, body },
+            try {
+              const comments = await github.paginate(
+                github.rest.issues.listComments,
+                { owner, repo, issue_number, per_page: 100 },
               );
-              core.info(`Updated sticky comment ${existing.id}`);
-            } else {
-              await github.rest.issues.createComment(
-                { owner, repo, issue_number, body },
-              );
-              core.info('Created sticky comment');
+              const existing = comments.find(c => c.body && c.body.includes(marker));
+              if (existing) {
+                await github.rest.issues.updateComment(
+                  { owner, repo, comment_id: existing.id, body },
+                );
+                core.info(`Updated sticky comment ${existing.id}`);
+              } else {
+                await github.rest.issues.createComment(
+                  { owner, repo, issue_number, body },
+                );
+                core.info('Created sticky comment');
+              }
+            } catch (err) {
+              // A read-only GITHUB_TOKEN (e.g. a PR from a fork, or a repo/org
+              // "read-only workflow permissions" setting) can't post comments and
+              // returns 403. That's expected — the report is already in the job
+              // summary and the security-scan-reports artifact — so log a notice
+              // instead of failing the step with an unhandled error.
+              if (err.status === 403) {
+                core.notice(
+                  'Skipping sticky comment: read-only GITHUB_TOKEN (e.g. a PR from a ' +
+                  'fork). The report is in the job summary and the security-scan-reports artifact.',
+                );
+              } else {
+                core.warning(`Could not post sticky comment: ${err.message}`);
+              }
             }
