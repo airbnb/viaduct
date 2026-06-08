@@ -2,11 +2,14 @@ package viaduct.ksp.validation
 
 import graphql.language.FragmentDefinition
 import graphql.parser.Parser
+import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
+import graphql.schema.GraphQLTypeUtil
 import graphql.validation.QueryComplexityLimits
 import graphql.validation.ValidationErrorType
 import graphql.validation.Validator
 import java.util.Locale
+import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.graphql.utils.SelectionsParserUtils
 import viaduct.tenant.validation.ErrorMessage
 import viaduct.tenant.validation.IValidator
@@ -41,7 +44,7 @@ internal class ValidateResolverFragments(
         when (spec.metadata.fragmentType) {
             ResolverFragmentType.OBJECT -> {
                 val typeName = spec.metadata.typeName
-                val isMutation = typeName == schema.mutationType?.name
+                val isMutation = isMutationExecutionParentType(typeName)
 
                 if (isMutation) {
                     return "Mutation resolver ${spec.metadata.fullClassName} should not set objectValueFragment."
@@ -68,6 +71,31 @@ internal class ValidateResolverFragments(
         val fragments = document.definitions.filterIsInstance<FragmentDefinition>()
         val entryPoint = SelectionsParserUtils.findEntryPointFragment(fragments)
         return entryPoint.typeCondition.name
+    }
+
+    private fun isMutationExecutionParentType(typeName: String): Boolean {
+        val mutationType = schema.mutationType ?: return false
+        if (typeName == mutationType.name) return true
+
+        val visited = mutableSetOf<String>()
+
+        fun walkNamespaceFields(parent: GraphQLObjectType): Boolean {
+            for (field in parent.fieldDefinitions) {
+                val baseType = GraphQLTypeUtil.unwrapAll(field.type)
+                if (
+                    baseType is GraphQLObjectType &&
+                    baseType.hasAppliedDirective(DefaultSchemaFactory.DefaultDirective.NAMESPACE_TYPE.directiveName) &&
+                    visited.add(baseType.name)
+                ) {
+                    if (baseType.name == typeName || walkNamespaceFields(baseType)) {
+                        return true
+                    }
+                }
+            }
+            return false
+        }
+
+        return walkNamespaceFields(mutationType)
     }
 
     private fun validateAgainstSchema(spec: ResolverFragmentSpec): List<ErrorMessage> {

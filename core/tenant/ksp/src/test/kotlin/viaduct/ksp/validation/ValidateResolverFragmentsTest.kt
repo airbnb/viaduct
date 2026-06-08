@@ -11,12 +11,17 @@ import org.junit.jupiter.api.Test
 class ValidateResolverFragmentsTest {
     companion object {
         private val TEST_SCHEMA_SDL = """
+            directive @namespaceType on OBJECT
+
             type Query {
                 user(id: ID!): User
+                namespace: QueryNamespace
             }
 
             type Mutation {
                 createUser(name: String!): User
+                namespace: MutationNamespace
+                nestedNamespace: MutationRootNamespace
             }
 
             type User {
@@ -29,6 +34,25 @@ class ValidateResolverFragmentsTest {
                 id: ID!
                 url: String
                 caption: String
+            }
+
+            type QueryNamespace @namespaceType {
+                cachedValue: String
+                user(id: ID!): User
+            }
+
+            type MutationNamespace @namespaceType {
+                priorValue: String
+                createUser(name: String!): User
+            }
+
+            type MutationRootNamespace @namespaceType {
+                nested: NestedMutationNamespace
+            }
+
+            type NestedMutationNamespace @namespaceType {
+                priorValue: String
+                createUser(name: String!): User
             }
 
             directive @generateMock(id: String!) repeatable on FRAGMENT_DEFINITION
@@ -165,6 +189,46 @@ class ValidateResolverFragmentsTest {
         assertTrue(errors.isNotEmpty())
         assertTrue(errors[0].contains("Mutation resolver"))
         assertTrue(errors[0].contains("should not set objectValueFragment"))
+    }
+
+    @Test
+    fun `invalid - namespaced mutation resolver with objectValueFragment`() {
+        val spec = createSpec(
+            fragment = "fragment _ on MutationNamespace { priorValue }",
+            fragmentType = ResolverFragmentType.OBJECT,
+            typeName = "MutationNamespace"
+        )
+
+        val errors = createValidator(listOf(spec)).validate()
+        assertTrue(errors.isNotEmpty())
+        assertTrue(errors[0].contains("Mutation resolver"))
+        assertTrue(errors[0].contains("should not set objectValueFragment"))
+    }
+
+    @Test
+    fun `invalid - nested namespaced mutation resolver with objectValueFragment`() {
+        val spec = createSpec(
+            fragment = "fragment _ on NestedMutationNamespace { priorValue }",
+            fragmentType = ResolverFragmentType.OBJECT,
+            typeName = "NestedMutationNamespace"
+        )
+
+        val errors = createValidator(listOf(spec)).validate()
+        assertTrue(errors.isNotEmpty())
+        assertTrue(errors[0].contains("Mutation resolver"))
+        assertTrue(errors[0].contains("should not set objectValueFragment"))
+    }
+
+    @Test
+    fun `valid query namespace resolver with objectValueFragment`() {
+        val spec = createSpec(
+            fragment = "fragment _ on QueryNamespace { cachedValue }",
+            fragmentType = ResolverFragmentType.OBJECT,
+            typeName = "QueryNamespace"
+        )
+
+        val errors = createValidator(listOf(spec)).validate()
+        assertTrue(errors.isEmpty(), errors.joinToString("\n"))
     }
 
     @Test
