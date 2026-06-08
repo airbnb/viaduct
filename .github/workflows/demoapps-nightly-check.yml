@@ -195,11 +195,13 @@ jobs:
             exit 1
           fi
 
-          # Log current SHA for recovery before deleting
+          # Resolve the branch SHA (logged for recovery) and require a real commit
+          # SHA before deleting. gh api emits its JSON error body on stdout for a
+          # missing ref, so a non-empty value alone does not mean the branch exists.
           SHA=$(gh api "repos/viaduct-dev/${DEMOAPP}/git/refs/heads/${DEST_BRANCH}" \
-            --jq '.object.sha' 2>/dev/null || echo "")
-          if [ -z "$SHA" ]; then
-            echo "Branch '${DEST_BRANCH}' does not exist in viaduct-dev/${DEMOAPP} — skipping"
+            --jq '.object.sha' 2>/dev/null || true)
+          if ! [[ "$SHA" =~ ^[0-9a-f]{40,64}$ ]]; then
+            echo "Branch '${DEST_BRANCH}' not found in viaduct-dev/${DEMOAPP} (already deleted?) — skipping"
             exit 0
           fi
           echo "Branch '${DEST_BRANCH}' in viaduct-dev/${DEMOAPP} points to ${SHA}"
