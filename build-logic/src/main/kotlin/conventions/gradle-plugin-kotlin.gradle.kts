@@ -25,6 +25,7 @@ package conventions
 plugins {
     java // idempotent — both kotlin-dsl and kotlin-jvm already apply this
     id("conventions.jacoco")
+    id("conventions.test-retry")
 }
 
 java {

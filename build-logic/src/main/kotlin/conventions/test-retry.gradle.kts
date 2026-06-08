@@ -4,10 +4,15 @@ plugins {
     id("org.gradle.test-retry")
 }
 
-// Retry flaky tests on CI only, so local runs stay honest. A test that fails and
-// then passes on retry is still reported as flaky in the test report and the
-// Develocity build scan, so flakiness stays visible rather than masked.
-val onCi = providers.environmentVariable("CI").orNull == "true"
+// Retry flaky tests only on CI, so local runs stay honest by default. Enable via the
+// `CI` env var (set by GitHub Actions) or `-PonCI=true`. A test that fails and then
+// passes on retry is still reported as flaky in the test report and the Develocity
+// build scan, so flakiness stays visible rather than masked.
+val onCi =
+    providers.gradleProperty("onCI")
+        .orElse(providers.environmentVariable("CI"))
+        .map(String::toBoolean)
+        .getOrElse(false)
 
 tasks.withType<Test>().configureEach {
     retry {
