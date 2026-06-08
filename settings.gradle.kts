@@ -39,6 +39,7 @@ run {
 includeBuild("core")
 includeBuild("publications")
 includeBuild("gradle-plugins")
+includeBuild("gradle-plugins/gradletestapps")
 
 // The publish step (publishToMavenLocal) only needs the published builds: core,
 // publications, gradle-plugins (above) and the remoteresolvers proxy library (below).

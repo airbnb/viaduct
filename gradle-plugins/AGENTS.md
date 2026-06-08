@@ -17,13 +17,16 @@ These tests should stay narrow and deterministic. In particular in-project tests
 - confirming that correctly configured projects do not fail during configuration
 - shallow smoke checks that expected tasks or configurations are wired into the model
 
-### 2. Tests inside the "execution tests" included builds
+### 2. Tests inside the "gradle test apps" build
 
-Included builds under `execution-tests/` contain small Viaduct projects used to test the kind of task executions we do not want to test with TestKit.  There are two builds there:
+The included build under `gradle-plugins/gradletestapps/` contains small Viaduct test applications used to test the kind of task executions we do not want to test with TestKit. There are three test applications there:
 
-- `one-project` - a single Gradle project containing both the application and module plugins
-- `two-project` - two Gradle projects separating the application and module plugins
+- `:one-project` - a single Gradle project containing both the application and module plugins
+- `:two-project` - an application project with a nested `:two-project:resolvers` module project, focused on minimal cross-project runtime execution
+- `:multi-project` - an application project with two nested module projects, `:multi-project:alpha` and `:multi-project:beta`
 
-These builds exercise task-execution paths of the plugins, including codegen execution and schema assembly behavior.
+These fixtures exercise task-execution paths of the plugins, including codegen execution, schema assembly behavior, and direct end-to-end execution against a real `Viaduct` instance. The `:multi-project` fixture is where we keep the richer cross-project generated-output assertions.
 
-Note that the demoapps represent an additional source of task-execution testing.  The execution tests here are a deliberately designed test suite; the demoapps supplement that with less surgical, real-worldish test cases.
+These fixtures are intended to run only as part of the OSS composite build. Standalone published-artifact coverage belongs to the demoapps instead.
+
+Note that the demoapps represent an additional source of task-execution testing. The gradle test apps here are a deliberately designed test suite; the demoapps supplement that with less surgical, real-worldish test cases.

@@ -1,0 +1,7 @@
+extend type Query {
+  author: String @resolver
+}
+
+extend type Mutation {
+  echo(message: String!): String @resolver
+}

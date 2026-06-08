@@ -1,0 +1,33 @@
+plugins {
+    id("conventions.kotlin")
+    id("com.airbnb.viaduct.application-gradle-plugin")
+}
+
+viaductApplication {
+    modulePackagePrefix.set("com.example.execution.multiproject")
+}
+
+dependencies {
+    implementation("com.airbnb.viaduct:api")
+    implementation("com.airbnb.viaduct:runtime")
+    implementation(project(":multi-project:alpha"))
+    implementation(project(":multi-project:beta"))
+}
+
+tasks.withType<Test>().configureEach {
+    systemProperty("projectBuildDir", layout.buildDirectory.asFile.get().absolutePath)
+    systemProperty(
+        "alphaBuildDir",
+        project(":multi-project:alpha").layout.buildDirectory.asFile.get().absolutePath
+    )
+    systemProperty(
+        "betaBuildDir",
+        project(":multi-project:beta").layout.buildDirectory.asFile.get().absolutePath
+    )
+}
+
+// The root-project smoke test asserts on outputs generated in both module subprojects.
+// Build them first so those files exist before :multi-project:test runs.
+tasks.named("test") {
+    dependsOn(":multi-project:alpha:build", ":multi-project:beta:build")
+}

@@ -19,6 +19,7 @@ dependencies {
     // conventions dependencies
     implementation(libs.kotlinx.binary.compatibility.validator)
     implementation(plugin(libs.plugins.kotlin.jvm))
+    implementation(plugin(libs.plugins.ksp))
     implementation(plugin(libs.plugins.gradle.maven.publish))
     implementation(plugin(libs.plugins.detekt))
     implementation(plugin(libs.plugins.ktlintPlugin))
