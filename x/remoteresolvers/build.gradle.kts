@@ -29,8 +29,8 @@ tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
 }
 
 dependencies {
-    // Viaduct Engine API - the core interfaces we're implementing
-    implementation(libs.viaduct.engine.api)
+    // Viaduct fat jar - published public artifact, avoids dependency on unpublished thin modules
+    implementation(libs.viaduct.api)
 
     // GraphQL Java for schema types
     implementation(libs.graphql.java)

@@ -8,6 +8,10 @@ plugins {
 
 resetCoverageThresholds(instructionMinimum = "0.25", branchMinimum = "0.10")
 
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
+    compilerOptions.moduleName.set("tenant-wiring")
+}
+
 dependencies {
     implementation(libs.graphql.java)
     implementation(libs.viaduct.tenant.api)

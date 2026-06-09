@@ -6,6 +6,10 @@ plugins {
 
 resetCoverageThresholds(instructionMinimum = "0.25", branchMinimum = "0.25")
 
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
+    compilerOptions.moduleName.set("engine-wiring")
+}
+
 dependencies {
 
     implementation(libs.viaduct.engine.api)

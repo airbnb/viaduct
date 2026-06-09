@@ -10,6 +10,10 @@ plugins {
 
 resetCoverageThresholds(instructionMinimum = "0.70")
 
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
+    compilerOptions.moduleName.set("service-wiring")
+}
+
 dependencies {
     implementation(libs.viaduct.service.api)
     implementation(libs.graphql.java)

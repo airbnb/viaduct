@@ -23,15 +23,16 @@ tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileTestFixture
 val testFileBasedBootstrap by tasks.registering(Test::class) {
     description = "Runs all contract tests using the file-based bootstrap"
     group = "verification"
-    testClassesDirs = sourceSets.named("test").get().output.classesDirs
-    classpath = sourceSets.named("test").get().runtimeClasspath
+    val testSourceSet = sourceSets.named("test").get()
+    testClassesDirs = testSourceSet.output.classesDirs
+    classpath = testSourceSet.runtimeClasspath
     useJUnitPlatform {
         includeTags("feature-app-contract-test")
     }
     environment("USE_FILE_BASED_BOOTSTRAP", "true")
 }
 
-tasks.named("check") {
+tasks.named("check").configure {
     dependsOn(testFileBasedBootstrap)
 }
 
