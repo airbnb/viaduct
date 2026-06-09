@@ -1,0 +1,98 @@
+name: Sweep Stale tmp/* Branches
+# Reaps leftover tmp/<ref> branches in the viaduct-dev/* demoapp repos.
+#
+# The demoapp pipelines push ephemeral tmp/<ref> branches to those repos. The in-run
+# cleanup in demoapps-nightly-check.yml only deletes them when the run succeeded (so a
+# failed run stays re-runnable), and some dispatch paths (e.g. e2e-snapshot-test.yml)
+# don't clean up at all. This scheduled sweep bounds the resulting leak by deleting
+# tmp/* branches whose latest commit is older than the TTL.
+
+on:
+  schedule:
+    - cron: '30 6 * * 1-5'   # 06:30 UTC weekdays, just after the nightly build
+  workflow_dispatch:
+    inputs:
+      max_age_days:
+        description: "Delete tmp/* branches whose latest commit is older than this many days"
+        required: false
+        default: "7"
+        type: string
+      dry_run:
+        description: "List what would be deleted without deleting (manual runs preview by default)"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sweep-tmp-branches
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        demoapp: [cli-starter, jetty-starter, ktor-starter, micronaut-starter, starwars]
+    name: Sweep ${{ matrix.demoapp }}
+    steps:
+      - name: Delete stale tmp/* branches
+        env:
+          GH_TOKEN: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
+          DEMOAPP: ${{ matrix.demoapp }}
+          # On schedule these inputs are empty -> default to a real sweep with a 7-day TTL.
+          MAX_AGE_DAYS: ${{ inputs.max_age_days || '7' }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: |
+          set -euo pipefail
+
+          REPO="viaduct-dev/${DEMOAPP}"
+          now=$(date -u +%s)
+          cutoff=$(date -u -d "${MAX_AGE_DAYS} days ago" +%s)
+          echo "Sweeping ${REPO}: deleting tmp/* branches older than ${MAX_AGE_DAYS}d (dry_run=${DRY_RUN})"
+
+          refs=$(gh api "repos/${REPO}/git/matching-refs/heads/tmp/" --jq '.[].ref' 2>/dev/null || true)
+          if [ -z "$refs" ]; then
+            echo "No tmp/* branches found."
+            exit 0
+          fi
+
+          while IFS= read -r ref; do
+            branch="${ref#refs/heads/}"
+
+            # Defense-in-depth: only ever touch tmp/* branches.
+            if [[ "$branch" != tmp/* ]]; then
+              echo "  skipping non-tmp ref '${branch}'"
+              continue
+            fi
+
+            sha=$(gh api "repos/${REPO}/git/refs/heads/${branch}" --jq '.object.sha' 2>/dev/null || true)
+            if ! [[ "$sha" =~ ^[0-9a-f]{40,64}$ ]]; then
+              echo "  ${branch}: no commit SHA (already gone?) — skipping"
+              continue
+            fi
+
+            committed=$(gh api "repos/${REPO}/commits/${sha}" --jq '.commit.committer.date' 2>/dev/null || true)
+            if [ -z "$committed" ]; then
+              echo "  ${branch}: could not read commit date — skipping"
+              continue
+            fi
+            committed_ts=$(date -u -d "$committed" +%s)
+            age_days=$(( (now - committed_ts) / 86400 ))
+
+            if [ "$committed_ts" -ge "$cutoff" ]; then
+              echo "  ${branch}: ${age_days}d old — keep"
+            elif [ "$DRY_RUN" = "true" ]; then
+              echo "  ${branch}: ${age_days}d old — WOULD DELETE (dry run)"
+            else
+              if gh api -X DELETE "repos/${REPO}/git/refs/heads/${branch}"; then
+                echo "  ${branch}: ${age_days}d old — deleted (was ${sha})"
+              else
+                echo "  ${branch}: delete failed (already gone?)"
+              fi
+            fi
+          done <<< "$refs"
+        shell: bash
