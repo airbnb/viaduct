@@ -6,14 +6,12 @@ plugins {
     id("conventions.kotlin")
     id("conventions.dokka")
     id("conventions.bcv-api")
-    id("conventions.viaduct-publishing")
 }
 
 resetCoverageThresholds(instructionMinimum = "0.70")
 
-viaductPublishing {
-    name.set("Viaduct Service Wiring")
-    description.set("Bindings between the tenant and engine runtimes.")
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
+    compilerOptions.moduleName.set("service-wiring")
 }
 
 dependencies {

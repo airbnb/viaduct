@@ -5,7 +5,6 @@ plugins {
     id("conventions.java")
     id("conventions.dokka")
     id("conventions.kotlin")
-    id("conventions.viaduct-publishing")
     `java-test-fixtures`
 }
 

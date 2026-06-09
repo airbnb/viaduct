@@ -26,6 +26,7 @@ jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackso
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
 kotlinx-coroutines-reactor = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-reactor", version.ref = "coroutinesReactor" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutinesReactor" }
+kotlinx-coroutines-jdk8 = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-jdk8", version.ref = "coroutinesReactor" }
 reactor-core = { group = "io.projectreactor", name = "reactor-core", version.ref = "reactor" }
 junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher", version.ref = "junitPlatform" }
 junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit5" }
@@ -38,17 +39,8 @@ micronaut-inject = { group = "io.micronaut", name = "micronaut-inject", version.
 micronaut-http = { group = "io.micronaut", name = "micronaut-http", version.ref = "micronaut" }
 
 # Viaduct dependencies
-viaduct-bom = { group = "com.airbnb.viaduct", name = "bom", version.ref = "viaduct" }
 viaduct-api = { group = "com.airbnb.viaduct", name = "api", version.ref = "viaduct" }
 viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime", version.ref = "viaduct" }
-viaduct-engine-api = { group = "com.airbnb.viaduct.engine", name = "api", version.ref = "viaduct" }
-viaduct-engine-wiring = { group = "com.airbnb.viaduct.engine", name = "wiring", version.ref = "viaduct" }
-viaduct-service-api = { group = "com.airbnb.viaduct.service", name = "api", version.ref = "viaduct" }
-viaduct-service-runtime = { group = "com.airbnb.viaduct.service", name = "runtime", version.ref = "viaduct" }
-viaduct-service-wiring = { group = "com.airbnb.viaduct.service", name = "wiring", version.ref = "viaduct" }
-viaduct-tenant-api = { group = "com.airbnb.viaduct.tenant", name = "api", version.ref = "viaduct" }
-viaduct-tenant-runtime = { group = "com.airbnb.viaduct.tenant", name = "runtime", version.ref = "viaduct" }
-viaduct-tenant-wiring = { group = "com.airbnb.viaduct.tenant", name = "wiring", version.ref = "viaduct" }
 viaduct-x-remoteresolvers = { group = "com.airbnb.viaduct", name = "remoteresolvers", version.ref = "viaduct" }
 
 # gRPC dependencies

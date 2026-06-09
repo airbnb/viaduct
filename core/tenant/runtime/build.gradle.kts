@@ -1,7 +1,6 @@
 plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
-    id("conventions.viaduct-publishing")
     id("feature-app-contracts")
     id("feature-app-contract-tests")
     `java-test-fixtures`
@@ -13,9 +12,28 @@ viaductFeatureAppContracts {
     }
 }
 
-viaductPublishing {
-    name.set("Tenant Runtime")
-    description.set("The Viaduct tenant runtime.")
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
+    compilerOptions.moduleName.set("tenant-runtime")
+}
+
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileTestFixturesKotlin") {
+    compilerOptions.moduleName.set("tenant-runtime_testFixtures")
+}
+
+val testFileBasedBootstrap by tasks.registering(Test::class) {
+    description = "Runs all contract tests using the file-based bootstrap"
+    group = "verification"
+    val testSourceSet = sourceSets.named("test").get()
+    testClassesDirs = testSourceSet.output.classesDirs
+    classpath = testSourceSet.runtimeClasspath
+    useJUnitPlatform {
+        includeTags("feature-app-contract-test")
+    }
+    environment("USE_FILE_BASED_BOOTSTRAP", "true")
+}
+
+tasks.named("check").configure {
+    dependsOn(testFileBasedBootstrap)
 }
 
 dependencies {

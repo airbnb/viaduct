@@ -1,7 +1,6 @@
 plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
-    id("conventions.viaduct-publishing")
     id("feature-app-contract-tests")
 }
 

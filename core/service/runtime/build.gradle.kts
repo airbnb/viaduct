@@ -1,11 +1,9 @@
 plugins {
     id("conventions.kotlin")
-    id("conventions.viaduct-publishing")
 }
 
-viaductPublishing {
-    name.set("Service Runtime")
-    description.set("The main entrypoint for Viaduct at runtime.")
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
+    compilerOptions.moduleName.set("service-runtime")
 }
 
 dependencies {
