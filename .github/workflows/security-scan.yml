@@ -140,6 +140,10 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
+          # Intentionally unbounded: GitHub caps $GITHUB_STEP_SUMMARY at 1 MiB, and as
+          # of mid-2026 this report runs well under ~50 KB, so we don't truncate it.
+          # Revisit if the project grows enough to approach the cap (e.g. truncate here
+          # with a pointer to the security-scan-reports artifact).
           if [ -f security-scan-report.md ]; then
             cat security-scan-report.md >> "$GITHUB_STEP_SUMMARY"
           fi
