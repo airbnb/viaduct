@@ -7,10 +7,10 @@ The release process follows these steps:
 1. **Bump version** on main to the next SNAPSHOT (e.g., `0.8.0-SNAPSHOT`)
 2. **Create release branch** from the commit before the bump (e.g., `release/v0.7.0` with initial VERSION `0.7.0`)
 3. **Validate** — run CI across all Java/OS combinations
-4. **(Optional) Publish release candidate** — publish `X.Y.Z-rc.N` artifacts, push RC demo apps, and verify them
+4. **(Optional) Publish release candidate** — inspect the published-jar SBOMs, then publish `X.Y.Z-rc.N` artifacts, push RC demo apps, and verify them
 5. **Generate changelog** and review with the team
 6. **Confirm release** at the team meeting
-7. **Publish final release** — one command that publishes `X.Y.Z`, pushes demo apps to `main`, verifies them, creates the tag, and publishes the GitHub release
+7. **Publish final release** — inspect the published-jar SBOMs, then run one command that publishes `X.Y.Z`, pushes demo apps to `main`, verifies them, creates the tag, and publishes the GitHub release
 8. **Verify** — pull latest version of Star Wars demo app and verify it passes its tests
 
 ## Quick Command Reference
@@ -32,6 +32,7 @@ export GH_USER="your-github.com-username"
 | [4. Validate build](#4-validate-build) | `gh workflow run ci-trigger.yml --ref release/v${RELEASE_VER}` |
 | [5. Publish RC](#5-publish-release-candidate-optional) | `./gradlew setVersion -PsetVersion=${RELEASE_VER}-${RC_VER}`, commit, push, `gh workflow run release.yml -f release_version=${RELEASE_VER} -f rc_ver=${RC_VER}` |
 | [6. Changelog](#6-generate-changelog) | `generate_changelog.py origin/release/v${PREV_VER} HEAD` |
+| [SBOM inspection](#pre-publication-sbom-inspection) (before each publish) | `./gradlew -p publications cyclonedxBom --no-configuration-cache`, then inspect |
 | [8. Publish final release](#8-publish-final-release) | `gh workflow run release.yml -f release_version=${RELEASE_VER} -f final=true -F release_notes=@changelog.md` |
 | [9. Verify](#9-verify) | `cd ~/repos/starwars && git pull && ./gradlew test` |
 
@@ -239,6 +240,136 @@ This runs three sub-workflows:
 
 Wait for all jobs to pass (15-30 minutes).
 
+### Pre-publication SBOM inspection
+
+> **Run this before every publish — both Step 5 (RC) and Step 8 (final).** A published fat JAR
+> must not bundle test/build-only libraries. In `1.0.0-rc.1` the `test-fixtures` jar silently
+> shipped junit, mockk, bytebuddy, javassist, assertj and friends via a stray `testFixtures(...)`
+> dependency — every test passed and an external integrator caught it only after publication to
+> Maven Central. This gate inspects each published jar's SBOM (and its actual bytes) first.
+
+Run it on the exact commit you are about to publish:
+
+```bash
+cd ~/repos/viaduct
+git checkout release/v${RELEASE_VER}
+```
+
+**1. Generate the SBOMs.**
+
+```bash
+./gradlew -p publications cyclonedxBom --no-configuration-cache
+```
+
+One CycloneDX SBOM is written per published fat JAR at
+`publications/<module>/build/reports/sbom/cyclonedx.json`, for: `api`, `runtime`, `buildtime`,
+`test-fixtures`, `javaapi-api`, `javaapi-runtime`, `javaapi-buildtime`. (`bom` is a java-platform
+and has no SBOM.)
+
+> **Why `--no-configuration-cache`:** the CycloneDX plugin is incompatible with Gradle's
+> configuration cache and, under the cache, **silently writes an empty SBOM** instead of failing.
+> An empty SBOM would make every check below pass for the wrong reason.
+
+**2. Confirm the SBOMs are non-empty.** A zero-component SBOM means generation failed silently —
+do **not** treat it as "clean".
+
+```bash
+for f in publications/*/build/reports/sbom/cyclonedx.json; do
+  n=$(python3 -c "import json,sys;print(len(json.load(open(sys.argv[1])).get('components',[])))" "$f")
+  printf '%-22s %s components\n' "$(echo "$f" | sed 's#publications/##;s#/build.*##')" "$n"
+  [ "$n" -gt 0 ] || echo "  ^^ EMPTY — generation failed; re-run with --no-configuration-cache --rerun-tasks"
+done
+```
+
+Expect a few dozen components for each of the seven modules.
+
+**3. Scan for test/build-only libraries.** These should never ship in a published runtime
+artifact. `test-fixtures` is the most prone (it bundles `testFixtures(...)`), but scan them all:
+
+```bash
+for f in publications/*/build/reports/sbom/cyclonedx.json; do
+  hits=$(python3 -c "import json,sys;[print(c['name']) for c in json.load(open(sys.argv[1])).get('components',[])]" "$f" \
+         | grep -Ei 'junit|mockk|mockito|byte-?buddy|objenesis|javassist|assertj|strikt|hamcrest|truth' || true)
+  [ -n "$hits" ] && { echo "⚠️  $f"; printf '   %s\n' $hits; }
+done
+```
+
+A hit is a **prompt to investigate, not an automatic fail** — decide whether the library belongs
+in *that* artifact:
+
+- **Test frameworks** (`junit`, `mockk`, `mockito`, `assertj`, `strikt`, `hamcrest`, `truth`)
+  are never appropriate in any published jar. A hit means a test dependency leaked: **STOP** and
+  inspect that module's `build.gradle.kts` for a stray `testFixtures(...)` or a test-lib
+  `api`/`implementation`.
+- **Bytecode/reflection libs** (`javassist`, `bytebuddy`, `objenesis`) can be legitimate for a
+  codegen module. For example, this scan flags `javassist` in `buildtime` (a codegen-tools fat
+  jar) — but Step 5 shows it isn't actually packaged. Always confirm against the jar before
+  acting, and judge by the module's purpose.
+
+**4. Remember the SBOM is a _superset_ of the jar.** Each SBOM lists the module's full
+`runtimeClasspath`, but the fat-jar build `exclude()`s some libraries from the packaged jar (for
+`test-fixtures`: `kotlin`, `kotlinx`, `kotest`, `opentest4j`, `jetbrains`, `reactivestreams`,
+`reactor` — see `publications/test-fixtures/build.gradle.kts`). So seeing e.g. `io.kotest:*` or
+`org.jetbrains.kotlin:kotlin-stdlib` in the SBOM is **expected**, not a leak. For the
+authoritative list of what actually ships, inspect the jar itself (next step).
+
+**5. Confirm against the actual jar bytes.** Build the fat jars and grep their contents:
+
+```bash
+./gradlew -p publications assemble --no-configuration-cache
+for j in publications/*/build/libs/*.jar; do
+  case "$j" in *-sources.jar|*-javadoc.jar) continue ;; esac
+  echo "== $(basename "$j") =="
+  jar tf "$j" | grep -Ei '(^|/)(org/junit|io/mockk|org/mockito|net/bytebuddy|org/objenesis|javassist|org/assertj|strikt|org/hamcrest|com/google/common/truth|io/kotest|org/opentest4j)/' \
+    || echo "  clean"
+done
+```
+
+Anything listed here is in the bytes consumers receive ⇒ **STOP**. This is the check that caught
+the residual leaks during the `rc.1` fix; it also confirms the `exclude()`s are working (e.g.
+`io/kotest/` and `javassist/` report `clean` even though they appear in the SBOM).
+
+**6. Diff against the previous release** to catch newly-introduced dependencies. Generate the
+previous release's SBOMs in a throwaway worktree and compare coordinates:
+
+```bash
+git worktree add --detach /tmp/viaduct-prev "v${PREV_VER}"
+( cd /tmp/viaduct-prev && ./gradlew -p publications cyclonedxBom --no-configuration-cache )
+
+coords() { python3 -c "import json,sys;[print(f\"{c.get('group','')}:{c['name']}\") for c in json.load(open(sys.argv[1])).get('components',[])]" "$1" | sort -u; }
+for m in api runtime buildtime test-fixtures javaapi-api javaapi-runtime javaapi-buildtime; do
+  prev="/tmp/viaduct-prev/publications/$m/build/reports/sbom/cyclonedx.json"
+  [ -f "$prev" ] || { echo "== $m: no prior SBOM (skipping) =="; continue; }
+  added=$(comm -13 <(coords "$prev") <(coords "publications/$m/build/reports/sbom/cyclonedx.json"))
+  [ -n "$added" ] && { echo "== $m: added since v${PREV_VER} =="; printf '   %s\n' $added; }
+done
+
+git worktree remove --force /tmp/viaduct-prev
+```
+
+Every addition should correspond to an intentional change in this release; an unexplained new
+dependency — especially a test/build lib — is a red flag.
+
+> **Caveat:** this diff only works if `v${PREV_VER}` already shipped with the SBOM tooling. If the
+> previous release predates it, skip this step and rely on Steps 3–5.
+
+**7. Final hygiene sweep.** Beyond the denylist, skim the full dependency list of each jar and
+confirm every entry is something this artifact *should* bundle:
+
+```bash
+for f in publications/*/build/reports/sbom/cyclonedx.json; do
+  echo "== $(echo "$f" | sed 's#publications/##;s#/build.*##') =="
+  python3 -c "import json,sys;[print(f'  {c.get(\"group\",\"\")}:{c[\"name\"]}@{c.get(\"version\",\"\")}') for c in sorted(json.load(open(sys.argv[1])).get('components',[]), key=lambda c:(c.get('group',''),c['name']))]" "$f"
+done
+```
+
+(If `.github/scripts/format_sbom_summary.py` is present, `python3 .github/scripts/format_sbom_summary.py publications` renders the same data as a readable per-jar table.)
+
+**Decision.** Proceed to publish only when: every SBOM is non-empty (Step 2), denylist hits are
+absent or explained (Step 3), `jar tf` is clean (Step 5), every newly-added dependency is
+intentional (Step 6), and the full sweep looks appropriate (Step 7). Otherwise fix the offending
+module's `build.gradle.kts` and re-cut the RC before publishing.
+
 ### 5) Publish release candidate (optional)
 
 Use this when you want a public release candidate before the final release.
@@ -258,6 +389,8 @@ git add VERSION demoapps/*/gradle.properties
 git commit -m "chore: Set version to ${RELEASE_VER}-${RC_VER}"
 git push origin release/v${RELEASE_VER}
 ```
+
+> **Before publishing:** complete the [Pre-publication SBOM inspection](#pre-publication-sbom-inspection). Do not trigger the workflow if a fat JAR ships test/build-only libraries.
 
 **Publish the RC:**
 
@@ -340,6 +473,8 @@ git push origin release/v${RELEASE_VER}
 ```
 
 > **Warning:** This publishes to Maven Central and Gradle Plugin Portal. Once published, a version cannot be unpublished from Maven Central.
+
+> **Before publishing:** complete the [Pre-publication SBOM inspection](#pre-publication-sbom-inspection) on the final commit. Do not trigger the workflow if a fat JAR ships test/build-only libraries.
 
 This single command publishes artifacts, pushes demo apps to standalone repos, verifies them, creates the release tag, and publishes the GitHub release:
 
