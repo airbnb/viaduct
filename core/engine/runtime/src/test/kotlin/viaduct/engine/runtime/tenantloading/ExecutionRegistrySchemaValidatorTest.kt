@@ -2,9 +2,9 @@ package viaduct.engine.runtime.tenantloading
 
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.bootstrap.executionregistry.FieldAPIData
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntry
+import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeAPIData
-import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
+import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.mocks.MockSchema
 
 class ExecutionRegistrySchemaValidatorTest {
@@ -28,7 +28,7 @@ class ExecutionRegistrySchemaValidatorTest {
     private fun fieldEntry(
         typeName: String,
         fieldName: String
-    ) = FieldEntry(
+    ) = FieldEntryConfig(
         typeName = typeName,
         fieldName = fieldName,
         isBatching = false,
@@ -38,7 +38,7 @@ class ExecutionRegistrySchemaValidatorTest {
     )
 
     private fun nodeEntry(typeName: String) =
-        NodeEntry(
+        NodeEntryConfig(
             typeName = typeName,
             isBatching = false,
             isSelective = false,

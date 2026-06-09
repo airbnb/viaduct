@@ -3,11 +3,11 @@ package viaduct.engine.runtime.tenantloading
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistry
+import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldAPIData
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntry
+import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeAPIData
-import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
+import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.spi.TenantModuleException
 
 class ExecutionRegistryValidatorTest {
@@ -15,7 +15,7 @@ class ExecutionRegistryValidatorTest {
         typeName: String,
         fieldName: String,
         resolverClass: String = "com.example.Resolver"
-    ) = FieldEntry(
+    ) = FieldEntryConfig(
         typeName = typeName,
         fieldName = fieldName,
         isBatching = false,
@@ -28,7 +28,7 @@ class ExecutionRegistryValidatorTest {
         typeName: String,
         resolverClass: String = "com.example.NodeResolver",
         isBatching: Boolean = false
-    ) = NodeEntry(
+    ) = NodeEntryConfig(
         typeName = typeName,
         isBatching = isBatching,
         isSelective = false,
@@ -37,9 +37,9 @@ class ExecutionRegistryValidatorTest {
     )
 
     private fun registry(
-        fields: List<FieldEntry> = emptyList(),
-        nodes: List<NodeEntry> = emptyList()
-    ) = ExecutionRegistry(version = "1", executorFactory = "", grtPackagePrefix = "", fields = fields, nodes = nodes)
+        fields: List<FieldEntryConfig> = emptyList(),
+        nodes: List<NodeEntryConfig> = emptyList()
+    ) = ExecutionRegistryConfigFile(version = "1", executorFactory = "", grtPackagePrefix = "", fields = fields, nodes = nodes)
 
     @Test
     fun `no duplicates passes`() {

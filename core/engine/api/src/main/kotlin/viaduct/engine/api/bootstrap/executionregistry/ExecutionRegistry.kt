@@ -10,20 +10,20 @@ package viaduct.engine.api.bootstrap.executionregistry
  *
  * Then consumed by the bootstrapper.
  */
-data class ExecutionRegistry(
+data class ExecutionRegistryConfigFile(
     /** Version of the module-index JSON schema */
     val version: String,
     /** FQN of the ExecutorFactory implementation. */
     val executorFactory: String,
     /** Package where GRT classes live for this module (e.g. "viaduct.api.grts"). Extracted by KSP. */
     val grtPackagePrefix: String,
-    val nodes: List<NodeEntry> = emptyList(),
-    val fields: List<FieldEntry> = emptyList(),
+    val nodes: List<NodeEntryConfig> = emptyList(),
+    val fields: List<FieldEntryConfig> = emptyList(),
     /** FQN of the class annotated with @TenantBootstrapper, or null if none was declared. */
     val bootstrapClass: String? = null,
 )
 
-data class NodeEntry(
+data class NodeEntryConfig(
     val typeName: String,
     val isBatching: Boolean,
     val isSelective: Boolean,
@@ -43,7 +43,7 @@ data class NodeAPIData(
     val resolverBaseClass: String,
 )
 
-data class FieldEntry(
+data class FieldEntryConfig(
     val typeName: String,
     val fieldName: String,
     val isBatching: Boolean,
@@ -58,12 +58,12 @@ data class FieldEntry(
      * Required object-level selections needed to resolve this field, expressed as a raw fragment string.
      * Optional: many resolvers need no required selections.
      */
-    val objectSelections: SelectionsBlock? = null,
+    val objectSelections: SelectionsBlockConfig? = null,
     /**
      * Required query-level selections needed to resolve this field (e.g., viewer or other root context).
      * Optional and independent of objectSelections.
      */
-    val querySelections: SelectionsBlock? = null,
+    val querySelections: SelectionsBlockConfig? = null,
     val tenantAPIData: FieldAPIData,
 )
 
@@ -80,7 +80,7 @@ data class FieldAPIData(
     val queryTypeName: String,
 )
 
-data class SelectionsBlock(
+data class SelectionsBlockConfig(
     /**
      * Raw GraphQL fragment string (e.g., `fragment _ on Type { ... }`).
      * Parsed without schema during executor construction; schema validation happens later as an explicit step.
@@ -89,10 +89,10 @@ data class SelectionsBlock(
     /**
      * Variables required by `selections` (e.g., for @include/@skip), with tenant-API-specific sourcing rules.
      */
-    val variablesProviders: List<VariableProviderEntry> = emptyList(),
+    val variablesProviders: List<VariableProviderEntryConfig> = emptyList(),
 )
 
-data class VariableProviderEntry(
+data class VariableProviderEntryConfig(
     /**
      * Map of variable name -> encoded type expression used by Viaduct (e.g., `Boolean!` encoded as `! Boolean`).
      *

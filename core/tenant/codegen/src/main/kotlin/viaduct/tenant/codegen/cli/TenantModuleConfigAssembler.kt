@@ -5,14 +5,14 @@ import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import java.io.File
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistry
+import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldAPIData
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntry
+import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeAPIData
-import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
+import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.ProviderVariablesAPIData
-import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlock
-import viaduct.engine.api.bootstrap.executionregistry.VariableProviderEntry
+import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
+import viaduct.engine.api.bootstrap.executionregistry.VariableProviderEntryConfig
 import viaduct.tenant.codegen.ksp.ResolverDescriptorFile
 import viaduct.tenant.codegen.ksp.ResolverParamsJsonCodec
 
@@ -73,9 +73,9 @@ internal object TenantModuleConfigAssembler {
         executorFactory: String,
         descriptors: List<ResolverDescriptorFile>,
         bootstrapClass: String?,
-    ): ExecutionRegistry {
+    ): ExecutionRegistryConfigFile {
         val nodes = descriptors.flatMap { it.nodes }.map { node ->
-            NodeEntry(
+            NodeEntryConfig(
                 typeName = node.typeName,
                 isBatching = node.isBatching,
                 isSelective = node.isSelective,
@@ -88,7 +88,7 @@ internal object TenantModuleConfigAssembler {
         }
 
         val fields = descriptors.flatMap { it.fields }.map { field ->
-            FieldEntry(
+            FieldEntryConfig(
                 typeName = field.typeName,
                 fieldName = field.fieldName,
                 isBatching = field.isBatching,
@@ -114,7 +114,7 @@ internal object TenantModuleConfigAssembler {
                 ""
             }
 
-        return ExecutionRegistry(
+        return ExecutionRegistryConfigFile(
             version = REGISTRY_VERSION,
             executorFactory = executorFactory,
             grtPackagePrefix = grtPackagePrefix,
@@ -124,11 +124,11 @@ internal object TenantModuleConfigAssembler {
         )
     }
 
-    private fun viaduct.tenant.codegen.ksp.SelectionsBlock.toEngineSelectionsBlock(): SelectionsBlock {
-        return SelectionsBlock(
+    private fun viaduct.tenant.codegen.ksp.SelectionsBlock.toEngineSelectionsBlock(): SelectionsBlockConfig {
+        return SelectionsBlockConfig(
             selections = selections,
             variablesProviders = variablesProviders.map { provider ->
-                VariableProviderEntry(
+                VariableProviderEntryConfig(
                     providedVariables = provider.providedVariables,
                     providerVariablesAPIData = ProviderVariablesAPIData(
                         type = provider.kind,

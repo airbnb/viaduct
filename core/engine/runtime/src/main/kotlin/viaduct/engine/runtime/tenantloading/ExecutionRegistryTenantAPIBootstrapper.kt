@@ -8,7 +8,7 @@ import java.net.URL
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistry
+import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantAPIBootstrapper
@@ -20,7 +20,7 @@ import viaduct.utils.slf4j.logger
  * Engine-owned bootstrapper that creates [LegacyTenantModuleBootstrapper]s from a pre-collected list
  * of registry JSON [URL]s.
  *
- * For each URL, deserializes the [ExecutionRegistry], instantiates the [ExecutorFactory] FQN
+ * For each URL, deserializes the [ExecutionRegistryConfigFile], instantiates the [ExecutorFactory] FQN
  * via the 3-arg constructor (CodeInjector, moduleName, configUrl), and creates executors
  * for each entry in the registry.
  *
@@ -46,8 +46,8 @@ class ExecutionRegistryTenantAPIBootstrapper(
         val parsedRegistries = coroutineScope {
             registryUrls.map { url ->
                 async {
-                    val registry = url.openStream().use { objectMapper.readValue<ExecutionRegistry>(it) }
-                    // TODO: add tenantName to ExecutionRegistry itself so we do not recover it from the file name.
+                    val registry = url.openStream().use { objectMapper.readValue<ExecutionRegistryConfigFile>(it) }
+                    // TODO: add tenantName to ExecutionRegistryConfigFile itself so we do not recover it from the file name.
                     // https://app.asana.com/1/150975571430/project/1207604899751448/task/1214588083266279?focus=true
                     ParsedRegistry(
                         registry = registry,
@@ -107,7 +107,7 @@ class ExecutionRegistryTenantAPIBootstrapper(
 }
 
 private data class ParsedRegistry(
-    val registry: ExecutionRegistry,
+    val registry: ExecutionRegistryConfigFile,
     val configUrl: URL,
     val tenantName: String,
     val bootstrapClass: Class<*>?,

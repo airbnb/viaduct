@@ -7,10 +7,10 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistry
+import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldAPIData
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntry
-import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
+import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
+import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.mocks.MockCheckerExecutorFactory
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
@@ -55,17 +55,17 @@ class ExecutionRegistryBootstrapperCycleTest {
         }
     }
 
-    private fun bootstrapper(registry: ExecutionRegistry): ExecutionRegistryTenantModuleBootstrapper {
+    private fun bootstrapper(registry: ExecutionRegistryConfigFile): ExecutionRegistryTenantModuleBootstrapper {
         val fooExecutor = fieldExecutorWithObjectSelections("Query", "foo", "bar")
         val barExecutor = fieldExecutorWithObjectSelections("Query", "bar", "foo")
         val factory = object : ExecutorFactory {
             override fun createFieldResolverExecutor(
-                configData: FieldEntry,
+                configData: FieldEntryConfig,
                 schema: ViaductSchema
             ): FieldResolverExecutor = if (configData.fieldName == "foo") fooExecutor else barExecutor
 
             override fun createNodeResolverExecutor(
-                configData: NodeEntry,
+                configData: NodeEntryConfig,
                 schema: ViaductSchema
             ): NodeResolverExecutor = throw UnsupportedOperationException()
         }
@@ -73,7 +73,7 @@ class ExecutionRegistryBootstrapperCycleTest {
     }
 
     private fun fieldEntry(fieldName: String) =
-        FieldEntry(
+        FieldEntryConfig(
             typeName = "Query",
             fieldName = fieldName,
             isBatching = false,
@@ -88,7 +88,7 @@ class ExecutionRegistryBootstrapperCycleTest {
 
     @Test
     fun `cycle detection fires through file-based bootstrapping`() {
-        val registry = ExecutionRegistry(
+        val registry = ExecutionRegistryConfigFile(
             version = "1",
             executorFactory = "",
             grtPackagePrefix = "",

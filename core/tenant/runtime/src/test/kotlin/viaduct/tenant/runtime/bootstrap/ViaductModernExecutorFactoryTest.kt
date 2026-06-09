@@ -17,12 +17,12 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.engine.api.bootstrap.executionregistry.FieldAPIData
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntry
+import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeAPIData
-import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
+import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.ProviderVariablesAPIData
-import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlock
-import viaduct.engine.api.bootstrap.executionregistry.VariableProviderEntry
+import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
+import viaduct.engine.api.bootstrap.executionregistry.VariableProviderEntryConfig
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -103,9 +103,9 @@ class ViaductModernExecutorFactoryTest {
         isBatching: Boolean = false,
         hasArguments: Boolean = false,
         queryTypeName: String = "Query",
-        objectSelections: SelectionsBlock? = null,
-        querySelections: SelectionsBlock? = null,
-    ) = FieldEntry(
+        objectSelections: SelectionsBlockConfig? = null,
+        querySelections: SelectionsBlockConfig? = null,
+    ) = FieldEntryConfig(
         typeName = typeName,
         fieldName = fieldName,
         isBatching = isBatching,
@@ -126,7 +126,7 @@ class ViaductModernExecutorFactoryTest {
         resolverSimpleName: String,
         resolverBaseSimpleName: String,
         isBatching: Boolean = false,
-    ) = NodeEntry(
+    ) = NodeEntryConfig(
         typeName = typeName,
         isBatching = isBatching,
         isSelective = false,
@@ -179,7 +179,7 @@ class ViaductModernExecutorFactoryTest {
     fun `createFieldResolverExecutor - unknown resolverClass throws ClassNotFoundException`() {
         assertThrows<ClassNotFoundException> {
             factory().createFieldResolverExecutor(
-                FieldEntry(
+                FieldEntryConfig(
                     typeName = "TestType",
                     fieldName = "aField",
                     isBatching = false,
@@ -202,7 +202,7 @@ class ViaductModernExecutorFactoryTest {
             fieldEntry(
                 resolverSimpleName = "TestFieldResolver",
                 resolverBaseSimpleName = "TestFieldResolverBase",
-                querySelections = SelectionsBlock(selections = "fragment _ on Query { __typename }"),
+                querySelections = SelectionsBlockConfig(selections = "fragment _ on Query { __typename }"),
             ),
             schema,
         )
@@ -216,7 +216,7 @@ class ViaductModernExecutorFactoryTest {
                 fieldEntry(
                     resolverSimpleName = "TestFieldResolver",
                     resolverBaseSimpleName = "TestFieldResolverBase",
-                    querySelections = SelectionsBlock(selections = "{ __typename }"),
+                    querySelections = SelectionsBlockConfig(selections = "{ __typename }"),
                 ),
                 schema,
             )
@@ -258,7 +258,7 @@ class ViaductModernExecutorFactoryTest {
     fun `createNodeResolverExecutor - unknown resolverClass throws ClassNotFoundException`() {
         assertThrows<ClassNotFoundException> {
             factory().createNodeResolverExecutor(
-                NodeEntry(
+                NodeEntryConfig(
                     typeName = "TestNode",
                     isBatching = false,
                     isSelective = false,
@@ -278,7 +278,7 @@ class ViaductModernExecutorFactoryTest {
     // Fragment: flagField provides variable $x; testBatchField conditionally included using it.
     private val fragmentWithVariable = "fragment _ on Query { flagField, testBatchField @include(if: \$x) }"
 
-    private fun fieldEntryWithQuerySelections(selections: SelectionsBlock) =
+    private fun fieldEntryWithQuerySelections(selections: SelectionsBlockConfig) =
         fieldEntry(
             typeName = "Query",
             fieldName = "aField",
@@ -291,10 +291,10 @@ class ViaductModernExecutorFactoryTest {
     fun `createFieldResolverExecutor - fromArgument variable provider is wired correctly`() {
         val executor = factory().createFieldResolverExecutor(
             fieldEntryWithQuerySelections(
-                SelectionsBlock(
+                SelectionsBlockConfig(
                     selections = fragmentWithVariable,
                     variablesProviders = listOf(
-                        VariableProviderEntry(
+                        VariableProviderEntryConfig(
                             providedVariables = mapOf("x" to "Boolean!"),
                             providerVariablesAPIData = ProviderVariablesAPIData(type = "fromArgument", path = "flagField"),
                         )
@@ -314,10 +314,10 @@ class ViaductModernExecutorFactoryTest {
                 fieldName = "aField",
                 resolverSimpleName = "TestFieldResolver",
                 resolverBaseSimpleName = "TestFieldResolverBase",
-                objectSelections = SelectionsBlock(
+                objectSelections = SelectionsBlockConfig(
                     selections = fragmentWithVariable,
                     variablesProviders = listOf(
-                        VariableProviderEntry(
+                        VariableProviderEntryConfig(
                             providedVariables = mapOf("x" to "Boolean!"),
                             providerVariablesAPIData = ProviderVariablesAPIData(type = "fromObjectField", path = "flagField"),
                         )
@@ -333,10 +333,10 @@ class ViaductModernExecutorFactoryTest {
     fun `createFieldResolverExecutor - fromQueryField variable provider is wired correctly`() {
         val executor = factory().createFieldResolverExecutor(
             fieldEntryWithQuerySelections(
-                SelectionsBlock(
+                SelectionsBlockConfig(
                     selections = fragmentWithVariable,
                     variablesProviders = listOf(
-                        VariableProviderEntry(
+                        VariableProviderEntryConfig(
                             providedVariables = mapOf("x" to "Boolean!"),
                             providerVariablesAPIData = ProviderVariablesAPIData(type = "fromQueryField", path = "flagField"),
                         )
@@ -353,10 +353,10 @@ class ViaductModernExecutorFactoryTest {
         assertThrows<IllegalStateException> {
             factory().createFieldResolverExecutor(
                 fieldEntryWithQuerySelections(
-                    SelectionsBlock(
+                    SelectionsBlockConfig(
                         selections = fragmentWithVariable,
                         variablesProviders = listOf(
-                            VariableProviderEntry(
+                            VariableProviderEntryConfig(
                                 providedVariables = mapOf("x" to "Boolean!"),
                                 providerVariablesAPIData = ProviderVariablesAPIData(type = "unknown", path = "flagField"),
                             )

@@ -3,11 +3,11 @@ package viaduct.engine.runtime.tenantloading
 import io.mockk.mockk
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistry
+import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldAPIData
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntry
+import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeAPIData
-import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
+import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -34,12 +34,12 @@ class ExecutionRegistryTenantModuleBootstrapperTest {
 
     private val factory: ExecutorFactory = object : ExecutorFactory {
         override fun createFieldResolverExecutor(
-            configData: FieldEntry,
+            configData: FieldEntryConfig,
             schema: ViaductSchema
         ) = mockFieldExecutor
 
         override fun createNodeResolverExecutor(
-            configData: NodeEntry,
+            configData: NodeEntryConfig,
             schema: ViaductSchema
         ) = mockNodeExecutor
     }
@@ -47,7 +47,7 @@ class ExecutionRegistryTenantModuleBootstrapperTest {
     private fun fieldEntry(
         typeName: String,
         fieldName: String,
-    ) = FieldEntry(
+    ) = FieldEntryConfig(
         typeName = typeName,
         fieldName = fieldName,
         isBatching = false,
@@ -61,7 +61,7 @@ class ExecutionRegistryTenantModuleBootstrapperTest {
     )
 
     private fun nodeEntry(typeName: String) =
-        NodeEntry(
+        NodeEntryConfig(
             typeName = typeName,
             isBatching = false,
             isSelective = false,
@@ -72,7 +72,7 @@ class ExecutionRegistryTenantModuleBootstrapperTest {
             ),
         )
 
-    private fun bootstrapper(registry: ExecutionRegistry) =
+    private fun bootstrapper(registry: ExecutionRegistryConfigFile) =
         ExecutionRegistryTenantModuleBootstrapper(
             registry = registry,
             executorFactory = factory,
@@ -80,7 +80,7 @@ class ExecutionRegistryTenantModuleBootstrapperTest {
 
     @Test
     fun `fieldResolverExecutors - duplicate entries for schema-removed field are silently dropped`() {
-        val registry = ExecutionRegistry(
+        val registry = ExecutionRegistryConfigFile(
             version = "1",
             executorFactory = "",
             grtPackagePrefix = "",
@@ -95,7 +95,7 @@ class ExecutionRegistryTenantModuleBootstrapperTest {
 
     @Test
     fun `nodeResolverExecutors - duplicate entries for schema-removed node are silently dropped`() {
-        val registry = ExecutionRegistry(
+        val registry = ExecutionRegistryConfigFile(
             version = "1",
             executorFactory = "",
             grtPackagePrefix = "",
@@ -110,7 +110,7 @@ class ExecutionRegistryTenantModuleBootstrapperTest {
 
     @Test
     fun `fieldResolverExecutors - valid entry is delegated to factory`() {
-        val registry = ExecutionRegistry(
+        val registry = ExecutionRegistryConfigFile(
             version = "1",
             executorFactory = "",
             grtPackagePrefix = "",
@@ -123,7 +123,7 @@ class ExecutionRegistryTenantModuleBootstrapperTest {
 
     @Test
     fun `nodeResolverExecutors - valid entry is delegated to factory`() {
-        val registry = ExecutionRegistry(
+        val registry = ExecutionRegistryConfigFile(
             version = "1",
             executorFactory = "",
             grtPackagePrefix = "",

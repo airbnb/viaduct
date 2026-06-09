@@ -1,8 +1,8 @@
 package viaduct.engine.api.spi
 
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntry
-import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
+import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
+import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 
 /**
  * Tenant API implementations provide this to the engine to create executors from registry entries.
@@ -15,12 +15,12 @@ import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
  */
 interface ExecutorFactory {
     fun createFieldResolverExecutor(
-        configData: FieldEntry,
+        configData: FieldEntryConfig,
         schema: ViaductSchema
     ): FieldResolverExecutor
 
     fun createNodeResolverExecutor(
-        configData: NodeEntry,
+        configData: NodeEntryConfig,
         schema: ViaductSchema
     ): NodeResolverExecutor
 }

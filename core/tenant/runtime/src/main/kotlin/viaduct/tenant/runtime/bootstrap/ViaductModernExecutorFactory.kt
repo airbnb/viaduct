@@ -15,10 +15,10 @@ import viaduct.engine.api.FromQueryFieldVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntry
-import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
+import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
+import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.ProviderVariablesAPIData
-import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlock
+import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -48,7 +48,7 @@ class ViaductModernExecutorFactory(
 
     @Suppress("UNCHECKED_CAST")
     override fun createFieldResolverExecutor(
-        configData: FieldEntry,
+        configData: FieldEntryConfig,
         schema: ViaductSchema
     ): FieldResolverExecutor {
         val resolverClass = loadClass<ResolverBase<*>>(configData.tenantAPIData.resolverClass, "field ${configData.typeName}.${configData.fieldName}")
@@ -113,7 +113,7 @@ class ViaductModernExecutorFactory(
 
     @Suppress("UNCHECKED_CAST")
     override fun createNodeResolverExecutor(
-        configData: NodeEntry,
+        configData: NodeEntryConfig,
         schema: ViaductSchema
     ): NodeResolverExecutor {
         val resolverClass = loadClass<NodeResolverBase<*>>(configData.tenantAPIData.resolverClass, "node ${configData.typeName}")
@@ -161,7 +161,7 @@ class ViaductModernExecutorFactory(
     }
 
     private fun buildSelectionSets(
-        entry: FieldEntry,
+        entry: FieldEntryConfig,
         resolverKClass: KClass<out ResolverBase<*>>,
         attribution: ExecutionAttribution,
         contextFactory: FieldExecutionContextFactory,
@@ -186,8 +186,8 @@ class ViaductModernExecutorFactory(
     }
 
     private fun buildVariables(
-        objectSelections: SelectionsBlock?,
-        querySelections: SelectionsBlock?,
+        objectSelections: SelectionsBlockConfig?,
+        querySelections: SelectionsBlockConfig?,
     ): List<SelectionSetVariable> =
         (
             (objectSelections?.variablesProviders ?: emptyList()) +

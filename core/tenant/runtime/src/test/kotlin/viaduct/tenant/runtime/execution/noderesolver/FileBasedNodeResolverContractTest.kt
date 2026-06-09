@@ -6,11 +6,11 @@ import com.google.inject.AbstractModule
 import com.google.inject.Guice
 import com.google.inject.Singleton
 import java.net.URI
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistry
+import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldAPIData
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntry
+import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeAPIData
-import viaduct.engine.api.bootstrap.executionregistry.NodeEntry
+import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryTenantModuleBootstrapper
 import viaduct.service.api.spi.TenantAPIBootstrapper as BaseTenantAPIBootstrapper
@@ -27,12 +27,12 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
         val base = "viaduct.tenant.runtime.execution.noderesolver.KotlinNodeResolverContractTest"
         val resolverBases = "viaduct.tenant.runtime.execution.noderesolver.resolverbases"
 
-        val registry = ExecutionRegistry(
+        val registry = ExecutionRegistryConfigFile(
             version = "1",
             executorFactory = "viaduct.api.internal.DefaultGRTConvFactory",
             grtPackagePrefix = "viaduct.tenant.runtime.execution.noderesolver",
             nodes = listOf(
-                NodeEntry(
+                NodeEntryConfig(
                     typeName = "NodeObj",
                     isBatching = false,
                     isSelective = false,
@@ -44,7 +44,7 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                 ),
             ),
             fields = listOf(
-                FieldEntry(
+                FieldEntryConfig(
                     typeName = "Query",
                     fieldName = "nodeObj",
                     isBatching = false,
@@ -58,7 +58,7 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                         returnTypeName = "NodeObj",
                     ),
                 ),
-                FieldEntry(
+                FieldEntryConfig(
                     typeName = "Query",
                     fieldName = "nodeReference",
                     isBatching = false,
@@ -72,7 +72,7 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                         returnTypeName = "NodeObj",
                     ),
                 ),
-                FieldEntry(
+                FieldEntryConfig(
                     typeName = "Query",
                     fieldName = "objectWithNodeField",
                     isBatching = false,
@@ -85,7 +85,7 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                         returnTypeName = "ObjectWithNodeField",
                     ),
                 ),
-                FieldEntry(
+                FieldEntryConfig(
                     typeName = "Query",
                     fieldName = "nodeRefWithIllegalAccess",
                     isBatching = false,

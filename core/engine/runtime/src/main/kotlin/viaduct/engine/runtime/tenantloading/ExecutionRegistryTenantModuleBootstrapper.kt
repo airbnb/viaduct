@@ -4,14 +4,14 @@ package viaduct.engine.runtime.tenantloading
 
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistry
+import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
 
 class ExecutionRegistryTenantModuleBootstrapper(
-    private val registry: ExecutionRegistry,
+    private val registry: ExecutionRegistryConfigFile,
     private val executorFactory: ExecutorFactory,
 ) : LegacyTenantModuleBootstrapper {
     override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> {
