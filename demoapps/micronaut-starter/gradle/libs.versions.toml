@@ -7,6 +7,7 @@ kotest = "6.1.4"
 junit5 = "5.11.3"
 junitPlatform = "1.11.3"
 graphql-java-extension = "24.0"
+coroutines = "1.5.2"
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -20,6 +21,11 @@ viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref =
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect" }
 viaduct-api = { group = "com.airbnb.viaduct", name = "api", version.ref = "viaduct" }
 viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime", version.ref = "viaduct" }
+
+# Bring-your-own-version runtime deps that Viaduct's fat jars exclude — a runnable consumer must supply them.
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-jdk8 = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-jdk8", version.ref = "coroutines" }
+reactive-streams = { group = "org.reactivestreams", name = "reactive-streams", version = "1.0.4" }
 
 # Micronaut
 micronaut-inject = { module = "io.micronaut:micronaut-inject", version.ref = "micronautCore" }
