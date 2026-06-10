@@ -27,7 +27,6 @@ import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.TenantAPIBootstrapper as BaseTenantAPIBootstrapper
-import viaduct.service.api.spi.TenantModuleBootstrapper
 
 class StandardViaductModule(
     private val tenantBootstrapper: TenantAPIBootstrapper,
@@ -38,7 +37,6 @@ class StandardViaductModule(
     private val documentProviderFactory: DocumentProviderFactory?,
     private val proxyResolverFactory: ProxyResolverFactory?,
     private val lenientResolverValidation: Boolean = false,
-    private val tenantModuleBootstrapper: TenantModuleBootstrapper? = null,
 ) : AbstractModule() {
     override fun configure() {
         bind(StandardViaduct.Factory::class.java)
@@ -71,10 +69,6 @@ class StandardViaductModule(
         bind(ProxyResolverFactory::class.java).toInstance(proxyResolverFactory ?: ProxyResolverFactory.NO_OP)
 
         bindConstant().annotatedWith(Names.named("lenientResolverValidation")).to(lenientResolverValidation)
-
-        if (tenantModuleBootstrapper != null) {
-            bind(TenantModuleBootstrapper::class.java).toInstance(tenantModuleBootstrapper)
-        }
     }
 
     @Provides

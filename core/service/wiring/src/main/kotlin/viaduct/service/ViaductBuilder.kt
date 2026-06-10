@@ -6,7 +6,6 @@ import io.micrometer.core.instrument.MeterRegistry
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.StableApi
 import viaduct.apiannotations.VisibleForTest
-import viaduct.engine.BootstrapperFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
@@ -52,13 +51,9 @@ class ViaductBuilder {
      * After all bootstrap calls complete successfully, [TenantModuleBootstrapper.finalize]
      * is called before any returned [viaduct.service.api.spi.CodeInjector] is used.
      */
-    @Suppress("DEPRECATION")
     fun withTenantModuleBootstrapper(tenantModuleBootstrapper: TenantModuleBootstrapper) =
         apply {
-            val bootstrapperBuilder = object : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
-                override fun create() = BootstrapperFactory.fromResources(tenantModuleBootstrapper)
-            }
-            builder.withTenantAPIBootstrapperBuilder(bootstrapperBuilder)
+            builder.withTenantModuleBootstrapper(tenantModuleBootstrapper)
         }
 
     /** Configures the [FlagManager] for controlling framework feature flags. */

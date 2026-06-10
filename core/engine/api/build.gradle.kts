@@ -22,6 +22,7 @@ dependencies {
     implementation(libs.guice)
     implementation(libs.jackson.annotations)
     implementation(libs.caffeine)
+    implementation(libs.jackson.databind)
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlinx.coroutines.core)
 

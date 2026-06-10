@@ -26,7 +26,9 @@ import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
+import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.TenantModuleBootstrapper
 
 @Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // intentional use of legacy bootstrap shim
 class StandardViaductTest {
@@ -261,6 +263,26 @@ class StandardViaductTest {
                 .build()
         }
     }
+
+    /** Ensures [TenantModuleBootstrapper.finalize] is called when bootstrapping via the file-based path. */
+    @Test
+    fun `withTenantModuleBootstrapper routes through file-based path and calls finalize`() {
+        val recording = RecordingFinalizingTenantModuleBootstrapper()
+
+        val sdl = """
+            extend type Query {
+                test: String
+            }
+        """.trimIndent()
+
+        StandardViaduct.Builder()
+            .withNoTenantAPIBootstrapper()
+            .withTenantModuleBootstrapper(recording)
+            .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
+            .build()
+
+        assertEquals(true, recording.finalized, "finalize() must be called via the file-based bootstrap path")
+    }
 }
 
 private fun makeSchema(schema: String): ViaductSchema {
@@ -271,4 +293,18 @@ private fun makeSchema(schema: String): ViaductSchema {
             }
         )
     )
+}
+
+/** Records whether [finalize] was invoked; used to verify the file-based bootstrap path fires. */
+private class RecordingFinalizingTenantModuleBootstrapper : TenantModuleBootstrapper {
+    var finalized: Boolean = false
+
+    override suspend fun bootstrap(
+        tenantName: String,
+        tenantBootstrapClass: Class<*>?
+    ): CodeInjector = CodeInjector.Naive
+
+    override suspend fun finalize() {
+        finalized = true
+    }
 }

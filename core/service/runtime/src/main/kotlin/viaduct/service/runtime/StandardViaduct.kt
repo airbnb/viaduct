@@ -17,6 +17,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.runBlocking
+import viaduct.engine.BootstrapperFactory
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineImpl
 import viaduct.engine.api.EngineExecutionContext
@@ -335,11 +336,12 @@ class StandardViaduct
 
                 // Build tenant bootstrapper from builders
                 val tenantBootstrappers = buildList {
-                    addAll(tenantAPIBootstrapperBuilders)
+                    addAll(tenantAPIBootstrapperBuilders.map { it.create() })
+                    tenantModuleBootstrapper?.let { add(BootstrapperFactory.fromResources(it)) }
                     if (defaultQueryNodeResolversEnabled) {
-                        add(ViaductBuiltInResolversBootstrapper.Builder())
+                        add(ViaductBuiltInResolversBootstrapper.Builder().create())
                     }
-                }.map { it.create() }.flatten()
+                }.flatten()
 
                 val parentModule = StandardViaductModule(
                     tenantBootstrapper = tenantBootstrappers,
@@ -350,7 +352,6 @@ class StandardViaduct
                     documentProviderFactory = documentProviderFactory,
                     proxyResolverFactory = proxyResolverFactory,
                     lenientResolverValidation = lenientResolverValidation,
-                    tenantModuleBootstrapper = tenantModuleBootstrapper,
                 )
 
                 try {

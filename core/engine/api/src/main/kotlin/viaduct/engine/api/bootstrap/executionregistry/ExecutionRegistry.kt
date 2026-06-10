@@ -3,6 +3,7 @@
 package viaduct.engine.api.bootstrap.executionregistry
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.JsonProperty
 
 /**
  * Data model for module index JSON emitted by build tooling (KSP) and consumed by codegen and the engine at runtime.
@@ -26,8 +27,8 @@ data class ExecutionRegistryConfigFile(
 
 data class NodeEntryConfig(
     val typeName: String,
-    val isBatching: Boolean,
-    val isSelective: Boolean,
+    @get:JsonProperty("isBatching") val isBatching: Boolean,
+    @get:JsonProperty("isSelective") val isSelective: Boolean,
     /**
      * A string used as a prefix for metrics tags and log-message labels.
      * This string is intended to give developers and operators strong guidance to the specific code implementation of a
@@ -44,8 +45,8 @@ data class NodeEntryConfig(
 data class FieldEntryConfig(
     val typeName: String,
     val fieldName: String,
-    val isBatching: Boolean,
-    val isSelective: Boolean,
+    @get:JsonProperty("isBatching") val isBatching: Boolean,
+    @get:JsonProperty("isSelective") val isSelective: Boolean,
     /**
      * A string used as a prefix for metrics tags and log-message labels.
      * This string is intended to give developers and operators strong guidance to the specific code implementation of a
