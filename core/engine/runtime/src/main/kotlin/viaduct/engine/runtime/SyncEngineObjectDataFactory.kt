@@ -46,6 +46,7 @@ object SyncEngineObjectDataFactory {
         parentPath: ResultPath? = null,
         isResolverSelective: IsResolverSelective,
         selections: ObjectEngineResult.Selections? = null,
+        skipAccessCheck: Boolean = false,
     ): SyncProxyEngineObjectData {
         if (selectionSet == null) {
             return SyncProxyEngineObjectData(
@@ -59,7 +60,7 @@ object SyncEngineObjectDataFactory {
             "Expected ObjectEngineResultImpl, got ${objectEngineResult::class.qualifiedName}"
         }
 
-        return resolveImpl(objectEngineResult, errorMessage, selectionSet, parentPath, isResolverSelective, selections)
+        return resolveImpl(objectEngineResult, errorMessage, selectionSet, parentPath, isResolverSelective, selections, skipAccessCheck)
     }
 
     /**
@@ -85,6 +86,7 @@ object SyncEngineObjectDataFactory {
         parentPath: ResultPath? = null,
         isResolverSelective: IsResolverSelective,
         selections: ObjectEngineResult.Selections? = null,
+        skipAccessCheck: Boolean = false,
     ): SyncProxyEngineObjectData {
         val data = mutableMapOf<String, Any?>()
         val instrumentationCtx = coroutineContext[ResolverInstrumentationContext]
@@ -132,8 +134,10 @@ object SyncEngineObjectDataFactory {
             if (cell is Cell) {
                 @Suppress("UNCHECKED_CAST")
                 cellValues += cell.getValue(RAW_VALUE_SLOT) as Value<Any?>
-                @Suppress("UNCHECKED_CAST")
-                cellValues += cell.getValue(ACCESS_CHECK_SLOT) as Value<Any?>
+                if (!skipAccessCheck) {
+                    @Suppress("UNCHECKED_CAST")
+                    cellValues += cell.getValue(ACCESS_CHECK_SLOT) as Value<Any?>
+                }
             }
         }
 
@@ -159,7 +163,8 @@ object SyncEngineObjectDataFactory {
                             errorMessage,
                             state.selectionPath,
                             isResolverSelective,
-                            fieldChildSelections
+                            fieldChildSelections,
+                            skipAccessCheck,
                         )
                     },
                     params,
@@ -172,7 +177,8 @@ object SyncEngineObjectDataFactory {
                     errorMessage,
                     state.selectionPath,
                     isResolverSelective,
-                    fieldChildSelections
+                    fieldChildSelections,
+                    skipAccessCheck,
                 )
             }
         }
@@ -206,6 +212,7 @@ object SyncEngineObjectDataFactory {
         parentPath: ResultPath? = null,
         isResolverSelective: IsResolverSelective,
         childSelections: ObjectEngineResult.Selections? = null,
+        skipAccessCheck: Boolean = false,
     ): Any? {
         return when (value) {
             null -> null
@@ -214,7 +221,7 @@ object SyncEngineObjectDataFactory {
             // to the `Cell` case. If any element has an error, return that error
             // as the value for the whole list (matching ProxyEngineObjectData behavior).
             is List<*> -> value.mapIndexed { index, it ->
-                val v = unwrap(it, subselections, errorMessage, parentPath?.segment(index), isResolverSelective, childSelections)
+                val v = unwrap(it, subselections, errorMessage, parentPath?.segment(index), isResolverSelective, childSelections, skipAccessCheck)
                 if (v is Exception) return v // non-local return from unwrap
                 v
             }
@@ -227,14 +234,14 @@ object SyncEngineObjectDataFactory {
                 val nestedSelections = requireNotNull(subselections) {
                     "Expected subselections for nested ObjectEngineResultImpl"
                 }
-                resolveImpl(value, errorMessage, nestedSelections, parentPath, isResolverSelective, childSelections)
+                resolveImpl(value, errorMessage, nestedSelections, parentPath, isResolverSelective, childSelections, skipAccessCheck)
             }
 
             is FieldResolutionResult -> {
                 if (value.errors.isNotEmpty()) {
                     return FieldErrorsException(value.errors) // Store exception, don't throw
                 }
-                unwrap(value.engineResult, subselections, errorMessage, parentPath, isResolverSelective, childSelections)
+                unwrap(value.engineResult, subselections, errorMessage, parentPath, isResolverSelective, childSelections, skipAccessCheck)
             }
 
             is Cell -> {
@@ -248,12 +255,14 @@ object SyncEngineObjectDataFactory {
                 // can leave both slots exceptional (e.g. via combineWithTypeCheck), and fetching
                 // the checker slot would throw and escape resolveImpl.
                 if (cellRaw is Exception) return cellRaw
-                val cellChecker = value.fetch(ACCESS_CHECK_SLOT)
-                val checkerException = extractCheckerException(cellChecker)
-                if (checkerException != null) {
-                    return checkerException // Store extracted exception, don't throw
+                if (!skipAccessCheck) {
+                    val cellChecker = value.fetch(ACCESS_CHECK_SLOT)
+                    val checkerException = extractCheckerException(cellChecker)
+                    if (checkerException != null) {
+                        return checkerException // Store extracted exception, don't throw
+                    }
                 }
-                unwrap(cellRaw, subselections, errorMessage, parentPath, isResolverSelective, childSelections)
+                unwrap(cellRaw, subselections, errorMessage, parentPath, isResolverSelective, childSelections, skipAccessCheck)
             }
 
             // The `else` case is for non-null simple types (scalars

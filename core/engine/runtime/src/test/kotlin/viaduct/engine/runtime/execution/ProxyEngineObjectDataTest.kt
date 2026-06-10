@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.mocks.MockCheckerErrorResult
-import viaduct.engine.runtime.CheckerProxyEngineObjectData
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.FieldErrorsException
 import viaduct.engine.runtime.FieldResolutionResult
@@ -136,7 +135,6 @@ class ProxyEngineObjectDataTest {
             fragment: String?,
             oer: ObjectEngineResult,
             variables: Map<String, Any?> = emptyMap(),
-            applyAccessChecks: Boolean = true,
             isResolverSelective: IsResolverSelective = IsResolverSelective.Never,
             selections: ObjectEngineResult.Selections? = null,
         ): ProxyEngineObjectData {
@@ -144,9 +142,6 @@ class ProxyEngineObjectDataTest {
                 fragment?.let {
                     selectionSetFactory.engineSelectionSet(oer.type.name, fragment, variables)
                 }
-            if (!applyAccessChecks) {
-                return CheckerProxyEngineObjectData(oer, "error", selectionSet, isResolverSelective, selections)
-            }
             return ProxyEngineObjectData(oer, "error", selectionSet, isResolverSelective, selections)
         }
 
@@ -1035,30 +1030,6 @@ class ProxyEngineObjectDataTest {
             assertThrows<IllegalAccessException> {
                 proxy.fetch("stringField")
             }
-        }
-    }
-
-    @Test
-    fun `access check slot not fetched when applyAccessChecks is false`() {
-        Fixture("type Query { stringField: String intField: Int }") {
-            val oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Query"))
-            oer.computeIfAbsent(ObjectEngineResult.Key("stringField")) { slotSetter ->
-                slotSetter.setRawValue(
-                    Value.fromValue(
-                        FieldResolutionResult(
-                            "foo",
-                            emptyList(),
-                            CompositeLocalContext.empty,
-                            emptyMap(),
-                            "foo"
-                        )
-                    )
-                )
-                slotSetter.setCheckerValue(Value.fromThrowable(IllegalAccessException("no access")))
-            }
-            val proxy = mkProxy("stringField", oer, applyAccessChecks = false)
-            // If fetch were called on the access check slot, this would throw
-            assertEquals("foo", proxy.fetch("stringField"))
         }
     }
 

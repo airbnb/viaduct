@@ -4,10 +4,12 @@ package viaduct.engine.runtime.execution
 
 import graphql.GraphQLContext
 import graphql.execution.ExecutionContext
+import graphql.execution.ExecutionStepInfo
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLScalarType
+import graphql.schema.GraphQLSchema
 import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
@@ -35,7 +37,7 @@ import viaduct.engine.runtime.CheckerDispatcherImpl
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FieldResolutionResult
-import viaduct.engine.runtime.ObjectEngineResultImpl
+import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.getLocalContextForType
@@ -83,6 +85,45 @@ class AccessCheckRunnerTest {
                 val error = result.await()?.asError?.error
                 assertTrue(error is IllegalAccessException)
                 assertEquals("denied", error.message)
+            }
+        }
+
+    @Test
+    fun `fieldCheck skips checker RSS materialization when execution condition is false`(): Unit =
+        runBlocking {
+            withThreadLocalCoroutineContext {
+                var conditionEvaluated = false
+                var checkerExecuted = false
+                val checker = object : CheckerExecutor {
+                    override val requiredSelectionSets: Map<String, RequiredSelectionSet?> = mapOf(
+                        "checker" to createRSS(
+                            "Foo",
+                            "id",
+                            forChecker = true,
+                            executionCondition = QueryPlanExecutionCondition {
+                                conditionEvaluated = true
+                                false
+                            }
+                        )
+                    )
+
+                    override suspend fun execute(
+                        arguments: Map<String, Any?>,
+                        objectDataMap: Map<String, EngineObjectData>,
+                        context: EngineExecutionContext,
+                        checkerType: CheckerExecutor.CheckerType
+                    ): CheckerResult {
+                        checkerExecuted = true
+                        assertEquals(emptyList<String>(), objectDataMap.getValue("checker").fetchSelections().toList())
+                        return CheckerResult.Success
+                    }
+                }
+
+                val result = checkField(checker, failIfSelectionSetMaterialized = true)
+
+                assertEquals(CheckerResult.Success, result.await())
+                assertEquals(true, conditionEvaluated)
+                assertEquals(true, checkerExecuted)
             }
         }
 
@@ -232,6 +273,7 @@ class AccessCheckRunnerTest {
                     every { dataFetchingEnvironment } returns null
                     every { copy(any(), any(), any(), any(), any()) } returns this
                     every { selectiveOERKeysEnabled } returns false
+                    every { isResolverSelective } returns IsResolverSelective.Never
                 }
                 val params = createMockExecutionParameters(engineExecutionContext)
                 val typeCheckParameters = createMockExecutionParameters(engineExecutionContext)
@@ -301,6 +343,7 @@ class AccessCheckRunnerTest {
             every { dataFetchingEnvironment } returns null
             every { copy(any(), any(), any(), any(), any()) } returns this
             every { selectiveOERKeysEnabled } returns false
+            every { isResolverSelective } returns IsResolverSelective.Never
         }
         val oer = objectEngineResult {
             type = fooObjectType
@@ -366,6 +409,7 @@ class AccessCheckRunnerTest {
             every { dataFetchingEnvironment } returns null
             every { copy(any(), any(), any(), any(), any()) } returns this
             every { selectiveOERKeysEnabled } returns false
+            every { isResolverSelective } returns IsResolverSelective.Never
         }
         val oer = objectEngineResult {
             type = mockk { every { name } returns "Foo" }
@@ -381,7 +425,10 @@ class AccessCheckRunnerTest {
         )
     }
 
-    private fun checkField(checker: CheckerExecutor? = null): Value<out CheckerResult?> {
+    private fun checkField(
+        checker: CheckerExecutor? = null,
+        failIfSelectionSetMaterialized: Boolean = false,
+    ): Value<out CheckerResult?> {
         val exec = AccessCheckRunner(DefaultCoroutineInterop)
         val checkerDispatchers = if (checker != null) mapOf("Foo" to "bar" to CheckerDispatcherImpl(checker)) else emptyMap()
         val registry = DispatcherRegistry.Impl(emptyMap(), emptyMap(), checkerDispatchers, emptyMap())
@@ -389,27 +436,36 @@ class AccessCheckRunnerTest {
             myEngineExecutionContext = mockk<EngineExecutionContextImpl> {
                 every { impl } returns this
                 every { dispatcherRegistry } returns registry
-                every { engineSelectionSetFactory.engineSelectionSet(any(), any()) } returns emptyFooSelectionSet
+                every { engineSelectionSetFactory.engineSelectionSet(any(), any()) } answers {
+                    if (failIfSelectionSetMaterialized) {
+                        error("Checker RSS should not be materialized when its execution condition is false")
+                    }
+                    emptyFooSelectionSet
+                }
                 every { activeSchema } returns mockk()
                 every { fieldScopeSupplier } returns mockk()
                 every { dataFetchingEnvironment } returns null
                 every { copy(any(), any(), any(), any(), any()) } returns this
                 every { selectiveOERKeysEnabled } returns false
+                every { isResolverSelective } returns IsResolverSelective.Never
             }
         ).engineExecutionContext as? EngineExecutionContextImpl
         val params = createMockExecutionParameters(context)
 
         // Override field-check specific properties
-        every { params.executionStepInfo } returns mockk(relaxed = true) {
-            every { objectType.name } returns "Foo"
-            every { arguments } returns emptyMap()
-        }
+        every { params.executionStepInfo } returns ExecutionStepInfo.newExecutionStepInfo()
+            .type(fooObjectType)
+            .fieldContainer(fooObjectType)
+            .build()
         every { params.field } returns mockk {
             every { fieldName } returns "bar"
             every { childPlans } returns emptyList()
             every { fieldTypeChildPlans } returns emptyMap()
         }
-        every { params.parentEngineResult } returns mockk<ObjectEngineResultImpl>()
+        every { params.parentEngineResult } returns objectEngineResult {
+            type = fooObjectType
+            data = emptyMap()
+        }
         val dataFetchingEnvironmentProvider = mockk<Supplier<DataFetchingEnvironment>> {
             every { get() } returns mockk()
         }
@@ -435,6 +491,9 @@ class AccessCheckRunnerTest {
                 engineExecutionContext?.let { every { get<EngineExecutionContextImpl>() } returns it }
             }
             every { gjParameters } returns mockk()
+            every { graphQLSchema } returns mockk<GraphQLSchema> {
+                every { queryType.name } returns "Query"
+            }
             every { queryEngineResult } returns mockk()
             every { queryPlanIndex } returns mockk()
             stubCopyWithAnyQueryPlanIndex(this@mockk, this@mockk)

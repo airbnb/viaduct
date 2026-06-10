@@ -1568,4 +1568,72 @@ class SyncEngineObjectDataFactoryTest {
             assertSame(fieldError, thrown)
         }
     }
+
+    // ============================================================================
+    // skipAccessCheck tests
+    // ============================================================================
+
+    @Test
+    fun `resolve with skipAccessCheck=true does not wait for ACCESS_CHECK_SLOT`(): Unit =
+        // If skipAccessCheck=false, this would deadlock because ACCESS_CHECK_SLOT never completes.
+        runBlocking {
+            Fixture("type Query { field: String }") {
+                val oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Query"))
+                oer.fieldResolutionState.complete(Unit)
+
+                val neverCompletingChecker = CompletableDeferred<CheckerResult?>()
+                oer.computeIfAbsent(ObjectEngineResult.Key("field")) { slotSetter ->
+                    slotSetter.setRawValue(
+                        Value.fromValue(FieldResolutionResult("value", emptyList(), CompositeLocalContext.empty, emptyMap(), "field"))
+                    )
+                    // ACCESS_CHECK_SLOT is intentionally never completed
+                    slotSetter.setCheckerValue(Value.fromDeferred(neverCompletingChecker))
+                }
+
+                val selectionSet = mkSelectionSet("Query", "field")
+
+                val syncData = withTimeout(1000) {
+                    SyncEngineObjectDataFactory.resolve(
+                        oer,
+                        "error",
+                        selectionSet,
+                        isResolverSelective = IsResolverSelective.Never,
+                        skipAccessCheck = true,
+                    )
+                }
+
+                assertEquals("value", syncData.get("field"))
+            }
+        }
+
+    @Test
+    fun `resolve with skipAccessCheck=false waits for ACCESS_CHECK_SLOT and would deadlock if never completed`(): Unit =
+        runBlocking {
+            Fixture("type Query { field: String }") {
+                val oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Query"))
+                oer.fieldResolutionState.complete(Unit)
+
+                val neverCompletingChecker = CompletableDeferred<CheckerResult?>()
+                oer.computeIfAbsent(ObjectEngineResult.Key("field")) { slotSetter ->
+                    slotSetter.setRawValue(
+                        Value.fromValue(FieldResolutionResult("value", emptyList(), CompositeLocalContext.empty, emptyMap(), "field"))
+                    )
+                    slotSetter.setCheckerValue(Value.fromDeferred(neverCompletingChecker))
+                }
+
+                val selectionSet = mkSelectionSet("Query", "field")
+
+                assertThrows<TimeoutCancellationException> {
+                    withTimeout(200) {
+                        SyncEngineObjectDataFactory.resolve(
+                            oer,
+                            "error",
+                            selectionSet,
+                            isResolverSelective = IsResolverSelective.Never,
+                            skipAccessCheck = false,
+                        )
+                    }
+                }
+            }
+        }
 }

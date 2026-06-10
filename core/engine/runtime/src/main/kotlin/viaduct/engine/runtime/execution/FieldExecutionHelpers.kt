@@ -36,7 +36,6 @@ import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.gj
-import viaduct.engine.runtime.CheckerProxyEngineObjectData
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
@@ -45,7 +44,7 @@ import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
-import viaduct.engine.runtime.ProxyEngineObjectData
+import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.observability.ExecutionObservabilityContext
 import viaduct.graphql.utils.collectVariableDefinitions
 
@@ -424,12 +423,15 @@ object FieldExecutionHelpers {
                     }
                     currentEngineData
                 }
-                if (vrss.forChecker) {
-                    CheckerProxyEngineObjectData(engineResult, "missing from variable RSS", vss, isResolverSelective, selectionContext)
-                } else {
-                    ProxyEngineObjectData(engineResult, "missing from variable RSS", vss, isResolverSelective, selectionContext)
-                }
-            } ?: ProxyEngineObjectData(currentEngineData, "missing from variable RSS", null, isResolverSelective)
+                SyncEngineObjectDataFactory.resolve(
+                    engineResult,
+                    "missing from variable RSS",
+                    vss,
+                    isResolverSelective = isResolverSelective,
+                    selections = selectionContext,
+                    skipAccessCheck = vrss.forChecker,
+                )
+            } ?: SyncEngineObjectDataFactory.resolve(currentEngineData, "missing from variable RSS", isResolverSelective = isResolverSelective)
 
             val resolved = vr.resolve(VariablesResolver.ResolveCtx(variablesData, arguments), engineExecutionContext)
             acc + resolved

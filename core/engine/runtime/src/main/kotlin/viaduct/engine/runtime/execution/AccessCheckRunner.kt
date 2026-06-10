@@ -13,7 +13,7 @@ import viaduct.engine.api.combine
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.CheckerDispatcher
-import viaduct.engine.runtime.CheckerProxyEngineObjectData
+import viaduct.engine.runtime.CheckerSyncEngineObjectData
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
@@ -197,6 +197,9 @@ class AccessCheckRunner(
             val rssMap = instrumentedDispatcher.requiredSelectionSets
             val rssData = rssMap.mapValues { (_, rss) ->
                 rss?.let {
+                    if (!it.executionCondition.shouldExecute(dataFetchingEnvironment)) {
+                        return@let null
+                    }
                     val queryPlan = FieldExecutionHelpers.findRssQueryPlan(rss, baseExecutionContext)
                     val variables = resolveRSSVariables(
                         rss,
@@ -219,8 +222,8 @@ class AccessCheckRunner(
                     )
                 }
             }
-            val proxyEODMap = rssMap.mapValues { (key, rss) ->
-                val selectionData = rssData[key]
+            val proxyEODMap = rssData.mapValues { (key, selectionData) ->
+                val rss = rssMap[key]
                 val visibleEngineSelectionSet = selectionData?.first
                 val oerSelections = selectionData?.second
                 val oerToWrap = if (rss != null && rss.selections.typeName == parameters.graphQLSchema.queryType.name) {
@@ -228,12 +231,12 @@ class AccessCheckRunner(
                 } else {
                     objectEngineResult
                 }
-                CheckerProxyEngineObjectData(
+                CheckerSyncEngineObjectData.resolve(
                     oerToWrap,
                     "missing from checker RSS",
                     visibleEngineSelectionSet,
-                    baseExecutionContext.isResolverSelective,
-                    oerSelections,
+                    isResolverSelective = baseExecutionContext.isResolverSelective,
+                    selections = oerSelections,
                 )
             }
             log.ifDebug {
