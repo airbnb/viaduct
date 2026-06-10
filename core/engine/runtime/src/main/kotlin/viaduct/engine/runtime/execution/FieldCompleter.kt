@@ -22,7 +22,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import viaduct.deferred.asDeferred
 import viaduct.deferred.waitAllDeferreds
 import viaduct.engine.api.CheckerResult
-import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
@@ -81,11 +80,29 @@ import viaduct.utils.slf4j.logger
  */
 class FieldCompleter(
     private val dataFetcherExceptionHandler: DataFetcherExceptionHandler,
-    private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck,
+    private val airbnbBypassPolicyCheckDuringCompletion: Boolean,
 ) {
     companion object {
         private val log by logger()
+
+        // Airbnb-only, temporary query directive that bypasses
+        // access checker during completion for the annotated field.
+        private const val AIRBNB_BYPASS_POLICY_CHECK_DIRECTIVE = "bypassPolicyCheck"
     }
+
+    /**
+     * Skips awaiting checker slots for checker RSS completion to avoid circular evaluation, and
+     * for Airbnb's temporary `@bypassPolicyCheck` completion behavior.
+     */
+    private fun shouldBypassChecker(
+        field: QueryPlan.CollectedField,
+        parameters: ExecutionParameters,
+    ): Boolean =
+        parameters.bypassChecksDuringCompletion ||
+            (
+                airbnbBypassPolicyCheckDuringCompletion &&
+                    field.mergedField.singleField.hasDirective(AIRBNB_BYPASS_POLICY_CHECK_DIRECTIVE)
+            )
 
     /**
      * Completes the selection set by completing each field.
@@ -142,7 +159,7 @@ class FieldCompleter(
 
             val newParams = parameters.forField(parentOER.type, field)
             val fieldKey = buildOERKeyForField(newParams, field)
-            val bypassChecker = temporaryBypassAccessCheck.shouldBypassCheck(field.mergedField.singleField, parameters.bypassChecksDuringCompletion)
+            val bypassChecker = shouldBypassChecker(field, parameters)
 
             // Obtain a result for this field
             val unhandledFieldValue = combineValues(
@@ -448,7 +465,7 @@ class FieldCompleter(
         val cells = checkNotNull(result as? Iterable<Cell>) {
             "Expected data to be an Iterable<Cell>, was ${result.javaClass}."
         }
-        val bypassCheck = temporaryBypassAccessCheck.shouldBypassCheck(field.mergedField.singleField, parameters.bypassChecksDuringCompletion)
+        val bypassCheck = shouldBypassChecker(field, parameters)
         val listValues = cells.map {
             combineValues(it.getValue(RAW_VALUE_SLOT), it.getValue(ACCESS_CHECK_SLOT), bypassCheck, field.fieldName, parameters.path)
         }

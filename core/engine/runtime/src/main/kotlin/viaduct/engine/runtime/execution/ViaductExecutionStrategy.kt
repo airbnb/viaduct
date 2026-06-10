@@ -1,4 +1,4 @@
-@file:Suppress("DEPRECATION") // CoroutineInterop/TemporaryBypassAccessCheck retained for Airbnb
+@file:Suppress("DEPRECATION") // CoroutineInterop retained for Airbnb
 @file:OptIn(ExperimentalTime::class)
 
 package viaduct.engine.runtime.execution
@@ -28,7 +28,6 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import viaduct.deferred.RequestParentJobContextElement
 import viaduct.engine.api.spi.CoroutineInterop
-import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.RequestScopeCancellationException
@@ -74,8 +73,8 @@ class ViaductExecutionStrategy internal constructor(
     private val accessCheckRunner: AccessCheckRunner,
     private val isSerial: Boolean,
     private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
-    @Suppress("DEPRECATION")
-    private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck = TemporaryBypassAccessCheck.Default,
+    // Temporary Airbnb compatibility until Classic-on-Modern shims use resolver-read bypass.
+    private val airbnbBypassPolicyCheckDuringCompletion: Boolean = false,
 ) : ExecutionStrategy(dataFetcherExceptionHandler) {
     /**
      * Factory interface for creating instances of [ViaductExecutionStrategy].
@@ -98,8 +97,7 @@ class ViaductExecutionStrategy internal constructor(
             private val executionParametersFactory: ExecutionParameters.Factory,
             private val accessCheckRunner: AccessCheckRunner,
             private val coroutineInterop: CoroutineInterop,
-            @Suppress("DEPRECATION")
-            private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck,
+            private val airbnbBypassPolicyCheckDuringCompletion: Boolean,
         ) : Factory {
             override fun create(isSerial: Boolean): ViaductExecutionStrategy =
                 ViaductExecutionStrategy(
@@ -108,7 +106,7 @@ class ViaductExecutionStrategy internal constructor(
                     accessCheckRunner,
                     isSerial,
                     coroutineInterop,
-                    temporaryBypassAccessCheck
+                    airbnbBypassPolicyCheckDuringCompletion
                 )
         }
     }
@@ -180,7 +178,7 @@ class ViaductExecutionStrategy internal constructor(
         }
     }
 
-    private val fieldCompleter = FieldCompleter(dataFetcherExceptionHandler, temporaryBypassAccessCheck)
+    private val fieldCompleter = FieldCompleter(dataFetcherExceptionHandler, airbnbBypassPolicyCheckDuringCompletion)
     private val fieldResolver = FieldResolver(accessCheckRunner)
 
     /**

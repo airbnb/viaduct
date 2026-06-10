@@ -26,7 +26,6 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.spi.CoroutineInterop
-import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
 import viaduct.engine.runtime.EngineExecutionContextFactory
@@ -69,7 +68,7 @@ class EngineImpl(
     private val queryPlanFactory: QueryPlanFactory,
 ) : Engine, EngineGraphQLJavaCompat {
     private val coroutineInterop: CoroutineInterop = config.coroutineInterop
-    private val temporaryBypassAccessCheck: TemporaryBypassAccessCheck = config.temporaryBypassAccessCheck
+    private val airbnbBypassPolicyCheckDuringCompletion: Boolean = config.airbnbBypassPolicyCheckDuringCompletion
     private val dataFetcherExceptionHandler: DataFetcherExceptionHandler = config.dataFetcherExceptionHandler
     private val meterRegistry: MeterRegistry? = config.meterRegistry
     private val additionalInstrumentation: Instrumentation? = config.additionalInstrumentation
@@ -108,7 +107,7 @@ class EngineImpl(
 
     private val fieldResolver = FieldResolver(accessCheckRunner)
 
-    private val fieldCompleter = FieldCompleter(dataFetcherExceptionHandler, temporaryBypassAccessCheck)
+    private val fieldCompleter = FieldCompleter(dataFetcherExceptionHandler, airbnbBypassPolicyCheckDuringCompletion)
 
     private val viaductExecutionStrategyFactory =
         ViaductExecutionStrategy.Factory.Impl(
@@ -118,7 +117,7 @@ class EngineImpl(
             ),
             accessCheckRunner,
             coroutineInterop,
-            temporaryBypassAccessCheck
+            airbnbBypassPolicyCheckDuringCompletion
         )
 
     private val queryExecutionStrategy = WrappedCoroutineExecutionStrategy(

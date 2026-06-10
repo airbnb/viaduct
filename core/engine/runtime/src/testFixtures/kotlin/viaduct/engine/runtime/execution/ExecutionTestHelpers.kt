@@ -47,7 +47,6 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.ViaductModernInstrumentation
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CoroutineInterop
-import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.CheckerDispatcher
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
@@ -69,7 +68,8 @@ object ExecutionTestHelpers {
         instrumentations: List<ViaductModernInstrumentation> = emptyList(),
         queryPlanFactory: QueryPlanFactory = QueryPlanFactory.Default,
         dispatcherRegistry: DispatcherRegistry? = null,
-        requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty
+        requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty,
+        airbnbBypassPolicyCheckDuringCompletion: Boolean = false
     ): ExecutionResult {
         val schema = createSchema(sdl, resolvers, typeResolvers)
         val baseDispatcherRegistry = dispatcherRegistry ?: DispatcherRegistry.Impl(
@@ -87,7 +87,8 @@ object ExecutionTestHelpers {
         val modernGraphQL = createViaductGraphQL(
             schema,
             instrumentations = instrumentations,
-            queryPlanFactory = queryPlanFactory
+            queryPlanFactory = queryPlanFactory,
+            airbnbBypassPolicyCheckDuringCompletion = airbnbBypassPolicyCheckDuringCompletion
         )
         return executeQuery(schema, modernGraphQL, query, variables, effectiveDispatcherRegistry)
     }
@@ -180,6 +181,7 @@ object ExecutionTestHelpers {
         gjInstrumentations: List<Instrumentation> = emptyList(),
         coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
         queryPlanFactory: QueryPlanFactory = QueryPlanFactory.Default,
+        airbnbBypassPolicyCheckDuringCompletion: Boolean = false,
     ): GraphQL {
         val execParamFactory = ExecutionParameters.Factory(
             queryPlanFactory,
@@ -192,7 +194,7 @@ object ExecutionTestHelpers {
             executionParametersFactory = execParamFactory,
             accessCheckRunner = accessCheckRunner,
             coroutineInterop = coroutineInterop,
-            temporaryBypassAccessCheck = TemporaryBypassAccessCheck.Default
+            airbnbBypassPolicyCheckDuringCompletion = airbnbBypassPolicyCheckDuringCompletion
         )
         return GraphQL.newGraphQL(schema.schema)
             .preparsedDocumentProvider(preparsedDocumentProvider)

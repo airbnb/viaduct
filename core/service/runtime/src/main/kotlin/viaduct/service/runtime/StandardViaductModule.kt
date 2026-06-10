@@ -19,7 +19,6 @@ import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NoOpCheckerExecutorFactoryImpl
 import viaduct.engine.api.spi.ProxyResolverFactory
-import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.fragment.ExecutableFragmentParser
@@ -53,8 +52,6 @@ class StandardViaductModule(
         bind(CoroutineInterop::class.java).toInstance(engineConfiguration.coroutineInterop)
         bind(FlagManager::class.java).toInstance(engineConfiguration.flagManager)
         bind(DataFetcherExceptionHandler::class.java).toInstance(engineConfiguration.dataFetcherExceptionHandler)
-        @Suppress("DEPRECATION")
-        bind(TemporaryBypassAccessCheck::class.java).toInstance(engineConfiguration.temporaryBypassAccessCheck)
         bind(ErrorReporter::class.java).toInstance(engineConfiguration.resolverErrorReporter)
         bind(ResolverErrorBuilder::class.java).toInstance(engineConfiguration.resolverErrorBuilder)
         bind(object : TypeLiteral<BaseTenantAPIBootstrapper<LegacyTenantModuleBootstrapper>>() {}).toInstance(tenantBootstrapper)

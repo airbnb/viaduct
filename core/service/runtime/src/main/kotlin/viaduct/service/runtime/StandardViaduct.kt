@@ -28,7 +28,6 @@ import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.FieldSelectivityProvider
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.ProxyResolverFactory
-import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.api.spi.flatten
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
@@ -113,8 +112,6 @@ class StandardViaduct
             private var flagManager: FlagManager? = null
             private var checkerExecutorFactory: CheckerExecutorFactory? = null
             private var checkerExecutorFactoryCreator: ((ViaductSchema) -> CheckerExecutorFactory)? = null
-            @Suppress("DEPRECATION")
-            private var temporaryBypassAccessCheck: TemporaryBypassAccessCheck? = null
             private var dataFetcherExceptionHandler: DataFetcherExceptionHandler? = null
             private var resolverErrorReporter: ErrorReporter? = null
             private var resolverErrorBuilder: ResolverErrorBuilder? = null
@@ -196,12 +193,6 @@ class StandardViaduct
             fun withCheckerExecutorFactoryCreator(factoryCreator: (ViaductSchema) -> CheckerExecutorFactory): Builder =
                 apply {
                     this.checkerExecutorFactoryCreator = factoryCreator
-                }
-
-            @Suppress("DEPRECATION")
-            fun withTemporaryBypassChecker(temporaryBypassAccessCheck: TemporaryBypassAccessCheck): Builder =
-                apply {
-                    this.temporaryBypassAccessCheck = temporaryBypassAccessCheck
                 }
 
             fun withSchemaConfiguration(schemaConfiguration: SchemaConfiguration): Builder =
@@ -328,7 +319,7 @@ class StandardViaduct
                     copy(
                         coroutineInterop = builder.coroutineInterop ?: coroutineInterop,
                         flagManager = builder.flagManager ?: flagManager,
-                        temporaryBypassAccessCheck = builder.temporaryBypassAccessCheck ?: temporaryBypassAccessCheck,
+                        airbnbBypassPolicyCheckDuringCompletion = builder.airbnbModeEnabled,
                         resolverErrorReporter = finalResolverErrorReporter,
                         resolverErrorBuilder = finalResolverErrorBuilder,
                         dataFetcherExceptionHandler = builder.dataFetcherExceptionHandler

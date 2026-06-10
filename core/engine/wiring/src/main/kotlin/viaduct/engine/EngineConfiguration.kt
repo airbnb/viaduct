@@ -9,7 +9,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.FieldSelectivityProvider
-import viaduct.engine.api.spi.TemporaryBypassAccessCheck
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
@@ -29,8 +28,12 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 data class EngineConfiguration(
     val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
     val flagManager: FlagManager = FlagManager.default,
-    @Suppress("DEPRECATION")
-    val temporaryBypassAccessCheck: TemporaryBypassAccessCheck = TemporaryBypassAccessCheck.Default,
+    /**
+     * Temporary for airbnb only. Off for OSS.
+     * The engine will bypass the access checker for airbnb during completion
+     * for fields whose query carries the `@bypassPolicyCheck` directive.
+     */
+    val airbnbBypassPolicyCheckDuringCompletion: Boolean = false,
     val resolverErrorReporter: ErrorReporter = ErrorReporter.NOOP,
     val resolverErrorBuilder: ResolverErrorBuilder = ResolverErrorBuilder.NOOP,
     val dataFetcherExceptionHandler: DataFetcherExceptionHandler = ViaductDataFetcherExceptionHandler(
