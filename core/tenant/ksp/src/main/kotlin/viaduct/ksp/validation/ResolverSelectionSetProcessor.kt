@@ -10,11 +10,6 @@ import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFile
-import graphql.schema.GraphQLSchema
-import graphql.schema.idl.SchemaParser
-import graphql.schema.idl.UnExecutableSchemaGenerator
-import graphql.validation.Validator
-import java.io.File
 import java.lang.IllegalArgumentException
 
 /**
@@ -23,46 +18,27 @@ import java.lang.IllegalArgumentException
  * Responsibilities:
  * 1. Extract fragments (objectValueFragment, queryValueFragment) and @Variable declarations
  * 2. Handle conversion from shorthand to longhand form if necessary
- * 3. Validate fragments against the GraphQL compilation schema
- * 4. Validate variable declarations (source constraints, path resolution, unused/unbound variables)
- * 5. Generate resolver-extracted-fragments.graphql containing all extracted [ResolverFragmentSpec]
+ * 3. Validate variable declarations (source constraints, path resolution, unused/unbound variables)
+ * 4. Generate resolver-extracted-fragments.graphql containing all extracted [ResolverFragmentSpec]
+ *
+ * GraphQL schema validation of required selection sets (field/type existence and fragment
+ * type-shape checks) is intentionally *not* done here. The compilation schema is loaded once per
+ * tenant at assembly time (see `TenantModuleConfigAssembler`), which is both faster than loading
+ * it on every leaf compile and able to resolve cross-leaf `@GraphQLFragment` spreads that a single
+ * leaf cannot see.
  */
 class ResolverSelectionSetProcessor(
     environment: SymbolProcessorEnvironment,
-    private val fragmentValidator: Validator,
 ) : SymbolProcessor {
     private val codeGenerator: CodeGenerator = environment.codeGenerator
     private val logger: KSPLogger = environment.logger
     private val fragmentsOutputFile: String? = environment.options[FRAGMENTS_OUTPUT_OPTION]
-
-    private fun getCompilationSchemaSDL(kspResolver: Resolver): String {
-        val compilationSchemaFile = kspResolver.findCompilationSchemaFile()
-            ?: throw RuntimeException("Unable to read compilation schema SDL to validate resolver required selection set.")
-
-        return compilationSchemaFile.unwrapSchemaFromFile()
-    }
-
-    private fun Resolver.findCompilationSchemaFile(): File? {
-        return this.getAllFiles().firstOrNull {
-            it.fileName == CompilationSchemaWrapperKtUtils.COMPILATION_SCHEMA_WRAPPER_KT_FILE
-        }?.let { File(it.filePath) }
-    }
-
-    private fun File.unwrapSchemaFromFile(): String {
-        return CompilationSchemaWrapperKtUtils.unwrapCompilationSchemaSDLFromWrapperKt(this)
-    }
 
     // Track if we've already generated the file in this compilation session
     private var hasGeneratedFragments = false
 
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
     override fun process(kspResolver: Resolver): List<KSAnnotated> {
-        val schema = UnExecutableSchemaGenerator.makeUnExecutableSchema(
-            SchemaParser().parse(
-                getCompilationSchemaSDL(kspResolver)
-            )
-        )
-
         // Extract @Resolver annotations from all declarations
         val annotationSpecs = mutableListOf<ResolverAnnotationSpec>()
         val resolverFiles = mutableSetOf<KSFile>()
@@ -78,8 +54,8 @@ class ResolverSelectionSetProcessor(
             }
         }
 
-        // Perform validation
-        validateResolvers(annotationSpecs, schema)
+        // Perform schema-free validation (variable declarations and references)
+        validateResolvers(annotationSpecs)
 
         // Generate GraphQL fragments file only if output option is provided
         val fragmentSpecs = annotationSpecs.flatMap { it.fragments }
@@ -113,9 +89,9 @@ class ResolverSelectionSetProcessor(
                 resolverSpecs.forEach { writer.write(it.toString()) }
             }
 
-            logger.info("Generated resolver fragments GraphQL schema with ${resolverSpecs.size} resolvers")
+            logger.infoResolverProcessor("Generated resolver fragments GraphQL schema with {0} resolvers", resolverSpecs.size)
         } catch (e: Exception) {
-            logger.error("Failed to generate resolver fragments GraphQL: ${e.message}")
+            logger.errorResolverProcessor("Failed to generate resolver fragments GraphQL: {0}", e)
         }
     }
 
@@ -200,19 +176,11 @@ class ResolverSelectionSetProcessor(
     }
 
     /**
-     * Validates resolver required selection sets and variables.
-     * Uses separate validator classes implementing IValidator interface.
-     * Collects errors from all validators and reports them together.
+     * Validates resolver @Variable declarations and references. This is schema-free; GraphQL
+     * schema validation of the fragments themselves happens at assembly time.
      */
-    private fun validateResolvers(
-        annotationSpecs: List<ResolverAnnotationSpec>,
-        schema: GraphQLSchema,
-    ) {
+    private fun validateResolvers(annotationSpecs: List<ResolverAnnotationSpec>,) {
         val errors = mutableListOf<String>()
-
-        val fragmentSpecs = annotationSpecs.flatMap { it.fragments }
-        ValidateResolverFragments(fragmentSpecs, schema, fragmentValidator)
-            .validateAndReportErrors()?.let { errors.add(it) }
 
         ValidateResolverVariables(annotationSpecs)
             .validateAndReportErrors()?.let { errors.add(it) }

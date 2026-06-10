@@ -62,4 +62,15 @@ interface TenantResolverClassFinder {
      * @return the tenant module metadata, or [TenantModuleMetadata.EMPTY] if not available
      */
     fun tenantModuleMetadata(): TenantModuleMetadata
+
+    /**
+     * Discovers all classes in the tenant package annotated with [@GraphQLFragment][viaduct.api.documents.GraphQLFragment].
+     *
+     * Used only by the classic (reflection-based) bootstrapper to resolve named fragment spreads at
+     * runtime. The KSP/codegen path inlines these fragments into selections strings at assembly time
+     * and does not call this method.
+     *
+     * @return set of classes bearing the @GraphQLFragment annotation
+     */
+    fun namedFragmentClassesInPackage(): Set<Class<*>>
 }

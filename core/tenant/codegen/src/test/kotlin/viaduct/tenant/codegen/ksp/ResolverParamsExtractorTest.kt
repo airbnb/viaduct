@@ -1,6 +1,7 @@
 package viaduct.tenant.codegen.ksp
 
 import com.google.devtools.ksp.processing.Resolver
+import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
@@ -10,10 +11,13 @@ import com.google.devtools.ksp.symbol.KSName
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSTypeReference
 import com.google.devtools.ksp.symbol.KSValueArgument
+import com.google.devtools.ksp.symbol.Location
+import com.google.devtools.ksp.symbol.NonExistLocation
 import java.lang.reflect.Proxy
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.api.documents.GraphQLFragment
 import viaduct.api.resolver.Resolver as ResolverAnnotation
 import viaduct.service.api.spi.TenantBootstrapper
 
@@ -386,6 +390,224 @@ class ResolverParamsExtractorTest {
     }
 
     @Test
+    fun `extractByFile extracts named fragment text`() {
+        val logger = RecordingKspLogger()
+
+        val fragmentFile = ksFile(
+            packageName = "com.example.feature.fragments",
+            fileName = "UserFragments.kt",
+        )
+        val fragmentDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.fragments.UserCoreFieldsFragment",
+            simpleName = "UserCoreFieldsFragment",
+            packageName = "com.example.feature.fragments",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "GraphQLFragment",
+                    args = mapOf("value" to "fragment UserCoreFields on User { id name }"),
+                ),
+            ),
+            containingFile = fragmentFile,
+            classKind = ClassKind.OBJECT,
+            location = NonExistLocation,
+        )
+        val fileWithFragment = ksFile(
+            packageName = "com.example.feature.fragments",
+            fileName = "UserFragments.kt",
+            declarations = listOf(fragmentDeclaration),
+        )
+
+        val resolver = ksResolver(
+            files = listOf(fileWithFragment),
+            fragmentAnnotated = listOf(fragmentDeclaration),
+        )
+
+        val result = ResolverParamsExtractor(resolver = resolver, logger = logger).extractByFile()
+
+        assertEquals(1, result.size)
+        val descriptor = result.values.single()
+        assertEquals(1, descriptor.namedFragments.size)
+        assertEquals("fragment UserCoreFields on User { id name }", descriptor.namedFragments.single())
+        assertTrue(logger.errors.isEmpty(), "Expected no errors: ${logger.errors}")
+    }
+
+    @Test
+    fun `extractByFile logs error and skips non-object GraphQLFragment declaration`() {
+        val logger = RecordingKspLogger()
+
+        val fragmentFile = ksFile(
+            packageName = "com.example.feature.fragments",
+            fileName = "BadFragment.kt",
+        )
+        val classDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.fragments.BadFragment",
+            simpleName = "BadFragment",
+            packageName = "com.example.feature.fragments",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "GraphQLFragment",
+                    args = mapOf("value" to "fragment BadFields on SomeType { id }"),
+                ),
+            ),
+            containingFile = fragmentFile,
+            classKind = ClassKind.CLASS,
+            location = NonExistLocation,
+        )
+        val fileWithBadFragment = ksFile(
+            packageName = "com.example.feature.fragments",
+            fileName = "BadFragment.kt",
+            declarations = listOf(classDeclaration),
+        )
+
+        val resolver = ksResolver(
+            files = listOf(fileWithBadFragment),
+            fragmentAnnotated = listOf(classDeclaration),
+        )
+
+        val result = ResolverParamsExtractor(resolver = resolver, logger = logger).extractByFile()
+
+        assertTrue(result.isEmpty(), "Expected no descriptors for non-object @GraphQLFragment")
+        assertTrue(
+            logger.errors.any { it.contains("must be applied to a Kotlin object") },
+            "Expected error about object requirement: ${logger.errors}",
+        )
+    }
+
+    @Test
+    fun `extractByFile logs error and skips GraphQLFragment with blank value`() {
+        val logger = RecordingKspLogger()
+
+        val fragmentFile = ksFile(
+            packageName = "com.example.feature.fragments",
+            fileName = "BlankFragment.kt",
+        )
+        val fragmentDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.fragments.BlankFragment",
+            simpleName = "BlankFragment",
+            packageName = "com.example.feature.fragments",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "GraphQLFragment",
+                    args = mapOf("value" to "   "),
+                ),
+            ),
+            containingFile = fragmentFile,
+            classKind = ClassKind.OBJECT,
+            location = NonExistLocation,
+        )
+        val fileWithBlankFragment = ksFile(
+            packageName = "com.example.feature.fragments",
+            fileName = "BlankFragment.kt",
+            declarations = listOf(fragmentDeclaration),
+        )
+
+        val resolver = ksResolver(
+            files = listOf(fileWithBlankFragment),
+            fragmentAnnotated = listOf(fragmentDeclaration),
+        )
+
+        val result = ResolverParamsExtractor(resolver = resolver, logger = logger).extractByFile()
+
+        assertTrue(result.isEmpty(), "Expected no descriptors for blank fragment text")
+        assertTrue(
+            logger.errors.any { it.contains("value must not be blank") },
+            "Expected blank-value error: ${logger.errors}",
+        )
+    }
+
+    @Test
+    fun `extractByFile warns and skips GraphQLFragment without containing file`() {
+        val logger = RecordingKspLogger()
+
+        val fragmentDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.fragments.OrphanFragment",
+            simpleName = "OrphanFragment",
+            packageName = "com.example.feature.fragments",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "GraphQLFragment",
+                    args = mapOf("value" to "fragment OrphanFields on SomeType { id }"),
+                ),
+            ),
+            containingFile = null,
+            classKind = ClassKind.OBJECT,
+            location = NonExistLocation,
+        )
+
+        val resolver = ksResolver(
+            files = emptyList(),
+            fragmentAnnotated = listOf(fragmentDeclaration),
+        )
+
+        val result = ResolverParamsExtractor(resolver = resolver, logger = logger).extractByFile()
+
+        assertTrue(result.isEmpty(), "Expected no descriptors when fragment has no containing file")
+        assertTrue(
+            logger.warns.any { it.contains("Skipping @GraphQLFragment without containing file") },
+            "Expected warn about missing containing file: ${logger.warns}",
+        )
+    }
+
+    @Test
+    fun `extractByFile sorts named fragments alphabetically by text`() {
+        val logger = RecordingKspLogger()
+
+        val fragmentFile = ksFile(
+            packageName = "com.example.feature.fragments",
+            fileName = "MultiFragments.kt",
+        )
+
+        val zFragment = ksClassDeclaration(
+            qualifiedName = "com.example.feature.fragments.ZFragment",
+            simpleName = "ZFragment",
+            packageName = "com.example.feature.fragments",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "GraphQLFragment",
+                    args = mapOf("value" to "fragment ZFields on ZType { id }"),
+                ),
+            ),
+            containingFile = fragmentFile,
+            classKind = ClassKind.OBJECT,
+            location = NonExistLocation,
+        )
+
+        val aFragment = ksClassDeclaration(
+            qualifiedName = "com.example.feature.fragments.AFragment",
+            simpleName = "AFragment",
+            packageName = "com.example.feature.fragments",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "GraphQLFragment",
+                    args = mapOf("value" to "fragment AFields on AType { id }"),
+                ),
+            ),
+            containingFile = fragmentFile,
+            classKind = ClassKind.OBJECT,
+            location = NonExistLocation,
+        )
+
+        val fileWithFragments = ksFile(
+            packageName = "com.example.feature.fragments",
+            fileName = "MultiFragments.kt",
+            declarations = listOf(zFragment, aFragment),
+        )
+
+        val resolver = ksResolver(
+            files = listOf(fileWithFragments),
+            fragmentAnnotated = listOf(zFragment, aFragment),
+        )
+
+        val result = ResolverParamsExtractor(resolver = resolver, logger = logger).extractByFile()
+
+        assertEquals(1, result.size)
+        val fragments = result.values.single().namedFragments
+        assertEquals(2, fragments.size)
+        assertEquals("fragment AFields on AType { id }", fragments[0])
+        assertEquals("fragment ZFields on ZType { id }", fragments[1])
+    }
+
+    @Test
     fun `extractByFile logs error and excludes file when two TenantBootstrapper classes are in same file`() {
         val logger = RecordingKspLogger()
 
@@ -430,9 +652,11 @@ private fun ksResolver(
     files: List<KSFile>,
     bootstrapperAnnotated: List<KSAnnotated> = emptyList(),
     resolverAnnotated: List<KSAnnotated> = emptyList(),
+    fragmentAnnotated: List<KSAnnotated> = emptyList(),
 ): Resolver {
     val tenantBootstrapperFqn = requireNotNull(TenantBootstrapper::class.qualifiedName)
     val resolverAnnotationFqn = requireNotNull(ResolverAnnotation::class.qualifiedName)
+    val graphqlFragmentFqn = requireNotNull(GraphQLFragment::class.qualifiedName)
     return proxy(Resolver::class.java) { method, args ->
         when (method.name) {
             "getAllFiles" -> files.asSequence()
@@ -440,6 +664,7 @@ private fun ksResolver(
                 when (args?.firstOrNull() as? String) {
                     tenantBootstrapperFqn -> bootstrapperAnnotated.asSequence()
                     resolverAnnotationFqn -> resolverAnnotated.asSequence()
+                    graphqlFragmentFqn -> fragmentAnnotated.asSequence()
                     else -> emptySequence()
                 }
             }
@@ -482,6 +707,8 @@ private fun ksClassDeclaration(
     superDeclarations: List<KSClassDeclaration> = emptyList(),
     containingFile: KSFile?,
     declarations: List<KSDeclaration> = emptyList(),
+    classKind: ClassKind = ClassKind.CLASS,
+    location: Location = NonExistLocation,
 ): KSClassDeclaration {
     val qualifiedNameValue = ksName(qualifiedName)
     val simpleNameValue = ksName(simpleName)
@@ -498,6 +725,8 @@ private fun ksClassDeclaration(
             "getContainingFile" -> containingFile
             "getDeclarations" -> declarations.asSequence()
             "getParentDeclaration" -> null
+            "getClassKind" -> classKind
+            "getLocation" -> location
             "toString" -> qualifiedName
             else -> unsupported("KSClassDeclaration.${method.name}")
         }

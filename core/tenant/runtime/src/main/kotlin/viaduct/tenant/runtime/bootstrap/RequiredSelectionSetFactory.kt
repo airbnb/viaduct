@@ -1,5 +1,6 @@
 package viaduct.tenant.runtime.bootstrap
 
+import graphql.language.FragmentDefinition
 import kotlin.reflect.KClass
 import kotlin.reflect.full.findAnnotations
 import kotlin.reflect.full.hasAnnotation
@@ -44,19 +45,23 @@ class RequiredSelectionSetFactory(
         variablesProviderContextFactory: VariablesProviderContextFactory,
         annotation: Resolver,
         resolverForType: String,
+        // Classic (reflection-based) bootstrapper only: fragment definitions discovered via
+        // classpath scanning of @GraphQLFragment objects. Empty for the KSP/codegen path,
+        // where named fragments are inlined into selections strings at assembly time.
+        namedFragments: Map<String, FragmentDefinition> = emptyMap(),
     ): Pair<RequiredSelectionSet?, RequiredSelectionSet?> {
         val objectValueFragment = annotation.objectValueFragment
         val queryValueFragment = annotation.queryValueFragment
 
         // Parse selections
         val objectSelections = if (!objectValueFragment.isBlank()) {
-            SelectionsParser.parse(resolverForType, objectValueFragment)
+            SelectionsParser.parse(resolverForType, objectValueFragment, namedFragments)
         } else {
             null
         }
 
         val querySelections = if (!queryValueFragment.isBlank()) {
-            SelectionsParser.parse(schema.schema.queryType.name, queryValueFragment)
+            SelectionsParser.parse(schema.schema.queryType.name, queryValueFragment, namedFragments)
         } else {
             null
         }

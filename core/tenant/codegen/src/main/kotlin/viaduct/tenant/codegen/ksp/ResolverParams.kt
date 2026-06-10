@@ -56,7 +56,9 @@ internal data class ResolverDescriptorFile(
     val fields: List<ResolverParams.Field>,
     val grtPackagePrefix: String? = null,
     val bootstrapClass: String? = null,
+    /** Fragment definition strings extracted from @GraphQLFragment objects in this source file. */
+    val namedFragments: List<String> = emptyList(),
 ) {
     @JsonIgnore
-    fun isEmpty(): Boolean = nodes.isEmpty() && fields.isEmpty() && bootstrapClass == null
+    fun isEmpty(): Boolean = nodes.isEmpty() && fields.isEmpty() && bootstrapClass == null && namedFragments.isEmpty()
 }

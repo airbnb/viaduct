@@ -146,4 +146,39 @@ class AssembleTenantModuleConfigJarTest {
         assertTrue(json.contains("\"nodes\""), json)
         assertTrue(json.contains("\"fields\""), json)
     }
+
+    @Test
+    fun `output jar JSON does not contain namedFragments key at registry level`() {
+        val fieldJar = descriptorJar(
+            name = "leaf.jar",
+            entries = mapOf(
+                "viaduct-registry/com/example/feature/Resolvers.json" to
+                    """{"nodes":[],"fields":[{"attribution":"AResolver","implFqn":"com.example.AResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.A","typeName":"A","fieldName":"f"}],"grtPackagePrefix":"viaduct.api.grts"}""",
+            ),
+        )
+        val out = outputJar()
+        runCli(jars = listOf(fieldJar), out = out)
+
+        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        assertNotNull(json)
+        assertFalse(json!!.contains("namedFragments"), json)
+    }
+
+    @Test
+    fun `named fragment from descriptor jar is inlined into field objectSelections`() {
+        val fragmentJar = descriptorJar(
+            name = "leaf-frags.jar",
+            entries = mapOf(
+                "viaduct-registry/com/example/feature/FieldAndFragments.json" to
+                    """{"nodes":[],"fields":[{"attribution":"AResolver","implFqn":"com.example.AResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.A","typeName":"A","fieldName":"f","objectSelections":{"selections":"fragment _ on A { ...UserFields }","variablesProviders":[]}}],"grtPackagePrefix":"viaduct.api.grts","namedFragments":["fragment UserFields on User { id name }"]}""",
+            ),
+        )
+        val out = outputJar()
+        runCli(jars = listOf(fragmentJar), out = out)
+
+        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        assertNotNull(json)
+        assertTrue(json!!.contains("fragment UserFields on User { id name }"), json)
+        assertFalse(json.contains("namedFragments"), json)
+    }
 }

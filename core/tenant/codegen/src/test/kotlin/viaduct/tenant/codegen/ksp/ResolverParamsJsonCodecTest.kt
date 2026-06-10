@@ -32,6 +32,7 @@ class ResolverParamsJsonCodecTest {
                 {
                   "fields" : [ ],
                   "grtPackagePrefix" : "viaduct.api.grts",
+                  "namedFragments" : [ ],
                   "nodes" : [ {
                     "attribution" : "ExampleNodeResolver",
                     "implFqn" : "com.example.feature.resolvers.ExampleNodeResolver",
@@ -138,6 +139,7 @@ class ResolverParamsJsonCodecTest {
                     "typeName" : "ExampleNode"
                   } ],
                   "grtPackagePrefix" : "viaduct.api.grts",
+                  "namedFragments" : [ ],
                   "nodes" : [ ]
                 }
 
@@ -201,6 +203,7 @@ class ResolverParamsJsonCodecTest {
                     "typeName" : "ExampleNode"
                   } ],
                   "grtPackagePrefix" : "viaduct.api.grts",
+                  "namedFragments" : [ ],
                   "nodes" : [ ]
                 }
 
@@ -258,6 +261,7 @@ class ResolverParamsJsonCodecTest {
                     "typeName" : "Character"
                   } ],
                   "grtPackagePrefix" : "viaduct.api.grts",
+                  "namedFragments" : [ ],
                   "nodes" : [ ]
                 }
 

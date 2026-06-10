@@ -2,10 +2,12 @@
 
 package viaduct.tenant.runtime.bootstrap
 
+import graphql.language.FragmentDefinition
 import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.full.memberFunctions
 import viaduct.api.NodeResolverBase
 import viaduct.api.ResolverBase
+import viaduct.api.documents.GraphQLFragment
 import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.internal.GRTConvFactory
 import viaduct.api.internal.NodeResolverFor
@@ -16,6 +18,7 @@ import viaduct.api.resolver.Variables
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -55,6 +58,10 @@ class ViaductLegacyTenantModuleBootstrapper(
      * Each time the get is called, we recompute the resolver executor map.
      * Please call this only once or refactor this API to init the map only once.
      */
+    // Classic bootstrapper: scan the classpath once to resolve @GraphQLFragment spreads at runtime.
+    // The KSP/codegen path inlines named fragments into selections strings at assembly time instead.
+    private val namedFragments: Map<String, FragmentDefinition> by lazy { loadNamedFragments() }
+
     override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Pair<String, String>, FieldResolverExecutor>> {
         val result: MutableMap<Pair<String, String>, FieldResolverExecutor> = mutableMapOf()
         val tenantFunctionClass = ResolverBase::class.java
@@ -137,6 +144,7 @@ class ViaductLegacyTenantModuleBootstrapper(
                 fieldExecutionContextFactory,
                 resolverAnnotation,
                 typeName,
+                namedFragments,
             )
 
             val resolverId = typeName to fieldName
@@ -357,6 +365,22 @@ class ViaductLegacyTenantModuleBootstrapper(
             }
         }
         return nodeResolverExecutors.entries.map { it.key to it.value }
+    }
+
+    internal fun loadNamedFragments(): Map<String, FragmentDefinition> {
+        val fragmentClasses = tenantResolverClassFinder.namedFragmentClassesInPackage()
+        if (fragmentClasses.isEmpty()) return emptyMap()
+
+        val definitions = fragmentClasses.flatMap { cls ->
+            val annotation = cls.getAnnotation(GraphQLFragment::class.java) ?: return@flatMap emptyList()
+            val doc = CachedDocumentParser.parseDocument(annotation.value)
+            doc.getDefinitionsOfType(FragmentDefinition::class.java)
+        }
+        val duplicates = definitions.groupBy { it.name }.filterValues { it.size > 1 }.keys
+        if (duplicates.isNotEmpty()) {
+            error("Duplicate @GraphQLFragment names detected: $duplicates. Fragment names must be unique across all @GraphQLFragment objects in a tenant module.")
+        }
+        return definitions.associateBy { it.name }
     }
 
     companion object {

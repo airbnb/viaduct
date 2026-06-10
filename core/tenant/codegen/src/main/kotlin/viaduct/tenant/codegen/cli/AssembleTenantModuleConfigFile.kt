@@ -32,6 +32,9 @@ class AssembleTenantModuleConfigFile : CliktCommand(
     private val executorFactory: String by option("--executor-factory")
         .default("")
 
+    private val schemaSdl: File? by option("--schema-sdl")
+        .file(mustExist = true, canBeFile = true)
+
     private val outputDir: File by option("--output-dir")
         .file(mustExist = false, canBeFile = false)
         .required()
@@ -50,6 +53,7 @@ class AssembleTenantModuleConfigFile : CliktCommand(
             descriptorJsons = descriptorJsons,
             executorFactory = executorFactory,
             tenantPackage = tenantPackage,
+            schemaSdl = schemaSdl?.readText(),
             outputDir = outputDir,
         )
     }

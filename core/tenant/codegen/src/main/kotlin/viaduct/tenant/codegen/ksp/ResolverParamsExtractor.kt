@@ -2,8 +2,10 @@ package viaduct.tenant.codegen.ksp
 
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
+import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFile
+import viaduct.api.documents.GraphQLFragment
 import viaduct.api.resolver.Resolver as ResolverAnnotation
 import viaduct.service.api.spi.TenantBootstrapper
 
@@ -25,6 +27,7 @@ internal class ResolverParamsExtractor(
     fun extractByFile(): Map<KSFile, ResolverDescriptorFile> {
         val groupedNodesByFile = mutableMapOf<KSFile, MutableList<ResolverParams.Node>>()
         val groupedFieldsByFile = mutableMapOf<KSFile, MutableList<ResolverParams.Field>>()
+        val groupedFragmentsByFile = mutableMapOf<KSFile, MutableList<String>>()
 
         resolver
             .getSymbolsWithAnnotation(RESOLVER_ANNOTATION)
@@ -37,9 +40,17 @@ internal class ResolverParamsExtractor(
                 )
             }
 
+        val graphqlFragmentAnnotation = requireNotNull(GraphQLFragment::class.qualifiedName)
+        resolver
+            .getSymbolsWithAnnotation(graphqlFragmentAnnotation)
+            .filterIsInstance<KSClassDeclaration>()
+            .forEach { declaration ->
+                collectNamedFragment(declaration, groupedFragmentsByFile)
+            }
+
         val bootstrapClassByFile = extractBootstrapClassByFile()
 
-        val allFiles = (groupedNodesByFile.keys + groupedFieldsByFile.keys + bootstrapClassByFile.keys)
+        val allFiles = (groupedNodesByFile.keys + groupedFieldsByFile.keys + bootstrapClassByFile.keys + groupedFragmentsByFile.keys)
             .toSortedSet(compareBy { it.filePath })
 
         val descriptorsByFile = allFiles.associateWith { file ->
@@ -53,6 +64,7 @@ internal class ResolverParamsExtractor(
                     .sortedWith(compareBy({ it.typeName }, { it.fieldName }, { it.implFqn })),
                 grtPackagePrefix = extractGrtPackagePrefix(classesInFile),
                 bootstrapClass = bootstrapClassByFile[file],
+                namedFragments = groupedFragmentsByFile[file].orEmpty().sorted(),
             )
         }.toSortedMap(compareBy { file -> file.filePath })
 
@@ -116,5 +128,44 @@ internal class ResolverParamsExtractor(
             is ResolverParams.Field -> groupedFieldsByFile.getOrPut(containingFile) { mutableListOf() }.add(params)
             null -> Unit
         }
+    }
+
+    private fun collectNamedFragment(
+        declaration: KSClassDeclaration,
+        groupedFragmentsByFile: MutableMap<KSFile, MutableList<String>>,
+    ) {
+        if (declaration.classKind != ClassKind.OBJECT) {
+            logger.errorRegistryExtractor(
+                "@GraphQLFragment must be applied to a Kotlin object declaration, but {} is not an object.",
+                declaration.simpleName.asString(),
+            )
+            return
+        }
+
+        val containingFile = declaration.containingFile ?: run {
+            logger.warnRegistryExtractor(
+                "Skipping @GraphQLFragment without containing file: {}",
+                declaration.simpleName.asString(),
+            )
+            return
+        }
+
+        val fragmentText = declaration.annotations
+            .first { it.shortName.asString() == "GraphQLFragment" }
+            .arguments
+            // KSP may expose the argument as positional (name == null) when written as
+            // @GraphQLFragment("fragment ..."), or as named when written as @GraphQLFragment(value = "fragment ...").
+            .firstOrNull { it.name?.asString() == "value" || it.name == null }
+            ?.value as? String
+
+        if (fragmentText.isNullOrBlank()) {
+            logger.errorRegistryExtractor(
+                "@GraphQLFragment value must not be blank on {}",
+                declaration.simpleName.asString(),
+            )
+            return
+        }
+
+        groupedFragmentsByFile.getOrPut(containingFile) { mutableListOf() }.add(fragmentText.trim())
     }
 }

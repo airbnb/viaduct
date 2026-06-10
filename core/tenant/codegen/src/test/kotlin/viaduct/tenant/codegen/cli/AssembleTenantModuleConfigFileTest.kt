@@ -20,20 +20,25 @@ class AssembleTenantModuleConfigFileTest {
         tenantPkg: String = "com.example.feature",
         executorFactory: String = "com.example.feature.ExampleExecutorFactory",
         out: File = outputDir(),
+        schemaSdl: File? = null,
     ) {
-        AssembleTenantModuleConfigFile().main(
-            listOf(
-                "--descriptor-dir",
-                descriptors.absolutePath,
-                "--tenant-package",
-                tenantPkg,
-                "--executor-factory",
-                executorFactory,
-                "--output-dir",
-                out.absolutePath,
-            ),
+        val args = mutableListOf(
+            "--descriptor-dir",
+            descriptors.absolutePath,
+            "--tenant-package",
+            tenantPkg,
+            "--executor-factory",
+            executorFactory,
+            "--output-dir",
+            out.absolutePath,
         )
+        if (schemaSdl != null) {
+            args += listOf("--schema-sdl", schemaSdl.absolutePath)
+        }
+        AssembleTenantModuleConfigFile().main(args)
     }
+
+    private fun schemaFile(sdl: String): File = File(tempDir, "schema.graphqls").also { it.writeText(sdl) }
 
     @Test
     fun `writes output file under META-INF viaduct modules with tenant package name`() {
@@ -235,5 +240,500 @@ class AssembleTenantModuleConfigFileTest {
             runCli(descriptors = descriptors, out = outputDir())
         }
         assertTrue(exception.message!!.contains("at most one"), exception.message)
+    }
+
+    @Test
+    fun `output JSON does not contain namedFragments key at registry level`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "ExampleResolvers.json").writeText(
+            """{"nodes":[],"fields":[{"attribution":"ExampleNameResolver","implFqn":"com.example.feature.resolvers.ExampleNameResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.feature.resolverbases.ExampleName","typeName":"ExampleNode","fieldName":"name"}],"grtPackagePrefix":"viaduct.api.grts"}""",
+        )
+        val out = outputDir()
+        runCli(descriptors = descriptors, out = out)
+
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertFalse(json.contains("namedFragments"), json)
+    }
+
+    @Test
+    fun `named fragment spread is appended into objectSelections at assembly time`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "FieldAndFragments.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "LabelResolver",
+                "implFqn": "com.example.feature.resolvers.LabelResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.Label",
+                "typeName": "User",
+                "fieldName": "label",
+                "objectSelections": {
+                  "selections": "fragment _ on User { ...UserFields }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts",
+              "namedFragments": [ "fragment UserFields on User { id name }" ]
+            }
+            """.trimIndent(),
+        )
+        val out = outputDir()
+        runCli(descriptors = descriptors, out = out)
+
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("fragment UserFields on User { id name }"), json)
+        assertFalse(json.contains("namedFragments"), json)
+    }
+
+    @Test
+    fun `named fragment spread is appended into querySelections at assembly time`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "FragAndQuery.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "GreetingResolver",
+                "implFqn": "com.example.feature.resolvers.GreetingResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.Greeting",
+                "typeName": "User",
+                "fieldName": "greeting",
+                "querySelections": {
+                  "selections": "fragment _ on Query { ...ViewerFields }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts",
+              "namedFragments": [ "fragment ViewerFields on Query { viewer { name } }" ]
+            }
+            """.trimIndent(),
+        )
+        val out = outputDir()
+        runCli(descriptors = descriptors, out = out)
+
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("fragment ViewerFields on Query { viewer { name } }"), json)
+        assertFalse(json.contains("namedFragments"), json)
+    }
+
+    @Test
+    fun `named fragment from one descriptor is inlined into field selections from another descriptor`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "FieldResolvers.json").writeText(
+            """{"nodes":[],"fields":[{"attribution":"AResolver","implFqn":"com.example.AResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.A","typeName":"A","fieldName":"f","objectSelections":{"selections":"fragment _ on A { ...AFields }","variablesProviders":[]}}],"grtPackagePrefix":"viaduct.api.grts"}""",
+        )
+        File(descriptors, "FragmentDefs.json").writeText(
+            """{"nodes":[],"fields":[],"namedFragments":["fragment AFields on A { id }"]}""",
+        )
+        val out = outputDir()
+        runCli(descriptors = descriptors, out = out)
+
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("fragment AFields on A { id }"), json)
+        assertFalse(json.contains("namedFragments"), json)
+    }
+
+    @Test
+    fun `fragment without matching spread is not appended into selections`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "UnusedFrag.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "NameResolver",
+                "implFqn": "com.example.NameResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.bases.Name",
+                "typeName": "User",
+                "fieldName": "name",
+                "objectSelections": {
+                  "selections": "fragment _ on User { id }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts",
+              "namedFragments": [ "fragment UnusedFrag on User { email }" ]
+            }
+            """.trimIndent(),
+        )
+        val out = outputDir()
+        runCli(descriptors = descriptors, out = out)
+
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertFalse(json.contains("UnusedFrag"), json)
+    }
+
+    @Test
+    fun `entry fragment named _ is renamed to Main when named fragments are appended`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "UnderscoreEntry.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "LabelResolver",
+                "implFqn": "com.example.feature.resolvers.LabelResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.Label",
+                "typeName": "User",
+                "fieldName": "label",
+                "objectSelections": {
+                  "selections": "fragment _ on User { ...UserFields }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts",
+              "namedFragments": [ "fragment UserFields on User { id name }" ]
+            }
+            """.trimIndent(),
+        )
+        val out = outputDir()
+        runCli(descriptors = descriptors, out = out)
+
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("fragment Main on User"), "entry fragment should be renamed to Main: $json")
+        assertFalse(json.contains("fragment _ on"), "_ entry fragment should have been renamed: $json")
+        assertTrue(json.contains("fragment UserFields on User { id name }"), json)
+    }
+
+    @Test
+    fun `duplicate @GraphQLFragment names across descriptors fail at assembly`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "FragA.json").writeText(
+            """{"nodes":[],"fields":[],"namedFragments":["fragment UserFields on User { id }"]}""",
+        )
+        File(descriptors, "FragB.json").writeText(
+            """{"nodes":[],"fields":[],"namedFragments":["fragment UserFields on User { name }"]}""",
+        )
+        val exception = assertThrows<IllegalStateException> {
+            runCli(descriptors = descriptors, out = outputDir())
+        }
+        assertTrue(exception.message!!.contains("UserFields"), exception.message)
+        assertTrue(exception.message!!.contains("Duplicate"), exception.message)
+    }
+
+    @Test
+    fun `RSS-local fragment name conflicting with @GraphQLFragment name fails at assembly`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Resolver.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "TitleResolver",
+                "implFqn": "com.example.TitleResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.bases.Title",
+                "typeName": "Listing",
+                "fieldName": "title",
+                "objectSelections": {
+                  "selections": "fragment SharedName on Listing { id }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts",
+              "namedFragments": [ "fragment SharedName on Listing { name }" ]
+            }
+            """.trimIndent(),
+        )
+        val exception = assertThrows<IllegalStateException> {
+            runCli(descriptors = descriptors, out = outputDir())
+        }
+        assertTrue(exception.message!!.contains("SharedName"), exception.message)
+        assertTrue(exception.message!!.contains("conflicts"), exception.message)
+    }
+
+    @Test
+    fun `schema-sdl validates RSS object selections against schema - valid fields pass`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Resolver.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "NameResolver",
+                "implFqn": "com.example.feature.resolvers.NameResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.Name",
+                "typeName": "User",
+                "fieldName": "name",
+                "objectSelections": {
+                  "selections": "fragment _ on User { id name }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts"
+            }
+            """.trimIndent(),
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
+        runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+    }
+
+    @Test
+    fun `schema-sdl rejects RSS object selections referencing unknown field`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Resolver.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "NameResolver",
+                "implFqn": "com.example.feature.resolvers.NameResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.Name",
+                "typeName": "User",
+                "fieldName": "name",
+                "objectSelections": {
+                  "selections": "fragment _ on User { notAField }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts"
+            }
+            """.trimIndent(),
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
+        val exception = assertThrows<IllegalStateException> {
+            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+        }
+        assertTrue(exception.message!!.contains("RSS validation failed"), exception.message)
+        // Field-undefined errors carry a hint pointing at the compilation-schema docs.
+        assertTrue(exception.message!!.contains("missing field or type in your tenant's compilation schema"), exception.message)
+        assertTrue(exception.message!!.contains("tenant-compilation-schemas"), exception.message)
+    }
+
+    @Test
+    fun `schema-sdl validates cross-leaf named fragment spread after assembly`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "FieldResolvers.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "NameResolver",
+                "implFqn": "com.example.feature.resolvers.NameResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.Name",
+                "typeName": "User",
+                "fieldName": "name",
+                "objectSelections": {
+                  "selections": "fragment _ on User { ...UserFields }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts"
+            }
+            """.trimIndent(),
+        )
+        File(descriptors, "FragmentDefs.json").writeText(
+            """{"nodes":[],"fields":[],"namedFragments":["fragment UserFields on User { id name }"]}""",
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
+        val out = outputDir()
+        runCli(descriptors = descriptors, out = out, schemaSdl = schema)
+
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("fragment UserFields on User { id name }"), json)
+    }
+
+    @Test
+    fun `schema-sdl rejects cross-leaf named fragment that references unknown field`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "FieldResolvers.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "NameResolver",
+                "implFqn": "com.example.feature.resolvers.NameResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.Name",
+                "typeName": "User",
+                "fieldName": "name",
+                "objectSelections": {
+                  "selections": "fragment _ on User { ...UserFields }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts"
+            }
+            """.trimIndent(),
+        )
+        File(descriptors, "FragmentDefs.json").writeText(
+            """{"nodes":[],"fields":[],"namedFragments":["fragment UserFields on User { bogusField }"]}""",
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
+        val exception = assertThrows<IllegalStateException> {
+            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+        }
+        assertTrue(exception.message!!.contains("RSS validation failed"), exception.message)
+    }
+
+    @Test
+    fun `schema-sdl rejects objectValueFragment on the wrong parent type`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Resolver.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "NameResolver",
+                "implFqn": "com.example.feature.resolvers.NameResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.Name",
+                "typeName": "User",
+                "fieldName": "name",
+                "objectSelections": {
+                  "selections": "fragment _ on Photo { url }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts"
+            }
+            """.trimIndent(),
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String } type Photo { url: String }")
+        val exception = assertThrows<IllegalStateException> {
+            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+        }
+        assertTrue(exception.message!!.contains("must be on the parent type (User)"), exception.message)
+    }
+
+    @Test
+    fun `schema-sdl rejects queryValueFragment not on the root query type`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Resolver.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "NameResolver",
+                "implFqn": "com.example.feature.resolvers.NameResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.Name",
+                "typeName": "User",
+                "fieldName": "name",
+                "querySelections": {
+                  "selections": "fragment _ on User { id }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts"
+            }
+            """.trimIndent(),
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
+        val exception = assertThrows<IllegalStateException> {
+            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+        }
+        assertTrue(exception.message!!.contains("must be on the root query type (Query)"), exception.message)
+    }
+
+    @Test
+    fun `schema-sdl rejects mutation resolver that sets objectValueFragment`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Resolver.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "CreateUserResolver",
+                "implFqn": "com.example.feature.resolvers.CreateUserResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.CreateUser",
+                "typeName": "Mutation",
+                "fieldName": "createUser",
+                "objectSelections": {
+                  "selections": "fragment _ on Mutation { createUser { id } }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts"
+            }
+            """.trimIndent(),
+        )
+        val schema = schemaFile(
+            "type Query { viewer: User } type Mutation { createUser: User } type User { id: ID }",
+        )
+        val exception = assertThrows<IllegalStateException> {
+            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+        }
+        assertTrue(exception.message!!.contains("should not set objectValueFragment"), exception.message)
+    }
+
+    @Test
+    fun `schema-sdl accepts valid object and query fragments on the correct types`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Resolver.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "NameResolver",
+                "implFqn": "com.example.feature.resolvers.NameResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.Name",
+                "typeName": "User",
+                "fieldName": "name",
+                "objectSelections": {
+                  "selections": "fragment _ on User { id }",
+                  "variablesProviders": []
+                },
+                "querySelections": {
+                  "selections": "fragment _ on Query { viewer { id } }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts"
+            }
+            """.trimIndent(),
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
+        runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+    }
+
+    @Test
+    fun `omitting schema-sdl skips schema validation even for invalid selections`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Resolver.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "NameResolver",
+                "implFqn": "com.example.feature.resolvers.NameResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.Name",
+                "typeName": "User",
+                "fieldName": "name",
+                "objectSelections": {
+                  "selections": "fragment _ on User { notAField }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts"
+            }
+            """.trimIndent(),
+        )
+        runCli(descriptors = descriptors, out = outputDir())
     }
 }

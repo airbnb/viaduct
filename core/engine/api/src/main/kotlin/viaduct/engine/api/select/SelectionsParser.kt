@@ -1,6 +1,9 @@
 package viaduct.engine.api.select
 
+import graphql.language.Field
 import graphql.language.FragmentDefinition
+import graphql.language.FragmentSpread
+import graphql.language.InlineFragment
 import graphql.language.SelectionSet
 import graphql.schema.DataFetchingEnvironment
 import viaduct.engine.api.fragment.Fragment
@@ -28,10 +31,19 @@ object SelectionsParser {
             fragment.parsedDocument.getDefinitionsOfType(FragmentDefinition::class.java).associateBy { it.name }
         )
 
-    /** Return a [ParsedSelections] from the provided type and [Selections] string */
+    /**
+     * Return a [ParsedSelections] from the provided type and [Selections] string.
+     *
+     * [knownFragments] is populated only by the classic (reflection-based) bootstrapper
+     * ([viaduct.tenant.runtime.bootstrap.ViaductLegacyTenantModuleBootstrapper]), which scans the
+     * classpath at startup to resolve [@GraphQLFragment][viaduct.api.documents.GraphQLFragment]
+     * spreads at runtime. The KSP/codegen path inlines named fragments into the selections string
+     * at assembly time, so [knownFragments] is empty there.
+     */
     fun parse(
         typeName: String,
-        @Selections selections: String
+        @Selections selections: String,
+        knownFragments: Map<String, FragmentDefinition> = emptyMap(),
     ): ParsedSelections {
         val document =
             try {
@@ -44,7 +56,46 @@ object SelectionsParser {
                 throw IllegalArgumentException("Could not parse selections $selections: ${e.message}")
             }
 
-        return ParsedSelections.fromDocument(typeName, document)
+        val parsed = ParsedSelections.fromDocument(typeName, document)
+        return if (knownFragments.isEmpty()) {
+            parsed
+        } else {
+            val reachable = collectReachableFragments(parsed.selections, parsed.fragmentMap + knownFragments)
+            // Merge: preserve all original fragments (not just reachable ones) and add newly
+            // discovered named fragments so that resolvers with no named spread don't lose their
+            // existing fragmentMap entries (which would silently skip schema validation).
+            ParsedSelections(parsed.typeName, parsed.selections, parsed.fragmentMap + reachable)
+        }
+    }
+
+    private fun collectReachableFragments(
+        selectionSet: SelectionSet,
+        allFragments: Map<String, FragmentDefinition>,
+    ): Map<String, FragmentDefinition> {
+        val visited = mutableMapOf<String, FragmentDefinition>()
+        val queue = ArrayDeque<SelectionSet>()
+        queue.add(selectionSet)
+
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            current.selections.forEach { selection ->
+                when (selection) {
+                    is FragmentSpread -> {
+                        val name = selection.name
+                        if (name !in visited) {
+                            val def = allFragments[name]
+                            if (def != null) {
+                                visited[name] = def
+                                queue.add(def.selectionSet)
+                            }
+                        }
+                    }
+                    is Field -> selection.selectionSet?.let { queue.add(it) }
+                    is InlineFragment -> queue.add(selection.selectionSet)
+                }
+            }
+        }
+        return visited
     }
 
     /**

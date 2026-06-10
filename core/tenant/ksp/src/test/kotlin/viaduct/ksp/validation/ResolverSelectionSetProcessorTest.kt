@@ -11,7 +11,6 @@ import com.google.devtools.ksp.symbol.KSName
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSTypeReference
 import com.google.devtools.ksp.symbol.KSValueArgument
-import graphql.validation.Validator
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -31,8 +30,7 @@ class ResolverSelectionSetProcessorTest {
     inner class GetResolverSelectionSetSpecs {
         private val processor = run {
             val mockEnvironment = mockk<SymbolProcessorEnvironment>(relaxed = true)
-            val mockValidator = mockk<Validator>(relaxed = true)
-            ResolverSelectionSetProcessor(mockEnvironment, mockValidator)
+            ResolverSelectionSetProcessor(mockEnvironment)
         }
 
         private fun createMockKSName(value: String) =
@@ -405,12 +403,12 @@ class ResolverSelectionSetProcessorTest {
                 every { getAllFiles() } returns sequenceOf(mockSchemaKSFile, mockUserResolverKSFile, mockPhotoResolverKSFile)
             }
 
-            val processor = ResolverSelectionSetProcessor(mockEnvironment, Validator())
+            val processor = ResolverSelectionSetProcessor(mockEnvironment)
             val result = processor.process(mockResolver)
 
             assertEquals(emptyList<Any>(), result)
             verify { mockCodeGenerator.createNewFile(any(), "", TEST_FRAGMENTS_OUTPUT_FILE, "graphql") }
-            verify { mockLogger.info("Generated resolver fragments GraphQL schema with 2 resolvers") }
+            verify { mockLogger.info("[ResolverSelectionSetProcessor] Generated resolver fragments GraphQL schema with 2 resolvers") }
 
             val generatedContent = outputStream.toString()
 
@@ -468,32 +466,10 @@ class ResolverSelectionSetProcessorTest {
                 every { getAllFiles() } returns sequenceOf(mockSchemaKSFile, mockResolverKSFile)
             }
 
-            val processor = ResolverSelectionSetProcessor(mockEnvironment, Validator())
+            val processor = ResolverSelectionSetProcessor(mockEnvironment)
             processor.process(mockResolver)
 
             verify(exactly = 0) { mockCodeGenerator.createNewFile(any(), any(), any(), any()) }
-        }
-
-        @Test
-        fun `process throws when compilation schema file is missing`() {
-            val mockEnvironment = mockk<SymbolProcessorEnvironment>()
-            val mockCodeGenerator = mockk<CodeGenerator>()
-            val mockLogger = mockk<KSPLogger>(relaxed = true)
-
-            every { mockEnvironment.codeGenerator } returns mockCodeGenerator
-            every { mockEnvironment.logger } returns mockLogger
-            every { mockEnvironment.options } returns emptyMap()
-
-            val mockResolver = mockk<Resolver> {
-                every { getAllFiles() } returns emptySequence()
-            }
-
-            val processor = ResolverSelectionSetProcessor(mockEnvironment, Validator())
-
-            val exception = assertThrows<RuntimeException> {
-                processor.process(mockResolver)
-            }
-            assertTrue(exception.message?.contains("Unable to read compilation schema SDL") == true)
         }
 
         @Test
@@ -518,20 +494,14 @@ class ResolverSelectionSetProcessorTest {
                 every { getAllFiles() } returns sequenceOf(mockSchemaKSFile)
             }
 
-            val processor = ResolverSelectionSetProcessor(mockEnvironment, Validator())
+            val processor = ResolverSelectionSetProcessor(mockEnvironment)
             processor.process(mockResolver)
 
             verify(exactly = 0) { mockCodeGenerator.createNewFile(any(), any(), any(), any()) }
         }
 
         @Test
-        fun `process throws when fragment validation fails`() {
-            val schemaSDL = """
-                type Query { user(id: ID!): User }
-                type User { id: ID! }
-            """.trimIndent()
-            val schemaFile = createCompilationSchemaFile(schemaSDL)
-
+        fun `process throws when variable validation fails`() {
             val mockEnvironment = mockk<SymbolProcessorEnvironment>()
             val mockCodeGenerator = mockk<CodeGenerator>()
             val mockLogger = mockk<KSPLogger>(relaxed = true)
@@ -540,10 +510,30 @@ class ResolverSelectionSetProcessorTest {
             every { mockEnvironment.logger } returns mockLogger
             every { mockEnvironment.options } returns emptyMap()
 
-            // Fragment references non-existent field
-            val invalidFragment = "fragment Main on User { id nonExistentField }"
-            val mockFragmentArg = createMockValueArgument("objectValueFragment", invalidFragment)
-            val mockAnnotation = createMockResolverAnnotation(listOf(mockFragmentArg))
+            // Variable declares no source field — schema-free validation should reject it.
+            val mockVarAnnotation = mockk<KSAnnotation> {
+                every { arguments } returns listOf(
+                    mockk<KSValueArgument> {
+                        every { name } returns createMockKSName("name")
+                        every { value } returns "myVar"
+                    },
+                    mockk<KSValueArgument> {
+                        every { name } returns createMockKSName("fromObjectField")
+                        every { value } returns VARIABLE_UNSET_STRING_VALUE
+                    },
+                    mockk<KSValueArgument> {
+                        every { name } returns createMockKSName("fromQueryField")
+                        every { value } returns VARIABLE_UNSET_STRING_VALUE
+                    },
+                    mockk<KSValueArgument> {
+                        every { name } returns createMockKSName("fromArgument")
+                        every { value } returns VARIABLE_UNSET_STRING_VALUE
+                    },
+                )
+            }
+            val mockFragmentArg = createMockValueArgument("objectValueFragment", "fragment Main on User { id }")
+            val mockVariablesArg = createMockValueArgument("variables", listOf(mockVarAnnotation))
+            val mockAnnotation = createMockResolverAnnotation(listOf(mockFragmentArg, mockVariablesArg))
             val mockClassDeclaration = createMockClassDeclaration(
                 packageName = "com.example",
                 className = "UserResolver",
@@ -551,25 +541,20 @@ class ResolverSelectionSetProcessorTest {
                 typeName = "User"
             )
 
-            val mockSchemaKSFile = mockk<KSFile> {
-                every { fileName } returns CompilationSchemaWrapperKtUtils.COMPILATION_SCHEMA_WRAPPER_KT_FILE
-                every { filePath } returns schemaFile.absolutePath
-                every { declarations } returns emptySequence()
-            }
             val mockResolverKSFile = mockk<KSFile> {
                 every { fileName } returns "UserResolver.kt"
                 every { declarations } returns sequenceOf(mockClassDeclaration)
             }
             val mockResolver = mockk<Resolver> {
-                every { getAllFiles() } returns sequenceOf(mockSchemaKSFile, mockResolverKSFile)
+                every { getAllFiles() } returns sequenceOf(mockResolverKSFile)
             }
 
-            val processor = ResolverSelectionSetProcessor(mockEnvironment, Validator())
+            val processor = ResolverSelectionSetProcessor(mockEnvironment)
 
             val exception = assertThrows<IllegalStateException> {
                 processor.process(mockResolver)
             }
-            assertTrue(exception.message?.contains("validation failed") == true)
+            assertTrue(exception.message?.contains("must set exactly one") == true)
         }
     }
 

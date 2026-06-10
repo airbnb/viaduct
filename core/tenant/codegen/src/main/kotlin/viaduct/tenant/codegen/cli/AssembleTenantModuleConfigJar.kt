@@ -23,6 +23,9 @@ class AssembleTenantModuleConfigJar : CliktCommand(
     private val tenantPackage: String by option("--tenant-package")
         .required()
 
+    private val schemaSdl: File? by option("--schema-sdl")
+        .file(mustExist = true, canBeDir = false)
+
     private val outputJar: File by option("--output-jar")
         .file(mustExist = false, canBeDir = false)
         .required()
@@ -36,6 +39,7 @@ class AssembleTenantModuleConfigJar : CliktCommand(
                 descriptorJsons = descriptorJsons,
                 executorFactory = MODERN_KOTLIN_EXECUTOR_FACTORY,
                 tenantPackage = tenantPackage,
+                schemaSdl = schemaSdl?.readText(),
                 outputDir = outputDir,
             )
 

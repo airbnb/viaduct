@@ -276,4 +276,101 @@ class SelectionsParserTest : Assertions() {
         val fragmentDef = parsed.fragmentMap["PostFragment"]!!
         assertEquals("Post", fragmentDef.typeCondition.name)
     }
+
+    @Test
+    fun `knownFragments are merged into fragmentMap when spread is used`() {
+        val knownFrag = Parser.parse("fragment UserFields on User { id name }")
+            .getDefinitionsOfType(FragmentDefinition::class.java).single()
+        val knownFragments = mapOf("UserFields" to knownFrag)
+
+        val parsed = SelectionsParser.parse(
+            "User",
+            "fragment Main on User { ...UserFields }",
+            knownFragments,
+        )
+
+        assertEquals("User", parsed.typeName)
+        assertTrue(parsed.fragmentMap.containsKey("UserFields"), "expected UserFields in fragmentMap")
+        assertTrue(parsed.fragmentMap.containsKey("Main"), "expected Main in fragmentMap")
+    }
+
+    @Test
+    fun `knownFragments not spread are ignored but existing fragmentMap entries are preserved`() {
+        val knownFrag = Parser.parse("fragment Unused on User { email }")
+            .getDefinitionsOfType(FragmentDefinition::class.java).single()
+        val knownFragments = mapOf("Unused" to knownFrag)
+
+        val parsed = SelectionsParser.parse(
+            "User",
+            "fragment Main on User { id }",
+            knownFragments,
+        )
+
+        assertEquals("User", parsed.typeName)
+        assertTrue(parsed.fragmentMap.containsKey("Main"), "expected Main preserved in fragmentMap")
+        assertFalse(parsed.fragmentMap.containsKey("Unused"), "Unused fragment should not be added")
+    }
+
+    @Test
+    fun `knownFragments with no spreads leaves existing fragmentMap intact`() {
+        val docString = """
+            fragment Sub on User { email }
+            fragment Main on User { id ...Sub }
+        """.trimIndent()
+        val knownFrag = Parser.parse("fragment Extra on User { phone }")
+            .getDefinitionsOfType(FragmentDefinition::class.java).single()
+
+        val parsed = SelectionsParser.parse("User", docString, mapOf("Extra" to knownFrag))
+
+        // Sub is in the original doc and should be preserved even though Extra isn't spread
+        assertTrue(parsed.fragmentMap.containsKey("Main"))
+        assertTrue(parsed.fragmentMap.containsKey("Sub"))
+        assertFalse(parsed.fragmentMap.containsKey("Extra"))
+    }
+
+    @Test
+    fun `knownFragments are resolved transitively`() {
+        val fragA = Parser.parse("fragment FragA on User { ...FragB }")
+            .getDefinitionsOfType(FragmentDefinition::class.java).single()
+        val fragB = Parser.parse("fragment FragB on User { name }")
+            .getDefinitionsOfType(FragmentDefinition::class.java).single()
+
+        val parsed = SelectionsParser.parse(
+            "User",
+            "fragment Main on User { id ...FragA }",
+            mapOf("FragA" to fragA, "FragB" to fragB),
+        )
+
+        assertTrue(parsed.fragmentMap.containsKey("FragA"), "expected FragA")
+        assertTrue(parsed.fragmentMap.containsKey("FragB"), "expected FragB transitively")
+    }
+
+    @Test
+    fun `knownFragments reachable through inline fragment are resolved`() {
+        val knownFrag = Parser.parse("fragment InlineReachable on User { phone }")
+            .getDefinitionsOfType(FragmentDefinition::class.java).single()
+
+        // The spread ...InlineReachable is inside an inline fragment, not directly in Main
+        val parsed = SelectionsParser.parse(
+            "User",
+            "fragment Main on User { ... on User { ...InlineReachable } }",
+            mapOf("InlineReachable" to knownFrag),
+        )
+
+        assertTrue(parsed.fragmentMap.containsKey("InlineReachable"), "expected InlineReachable via inline fragment path")
+    }
+
+    @Test
+    fun `parse with empty knownFragments returns same result as without`() {
+        val selections = "fragment Main on Foo { id name }"
+        val withoutKnown = SelectionsParser.parse("Foo", selections)
+        val withEmpty = SelectionsParser.parse("Foo", selections, emptyMap())
+
+        assertEquals(withoutKnown.typeName, withEmpty.typeName)
+        assertEquals(withoutKnown.fragmentMap.keys, withEmpty.fragmentMap.keys)
+        assertEquals(
+            AstPrinter.printAstCompact(withoutKnown.selections),
+            AstPrinter.printAstCompact(withEmpty.selections),
+        )
+    }
 }

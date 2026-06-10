@@ -301,6 +301,42 @@ class ValidateResolverVariablesTest {
     }
 
     @Test
+    fun `path inside cross-leaf fragment spread is not rejected`() {
+        // The spread `...UserFields` is not defined inline (it is a cross-leaf @GraphQLFragment that
+        // KSP cannot see). Path resolution must be deferred to assembly/runtime rather than failing.
+        val spec = makeSpec(
+            variables = listOf(makeVariable(name = "myVar", fromObjectField = "user.name")),
+            fragments = listOf(makeFragment("fragment Main on TestType { ...UserFields }")),
+        )
+        val errors = ValidateResolverVariables(listOf(spec)).validate()
+        assertTrue(errors.isEmpty(), "Cross-leaf spread should defer path validation, but got: $errors")
+    }
+
+    @Test
+    fun `variable used only inside cross-leaf fragment spread is not reported unused`() {
+        // $myVar is consumed by the cross-leaf fragment, not the inline selection. The unused-variable
+        // check must defer here rather than falsely flagging it.
+        val spec = makeSpec(
+            variables = listOf(makeVariable(name = "myVar", fromObjectField = "id")),
+            fragments = listOf(makeFragment("fragment Main on TestType { id ...UserFields }")),
+        )
+        val errors = ValidateResolverVariables(listOf(spec)).validate()
+        assertTrue(errors.isEmpty(), "Cross-leaf spread should defer unused-variable check, but got: $errors")
+    }
+
+    @Test
+    fun `schema-free checks still run when cross-leaf spread is present`() {
+        // Deferring expansion-dependent checks must not disable fragment-independent validation:
+        // a variable with no source set is still an error.
+        val spec = makeSpec(
+            variables = listOf(makeVariable(name = "myVar")),
+            fragments = listOf(makeFragment("fragment Main on TestType { id ...UserFields }")),
+        )
+        val errors = ValidateResolverVariables(listOf(spec)).validate()
+        assertTrue(errors.any { it.contains("found 0 set") }, "Expected source-count error, got: $errors")
+    }
+
+    @Test
     fun `fromQueryField path resolved against query fragment`() {
         val spec = makeSpec(
             variables = listOf(makeVariable(name = "myVar", fromQueryField = "viewer.name")),

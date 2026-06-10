@@ -1,6 +1,7 @@
 package viaduct.tenant.runtime.bootstrap
 
 import kotlin.reflect.KClass
+import viaduct.api.documents.GraphQLFragment
 import viaduct.api.internal.NodeResolverFor
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.ResolverFor
@@ -55,4 +56,7 @@ class ViaductTenantResolverClassFinder(
     }
 
     override fun tenantModuleMetadata(): TenantModuleMetadata = metadata
+
+    // Classic bootstrapper only — see TenantResolverClassFinder.namedFragmentClassesInPackage
+    override fun namedFragmentClassesInPackage(): Set<Class<*>> = classGraph.getTypesAnnotatedWith(GraphQLFragment::class.java, listOf(tenantPackage))
 }
