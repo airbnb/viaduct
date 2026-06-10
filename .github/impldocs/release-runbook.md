@@ -11,7 +11,7 @@ The release process follows these steps:
 5. **Generate changelog** and review with the team
 6. **Confirm release** at the team meeting
 7. **Publish final release** — one command that publishes `X.Y.Z`, pushes demo apps to `main`, verifies them, creates the tag, and publishes the GitHub release
-8. **Verify** — pull latest version of Star Wars demo app and verify it passes its tests
+8. **Verify** — pull and test all the published demo apps against the published artifacts
 
 ## Quick Command Reference
 
@@ -33,7 +33,7 @@ export GH_USER="your-github.com-username"
 | [5. Publish RC](#5-publish-release-candidate-optional) | `./gradlew setVersion -PsetVersion=${RELEASE_VER}-${RC_VER}`, commit, push, `gh workflow run release.yml -f release_version=${RELEASE_VER} -f rc_ver=${RC_VER}` |
 | [6. Changelog](#6-generate-changelog) | `generate_changelog.py origin/release/v${PREV_VER} HEAD` |
 | [8. Publish final release](#8-publish-final-release) | `gh workflow run release.yml -f release_version=${RELEASE_VER} -f final=true -F release_notes=@changelog.md` |
-| [9. Verify](#9-verify) | `cd ~/repos/starwars && git pull && ./gradlew test` |
+| [9. Verify](#9-verify) | clone/pull + `./gradlew test` all published demo apps |
 
 ## Prerequisites
 
@@ -378,20 +378,26 @@ open https://github.com/airbnb/viaduct/releases
 
 Share the release link in Slack.
 
-**Validate Star Wars demo app locally:**
+**Validate the published demo apps locally:**
+
+Clone (first time) / pull and test every published demo app against the just-published Maven
+Central artifacts. `spring-starter` is intentionally omitted and not published to `viaduct-dev`.
 
 ```bash
-# First time: clone the standalone repo
-git clone git@github.com:viaduct-dev/starwars.git ~/repos/starwars
-
-# Subsequent releases: pull the latest pushed by the workflow
-cd ~/repos/starwars && git pull
-
-# Run the tests — they build against the just-published Maven artifacts
-./gradlew test
+DEMOAPPS=~/repos/viaduct-demoapps
+mkdir -p "$DEMOAPPS"
+for da in cli-starter jetty-starter ktor-starter micronaut-starter starwars; do
+  if [ -d "$DEMOAPPS/$da" ]; then (cd "$DEMOAPPS/$da" && git pull --quiet)
+  else git clone "git@github.com:viaduct-dev/$da.git" "$DEMOAPPS/$da"; fi
+  echo "=== $da ===" && (cd "$DEMOAPPS/$da" && ./gradlew test) || echo "⚠️  $da FAILED"
+done
 ```
 
-A passing build confirms the published artifacts are resolvable and the demo app compiles and tests against the new version.
+`./gradlew test` resolves the published artifacts from Maven Central (the standalone repos default
+to it — no `USE_MAVEN_LOCAL`). A clean run across all apps confirms the published artifacts are
+resolvable and that each demo app compiles and tests against the new version. micronaut-starter's
+`test` additionally runs `installDist` — it builds the application distribution and starts the
+packaged JVM — so this also exercises the packaged-distribution path.
 
 ## Gradle Tasks Reference
 
