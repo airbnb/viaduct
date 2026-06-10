@@ -28,14 +28,20 @@ object BootstrapperFactory {
      *
      * Use this in tests where multiple unrelated module JSONs share the same classpath — loading
      * all of them would fail because their resolvers reference types not present in the test schema.
+     *
+     * Pass [grtPackagePrefix] to override the GRT package used by the executor factory, allowing
+     * tenant implementations to decouple from the production default (e.g. contract tests generate
+     * GRTs into the tenant package rather than the production constant).
      */
     fun fromResources(
         tenantModuleBootstrapper: TenantModuleBootstrapper,
         packagePrefix: String,
+        grtPackagePrefix: String? = null,
     ): TenantAPIBootstrapper =
         ExecutionRegistryTenantAPIBootstrapper(
             tenantModuleBootstrapper = tenantModuleBootstrapper,
             registryUrls = collectRegistryUrls(packagePrefix = packagePrefix),
+            grtPackagePrefix = grtPackagePrefix,
         )
 
     private fun collectRegistryUrls(packagePrefix: String?): List<URL> {

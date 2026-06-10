@@ -16,9 +16,7 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
 import viaduct.api.types.Query
-import viaduct.engine.api.bootstrap.executionregistry.FieldAPIData
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
-import viaduct.engine.api.bootstrap.executionregistry.NodeAPIData
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.ProviderVariablesAPIData
 import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
@@ -113,11 +111,11 @@ class ViaductModernExecutorFactoryTest {
         attribution = "$typeName.$fieldName",
         objectSelections = objectSelections,
         querySelections = querySelections,
-        tenantAPIData = FieldAPIData(
-            resolverClass = "$pkg\$$resolverSimpleName",
-            resolverBaseClass = "$pkg\$$resolverBaseSimpleName",
-            hasArguments = hasArguments,
-            queryTypeName = queryTypeName,
+        tenantAPIData = mapOf(
+            "resolverClass" to "$pkg\$$resolverSimpleName",
+            "resolverBaseClass" to "$pkg\$$resolverBaseSimpleName",
+            "hasArguments" to hasArguments,
+            "queryTypeName" to queryTypeName,
         ),
     )
 
@@ -131,9 +129,9 @@ class ViaductModernExecutorFactoryTest {
         isBatching = isBatching,
         isSelective = false,
         attribution = typeName,
-        tenantAPIData = NodeAPIData(
-            resolverClass = "$pkg\$$resolverSimpleName",
-            resolverBaseClass = "$pkg\$$resolverBaseSimpleName",
+        tenantAPIData = mapOf(
+            "resolverClass" to "$pkg\$$resolverSimpleName",
+            "resolverBaseClass" to "$pkg\$$resolverBaseSimpleName",
         ),
     )
 
@@ -185,10 +183,10 @@ class ViaductModernExecutorFactoryTest {
                     isBatching = false,
                     isSelective = false,
                     attribution = "TestType.aField",
-                    tenantAPIData = FieldAPIData(
-                        resolverClass = "com.does.not.Exist",
-                        resolverBaseClass = "com.does.not.ExistBase",
-                        queryTypeName = "Query",
+                    tenantAPIData = mapOf(
+                        "resolverClass" to "com.does.not.Exist",
+                        "resolverBaseClass" to "com.does.not.ExistBase",
+                        "queryTypeName" to "Query",
                     ),
                 ),
                 schema,
@@ -263,9 +261,9 @@ class ViaductModernExecutorFactoryTest {
                     isBatching = false,
                     isSelective = false,
                     attribution = "TestNode",
-                    tenantAPIData = NodeAPIData(
-                        resolverClass = "com.does.not.Exist",
-                        resolverBaseClass = "com.does.not.ExistBase",
+                    tenantAPIData = mapOf(
+                        "resolverClass" to "com.does.not.Exist",
+                        "resolverBaseClass" to "com.does.not.ExistBase",
                     ),
                 ),
                 schema,

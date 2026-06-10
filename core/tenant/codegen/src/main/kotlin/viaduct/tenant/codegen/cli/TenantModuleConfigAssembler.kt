@@ -6,9 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import java.io.File
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
-import viaduct.engine.api.bootstrap.executionregistry.FieldAPIData
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
-import viaduct.engine.api.bootstrap.executionregistry.NodeAPIData
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.ProviderVariablesAPIData
 import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
@@ -80,9 +78,9 @@ internal object TenantModuleConfigAssembler {
                 isBatching = node.isBatching,
                 isSelective = node.isSelective,
                 attribution = node.attribution,
-                tenantAPIData = NodeAPIData(
-                    resolverClass = node.implFqn,
-                    resolverBaseClass = node.resolverBaseClass,
+                tenantAPIData = mapOf(
+                    "resolverClass" to node.implFqn,
+                    "resolverBaseClass" to node.resolverBaseClass,
                 ),
             )
         }
@@ -96,28 +94,19 @@ internal object TenantModuleConfigAssembler {
                 attribution = field.attribution,
                 objectSelections = field.objectSelections?.toEngineSelectionsBlock(),
                 querySelections = field.querySelections?.toEngineSelectionsBlock(),
-                tenantAPIData = FieldAPIData(
-                    resolverClass = field.implFqn,
-                    resolverBaseClass = field.resolverBaseClass,
-                    returnTypeName = field.returnTypeName,
-                    hasArguments = field.hasArguments,
-                    queryTypeName = field.queryTypeName,
+                tenantAPIData = mapOf(
+                    "resolverClass" to field.implFqn,
+                    "resolverBaseClass" to field.resolverBaseClass,
+                    "returnTypeName" to field.returnTypeName,
+                    "hasArguments" to field.hasArguments,
+                    "queryTypeName" to field.queryTypeName,
                 ),
             )
         }
 
-        val hasResolvers = nodes.isNotEmpty() || fields.isNotEmpty()
-        val grtPackagePrefix = descriptors.firstNotNullOfOrNull { it.grtPackagePrefix }
-            ?: if (hasResolvers) {
-                error("No grtPackagePrefix found in any descriptor — KSP failed to extract GRT package from resolver base supertypes")
-            } else {
-                ""
-            }
-
         return ExecutionRegistryConfigFile(
             version = REGISTRY_VERSION,
             executorFactory = executorFactory,
-            grtPackagePrefix = grtPackagePrefix,
             nodes = nodes,
             fields = fields,
             bootstrapClass = bootstrapClass,

@@ -8,7 +8,6 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
-import viaduct.engine.api.bootstrap.executionregistry.FieldAPIData
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.mocks.MockCheckerExecutorFactory
@@ -79,10 +78,10 @@ class ExecutionRegistryBootstrapperCycleTest {
             isBatching = false,
             isSelective = false,
             attribution = "Query.$fieldName",
-            tenantAPIData = FieldAPIData(
-                resolverClass = "com.example.Resolver",
-                resolverBaseClass = "com.example.ResolverBase",
-                queryTypeName = "Query",
+            tenantAPIData = mapOf(
+                "resolverClass" to "com.example.Resolver",
+                "resolverBaseClass" to "com.example.ResolverBase",
+                "queryTypeName" to "Query",
             ),
         )
 
@@ -91,7 +90,6 @@ class ExecutionRegistryBootstrapperCycleTest {
         val registry = ExecutionRegistryConfigFile(
             version = "1",
             executorFactory = "",
-            grtPackagePrefix = "",
             fields = listOf(fieldEntry("foo"), fieldEntry("bar")),
         )
         assertThrows<RequiredSelectionsCycleException> {

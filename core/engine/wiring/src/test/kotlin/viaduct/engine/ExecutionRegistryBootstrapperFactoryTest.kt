@@ -76,8 +76,7 @@ class ExecutionRegistryBootstrapperFactoryTest {
 }
 
 class WiringTestExecutorFactory(
-    @Suppress("UNUSED_PARAMETER") injector: CodeInjector,
-    @Suppress("UNUSED_PARAMETER") moduleName: String,
+    injector: CodeInjector,
     @Suppress("UNUSED_PARAMETER") configUrl: URL,
 ) : ExecutorFactory {
     init {

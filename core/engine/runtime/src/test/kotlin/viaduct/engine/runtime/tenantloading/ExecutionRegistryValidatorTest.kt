@@ -4,9 +4,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
-import viaduct.engine.api.bootstrap.executionregistry.FieldAPIData
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
-import viaduct.engine.api.bootstrap.executionregistry.NodeAPIData
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.spi.TenantModuleException
 
@@ -21,7 +19,7 @@ class ExecutionRegistryValidatorTest {
         isBatching = false,
         isSelective = false,
         attribution = "$typeName.$fieldName",
-        tenantAPIData = FieldAPIData(resolverClass = resolverClass, resolverBaseClass = "com.example.ResolverBase", queryTypeName = "Query"),
+        tenantAPIData = mapOf("resolverClass" to resolverClass, "resolverBaseClass" to "com.example.ResolverBase", "queryTypeName" to "Query"),
     )
 
     private fun nodeEntry(
@@ -33,13 +31,13 @@ class ExecutionRegistryValidatorTest {
         isBatching = isBatching,
         isSelective = false,
         attribution = typeName,
-        tenantAPIData = NodeAPIData(resolverClass = resolverClass, resolverBaseClass = "com.example.NodeResolverBase"),
+        tenantAPIData = mapOf("resolverClass" to resolverClass, "resolverBaseClass" to "com.example.NodeResolverBase"),
     )
 
     private fun registry(
         fields: List<FieldEntryConfig> = emptyList(),
         nodes: List<NodeEntryConfig> = emptyList()
-    ) = ExecutionRegistryConfigFile(version = "1", executorFactory = "", grtPackagePrefix = "", fields = fields, nodes = nodes)
+    ) = ExecutionRegistryConfigFile(version = "1", executorFactory = "", fields = fields, nodes = nodes)
 
     @Test
     fun `no duplicates passes`() {

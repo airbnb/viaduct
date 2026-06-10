@@ -21,7 +21,7 @@ import viaduct.utils.slf4j.logger
  * of registry JSON [URL]s.
  *
  * For each URL, deserializes the [ExecutionRegistryConfigFile], instantiates the [ExecutorFactory] FQN
- * via the 3-arg constructor (CodeInjector, moduleName, configUrl), and creates executors
+ * via the 2-arg constructor (CodeInjector, configUrl), and creates executors
  * for each entry in the registry.
  *
  * The framework calls [tenantModuleBootstrapper] once per tenant with the tenant name and the
@@ -37,6 +37,7 @@ import viaduct.utils.slf4j.logger
 class ExecutionRegistryTenantAPIBootstrapper(
     private val registryUrls: List<URL>,
     private val tenantModuleBootstrapper: TenantModuleBootstrapper,
+    private val grtPackagePrefix: String? = null,
 ) : TenantAPIBootstrapper {
     override suspend fun tenantModuleBootstrappers(): Iterable<LegacyTenantModuleBootstrapper> {
         if (registryUrls.isEmpty()) {
@@ -75,7 +76,6 @@ class ExecutionRegistryTenantAPIBootstrapper(
                 async {
                     val executorFactory = instantiateExecutorFactory(
                         fqn = parsedRegistry.registry.executorFactory,
-                        grtPackagePrefix = parsedRegistry.registry.grtPackagePrefix,
                         configUrl = parsedRegistry.configUrl,
                         codeInjector = codeInjector,
                     )
@@ -87,17 +87,28 @@ class ExecutionRegistryTenantAPIBootstrapper(
 
     private fun instantiateExecutorFactory(
         fqn: String,
-        grtPackagePrefix: String,
         configUrl: URL,
         codeInjector: CodeInjector,
     ): ExecutorFactory {
-        val ctor = Class.forName(fqn).getDeclaredConstructor(
-            CodeInjector::class.java,
-            String::class.java,
-            URL::class.java,
-        )
+        val clazz = Class.forName(fqn)
         @Suppress("UNCHECKED_CAST")
-        return ctor.newInstance(codeInjector, grtPackagePrefix, configUrl) as ExecutorFactory
+        return if (grtPackagePrefix != null) {
+            // Tenant implementations may override the default GRT package prefix so the
+            // executor factory is decoupled from any hardcoded constant (e.g. contract tests
+            // generate GRTs into the tenant package rather than the production default).
+            val ctor = clazz.getDeclaredConstructor(
+                CodeInjector::class.java,
+                String::class.java,
+                URL::class.java,
+            )
+            ctor.newInstance(codeInjector, grtPackagePrefix, configUrl) as ExecutorFactory
+        } else {
+            val ctor = clazz.getDeclaredConstructor(
+                CodeInjector::class.java,
+                URL::class.java,
+            )
+            ctor.newInstance(codeInjector, configUrl) as ExecutorFactory
+        }
     }
 
     companion object {

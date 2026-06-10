@@ -4,6 +4,10 @@ import kotlin.reflect.KClass
 import viaduct.api.reflect.Type
 import viaduct.apiannotations.InternalApi
 
+/** Package where Kotlin tenant API GRT classes are generated. Fixed by the build system. */
+@InternalApi
+const val GRT_PACKAGE_PREFIX = "viaduct.api.grts"
+
 @InternalApi
 interface ReflectionLoader {
     /**

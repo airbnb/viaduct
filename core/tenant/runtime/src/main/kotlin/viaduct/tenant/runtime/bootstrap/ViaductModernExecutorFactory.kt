@@ -6,6 +6,7 @@ import kotlin.reflect.full.declaredMemberFunctions
 import viaduct.api.NodeResolverBase
 import viaduct.api.ResolverBase
 import viaduct.api.internal.DefaultGRTConvFactory
+import viaduct.api.internal.GRT_PACKAGE_PREFIX
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.ExecutionAttribution
@@ -38,6 +39,9 @@ class ViaductModernExecutorFactory(
     private val grtPackagePrefix: String,
     @Suppress("UNUSED_PARAMETER") configUrl: URL,
 ) : ExecutorFactory {
+    /** Production constructor — GRT package sourced from the compile-time constant. */
+    constructor(codeInjector: CodeInjector, configUrl: URL) : this(codeInjector, GRT_PACKAGE_PREFIX, configUrl)
+
     private val grtConvFactory = DefaultGRTConvFactory
     private val reflectionLoader = ReflectionLoaderImpl { name ->
         @Suppress("UNCHECKED_CAST")
@@ -51,20 +55,21 @@ class ViaductModernExecutorFactory(
         configData: FieldEntryConfig,
         schema: ViaductSchema
     ): FieldResolverExecutor {
-        val resolverClass = loadClass<ResolverBase<*>>(configData.tenantAPIData.resolverClass, "field ${configData.typeName}.${configData.fieldName}")
-        val resolverBaseClass = loadClass<ResolverBase<*>>(configData.tenantAPIData.resolverBaseClass, "field resolver base for ${configData.typeName}.${configData.fieldName}")
+        val apiData = configData.tenantAPIData.toFieldAPIData()
+        val resolverClass = loadClass<ResolverBase<*>>(apiData.resolverClass, "field ${configData.typeName}.${configData.fieldName}")
+        val resolverBaseClass = loadClass<ResolverBase<*>>(apiData.resolverBaseClass, "field resolver base for ${configData.typeName}.${configData.fieldName}")
 
         val provider = codeInjector.getProvider(resolverClass)
-        val attribution = ExecutionAttribution.fromResolver(configData.tenantAPIData.resolverClass)
+        val attribution = ExecutionAttribution.fromResolver(apiData.resolverClass)
 
         val contextFactory = FieldExecutionContextFactory.of(
             resolverBaseClass = resolverBaseClass,
             reflectionLoader = reflectionLoader,
             typeName = configData.typeName,
             fieldName = configData.fieldName,
-            hasArguments = configData.tenantAPIData.hasArguments,
-            queryTypeName = configData.tenantAPIData.queryTypeName,
-            returnTypeName = configData.tenantAPIData.returnTypeName,
+            hasArguments = apiData.hasArguments,
+            queryTypeName = apiData.queryTypeName,
+            returnTypeName = apiData.returnTypeName,
             grtConvFactory = grtConvFactory,
         )
 
@@ -75,12 +80,13 @@ class ViaductModernExecutorFactory(
             resolverKClass = resolverKClass,
             attribution = attribution,
             contextFactory = contextFactory,
+            queryTypeName = apiData.queryTypeName,
         )
         val resolverId = "${configData.typeName}.${configData.fieldName}"
 
         return if (configData.isBatching) {
             val batchResolveFn = resolverKClass.declaredMemberFunctions.firstOrNull { it.name == "batchResolve" }
-                ?: error("Resolver ${configData.tenantAPIData.resolverClass} is marked isBatching=true but does not declare 'batchResolve'")
+                ?: error("Resolver ${apiData.resolverClass} is marked isBatching=true but does not declare 'batchResolve'")
             log.info("- Adding batch field resolver for '{}.{}'", configData.typeName, configData.fieldName)
             FieldBatchResolverExecutorImpl(
                 objectSelectionSet = objectSelectionSet,
@@ -91,11 +97,11 @@ class ViaductModernExecutorFactory(
                 resolverId = resolverId,
                 reflectionLoader = reflectionLoader,
                 resolverContextFactory = contextFactory,
-                resolverName = configData.tenantAPIData.resolverClass,
+                resolverName = apiData.resolverClass,
             )
         } else {
             val resolveFn = resolverKClass.declaredMemberFunctions.firstOrNull { fn -> fn.name == "resolve" }
-                ?: error("Resolver ${configData.tenantAPIData.resolverClass} does not declare 'resolve'")
+                ?: error("Resolver ${apiData.resolverClass} does not declare 'resolve'")
             log.info("- Adding field resolver for '{}.{}'", configData.typeName, configData.fieldName)
             FieldUnbatchedResolverExecutorImpl(
                 objectSelectionSet = objectSelectionSet,
@@ -106,7 +112,7 @@ class ViaductModernExecutorFactory(
                 resolverId = resolverId,
                 reflectionLoader = reflectionLoader,
                 resolverContextFactory = contextFactory,
-                resolverName = configData.tenantAPIData.resolverClass,
+                resolverName = apiData.resolverClass,
             )
         }
     }
@@ -116,8 +122,9 @@ class ViaductModernExecutorFactory(
         configData: NodeEntryConfig,
         schema: ViaductSchema
     ): NodeResolverExecutor {
-        val resolverClass = loadClass<NodeResolverBase<*>>(configData.tenantAPIData.resolverClass, "node ${configData.typeName}")
-        val resolverBaseClass = loadClass<NodeResolverBase<*>>(configData.tenantAPIData.resolverBaseClass, "node resolver base for ${configData.typeName}")
+        val apiData = configData.tenantAPIData.toNodeAPIData()
+        val resolverClass = loadClass<NodeResolverBase<*>>(apiData.resolverClass, "node ${configData.typeName}")
+        val resolverBaseClass = loadClass<NodeResolverBase<*>>(apiData.resolverBaseClass, "node resolver base for ${configData.typeName}")
 
         val provider = codeInjector.getProvider(resolverClass)
 
@@ -133,7 +140,7 @@ class ViaductModernExecutorFactory(
 
         return if (configData.isBatching) {
             val batchResolveFn = resolverKClass.declaredMemberFunctions.firstOrNull { fn -> fn.name == "batchResolve" }
-                ?: error("Resolver ${configData.tenantAPIData.resolverClass} is marked isBatching=true but does not declare 'batchResolve'")
+                ?: error("Resolver ${apiData.resolverClass} is marked isBatching=true but does not declare 'batchResolve'")
             log.info("- Adding batch node resolver for '{}'", configData.typeName)
             NodeBatchResolverExecutorImpl(
                 resolver = provider,
@@ -141,12 +148,12 @@ class ViaductModernExecutorFactory(
                 typeName = configData.typeName,
                 reflectionLoader = reflectionLoader,
                 factory = contextFactory,
-                resolverName = configData.tenantAPIData.resolverClass,
+                resolverName = apiData.resolverClass,
                 isSelective = configData.isSelective,
             )
         } else {
             val resolveFn = resolverKClass.declaredMemberFunctions.firstOrNull { fn -> fn.name == "resolve" }
-                ?: error("Resolver ${configData.tenantAPIData.resolverClass} does not declare 'resolve'")
+                ?: error("Resolver ${apiData.resolverClass} does not declare 'resolve'")
             log.info("- Adding node resolver for '{}'", configData.typeName)
             NodeUnbatchedResolverExecutorImpl(
                 resolver = provider,
@@ -154,7 +161,7 @@ class ViaductModernExecutorFactory(
                 typeName = configData.typeName,
                 reflectionLoader = reflectionLoader,
                 factory = contextFactory,
-                resolverName = configData.tenantAPIData.resolverClass,
+                resolverName = apiData.resolverClass,
                 isSelective = configData.isSelective,
             )
         }
@@ -165,12 +172,13 @@ class ViaductModernExecutorFactory(
         resolverKClass: KClass<out ResolverBase<*>>,
         attribution: ExecutionAttribution,
         contextFactory: FieldExecutionContextFactory,
+        queryTypeName: String,
     ): Pair<RequiredSelectionSet?, RequiredSelectionSet?> {
         val objectSelections = entry.objectSelections?.let {
             SelectionsParser.parse(entry.typeName, it.selections)
         }
         val querySelections = entry.querySelections?.let {
-            SelectionsParser.parse(entry.tenantAPIData.queryTypeName, it.selections)
+            SelectionsParser.parse(queryTypeName, it.selections)
         }
 
         if (objectSelections == null && querySelections == null) return Pair(null, null)

@@ -74,6 +74,7 @@ abstract class KotlinFeatureAppTestContractBase : AbstractFeatureAppTestContract
                 BootstrapperFactory.fromResources(
                     tenantModuleBootstrapper = SharedTenantModuleBootstrapper(guiceCodeInjector),
                     packagePrefix = derivedClassPackagePrefix,
+                    grtPackagePrefix = derivedClassPackagePrefix,
                 )
         }
 

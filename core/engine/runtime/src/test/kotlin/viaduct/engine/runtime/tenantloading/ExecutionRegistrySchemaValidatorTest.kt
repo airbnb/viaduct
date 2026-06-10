@@ -1,9 +1,7 @@
 package viaduct.engine.runtime.tenantloading
 
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.bootstrap.executionregistry.FieldAPIData
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
-import viaduct.engine.api.bootstrap.executionregistry.NodeAPIData
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.mocks.MockSchema
 
@@ -34,7 +32,7 @@ class ExecutionRegistrySchemaValidatorTest {
         isBatching = false,
         isSelective = false,
         attribution = "$typeName.$fieldName",
-        tenantAPIData = FieldAPIData(resolverClass = "com.example.Resolver", resolverBaseClass = "com.example.ResolverBase", queryTypeName = "Query"),
+        tenantAPIData = mapOf("resolverClass" to "com.example.Resolver", "resolverBaseClass" to "com.example.ResolverBase", "queryTypeName" to "Query"),
     )
 
     private fun nodeEntry(typeName: String) =
@@ -43,7 +41,7 @@ class ExecutionRegistrySchemaValidatorTest {
             isBatching = false,
             isSelective = false,
             attribution = typeName,
-            tenantAPIData = NodeAPIData(resolverClass = "com.example.NodeResolver", resolverBaseClass = "com.example.NodeResolverBase"),
+            tenantAPIData = mapOf("resolverClass" to "com.example.NodeResolver", "resolverBaseClass" to "com.example.NodeResolverBase"),
         )
 
     @Test

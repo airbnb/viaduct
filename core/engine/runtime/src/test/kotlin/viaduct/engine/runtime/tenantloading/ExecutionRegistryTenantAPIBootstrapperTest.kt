@@ -29,7 +29,7 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
         }
 
     @Test
-    fun `valid registry URL creates module bootstrapper with grtPackagePrefix from JSON`() =
+    fun `valid registry URL creates one module bootstrapper`() =
         runTest {
             val url = requireNotNull(
                 Thread.currentThread().contextClassLoader
@@ -41,7 +41,6 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
                 tenantModuleBootstrapper = SharedTenantModuleBootstrapper(injector),
             )
             assertEquals(1, bootstrapper.tenantModuleBootstrappers().toList().size)
-            assertEquals("viaduct.api.grts", TestExecutorFactory.lastGrtPackagePrefix)
         }
 
     @Test
@@ -89,7 +88,6 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
             {
               "version": "1",
               "executorFactory": "com.nonexistent.DoesNotExist",
-              "grtPackagePrefix": "viaduct.api.grts",
               "nodes": [],
               "fields": []
             }
@@ -173,15 +171,13 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
 }
 
 /**
- * Minimal [ExecutorFactory] used in tests. Captures constructor args so tests can assert on them.
+ * Minimal [ExecutorFactory] used in tests.
  */
 class TestExecutorFactory(
-    @Suppress("UNUSED_PARAMETER") injector: CodeInjector,
-    grtPackagePrefix: String,
+    injector: CodeInjector,
     @Suppress("UNUSED_PARAMETER") configUrl: URL,
 ) : ExecutorFactory {
     init {
-        lastGrtPackagePrefix = grtPackagePrefix
         val finalizingInjector = injector as? FinalizingCodeInjector
         if (finalizingInjector != null) {
             constructorEvents.add("constructor:finalized=${finalizingInjector.finalized}")
@@ -203,7 +199,6 @@ class TestExecutorFactory(
     }
 
     companion object {
-        var lastGrtPackagePrefix: String? = null
         val constructorEvents = mutableListOf<String>()
     }
 }

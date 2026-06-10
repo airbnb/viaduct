@@ -4,9 +4,7 @@ import io.mockk.mockk
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
-import viaduct.engine.api.bootstrap.executionregistry.FieldAPIData
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
-import viaduct.engine.api.bootstrap.executionregistry.NodeAPIData
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.ExecutorFactory
@@ -53,10 +51,10 @@ class ExecutionRegistryTenantModuleBootstrapperTest {
         isBatching = false,
         isSelective = false,
         attribution = "$typeName.$fieldName",
-        tenantAPIData = FieldAPIData(
-            resolverClass = "com.example.Resolver",
-            resolverBaseClass = "com.example.ResolverBase",
-            queryTypeName = "Query",
+        tenantAPIData = mapOf(
+            "resolverClass" to "com.example.Resolver",
+            "resolverBaseClass" to "com.example.ResolverBase",
+            "queryTypeName" to "Query",
         ),
     )
 
@@ -66,9 +64,9 @@ class ExecutionRegistryTenantModuleBootstrapperTest {
             isBatching = false,
             isSelective = false,
             attribution = typeName,
-            tenantAPIData = NodeAPIData(
-                resolverClass = "com.example.NodeResolver",
-                resolverBaseClass = "com.example.NodeResolverBase",
+            tenantAPIData = mapOf(
+                "resolverClass" to "com.example.NodeResolver",
+                "resolverBaseClass" to "com.example.NodeResolverBase",
             ),
         )
 
@@ -83,7 +81,6 @@ class ExecutionRegistryTenantModuleBootstrapperTest {
         val registry = ExecutionRegistryConfigFile(
             version = "1",
             executorFactory = "",
-            grtPackagePrefix = "",
             fields = listOf(
                 fieldEntry("RemovedType", "removedField"),
                 fieldEntry("RemovedType", "removedField"),
@@ -98,7 +95,6 @@ class ExecutionRegistryTenantModuleBootstrapperTest {
         val registry = ExecutionRegistryConfigFile(
             version = "1",
             executorFactory = "",
-            grtPackagePrefix = "",
             nodes = listOf(
                 nodeEntry("RemovedNode"),
                 nodeEntry("RemovedNode"),
@@ -113,7 +109,6 @@ class ExecutionRegistryTenantModuleBootstrapperTest {
         val registry = ExecutionRegistryConfigFile(
             version = "1",
             executorFactory = "",
-            grtPackagePrefix = "",
             fields = listOf(fieldEntry("TestType", "aField")),
         )
         val executors = bootstrapper(registry).fieldResolverExecutors(schema).toList()
@@ -126,7 +121,6 @@ class ExecutionRegistryTenantModuleBootstrapperTest {
         val registry = ExecutionRegistryConfigFile(
             version = "1",
             executorFactory = "",
-            grtPackagePrefix = "",
             nodes = listOf(nodeEntry("TestNode")),
         )
         val executors = bootstrapper(registry).nodeResolverExecutors(schema).toList()

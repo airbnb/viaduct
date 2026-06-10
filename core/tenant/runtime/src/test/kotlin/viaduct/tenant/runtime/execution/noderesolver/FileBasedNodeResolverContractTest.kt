@@ -7,9 +7,7 @@ import com.google.inject.Guice
 import com.google.inject.Singleton
 import java.net.URI
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
-import viaduct.engine.api.bootstrap.executionregistry.FieldAPIData
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
-import viaduct.engine.api.bootstrap.executionregistry.NodeAPIData
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryTenantModuleBootstrapper
@@ -30,16 +28,15 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
         val registry = ExecutionRegistryConfigFile(
             version = "1",
             executorFactory = "viaduct.api.internal.DefaultGRTConvFactory",
-            grtPackagePrefix = "viaduct.tenant.runtime.execution.noderesolver",
             nodes = listOf(
                 NodeEntryConfig(
                     typeName = "NodeObj",
                     isBatching = false,
                     isSelective = false,
                     attribution = "NodeObj",
-                    tenantAPIData = NodeAPIData(
-                        resolverClass = "$base\$NodeObjResolver",
-                        resolverBaseClass = "$resolverBases.NodeResolvers\$NodeObj",
+                    tenantAPIData = mapOf(
+                        "resolverClass" to "$base\$NodeObjResolver",
+                        "resolverBaseClass" to "$resolverBases.NodeResolvers\$NodeObj",
                     ),
                 ),
             ),
@@ -50,12 +47,12 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                     isBatching = false,
                     isSelective = false,
                     attribution = "Query.nodeObj",
-                    tenantAPIData = FieldAPIData(
-                        resolverClass = "$base\$QueryNodeObjResolver",
-                        resolverBaseClass = "$resolverBases.QueryResolvers\$NodeObj",
-                        queryTypeName = "Query",
-                        hasArguments = true,
-                        returnTypeName = "NodeObj",
+                    tenantAPIData = mapOf(
+                        "resolverClass" to "$base\$QueryNodeObjResolver",
+                        "resolverBaseClass" to "$resolverBases.QueryResolvers\$NodeObj",
+                        "queryTypeName" to "Query",
+                        "hasArguments" to true,
+                        "returnTypeName" to "NodeObj",
                     ),
                 ),
                 FieldEntryConfig(
@@ -64,12 +61,12 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                     isBatching = false,
                     isSelective = false,
                     attribution = "Query.nodeReference",
-                    tenantAPIData = FieldAPIData(
-                        resolverClass = "$base\$NodeReferenceResolver",
-                        resolverBaseClass = "$resolverBases.QueryResolvers\$NodeReference",
-                        queryTypeName = "Query",
-                        hasArguments = true,
-                        returnTypeName = "NodeObj",
+                    tenantAPIData = mapOf(
+                        "resolverClass" to "$base\$NodeReferenceResolver",
+                        "resolverBaseClass" to "$resolverBases.QueryResolvers\$NodeReference",
+                        "queryTypeName" to "Query",
+                        "hasArguments" to true,
+                        "returnTypeName" to "NodeObj",
                     ),
                 ),
                 FieldEntryConfig(
@@ -78,11 +75,11 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                     isBatching = false,
                     isSelective = false,
                     attribution = "Query.objectWithNodeField",
-                    tenantAPIData = FieldAPIData(
-                        resolverClass = "$base\$ObjectWithNodeFieldResolver",
-                        resolverBaseClass = "$resolverBases.QueryResolvers\$ObjectWithNodeField",
-                        queryTypeName = "Query",
-                        returnTypeName = "ObjectWithNodeField",
+                    tenantAPIData = mapOf(
+                        "resolverClass" to "$base\$ObjectWithNodeFieldResolver",
+                        "resolverBaseClass" to "$resolverBases.QueryResolvers\$ObjectWithNodeField",
+                        "queryTypeName" to "Query",
+                        "returnTypeName" to "ObjectWithNodeField",
                     ),
                 ),
                 FieldEntryConfig(
@@ -91,11 +88,11 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                     isBatching = false,
                     isSelective = false,
                     attribution = "Query.nodeRefWithIllegalAccess",
-                    tenantAPIData = FieldAPIData(
-                        resolverClass = "$base\$NodeRefWithIllegalAccessResolver",
-                        resolverBaseClass = "$resolverBases.QueryResolvers\$NodeRefWithIllegalAccess",
-                        queryTypeName = "Query",
-                        returnTypeName = "NodeObj",
+                    tenantAPIData = mapOf(
+                        "resolverClass" to "$base\$NodeRefWithIllegalAccessResolver",
+                        "resolverBaseClass" to "$resolverBases.QueryResolvers\$NodeRefWithIllegalAccess",
+                        "queryTypeName" to "Query",
+                        "returnTypeName" to "NodeObj",
                     ),
                 ),
             ),

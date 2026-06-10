@@ -2,6 +2,8 @@
 
 package viaduct.engine.api.bootstrap.executionregistry
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+
 /**
  * Data model for module index JSON emitted by build tooling (KSP) and consumed by codegen and the engine at runtime.
  *
@@ -10,13 +12,12 @@ package viaduct.engine.api.bootstrap.executionregistry
  *
  * Then consumed by the bootstrapper.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 data class ExecutionRegistryConfigFile(
     /** Version of the module-index JSON schema */
     val version: String,
     /** FQN of the ExecutorFactory implementation. */
     val executorFactory: String,
-    /** Package where GRT classes live for this module (e.g. "viaduct.api.grts"). Extracted by KSP. */
-    val grtPackagePrefix: String,
     val nodes: List<NodeEntryConfig> = emptyList(),
     val fields: List<FieldEntryConfig> = emptyList(),
     /** FQN of the class annotated with @TenantBootstrapper, or null if none was declared. */
@@ -33,14 +34,11 @@ data class NodeEntryConfig(
      * given executor.
      */
     val attribution: String,
-    val tenantAPIData: NodeAPIData,
-)
-
-data class NodeAPIData(
-    /** Resolver implementation class name (FQN that runtime used to discover via scanning). */
-    val resolverClass: String,
-    /** Generated resolver base class name, used as a stable join key with codegen output. */
-    val resolverBaseClass: String,
+    /**
+     * Tenant-API-specific data for this node entry. The engine does not interpret this map;
+     * the tenant's ExecutorFactory reads it at bootstrap time.
+     */
+    val tenantAPIData: Map<String, Any?>,
 )
 
 data class FieldEntryConfig(
@@ -64,20 +62,11 @@ data class FieldEntryConfig(
      * Optional and independent of objectSelections.
      */
     val querySelections: SelectionsBlockConfig? = null,
-    val tenantAPIData: FieldAPIData,
-)
-
-data class FieldAPIData(
-    /** Resolver implementation class name (FQN that runtime used to discover via scanning). */
-    val resolverClass: String,
-    /** Generated resolver base class name, used as a stable join key with codegen output. */
-    val resolverBaseClass: String,
-    /** Simple GraphQL type name of the field's return type (e.g. "TestNode"). Used to resolve the result GRT class at bootstrap time. Null for scalar/enum return types. */
-    val returnTypeName: String? = null,
-    /** True if the resolver's Context declares a non-[Arguments.NoArguments] type parameter. Used to resolve the generated Arguments GRT class at bootstrap time. */
-    val hasArguments: Boolean = false,
-    /** Name of the root query type (e.g. "Query"). Used to resolve the generated Query GRT class at bootstrap time without needing the runtime schema. */
-    val queryTypeName: String,
+    /**
+     * Tenant-API-specific data for this field entry. The engine does not interpret this map;
+     * the tenant's ExecutorFactory reads it at bootstrap time.
+     */
+    val tenantAPIData: Map<String, Any?>,
 )
 
 data class SelectionsBlockConfig(

@@ -15,13 +15,13 @@ internal fun validateFields(fields: List<FieldEntryConfig>) =
     // throws RuntimeException for the same violation (historical inconsistency).
     checkDuplicates(fields, { it.typeName to it.fieldName }) { extant, entry ->
         "Duplicate resolver for type ${entry.typeName} and field ${entry.fieldName}: " +
-            "${extant.tenantAPIData.resolverClass} and ${entry.tenantAPIData.resolverClass} both define this field."
+            "${extant.tenantAPIData["resolverClass"]} and ${entry.tenantAPIData["resolverClass"]} both define this field."
     }
 
 internal fun validateNodes(nodes: List<NodeEntryConfig>) =
     checkDuplicates(nodes, { it.typeName }) { extant, entry ->
         "Duplicate node resolver for type ${entry.typeName}: " +
-            "${extant.tenantAPIData.resolverClass} and ${entry.tenantAPIData.resolverClass} both define this node."
+            "${extant.tenantAPIData["resolverClass"]} and ${entry.tenantAPIData["resolverClass"]} both define this node."
     }
 
 private fun <K, T> checkDuplicates(
