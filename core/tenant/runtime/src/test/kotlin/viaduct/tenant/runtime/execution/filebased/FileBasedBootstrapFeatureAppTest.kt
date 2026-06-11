@@ -4,7 +4,7 @@ package viaduct.tenant.runtime.execution.filebased
 
 import com.google.inject.AbstractModule
 import com.google.inject.Module
-import com.google.inject.Singleton
+import javax.inject.Singleton
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.resolver.Resolver
 import viaduct.api.resolver.Variable

@@ -6,9 +6,9 @@ import com.google.inject.AbstractModule
 import com.google.inject.Exposed
 import com.google.inject.PrivateModule
 import com.google.inject.Provides
-import com.google.inject.Singleton
 import javax.inject.Named
 import javax.inject.Qualifier
+import javax.inject.Singleton
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineFactory
 import viaduct.engine.api.ViaductSchema

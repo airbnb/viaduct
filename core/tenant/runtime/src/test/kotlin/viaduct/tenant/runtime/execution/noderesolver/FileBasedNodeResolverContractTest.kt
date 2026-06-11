@@ -4,8 +4,8 @@ package viaduct.tenant.runtime.execution.noderesolver
 
 import com.google.inject.AbstractModule
 import com.google.inject.Guice
-import com.google.inject.Singleton
 import java.net.URI
+import javax.inject.Singleton
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig

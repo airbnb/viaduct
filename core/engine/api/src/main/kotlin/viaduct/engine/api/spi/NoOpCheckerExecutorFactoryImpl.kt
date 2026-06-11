@@ -1,6 +1,6 @@
 package viaduct.engine.api.spi
 
-import com.google.inject.Inject
+import javax.inject.Inject
 import javax.inject.Singleton
 import viaduct.engine.api.ViaductSchema
 

@@ -4,12 +4,12 @@ package viaduct.service.runtime
 
 import com.google.inject.AbstractModule
 import com.google.inject.Provides
-import com.google.inject.Singleton
 import com.google.inject.TypeLiteral
 import com.google.inject.name.Names
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.instrumentation.Instrumentation
 import io.micrometer.core.instrument.MeterRegistry
+import javax.inject.Singleton
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation

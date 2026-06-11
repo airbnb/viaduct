@@ -3,7 +3,6 @@
 package viaduct.service.runtime
 
 import com.google.inject.Guice
-import com.google.inject.Inject
 import com.google.inject.Injector
 import com.google.inject.ProvisionException
 import graphql.ExecutionResult as GJExecutionResult
@@ -15,6 +14,7 @@ import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.instrumentation.Instrumentation
 import io.micrometer.core.instrument.MeterRegistry
 import java.util.concurrent.CompletableFuture
+import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.BootstrapperFactory
