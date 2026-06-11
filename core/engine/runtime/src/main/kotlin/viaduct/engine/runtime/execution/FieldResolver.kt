@@ -30,6 +30,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ParentManagedValue
+import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.StandardResolutionValue
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
@@ -251,21 +252,11 @@ class FieldResolver(
         parameters: ExecutionParameters,
         field: QueryPlan.CollectedField
     ): FieldDispatch {
-        val fieldResolverDispatcher =
-            parameters.engineExecutionContext.dispatcherRegistry.getFieldResolverDispatcher(
-                parameters.parentEngineResult.type.name,
-                field.fieldName,
-            )
-        val objectSelectionSetId = fieldResolverDispatcher?.objectSelectionSet?.id
-        val querySelectionSetId = fieldResolverDispatcher?.querySelectionSet?.id
-        val runtimeObjectType = checkNotNull(parameters.executionStepInfo.objectType) {
-            "Expected executionStepInfo.objectType to be non-null while resolving ${field.fieldName}"
-        }
-        val fieldRssOriginFilteringKillSwitchEnabled =
-            parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled
-
-        field.childPlans.forEach { childPlan ->
-            if (!fieldRssOriginFilteringKillSwitchEnabled) {
+        if (!parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled) {
+            val runtimeObjectType = checkNotNull(parameters.executionStepInfo.objectType) {
+                "Expected executionStepInfo.objectType to be non-null while resolving ${field.fieldName}"
+            }
+            field.childPlans.forEach { childPlan ->
                 val (originParentType, originFieldName) = childPlan.originCoordinate
                 if (originFieldName != field.fieldName ||
                     originParentType != runtimeObjectType.name
@@ -276,17 +267,43 @@ class FieldResolver(
                     )
                 }
             }
-            log.ifDebug {
-                debug("Launching child plan for field ${field.fieldName} at path ${parameters.path}, selection set: ${childPlan.plan.selectionSet}")
+        }
+        return executeField(parameters, field)
+    }
+
+    private fun launchFieldChildPlans(
+        parameters: ExecutionParameters,
+        field: QueryPlan.CollectedField
+    ) {
+        val fieldResolverDispatcher =
+            parameters.engineExecutionContext.dispatcherRegistry.getFieldResolverDispatcher(
+                parameters.parentEngineResult.type.name,
+                field.fieldName,
+            )
+        val objectSelectionSetId = fieldResolverDispatcher?.objectSelectionSet?.id
+        val querySelectionSetId = fieldResolverDispatcher?.querySelectionSet?.id
+
+        field.childPlans.fold(emptySet<RequiredSelectionSet.Id>()) { seenRssIds, childPlan ->
+            if (childPlan.requiredSelectionSetId in seenRssIds) {
+                return@fold seenRssIds
             }
-            val target = when (childPlan.plan.requiredSelectionSetId) {
+            val childQueryPlan = FieldExecutionHelpers.findRssQueryPlan(childPlan.requiredSelectionSetId, parameters)
+            log.ifDebug {
+                debug("Launching child plan for field ${field.fieldName} at path ${parameters.path}, selection set: ${childQueryPlan.selectionSet}")
+            }
+            val target = when (childPlan.requiredSelectionSetId) {
                 objectSelectionSetId -> ExecutionParameters.ChildPlanTarget.ExplicitParentResult(parameters.parentEngineResult)
                 querySelectionSetId -> ExecutionParameters.ChildPlanTarget.ExplicitParentResult(parameters.queryEngineResult)
                 else -> ExecutionParameters.ChildPlanTarget.FromContext
             }
-            launchQueryPlan(parameters, childPlan.plan, target = target)
+            launchQueryPlan(
+                parameters,
+                childQueryPlan,
+                target = target,
+                seenRssIds = seenRssIds,
+            )
+            seenRssIds + childPlan.requiredSelectionSetId
         }
-        return executeField(parameters)
     }
 
     /**
@@ -319,7 +336,13 @@ class FieldResolver(
         plan: QueryPlan,
         executionConditionEnv: DataFetchingEnvironment? = null,
         target: ExecutionParameters.ChildPlanTarget = ExecutionParameters.ChildPlanTarget.FromContext,
+        seenRssIds: Set<RequiredSelectionSet.Id> = emptySet(),
     ) {
+        val requiredSelectionSetId = plan.requiredSelectionSetId
+        if (requiredSelectionSetId != null && requiredSelectionSetId in seenRssIds) {
+            return
+        }
+
         if (!plan.executionCondition.shouldExecute(executionConditionEnv)) {
             log.ifDebug {
                 debug(
@@ -329,8 +352,15 @@ class FieldResolver(
             return
         }
 
-        plan.childPlans.forEach {
-            launchQueryPlan(parameters, it, executionConditionEnv)
+        plan.childPlanIds.fold(
+            requiredSelectionSetId?.let { seenRssIds + it } ?: seenRssIds
+        ) { seenRssIds, childPlanId ->
+            if (childPlanId in seenRssIds) {
+                return@fold seenRssIds
+            }
+            val childPlan = FieldExecutionHelpers.findRssQueryPlan(childPlanId, parameters)
+            launchQueryPlan(parameters, childPlan, executionConditionEnv, seenRssIds = seenRssIds)
+            seenRssIds + childPlanId
         }
 
         parameters.launchOnRootScope {
@@ -367,9 +397,10 @@ class FieldResolver(
      * @param parameters The execution parameters containing field and context information
      */
     @Suppress("UNCHECKED_CAST")
-    private fun executeField(parameters: ExecutionParameters): FieldDispatch {
-        val field = checkNotNull(parameters.field) { "Expected field to be non-null." }
-
+    private fun executeField(
+        parameters: ExecutionParameters,
+        field: QueryPlan.CollectedField
+    ): FieldDispatch {
         // We're fetching an individual field; the current engine result will always be an ObjectEngineResult
         val parentOER = parameters.parentEngineResult
         val executionStepInfoForField = parameters.executionStepInfo
@@ -390,6 +421,7 @@ class FieldResolver(
             log.ifDebug {
                 debug("Field @ {} with OER key: {} is not being fetched, fetching now...", parameters.path, oerKey)
             }
+            launchFieldChildPlans(parameters, field)
             val fieldFetchResult = fetchField(field, parameters, dataFetchingEnvironmentProvider)
             slotSetter.setRawValue(fieldFetchResult.result)
             slotSetter.setCheckerValue(fieldFetchResult.checkerResult)

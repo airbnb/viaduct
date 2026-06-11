@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
+import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.QueryPlanExecutionCondition.Companion.ALWAYS_EXECUTE
@@ -54,6 +55,7 @@ class FieldResolverExecutionConditionTest {
             myFlagManager = FlagManager.default,
         ).engineExecutionContext
         val field = GJField.newField("id").build()
+        val childRss = createRSS("HiveTable", "id")
         val childSelectionSet = QueryPlan.SelectionSet(emptyList())
         val childFragments = QueryPlan.Fragments.empty
         val childPlan = QueryPlan(
@@ -61,12 +63,13 @@ class FieldResolverExecutionConditionTest {
             fragments = childFragments,
             variablesResolvers = emptyList(),
             parentType = runtimeType,
-            childPlans = emptyList(),
+            childPlanIds = emptyList(),
             baseIndex = QueryPlanIndex.empty(),
             astSelectionSet = GJSelectionSet.newSelectionSet().build(),
             attribution = null,
             executionCondition = ALWAYS_EXECUTE,
             variableDefinitions = emptyList(),
+            requiredSelectionSetId = childRss.id,
         )
         val collectedField = QueryPlan.CollectedField(
             responseKey = "id",

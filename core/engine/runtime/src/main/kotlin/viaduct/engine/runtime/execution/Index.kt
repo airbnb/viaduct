@@ -5,8 +5,8 @@ package viaduct.engine.runtime.execution
  * efficient composition
  *
  * Performance:
- *  - `merge` of 2 indexes runs in constant time
- *  - `find` in an [Index] runs in amortized constant time (first time is linear)
+ *  - [merge] of 2 indexes runs in constant time
+ *  - [find] runs in amortized constant time (some calls may run in linear time)
  */
 sealed interface Index<K, V> {
     /** Returns the value for [k], or `null` if [k] is not indexed. */

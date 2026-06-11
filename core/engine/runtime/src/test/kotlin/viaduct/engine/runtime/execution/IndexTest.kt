@@ -38,7 +38,7 @@ class IndexTest {
             fragments = fragments,
             variablesResolvers = emptyList(),
             parentType = parentType,
-            childPlans = childPlans,
+            childPlanIds = childPlans.map { requireNotNull(it.requiredSelectionSetId) },
             baseIndex = baseIndex,
             astSelectionSet = emptyAst,
             attribution = ExecutionAttribution.DEFAULT,
@@ -266,7 +266,7 @@ class IndexTest {
                                 .typeCondition(GJTypeName("Query"))
                                 .selectionSet(emptyAst)
                                 .build(),
-                            childPlans = emptyList(),
+                            childPlanIds = emptyList(),
                             index = fragmentIndex,
                         ),
                     ),

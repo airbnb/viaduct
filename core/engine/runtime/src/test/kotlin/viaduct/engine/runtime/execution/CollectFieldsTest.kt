@@ -8,7 +8,6 @@ import strikt.assertions.contains
 import strikt.assertions.hasSize
 import strikt.assertions.isEmpty
 import strikt.assertions.isEqualTo
-import strikt.assertions.map
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
@@ -228,16 +227,17 @@ class CollectFieldsTest {
         )
 
         val collectedRestricted = collected.selections[0] as CollectedField
+        val collectedRestrictedParentTypes =
+            collectedRestricted.childPlans.map { it.queryPlanParentType }
 
-        expectThat(collectedRestricted.childPlans)
+        expectThat(collectedRestrictedParentTypes)
             .hasSize(2)
-            .map { it.plan.parentType }
             .and {
                 contains(userType)
                 contains(queryType)
             }
 
-        expectThat(collectedRestricted.childPlans.map { it.plan.parentType })
+        expectThat(collectedRestrictedParentTypes)
             .not()
             .contains(adminType)
 

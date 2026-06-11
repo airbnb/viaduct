@@ -20,7 +20,7 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelecti
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.Value
-import viaduct.engine.runtime.execution.FieldExecutionHelpers.resolveRSSVariables
+import viaduct.engine.runtime.execution.FieldExecutionHelpers.resolveVariables
 import viaduct.utils.slf4j.ifDebug
 import viaduct.utils.slf4j.logger
 
@@ -88,13 +88,10 @@ class AccessCheckRunner(
         val typeCheckParameters = if (fieldTypeChildPlans.isEmpty()) {
             parameters
         } else {
-            // QueryPlanIndex is used to convert RequiredSelectionSet's into a
-            // representation that can be used for OER keys. For perf reasons,
-            // QPI does not index fieldTypeChildPlans, so we do that here.
-            parameters.copy(
-                queryPlanIndex = fieldTypeChildPlans.fold(parameters.queryPlanIndex) { index, plan ->
-                    index.merge(plan.index)
-                }
+            // Field-type child plans are lazy and are not part of the root plan index, so
+            // add the concrete plans that this type-check path will use to the index.
+            parameters.withQueryPlanIndex(
+                parameters.queryPlanIndex + fieldTypeChildPlans.flattenIndex()
             )
         }
         if (fieldTypeChildPlans.isNotEmpty()) {
@@ -201,15 +198,14 @@ class AccessCheckRunner(
                         return@let null
                     }
                     val queryPlan = FieldExecutionHelpers.findRssQueryPlan(rss, baseExecutionContext)
-                    val variables = resolveRSSVariables(
-                        rss,
-                        arguments,
-                        objectEngineResult,
-                        parameters.queryEngineResult,
-                        baseExecutionContext,
-                        parameters.executionContext.graphQLContext,
-                        parameters.executionContext.locale,
-                        queryPlan = queryPlan,
+                    val variables = resolveVariables(
+                        plan = queryPlan,
+                        arguments = arguments,
+                        currentEngineData = objectEngineResult,
+                        queryEngineData = parameters.queryEngineResult,
+                        engineExecutionContext = baseExecutionContext,
+                        graphQLContext = parameters.executionContext.graphQLContext,
+                        locale = parameters.executionContext.locale,
                     )
                     val oerSelections = FieldExecutionHelpers.createOERSelections(
                         variables,

@@ -402,7 +402,7 @@ class ExecutionParametersTest {
     }
 
     @Test
-    fun `forChildPlan indexes dynamically built child plans without changing constants`() {
+    fun `forChildPlan adds explicit query plan index without changing constants`() {
         val rss = createRSS("Query", "foo")
         val indexedPlan = queryPlanFor(type = queryType, requiredSelectionSetId = rss.id)
         val dynamicPlan = queryPlanFor(type = queryType, childPlans = listOf(indexedPlan))
@@ -636,7 +636,7 @@ class ExecutionParametersTest {
             fragments = QueryPlan.Fragments.empty,
             variablesResolvers = emptyList(),
             parentType = type,
-            childPlans = childPlans,
+            childPlanIds = childPlans.map { requireNotNull(it.requiredSelectionSetId) },
             baseIndex = childPlans.fold(QueryPlanIndex.empty()) { index, plan -> plan.index.merge(index) },
             astSelectionSet = astSelectionSet,
             attribution = attribution,

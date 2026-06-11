@@ -336,28 +336,30 @@ class EngineImpl(
                 parameters = eecImpl.queryPlanParameters(),
                 rss = selectionSet,
             )
+            val parentParamsWithQueryPlanIndex = parentParams.withQueryPlanIndex(
+                parentParams.queryPlanIndex + queryPlan.index
+            )
 
             val variables = FieldExecutionHelpers.resolveRSSVariables(
-                rss = selectionSet,
                 arguments = arguments,
-                currentEngineData = parentParams.parentEngineResult,
-                queryEngineData = parentParams.queryEngineResult,
-                engineExecutionContext = parentParams.engineExecutionContext,
-                graphQLContext = parentParams.executionContext.graphQLContext,
-                locale = parentParams.executionContext.locale,
+                currentEngineData = parentParamsWithQueryPlanIndex.parentEngineResult,
+                queryEngineData = parentParamsWithQueryPlanIndex.queryEngineResult,
+                engineExecutionContext = parentParamsWithQueryPlanIndex.engineExecutionContext,
+                graphQLContext = parentParamsWithQueryPlanIndex.executionContext.graphQLContext,
+                locale = parentParamsWithQueryPlanIndex.executionContext.locale,
                 queryPlan = queryPlan
             )
 
             val target = if (options.isFieldTypePlan) {
                 checkNotNull(targetOER) { "targetResult is required when isFieldTypePlan is true" }
-                ExecutionParameters.ChildPlanTarget.FieldType(targetOER, parentParams.source)
+                ExecutionParameters.ChildPlanTarget.FieldType(targetOER, parentParamsWithQueryPlanIndex.source)
             } else if (targetOER != null) {
                 ExecutionParameters.ChildPlanTarget.ExplicitParentResult(targetOER)
             } else {
                 ExecutionParameters.ChildPlanTarget.FromContext
             }
 
-            parentParams.forChildPlan(queryPlan, variables, target)
+            parentParamsWithQueryPlanIndex.forChildPlan(queryPlan, variables, target)
                 .copy(bypassChecksDuringCompletion = options.bypassAccessChecks)
         } catch (e: Exception) {
             throw SubqueryExecutionException.queryPlanBuildFailed(e)

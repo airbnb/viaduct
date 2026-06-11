@@ -83,7 +83,6 @@ class ResolverDataFetcher(
         val objectRssData = objectRss?.let { rss ->
             val queryPlan = FieldExecutionHelpers.findRssQueryPlan(rss, localExecutionContext)
             val variables = resolveRSSVariables(
-                rss = rss,
                 arguments = environment.arguments,
                 currentEngineData = engineResults.parentResult,
                 queryEngineData = engineResults.queryResult,
@@ -122,7 +121,6 @@ class ResolverDataFetcher(
         val queryRssData = queryRss?.let { rss ->
             val queryPlan = FieldExecutionHelpers.findRssQueryPlan(rss, localExecutionContext)
             val variables = resolveRSSVariables(
-                rss = rss,
                 arguments = environment.arguments,
                 currentEngineData = engineResults.parentResult,
                 queryEngineData = engineResults.queryResult,

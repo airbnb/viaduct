@@ -1,7 +1,5 @@
 package viaduct.engine.runtime.execution
 
-import com.github.benmanes.caffeine.cache.Cache
-import com.github.benmanes.caffeine.cache.Caffeine
 import graphql.GraphQLContext
 import graphql.collect.ImmutableMapWithNullValues
 import graphql.execution.CoercedVariables
@@ -26,7 +24,6 @@ import graphql.schema.GraphQLArgument
 import graphql.schema.GraphQLCodeRegistry
 import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLObjectType
-import graphql.schema.GraphQLSchema
 import graphql.util.FpKit
 import java.util.Locale
 import java.util.function.Supplier
@@ -46,7 +43,6 @@ import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.observability.ExecutionObservabilityContext
-import viaduct.graphql.utils.collectVariableDefinitions
 
 object FieldExecutionHelpers {
     val executionStepInfoFactory = ExecutionStepInfoFactory()
@@ -212,32 +208,15 @@ object FieldExecutionHelpers {
     internal fun findRssQueryPlan(
         rss: RequiredSelectionSet,
         engineExecutionContext: EngineExecutionContext,
-        queryPlan: QueryPlan? = null,
-    ): QueryPlan =
-        findRssQueryPlan(
-            rss,
-            engineExecutionContext.executionHandle!!.asExecutionParameters(),
-            queryPlan,
-        )
+    ): QueryPlan = findRssQueryPlan(rss.id, engineExecutionContext.executionHandle!!.asExecutionParameters())
 
     internal fun findRssQueryPlan(
-        rss: RequiredSelectionSet,
+        requiredSelectionSetId: RequiredSelectionSet.Id,
         executionParameters: ExecutionParameters,
-        queryPlan: QueryPlan? = null,
-    ): QueryPlan {
-        val plan = queryPlan
-            ?.index
-            ?.find(rss.id)
-            ?: executionParameters.field
-                ?.childPlans
-                ?.firstOrNull { it.plan.requiredSelectionSetId == rss.id }
-                ?.plan
-            // Fall back for RSS plans reached outside the current field's direct child plans.
-            ?: executionParameters.queryPlanIndex.find(rss.id)
-        return checkNotNull(plan) {
-            "Missing QueryPlan for RequiredSelectionSet ${rss.id}"
+    ): QueryPlan =
+        checkNotNull(executionParameters.queryPlanIndex.find(requiredSelectionSetId)) {
+            "Missing QueryPlan for RequiredSelectionSet $requiredSelectionSetId"
         }
-    }
 
     fun createExecutionStepInfo(
         codeRegistry: GraphQLCodeRegistry,
@@ -334,6 +313,26 @@ object FieldExecutionHelpers {
     /**
      * Resolves variables for a [QueryPlan].
      */
+    suspend fun resolveVariables(
+        plan: QueryPlan,
+        arguments: Map<String, Any?>,
+        currentEngineData: ObjectEngineResult,
+        queryEngineData: ObjectEngineResult,
+        engineExecutionContext: EngineExecutionContext,
+        graphQLContext: GraphQLContext,
+        locale: Locale,
+    ): CoercedVariables =
+        resolveVariables(
+            variableDefinitions = plan.variableDefinitions,
+            variablesResolvers = plan.variablesResolvers,
+            arguments = arguments,
+            currentEngineData = currentEngineData,
+            queryEngineData = queryEngineData,
+            engineExecutionContext = engineExecutionContext,
+            graphQLContext = graphQLContext,
+            locale = locale,
+        )
+
     suspend fun resolveQueryPlanVariables(
         plan: QueryPlan,
         arguments: Map<String, Any?>,
@@ -353,18 +352,14 @@ object FieldExecutionHelpers {
             locale,
         )
 
-    /**
-     * Resolves variables for a [RequiredSelectionSet].
-     */
     suspend fun resolveRSSVariables(
-        rss: RequiredSelectionSet,
         arguments: Map<String, Any?>,
         currentEngineData: ObjectEngineResult,
         queryEngineData: ObjectEngineResult,
         engineExecutionContext: EngineExecutionContext,
         graphQLContext: GraphQLContext,
         locale: Locale,
-        queryPlan: QueryPlan
+        queryPlan: QueryPlan,
     ): CoercedVariables =
         resolveVariables(
             queryPlan,
@@ -382,7 +377,8 @@ object FieldExecutionHelpers {
      * after the dependee data have resolved.
      */
     private suspend fun resolveVariables(
-        queryPlan: QueryPlan,
+        variableDefinitions: List<VariableDefinition>,
+        variablesResolvers: List<VariablesResolver>,
         arguments: Map<String, Any?>,
         currentEngineData: ObjectEngineResult,
         queryEngineData: ObjectEngineResult,
@@ -390,10 +386,10 @@ object FieldExecutionHelpers {
         graphQLContext: GraphQLContext,
         locale: Locale
     ): CoercedVariables =
-        queryPlan.variablesResolvers.fold(emptyMap<String, Any?>()) { acc, vr ->
+        variablesResolvers.fold(emptyMap<String, Any?>()) { acc, vr ->
             val isResolverSelective = engineExecutionContext.isResolverSelective
             val variablesData: EngineObjectData = vr.requiredSelectionSet?.let { vrss ->
-                val childPlan = findRssQueryPlan(vrss, engineExecutionContext, queryPlan)
+                val childPlan = findRssQueryPlan(vrss, engineExecutionContext)
                 // VariablesResolvers may have required selection sets which have their own variables resolvers.
                 // Recursively resolve them
                 val innerVariables = resolveVariables(
@@ -438,37 +434,10 @@ object FieldExecutionHelpers {
         }.let {
             ValuesResolver.coerceVariableValues(
                 engineExecutionContext.fullSchema.schema,
-                queryPlan.variableDefinitions,
+                variableDefinitions,
                 RawVariables(it),
                 graphQLContext,
                 locale
             )
         }
-
-    /**
-     * Cache for variable definitions computed from RequiredSelectionSets. Uses weak keys for
-     * automatic cleanup when new RequiredSelectionSets are created, e.g. during hotswap.
-     */
-    private val rssVariableDefinitionsCache: Cache<RequiredSelectionSet, List<VariableDefinition>> =
-        Caffeine.newBuilder()
-            .weakKeys()
-            .build()
-
-    /**
-     * Get or compute variable definitions for a RequiredSelectionSet instance
-     */
-    private fun rssVariableDefinitions(
-        rss: RequiredSelectionSet,
-        schema: GraphQLSchema
-    ): List<VariableDefinition> {
-        return checkNotNull(
-            rssVariableDefinitionsCache.get(rss) {
-                rss.selections.selections.collectVariableDefinitions(
-                    schema,
-                    rss.selections.typeName,
-                    rss.selections.fragmentMap
-                )
-            }
-        ) { "Unexpected null value from rssVariableDefinitions" }
-    }
 }

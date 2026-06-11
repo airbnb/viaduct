@@ -141,6 +141,14 @@ data class ExecutionParameters(
     val engineExecutionContext: EngineExecutionContext
         get() = _engineExecutionContext
 
+    /** replace [queryPlanIndex] with the provided value */
+    fun withQueryPlanIndex(newQueryPlanIndex: QueryPlanIndex): ExecutionParameters =
+        if (newQueryPlanIndex === queryPlanIndex) {
+            this
+        } else {
+            copy(queryPlanIndex = newQueryPlanIndex)
+        }
+
     /**
      * Delegates to scope for launching coroutines on the root execution scope.
      *
@@ -372,8 +380,9 @@ data class ExecutionParameters(
             // For object plans, we use the current local context
             localContext
         }
-        val childQueryPlanIndex = if (childPlan.requiredSelectionSetId == null) {
-            queryPlanIndex.merge(childPlan.index)
+
+        val newIndex = if (childPlan.index !== queryPlanIndex) {
+            queryPlanIndex + childPlan.index
         } else {
             queryPlanIndex
         }
@@ -382,7 +391,7 @@ data class ExecutionParameters(
             constants = newConstants,
             coercedVariables = variables,
             queryPlan = childPlan,
-            queryPlanIndex = childQueryPlanIndex,
+            queryPlanIndex = newIndex,
             selectionSet = childPlan.selectionSet,
             parent = this,
             errorAccumulator = ErrorAccumulator(),

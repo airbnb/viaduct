@@ -29,7 +29,7 @@ import viaduct.engine.runtime.execution.constraints.Constraints
  * @property fragments Named fragment definitions available during plan execution.
  * @property variablesResolvers Resolvers that produce variable values at execution time.
  * @property parentType The GraphQL type that owns the fields in this plan.
- * @property childPlans Child QueryPlan objects resolved before any selections in this plan.
+ * @property childPlanIds RequiredSelectionSet plans resolved before any selections in this plan.
  * @property baseIndex Index over this plan's eager child plans. [index] adds this plan itself.
  * @property astSelectionSet The original graphql-java AST selection set this plan was built from.
  * @property attribution Execution attribution for tracing and instrumentation.
@@ -42,7 +42,7 @@ data class QueryPlan(
     val fragments: Fragments,
     val variablesResolvers: List<VariablesResolver>,
     val parentType: GraphQLOutputType,
-    val childPlans: List<QueryPlan>,
+    val childPlanIds: List<RequiredSelectionSet.Id>,
     private val baseIndex: QueryPlanIndex,
     val astSelectionSet: GJSelectionSet,
     val attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
@@ -181,7 +181,7 @@ data class QueryPlan(
     data class FragmentDefinition(
         val selectionSet: SelectionSet,
         val gjDef: GJFragmentDefinition,
-        val childPlans: List<QueryPlan>,
+        val childPlanIds: List<RequiredSelectionSet.Id>,
         val variableReferences: List<SelectionVariableReference> = emptyList(),
         val index: QueryPlanIndex,
     )

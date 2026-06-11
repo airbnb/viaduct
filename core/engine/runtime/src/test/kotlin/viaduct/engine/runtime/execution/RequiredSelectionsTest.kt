@@ -4,6 +4,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertContains
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -11,7 +12,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ExecutionInput
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.mocks.FeatureTest
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.MockVariablesResolver
@@ -23,7 +26,6 @@ import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
 import viaduct.graphql.scopes.ScopedSchemaBuilder
-import viaduct.graphql.test.assertJson
 import viaduct.service.api.spi.mocks.MockFlagManager
 
 @ExperimentalCoroutinesApi
@@ -662,6 +664,153 @@ class RequiredSelectionsTest {
                 """.trimIndent()
             )
         }
+    }
+
+    @Test
+    fun `required selection with impossible sibling implementation dependency can be resolved`() {
+        // Foo.x has an object RSS rooted at Foo. The outer `... on Node` branch can match Foo,
+        // but after that refinement the nested `... on Bar` branch is impossible because Foo and Bar
+        // are sibling implementations of Node.
+        MockLegacyTenantModuleBootstrapper(
+            """
+                extend type Query {
+                  trigger: Int
+                  bar1: Node
+                }
+
+                extend interface Node {
+                  x: Int
+                }
+
+                type Foo implements Node {
+                  id: ID!
+                  x: Int
+                }
+
+                type Bar implements Node {
+                  id: ID!
+                  x: Int
+                  y: Int
+                  foo: Foo
+                }
+            """.trimIndent()
+        ) {
+            field("Query" to "trigger") {
+                resolver {
+                    querySelections("bar1 {x, ... on Bar { y } }")
+                    fn { _, _, query, _, _ ->
+                        query.fetchAs<EngineObjectData>("bar1").fetchAs<Int>("y")
+                    }
+                }
+            }
+
+            field("Query" to "bar1") {
+                valueFromContext { ctx ->
+                    ctx.createNodeReference(
+                        ctx.globalIDCodec.serialize("Bar", "1"),
+                        schema.schema.getObjectType("Bar")!!
+                    )
+                }
+            }
+
+            field("Foo" to "x") {
+                resolver {
+                    objectSelections(
+                        """
+                            ... on Node @include(if: ${'$'}gate) {
+                              ... on Bar {
+                                y
+                              }
+                            }
+                        """.trimIndent()
+                    ) {
+                        variables(
+                            "gate",
+                            rss = createRSS("Query", "bar1 { __typename }")
+                        ) { resolveCtx, _ ->
+                            resolveCtx.objectData
+                                .fetchAs<EngineObjectData>("bar1")
+                                .fetch("__typename")
+                            mapOf("gate" to true)
+                        }
+                    }
+                    fn { _, _, _, _, _ -> 1 }
+                }
+            }
+
+            field("Bar" to "y") {
+                resolver {
+                    objectSelections("foo { x }")
+                    fn { _, obj, _, _, _ ->
+                        obj.fetchAs<EngineObjectData>("foo")
+                            .fetchAs<Int>("x")
+                    }
+                }
+            }
+
+            field("Bar" to "foo") {
+                valueFromContext {
+                    createEngineObjectData(schema.schema.getObjectType("Foo")!!, emptyMap())
+                }
+            }
+
+            type("Bar") {
+                nodeUnbatchedExecutor { _, _, _ ->
+                    createEngineObjectData(objectType, emptyMap())
+                }
+            }
+        }.runFeatureTest(withoutDefaultQueryNodeResolvers = true) {
+            runQueryWithTimeout("{ trigger }")
+                .assertJson("{data: {trigger: 1}}")
+        }
+    }
+
+    @Test
+    fun `sibling cyclic required selections keep direct materializations during execution`() {
+        val bInAPlanChildPlanCount = AtomicInteger(-1)
+
+        // Query.a's checker requires depB: b, while Query.b's checker requires depA: a.
+        // Executing both fields exercises the same sibling cyclic RSS root shape as
+        // QueryPlanTest, through the public required-selection DSL.
+        MockLegacyTenantModuleBootstrapper("extend type Query { a: Int, b: Int }") {
+            field("Query" to "a") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val parameters = ctx.executionHandle as ExecutionParameters
+                        val aField = parameters.queryPlan.selectionSet.selections
+                            .filterIsInstance<QueryPlan.Field>()
+                            .first { it.resultKey == "a" }
+                        val aPlan = parameters.queryPlan.planForTest(aField.childPlans.single())
+                        val bInAPlan = aPlan.selectionSet.selections
+                            .filterIsInstance<QueryPlan.Field>()
+                            .first { it.resultKey == "depB" }
+
+                        bInAPlanChildPlanCount.set(bInAPlan.childPlans.size)
+                        1
+                    }
+                }
+                checker {
+                    objectSelections("deps", "depB: b")
+                    fn { _, _ -> }
+                }
+            }
+
+            field("Query" to "b") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        2
+                    }
+                }
+                checker {
+                    objectSelections("deps", "depA: a")
+                    fn { _, _ -> }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ a b }").assertJson("{data: {a: 1, b: 2}}")
+        }
+
+        assertEquals(1, bInAPlanChildPlanCount.get())
     }
 
     @Test
@@ -1817,6 +1966,30 @@ class RequiredSelectionsTest {
 
             assertEquals(1, checkerInvocations["Foo.value"]?.get()) { "Foo.value checker should run exactly once" }
             assertEquals(null, checkerInvocations["Bar.value"]) { "Bar.value checker must not run when resolving Foo.value" }
+        }
+    }
+
+    private fun QueryPlan.planForTest(childPlan: FieldChildPlan): QueryPlan =
+        checkNotNull(index.find(childPlan.requiredSelectionSetId)) {
+            "Missing QueryPlan for RequiredSelectionSet ${childPlan.requiredSelectionSetId}"
+        }
+
+    private fun FeatureTest.runQueryWithTimeout(
+        query: String,
+        variables: Map<String, Any?> = emptyMap(),
+        timeoutMillis: Long = 1_000,
+    ): graphql.ExecutionResult {
+        val input = ExecutionInput(
+            operationText = query,
+            variables = variables,
+            requestContext = Any(),
+        )
+        return kotlinx.coroutines.runBlocking {
+            withTimeout(timeoutMillis) {
+                DefaultCoroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
+                    engine.execute(input)
+                }.await()
+            }
         }
     }
 }

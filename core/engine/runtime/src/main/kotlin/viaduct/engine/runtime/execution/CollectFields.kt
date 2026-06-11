@@ -2,8 +2,8 @@ package viaduct.engine.runtime.execution
 
 import graphql.execution.CoercedVariables
 import graphql.execution.MergedField
+import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
-import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLSchema
 import viaduct.engine.runtime.execution.QueryPlan.CollectedField
 import viaduct.engine.runtime.execution.QueryPlan.Field
@@ -127,10 +127,11 @@ object CollectFields {
                             MergedField.newMergedField(sel.field).build(),
                             childPlans = sel.childPlans.filter { fcp ->
                                 val types = state.constrainedTypes()
+                                val planParentType = fcp.queryPlanParentType
                                 val planParentApplies =
                                     types == null ||
-                                        types.contains(fcp.plan.parentType) ||
-                                        fcp.plan.parentType.isRootType(state.schema)
+                                        types.contains(planParentType) ||
+                                        planParentType.isRootType(state.schema)
 
                                 // If killswitch enabled, fall back to more permissive filtering
                                 // without field rss origin.
@@ -173,7 +174,7 @@ object CollectFields {
         )
     }
 
-    private fun GraphQLOutputType.isRootType(schema: GraphQLSchema) =
+    private fun GraphQLCompositeType.isRootType(schema: GraphQLSchema) =
         this == schema.queryType ||
             this == schema.mutationType ||
             this == schema.subscriptionType

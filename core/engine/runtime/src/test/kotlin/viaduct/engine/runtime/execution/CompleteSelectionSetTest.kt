@@ -7,6 +7,7 @@ import viaduct.engine.api.CompleteSelectionSetOptions
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.MockVariablesResolver
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.runFeatureTest
@@ -178,6 +179,65 @@ class CompleteSelectionSetTest {
         }.runFeatureTest {
             runQuery("{ container { completedResult } }")
                 .assertJson("""{"data": {"container": {"completedResult": "value=42"}}}""")
+        }
+    }
+
+    @Test
+    fun `object-typed completion indexes variable RSS before resolving variables`() {
+        MockLegacyTenantModuleBootstrapper(
+            """
+            extend type Query {
+                container: Container
+            }
+
+            type Container {
+                value: Int
+                gate: Boolean
+                completedResult: Int
+            }
+            """.trimIndent()
+        ) {
+            fieldWithValue("Container" to "value", 42)
+            fieldWithValue("Container" to "gate", true)
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            emptyMap()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "completedResult") {
+                resolver {
+                    objectSelections("value gate")
+                    fn { _, _, _, _, ctx ->
+                        val variableRss = createRSS("Container", "gate")
+                        val completionRss = createRSS(
+                            "Container",
+                            "value @include(if: ${'$'}includeValue)",
+                            listOf(
+                                MockVariablesResolver(
+                                    "includeValue",
+                                    requiredSelectionSet = variableRss,
+                                ) { resolveCtx, _ ->
+                                    mapOf("includeValue" to resolveCtx.objectData.fetch("gate"))
+                                }
+                            )
+                        )
+                        val result = ctx.completeSelectionSet(completionRss)
+
+                        val data = result.getData<Map<String, Any?>>()
+                        data["value"]
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ container { completedResult } }")
+                .assertJson("""{"data": {"container": {"completedResult": 42}}}""")
         }
     }
 
