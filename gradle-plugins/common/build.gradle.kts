@@ -9,6 +9,10 @@ plugins {
 dependencies {
     api(gradleApi())
 
+    // SchemaScoping is the build-to-runtime API contract emitted by the plugin DSL. It
+    // appears in the public API of ViaductApplicationExtension, so expose it via `api`.
+    api(libs.viaduct.service.api)
+
     implementation(libs.idea.gradle.plugin)
 }
 
