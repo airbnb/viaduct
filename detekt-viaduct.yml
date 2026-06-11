@@ -1,3 +1,13 @@
+style:
+  ForbiddenImport:
+    active: true
+    imports:
+      - value: 'kotlinx.coroutines.runBlocking'
+      - value: 'com.google.inject.Inject'
+        reason: 'Use javax.inject.Inject instead for portability'
+      - value: 'com.google.inject.Singleton'
+        reason: 'Use javax.inject.Singleton instead for portability'
+
 viaduct-detekt-rules:
   ApiStabilityAnnotationRequired:
     active: false
