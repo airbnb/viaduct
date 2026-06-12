@@ -214,11 +214,11 @@ class FieldCompleter(
         val checkerResultValue = checkNotNull(checkerSlotValue as? Value<out CheckerResult?>) {
             "Expected checker slot to contain Value<out CheckerResult>, was ${checkerSlotValue.javaClass}"
         }
-        return fieldResolutionResultValue.flatMap { frr ->
-            if (frr.errors.isNotEmpty()) return@flatMap fieldResolutionResultValue
+        return fieldResolutionResultValue.flatMap outer@{ frr ->
+            if (frr.errors.isNotEmpty()) return@outer fieldResolutionResultValue
 
-            checkerResultValue.flatMap { checkerResult ->
-                if (checkerResult?.asError == null) return@flatMap fieldResolutionResultValue
+            checkerResultValue.flatMap inner@{ checkerResult ->
+                if (checkerResult?.asError == null) return@inner fieldResolutionResultValue
 
                 // Null-resolved OERs (e.g. null root field refs) may have checkers that failed to
                 // run and produced errors. Suppress these since they're irrelevant for a null value.

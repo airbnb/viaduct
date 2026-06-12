@@ -33,7 +33,6 @@ import viaduct.tenant.runtime.globalid.User
 @Suppress("USELESS_IS_CHECK")
 class ExecutionContextImplTest : ContextTestBase() {
     private fun mk(
-        query: Query = Q,
         args: Arguments = Args,
         globalIDCodec: GlobalIDCodec = DefaultCodec,
         selectionSet: SelectionSet<CompositeOutput> = noSelections,

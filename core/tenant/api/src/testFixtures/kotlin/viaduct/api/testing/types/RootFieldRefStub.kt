@@ -3,6 +3,7 @@ package viaduct.api.testing.types
 import viaduct.api.reflect.RootObjectField
 import viaduct.api.types.Arguments
 import viaduct.api.types.Object
+import viaduct.apiannotations.ExperimentalApi
 
 /**
  * Pre-baked stub for a `ctx.rootFieldRef(field, args)` call made by the resolver
@@ -13,6 +14,7 @@ import viaduct.api.types.Object
  * arguments must equal [arguments] for [value] to be returned. Argument-less root
  * fields use [Arguments.NoArguments].
  */
+@OptIn(ExperimentalApi::class)
 class RootFieldRefStub<A : Arguments, T : Object>(
     val field: RootObjectField<*, T, A>,
     val arguments: A,

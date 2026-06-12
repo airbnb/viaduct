@@ -150,6 +150,8 @@ fun Arb.Companion.ir(
                         operationRoots[it] = requireNotNull(schema.schema.subscriptionType) {
                             "subscription operation requested but schema does not define a subscription type"
                         }
+
+                    else -> error("Unexpected GraphQL operation: ${it.operation}")
                 }
             }
         }

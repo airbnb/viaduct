@@ -52,14 +52,14 @@ fun interface CheckerExecutorGen {
 }
 
 private class CheckerExecutorGenImpl(private val env: ViaductGenEnv) : CheckerExecutorGen {
-    override fun gen(tfc: TypeOrFieldCoordinate): EngineCheckerExecutor {
+    override fun gen(key: TypeOrFieldCoordinate): EngineCheckerExecutor {
         val factory = env.cfg[CheckerExecutorFactory]
 
         val requiredSelectionSets =
             List(env.rs.count(env.cfg[RequiredSelectionSetWeight])) {
-                val typeCondition = Arb.of(setOf(env.schemas.schema.queryType.name, tfc.first))
+                val typeCondition = Arb.of(setOf(env.schemas.schema.queryType.name, key.first))
                     .next(env.rs)
-                env.requiredSelectionSetGen.gen(tfc, typeCondition, forChecker = true, 0)
+                env.requiredSelectionSetGen.gen(key, typeCondition, forChecker = true, 0)
             }
                 .filterNotNull()
                 .mapIndexed { index, rss -> index.toString() to rss }
@@ -67,7 +67,7 @@ private class CheckerExecutorGenImpl(private val env: ViaductGenEnv) : CheckerEx
 
         return factory.createCheckerExecutor(
             CheckerExecutor.Params(
-                tfc,
+                key,
                 requiredSelectionSets,
                 env.rs.sampleWeight(env.cfg[ExerciseRequiredSelectionsWeight]),
                 env.cfg,

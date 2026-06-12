@@ -286,6 +286,7 @@ class ResolverValueGenTest : KotestPropertyBase() {
                 ctx = MockEngineCtx(),
                 cfg = Config.default + (ListValueSize to 3.asIntRange()),
             ).forAll { value ->
+                @Suppress("UNCHECKED_CAST")
                 value as List<String>
                 value.all {
                     codec.deserialize(it).first == "Foo"

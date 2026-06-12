@@ -367,7 +367,6 @@ class ProxyEngineObjectDataTest {
             """.trimIndent()
         ) {
             val object2SubSelections = TestSelections()
-            val parentSelections = TestSelections(mapOf("object2" to object2SubSelections))
 
             // Write-side: store with selective key (non-null selections)
             val o1 = mkProxy(
@@ -492,7 +491,6 @@ class ProxyEngineObjectDataTest {
                 type O1 { bar: Int }
             """.trimIndent()
         ) {
-            val selectionSet = mkSelectionSet("O1", "bar aliasedBar: bar")
             val proxy = mkProxy(
                 "bar aliasedBar: bar",
                 "O1",

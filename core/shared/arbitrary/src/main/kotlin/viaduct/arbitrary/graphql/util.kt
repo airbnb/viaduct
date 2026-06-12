@@ -351,8 +351,8 @@ val DocumentComparator: Comparator<Document> =
 /** suspend for a value of milliseconds bounded by  [latencyMillis] */
 internal suspend fun RandomSource.maybeDelay(latencyMillis: LongRange) {
     if (latencyMillis.last > 0) {
-        val latencyMillis = Arb.long(latencyMillis).next(this)
-        delay(latencyMillis)
+        val latencyMs = Arb.long(latencyMillis).next(this)
+        delay(latencyMs)
     }
 }
 

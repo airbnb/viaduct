@@ -122,7 +122,7 @@ class FieldExecutionObservabilityFeatureTest {
                 resolver {
                     resolverName("query-string1-resolver")
                     objectSelections("idField")
-                    fn { _, obj, _, _, _ ->
+                    fn { _, _, _, _, _ ->
                         childPlanExecuted.await(1, TimeUnit.SECONDS).toString()
                     }
                 }
@@ -174,7 +174,7 @@ class FieldExecutionObservabilityFeatureTest {
                 resolver {
                     resolverName("query-string1-resolver")
                     objectSelections("idField")
-                    fn { _, obj, _, _, _ ->
+                    fn { _, _, _, _, _ ->
                         string1ResolverChildPlanExecuted.await(1, TimeUnit.SECONDS).toString()
                     }
                 }
@@ -222,7 +222,7 @@ class FieldExecutionObservabilityFeatureTest {
                 resolver {
                     resolverName("query-string1-resolver")
                     objectSelections("idField")
-                    fn { _, obj, _, _, _ ->
+                    fn { _, _, _, _, _ ->
                         string1ChildPlanExecuted.await(1, TimeUnit.SECONDS).toString()
                     }
                 }
@@ -231,7 +231,7 @@ class FieldExecutionObservabilityFeatureTest {
                 resolver {
                     resolverName("query-string2-resolver")
                     objectSelections("idField")
-                    fn { _, obj, _, _, _ ->
+                    fn { _, _, _, _, _ ->
                         string2ChildPlanExecuted.await(1, TimeUnit.SECONDS).toString()
                     }
                 }

@@ -156,7 +156,6 @@ class ResolverExecutionContextFactoryTest {
         )
 
         val contextMocks = ContextMocks(myFullSchema = schema)
-        val queryType = schema.schema.queryType
 
         val result = factory(
             engineExecutionContext = contextMocks.engineExecutionContext,
@@ -182,7 +181,6 @@ class ResolverExecutionContextFactoryTest {
         )
 
         val contextMocks = ContextMocks(myFullSchema = schema)
-        val queryType = schema.schema.queryType
 
         val result = factory(
             engineExecutionContext = contextMocks.engineExecutionContext,
@@ -259,7 +257,6 @@ class ResolverExecutionContextFactoryTest {
             DefaultGRTConvFactory
         )
         val contextMocks = ContextMocks(myFullSchema = schema)
-        val queryType = schema.schema.queryType
 
         val result = factory(
             engineExecutionContext = contextMocks.engineExecutionContext,
@@ -286,7 +283,6 @@ class ResolverExecutionContextFactoryTest {
         )
 
         val contextMocks = ContextMocks(myFullSchema = schema)
-        val queryType = schema.schema.queryType
 
         val result = factory(
             engineExecutionContext = contextMocks.engineExecutionContext,

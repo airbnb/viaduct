@@ -21,6 +21,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import viaduct.apiannotations.VisibleForTest
 import viaduct.dataloader.mocks.MockNextTickDispatcher
 import viaduct.engine.ViaductSchemaLoadException
 import viaduct.engine.ViaductWiringFactory
@@ -166,6 +167,7 @@ open class MockFieldUnbatchedResolverExecutor(
     open val unbatchedResolveFn: FieldUnbatchedResolverFn = { _, _, _, _, _ -> null }
 ) : FieldResolverExecutor {
     override val isBatching: Boolean = false
+    @OptIn(VisibleForTest::class)
     override val metadata = ResolverMetadata.forMock(resolverName)
 
     override suspend fun batchResolve(
@@ -192,6 +194,7 @@ open class MockFieldBatchResolverExecutor(
     open val batchResolveFn: FieldBatchResolverFn = { _, _ -> throw NotImplementedError() }
 ) : FieldResolverExecutor {
     override val isBatching: Boolean = true
+    @OptIn(VisibleForTest::class)
     override val metadata = ResolverMetadata.forMock(resolverName)
 
     override suspend fun batchResolve(
@@ -275,6 +278,7 @@ class MockNodeUnbatchedResolverExecutor(
     override val isSelective: Boolean = false,
     val unbatchedResolveFn: NodeUnbatchedResolverFn = { _, _, _ -> throw NotImplementedError() }
 ) : NodeResolverExecutor {
+    @OptIn(VisibleForTest::class)
     override val metadata: ResolverMetadata = ResolverMetadata.forMock("Node:$typeName")
     override val isBatching: Boolean = false
 
@@ -297,6 +301,7 @@ class MockNodeBatchResolverExecutor(
     override val isSelective: Boolean = false,
     val batchResolveFn: NodeBatchResolverFn = { _, _ -> throw NotImplementedError() }
 ) : NodeResolverExecutor {
+    @OptIn(VisibleForTest::class)
     override val metadata: ResolverMetadata = ResolverMetadata.forMock("Node:$typeName")
     override val isBatching: Boolean = true
 

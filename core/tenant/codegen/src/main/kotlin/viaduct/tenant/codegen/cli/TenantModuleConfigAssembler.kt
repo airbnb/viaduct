@@ -28,6 +28,9 @@ import viaduct.tenant.codegen.ksp.SelectionsBlock
 internal object TenantModuleConfigAssembler {
     private const val REGISTRY_VERSION = "1"
 
+    // jacksonMapperBuilder()/JsonMapper.builder() (the non-deprecated path) isn't available in the
+    // Jackson version on the build classpath, so we keep configure() and suppress the deprecation.
+    @Suppress("DEPRECATION")
     private val mapper: ObjectMapper = jacksonObjectMapper().configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true).setSerializationInclusion(JsonInclude.Include.NON_NULL)
 
     private val codec = ResolverParamsJsonCodec()

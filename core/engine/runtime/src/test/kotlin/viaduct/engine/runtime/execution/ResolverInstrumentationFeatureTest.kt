@@ -72,7 +72,7 @@ class ResolverInstrumentationFeatureTest {
 
             val checkerKey = checkerToFields.keys.find { it.contains("string1") }
             assertTrue(checkerKey != null, "checker instrumentation should be invoked for string1 checker")
-            assertContains(checkerToFields[checkerKey!!]!!.toSet(), "string2")
+            assertContains(checkerToFields[checkerKey]!!.toSet(), "string2")
         }
     }
 

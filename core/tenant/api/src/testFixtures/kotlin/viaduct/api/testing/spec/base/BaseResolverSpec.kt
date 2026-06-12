@@ -157,6 +157,7 @@ internal fun createSelectionSetKey(selectionSet: SelectionSet<*>): String {
  * wins — the same precedence rule as a Kotlin `Map` built from the list. Calls
  * with no matching stub throw.
  */
+@OptIn(ExperimentalApi::class, InternalApi::class)
 fun rootFieldRefResultsOf(values: List<RootFieldRefStub<*, *>>): PrebakedRootFieldRefResults {
     data class Key(val path: List<String>, val arguments: Arguments)
     val byKey: Map<Key, Object> = values.associate { stub ->

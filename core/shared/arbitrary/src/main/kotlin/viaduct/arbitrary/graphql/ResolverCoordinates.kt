@@ -85,7 +85,6 @@ data class ResolverCoordinates(
             return if (fieldType.name in nodeResolvers || fieldType !is GraphQLCompositeType) {
                 loop(acc + coord, seen, pending - coord)
             } else {
-                fieldType as GraphQLCompositeType
                 val addToPending = schema.rels.possibleObjectTypes(fieldType)
                     .filter { it !in seen && it.name !in nodeResolvers }
                     .flatMap { obj ->

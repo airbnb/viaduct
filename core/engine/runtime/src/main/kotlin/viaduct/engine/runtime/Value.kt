@@ -160,6 +160,7 @@ sealed interface Value<T> {
 
         override suspend fun await() = deferred.await()
 
+        @Suppress("UNCHECKED_CAST")
         override suspend fun awaitOrElse(block: (Throwable) -> @UnsafeVariance T): T = thenApply { v, e -> if (e != null) block(e) else v as T }.await()
 
         @OptIn(ExperimentalCoroutinesApi::class)

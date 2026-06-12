@@ -882,7 +882,7 @@ class RootFieldReferenceResolutionTest {
                     objectSelections("default", "id")
                     fn { _, objectDataMap ->
                         val objectData = objectDataMap["default"]!!
-                        val id = objectData.fetch("id") as? String
+                        objectData.fetch("id") as? String
                             ?: throw IllegalArgumentException("No ID present for access check")
                         CheckerResult.Success
                     }
