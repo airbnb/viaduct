@@ -6,8 +6,11 @@ import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.StableApi
 import viaduct.service.api.scoping.SchemaScoping
+import viaduct.service.api.scoping.SchemaScopingValidationError
+import viaduct.service.api.scoping.SchemaScopingValidator
 
 @StableApi
 open class ViaductApplicationExtension(objects: ObjectFactory) {
@@ -24,11 +27,15 @@ open class ViaductApplicationExtension(objects: ObjectFactory) {
     private var scopedSchemasDeclared = false
 
     /**
-     * Builds a [SchemaScoping] snapshot from the current DSL state. Intended for internal plugin
-     * use (e.g. manifest serialization tasks) — not part of the public Gradle plugin API.
+     * Builds a [SchemaScoping] snapshot from the current DSL state. Used by the application
+     * plugin in `:application` for validation in `afterEvaluate` and as a typed input to
+     * `AssembleCentralSchemaTask`; not part of the user-facing Gradle plugin DSL. Marked
+     * [InternalApi] so BCV omits it from the public-surface listing while keeping the symbol
+     * visible across `:common` → `:application`.
      */
+    @InternalApi
     @OptIn(ExperimentalApi::class)
-    internal val schemaScoping: Provider<SchemaScoping> =
+    val schemaScoping: Provider<SchemaScoping> =
         scopeUniverseProperty.zip(scopedSchemasProperty) { universe, schemas ->
             SchemaScoping(
                 scopeUniverse = universe,
@@ -57,6 +64,7 @@ open class ViaductApplicationExtension(objects: ObjectFactory) {
                     "Omit the call entirely if this application does not declare scopes.",
             )
         }
+        scopes.forEach { id -> throwOnInvalidId(SchemaScopingValidator.validateScopeId(id)) }
         scopeUniverseDeclared = true
         scopeUniverseProperty.set(scopes)
     }
@@ -90,9 +98,17 @@ open class ViaductApplicationExtension(objects: ObjectFactory) {
                     "$duplicates. Each scoped-schema ID may only appear once.",
             )
         }
+        entries.forEach { (id, scopes) ->
+            throwOnInvalidId(SchemaScopingValidator.validateSchemaId(id))
+            scopes.forEach { scopeId -> throwOnInvalidId(SchemaScopingValidator.validateScopeId(scopeId)) }
+        }
         scopedSchemasDeclared = true
         scopedSchemasProperty.set(
             entries.associate { (id, scopes) -> id to ScopedSchemaDefinition(scopes) },
         )
+    }
+
+    private fun throwOnInvalidId(error: SchemaScopingValidationError?) {
+        if (error != null) throw GradleException("[${error.code}] ${error.message}")
     }
 }
