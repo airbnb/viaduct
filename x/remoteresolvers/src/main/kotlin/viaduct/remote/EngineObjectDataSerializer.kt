@@ -27,7 +27,7 @@ object EngineObjectDataSerializer {
     suspend fun deserialize(
         jsonBytes: ByteArray,
         graphQLObjectType: GraphQLObjectType
-    ): EngineObjectData {
+    ): EngineObjectData.Sync {
         @Suppress("UNCHECKED_CAST")
         val dataMap = objectMapper.readValue(jsonBytes, Map::class.java) as Map<String, Any?>
         return buildEngineObjectData(dataMap, graphQLObjectType)
@@ -50,7 +50,7 @@ object EngineObjectDataSerializer {
     private fun buildEngineObjectData(
         dataMap: Map<String, Any?>,
         type: GraphQLObjectType
-    ): EngineObjectData {
+    ): EngineObjectData.Sync {
         val builder = ResolvedEngineObjectData.Builder(type)
         for ((key, value) in dataMap) {
             builder.put(key, rewrap(value))

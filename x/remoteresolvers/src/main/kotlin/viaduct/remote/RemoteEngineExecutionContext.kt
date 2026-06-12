@@ -21,7 +21,7 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 /**
  * [EngineExecutionContext] used by [RemoteResolverService]. Forwards re-entrant
- * [resolveSelectionSet] calls to the engine over gRPC. When [delegate] is `null`
+ * [resolveSelectionSetSync] calls to the engine over gRPC. When [delegate] is `null`
  * (cross-JVM mode) members that need local engine state throw; [localSchema] and
  * [GlobalIDCodecDefault] cover the common cases.
  */
@@ -90,10 +90,10 @@ class RemoteEngineExecutionContext(
         options: CompleteSelectionSetOptions
     ): graphql.ExecutionResult = requireDelegate("completeSelectionSet").completeSelectionSet(selectionSet, targetResult, arguments, options)
 
-    override suspend fun resolveSelectionSet(
+    override suspend fun resolveSelectionSetSync(
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions
-    ): EngineObjectData {
+    ): EngineObjectData.Sync {
         val selectionsHandle = SelectionsRegistry.register(selectionSet)
         val request = QueryRequest.newBuilder()
             .setContextHandle(contextHandle)
@@ -110,11 +110,6 @@ class RemoteEngineExecutionContext(
         }
         return EngineObjectDataSerializer.deserialize(response.objectDataJson.toByteArray(), REMOTE_RESULT_TYPE)
     }
-
-    override suspend fun resolveSelectionSetSync(
-        selectionSet: EngineSelectionSet,
-        options: ResolveSelectionSetOptions
-    ): EngineObjectData.Sync = requireDelegate("resolveSelectionSetSync").resolveSelectionSetSync(selectionSet, options)
 
     private companion object {
         // Type identity isn't propagated over the wire; the receiver-side builder just
