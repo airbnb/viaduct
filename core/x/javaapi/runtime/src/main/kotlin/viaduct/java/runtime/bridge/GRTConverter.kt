@@ -105,38 +105,3 @@ internal fun convertSyncEngineDataToJavaObject(
     val constructor = clazz.getDeclaredConstructor(EngineObjectData.Sync::class.java)
     return constructor.newInstance(data)
 }
-
-/**
- * Materializes all top-level selections from an async [EngineObjectData] into a
- * [ResolvedEngineObjectData] ([EngineObjectData.Sync]).
- *
- * [viaduct.engine.api.EngineExecutionContext.resolveSelectionSet] returns [EngineObjectData]
- * rather than [EngineObjectData.Sync], even though all fields are already resolved by the time it
- * returns. Java GRT constructors require [EngineObjectData.Sync] because Java cannot call Kotlin
- * suspend functions. This helper bridges the gap until the engine is updated to return
- * [EngineObjectData.Sync] directly from [viaduct.engine.api.EngineExecutionContext.resolveSelectionSet].
- */
-internal suspend fun materializeToSync(data: EngineObjectData): EngineObjectData.Sync {
-    val selections = data.fetchSelections()
-    val map = mutableMapOf<String, Any?>()
-    for (selection in selections) {
-        map[selection] = materializeValue(data.fetchOrNull(selection))
-    }
-    return ResolvedEngineObjectData(data.type, map)
-}
-
-/**
- * Recursively materializes nested [EngineObjectData] values to [EngineObjectData.Sync].
- *
- * The engine contract states that nested composite-typed fields are represented as
- * [EngineObjectData] instances. This helper ensures they are all materialized to
- * [EngineObjectData.Sync] so that Java GRT constructors can wrap them via the
- * `EngineObjectData.Sync` constructor path.
- */
-private suspend fun materializeValue(value: Any?): Any? =
-    when (value) {
-        is EngineObjectData.Sync -> value
-        is EngineObjectData -> materializeToSync(value)
-        is List<*> -> value.map { materializeValue(it) }
-        else -> value
-    }

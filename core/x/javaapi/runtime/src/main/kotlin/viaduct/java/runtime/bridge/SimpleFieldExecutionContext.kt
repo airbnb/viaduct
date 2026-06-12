@@ -128,9 +128,9 @@ class SimpleFieldExecutionContext(
                     selections,
                     JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(variables, engineCtx)
                 )
-                val result = engineCtx.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.DEFAULT)
+                val result = engineCtx.resolveSelectionSetSync(selectionSet, ResolveSelectionSetOptions.DEFAULT)
                 @Suppress("UNCHECKED_CAST")
-                convertSyncEngineDataToJavaObject(targetClass, materializeToSync(result)) as T
+                convertSyncEngineDataToJavaObject(targetClass, result) as T
             }
         }
     }
@@ -155,9 +155,9 @@ class SimpleFieldExecutionContext(
                     selections,
                     JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(variables, engineCtx)
                 )
-                val result = engineCtx.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.MUTATION)
+                val result = engineCtx.resolveSelectionSetSync(selectionSet, ResolveSelectionSetOptions.MUTATION)
                 @Suppress("UNCHECKED_CAST")
-                convertSyncEngineDataToJavaObject(targetClass, materializeToSync(result)) as T
+                convertSyncEngineDataToJavaObject(targetClass, result) as T
             }
         }
     }
