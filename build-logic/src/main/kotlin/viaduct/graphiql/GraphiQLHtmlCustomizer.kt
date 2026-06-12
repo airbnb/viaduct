@@ -99,9 +99,9 @@ class GraphiQLHtmlCustomizer(
 """
 
             // Wrap the fetcher creation with our patch
-            var modifiedScript = scriptContent.replace(
-                Regex("""const fetcher = createGraphiQLFetcher\(\{[\s\S]*?\}\);"""),
-                """const baseFetcher = createGraphiQLFetcher({
+            var modifiedScript = Regex("""const fetcher = createGraphiQLFetcher\(\{[\s\S]*?\}\);""")
+                .replace(scriptContent) {
+                    """const baseFetcher = createGraphiQLFetcher({
         url: '/graphql',
       });
       const fetcher = createPatchedFetcher(baseFetcher);
@@ -111,7 +111,7 @@ class GraphiQLHtmlCustomizer(
         storageKey: window.location.origin,
       } /* VIADUCT_GRAPHIQL_CONFIG_END */;
       document.title = graphiQLConfig.title;"""
-            )
+                }
 
             // Modify the plugin initialization to load our Global ID plugin
             modifiedScript = modifiedScript.replace(
@@ -154,7 +154,6 @@ query {
             plugins,
             visiblePlugin: explorer,
             defaultQuery,
-            storageKey,
             defaultEditorToolsVisibility: true,
           });
         }

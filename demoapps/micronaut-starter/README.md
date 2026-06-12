@@ -22,10 +22,9 @@ micronaut-starter/
         └── viaduct/schema/schema.graphqls     # GraphQL schema
 ```
 
-## Building and Running
+## Building and Testing
 
 ```bash
 # From demoapps/micronaut-starter directory:
 ./gradlew build
-./gradlew run
 ```

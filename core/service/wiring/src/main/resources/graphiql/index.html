@@ -8,11 +8,13 @@
 <!--
  *  VIADUCT CUSTOMIZATIONS:
  *  This file is generated from the official GraphiQL CDN example and customized for Viaduct.
- *  DO NOT EDIT MANUALLY - regenerate using: ./gradlew :core:service:service-wiring:generateGraphiQLHtml
+ *  DO NOT EDIT MANUALLY - regenerate using: ./gradlew :core:service:wiring:generateGraphiQLHtml
  *
  *  Customizations applied:
  *  - Changed title to "GraphiQL - Viaduct"
  *  - Changed endpoint from demo URL to "/graphql"
+ *  - Added introspection-patch.js to fix GraphQL Java compatibility with GraphiQL 5
+ *    (GraphQL Java omits empty arrays that GraphiQL 5 strictly requires)
  *  - Added global-id-plugin.jsx for encoding/decoding Viaduct Global IDs
  *  - Modified initialization to load plugins asynchronously
  *  - Added configurable title, storage key, and default query support
@@ -48,8 +50,6 @@
       rel="stylesheet"
       href="https://esm.sh/@graphiql/plugin-explorer/dist/style.css"
     />
-    <!-- Babel standalone for JSX transpilation -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <!--
      * Note:
      * The ?standalone flag bundles the module along with all of its `dependencies`, excluding `peerDependencies`, into a single JavaScript file.
@@ -77,6 +77,7 @@
     </script>
     <script type="module">
       import { loadJSX } from '/js/jsx-loader.js';
+      import { createPatchedFetcher } from '/js/introspection-patch.js';
 
       import React from 'react';
       import ReactDOM from 'react-dom/client';
@@ -85,16 +86,16 @@
       import { explorerPlugin } from '@graphiql/plugin-explorer';
       import 'graphiql/setup-workers/esm.sh';
 
-      const fetcher = createGraphiQLFetcher({
+      const baseFetcher = createGraphiQLFetcher({
         url: '/graphql',
       });
+      const fetcher = createPatchedFetcher(baseFetcher);
       const graphiQLConfig = /* VIADUCT_GRAPHIQL_CONFIG_START */ {
         title: "GraphiQL - Viaduct",
         defaultQuery: "# Welcome to Viaduct GraphiQL!\n#\n# Start typing your GraphQL query here.\n# Press Ctrl+Space for autocomplete.\n# Click the Docs button to explore the schema.\n# Use the Global ID Utils plugin (key icon) to encode/decode Viaduct Global IDs.\n\nquery {\n  # Your query here\n}\n",
         storageKey: window.location.origin,
       } /* VIADUCT_GRAPHIQL_CONFIG_END */;
       document.title = graphiQLConfig.title;
-
       // Load Viaduct plugins asynchronously
       async function loadPlugins() {
         try {
