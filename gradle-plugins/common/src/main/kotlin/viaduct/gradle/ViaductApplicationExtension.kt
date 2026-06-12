@@ -11,6 +11,7 @@ import viaduct.apiannotations.StableApi
 import viaduct.service.api.scoping.SchemaScoping
 import viaduct.service.api.scoping.SchemaScopingValidationError
 import viaduct.service.api.scoping.SchemaScopingValidator
+import viaduct.service.api.scoping.ScopingErrorCodes
 
 @StableApi
 open class ViaductApplicationExtension(objects: ObjectFactory) {
@@ -54,13 +55,15 @@ open class ViaductApplicationExtension(objects: ObjectFactory) {
     fun declaredSchemaScopes(scopes: Set<String>) {
         if (scopeUniverseDeclared) {
             throw GradleException(
-                "declaredSchemaScopes may only be called once. " +
+                "[${ScopingErrorCodes.SCHEMA_SCOPES_DECLARED_TWICE}] " +
+                    "declaredSchemaScopes may only be called once. " +
                     "Compose convention-plugin contributions into a single Set before the call.",
             )
         }
         if (scopes.isEmpty()) {
             throw GradleException(
-                "declaredSchemaScopes requires at least one scope ID. " +
+                "[${ScopingErrorCodes.SCHEMA_SCOPES_EMPTY}] " +
+                    "declaredSchemaScopes requires at least one scope ID. " +
                     "Omit the call entirely if this application does not declare scopes.",
             )
         }
@@ -81,20 +84,23 @@ open class ViaductApplicationExtension(objects: ObjectFactory) {
     fun declaredScopedSchemas(vararg entries: Pair<String, Set<String>>) {
         if (scopedSchemasDeclared) {
             throw GradleException(
-                "declaredScopedSchemas may only be called once. " +
+                "[${ScopingErrorCodes.SCOPED_SCHEMAS_DECLARED_TWICE}] " +
+                    "declaredScopedSchemas may only be called once. " +
                     "Compose convention-plugin contributions into a single varargs invocation.",
             )
         }
         if (entries.isEmpty()) {
             throw GradleException(
-                "declaredScopedSchemas requires at least one scoped-schema entry. " +
+                "[${ScopingErrorCodes.SCOPED_SCHEMAS_EMPTY}] " +
+                    "declaredScopedSchemas requires at least one scoped-schema entry. " +
                     "Omit the call entirely if this application does not declare scoped schemas.",
             )
         }
         val duplicates = entries.groupBy { it.first }.filter { it.value.size > 1 }.keys.sorted()
         if (duplicates.isNotEmpty()) {
             throw GradleException(
-                "Duplicate scoped-schema ID(s) declared via declaredScopedSchemas: " +
+                "[${ScopingErrorCodes.SCOPED_SCHEMA_DUPLICATE_ID}] " +
+                    "Duplicate scoped-schema ID(s) declared via declaredScopedSchemas: " +
                     "$duplicates. Each scoped-schema ID may only appear once.",
             )
         }
