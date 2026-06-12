@@ -89,12 +89,6 @@ private object NoOpEngine : Engine {
 
     override suspend fun execute(executionInput: ExecutionInput): ExecutionResult = error("NoOpEngine: execute not configured")
 
-    override suspend fun resolveSelectionSet(
-        executionHandle: EngineExecutionContext.ExecutionHandle,
-        selectionSet: EngineSelectionSet,
-        options: ResolveSelectionSetOptions,
-    ): EngineObjectData = error("NoOpEngine: resolveSelectionSet not configured")
-
     override suspend fun resolveSelectionSetSync(
         executionHandle: EngineExecutionContext.ExecutionHandle,
         selectionSet: EngineSelectionSet,

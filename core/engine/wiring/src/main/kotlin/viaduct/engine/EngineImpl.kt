@@ -32,7 +32,6 @@ import viaduct.engine.runtime.EngineExecutionContextFactory
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
-import viaduct.engine.runtime.ProxyEngineObjectData
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.execution.AccessCheckRunner
@@ -167,24 +166,6 @@ class EngineImpl(
         return graphql.executeAsync(gjExecutionInput).await()
     }
 
-    override suspend fun resolveSelectionSet(
-        executionHandle: EngineExecutionContext.ExecutionHandle,
-        selectionSet: EngineSelectionSet,
-        options: ResolveSelectionSetOptions,
-    ): EngineObjectData {
-        val parentParams = executionHandle.asExecutionParameters()
-        val subqueryExecution = executeSelectionSet(executionHandle, selectionSet, options)
-        val isResolverSelective = parentParams.engineExecutionContext.isResolverSelective
-
-        return ProxyEngineObjectData(
-            subqueryExecution.targetOER,
-            "add it to the selection set provided to Context.${options.operationType.name.lowercase()}() in order to access it from the result",
-            selectionSet,
-            isResolverSelective,
-            subqueryExecution.selections,
-        )
-    }
-
     override suspend fun resolveSelectionSetSync(
         executionHandle: EngineExecutionContext.ExecutionHandle,
         selectionSet: EngineSelectionSet,
@@ -209,7 +190,7 @@ class EngineImpl(
      * Shared implementation that validates inputs, builds the query plan, and executes
      * field resolution. Returns the populated OER and execution parameters.
      *
-     * This is the common preamble extracted from the two flavors of resolveSelectionSet.
+     * This is the common preamble for resolveSelectionSetSync.
      */
     private suspend fun executeSelectionSet(
         executionHandle: EngineExecutionContext.ExecutionHandle,

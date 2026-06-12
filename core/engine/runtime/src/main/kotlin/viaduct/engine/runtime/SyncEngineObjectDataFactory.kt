@@ -16,12 +16,8 @@ import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
  * Factory for creating [SyncProxyEngineObjectData] by eagerly resolving all selections
  * from an [ObjectEngineResult].
  *
- * This is the synchronous counterpart to [ProxyEngineObjectData], which resolves lazily.
- * Use this when you need all selections resolved upfront before accessing any data.
- *
- * Unlike throwing errors immediately during resolution, this factory stores errors
- * as [Exception] instances in the backing map. The exceptions are then thrown when
- * the field is accessed, matching [ProxyEngineObjectData]'s lazy error behavior.
+ * Eagerly resolves all selections from an [ObjectEngineResult]. Field-level errors are
+ * stored as [Exception] instances in the backing map and thrown when the field is accessed.
  */
 object SyncEngineObjectDataFactory {
     /**
@@ -219,7 +215,7 @@ object SyncEngineObjectDataFactory {
 
             // Lists (should) always contain `Cell`s, so the recursion here goes
             // to the `Cell` case. If any element has an error, return that error
-            // as the value for the whole list (matching ProxyEngineObjectData behavior).
+            // as the value for the whole list.
             is List<*> -> value.mapIndexed { index, it ->
                 val v = unwrap(it, subselections, errorMessage, parentPath?.segment(index), isResolverSelective, childSelections, skipAccessCheck)
                 if (v is Exception) return v // non-local return from unwrap
@@ -340,3 +336,5 @@ object SyncEngineObjectDataFactory {
         )
     }
 }
+
+class FieldErrorsException(val graphQLErrors: List<graphql.GraphQLError>) : RuntimeException()

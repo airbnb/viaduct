@@ -21,72 +21,72 @@ internal class InstrumentedEngineExecutionContextTest {
     private fun defaultImpl(): EngineExecutionContextImpl = ContextMocks().engineExecutionContextImpl
 
     @Test
-    fun `resolveSelectionSet wraps returned EngineObjectData in InstrumentedEngineObjectData`() =
+    fun `resolveSelectionSetSync wraps returned EngineObjectData Sync in InstrumentedEngineObjectData Sync`() =
         runBlocking {
             // Given
             val instrumentation = RecordingResolverInstrumentation()
             val state = instrumentation.createInstrumentationState(mockk())
-            val rawObjectData: EngineObjectData = mockk()
+            val rawObjectData: EngineObjectData.Sync = mockk()
             val selectionSet: EngineSelectionSet = mockk()
             val impl: EngineExecutionContextImpl = mockk(relaxed = true)
 
-            coEvery { impl.resolveSelectionSet(selectionSet, any()) } returns rawObjectData
+            coEvery { impl.resolveSelectionSetSync(selectionSet, any()) } returns rawObjectData
 
             val testClass = InstrumentedEngineExecutionContext(impl, instrumentation, state)
 
             // When
-            val result = testClass.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.DEFAULT)
+            val result = testClass.resolveSelectionSetSync(selectionSet, ResolveSelectionSetOptions.DEFAULT)
 
-            // Then — result is wrapped so fetch callbacks fire on subsequent field access
-            assertInstanceOf(InstrumentedEngineObjectData::class.java, result)
-            assertSame(rawObjectData, (result as InstrumentedEngineObjectData).engineObjectData)
+            // Then — result is wrapped so get callbacks fire on subsequent field access
+            assertInstanceOf(InstrumentedEngineObjectData.Sync::class.java, result)
+            assertSame(rawObjectData, (result as InstrumentedEngineObjectData.Sync).engineObjectData)
         }
 
     @Test
-    fun `resolveSelectionSet passes the same instrumentation and state to the wrapper`() =
+    fun `resolveSelectionSetSync passes the same instrumentation and state to the wrapper`() =
         runBlocking {
             // Given
             val instrumentation = RecordingResolverInstrumentation()
             val state = instrumentation.createInstrumentationState(mockk())
-            val rawObjectData: EngineObjectData = mockk()
+            val rawObjectData: EngineObjectData.Sync = mockk()
             val selectionSet: EngineSelectionSet = mockk()
             val impl: EngineExecutionContextImpl = mockk(relaxed = true)
 
-            coEvery { impl.resolveSelectionSet(selectionSet, any()) } returns rawObjectData
+            coEvery { impl.resolveSelectionSetSync(selectionSet, any()) } returns rawObjectData
 
             val testClass = InstrumentedEngineExecutionContext(impl, instrumentation, state)
 
             // When
-            val result = testClass.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.DEFAULT)
-                as InstrumentedEngineObjectData
+            val result = testClass.resolveSelectionSetSync(selectionSet, ResolveSelectionSetOptions.DEFAULT)
+                as InstrumentedEngineObjectData.Sync
 
             // Then — the same instrumentation and state are threaded through to the wrapper so
-            // that fetch callbacks on the returned object are associated with this resolver's
+            // that get callbacks on the returned object are associated with this resolver's
             // instrumentation context.
             assertSame(instrumentation, result.resolverInstrumentation)
             assertSame(state, result.instrumentationState)
         }
 
     @Test
-    fun `resolveSelectionSet forwards selectionSet and options to impl`() =
+    fun `resolveSelectionSetSync forwards selectionSet and options to impl`() =
         runBlocking {
             // Given
             val instrumentation = RecordingResolverInstrumentation()
             val state = instrumentation.createInstrumentationState(mockk())
-            val rawObjectData: EngineObjectData = mockk()
+            val rawObjectData: EngineObjectData.Sync = mockk()
             val selectionSet: EngineSelectionSet = mockk()
             val options = ResolveSelectionSetOptions.MUTATION
             val impl: EngineExecutionContextImpl = mockk(relaxed = true)
 
-            coEvery { impl.resolveSelectionSet(selectionSet, options) } returns rawObjectData
+            coEvery { impl.resolveSelectionSetSync(selectionSet, options) } returns rawObjectData
 
             val testClass = InstrumentedEngineExecutionContext(impl, instrumentation, state)
 
             // When
-            testClass.resolveSelectionSet(selectionSet, options)
+            testClass.resolveSelectionSetSync(selectionSet, options)
 
             // Then — impl is invoked with exactly the selectionSet and options passed by the caller
-            coVerify(exactly = 1) { impl.resolveSelectionSet(selectionSet, options) }
+            coVerify(exactly = 1) { impl.resolveSelectionSetSync(selectionSet, options) }
         }
 
     @Test

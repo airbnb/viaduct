@@ -19,37 +19,8 @@ interface Engine {
     suspend fun execute(executionInput: ExecutionInput): ExecutionResult
 
     /**
-     * Executes a selection set from within a resolver using an existing execution context.
-     *
-     * This is an internal wiring-layer API. Prefer using [EngineExecutionContext.resolveSelectionSet]
-     * from the engine layer, or the tenant-level `ctx.query()`/`ctx.mutation()` methods.
-     *
-     * This method enables resolvers to execute additional queries or mutations against the
-     * schema without rebuilding GraphQL-Java state. It uses the [ExecutionHandle][EngineExecutionContext.ExecutionHandle]
-     * to access the current execution context and resolves the provided selections into
-     * the target result specified in [options].
-     *
-     * The [executionHandle] must be obtained from [EngineExecutionContext.executionHandle]
-     * within the same request. Do not cache, construct custom implementations, or share across requests.
-     *
-     * @param executionHandle The opaque handle from the current execution context.
-     * @param selectionSet The [EngineSelectionSet] containing the fields to resolve.
-     * @param options The [ResolveSelectionSetOptions] controlling execution behavior.
-     * @return The resolved [EngineObjectData] wrapping the target result.
-     * @throws SubqueryExecutionException on execution failures. See subquery-execution.md for details.
-     */
-    suspend fun resolveSelectionSet(
-        executionHandle: EngineExecutionContext.ExecutionHandle,
-        selectionSet: EngineSelectionSet,
-        options: ResolveSelectionSetOptions,
-    ): EngineObjectData
-
-    /**
      * Executes a selection set from within a resolver using an existing execution context,
      * returning a synchronous [EngineObjectData.Sync] with all fields eagerly resolved.
-     *
-     * This is the sync counterpart to [resolveSelectionSet]. All fields are resolved before
-     * this method returns, so callers can access field values without suspending.
      *
      * @param executionHandle The opaque handle from the current execution context.
      * @param selectionSet The [EngineSelectionSet] containing the fields to resolve.
@@ -70,7 +41,7 @@ interface Engine {
      * This is an internal wiring-layer API. Prefer using [EngineExecutionContext.completeSelectionSet]
      * from the engine layer.
      *
-     * Unlike [resolveSelectionSet] which triggers field resolution, this method waits for
+     * Unlike [resolveSelectionSetSync] which triggers field resolution, this method waits for
      * already-in-progress resolution and transforms the resolved values into a completed result.
      * This is useful for shims executing classic DFPs on the modern engine, where field resolution
      * is triggered via RequiredSelectionSet and completion produces the final result.

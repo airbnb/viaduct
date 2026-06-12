@@ -42,7 +42,7 @@ interface EngineExecutionContext {
      *
      * This handle is set automatically by the engine when execution begins. It allows
      * the engine to associate this context with the correct execution state when
-     * [resolveSelectionSet] is called.
+     * [resolveSelectionSetSync] is called.
      *
      * ## Lifecycle
      *
@@ -132,7 +132,7 @@ interface EngineExecutionContext {
     /**
      * Interface representing an opaque handle representing an ongoing execution.
      *
-     * This handle enables subquery execution (via [resolveSelectionSet]) without tenant runtime
+     * This handle enables subquery execution (via [resolveSelectionSetSync]) without tenant runtime
      * code needing to understand execution internals. The engine uses this handle to:
      * - Access the current execution's coroutine scope and error accumulator
      * - Maintain parent-child relationships for error attribution
@@ -143,41 +143,8 @@ interface EngineExecutionContext {
     interface ExecutionHandle
 
     /**
-     * Executes a selection set against the engine with configurable options.
-     *
-     * This is the primary API for internal selection execution, providing control
-     * over operation type and memoization behavior.
-     *
-     * ## Three-Tier Architecture
-     *
-     * This method is the Engine API layer in the three-tier architecture:
-     * - **Tenant**: `ctx.query(SelectionSet<T>)` / `ctx.mutation(SelectionSet<T>)` - typed, simple
-     * - **Engine API**: `EEC.resolveSelectionSet(...)` - flexible, for shims and engine internals
-     * - **Wiring**: `Engine.resolveSelectionSet(...)` - implementation detail, only called by EEC
-     *
-     * ## Execution Handle Requirements
-     *
-     * This method requires a non-null [executionHandle]. If the handle is null (e.g., because
-     * execution hasn't started yet), it will throw [SubqueryExecutionException].
-     *
-     * @param selectionSet The [EngineSelectionSet] containing the fields to resolve
-     * @param options Execution options controlling behavior. Default executes as a Query.
-     * @return The resolved [EngineObjectData]
-     * @throws SubqueryExecutionException if [executionHandle] is null, the schema doesn't support the
-     *         requested operation type, or field resolution fails
-     * @see ResolveSelectionSetOptions For available options
-     */
-    suspend fun resolveSelectionSet(
-        selectionSet: EngineSelectionSet,
-        options: ResolveSelectionSetOptions = ResolveSelectionSetOptions.DEFAULT,
-    ): EngineObjectData
-
-    /**
      * Executes a selection set against the engine, returning a synchronous [EngineObjectData.Sync]
-     * with all fields eagerly resolved.
-     *
-     * This is the sync counterpart to [resolveSelectionSet]. All fields are resolved before
-     * this method returns, so callers can access field values without suspending.
+     * with all fields eagerly resolved before this method returns.
      *
      * @param selectionSet The [EngineSelectionSet] containing the fields to resolve
      * @param options Execution options controlling behavior. Default executes as a Query.
@@ -190,10 +157,16 @@ interface EngineExecutionContext {
         options: ResolveSelectionSetOptions = ResolveSelectionSetOptions.DEFAULT,
     ): EngineObjectData.Sync
 
+    /** Deprecated shim — delegates to [resolveSelectionSetSync]. */
+    suspend fun resolveSelectionSet(
+        selectionSet: EngineSelectionSet,
+        options: ResolveSelectionSetOptions = ResolveSelectionSetOptions.DEFAULT,
+    ): EngineObjectData = resolveSelectionSetSync(selectionSet, options)
+
     /**
      * Completes a selection set against the parent OER from the execution handle.
      *
-     * Unlike [resolveSelectionSet] which triggers field resolution, this method waits for
+     * Unlike [resolveSelectionSetSync] which triggers field resolution, this method waits for
      * already-in-progress resolution and transforms the OER values into a completed result.
      * This is the primary API for shims completing RequiredSelectionSet data that was
      * resolved during normal execution.
@@ -231,7 +204,7 @@ interface EngineExecutionContext {
      * This overload is used when you have a specific OER to complete against (e.g., a resolver
      * result) rather than the parent OER from the execution handle.
      *
-     * Unlike [resolveSelectionSet] which triggers field resolution, this method waits for
+     * Unlike [resolveSelectionSetSync] which triggers field resolution, this method waits for
      * already-in-progress resolution and transforms the OER values into a completed result.
      *
      * ## Execution Handle Requirements

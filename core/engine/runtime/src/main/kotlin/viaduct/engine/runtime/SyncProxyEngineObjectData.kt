@@ -8,13 +8,11 @@ import viaduct.errors.UnsetFieldException
  * A synchronous implementation of [EngineObjectData.Sync] that stores eagerly-resolved data
  * from an [ObjectEngineResult].
  *
- * Unlike [ProxyEngineObjectData] which lazily fetches data on access, this class
- * resolves all data upfront during construction. However, like [ProxyEngineObjectData],
- * field-level errors are deferred until the field is accessed - errors are stored in the
- * backing map as [Exception] instances and rethrown when the field is read.
+ * Resolves all data upfront during construction. Field-level errors are deferred until
+ * the field is accessed — errors are stored in the backing map as [Exception] instances
+ * and rethrown when the field is read.
  *
- * This is the synchronous counterpart to [ProxyEngineObjectData], created by
- * [SyncEngineObjectDataFactory].
+ * Created by [SyncEngineObjectDataFactory].
  *
  * @param type the concrete GraphQL object type that this data describes
  * @param data a map of data keyed by selection name; values may be [Exception] to indicate

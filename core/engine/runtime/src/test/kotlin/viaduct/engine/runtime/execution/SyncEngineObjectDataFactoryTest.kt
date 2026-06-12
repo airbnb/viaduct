@@ -2,8 +2,11 @@
 
 package viaduct.engine.runtime.execution
 
+import graphql.GraphQLError
 import graphql.execution.ResultPath
 import graphql.schema.GraphQLObjectType
+import graphql.validation.ValidationError
+import graphql.validation.ValidationErrorType
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
@@ -33,6 +36,7 @@ import viaduct.engine.runtime.FieldResolverDispatcher
 import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
+import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.newCell
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setCheckerValue
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setRawValue
 import viaduct.engine.runtime.ObjectEngineResultTestHelper
@@ -42,7 +46,6 @@ import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.createEngineSelectionSet
 import viaduct.engine.runtime.createSchema
-import viaduct.engine.runtime.execution.ProxyEngineObjectDataTest.Companion.mkOerWithListFieldError
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 
 class SyncEngineObjectDataFactoryTest {
@@ -1636,4 +1639,58 @@ class SyncEngineObjectDataFactoryTest {
                 }
             }
         }
+
+    companion object {
+        data class OerWithListFieldError(
+            val oer: ObjectEngineResultImpl,
+            val error: GraphQLError,
+        )
+
+        fun mkOerWithListFieldError(queryType: GraphQLObjectType): OerWithListFieldError {
+            val oer = ObjectEngineResultImpl.newForType(queryType)
+            val err =
+                ValidationError.newValidationError()
+                    .validationErrorType(ValidationErrorType.WrongType)
+                    .description("Test error")
+                    .build()
+
+            val listWithError = listOf(
+                newCell { slotSetter ->
+                    slotSetter.setRawValue(
+                        Value.fromValue(
+                            FieldResolutionResult("ok", emptyList(), CompositeLocalContext.empty, emptyMap(), "ok")
+                        )
+                    )
+                    slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+                },
+                newCell { slotSetter ->
+                    slotSetter.setRawValue(
+                        Value.fromValue(
+                            FieldResolutionResult(null, listOf(err), CompositeLocalContext.empty, emptyMap(), "error")
+                        )
+                    )
+                    slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+                },
+                newCell { slotSetter ->
+                    slotSetter.setRawValue(
+                        Value.fromValue(
+                            FieldResolutionResult("also ok", emptyList(), CompositeLocalContext.empty, emptyMap(), "also ok")
+                        )
+                    )
+                    slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+                }
+            )
+
+            oer.computeIfAbsent(ObjectEngineResult.Key("listField")) { slotSetter ->
+                slotSetter.setRawValue(
+                    Value.fromValue(
+                        FieldResolutionResult(listWithError, emptyList(), CompositeLocalContext.empty, emptyMap(), "listField")
+                    )
+                )
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+
+            return OerWithListFieldError(oer, err)
+        }
+    }
 }

@@ -166,24 +166,6 @@ class EngineExecutionContextImpl(
         return dispatcherRegistry.getNodeResolverDispatcher(typeName) != null
     }
 
-    override suspend fun resolveSelectionSet(
-        selectionSet: EngineSelectionSet,
-        options: ResolveSelectionSetOptions,
-    ): EngineObjectData {
-        val handle = executionHandle
-            ?: throw SubqueryExecutionException(
-                "resolveSelectionSet requires an executionHandle. " +
-                    "This typically means resolveSelectionSet was called before execution started " +
-                    "or from a context that doesn't have access to the current execution."
-            )
-
-        val effectiveOptions = options.copy(attribution = fieldScope.attribution)
-
-        return executeWithMetrics {
-            engine.resolveSelectionSet(handle, selectionSet, effectiveOptions)
-        }
-    }
-
     override suspend fun resolveSelectionSetSync(
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions,
