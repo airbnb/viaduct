@@ -16,8 +16,9 @@ import viaduct.service.api.scoping.SchemaScoping
  *
  * The DSL is single-call immutable: each declaration setter may be invoked at most once and
  * rejects empty inputs, so convention plugins composed with application code must compose at
- * the call site rather than mutate across calls. ID-format, reserved-name, and subset
- * validation are enforced elsewhere and are not covered here.
+ * the call site rather than mutate across calls. Per-ID syntax and reserved-name checks fire
+ * synchronously at setter time (covered here); cross-property subset/universe-presence invariants
+ * fire in the plugin's `afterEvaluate` hook and are covered by the TestKit suite.
  */
 @OptIn(ExperimentalApi::class)
 class ViaductApplicationExtensionTest {
@@ -177,6 +178,53 @@ class ViaductApplicationExtensionTest {
         // Guard against accidental regression of the existing extension surface.
         extension.modulePackagePrefix.set("com.example")
         assertEquals("com.example", extension.modulePackagePrefix.get())
+    }
+
+    @Test
+    fun `declaredSchemaScopes rejects a malformed scope id at setter time`() {
+        val ex = assertThrows<GradleException> {
+            extension.declaredSchemaScopes(setOf("public", "BAD-ID"))
+        }
+        assertTrue(
+            ex.message!!.contains("SCOPE_ID_FORMAT_INVALID") && ex.message!!.contains("BAD-ID"),
+            "Expected a coded, id-naming message, got: ${ex.message}",
+        )
+    }
+
+    @Test
+    fun `declaredScopedSchemas rejects a malformed scoped-schema id`() {
+        extension.declaredSchemaScopes(setOf("public"))
+        val ex = assertThrows<GradleException> {
+            extension.declaredScopedSchemas("PUBLIC-API" to setOf("public"))
+        }
+        assertTrue(
+            ex.message!!.contains("SCHEMA_ID_FORMAT_INVALID") && ex.message!!.contains("PUBLIC-API"),
+            "Expected a coded, id-naming message, got: ${ex.message}",
+        )
+    }
+
+    @Test
+    fun `declaredScopedSchemas rejects a reserved scoped-schema id`() {
+        extension.declaredSchemaScopes(setOf("public"))
+        val ex = assertThrows<GradleException> {
+            extension.declaredScopedSchemas("FULL" to setOf("public"))
+        }
+        assertTrue(
+            ex.message!!.contains("SCHEMA_ID_RESERVED"),
+            "Expected the reserved-id code, got: ${ex.message}",
+        )
+    }
+
+    @Test
+    fun `declaredScopedSchemas rejects a malformed scope id inside an entry`() {
+        extension.declaredSchemaScopes(setOf("public"))
+        val ex = assertThrows<GradleException> {
+            extension.declaredScopedSchemas("PUBLIC_API" to setOf("BAD-SCOPE"))
+        }
+        assertTrue(
+            ex.message!!.contains("SCOPE_ID_FORMAT_INVALID") && ex.message!!.contains("BAD-SCOPE"),
+            "Expected the scope-id-format code naming the bad scope, got: ${ex.message}",
+        )
     }
 
     @Test

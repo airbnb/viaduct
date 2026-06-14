@@ -7,6 +7,8 @@ import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.service.api.scoping.SchemaScoping
+import viaduct.service.api.scoping.SchemaScopingValidationError
+import viaduct.service.api.scoping.SchemaScopingValidator
 import viaduct.service.api.scoping.ScopingErrorCodes
 
 @OptIn(ExperimentalApi::class)
@@ -56,6 +58,7 @@ open class ViaductApplicationExtension(objects: ObjectFactory) {
                     "Omit the call entirely if this application does not declare scopes.",
             )
         }
+        scopes.forEach { SchemaScopingValidator.validateScopeId(it)?.let(::throwScopingError) }
         scopeUniverseDeclared = true
         scopeUniverseProperty.set(scopes)
     }
@@ -88,9 +91,21 @@ open class ViaductApplicationExtension(objects: ObjectFactory) {
                     "$duplicates. Each scoped-schema ID may only appear once.",
             )
         }
+        entries.forEach { (id, scopes) ->
+            SchemaScopingValidator.validateSchemaId(id)?.let(::throwScopingError)
+            scopes.forEach { SchemaScopingValidator.validateScopeId(it)?.let(::throwScopingError) }
+        }
         scopedSchemasDeclared = true
         scopedSchemasProperty.set(
             entries.associate { (id, scopes) -> id to ScopedSchemaDefinition(scopes) },
         )
     }
+
+    /**
+     * Renders a per-ID validation failure into a `[code] message` [GradleException] and throws it.
+     * Per-ID checks fire synchronously inside the setter so the failure points at the offending
+     * `build.gradle.kts` line; cross-property checks are aggregated separately by the plugin's
+     * `afterEvaluate` hook.
+     */
+    private fun throwScopingError(error: SchemaScopingValidationError): Nothing = throw GradleException("[${error.code}] ${error.message}")
 }

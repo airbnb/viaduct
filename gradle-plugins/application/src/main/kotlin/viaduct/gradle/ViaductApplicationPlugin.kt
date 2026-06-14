@@ -4,6 +4,7 @@ import centralSchemaDirectory
 import grtClassesDirectory
 import javaGrtClassesDirectory
 import javaGrtSourcesDirectory
+import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.attributes.Category
@@ -15,6 +16,7 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.kotlin.dsl.register
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.createOrGetJavaCodegenClasspath
@@ -24,13 +26,17 @@ import viaduct.gradle.ViaductPluginCommon.validateApplicationProjectPlacement
 import viaduct.gradle.task.AssembleCentralSchemaTask
 import viaduct.gradle.task.GenerateGRTClassFilesTask
 import viaduct.gradle.task.GenerateJavaGRTSourcesTask
+import viaduct.service.api.scoping.SchemaScopingValidator
 
+@OptIn(ExperimentalApi::class)
 abstract class ViaductApplicationPlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
             validateApplicationProjectPlacement()
 
-            extensions.create("viaductApplication", ViaductApplicationExtension::class.java, objects)
+            val appExtension =
+                extensions.create("viaductApplication", ViaductApplicationExtension::class.java, objects)
+            validateSchemaScopingAfterEvaluate(appExtension)
 
             val assembleCentralSchemaTask = setupAssembleCentralSchemaTask()
             setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
@@ -56,6 +62,28 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             // depend on generateViaductJavaGRTs explicitly.
             this.dependencies.add("api", files(kotlinGRTJar.flatMap { it.archiveFile }))
         }
+
+    /**
+     * Runs the cross-property scoping validator once the build's `viaductApplication` block has
+     * settled. Per-ID syntax is enforced at setter time inside [ViaductApplicationExtension]; the
+     * subset and universe-presence invariants span both declarations, so they fire here — after
+     * `afterEvaluate` — to stay independent of declaration order and to batch every violation into
+     * one failure.
+     *
+     * Configuration-cache safe: the hook captures only the extension (not the `Project`) and reads
+     * `schemaScoping` during the configuration phase, before any task graph is serialized.
+     */
+    private fun Project.validateSchemaScopingAfterEvaluate(appExtension: ViaductApplicationExtension) {
+        afterEvaluate {
+            val errors = SchemaScopingValidator.validate(appExtension.schemaScoping.get())
+            if (errors.isNotEmpty()) {
+                throw GradleException(
+                    "viaductApplication scope configuration is invalid:\n" +
+                        errors.joinToString("\n") { "  [${it.code}] ${it.message}" },
+                )
+            }
+        }
+    }
 
     private fun Project.setupAssembleCentralSchemaTask(): TaskProvider<AssembleCentralSchemaTask> {
         val allPartitions = configurations.create(ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING).apply {
