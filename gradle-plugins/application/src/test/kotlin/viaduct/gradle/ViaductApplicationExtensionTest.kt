@@ -180,6 +180,19 @@ class ViaductApplicationExtensionTest {
     }
 
     @Test
+    fun `retrofitted slice-1 throws now carry an error code prefix`() {
+        extension.declaredSchemaScopes(setOf("public"))
+        val ex = assertThrows<GradleException> {
+            extension.declaredSchemaScopes(setOf("internal"))
+        }
+        // The code prefix is added without dropping the original human-readable guidance.
+        assertTrue(
+            ex.message!!.contains("SCHEMA_SCOPES_DECLARED_TWICE") && ex.message!!.contains("only be called once"),
+            "Expected both the code and the original guidance, got: ${ex.message}",
+        )
+    }
+
+    @Test
     fun `assembled scoping matches a directly-constructed SchemaScoping`() {
         extension.declaredSchemaScopes(setOf("public", "internal", "admin"))
         extension.declaredScopedSchemas(
