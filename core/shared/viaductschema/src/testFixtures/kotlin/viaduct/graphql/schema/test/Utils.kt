@@ -5,13 +5,10 @@ import graphql.parser.MultiSourceReader
 import graphql.schema.GraphQLSchema
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
-import org.reflections.Reflections
-import org.reflections.scanners.Scanners
-import org.reflections.util.ClasspathHelper
-import org.reflections.util.ConfigurationBuilder
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.graphql.schema.graphqljava.readTypesFromURLs
+import viaduct.utils.classgraph.findResourcePathsMatching
 
 private val MIN_SCHEMA: String = """
     schema {
@@ -25,6 +22,8 @@ private val MIN_SCHEMA: String = """
 
 """.trimIndent()
 
+private val EXCLUDED_SCHEMA_MODULES = setOf("testfixtures", "data/codelab", "presentation/codelab")
+
 fun createSchema(schema: String): ViaductSchema = ViaductSchema.fromTypeDefinitionRegistry(SchemaParser().parse(MIN_SCHEMA + schema))
 
 fun createGraphQLSchema(schema: String): GraphQLSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(MIN_SCHEMA + schema))
@@ -37,34 +36,7 @@ fun loadGraphQLSchema(schemaResourcePaths: List<String>): ViaductSchema {
 
 fun loadGraphQLSchema(schemaResourcePath: String? = null): ViaductSchema {
     val packageWithSchema = System.getenv()["PACKAGE_WITH_SCHEMA"] ?: "graphql"
-    val paths = if (schemaResourcePath != null) {
-        listOf(Resources.getResource(schemaResourcePath))
-    } else {
-        // scan all the graphqls files in the classloader and load them as the schema
-        val reflections = Reflections(
-            ConfigurationBuilder()
-                .setUrls(
-                    ClasspathHelper.forPackage(
-                        packageWithSchema,
-                        ClasspathHelper.contextClassLoader(),
-                        ClasspathHelper.staticClassLoader(),
-                    ),
-                ).addScanners(Scanners.Resources),
-        )
-        val graphqlsResources = Scanners.Resources.with(".*\\.graphqls")
-
-        // Note: excluded schema modules are hard coded here to avoid pulling in tools/viaduct into oss
-        // For the list of excluded modules, vist the link below
-        // https://sourcegraph.a.musta.ch/airbnb/treehouse@8c0a0ea334b1556a40a40bcf725ff154668c2299/-/blob/tools/viaduct/src/main/kotlin/com/airbnb/viaduct/schema/modules/SchemaModule.kt?L106
-        val excludedSchemaModules = setOf("testfixtures", "data/codelab", "presentation/codelab")
-        reflections
-            .get(graphqlsResources)
-            .filter { resourcePath ->
-                excludedSchemaModules.none { schemaModuleDirectoryPath ->
-                    resourcePath.contains("graphql/$schemaModuleDirectoryPath")
-                }
-            }.map { Resources.getResource(it) }
-    }
+    val paths = findGraphQLSchemaResources(packageWithSchema, schemaResourcePath)
 
     if (paths.isEmpty()) {
         throw IllegalStateException("Could not find any graphqls files in the classpath ($packageWithSchema)")
@@ -72,6 +44,22 @@ fun loadGraphQLSchema(schemaResourcePath: String? = null): ViaductSchema {
 
     return ViaductSchema.fromTypeDefinitionRegistry(readTypesFromURLs(paths))
 }
+
+fun findGraphQLSchemaResources(
+    packageWithSchema: String,
+    schemaResourcePath: String? = null
+) = if (schemaResourcePath != null) {
+    listOf(Resources.getResource(schemaResourcePath))
+} else {
+    findResourcePathsMatching(packageWithSchema, Regex(".*\\.graphqls"))
+        .filter(::isIncludedSchemaResource)
+        .map { resourcePath -> Resources.getResource(resourcePath) }
+}
+
+fun isIncludedSchemaResource(resourcePath: String): Boolean =
+    EXCLUDED_SCHEMA_MODULES.none { schemaModuleDirectoryPath ->
+        resourcePath.contains("graphql/$schemaModuleDirectoryPath")
+    }
 
 /**
  * Built-in scalar definitions for use in tests that parse raw SDL.

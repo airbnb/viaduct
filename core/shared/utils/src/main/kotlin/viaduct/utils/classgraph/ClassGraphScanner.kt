@@ -16,6 +16,38 @@ import kotlin.time.measureTimedValue
 import viaduct.utils.slf4j.logger
 
 /**
+ * Finds classpath resource paths matching [regex] under [resourcePathPrefix].
+ *
+ * [resourcePathPrefix] is normalized to ClassGraph's resource path format. Package-like values such as
+ * `com.example.foo` become `com/example/foo`, while path-like values such as `graphql/` keep path
+ * separators and have leading/trailing slashes removed.
+ */
+fun findResourcePathsMatching(
+    resourcePathPrefix: String,
+    regex: Regex
+): List<String> =
+    ClassGraph()
+        .acceptPaths(normalizeResourcePathPrefix(resourcePathPrefix))
+        .scan()
+        .use { scanResult ->
+            scanResult
+                .getResourcesMatchingPattern(regex.toPattern())
+                .paths
+                .distinct()
+        }
+
+private fun normalizeResourcePathPrefix(resourcePathPrefix: String): String {
+    require(resourcePathPrefix.isNotBlank()) { "resourcePathPrefix must not be blank" }
+
+    val trimmedPrefix = resourcePathPrefix.trim('/')
+    return if (trimmedPrefix.contains('/')) {
+        trimmedPrefix
+    } else {
+        trimmedPrefix.replace('.', '/')
+    }
+}
+
+/**
  * Core class graph scanning functionality for Viaduct.
  *
  * This class provides efficient classpath scanning with caching support.

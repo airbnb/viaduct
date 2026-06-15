@@ -43,7 +43,6 @@ dependencies {
     testImplementation(testFixtures(libs.viaduct.shared.viaductschema))
     testImplementation(testFixtures(libs.viaduct.tenant.api))
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.reflections)
     testImplementation(libs.kotlin.reflect)
     testImplementation(libs.guava)
     testImplementation(libs.jackson.annotations)
