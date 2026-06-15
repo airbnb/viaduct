@@ -11,14 +11,15 @@ import viaduct.api.resolver.Resolver
  *
  * ## Key Components:
  *
- * 1. **Standard GraphQL Fragment**: A fragment that fetches all potentially needed fields.
+ * 1. **Multiple named fragment spreads**: a single selection set can spread more than one named
+ *    fragment. This resolver needs all four fields, so it composes two reusable fragments —
+ *    `CharacterIdentityFields` (`name`, `birthYear`) and `CharacterAppearanceFields`
+ *    (`eyeColor`, `hairColor`) — instead of listing the fields inline:
  *
  *    ```graphql
  *    fragment _ on Character {
- *        name
- *        birthYear
- *        eyeColor
- *        hairColor
+ *        ...CharacterIdentityFields
+ *        ...CharacterAppearanceFields
  *    }
  *    ```
  *
@@ -50,10 +51,8 @@ import viaduct.api.resolver.Resolver
 @Resolver(
     """
     fragment _ on Character {
-        name
-        birthYear
-        eyeColor
-        hairColor
+        ...CharacterIdentityFields
+        ...CharacterAppearanceFields
     }
     """
 )
