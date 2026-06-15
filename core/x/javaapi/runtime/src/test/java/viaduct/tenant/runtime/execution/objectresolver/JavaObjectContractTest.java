@@ -7,36 +7,14 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
-import viaduct.engine.api.mocks.MockTenantAPIBootstrapper;
 import viaduct.engine.api.spi.FieldResolverExecutor;
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper;
 import viaduct.java.api.annotations.Resolver;
-import viaduct.java.runtime.bridge.DefaultResolverClassFinder;
-import viaduct.java.runtime.bridge.ModuleBootstrapper;
-import viaduct.service.api.SchemaId;
-import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
-import viaduct.service.api.spi.CodeInjector;
-import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
-import viaduct.service.runtime.StandardViaduct;
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.FooResolvers;
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.NestedFooResolvers;
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.PersonResolvers;
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.QueryResolvers;
 
 public class JavaObjectContractTest extends ObjectContractTest {
-
-  private final DefaultResolverClassFinder classFinder =
-      new DefaultResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());
-
-  private final ModuleBootstrapper bootstrapper =
-      new ModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
-
-  @Override
-  protected TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>
-      createBootstrapperBuilder() {
-    return MockTenantAPIBootstrapperBuilder.INSTANCE.invoke(
-        new MockTenantAPIBootstrapper(List.of(bootstrapper)));
-  }
 
   // --- Resolvers ---
 
@@ -191,7 +169,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
 
   @Test
   public void fullAddressResolverHasObjectSelectionSetWired() {
-    FieldResolverExecutor executor = getFieldResolverExecutor("Person", "fullAddress");
+    FieldResolverExecutor executor = fieldResolverExecutorFor("Person", "fullAddress");
 
     assertNotNull(executor, "Executor for Person.fullAddress should exist");
     assertNotNull(
@@ -204,7 +182,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
 
   @Test
   public void greetingResolverWithoutObjectValueFragmentHasNullSelectionSet() {
-    FieldResolverExecutor executor = getFieldResolverExecutor("Person", "greeting");
+    FieldResolverExecutor executor = fieldResolverExecutorFor("Person", "greeting");
 
     assertNotNull(executor, "Executor for Person.greeting should exist");
     assertNull(
@@ -213,19 +191,5 @@ public class JavaObjectContractTest extends ObjectContractTest {
     assertNull(
         executor.getQuerySelectionSet(),
         "GreetingResolver without queryValueFragment should have null querySelectionSet");
-  }
-
-  private FieldResolverExecutor getFieldResolverExecutor(String typeName, String fieldName) {
-    tryBuildViaductService();
-    var schema =
-        ((StandardViaduct) viaductService).getEngineRegistry().getSchema(SchemaId.Full.INSTANCE);
-    var executors = bootstrapper.fieldResolverExecutors(schema);
-    for (var entry : executors) {
-      var coordinate = entry.getFirst();
-      if (typeName.equals(coordinate.getFirst()) && fieldName.equals(coordinate.getSecond())) {
-        return entry.getSecond();
-      }
-    }
-    return null;
   }
 }

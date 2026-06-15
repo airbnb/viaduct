@@ -157,6 +157,12 @@ class FeatureAppContractTestsPlugin : Plugin<Project> {
             "viaductCodegenClasspath",
             libs.findLibrary("viaduct-javaapi-codegen").get().get(),
         )
+        // The aggregation CLI lives in :tenant:codegen; ensure it is on the codegen classpath
+        // for the Java assembly step too (same CLI, different --executor-factory).
+        project.dependencies.add(
+            "viaductCodegenClasspath",
+            libs.findLibrary("viaduct-tenant-codegen").get().get(),
+        )
 
         val codegenTask = project.tasks.register<JavaContractCodegenTask>(
             "generateJavaContractTestSources"
@@ -176,12 +182,60 @@ class FeatureAppContractTestsPlugin : Plugin<Project> {
             )
         }
 
+        // Register the Java registry-extractor annotation processor on the test compile, so
+        // javac emits per-source-file `viaduct-registry/<pkg>/<Class>.json` descriptors next to
+        // the compiled test classes — the Java twin of Kotlin's KSP descriptor stage.
+        project.dependencies.add(
+            "testAnnotationProcessor",
+            libs.findLibrary("viaduct-javaapi-registry-apt").get().get(),
+        )
+
+        // Bridge task: copy the APT descriptor output from the test class-output dir into a
+        // stable directory the assembly task tracks as a typed input (mirrors the Kotlin KSP
+        // bridge Sync). compileTestJava writes resource output to the test classes dir.
+        val extractAptDescriptors = project.tasks.register<Sync>(
+            "extractTestJavaRegistryDescriptors"
+        ) {
+            from(
+                testSourceSet.map { sourceSet ->
+                    sourceSet.output.classesDirs.elements.map { dirs ->
+                        dirs.map { it.asFile.resolve("viaduct-registry") }
+                    }
+                }
+            ) {
+                // The directory only exists when at least one resolver was processed.
+                include("**/*.json")
+            }
+            into(project.layout.buildDirectory.dir("intermediates/viaduct-java-test-registry-descriptors"))
+            dependsOn(project.tasks.named("compileTestJava"))
+        }
+
+        val assembleTask = project.tasks.register<AssembleTenantModuleConfigFilesTask>(
+            "assembleJavaTestTenantModuleConfigFiles"
+        ) {
+            group = "viaduct-feature-app"
+            description = "Assembles tenant module config from Java APT descriptors and contract schemas"
+
+            descriptorDir.set(project.layout.buildDirectory.dir("intermediates/viaduct-java-test-registry-descriptors"))
+            contractSchemaDir.set(project.layout.dir(project.provider { contractSchemas.singleFile }))
+            this.codegenClasspath.from(codegenClasspath)
+            executorFactory.set(JAVA_EXECUTOR_FACTORY)
+            outputDir.set(
+                project.layout.buildDirectory.dir("generated-resources/viaduct-java-test-registry")
+            )
+
+            dependsOn(extractAptDescriptors)
+        }
+
         testSourceSet.configure {
             // Wire Java GRT sources to the test source set (they're .java source files,
             // not bytecode, so srcDir is correct here)
             java.srcDir(codegenTask.flatMap { it.grtOutputDir })
             // Wire generated resolver base sources to the test source set
             java.srcDir(codegenTask.flatMap { it.tenantOutputDir })
+            // Wire the assembled registry config into test resources so it lands on the test
+            // classpath, where BootstrapperFactory.fromResources discovers it.
+            resources.srcDir(assembleTask.flatMap { it.outputDir })
         }
     }
 }

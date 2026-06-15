@@ -5,32 +5,18 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import viaduct.api.testing.featureapp.MissingResolverImplementationException;
-import viaduct.engine.api.mocks.MockTenantAPIBootstrapper;
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper;
 import viaduct.java.api.annotations.NodeResolverFor;
 import viaduct.java.api.annotations.Resolver;
 import viaduct.java.api.annotations.ResolverFor;
 import viaduct.java.runtime.bridge.DefaultResolverClassFinder;
-import viaduct.java.runtime.bridge.ModuleBootstrapper;
-import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
-import viaduct.service.api.spi.CodeInjector;
-import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.tenant.runtime.execution.missingresolver.field.resolverbases.QueryResolvers;
 
 public class JavaMissingFieldResolverContractTest extends MissingFieldResolverContractTest {
 
+  // Test-only class finder used by the Java-aware completeness validator below. Bootstrapping
+  // itself is file-based (inherited from the contract base via the build-time registry).
   private final DefaultResolverClassFinder classFinder =
       new DefaultResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());
-
-  private final ModuleBootstrapper bootstrapper =
-      new ModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
-
-  @Override
-  protected TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>
-      createBootstrapperBuilder() {
-    return MockTenantAPIBootstrapperBuilder.INSTANCE.invoke(
-        new MockTenantAPIBootstrapper(List.of(bootstrapper)));
-  }
 
   // The Kotlin contract base's onBeforeBuild() validator only inspects Kotlin @ResolverFor
   // bases, so it never finds Java's @Resolver impls. Run a Java-aware equivalent that throws

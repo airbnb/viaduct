@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
 import viaduct.api.testing.TestSchema
 import viaduct.apiannotations.InternalApi
+import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.service.SchemaScopeInfo
 import viaduct.service.api.ExecutionInput
@@ -128,6 +129,28 @@ abstract class AbstractFeatureAppTestContractBase {
     }
 
     open fun defaultSchemaId(): SchemaId = SchemaId.Full
+
+    /**
+     * Returns the [FieldResolverExecutor] for the given coordinate, or null if none is registered.
+     *
+     * Builds the bootstrapper via [createBootstrapperBuilder] (file-based for both Kotlin and Java)
+     * and searches the resulting module bootstrappers. Useful for asserting how required selection
+     * sets were wired without executing a query.
+     */
+    protected fun fieldResolverExecutorFor(
+        typeName: String,
+        fieldName: String,
+    ): FieldResolverExecutor? {
+        tryBuildViaductService()
+        val schema = (viaductService as StandardViaduct).engineRegistry.getSchema(SchemaId.Full)
+        val coordinate = typeName to fieldName
+        return runBlocking {
+            createBootstrapperBuilder().create().tenantModuleBootstrappers()
+                .flatMap { it.fieldResolverExecutors(schema) }
+                .firstOrNull { it.first == coordinate }
+                ?.second
+        }
+    }
 
     /**
      * Attempts to build the [Viaduct] instance if it has not been initialized yet.

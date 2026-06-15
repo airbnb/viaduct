@@ -45,6 +45,7 @@ include(":tenant:wiring")
 // Java API modules
 include(":x:javaapi:api")
 include(":x:javaapi:codegen")
+include(":x:javaapi:registry-apt")
 include(":x:javaapi:runtime")
 
 // Include all shared modules

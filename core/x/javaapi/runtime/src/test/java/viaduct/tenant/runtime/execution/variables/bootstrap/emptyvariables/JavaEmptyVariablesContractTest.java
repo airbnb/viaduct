@@ -1,36 +1,15 @@
 package viaduct.tenant.runtime.execution.variables.bootstrap.emptyvariables;
 
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import viaduct.engine.api.mocks.MockTenantAPIBootstrapper;
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper;
 import viaduct.java.api.annotations.Resolver;
 import viaduct.java.api.annotations.Variables;
 import viaduct.java.api.context.VariablesProviderContext;
 import viaduct.java.api.types.Arguments;
 import viaduct.java.api.variables.VariablesProvider;
-import viaduct.java.runtime.bridge.DefaultResolverClassFinder;
-import viaduct.java.runtime.bridge.ModuleBootstrapper;
-import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
-import viaduct.service.api.spi.CodeInjector;
-import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.tenant.runtime.execution.variables.bootstrap.emptyvariables.resolverbases.QueryResolvers;
 
 public class JavaEmptyVariablesContractTest extends EmptyVariablesContractTest {
-
-  private final DefaultResolverClassFinder classFinder =
-      new DefaultResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());
-
-  private final ModuleBootstrapper bootstrapper =
-      new ModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
-
-  @Override
-  protected TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>
-      createBootstrapperBuilder() {
-    return MockTenantAPIBootstrapperBuilder.INSTANCE.invoke(
-        new MockTenantAPIBootstrapper(List.of(bootstrapper)));
-  }
 
   // --- Resolvers ---
 

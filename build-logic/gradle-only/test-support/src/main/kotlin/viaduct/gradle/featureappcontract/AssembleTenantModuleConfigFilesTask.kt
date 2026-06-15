@@ -6,8 +6,10 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileType
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Optional
@@ -72,6 +74,15 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
     @get:Classpath
     abstract val codegenClasspath: ConfigurableFileCollection
 
+    /**
+     * FQN of the [viaduct.engine.api.spi.ExecutorFactory] implementation to record in each
+     * generated registry file. Defaults to the Kotlin tenant-API factory ([MODERN_KOTLIN_EXECUTOR_FACTORY])
+     * when unset; the Java contract wiring overrides it with [JAVA_EXECUTOR_FACTORY].
+     */
+    @get:Input
+    @get:Optional
+    abstract val executorFactory: Property<String>
+
     /** Output directory for generated config files. */
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
@@ -130,7 +141,7 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
                 "--tenant-package",
                 pkg,
                 "--executor-factory",
-                MODERN_KOTLIN_EXECUTOR_FACTORY,
+                executorFactory.getOrElse(MODERN_KOTLIN_EXECUTOR_FACTORY),
                 "--output-dir",
                 outputDir.get().asFile.absolutePath,
             ),
@@ -208,6 +219,8 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
 }
 
 internal const val MODERN_KOTLIN_EXECUTOR_FACTORY = "viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory"
+
+internal const val JAVA_EXECUTOR_FACTORY = "viaduct.java.runtime.bootstrap.ViaductJavaExecutorFactory"
 
 /**
  * Actions that the incremental logic can perform. The task implements this
