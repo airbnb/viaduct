@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolveSelectionSetOptions
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 
@@ -22,7 +22,7 @@ class ResolveSelectionSetTest {
 
     @Test
     fun `resolveSelectionSetSync returns EngineObjectData Sync with scalar fields`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 name: String
@@ -67,7 +67,7 @@ class ResolveSelectionSetTest {
 
     @Test
     fun `resolveSelectionSetSync data supports getOrNull`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 name: String
@@ -112,7 +112,7 @@ class ResolveSelectionSetTest {
 
     @Test
     fun `resolveSelectionSetSync data supports getSelections`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 x: Int
@@ -161,7 +161,7 @@ class ResolveSelectionSetTest {
 
     @Test
     fun `resolveSelectionSetSync works with mutation operation type`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 container: Container
@@ -206,7 +206,7 @@ class ResolveSelectionSetTest {
 
     @Test
     fun `resolveSelectionSetSync returns EngineObjectData Sync for nested objects`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 person: Person

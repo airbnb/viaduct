@@ -3,7 +3,7 @@ package viaduct.engine.runtime
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 
@@ -27,7 +27,7 @@ class FieldDataLoaderTest {
         var fragmentsInBatchResolver: Map<String, *>? = null
         var variablesInBatchResolver: Map<String, *>? = null
 
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "items") {
                 resolver {
                     fn { _, _, _, _, _ ->

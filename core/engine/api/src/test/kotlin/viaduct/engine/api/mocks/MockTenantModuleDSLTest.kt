@@ -16,7 +16,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.spi.CheckerExecutor.CheckerType
 
-class MockLegacyTenantModuleBootstrapperDSLTest {
+class MockTenantModuleDSLTest {
     companion object {
         private val emptyArgs = emptyMap<String, Any?>()
         private val emptyObjectMap = emptyMap<String, EngineObjectData>()

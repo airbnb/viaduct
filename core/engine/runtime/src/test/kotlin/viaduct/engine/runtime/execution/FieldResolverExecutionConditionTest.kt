@@ -15,7 +15,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.runFeatureTest
@@ -98,7 +98,7 @@ class FieldResolverExecutionConditionTest {
         // Track whether the child resolver was called
         val childResolverCallCount = AtomicInteger(0)
 
-        val bootstrapper = MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        val bootstrapper = EngineTestModule(schemaSDL) {
             field("Query" to "parent") {
                 resolver {
                     fn { _, _, _, _, _ ->

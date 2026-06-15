@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -100,7 +100,7 @@ class NodeDataLoaderTest {
             }
         """.trimIndent()
 
-        MockLegacyTenantModuleBootstrapper(nodeSchema) {
+        EngineTestModule(nodeSchema) {
             field("Query" to "userList") {
                 resolver {
                     fn { _, _, _, _, ctx ->

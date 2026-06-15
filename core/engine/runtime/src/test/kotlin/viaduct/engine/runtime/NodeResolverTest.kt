@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 
@@ -34,7 +34,7 @@ class NodeResolverTest {
 
     @Test
     fun `node resolver returns value`() {
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -58,7 +58,7 @@ class NodeResolverTest {
 
     @Test
     fun `node reference nested inside resolver response`() {
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -89,7 +89,7 @@ class NodeResolverTest {
     @Test
     fun `node resolver is invoked for id-only resolution`() {
         var invoked = false
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -111,7 +111,7 @@ class NodeResolverTest {
 
     @Test
     fun `node resolver throws`() {
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -134,7 +134,7 @@ class NodeResolverTest {
     @Test
     fun `node field executes in parallel with node resolver`() {
         var yInvoked = false
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -167,7 +167,7 @@ class NodeResolverTest {
 
     @Test
     fun `awaits completion for node in required selection set`() {
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -215,7 +215,7 @@ class NodeResolverTest {
 
     @Test
     fun `list of nodes`() {
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "bazList") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -254,7 +254,7 @@ class NodeResolverTest {
     @Test
     fun `node resolver does not batch`() {
         val execCounts = ConcurrentHashMap<String, AtomicInteger>()
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "bazList") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -295,7 +295,7 @@ class NodeResolverTest {
     @Disabled("flaky")
     fun `node resolver reads from dataloader cache`() {
         val execCounts = ConcurrentHashMap<String, AtomicInteger>()
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -332,7 +332,7 @@ class NodeResolverTest {
         // Looped to catch concurrency regressions in the dataloader cache.
         repeat(100) {
             val execCounts = ConcurrentHashMap<String, AtomicInteger>()
-            MockLegacyTenantModuleBootstrapper(schemaSDL) {
+            EngineTestModule(schemaSDL) {
                 field("Query" to "baz") {
                     resolver {
                         fn { _, _, _, _, ctx ->
@@ -367,7 +367,7 @@ class NodeResolverTest {
         // Selective resolvers tailor their response based on requested fields,
         // so different selection sets for the same ID should NOT use cache
         val execCounts = ConcurrentHashMap<String, AtomicInteger>()
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -399,7 +399,7 @@ class NodeResolverTest {
 
     @Test
     fun `node reference list with single item failure`() {
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "bazList") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -434,7 +434,7 @@ class NodeResolverTest {
         // This is a regression test for NodeEngineObjectDataImpl.resolveData() calling the
         // underlying node resolver each time it's called when it should only call it once.
         val execCount = AtomicInteger(0)
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->

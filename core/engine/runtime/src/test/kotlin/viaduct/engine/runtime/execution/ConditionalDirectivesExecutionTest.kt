@@ -3,7 +3,7 @@ package viaduct.engine.runtime.execution
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 
@@ -12,7 +12,7 @@ class ConditionalDirectivesExecutionTest {
     fun `skipped inline fragment may contain only spread to pruned fragment`() {
         val hiddenValueResolverCalls = AtomicInteger()
 
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 item: Item

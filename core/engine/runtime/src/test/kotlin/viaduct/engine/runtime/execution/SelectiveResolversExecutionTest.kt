@@ -29,9 +29,9 @@ import viaduct.arbitrary.graphql.dump
 import viaduct.arbitrary.graphql.viaduct
 import viaduct.arbitrary.graphql.viaductExecutionInput
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.FeatureTest
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.fetchAs
@@ -104,7 +104,7 @@ class SelectiveResolversExecutionTest : KotestPropertyBase(iterations = 100) {
         // looks up that RSS through the global QueryPlanIndex, it can pick the child plan from
         // the never-executed Foo.x instead of the current root Foo.x. The Foo.x resolver then
         // waits forever when it fetches `foo`.
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
                 extend type Query { b: Int, foo: Foo }
                 type Foo { x: Int, y: Int, z: Int }
@@ -173,7 +173,7 @@ class SelectiveResolversExecutionTest : KotestPropertyBase(iterations = 100) {
         // createOERSelections looks up that RSS through the global QueryPlanIndex, it can pick
         // the child plan from the never-executed Query.a instead of the current root Query.a. The
         // Query.a resolver then waits forever when it fetches `foo`.
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
                 extend type Query { a: Int, foo: Foo }
                 type Foo { x: Int, z: Int }
@@ -254,7 +254,7 @@ class SelectiveResolversExecutionTest : KotestPropertyBase(iterations = 100) {
         // fetch then waits for a key that no launched child plan will populate. The minimized
         // shape is sensitive: `foo { x y }` passes, replacing the skipped fragment's `z` with
         // `__typename` passes, and removing the indirect `x -> z -> y` dependency passes.
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
                 extend type Query { b: Int, foo: Foo }
                 type Foo { x: Int, y: Int, z: Int }
@@ -365,7 +365,7 @@ class SelectiveResolversExecutionTest : KotestPropertyBase(iterations = 100) {
         // variable-RSS path. If runtime chooses the skipped branch's plan for Foo.z's object RSS,
         // Foo.z waits for a `y` value that will never be produced.
 
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
                 extend type Query { a: Int, b: Int, foo: Foo @resolver }
                 type Foo { y: Int, z: Int }

@@ -339,7 +339,7 @@ class MockLegacyTenantModuleBootstrapper(
          */
         operator fun invoke(
             schemaSDL: String,
-            block: MockLegacyTenantModuleBootstrapperDSL<Unit>.() -> Unit
+            block: MockTenantModuleDSL<Unit>.() -> Unit
         ) = invoke(createSchemaWithWiring(schemaSDL), block)
 
         /**
@@ -349,8 +349,8 @@ class MockLegacyTenantModuleBootstrapper(
          */
         operator fun invoke(
             schemaWithWiring: ViaductSchema,
-            block: MockLegacyTenantModuleBootstrapperDSL<Unit>.() -> Unit
-        ) = MockLegacyTenantModuleBootstrapperDSL(schemaWithWiring, Unit).apply { block() }.create()
+            block: MockTenantModuleDSL<Unit>.() -> Unit
+        ) = MockTenantModuleDSL(schemaWithWiring, Unit).apply { block() }.create()
     }
 
     fun resolveField(

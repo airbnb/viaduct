@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.getAs
@@ -48,7 +48,7 @@ class FieldPolicyCheckTest {
         val internalId = "person1"
         var canAccessPersonCheckerWasCalled = false
 
-        MockLegacyTenantModuleBootstrapper(SDL) {
+        EngineTestModule(SDL) {
             field("Query" to "canAccessTypeByReference") {
                 resolver {
                     fn { args, _, _, _, ctx ->
@@ -94,7 +94,7 @@ class FieldPolicyCheckTest {
 
     @Test
     fun `throws if type is not accessible on referenced node`() {
-        MockLegacyTenantModuleBootstrapper(SDL) {
+        EngineTestModule(SDL) {
             field("Query" to "canNotAccessTypeByReference") {
                 resolver {
                     fn { args, _, _, _, ctx ->
@@ -134,7 +134,7 @@ class FieldPolicyCheckTest {
     fun `field should fail even if node passes`() {
         var canAccessPersonCheckerWasCalled = false
 
-        MockLegacyTenantModuleBootstrapper(SDL) {
+        EngineTestModule(SDL) {
             field("Query" to "canNotAccessType") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -183,7 +183,7 @@ class FieldPolicyCheckTest {
     fun `field returns if policy check passes`() {
         var canAccessFieldCheckerWasCalled = false
 
-        MockLegacyTenantModuleBootstrapper(SDL) {
+        EngineTestModule(SDL) {
             field("Query" to "canAccessField") {
                 resolver {
                     fn { _, _, _, _, _ -> "can see field" }
@@ -207,7 +207,7 @@ class FieldPolicyCheckTest {
 
     @Test
     fun `field does not return if policy check fails`() {
-        MockLegacyTenantModuleBootstrapper(SDL) {
+        EngineTestModule(SDL) {
             field("Query" to "canNotAccessField") {
                 resolver {
                     fn { _, _, _, _, _ -> "should not resolve" }

@@ -2,7 +2,7 @@ package viaduct.engine.runtime
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.graphql.test.assertJson
@@ -29,7 +29,7 @@ class NamespaceTypeTest {
     }
 
     private fun bootstrapper() =
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Listings" to "availableRoomTypes") {
                 resolver {
                     fn { _, _, _, _, _ ->
