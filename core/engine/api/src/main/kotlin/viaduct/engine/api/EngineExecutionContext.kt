@@ -157,12 +157,6 @@ interface EngineExecutionContext {
         options: ResolveSelectionSetOptions = ResolveSelectionSetOptions.DEFAULT,
     ): EngineObjectData.Sync
 
-    /** Deprecated shim — delegates to [resolveSelectionSetSync]. */
-    suspend fun resolveSelectionSet(
-        selectionSet: EngineSelectionSet,
-        options: ResolveSelectionSetOptions = ResolveSelectionSetOptions.DEFAULT,
-    ): EngineObjectData = resolveSelectionSetSync(selectionSet, options)
-
     /**
      * Completes a selection set against the parent OER from the execution handle.
      *

@@ -407,10 +407,10 @@ object CheckerDispatchers {
  *
  * This is a convenience wrapper for tests that previously used the deprecated
  * `EngineExecutionContext.query()` method. For production code, use
- * [EngineExecutionContext.resolveSelectionSet] directly.
+ * [EngineExecutionContext.resolveSelectionSetSync] directly.
  */
-suspend fun EngineExecutionContext.query(selectionSet: EngineSelectionSet): EngineObjectData =
-    resolveSelectionSet(
+suspend fun EngineExecutionContext.query(selectionSet: EngineSelectionSet): EngineObjectData.Sync =
+    resolveSelectionSetSync(
         selectionSet,
         ResolveSelectionSetOptions.DEFAULT
     )
@@ -420,10 +420,10 @@ suspend fun EngineExecutionContext.query(selectionSet: EngineSelectionSet): Engi
  *
  * This is a convenience wrapper for tests that previously used the deprecated
  * `EngineExecutionContext.mutation()` method. For production code, use
- * [EngineExecutionContext.resolveSelectionSet] directly.
+ * [EngineExecutionContext.resolveSelectionSetSync] directly.
  */
-suspend fun EngineExecutionContext.mutation(selectionSet: EngineSelectionSet): EngineObjectData =
-    resolveSelectionSet(
+suspend fun EngineExecutionContext.mutation(selectionSet: EngineSelectionSet): EngineObjectData.Sync =
+    resolveSelectionSetSync(
         selectionSet,
         ResolveSelectionSetOptions.MUTATION
     )
