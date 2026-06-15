@@ -7,10 +7,10 @@ The release process follows these steps:
 1. **Bump version** on main to the next SNAPSHOT (e.g., `0.8.0-SNAPSHOT`)
 2. **Create release branch** from the commit before the bump (e.g., `release/v0.7.0` with initial VERSION `0.7.0`)
 3. **Validate** — run CI across all Java/OS combinations
-4. **(Optional) Publish release candidate** — publish `X.Y.Z-rc.N` artifacts, push RC demo apps, and verify them
+4. **(Optional) Publish release candidate** — inspect the published-jar SBOMs, then publish `X.Y.Z-rc.N` artifacts, push RC demo apps, and verify them
 5. **Generate changelog** and review with the team
 6. **Confirm release** at the team meeting
-7. **Publish final release** — one command that publishes `X.Y.Z`, pushes demo apps to `main`, verifies them, creates the tag, and publishes the GitHub release
+7. **Publish final release** — inspect the published-jar SBOMs, then run one command that publishes `X.Y.Z`, pushes demo apps to `main`, verifies them, creates the tag, and publishes the GitHub release
 8. **Verify** — pull and test all the published demo apps against the published artifacts
 
 ## Quick Command Reference
@@ -25,15 +25,16 @@ export NEXT_VER="0.30.0" \
 export GH_USER="your-github.com-username"
 ```
 
-| Step | Command |
-|------|---------|
-| [2. Version bump](#2-bump-version-on-main) | `./gradlew setVersion -PsetVersion=${NEXT_VER}-SNAPSHOT`, PR |
-| [3. Release branch](#3-create-release-branch) | `git checkout -b release/v${RELEASE_VER}`, `./gradlew setVersion -PsetVersion=${RELEASE_VER}`, push |
-| [4. Validate build](#4-validate-build) | `gh workflow run ci-trigger.yml --ref release/v${RELEASE_VER}` |
-| [5. Publish RC](#5-publish-release-candidate-optional) | `./gradlew setVersion -PsetVersion=${RELEASE_VER}-${RC_VER}`, commit, push, `gh workflow run release.yml -f release_version=${RELEASE_VER} -f rc_ver=${RC_VER}` |
-| [6. Changelog](#6-generate-changelog) | `generate_changelog.py origin/release/v${PREV_VER} HEAD` |
-| [8. Publish final release](#8-publish-final-release) | `gh workflow run release.yml -f release_version=${RELEASE_VER} -f final=true -F release_notes=@changelog.md` |
-| [9. Verify](#9-verify) | clone/pull + `./gradlew test` all published demo apps |
+| Step                                                                         | Command |
+|------------------------------------------------------------------------------|---------|
+| [2. Version bump](#2-bump-version-on-main)                                   | `./gradlew setVersion -PsetVersion=${NEXT_VER}-SNAPSHOT`, PR |
+| [3. Release branch](#3-create-release-branch)                                | `git checkout -b release/v${RELEASE_VER}`, `./gradlew setVersion -PsetVersion=${RELEASE_VER}`, push |
+| [4. Validate build](#4-validate-build)                                       | `gh workflow run ci-trigger.yml --ref release/v${RELEASE_VER}` |
+| [5. Publish RC](#5-publish-release-candidate-optional)                       | `./gradlew setVersion -PsetVersion=${RELEASE_VER}-${RC_VER}`, commit, push, `gh workflow run release.yml -f release_version=${RELEASE_VER} -f rc_ver=${RC_VER}` |
+| [6. Changelog](#6-generate-changelog)                                        | `generate_changelog.py origin/release/v${PREV_VER} HEAD` |
+| [7. SBOM inspection](#pre-publication-sbom-inspection) (before each publish) | `./gradlew -p publications cyclonedxBom --no-configuration-cache`, then inspect |
+| [8. Publish final release](#8-publish-final-release)                         | `gh workflow run release.yml -f release_version=${RELEASE_VER} -f final=true -F release_notes=@changelog.md` |
+| [9. Verify](#9-verify)                                                       | clone/pull + `./gradlew test` all published demo apps |
 
 ## Prerequisites
 
@@ -239,6 +240,60 @@ This runs three sub-workflows:
 
 Wait for all jobs to pass (15-30 minutes).
 
+### Pre-publication SBOM inspection
+
+> **Run this before every publish — both Step 5 (RC) and Step 8 (final).** A published fat JAR
+> must not bundle test/build-only libraries — a stray `testFixtures(...)` dependency can pull
+> junit, mockk and friends into a shipped artifact while every test still passes. Take a quick
+> look at each jar's SBOM first; `test-fixtures` is the most prone, but skim them all.
+
+**1. Generate the SBOMs** on the commit you are about to publish:
+
+```bash
+cd ~/repos/viaduct && git checkout release/v${RELEASE_VER}
+./gradlew -p publications cyclonedxBom --no-configuration-cache
+```
+
+One SBOM is written per fat JAR at `publications/<module>/build/reports/sbom/cyclonedx.json`
+(`api`, `runtime`, `buildtime`, `test-fixtures`, `javaapi-api`, `javaapi-runtime`,
+`javaapi-buildtime`). Each should list a few dozen dependencies; if a file is nearly empty the
+configuration cache blanked it — the `--no-configuration-cache` flag prevents that, so re-run.
+
+**2. Open each SBOM and skim the dependencies.** Open them in an editor or pager
+(`more publications/*/build/reports/sbom/cyclonedx.json`), or list just the coordinates:
+
+```bash
+for f in publications/*/build/reports/sbom/cyclonedx.json; do
+  echo "== $f =="
+  python3 -c "import json,sys;[print(f\"{c.get('group','')}:{c['name']}:{c.get('version','')}\") for c in json.load(open(sys.argv[1])).get('components',[])]" "$f"
+done | less
+```
+
+Normal entries look like:
+
+```
+com.fasterxml.jackson.core:jackson-databind:2.17.3
+com.google.guava:guava:33.3.1-jre
+org.slf4j:slf4j-api:2.0.7
+```
+
+**3. What to look for.** A published runtime jar should contain **none** of these — nor anything
+with `test`, `assert`, or `mock` in the name:
+
+```
+junit   mockk   mockito   byte-buddy   objenesis   javassist   assertj   strikt   hamcrest   truth
+```
+
+A line like `io.mockk:mockk:1.13.x` or `org.junit.jupiter:junit-jupiter:5.x` means a test/build
+dependency leaked into a published artifact — **stop**, fix the offending module's
+`build.gradle.kts` (look for a stray `testFixtures(...)` or a test-lib `api`/`implementation`),
+and re-cut before publishing.
+
+> **Expected — not a leak:** `kotlin`, `kotest` and `opentest4j` can appear in the SBOM. It
+> lists the full dependency graph, but the fat-jar build strips those from the packaged jar (see
+> the `exclude(...)` list in `publications/test-fixtures/build.gradle.kts`), so they are fine to
+> see here. Focus on the libraries above.
+
 ### 5) Publish release candidate (optional)
 
 Use this when you want a public release candidate before the final release.
@@ -258,6 +313,8 @@ git add VERSION demoapps/*/gradle.properties
 git commit -m "chore: Set version to ${RELEASE_VER}-${RC_VER}"
 git push origin release/v${RELEASE_VER}
 ```
+
+> **Before publishing:** complete the [Pre-publication SBOM inspection](#pre-publication-sbom-inspection). Do not trigger the workflow if a fat JAR ships test/build-only libraries.
 
 **Publish the RC:**
 
@@ -340,6 +397,8 @@ git push origin release/v${RELEASE_VER}
 ```
 
 > **Warning:** This publishes to Maven Central and Gradle Plugin Portal. Once published, a version cannot be unpublished from Maven Central.
+
+> **Before publishing:** complete the [Pre-publication SBOM inspection](#pre-publication-sbom-inspection) on the final commit. Do not trigger the workflow if a fat JAR ships test/build-only libraries.
 
 This single command publishes artifacts, pushes demo apps to standalone repos, verifies them, creates the release tag, and publishes the GitHub release:
 
