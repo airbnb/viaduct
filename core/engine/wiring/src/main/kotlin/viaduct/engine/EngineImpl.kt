@@ -166,7 +166,7 @@ class EngineImpl(
         return graphql.executeAsync(gjExecutionInput).await()
     }
 
-    override suspend fun resolveSelectionSetSync(
+    override suspend fun resolveSelectionSet(
         executionHandle: EngineExecutionContext.ExecutionHandle,
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions,
@@ -190,7 +190,7 @@ class EngineImpl(
      * Shared implementation that validates inputs, builds the query plan, and executes
      * field resolution. Returns the populated OER and execution parameters.
      *
-     * This is the common preamble for resolveSelectionSetSync.
+     * This is the common preamble for resolveSelectionSet.
      */
     private suspend fun executeSelectionSet(
         executionHandle: EngineExecutionContext.ExecutionHandle,

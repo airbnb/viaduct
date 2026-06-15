@@ -134,7 +134,7 @@ class CallbackNodeResolverExecutor(
                             "id name email",
                             emptyMap()
                         )
-                        val authorData = context.resolveSelectionSetSync(authorSelections)
+                        val authorData = context.resolveSelectionSet(authorSelections)
 
                         // Add author data to the post
                         builder.put("author", authorData)

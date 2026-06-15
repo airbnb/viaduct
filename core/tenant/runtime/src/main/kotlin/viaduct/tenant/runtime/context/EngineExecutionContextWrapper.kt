@@ -67,7 +67,7 @@ class EngineExecutionContextWrapperImpl(
         selections: SelectionSet<T>
     ): T =
         handleFrameworkErrorsSuspend("query") {
-            engineExecutionContext.resolveSelectionSetSync(
+            engineExecutionContext.resolveSelectionSet(
                 selections.getEngineSelectionSet(),
                 ResolveSelectionSetOptions.DEFAULT
             ).toObjectGRT(ctx, selections.type.kcls)
@@ -78,7 +78,7 @@ class EngineExecutionContextWrapperImpl(
         selections: SelectionSet<T>
     ): T =
         handleFrameworkErrorsSuspend("mutation") {
-            engineExecutionContext.resolveSelectionSetSync(
+            engineExecutionContext.resolveSelectionSet(
                 selections.getEngineSelectionSet(),
                 ResolveSelectionSetOptions.MUTATION
             ).toObjectGRT(ctx, selections.type.kcls)

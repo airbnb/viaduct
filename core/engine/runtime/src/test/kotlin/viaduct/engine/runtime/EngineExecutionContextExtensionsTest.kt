@@ -254,7 +254,7 @@ class EngineExecutionContextExtensionsTest {
             override val executionHandle: EngineExecutionContext.ExecutionHandle? get() = null
             override val fieldScope get() = mockk<EngineExecutionContext.FieldExecutionScope>()
 
-            override suspend fun resolveSelectionSetSync(
+            override suspend fun resolveSelectionSet(
                 selectionSet: EngineSelectionSet,
                 options: ResolveSelectionSetOptions
             ): EngineObjectData.Sync = mockk()

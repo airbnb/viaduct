@@ -18,7 +18,7 @@ import viaduct.engine.runtime.ObjectEngineResultImpl
  * Test suite for the completeSelectionSet API.
  *
  * completeSelectionSet completes already-resolved fields from an ObjectEngineResult
- * into a graphql-java ExecutionResult (data Map + errors). Unlike resolveSelectionSetSync
+ * into a graphql-java ExecutionResult (data Map + errors). Unlike resolveSelectionSet
  * which triggers field resolution, completeSelectionSet transforms OER values that
  * were already resolved during the normal query plan execution.
  *
@@ -347,7 +347,7 @@ class CompleteSelectionSetTest {
     }
 
     @Test
-    fun `query-typed completion with explicit targetResult via resolveSelectionSetSync`() {
+    fun `query-typed completion with explicit targetResult via resolveSelectionSet`() {
         // Explicit targetResult is honored even for Query-typed selections (engine fix).
         EngineTestModule(
             """
@@ -382,7 +382,7 @@ class CompleteSelectionSetTest {
                         val oer = ObjectEngineResultImpl.newForType(schema.schema.queryType)
                         val rss = ctx.engineSelectionSetFactory
                             .engineSelectionSet("Query", "rootValue name", emptyMap())
-                        ctx.resolveSelectionSetSync(
+                        ctx.resolveSelectionSet(
                             rss,
                             ResolveSelectionSetOptions(targetResult = oer)
                         )

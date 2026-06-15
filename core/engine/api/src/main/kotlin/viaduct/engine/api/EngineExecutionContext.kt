@@ -42,7 +42,7 @@ interface EngineExecutionContext {
      *
      * This handle is set automatically by the engine when execution begins. It allows
      * the engine to associate this context with the correct execution state when
-     * [resolveSelectionSetSync] is called.
+     * [resolveSelectionSet] is called.
      *
      * ## Lifecycle
      *
@@ -132,7 +132,7 @@ interface EngineExecutionContext {
     /**
      * Interface representing an opaque handle representing an ongoing execution.
      *
-     * This handle enables subquery execution (via [resolveSelectionSetSync]) without tenant runtime
+     * This handle enables subquery execution (via [resolveSelectionSet]) without tenant runtime
      * code needing to understand execution internals. The engine uses this handle to:
      * - Access the current execution's coroutine scope and error accumulator
      * - Maintain parent-child relationships for error attribution
@@ -152,7 +152,7 @@ interface EngineExecutionContext {
      * @throws SubqueryExecutionException if [executionHandle] is null, the schema doesn't support the
      *         requested operation type, or field resolution fails
      */
-    suspend fun resolveSelectionSetSync(
+    suspend fun resolveSelectionSet(
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions = ResolveSelectionSetOptions.DEFAULT,
     ): EngineObjectData.Sync
@@ -160,7 +160,7 @@ interface EngineExecutionContext {
     /**
      * Completes a selection set against the parent OER from the execution handle.
      *
-     * Unlike [resolveSelectionSetSync] which triggers field resolution, this method waits for
+     * Unlike [resolveSelectionSet] which triggers field resolution, this method waits for
      * already-in-progress resolution and transforms the OER values into a completed result.
      * This is the primary API for shims completing RequiredSelectionSet data that was
      * resolved during normal execution.
@@ -198,7 +198,7 @@ interface EngineExecutionContext {
      * This overload is used when you have a specific OER to complete against (e.g., a resolver
      * result) rather than the parent OER from the execution handle.
      *
-     * Unlike [resolveSelectionSetSync] which triggers field resolution, this method waits for
+     * Unlike [resolveSelectionSet] which triggers field resolution, this method waits for
      * already-in-progress resolution and transforms the OER values into a completed result.
      *
      * ## Execution Handle Requirements
