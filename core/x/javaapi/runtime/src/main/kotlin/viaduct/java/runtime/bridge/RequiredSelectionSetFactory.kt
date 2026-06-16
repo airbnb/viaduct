@@ -10,6 +10,9 @@ import viaduct.engine.api.RequiredSelectionSets
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
+import viaduct.engine.api.bootstrap.executionregistry.ProviderVariablesAPIData
+import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
 import viaduct.engine.api.checkDisjoint
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.graphql.utils.ParsedSelections
@@ -22,14 +25,61 @@ import viaduct.java.api.variables.VariablesProvider
 import viaduct.service.api.spi.CodeInjector
 
 /**
- * Factory for creating [RequiredSelectionSets] from Java [Resolver] annotations.
+ * Factory for creating [RequiredSelectionSets] for Java resolvers.
  *
  * This is the Java equivalent of the Kotlin [viaduct.tenant.runtime.bootstrap.RequiredSelectionSetFactory].
- * It parses the [Resolver.objectValueFragment] and [Resolver.queryValueFragment] properties,
- * converts [Variable] annotations to [SelectionSetVariable] instances, and discovers nested
- * [VariablesProvider] classes (annotated with [Variables]) for dynamic variable provisioning.
+ * There are two entry points:
+ *  - [mkRequiredSelectionSets] from a build-time [FieldEntryConfig] registry descriptor — the
+ *    preferred path used by [viaduct.java.runtime.bootstrap.ViaductJavaExecutorFactory], keeping the
+ *    JSON registry as the single source of truth for bootstrap data.
+ *  - [mkRequiredSelectionSets] from a runtime [Resolver] annotation — retained for the legacy
+ *    classpath-scanning bootstrap (`ModuleBootstrapper`).
+ *
+ * Both parse the object/query selection fragments, convert their variable declarations to
+ * [SelectionSetVariable] instances, and discover nested [VariablesProvider] classes (annotated with
+ * [Variables]) for dynamic variable provisioning.
  */
 class RequiredSelectionSetFactory {
+    /**
+     * Create a [RequiredSelectionSets] from a build-time [FieldEntryConfig] registry descriptor.
+     *
+     * The selection fragments and [Variable] declarations are read from the registry JSON (the same
+     * data the APT extractor emitted from the [Resolver] annotation), rather than re-reading the
+     * runtime annotation. The nested [VariablesProvider] class, however, is still discovered
+     * reflectively from [resolverClass] since it is not represented in the registry.
+     *
+     * @param schema The Viaduct schema containing type definitions
+     * @param entry The field registry descriptor carrying the selection fragments and variables
+     * @param resolverClass The resolver implementation class. Used both for attribution and for
+     *        discovering nested [VariablesProvider] classes.
+     * @param injector The injector used to obtain instances of the discovered VariablesProvider.
+     * @param argumentsClass The Arguments class for the field this resolver targets, or null if
+     *        the field has no arguments. Forwarded to the VariablesProvider executor so the
+     *        provider receives a typed Arguments instance.
+     * @return A [RequiredSelectionSets] containing the parsed object and query selections
+     */
+    fun mkRequiredSelectionSets(
+        schema: ViaductSchema,
+        entry: FieldEntryConfig,
+        resolverClass: Class<*>,
+        injector: CodeInjector,
+        argumentsClass: Class<out Arguments>? = null,
+    ): RequiredSelectionSets {
+        val objectSelections = entry.objectSelections?.selections
+            ?.takeIf { it.isNotBlank() }
+            ?.let { SelectionsParser.parse(entry.typeName, it) }
+        val querySelections = entry.querySelections?.selections
+            ?.takeIf { it.isNotBlank() }
+            ?.let { SelectionsParser.parse(schema.schema.queryType.name, it) }
+
+        if (objectSelections == null && querySelections == null) {
+            return RequiredSelectionSets.empty()
+        }
+
+        val variables = buildVariables(entry.objectSelections, entry.querySelections)
+        return build(objectSelections, querySelections, variables, resolverClass, injector, argumentsClass)
+    }
+
     /**
      * Create a [RequiredSelectionSets] from the provided [Resolver] annotation.
      *
@@ -72,6 +122,22 @@ class RequiredSelectionSetFactory {
         }
 
         val variables = annotation.variables.map { v -> v.toSelectionSetVariable() }
+        return build(objectSelections, querySelections, variables, resolverClass, injector, argumentsClass)
+    }
+
+    /**
+     * Shared tail for both entry points: discover the nested [VariablesProvider], validate that
+     * every declared variable is consumed, build the variable resolvers, and assemble the
+     * [RequiredSelectionSets].
+     */
+    private fun build(
+        objectSelections: ParsedSelections?,
+        querySelections: ParsedSelections?,
+        variables: List<SelectionSetVariable>,
+        resolverClass: Class<*>,
+        injector: CodeInjector,
+        argumentsClass: Class<out Arguments>?,
+    ): RequiredSelectionSets {
         val variablesProviderExecutor = mkVariablesProviderExecutor(resolverClass, injector, argumentsClass)
 
         val variableConsumers = buildSet<String> {
@@ -117,6 +183,23 @@ class RequiredSelectionSetFactory {
             }
         )
     }
+
+    /**
+     * Convert the registry [SelectionsBlockConfig] variable declarations into [SelectionSetVariable]s,
+     * mirroring [viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory]'s handling.
+     */
+    private fun buildVariables(
+        objectSelections: SelectionsBlockConfig?,
+        querySelections: SelectionsBlockConfig?,
+    ): List<SelectionSetVariable> =
+        (
+            (objectSelections?.variablesProviders ?: emptyList()) +
+                (querySelections?.variablesProviders ?: emptyList())
+        ).flatMap { providerEntry ->
+            providerEntry.providedVariables.keys.map { varName ->
+                providerEntry.providerVariablesAPIData.toSelectionSetVariable(varName)
+            }
+        }
 
     private fun mkFromAnnotationVariablesResolvers(
         objectSelections: ParsedSelections?,
@@ -182,6 +265,19 @@ private fun Variable.toSelectionSetVariable(): SelectionSetVariable {
         else -> error("Unreachable: exactly one field should be set")
     }
 }
+
+/**
+ * Convert a registry [ProviderVariablesAPIData] entry to a [SelectionSetVariable].
+ *
+ * Mirrors the same conversion in [viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory].
+ */
+private fun ProviderVariablesAPIData.toSelectionSetVariable(varName: String): SelectionSetVariable =
+    when (type) {
+        "fromArgument" -> FromArgumentVariable(varName, path)
+        "fromObjectField" -> FromObjectFieldVariable(varName, path)
+        "fromQueryField" -> FromQueryFieldVariable(varName, path)
+        else -> error("Unknown variable provider type '$type' for variable '$varName'")
+    }
 
 /**
  * Parse a [Variables] annotation into the set of declared variable names.

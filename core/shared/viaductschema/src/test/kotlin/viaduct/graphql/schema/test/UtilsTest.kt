@@ -37,4 +37,21 @@ internal class UtilsTest {
         // invalidschemapkg defined in bazel as env variable.
         assertEquals("Could not find any graphqls files in the classpath (invalidschemapkg)", exception.message)
     }
+
+    @Test
+    fun `schema resource discovery finds graphqls resources under graphql path`() {
+        val resources = findGraphQLSchemaResources("graphql").map { it.path }
+
+        assertTrue(resources.any { it.contains("graphql/classgraph-included.graphqls") })
+    }
+
+    @Test
+    fun `schema resource discovery excludes non-production schema module paths`() {
+        val resources = findGraphQLSchemaResources("graphql").map { it.path }
+
+        assertTrue(resources.any { it.contains("graphql/classgraph-included.graphqls") })
+        assertTrue(resources.none { it.contains("graphql/testfixtures/classgraph-excluded.graphqls") })
+        assertTrue(resources.none { it.contains("graphql/data/codelab/classgraph-excluded.graphqls") })
+        assertTrue(resources.none { it.contains("graphql/presentation/codelab/classgraph-excluded.graphqls") })
+    }
 }

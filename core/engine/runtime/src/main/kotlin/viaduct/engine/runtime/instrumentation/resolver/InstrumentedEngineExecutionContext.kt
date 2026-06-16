@@ -8,7 +8,7 @@ import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.InternalEngineExecutionContext
 
 /**
- * Wraps [EngineExecutionContextImpl] to intercept [resolveSelectionSetSync] and wrap the returned
+ * Wraps [EngineExecutionContextImpl] to intercept [resolveSelectionSet] and wrap the returned
  * [EngineObjectData.Sync] with [InstrumentedEngineObjectData.Sync], ensuring fetch-selection
  * callbacks fire for objects resolved via subquery execution.
  *
@@ -19,12 +19,12 @@ internal class InstrumentedEngineExecutionContext(
     private val resolverInstrumentation: ViaductResolverInstrumentation,
     private val instrumentationState: ViaductResolverInstrumentation.InstrumentationState,
 ) : InternalEngineExecutionContext by impl {
-    override suspend fun resolveSelectionSetSync(
+    override suspend fun resolveSelectionSet(
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions,
     ): EngineObjectData.Sync =
         InstrumentedEngineObjectData.Sync(
-            impl.resolveSelectionSetSync(selectionSet, options),
+            impl.resolveSelectionSet(selectionSet, options),
             resolverInstrumentation,
             instrumentationState,
         )

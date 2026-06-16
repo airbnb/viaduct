@@ -28,7 +28,6 @@ kotlinx = "1.8.1"
 kotlinx-debug = "1.8.1"
 kotlinx-metadata = "0.9.0"
 mockk-jvm = "1.13.3"
-reflections = "0.10.2"
 grpc = "1.66.0"
 grpc-kotlin = "1.4.1"
 protobuf = "3.25.1"
@@ -82,6 +81,7 @@ viaduct-tenant-wiring = { module = "com.airbnb.viaduct.tenant:wiring", version.r
 
 viaduct-javaapi-api = { module = "com.airbnb.viaduct.javaapi:api", version.ref = "project" }
 viaduct-javaapi-codegen = { module = "com.airbnb.viaduct.javaapi:codegen", version.ref = "project" }
+viaduct-javaapi-registry-apt = { module = "com.airbnb.viaduct.javaapi:registry-apt", version.ref = "project" }
 viaduct-javaapi-runtime = { module = "com.airbnb.viaduct.javaapi:runtime", version.ref = "project" }
 
 viaduct-service-api = { module = "com.airbnb.viaduct.service:api", version.ref = "project" }
@@ -138,7 +138,6 @@ jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", ver
 jackson-module = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
 javassist = { module = "org.javassist:javassist", version.ref = "javassist" }
 javax-inject = { module = "javax.inject:javax.inject", version.ref = "javax-inject" }
-reflections = { module = "org.reflections:reflections", version.ref = "reflections" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }

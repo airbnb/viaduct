@@ -16,10 +16,12 @@ import viaduct.api.resolver.Resolver
  * - Efficient fragment declaration for required fields
  *
  * ## Fragment Strategy
- * Includes fields accessed directly (`name`, `birthYear`) plus `id` for lookups.
- * Other data fetched through batch operations.
+ * Includes fields accessed directly (`name`, `birthYear`) plus `id` for lookups. The `name` and
+ * `birthYear` selections are shared with [CharacterDisplaySummaryResolver] via the named fragment
+ * `CharacterIdentityFields` (see `CharacterIdentityFieldsFragment`), spread here alongside the `id`
+ * this resolver needs for its batch lookups. Other data is fetched through batch operations.
  */
-@Resolver(objectValueFragment = "fragment _ on Character { id name birthYear }")
+@Resolver(objectValueFragment = "fragment _ on Character { id ...CharacterIdentityFields }")
 class CharacterRichSummaryResolver
     @Inject
     constructor(

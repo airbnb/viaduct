@@ -11,7 +11,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.instrumentation.IViaductInstrumentation
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.runFeatureTest
 
@@ -38,7 +38,7 @@ class ViaductFieldResolutionFatalExceptionTest {
             onBegin = { throw RuntimeException("Explosion in beginFieldExecution") }
         )
 
-        MockLegacyTenantModuleBootstrapper(sdl) {
+        EngineTestModule(sdl) {
             field("Query" to "hello") {
                 resolver {
                     fn { _, _, _, _, _ -> "world" }
@@ -78,7 +78,7 @@ class ViaductFieldResolutionFatalExceptionTest {
             }
         )
 
-        MockLegacyTenantModuleBootstrapper(sdl) {
+        EngineTestModule(sdl) {
             field("Query" to "nested") {
                 resolver {
                     fn { _, _, _, _, _ ->
@@ -128,7 +128,7 @@ class ViaductFieldResolutionFatalExceptionTest {
             }
         )
 
-        MockLegacyTenantModuleBootstrapper(sdl) {
+        EngineTestModule(sdl) {
             field("Query" to "level1") {
                 resolver {
                     fn { _, _, _, _, _ -> mapOf("level2" to "val") }
@@ -174,7 +174,7 @@ class ViaductFieldResolutionFatalExceptionTest {
             onDispatched = { throw RuntimeException("Explosion in onDispatched") }
         )
 
-        MockLegacyTenantModuleBootstrapper(sdl) {
+        EngineTestModule(sdl) {
             field("Query" to "hello") {
                 resolver {
                     fn { _, _, _, _, _ -> "world" }
@@ -205,7 +205,7 @@ class ViaductFieldResolutionFatalExceptionTest {
             onCompleted = { _, _ -> throw RuntimeException("Explosion in onCompleted") }
         )
 
-        MockLegacyTenantModuleBootstrapper(sdl) {
+        EngineTestModule(sdl) {
             field("Query" to "hello") {
                 resolver {
                     fn { _, _, _, _, _ -> "world" }
@@ -240,7 +240,7 @@ class ViaductFieldResolutionFatalExceptionTest {
             }
         )
 
-        MockLegacyTenantModuleBootstrapper(sdl) {
+        EngineTestModule(sdl) {
             field("Query" to "hello") {
                 resolver {
                     fn { _, _, _, _, _ -> throw RuntimeException("Resolver error") }
@@ -271,7 +271,7 @@ class ViaductFieldResolutionFatalExceptionTest {
             onDispatched = { throw RuntimeException("Explosion in onDispatched (Object)") }
         )
 
-        MockLegacyTenantModuleBootstrapper(sdl) {
+        EngineTestModule(sdl) {
             field("Query" to "hello") {
                 resolver {
                     fn { _, _, _, _, _ -> "world" }
@@ -302,7 +302,7 @@ class ViaductFieldResolutionFatalExceptionTest {
             onCompleted = { _, _ -> throw RuntimeException("Explosion in onCompleted (Object error path)") }
         )
 
-        MockLegacyTenantModuleBootstrapper(sdl) {
+        EngineTestModule(sdl) {
             field("Query" to "hello") {
                 resolver {
                     fn { _, _, _, _, _ -> "world" }

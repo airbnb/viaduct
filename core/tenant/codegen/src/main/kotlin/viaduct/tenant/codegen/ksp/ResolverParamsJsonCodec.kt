@@ -21,7 +21,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
  * needs Kotlin-aware constructor handling for data classes with default parameters. The
  * decode path only runs in the CLI (process-isolated worker JVM), never inside KSP.
  */
-internal class ResolverParamsJsonCodec {
+class ResolverParamsJsonCodec {
     private val encoder: ObjectMapper = ObjectMapper()
         .configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true)
 

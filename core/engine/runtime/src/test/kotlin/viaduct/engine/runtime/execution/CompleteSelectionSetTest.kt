@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.CompleteSelectionSetOptions
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockVariablesResolver
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
@@ -36,7 +36,7 @@ class CompleteSelectionSetTest {
 
     @Test
     fun `object-typed completion with scalar fields`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 container: Container
@@ -84,7 +84,7 @@ class CompleteSelectionSetTest {
 
     @Test
     fun `object-typed completion with explicit targetResult`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 container: Container
@@ -135,7 +135,7 @@ class CompleteSelectionSetTest {
 
     @Test
     fun `object-typed completion resolves required selection set variables`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 container: Container
@@ -184,7 +184,7 @@ class CompleteSelectionSetTest {
 
     @Test
     fun `object-typed completion indexes variable RSS before resolving variables`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 container: Container
@@ -243,7 +243,7 @@ class CompleteSelectionSetTest {
 
     @Test
     fun `isFieldTypePlan requires targetResult`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 container: Container
@@ -300,7 +300,7 @@ class CompleteSelectionSetTest {
 
     @Test
     fun `query-typed completion via querySelections`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 rootValue: Int
@@ -349,7 +349,7 @@ class CompleteSelectionSetTest {
     @Test
     fun `query-typed completion with explicit targetResult via resolveSelectionSet`() {
         // Explicit targetResult is honored even for Query-typed selections (engine fix).
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 rootValue: Int
@@ -405,7 +405,7 @@ class CompleteSelectionSetTest {
 
     @Test
     fun `rejects invalid targetResult type`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 rootValue: Int
@@ -464,7 +464,7 @@ class CompleteSelectionSetTest {
 
     @Test
     fun `rejects incompatible targetResult type for selection set`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 container: Container

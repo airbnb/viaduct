@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
@@ -25,7 +25,7 @@ class EngineFeatureTestExample {
             }
         """.trimIndent()
 
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             fieldWithValue("Query" to "hello", "world")
             fieldWithValue("Query" to "number", 42)
             field("Query" to "withArgs") {
@@ -43,7 +43,7 @@ class EngineFeatureTestExample {
 
     @Test
     fun `simple query selections test`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 one: Int
@@ -80,7 +80,7 @@ class EngineFeatureTestExample {
             }
         """.trimIndent()
 
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             fieldWithValue("Query" to "secureField", "secure data")
             field("Query" to "secureField") {
                 checker {
@@ -107,7 +107,7 @@ class EngineFeatureTestExample {
             }
         """.trimIndent()
 
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             fieldWithValue("Query" to "secureField", "secure data")
             field("Query" to "secureField") {
                 checker {
@@ -136,10 +136,10 @@ class EngineFeatureTestExample {
         // ```
         // val testSchema = mkSchemaWithWiring(schemaSDL)
         // val testNodeType = testSchema.schema.getObjectType("TestNode")
-        // MockLegacyTenantModuleBootstrapper(testSchema) { ... }
+        // EngineTestModule(testSchema) { ... }
         // ```
         // then `testSchema` and `testNodeType` can be reused in the test.
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "node") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -163,7 +163,7 @@ class EngineFeatureTestExample {
 
     @Test
     fun `test from kdoc`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
            extend type Query {
                hello: String
@@ -213,7 +213,7 @@ class EngineFeatureTestExample {
     @Test
     fun `test invalid object fragment`() {
         assertThrows<RequiredSelectionsAreInvalid> {
-            MockLegacyTenantModuleBootstrapper(
+            EngineTestModule(
                 """
                 extend type Query {
                     foo: Int
@@ -235,7 +235,7 @@ class EngineFeatureTestExample {
     @Test
     fun `test invalid query fragment`() {
         assertThrows<RequiredSelectionsAreInvalid> {
-            MockLegacyTenantModuleBootstrapper(
+            EngineTestModule(
                 """
                 extend type Query {
                     foo: Int

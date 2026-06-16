@@ -10,11 +10,13 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.mocks.featureTestDefault
+import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
 import viaduct.service.api.spi.ErrorBuilder
@@ -65,7 +67,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `no checkers`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             fieldWithValue("Query" to "boo", createEngineObjectData(booType, mapOf("value" to 5)))
         }.runFeatureTest {
             runQuery("{ boo { value } }")
@@ -78,7 +80,7 @@ class AccessCheckExecutionTest {
         var asyncFieldCheckerRan = false
         var syncFieldCheckerRan = false
 
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             fieldWithValue("Query" to "boo", createEngineObjectData(booType, mapOf("value" to 5)))
             field("Query" to "boo") {
                 checker {
@@ -101,7 +103,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `async field successful, checker throws`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             fieldWithValue("Query" to "boo", createEngineObjectData(booType, mapOf("value" to 5)))
             field("Query" to "boo") {
                 checker {
@@ -120,7 +122,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `sync field successful, checker throws`() {
-        MockLegacyTenantModuleBootstrapper(SDL) {
+        EngineTestModule(SDL) {
             fieldWithValue("Query" to "boo", createEngineObjectData(booType, mapOf("value" to 5)))
             field("Boo" to "value") {
                 checker {
@@ -139,7 +141,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `async field throws, checker throws`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "boo") {
                 resolver {
                     fn { _, _, _, _, _ -> throw RuntimeException("not found") }
@@ -161,7 +163,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `sync field throws, checker throws`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "boo") {
                 resolver {
                     fn { _, _, _, _, _ ->
@@ -200,7 +202,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `objectValueFragment field - field and checker successful`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             fieldWithValue("Query" to "string2", "2nd")
             field("Query" to "string1") {
                 resolver {
@@ -224,7 +226,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `objectValueFragment field - field successful, checker throws`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             fieldWithValue("Query" to "string2", "2nd")
             field("Query" to "string1") {
                 resolver {
@@ -252,7 +254,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `objectValueFragment field - field throws, checker throws`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "string2") {
                 resolver {
                     fn { _, _, _, _, _ -> throw RuntimeException("string2 resolver throws") }
@@ -283,7 +285,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `objectValueFragment field - field throws, checker successful`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "string2") {
                 resolver {
                     fn { _, _, _, _, _ -> throw RuntimeException("string2 resolver throws") }
@@ -313,7 +315,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `checker with rss - access checks skipped`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "string1") {
                 value("foo")
                 checker {
@@ -363,7 +365,7 @@ class AccessCheckExecutionTest {
     fun `mutation field with checker`() {
         var mutationResolverRan = false
 
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Mutation" to "string1") {
                 resolver {
                     fn { _, _, _, _, _ ->
@@ -389,7 +391,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `field and type checks fail`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx -> ctx.createNodeReference("1", bazType) }
@@ -418,7 +420,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `field check succeeds type check fails`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "boo") {
                 resolver {
                     fn { _, _, _, _, _ -> createEngineObjectData(booType, mapOf("value" to 2)) }
@@ -444,7 +446,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `field check succeeds, type check succeeds`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx -> ctx.createNodeReference("1", bazType) }
@@ -470,7 +472,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `no field check, type check fails`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx -> ctx.createNodeReference("1", bazType) }
@@ -496,7 +498,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `no field check, type check fails on non-null field`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "nonNullBaz") {
                 resolver {
                     fn { _, _, _, _, ctx -> ctx.createNodeReference("1", bazType) }
@@ -522,7 +524,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `type check fail on interface field`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "node") {
                 resolver {
                     fn { _, _, _, _, ctx -> ctx.createNodeReference("1", bazType) }
@@ -548,7 +550,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `type check succeed on interface field`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "node") {
                 resolver {
                     fn { _, _, _, _, ctx -> ctx.createNodeReference("1", bazType) }
@@ -572,7 +574,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `type check with rss`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx -> ctx.createNodeReference("1", bazType) }
@@ -611,7 +613,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `type check with rss - access checks skipped`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx -> ctx.createNodeReference("1", bazType) }
@@ -651,7 +653,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `type checks with rss for list of objects - fail one of them`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "bazList") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -706,7 +708,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `type checks with rss for list of objects - all succeed`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "bazList") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -758,7 +760,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `type checks with rss for list of polymorphic objects - fail one of them`() {
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "nodes") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -829,7 +831,7 @@ class AccessCheckExecutionTest {
     @Test
     fun `field checker with query selections`() {
         // Test that field checkers can use querySelections to access other Query fields
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             fieldWithValue("Query" to "string2", "test_value")
             field("Query" to "string1") {
                 value("foo")
@@ -856,7 +858,7 @@ class AccessCheckExecutionTest {
     @Test
     fun `type checker with query selections`() {
         // Test that type checkers can use querySelections to access Query fields
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             fieldWithValue("Query" to "string2", "query_value")
             field("Query" to "baz") {
                 resolver {
@@ -891,7 +893,7 @@ class AccessCheckExecutionTest {
     fun `checker EOD variables are coerced`() {
         // Regression test for coercing variables
         val plusManyValue = AtomicReference<Any?>()
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "string1") {
                 value("foo")
                 checker {
@@ -921,7 +923,7 @@ class AccessCheckExecutionTest {
     fun `type checker child plan variables are coerced`() {
         // Regression test for coercing variables in type checker child plans
         val plusManyValue = AtomicReference<Any?>()
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx -> ctx.createNodeReference("1", bazType) }
@@ -960,7 +962,7 @@ class AccessCheckExecutionTest {
         val engineConfig = engineConfigWithHandler { exception ->
             if (exception is IllegalAccessException) reported = true
         }
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             fieldWithValue("Query" to "string1", "hello, world")
             field("Query" to "string1") {
                 checker {
@@ -985,7 +987,7 @@ class AccessCheckExecutionTest {
         val engineConfig = engineConfigWithHandler { exception ->
             if (exception is IllegalAccessException) reported = true
         }
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "bazList") {
                 resolver {
                     fn { _, _, _, _, _ ->
@@ -1022,6 +1024,56 @@ class AccessCheckExecutionTest {
             assertContains(error.message, "permission denied")
             assertEquals("FOO", error.extensions.get("type"))
             assertTrue(reported)
+        }
+    }
+
+    @Test
+    fun `type checker RSS variable resolver can fetch from current object`() {
+        MockLegacyTenantModuleBootstrapper(
+            """
+            extend type Query { obj: Obj! }
+            type Obj { x: Boolean! }
+            """.trimIndent()
+        ) {
+            field("Query" to "obj") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Obj")!!,
+                            mapOf("x" to true)
+                        )
+                    }
+                }
+            }
+            type("Obj") {
+                checker {
+                    querySelections(
+                        "root",
+                        "__typename @include(if: \$var)"
+                    ) {
+                        variables(
+                            "var",
+                            rss = createRSS("Obj", "x", forChecker = true)
+                        ) { ctx, _ ->
+                            mapOf("var" to ctx.objectData.fetchAs<Boolean>("x"))
+                        }
+                    }
+                    fn { _, _ -> }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ obj { __typename } }")
+                .assertJson(
+                    """
+                    {
+                      data: {
+                        obj: {
+                          __typename: "Obj"
+                        }
+                      }
+                    }
+                    """.trimIndent()
+                )
         }
     }
 

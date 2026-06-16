@@ -115,6 +115,7 @@ nav:
       - Node References: docs/developers/resolvers/node_references.md
       - Root Field References: docs/developers/resolvers/root_field_references.md
       - Subqueries: docs/developers/resolvers/subqueries.md
+      - Named Fragments: docs/developers/resolvers/named_fragments.md
     - Generated Code: docs/developers/generated_code/index.md
     - Global IDs: docs/developers/globalids/index.md
     - Pagination: docs/developers/pagination/index.md
@@ -134,6 +135,7 @@ nav:
             - Node Resolvers: getting_started/starwars/core/node_resolvers.md
             - Field Resolvers: getting_started/starwars/core/field_resolvers.md
             - Batch Resolvers: getting_started/starwars/core/batch_resolvers.md
+            - Named Fragments: getting_started/starwars/core/named_fragments.md
             - Resolver Integrations: getting_started/starwars/core/resolver_integrations.md
         - Directives:
             - getting_started/starwars/directives/index.md

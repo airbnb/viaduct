@@ -28,7 +28,7 @@ interface Engine {
      * @return The resolved [EngineObjectData.Sync] wrapping the target result.
      * @throws SubqueryExecutionException on execution failures.
      */
-    suspend fun resolveSelectionSetSync(
+    suspend fun resolveSelectionSet(
         executionHandle: EngineExecutionContext.ExecutionHandle,
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions,
@@ -41,7 +41,7 @@ interface Engine {
      * This is an internal wiring-layer API. Prefer using [EngineExecutionContext.completeSelectionSet]
      * from the engine layer.
      *
-     * Unlike [resolveSelectionSetSync] which triggers field resolution, this method waits for
+     * Unlike [resolveSelectionSet] which triggers field resolution, this method waits for
      * already-in-progress resolution and transforms the resolved values into a completed result.
      * This is useful for shims executing classic DFPs on the modern engine, where field resolution
      * is triggered via RequiredSelectionSet and completion produces the final result.

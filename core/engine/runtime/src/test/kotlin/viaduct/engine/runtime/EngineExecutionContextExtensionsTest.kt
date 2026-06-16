@@ -257,11 +257,6 @@ class EngineExecutionContextExtensionsTest {
             override suspend fun resolveSelectionSet(
                 selectionSet: EngineSelectionSet,
                 options: ResolveSelectionSetOptions
-            ): EngineObjectData = mockk()
-
-            override suspend fun resolveSelectionSetSync(
-                selectionSet: EngineSelectionSet,
-                options: ResolveSelectionSetOptions
             ): EngineObjectData.Sync = mockk()
 
             override suspend fun completeSelectionSet(

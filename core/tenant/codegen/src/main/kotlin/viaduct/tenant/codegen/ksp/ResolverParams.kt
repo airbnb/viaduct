@@ -7,8 +7,13 @@ import com.fasterxml.jackson.annotation.JsonProperty
 /**
  * Intermediate descriptor model emitted by the registry extractor per source file.
  * The assembly step consolidates these into a typed [ExecutionRegistry] instance.
+ *
+ * This model is the single source of truth for the per-file descriptor JSON shape. It is
+ * shared by both the Kotlin KSP extractor (in this module) and the Java annotation-processor
+ * extractor (`:x:javaapi:codegen-apt`), so a change here is a compile error in both producers
+ * rather than a silent runtime mismatch.
  */
-internal sealed interface ResolverParams {
+sealed interface ResolverParams {
     val implFqn: String
     val typeName: String
 
@@ -38,12 +43,12 @@ internal sealed interface ResolverParams {
     ) : ResolverParams
 }
 
-internal data class SelectionsBlock(
+data class SelectionsBlock(
     val selections: String,
     val variablesProviders: List<VariableProviderDescriptor> = emptyList(),
 )
 
-internal data class VariableProviderDescriptor(
+data class VariableProviderDescriptor(
     val kind: String,
     val name: String,
     val path: String?,
@@ -51,9 +56,9 @@ internal data class VariableProviderDescriptor(
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-internal data class ResolverDescriptorFile(
-    val nodes: List<ResolverParams.Node>,
-    val fields: List<ResolverParams.Field>,
+data class ResolverDescriptorFile(
+    val nodes: List<ResolverParams.Node> = emptyList(),
+    val fields: List<ResolverParams.Field> = emptyList(),
     val grtPackagePrefix: String? = null,
     val bootstrapClass: String? = null,
     /** Fragment definition strings extracted from @GraphQLFragment objects in this source file. */

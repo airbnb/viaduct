@@ -409,7 +409,7 @@ object CheckerDispatchers {
  * `EngineExecutionContext.query()` method. For production code, use
  * [EngineExecutionContext.resolveSelectionSet] directly.
  */
-suspend fun EngineExecutionContext.query(selectionSet: EngineSelectionSet): EngineObjectData =
+suspend fun EngineExecutionContext.query(selectionSet: EngineSelectionSet): EngineObjectData.Sync =
     resolveSelectionSet(
         selectionSet,
         ResolveSelectionSetOptions.DEFAULT
@@ -422,7 +422,7 @@ suspend fun EngineExecutionContext.query(selectionSet: EngineSelectionSet): Engi
  * `EngineExecutionContext.mutation()` method. For production code, use
  * [EngineExecutionContext.resolveSelectionSet] directly.
  */
-suspend fun EngineExecutionContext.mutation(selectionSet: EngineSelectionSet): EngineObjectData =
+suspend fun EngineExecutionContext.mutation(selectionSet: EngineSelectionSet): EngineObjectData.Sync =
     resolveSelectionSet(
         selectionSet,
         ResolveSelectionSetOptions.MUTATION

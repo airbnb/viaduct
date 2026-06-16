@@ -29,7 +29,7 @@ class EngineCallbackServiceImpl : EngineCallbackServiceGrpcKt.EngineCallbackServ
             ?: throw notFound("context", request.contextHandle)
         val selections = SelectionsRegistry.get(request.selectionsHandle)
             ?: throw notFound("selections", request.selectionsHandle)
-        val result = context.resolveSelectionSetSync(selections, options)
+        val result = context.resolveSelectionSet(selections, options)
         return QueryResponse.newBuilder()
             .setObjectDataJson(com.google.protobuf.ByteString.copyFrom(EngineObjectDataSerializer.serialize(result)))
             .build()

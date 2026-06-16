@@ -6,7 +6,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.graphql.test.assertJson
@@ -28,7 +28,7 @@ class BatchFieldResolverTest {
 
     @Test
     fun `field batch resolver returns value`() {
-        val bootstrapper = MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        val bootstrapper = EngineTestModule(schemaSDL) {
             field("Query" to "items") {
                 resolver {
                     fn { arguments, _, _, _, _ ->
@@ -65,7 +65,7 @@ class BatchFieldResolverTest {
 
     @Test
     fun `field batch resolver batches in a tick`() {
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "items") {
                 resolver {
                     fn { arguments, _, _, _, _ ->
@@ -96,7 +96,7 @@ class BatchFieldResolverTest {
 
     @Test
     fun `field batch resolver throws`() {
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "items") {
                 resolver {
                     fn { arguments, _, _, _, _ ->
@@ -132,7 +132,7 @@ class BatchFieldResolverTest {
 
     @Test
     fun `field batch resolver returns partial errors`() {
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "items") {
                 resolver {
                     fn { arguments, _, _, _, _ ->
@@ -176,7 +176,7 @@ class BatchFieldResolverTest {
     @Test
     fun `field batch resolver does not read from dataloader cache`() {
         val execCounts = ConcurrentHashMap<String, AtomicInteger>()
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "items") {
                 resolver {
                     fn { _, _, _, _, _ ->

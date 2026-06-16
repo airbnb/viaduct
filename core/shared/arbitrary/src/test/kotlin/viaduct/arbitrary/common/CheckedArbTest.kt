@@ -42,6 +42,22 @@ class CheckedArbTest : KotestPropertyBase() {
     }
 
     @Test
+    fun `minViolation -- suppresses output when printEvery is zero`() {
+        val out = ByteArrayOutputStream()
+        val mv = Arb.int(0..100)
+            .withCheck {}
+            .minViolation(
+                comparator = Comparator.naturalOrder(),
+                rs = randomSource,
+                iter = iterations,
+                printEvery = 0,
+                out = PrintStream(out)
+            )
+        assertThat(mv).isNull()
+        assertThat(out.toString()).isEmpty()
+    }
+
+    @Test
     fun `minViolation -- fails`() {
         val err = RuntimeException()
         val mv = Arb.int(0..5)

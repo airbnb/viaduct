@@ -35,20 +35,27 @@ class CheckedArb<T>(
         comparator: Comparator<T>,
         rs: RandomSource,
         iter: Int = PropertyTesting.defaultIterationCount,
+        printEvery: Int = 1_000,
+        out: PrintStream = System.out
     ): Violation<T>? =
         underlying.asSequence(rs)
             .take(iter)
-            .fold(null as Violation<T>?) { acc, t ->
+            .foldIndexed(null as Violation<T>?) { i, acc, t ->
+                if (printEvery > 0 && i.mod(printEvery) == 0) {
+                    out.println("Iteration $i...")
+                }
                 try {
                     check(t)
                     acc
                 } catch (err: Throwable) {
                     if (acc == null) {
+                        out.println("Found new min violation at iteration $i")
                         Violation(t, err, rs.seed)
                     } else {
                         @Suppress("UNCHECKED_CAST")
                         val accValue = acc.value as T
                         if (comparator.compare(t, accValue) < 0) {
+                            out.println("Found new min violation at iteration $i")
                             Violation(t, err, rs.seed)
                         } else {
                             acc

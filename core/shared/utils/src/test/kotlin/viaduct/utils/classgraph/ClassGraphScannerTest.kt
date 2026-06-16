@@ -1,6 +1,8 @@
 package viaduct.utils.classgraph
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ClassGraphScannerTest {
@@ -38,6 +40,31 @@ class ClassGraphScannerTest {
         val annotation = TestAnnotation::class.java
         val result = classGraphScanner.getTypesAnnotatedWith(annotation)
         assertEquals(setOf(AnnotatedTestClass::class.java), result)
+    }
+
+    @Test
+    fun `findResourcePathsMatching accepts package-like prefixes`() {
+        val resources = findResourcePathsMatching(
+            "viaduct.utils.classgraph",
+            Regex(".*ClassGraphScannerTest.*\\.class")
+        )
+
+        assertTrue(resources.any { it.contains("ClassGraphScannerTest.class") })
+    }
+
+    @Test
+    fun `findResourcePathsMatching only scans the accepted resource path`() {
+        val matchingResources = findResourcePathsMatching(
+            "viaduct/utils/classgraph",
+            Regex(".*ClassGraphScannerTest.*\\.class")
+        )
+        val unrelatedResources = findResourcePathsMatching(
+            "viaduct/utils/memoize",
+            Regex(".*ClassGraphScannerTest.*\\.class")
+        )
+
+        assertTrue(matchingResources.any { it.contains("ClassGraphScannerTest.class") })
+        assertFalse(unrelatedResources.any { it.contains("ClassGraphScannerTest.class") })
     }
 
     @Test

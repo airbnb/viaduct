@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
@@ -18,7 +18,7 @@ import viaduct.graphql.test.assertJson
 class RootFieldReferenceResolutionTest {
     @Test
     fun `factory function with nested namespace types resolves correctly`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Product {
                 name: String
@@ -65,7 +65,7 @@ class RootFieldReferenceResolutionTest {
 
     @Test
     fun `factory function error propagation`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Item {
                 label: String
@@ -106,7 +106,7 @@ class RootFieldReferenceResolutionTest {
 
     @Test
     fun `list of factory function references resolves correctly`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Color {
                 name: String
@@ -157,7 +157,7 @@ class RootFieldReferenceResolutionTest {
 
     @Test
     fun `factory function alongside node reference`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Widget {
                 label: String
@@ -221,7 +221,7 @@ class RootFieldReferenceResolutionTest {
 
     @Test
     fun `root field reference nested inside resolver response`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Color {
                 name: String
@@ -274,7 +274,7 @@ class RootFieldReferenceResolutionTest {
 
     @Test
     fun `nested root field reference failure preserves sibling fields`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Texture {
                 name: String
@@ -328,7 +328,7 @@ class RootFieldReferenceResolutionTest {
 
     @Test
     fun `concurrent root field references with one failure and one success`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Book {
                 title: String
@@ -400,7 +400,7 @@ class RootFieldReferenceResolutionTest {
 
     @Test
     fun `factory function returns data with explicit null fields`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Product {
                 name: String
@@ -444,7 +444,7 @@ class RootFieldReferenceResolutionTest {
 
     @Test
     fun `operation variables in directives and field args are forwarded through root field reference`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Review {
                 text: String
@@ -507,7 +507,7 @@ class RootFieldReferenceResolutionTest {
 
     @Test
     fun `include directive variable excludes field through root field reference`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Product {
                 name: String
@@ -553,7 +553,7 @@ class RootFieldReferenceResolutionTest {
 
     @Test
     fun `root field reference args do not collide with operation variables`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Review {
                 text: String
@@ -617,7 +617,7 @@ class RootFieldReferenceResolutionTest {
 
     @Test
     fun `querySelections with variable referencing root field reference`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Review {
                 text: String
@@ -687,7 +687,7 @@ class RootFieldReferenceResolutionTest {
 
     @Test
     fun `factory returns a node reference`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Product implements Node {
                 id: ID!
@@ -736,7 +736,7 @@ class RootFieldReferenceResolutionTest {
 
     @Test
     fun `factory returns a root field reference`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Product {
                 name: String
@@ -795,7 +795,7 @@ class RootFieldReferenceResolutionTest {
 
     @Test
     fun `factory resolver with objectValueFragment reads sibling field`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Product {
                 name: String
@@ -846,7 +846,7 @@ class RootFieldReferenceResolutionTest {
 
     @Test
     fun `root field reference resolves to null`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Widget implements Node {
                 id: ID!
@@ -897,7 +897,7 @@ class RootFieldReferenceResolutionTest {
 
     @Test
     fun `root field reference to non-null field resolves to null propagates field error`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             type Widget {
                 name: String

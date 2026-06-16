@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 
@@ -30,7 +30,7 @@ class BatchNodeResolverTest {
 
     @Test
     fun `node batch resolver returns value`() {
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -59,7 +59,7 @@ class BatchNodeResolverTest {
 
     @Test
     fun `node batch resolver batches`() {
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "bazList") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -93,7 +93,7 @@ class BatchNodeResolverTest {
     @Test
     @Disabled("Flaky, disabling until fix; see TODO")
     fun `node batch resolver throws`() {
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "bazList") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -122,7 +122,7 @@ class BatchNodeResolverTest {
 
     @Test
     fun `node batch resolver returns partial errors`() {
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "bazList") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -162,7 +162,7 @@ class BatchNodeResolverTest {
     @Test
     fun `node resolver reads from dataloader cache`() {
         val execCounts = ConcurrentHashMap<String, AtomicInteger>()
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -207,7 +207,7 @@ class BatchNodeResolverTest {
         // Non-selective resolvers always return their full output regardless of requested fields,
         // so caching by ID alone is correct - same ID = cache hit
         val execCounts = ConcurrentHashMap<String, AtomicInteger>()
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -253,7 +253,7 @@ class BatchNodeResolverTest {
         // Selective resolvers tailor their response based on requested fields,
         // so different selection sets for the same ID should NOT use cache
         val execCounts = ConcurrentHashMap<String, AtomicInteger>()
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -298,7 +298,7 @@ class BatchNodeResolverTest {
     fun `selective node batch resolver reads from dataloader cache for same selection sets`() {
         // Selective resolvers should still cache when selection sets are the same
         val execCounts = ConcurrentHashMap<String, AtomicInteger>()
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        EngineTestModule(schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->

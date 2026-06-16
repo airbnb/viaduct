@@ -2,7 +2,11 @@ package viaduct.arbitrary.graphql
 
 import graphql.language.AstPrinter
 import graphql.schema.idl.SchemaPrinter
+import java.util.Collections
+import java.util.IdentityHashMap
+import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.Coordinate
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
@@ -37,7 +41,42 @@ internal class ViaductDescriptor(
         val isSelective: Boolean,
         val objectSelectionSet: RequiredSelectionSetDescriptor?,
         val querySelectionSet: RequiredSelectionSetDescriptor?,
+        val calls: List<FieldResolverCallDescriptor>?,
     )
+
+    data class FieldResolverCallDescriptor(
+        val index: Int,
+        val arguments: String,
+        val selections: String?,
+        val result: CallResultDescriptor,
+        val time: String,
+    )
+
+    data class VariablesResolverCallDescriptor(
+        val index: Int,
+        val arguments: String,
+        val objectData: String,
+        val result: CallResultDescriptor,
+        val time: String,
+    )
+
+    data class CheckerCallDescriptor(
+        val index: Int,
+        val checkerType: CheckerExecutor.CheckerType,
+        val arguments: String,
+        val objectDataMap: String,
+        val result: CallResultDescriptor,
+        val time: String,
+    )
+
+    sealed class CallResultDescriptor {
+        data class Success(val value: String) : CallResultDescriptor()
+
+        data class Failure(
+            val className: String,
+            val message: String?,
+        ) : CallResultDescriptor()
+    }
 
     data class NodeResolverDescriptor(
         val typeName: String,
@@ -50,6 +89,7 @@ internal class ViaductDescriptor(
         val coordinate: String,
         val className: String,
         val requiredSelectionSets: List<NamedRequiredSelectionSetDescriptor>,
+        val calls: List<CheckerCallDescriptor>?,
     )
 
     data class NamedRequiredSelectionSetDescriptor(
@@ -71,6 +111,7 @@ internal class ViaductDescriptor(
         val variableNames: Set<String>,
         val className: String,
         val requiredSelectionSet: RequiredSelectionSetDescriptor?,
+        val calls: List<VariablesResolverCallDescriptor>?,
     ) {
         override fun toString(): String = renderVariablesResolverDescriptor()
     }
@@ -92,6 +133,7 @@ internal class ViaductDescriptor(
                 line("      isSelective: ${resolver.isSelective}")
                 appendRequiredSelectionSetDescriptor("      objectSelectionSet", resolver.objectSelectionSet)
                 appendRequiredSelectionSetDescriptor("      querySelectionSet", resolver.querySelectionSet)
+                appendFieldResolverCalls(resolver.calls)
             }
 
             section("node resolvers", nodeResolvers) { resolver ->
@@ -112,6 +154,7 @@ internal class ViaductDescriptor(
                         appendRequiredSelectionSetDescriptor("        ${named.name}", named.requiredSelectionSet)
                     }
                 }
+                appendCheckerCalls(checker.calls)
             }
         }.trimEnd()
 
@@ -145,7 +188,7 @@ internal class ViaductDescriptor(
     companion object {
         private val schemaPrinter = SchemaPrinter()
 
-        internal fun from(viaduct: Viaduct): ViaductDescriptor = checkNotNull(viaduct as? DescribedViaduct).descriptor.value
+        internal fun from(viaduct: Viaduct): ViaductDescriptor = checkNotNull(viaduct as? DescribedViaduct).descriptor()
 
         internal fun from(requiredSelectionSet: RequiredSelectionSet): RequiredSelectionSetDescriptor = describeRequiredSelectionSet(requiredSelectionSet, mutableSetOf())
 
@@ -160,7 +203,7 @@ internal class ViaductDescriptor(
                     ?: listOf(SchemaDescriptor(SchemaId.Full.toString(), schemaPrinter.print(config.schema.schema))),
                 fieldResolvers = config.fieldResolverExecutors
                     .sortedBy { it.first.asString() }
-                    .map { (coord, executor) -> executor.describe(coord) },
+                    .map { (coord, executor) -> executor.describe(coord, config.instrumentedFieldResolverFactory) },
                 nodeResolvers = config.nodeResolverExecutors
                     .sortedBy { it.first }
                     .map { (_, executor) -> executor.describe },
@@ -182,7 +225,10 @@ internal class ViaductDescriptor(
                     )
                 }
 
-        private fun FieldResolverExecutor.describe(coord: Coordinate): FieldResolverDescriptor =
+        private fun FieldResolverExecutor.describe(
+            coord: Coordinate,
+            instrumentedFieldResolverFactory: FieldResolver.Factory.Instrumented?,
+        ): FieldResolverDescriptor =
             FieldResolverDescriptor(
                 coordinate = coord,
                 resolverId = resolverId,
@@ -191,7 +237,22 @@ internal class ViaductDescriptor(
                 isSelective = isSelective,
                 objectSelectionSet = objectSelectionSet?.describeWithFreshContext(),
                 querySelectionSet = querySelectionSet?.describeWithFreshContext(),
+                calls = instrumentedFieldResolverFactory?.resolverOrNull(coord)?.describeCalls(),
             )
+
+        private fun FieldResolver.Instrumented.describeCalls(): List<FieldResolverCallDescriptor> =
+            recorder.log.mapIndexed { index, entry ->
+                FieldResolverCallDescriptor(
+                    index = index + 1,
+                    arguments = describeValue(entry.arg.selector.arguments),
+                    selections = entry.arg.selector.selections?.toFragment()?.document,
+                    result = entry.result.fold(
+                        onSuccess = { CallResultDescriptor.Success(describeValue(it)) },
+                        onFailure = { it.describeFailure() },
+                    ),
+                    time = entry.time.toString(),
+                )
+            }
 
         private val NodeResolverExecutor.describe: NodeResolverDescriptor
             get() =
@@ -211,7 +272,23 @@ internal class ViaductDescriptor(
                     .map { (name, rss) ->
                         NamedRequiredSelectionSetDescriptor(name, rss?.describeWithFreshContext())
                     },
+                calls = (this as? viaduct.arbitrary.graphql.CheckerExecutor.Instrumented)?.describeCalls(),
             )
+
+        private fun viaduct.arbitrary.graphql.CheckerExecutor.Instrumented.describeCalls(): List<CheckerCallDescriptor> =
+            recorder.log.mapIndexed { index, entry ->
+                CheckerCallDescriptor(
+                    index = index + 1,
+                    checkerType = entry.arg.checkerType,
+                    arguments = describeValue(entry.arg.arguments),
+                    objectDataMap = describeValue(entry.arg.objectDataMap),
+                    result = entry.result.fold(
+                        onSuccess = { CallResultDescriptor.Success(describeCheckerResult(it)) },
+                        onFailure = { it.describeFailure() },
+                    ),
+                    time = entry.time.toString(),
+                )
+            }
 
         private fun RequiredSelectionSet.describeWithFreshContext(): RequiredSelectionSetDescriptor = describeRequiredSelectionSet(this, mutableSetOf())
 
@@ -243,11 +320,25 @@ internal class ViaductDescriptor(
                 requiredSelectionSet = variablesResolver.requiredSelectionSet?.let {
                     describeRequiredSelectionSet(it, seen)
                 },
+                calls = (variablesResolver as? viaduct.arbitrary.graphql.VariablesResolver.Instrumented)
+                    ?.describeCalls(),
             )
 
-        private fun Coordinate.asString(): String = "$first.$second"
+        private fun viaduct.arbitrary.graphql.VariablesResolver.Instrumented.describeCalls(): List<VariablesResolverCallDescriptor> =
+            recorder.log.mapIndexed { index, entry ->
+                VariablesResolverCallDescriptor(
+                    index = index + 1,
+                    arguments = describeValue(entry.arg.ctx.arguments),
+                    objectData = describeValue(entry.arg.ctx.objectData),
+                    result = entry.result.fold(
+                        onSuccess = { CallResultDescriptor.Success(describeValue(it)) },
+                        onFailure = { it.describeFailure() },
+                    ),
+                    time = entry.time.toString(),
+                )
+            }
 
-        private fun Any.debugClassName(): String = this::class.qualifiedName ?: this::class.java.name
+        private fun Coordinate.asString(): String = "$first.$second"
     }
 }
 
@@ -258,6 +349,7 @@ internal fun VariablesResolver.describe(): ViaductDescriptor.VariablesResolverDe
 internal data class GeneratedViaductDescriptorConfig(
     val schema: ViaductSchema,
     val fieldResolverExecutors: List<Pair<Coordinate, FieldResolverExecutor>>,
+    val instrumentedFieldResolverFactory: FieldResolver.Factory.Instrumented?,
     val nodeResolverExecutors: List<Pair<String, NodeResolverExecutor>>,
     val fieldCheckerExecutors: Map<Coordinate, CheckerExecutor>,
     val typeCheckerExecutors: Map<String, CheckerExecutor>,
@@ -265,8 +357,12 @@ internal data class GeneratedViaductDescriptorConfig(
 
 internal class DescribedViaduct(
     private val delegate: Viaduct,
-    val descriptor: Lazy<ViaductDescriptor>
+    val descriptor: () -> ViaductDescriptor,
 ) : Viaduct by delegate
+
+private fun FieldResolver.Factory.Instrumented.resolverOrNull(coord: Coordinate): FieldResolver.Instrumented? = resolvers[coord]
+
+private fun Any.debugClassName(): String = this::class.qualifiedName ?: this::class.java.name
 
 private fun ViaductDescriptor.RequiredSelectionSetDescriptor.renderRequiredSelectionSetDescriptor(): String =
     buildString {
@@ -314,6 +410,59 @@ private fun StringBuilder.appendRequiredSelectionSetDescriptor(
     }
 }
 
+private fun StringBuilder.appendFieldResolverCalls(calls: List<ViaductDescriptor.FieldResolverCallDescriptor>?) {
+    if (calls == null) {
+        return
+    }
+
+    if (calls.isEmpty()) {
+        line("      calls: <none>")
+        return
+    }
+
+    line("      calls:")
+    calls.forEach { call ->
+        line("        - #${call.index}")
+        line("          request:")
+        line("            arguments:")
+        block("              ", call.arguments)
+        if (call.selections == null) {
+            line("            selections: <none>")
+        } else {
+            line("            selections:")
+            block("              ", call.selections)
+        }
+        line("          response:")
+        appendCallResult(call.result, "            ")
+        line("            time: ${call.time}")
+    }
+}
+
+private fun StringBuilder.appendCheckerCalls(calls: List<ViaductDescriptor.CheckerCallDescriptor>?) {
+    if (calls == null) {
+        return
+    }
+
+    if (calls.isEmpty()) {
+        line("      calls: <none>")
+        return
+    }
+
+    line("      calls:")
+    calls.forEach { call ->
+        line("        - #${call.index}")
+        line("          request:")
+        line("            checkerType: ${call.checkerType}")
+        line("            arguments:")
+        block("              ", call.arguments)
+        line("            objectDataMap:")
+        block("              ", call.objectDataMap)
+        line("          response:")
+        appendCallResult(call.result, "            ")
+        line("            time: ${call.time}")
+    }
+}
+
 private fun StringBuilder.appendVariablesResolverDescriptor(
     resolver: ViaductDescriptor.VariablesResolverDescriptor,
     indent: String,
@@ -321,6 +470,51 @@ private fun StringBuilder.appendVariablesResolverDescriptor(
     line("$indent- variables: ${resolver.variableNames.sorted()}")
     line("$indent  class: ${resolver.className}")
     appendRequiredSelectionSetDescriptor("$indent  requiredSelectionSet", resolver.requiredSelectionSet)
+    appendVariablesResolverCalls(resolver.calls, "$indent  ")
+}
+
+private fun StringBuilder.appendVariablesResolverCalls(
+    calls: List<ViaductDescriptor.VariablesResolverCallDescriptor>?,
+    indent: String,
+) {
+    if (calls == null) {
+        return
+    }
+
+    if (calls.isEmpty()) {
+        line("${indent}calls: <none>")
+        return
+    }
+
+    line("${indent}calls:")
+    calls.forEach { call ->
+        line("$indent  - #${call.index}")
+        line("$indent    request:")
+        line("$indent      arguments:")
+        block("$indent        ", call.arguments)
+        line("$indent      objectData:")
+        block("$indent        ", call.objectData)
+        line("$indent    response:")
+        appendCallResult(call.result, "$indent      ")
+        line("$indent      time: ${call.time}")
+    }
+}
+
+private fun StringBuilder.appendCallResult(
+    result: ViaductDescriptor.CallResultDescriptor,
+    indent: String,
+) {
+    when (result) {
+        is ViaductDescriptor.CallResultDescriptor.Success -> {
+            line("${indent}success:")
+            block("$indent  ", result.value)
+        }
+        is ViaductDescriptor.CallResultDescriptor.Failure -> {
+            line("${indent}failure:")
+            line("$indent  class: ${result.className}")
+            line("$indent  message: ${result.message ?: "<none>"}")
+        }
+    }
 }
 
 private fun ParsedSelections.describe(): String =
@@ -337,6 +531,139 @@ private fun ParsedSelections.describe(): String =
             }
         }
     }.trimEnd()
+
+private fun describeValue(value: Any?): String =
+    describeValue(
+        value,
+        Collections.newSetFromMap(IdentityHashMap())
+    )
+
+private fun describeValue(
+    value: Any?,
+    seen: MutableSet<Int>,
+): String =
+    when (value) {
+        null -> "null"
+        is String -> "\"${value.escapeForDump()}\""
+        is Number, is Boolean -> value.toString()
+        is Map<*, *> -> describeMap(value, seen)
+        is Iterable<*> -> describeIterable(value, seen)
+        is Array<*> -> describeIterable(value.asList(), seen)
+        is EngineObjectData.Sync -> describeEngineObjectData(value, seen)
+        is EngineObjectData -> "${value.debugClassName()}(<async>)"
+        else -> value.toString()
+    }
+
+private fun describeMap(
+    value: Map<*, *>,
+    seen: MutableSet<Int>,
+): String {
+    if (value.isEmpty()) {
+        return "{}"
+    }
+
+    return buildString {
+        line("{")
+        value.entries
+            .sortedBy { it.key.toString() }
+            .forEach { (key, mapValue) ->
+                appendDumpEntry("  ${describeValue(key, seen)}: ", describeValue(mapValue, seen))
+            }
+        append("}")
+    }
+}
+
+private fun describeIterable(
+    value: Iterable<*>,
+    seen: MutableSet<Int>,
+): String {
+    val values = value.toList()
+    if (values.isEmpty()) {
+        return "[]"
+    }
+
+    return buildString {
+        line("[")
+        values.forEach {
+            appendDumpEntry("  - ", describeValue(it, seen))
+        }
+        append("]")
+    }
+}
+
+private fun describeEngineObjectData(
+    value: EngineObjectData.Sync,
+    seen: MutableSet<Int>,
+): String {
+    val identity = System.identityHashCode(value)
+    if (!seen.add(identity)) {
+        return "${value.type.name}(<cycle>)"
+    }
+
+    return try {
+        val selections = value.getSelections().toList().sorted()
+        if (selections.isEmpty()) {
+            "${value.type.name} {}"
+        } else {
+            buildString {
+                line("${value.type.name} {")
+                selections.forEach { selection ->
+                    val fieldValue = runCatching { value.getOrNull(selection) }
+                    val renderedValue = fieldValue.fold(
+                        onSuccess = { describeValue(it, seen) },
+                        onFailure = { "<failed to read: ${it.debugClassName()}: ${it.message ?: "<none>"}>" },
+                    )
+                    appendDumpEntry("  $selection: ", renderedValue)
+                }
+                append("}")
+            }
+        }
+    } finally {
+        seen.remove(identity)
+    }
+}
+
+private fun describeCheckerResult(result: CheckerResult): String =
+    when (result) {
+        is CheckerResult.Success -> "Success"
+        is CheckerResult.Error -> buildString {
+            line("Error {")
+            line("  class: ${result.error.debugClassName()}")
+            line("  message: ${result.error.message ?: "<none>"}")
+            append("}")
+        }
+    }
+
+private fun Throwable.describeFailure(): ViaductDescriptor.CallResultDescriptor.Failure =
+    ViaductDescriptor.CallResultDescriptor.Failure(
+        className = debugClassName(),
+        message = message,
+    )
+
+private fun StringBuilder.appendDumpEntry(
+    prefix: String,
+    value: String,
+) {
+    val lines = value.lines()
+    append(prefix).appendLine(lines.first())
+    lines.drop(1).forEach { line ->
+        append(" ".repeat(prefix.length)).appendLine(line)
+    }
+}
+
+private fun String.escapeForDump(): String =
+    buildString {
+        this@escapeForDump.forEach { char ->
+            when (char) {
+                '\\' -> append("\\\\")
+                '"' -> append("\\\"")
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                else -> append(char)
+            }
+        }
+    }
 
 private fun String.leadingWhitespace(): String = takeWhile { it == ' ' }
 

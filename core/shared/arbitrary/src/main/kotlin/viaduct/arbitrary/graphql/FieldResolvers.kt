@@ -36,7 +36,7 @@ fun Arb.Companion.fieldResolverExecutor(
 ): Arb<FieldResolverExecutor> =
     arbitrary { rs ->
         val env = ViaductGenEnv(schema, cfg, rs)
-        val coord = Arb.of(env.resolverCoordinates.fieldResolvers).bind()
+        val coord = Arb.of(env.resolverConfig.fieldResolvers).bind()
         env.fieldResolverExecutorGen.gen(coord)
     }
 
@@ -55,7 +55,14 @@ fun Arb.Companion.fieldResolverExecutor(
     requireNotNull(schema.schema.getFieldDefinition(coord.gj))
 
     return arbitrary { rs ->
-        val env = ViaductGenEnv(schema, cfg, rs)
+        val resolverConfig = ResolverConfigImpl(schema, cfg, rs).let { config ->
+            if (coord in config.fieldResolvers) {
+                config
+            } else {
+                config.plus(ResolverConfigImpl(schema, fieldResolvers = setOf(coord), nodeResolvers = emptySet()))
+            }
+        }
+        val env = ViaductGenEnv(schema, cfg, rs, resolverConfig)
         env.fieldResolverExecutorGen.gen(coord)
     }
 }
@@ -68,7 +75,7 @@ internal fun interface FieldResolverExecutorGen {
             FieldResolverExecutorGen { coord ->
                 val objectSelectionSet = env.requiredSelectionSetGen.gen(coord, coord.first, forChecker = false, 0)
                 val querySelectionSet = env.requiredSelectionSetGen.gen(coord, env.schemas.schema.queryType.name, forChecker = false, 0)
-                val isSelective = env.rs.sampleWeight(env.cfg[SelectiveResolverWeight])
+                val isSelective = env.resolverConfig.isSelective(coord)
 
                 val fieldResolver = env.fork().let { env ->
                     env.cfg[FieldResolverFactory]
@@ -76,7 +83,7 @@ internal fun interface FieldResolverExecutorGen {
                             FieldResolver.Factory.Params(
                                 env.schemas.viaductSchema,
                                 env.fieldResolverValueGen,
-                                env.resolverCoordinates,
+                                env.resolverConfig,
                                 isSelective,
                                 env.rs.sampleWeight(env.cfg[ExerciseRequiredSelectionsWeight]),
                                 coord,
@@ -152,7 +159,7 @@ fun interface FieldResolver {
          *
          * @property schema The schema the resolver operates on.
          * @property fieldResolverValueGen Generates the return value for the resolved field.
-         * @property resolverCoordinates All resolver coordinates in the schema.
+         * @property resolverConfig All resolver coordinates in the schema, including selectivity metadata.
          * @property selective If true, the resolver may omit values for some selections,
          *   simulating a resolver that does not always populate every requested field.
          * @property exerciseRequiredSelections If true, the resolver reads from its required
@@ -166,7 +173,7 @@ fun interface FieldResolver {
         data class Params(
             val schema: ViaductSchema,
             val fieldResolverValueGen: FieldResolverValueGen,
-            val resolverCoordinates: ResolverCoordinates,
+            val resolverConfig: ResolverConfig,
             val selective: Boolean,
             val exerciseRequiredSelections: Boolean,
             val coordinate: Coordinate,
@@ -179,10 +186,7 @@ fun interface FieldResolver {
         fun createFieldResolver(params: Params): FieldResolver
 
         object Arbitrary : Factory {
-            override fun createFieldResolver(params: Params): FieldResolver =
-                Resolver(
-                    params,
-                )
+            override fun createFieldResolver(params: Params): FieldResolver = Resolver(params)
 
             private class Resolver(val params: Params) : FieldResolver {
                 override suspend fun invoke(
@@ -211,6 +215,10 @@ fun interface FieldResolver {
             }
         }
 
+        /**
+         * A [Factory] that can be programmatically introspected.
+         * Calls handled by this [Factory] will be included in the output of [Viaduct.dump].
+         */
         class Instrumented(private val underlying: Factory = Arbitrary) : Factory {
             val resolvers = mutableMapOf<Coordinate, FieldResolver.Instrumented>()
 

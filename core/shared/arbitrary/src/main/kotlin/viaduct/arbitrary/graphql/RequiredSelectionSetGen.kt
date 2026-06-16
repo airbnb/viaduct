@@ -7,11 +7,11 @@ import graphql.schema.GraphQLImplementingType
 import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLTypeUtil
+import graphql.schema.GraphQLUnionType
 import viaduct.apiannotations.VisibleForTest
+import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
-import viaduct.engine.runtime.select.allCoords
-import viaduct.engine.runtime.select.reachableObjects
 import viaduct.engine.runtime.tenantloading.RequiredSelectionSetGraph
 import viaduct.graphql.utils.ParsedSelections
 import viaduct.graphql.utils.SelectionsParserUtils.EntryPointFragmentName
@@ -44,7 +44,7 @@ private class RequiredSelectionSetGenImpl(private val env: ViaductGenEnv) : Requ
         // getAbstractEdges when the target node is already in resolverNodes/checkerNodes.
         // Since RSSes are generated sequentially, nodes later in the sequence would otherwise
         // be invisible to cycle detection for earlier nodes.
-        env.resolverCoordinates.fieldResolvers.forEach { coord ->
+        env.resolverConfig.fieldResolvers.forEach { coord ->
             graph.addResolverNode(coord, emptySet())
             graph.addCheckerNode(coord, emptySet())
         }
@@ -53,7 +53,7 @@ private class RequiredSelectionSetGenImpl(private val env: ViaductGenEnv) : Requ
         // in Viaducts.kt), so non-resolver fields like Obj.id must be pre-populated to ensure
         // edges are established when resolver RSSes select them.
         env.schemas.viaductSchema.objectCoordinates
-            .filter { it !in env.resolverCoordinates.fieldResolvers }
+            .filter { it !in env.resolverConfig.fieldResolvers }
             .forEach { coord -> graph.addCheckerNode(coord, emptySet()) }
         env.schemas.schema.typeMap.values
             .filterIsInstance<GraphQLObjectType>()
@@ -74,13 +74,7 @@ private class RequiredSelectionSetGenImpl(private val env: ViaductGenEnv) : Requ
         // Register the generated RSS in the graph before generating variable resolver RSSes,
         // so that cycle prevention applies transitively to any recursive calls below.
         val rawSs = engineSelectionSetFactory.engineSelectionSet(selections, emptyMap())
-        val selectedCoords = buildSet<TypeOrFieldCoordinate> {
-            addAll(rawSs.allCoords(env.schemas.viaductSchema))
-            rawSs.reachableObjects(env.schemas.viaductSchema).forEach {
-                    typeName ->
-                add(typeName to null)
-            }
-        }
+        val selectedCoords = rawSs.objectCoords()
         if (forChecker) graph.addCheckerNode(tfc, selectedCoords) else graph.addResolverNode(tfc, selectedCoords)
 
         val variablesResolvers = state.variables.variables.map { vdef ->
@@ -165,6 +159,37 @@ private class RequiredSelectionSetGenImpl(private val env: ViaductGenEnv) : Requ
                     .map { field -> type.name to field.name }
             }
             .toSet()
+    }
+
+    /**
+     * Match RequiredSelectionsAreAcyclic's strict coordinate model: selections on interfaces
+     * and unions are expanded to every possible object implementation, even if the current
+     * selection scope would be narrower at runtime.
+     */
+    private fun EngineSelectionSet.objectCoords(): Set<TypeOrFieldCoordinate> =
+        buildSet {
+            selections().forEach { selection ->
+                objectTypes(selection.typeCondition).forEach { objectTypeName ->
+                    if (!selection.fieldName.startsWith("__")) {
+                        add(objectTypeName to selection.fieldName)
+                    }
+                }
+            }
+            traversableSelections().forEach { selection ->
+                val nestedSelectionSet = selectionSetForField(selection.typeCondition, selection.fieldName)
+                objectTypes(nestedSelectionSet.type).forEach { objectTypeName -> add(objectTypeName to null) }
+                addAll(nestedSelectionSet.objectCoords())
+            }
+        }
+
+    private fun objectTypes(typeName: String): List<String> {
+        val type = env.schemas.schema.getType(typeName)
+        return when (type) {
+            is GraphQLObjectType -> listOf(typeName)
+            is GraphQLInterfaceType -> env.schemas.schema.getImplementations(type).map { it.name }
+            is GraphQLUnionType -> type.types.map { it.name }
+            else -> throw IllegalArgumentException("Unexpected non-composite type $type")
+        }
     }
 
     private fun DocumentGenCtx.toParsedSelections(typeCondition: String): ParsedSelections {

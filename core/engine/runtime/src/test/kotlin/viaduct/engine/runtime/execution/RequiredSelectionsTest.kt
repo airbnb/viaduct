@@ -14,9 +14,9 @@ import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionInput
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.FeatureTest
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.MockVariablesResolver
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
@@ -32,7 +32,7 @@ import viaduct.service.api.spi.mocks.MockFlagManager
 class RequiredSelectionsTest {
     @Test
     fun `resolve field with required sibling field`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: String, bar: String }") {
+        EngineTestModule("extend type Query { foo: String, bar: String }") {
             fieldWithValue("Query" to "bar", "BAR")
             field("Query" to "foo") {
                 resolver {
@@ -47,7 +47,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `resolve field with transitive required selections`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar: Int, baz: Int }") {
+        EngineTestModule("extend type Query { foo: Int, bar: Int, baz: Int }") {
             fieldWithValue("Query" to "baz", 2)
             field("Query" to "bar") {
                 resolver {
@@ -68,7 +68,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `required selections use aliases`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar: Int }") {
+        EngineTestModule("extend type Query { foo: Int, bar: Int }") {
             fieldWithValue("Query" to "bar", 3)
             field("Query" to "foo") {
                 resolver {
@@ -83,7 +83,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `required selections use deep aliases`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { string1: String, bar: Bar } type Bar { value: String }") {
+        EngineTestModule("extend type Query { string1: String, bar: Bar } type Bar { value: String }") {
             field("Query" to "bar") {
                 resolver {
                     fn { _, _, _, _, _ -> mapOf("value" to "B") }
@@ -106,7 +106,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `required selections use arguments`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar(x:Int):Int }") {
+        EngineTestModule("extend type Query { foo: Int, bar(x:Int):Int }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:3)")
@@ -125,7 +125,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `required selections use aliases and arguments`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar(x:Int):Int }") {
+        EngineTestModule("extend type Query { foo: Int, bar(x:Int):Int }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("aliasedBar:bar(x:3)")
@@ -144,7 +144,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `required selections select an argumented field multiple times`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar(x:Int):Int }") {
+        EngineTestModule("extend type Query { foo: Int, bar(x:Int):Int }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("b1:bar(x:3), b2:bar(x:5)")
@@ -165,7 +165,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `required selections use fragments`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar: Int }") {
+        EngineTestModule("extend type Query { foo: Int, bar: Int }") {
             fieldWithValue("Query" to "bar", 3)
             field("Query" to "foo") {
                 resolver {
@@ -180,7 +180,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `required selections use untyped inline fragments`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar: Int }") {
+        EngineTestModule("extend type Query { foo: Int, bar: Int }") {
             fieldWithValue("Query" to "bar", 3)
             field("Query" to "foo") {
                 resolver {
@@ -195,7 +195,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `required selections use typed inline fragments`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar: Int }") {
+        EngineTestModule("extend type Query { foo: Int, bar: Int }") {
             fieldWithValue("Query" to "bar", 3)
             field("Query" to "foo") {
                 resolver {
@@ -211,7 +211,7 @@ class RequiredSelectionsTest {
     @Test
     fun `resolve fields with shared requirement`() {
         val bazCount = AtomicInteger()
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar: Int, baz: Int }") {
+        EngineTestModule("extend type Query { foo: Int, bar: Int, baz: Int }") {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, _ -> bazCount.incrementAndGet().let { 5 } }
@@ -241,7 +241,7 @@ class RequiredSelectionsTest {
         val detailsCount = AtomicInteger()
         val detailsSelections = ConcurrentHashMap.newKeySet<String>()
 
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query { details: Details }
             type Details { a: Int, b: Int }
@@ -285,7 +285,7 @@ class RequiredSelectionsTest {
         val detailsCount = AtomicInteger()
         val detailsSelections = ConcurrentHashMap.newKeySet<String>()
 
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query { details: Details, fromB: Int }
             type Details { a: Int, b: Int }
@@ -337,7 +337,7 @@ class RequiredSelectionsTest {
         val detailsCount = AtomicInteger()
         val detailsSelections = ConcurrentHashMap.newKeySet<String>()
 
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query { container: Container }
             type Container { details: Details, summary: Int }
@@ -398,7 +398,7 @@ class RequiredSelectionsTest {
         val detailsSelections = ConcurrentHashMap.newKeySet<String>()
         val engineConfig = EngineConfiguration.featureTestDefault.copy(flagManager = MockFlagManager.Disabled)
 
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query { container: Container }
             type Container { details: Details, summary: Int }
@@ -469,7 +469,7 @@ class RequiredSelectionsTest {
         val detailsCount = AtomicInteger()
         val detailsSelections = ConcurrentHashMap.newKeySet<String>()
 
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query { container: Container }
             type Container { details: Details, summary: Int }
@@ -525,7 +525,7 @@ class RequiredSelectionsTest {
         val detailsCount = AtomicInteger()
         val detailsSelections = ConcurrentHashMap.newKeySet<String>()
 
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query { container: Container }
             type Container { details: Details, fromA: Int, fromB: Int }
@@ -597,7 +597,7 @@ class RequiredSelectionsTest {
         // This used to time out because EngineSelectionSet widened the nested `... on Node`
         // fragment inside `... on Bar`, so fetching `id` through the Foo proxy waited on an OER
         // field that the planned traversal correctly never wrote.
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
                 extend type Query { foo: Foo }
                 type Foo implements Node { id: ID! }
@@ -671,7 +671,7 @@ class RequiredSelectionsTest {
         // Foo.x has an object RSS rooted at Foo. The outer `... on Node` branch can match Foo,
         // but after that refinement the nested `... on Bar` branch is impossible because Foo and Bar
         // are sibling implementations of Node.
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
                 extend type Query {
                   trigger: Int
@@ -772,7 +772,7 @@ class RequiredSelectionsTest {
         // Query.a's checker requires depB: b, while Query.b's checker requires depA: a.
         // Executing both fields exercises the same sibling cyclic RSS root shape as
         // QueryPlanTest, through the public required-selection DSL.
-        MockLegacyTenantModuleBootstrapper("extend type Query { a: Int, b: Int }") {
+        EngineTestModule("extend type Query { a: Int, b: Int }") {
             field("Query" to "a") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -819,7 +819,7 @@ class RequiredSelectionsTest {
         val detailsSelections = ConcurrentHashMap.newKeySet<String>()
         val checkerCount = AtomicInteger()
 
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query { details: Details, fromObjectB: Int, fromQueryB: Int, checked: Int }
             type Details { a: Int, b: Int }
@@ -893,7 +893,7 @@ class RequiredSelectionsTest {
         val detailsSelections = ConcurrentHashMap.newKeySet<String>()
         val checkerCount = AtomicInteger()
 
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query { container: Container }
             type Container { details: Details, fromObjectB: Int }
@@ -964,7 +964,7 @@ class RequiredSelectionsTest {
     fun `selective required selection through interface inline fragment uses concrete runtime keying`() {
         val detailsCount = AtomicInteger()
 
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             interface Container { details: Details }
             extend type Query { container: Container }
@@ -1025,7 +1025,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `descendant fields of a selective resolver are not keyed selectively`() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query { details: Details, fromProfileName: String }
             type Details { profile: Profile }
@@ -1075,7 +1075,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `resolve field with multiple requirements`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar: Int, baz: Int }") {
+        EngineTestModule("extend type Query { foo: Int, bar: Int, baz: Int }") {
             fieldWithValue("Query" to "baz", 5)
             fieldWithValue("Query" to "bar", 3)
             field("Query" to "foo") {
@@ -1094,7 +1094,7 @@ class RequiredSelectionsTest {
     @Test
     fun `resolve fields multiple mergeable requirements`() {
         val barCount = AtomicInteger()
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar: Int }") {
+        EngineTestModule("extend type Query { foo: Int, bar: Int }") {
             field("Query" to "bar") {
                 resolver {
                     fn { _, _, _, _, _ -> 3.also { barCount.incrementAndGet() } }
@@ -1149,7 +1149,7 @@ class RequiredSelectionsTest {
         val innerCount = AtomicInteger()
         val innerSelections = ConcurrentHashMap.newKeySet<String>()
 
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query { summary: Int, outer: Outer }
             type Outer { middle: Middle }
@@ -1239,7 +1239,7 @@ class RequiredSelectionsTest {
         val middleCount = AtomicInteger()
         val nodeCount = AtomicInteger()
 
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query { outer: Outer, compute(x: Int!): Int!, result: Int! }
             type Outer { middle: Middle }
@@ -1369,7 +1369,7 @@ class RequiredSelectionsTest {
         ) { ctx, _ -> mapOf("vara" to ctx.objectData.fetchAs<Int>("z")) }
         val sharedResolvers = listOf(sharedVariablesResolver)
 
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             "extend type Query { foo1: Int, foo2: Int, y(a:Int): Int, z: Int }"
         ) {
             fieldWithValue("Query" to "z", 7)
@@ -1411,7 +1411,7 @@ class RequiredSelectionsTest {
             extend type Query @scope(to: ["private"]) { bar: Int }
         """
 
-        val bootstrapper = MockLegacyTenantModuleBootstrapper(fullSchemaSDL) {
+        val bootstrapper = EngineTestModule(fullSchemaSDL) {
             fieldWithValue("Query" to "bar", 3)
             field("Query" to "foo") {
                 resolver {
@@ -1437,7 +1437,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `resolve field with queryValueFragment - simple field access`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { currentUser: String, userGreeting: String }") {
+        EngineTestModule("extend type Query { currentUser: String, userGreeting: String }") {
             fieldWithValue("Query" to "currentUser", "Alice")
             field("Query" to "userGreeting") {
                 resolver {
@@ -1457,7 +1457,7 @@ class RequiredSelectionsTest {
     fun `objectSelections conditional directives honor per-item variables`() {
         val selectedValueCount = AtomicInteger()
 
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query {
                 items: [Item!]!
@@ -1522,7 +1522,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `resolve field with queryValueFragment - with aliases`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { currentUser: String, userCount: Int, summary: String }") {
+        EngineTestModule("extend type Query { currentUser: String, userCount: Int, summary: String }") {
             fieldWithValue("Query" to "currentUser", "Bob")
             fieldWithValue("Query" to "userCount", 42)
             field("Query" to "summary") {
@@ -1542,7 +1542,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `resolve field with queryValueFragment - with arguments`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { user(id: String!): String, userMessage: String }") {
+        EngineTestModule("extend type Query { user(id: String!): String, userMessage: String }") {
             field("Query" to "user") {
                 resolver {
                     fn { args, _, _, _, _ ->
@@ -1567,7 +1567,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `resolve field with queryValueFragment - using fragments`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { userName: String, userEmail: String, profile: String }") {
+        EngineTestModule("extend type Query { userName: String, userEmail: String, profile: String }") {
             fieldWithValue("Query" to "userName", "Charlie")
             fieldWithValue("Query" to "userEmail", "charlie@example.com")
             field("Query" to "profile") {
@@ -1587,7 +1587,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `resolve field with queryValueFragment and objectValueFragment together`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { globalConfig: String, baz: Baz } type Baz { x: Int, y: String }") {
+        EngineTestModule("extend type Query { globalConfig: String, baz: Baz } type Baz { x: Int, y: String }") {
             fieldWithValue("Query" to "globalConfig", "Premium")
             fieldWithValue("Query" to "baz", createEngineObjectData(schema.schema.getObjectType("Baz"), mapOf("x" to 100)))
             field("Baz" to "y") {
@@ -1608,7 +1608,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `resolve field with queryValueFragment - transitive dependencies`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { baseValue: Int, multipliedValue: Int, finalValue: Int }") {
+        EngineTestModule("extend type Query { baseValue: Int, multipliedValue: Int, finalValue: Int }") {
             fieldWithValue("Query" to "baseValue", 5)
             field("Query" to "multipliedValue") {
                 resolver {
@@ -1635,7 +1635,7 @@ class RequiredSelectionsTest {
     fun `resolve field with queryValueFragment - multiple query selections`() {
         val userCount = AtomicInteger()
         val configCount = AtomicInteger()
-        MockLegacyTenantModuleBootstrapper("extend type Query { currentUser: String, globalConfig: String, combined: String }") {
+        EngineTestModule("extend type Query { currentUser: String, globalConfig: String, combined: String }") {
             field("Query" to "currentUser") {
                 resolver {
                     fn { _, _, _, _, _ ->
@@ -1674,7 +1674,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `resolve field with queryValueFragment - inline fragment without type condition`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { isEnabled: Boolean, config: String, result: String }") {
+        EngineTestModule("extend type Query { isEnabled: Boolean, config: String, result: String }") {
             fieldWithValue("Query" to "isEnabled", true)
             fieldWithValue("Query" to "config", "production")
             field("Query" to "result") {
@@ -1694,7 +1694,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `resolve field with queryValueFragment - handles null gracefully`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { optionalValue: String, result: String }") {
+        EngineTestModule("extend type Query { optionalValue: String, result: String }") {
             fieldWithValue("Query" to "optionalValue", null)
             field("Query" to "result") {
                 resolver {
@@ -1712,7 +1712,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `resolve mutation with queryValueFragment`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { string1: String } extend type Mutation { string1: String }") {
+        EngineTestModule("extend type Query { string1: String } extend type Mutation { string1: String }") {
             fieldWithValue("Query" to "string1", "InitialValue")
             field("Mutation" to "string1") {
                 resolver {
@@ -1730,7 +1730,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `resolve field with queryValueFragment - nested object access`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { bar: Bar, baz: Baz } type Bar { value: String } type Baz { x: Int, y: String }") {
+        EngineTestModule("extend type Query { bar: Bar, baz: Baz } type Bar { value: String } type Baz { x: Int, y: String }") {
             fieldWithValue("Query" to "bar", createEngineObjectData(schema.schema.getObjectType("Bar"), mapOf()))
             fieldWithValue("Bar" to "value", "BarValue")
             fieldWithValue("Query" to "baz", createEngineObjectData(schema.schema.getObjectType("Baz"), mapOf()))
@@ -1751,7 +1751,7 @@ class RequiredSelectionsTest {
 
     @Test
     fun `resolve field with queryValueFragment - typed inline fragment`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { enabled: Boolean, message: String, status: String }") {
+        EngineTestModule("extend type Query { enabled: Boolean, message: String, status: String }") {
             fieldWithValue("Query" to "enabled", false)
             fieldWithValue("Query" to "message", "System offline")
             field("Query" to "status") {
@@ -1772,7 +1772,7 @@ class RequiredSelectionsTest {
     @Test
     fun `queryValueFragment with unclosed brace should fail at build time`() {
         assertThrows<IllegalArgumentException> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { field: String, result: String }") {
+            EngineTestModule("extend type Query { field: String, result: String }") {
                 fieldWithValue("Query" to "field", "value")
                 field("Query" to "result") {
                     resolver {
@@ -1787,7 +1787,7 @@ class RequiredSelectionsTest {
     @Test
     fun `queryValueFragment with invalid field syntax should fail at build time`() {
         assertThrows<IllegalArgumentException> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { field: String, result: String }") {
+            EngineTestModule("extend type Query { field: String, result: String }") {
                 fieldWithValue("Query" to "field", "value")
                 field("Query" to "result") {
                     resolver {
@@ -1802,7 +1802,7 @@ class RequiredSelectionsTest {
     @Test
     fun `queryValueFragment referencing non-existent field should fail at build time`() {
         assertThrows<RequiredSelectionsAreInvalid> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { existingField: String, result: String }") {
+            EngineTestModule("extend type Query { existingField: String, result: String }") {
                 fieldWithValue("Query" to "existingField", "value")
                 field("Query" to "result") {
                     resolver {
@@ -1817,7 +1817,7 @@ class RequiredSelectionsTest {
     @Test
     fun `queryValueFragment with invalid fragment syntax should fail at build time`() {
         assertThrows<IllegalArgumentException> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { field: String, result: String }") {
+            EngineTestModule("extend type Query { field: String, result: String }") {
                 fieldWithValue("Query" to "field", "value")
                 field("Query" to "result") {
                     resolver {
@@ -1832,7 +1832,7 @@ class RequiredSelectionsTest {
     @Test
     fun `queryValueFragment with invalid variable syntax should fail at build time`() {
         assertThrows<IllegalArgumentException> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { field(arg: Int!): String, result: String }") {
+            EngineTestModule("extend type Query { field(arg: Int!): String, result: String }") {
                 fieldWithValue("Query" to "field", "value")
                 field("Query" to "result") {
                     resolver {
@@ -1847,7 +1847,7 @@ class RequiredSelectionsTest {
     @Test
     fun `queryValueFragment with empty selection set should fail at build time`() {
         assertThrows<IllegalArgumentException> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { result: String }") {
+            EngineTestModule("extend type Query { result: String }") {
                 field("Query" to "result") {
                     resolver {
                         querySelections("{}") // Empty selection set
@@ -1861,7 +1861,7 @@ class RequiredSelectionsTest {
     @Test
     fun `queryValueFragment with wrong type condition should fail at build time`() {
         assertThrows<RequiredSelectionsAreInvalid> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { field: String, result: String } extend type Mutation { dummy: String }") {
+            EngineTestModule("extend type Query { field: String, result: String } extend type Mutation { dummy: String }") {
                 fieldWithValue("Query" to "field", "value")
                 field("Query" to "result") {
                     resolver {
@@ -1882,7 +1882,7 @@ class RequiredSelectionsTest {
         // Planning keeps Query.b through the unconditional fragment spread, but the child plan for
         // the variables resolver RSS is not indexed. Runtime then fails before Query.a's resolver
         // runs, while building the EngineObjectData passed to the variables resolver.
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             "extend type Query { a: Int, b: Int }"
         ) {
             field("Query" to "a") {
@@ -1930,7 +1930,7 @@ class RequiredSelectionsTest {
 
         val checkerInvocations = ConcurrentHashMap<String, AtomicInteger>()
 
-        MockLegacyTenantModuleBootstrapper(sdl) {
+        EngineTestModule(sdl) {
             field("Query" to "iface") {
                 resolver {
                     fn { _, _, _, _, ctx ->

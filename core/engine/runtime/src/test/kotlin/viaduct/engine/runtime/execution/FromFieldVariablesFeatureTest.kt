@@ -12,10 +12,10 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.VariableCycleException
 import viaduct.engine.api.VariablesResolver
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.FieldUnbatchedResolverFn
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapperDSL
+import viaduct.engine.api.mocks.MockTenantModuleDSL
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
@@ -27,7 +27,7 @@ import viaduct.engine.runtime.tenantloading.RequiredSelectionsCycleException
 class FromFieldVariablesFeatureTest {
     @Test
     fun `from object field -- simple`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { x:Int, y(b:Int):Int, z:Int }") {
+        EngineTestModule("extend type Query { x:Int, y(b:Int):Int, z:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 objectSelectionsText = "y(b:\$b), z",
@@ -47,7 +47,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from object field -- variables used by field on non-root object`() =
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
                 type Obj { x:Int, y(b:Int):Int, z:Int }
                 extend type Query { obj:Obj }
@@ -79,7 +79,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from object field -- simple mutation field`() =
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
                 extend type Mutation { x:Int, y(b:Int):Int, z:Int }
                 extend type Query { empty:Int }
@@ -104,7 +104,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from object field -- selection is field with omitted arg and default value`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { x:Int, y(b:Int):Int, z(c:Int = 2):Int }") {
+        EngineTestModule("extend type Query { x:Int, y(b:Int):Int, z(c:Int = 2):Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 objectSelectionsText = "y(b:\$b), z",
@@ -128,7 +128,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from object field -- selection is field with arg`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { x:Int!, y(b:Int!):Int!, z(c:Int!):Int! }") {
+        EngineTestModule("extend type Query { x:Int!, y(b:Int!):Int!, z(c:Int!):Int! }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 objectSelectionsText = "y(b:\$b), z(c:2)",
@@ -152,7 +152,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from object field -- selection is field with omitted argument value`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { x:Int, y(b:Int):Int, z(c:Int):Int }") {
+        EngineTestModule("extend type Query { x:Int, y(b:Int):Int, z(c:Int):Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 objectSelectionsText = "y(b:\$b), z",
@@ -176,7 +176,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from object field -- selection is aliased`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { x:Int, y(b:Int):Int, z:Int }") {
+        EngineTestModule("extend type Query { x:Int, y(b:Int):Int, z:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 objectSelectionsText = "y(b:\$b), myz:z",
@@ -196,7 +196,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from object field -- selection is list-valued`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { x:Int, y(b:[Int]):Int, z:[Int] }") {
+        EngineTestModule("extend type Query { x:Int, y(b:[Int]):Int, z:[Int] }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 objectSelectionsText = "y(b:\$b), z",
@@ -218,7 +218,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from object field -- single-field-multiple-variable -- multiple variables on required selection`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { x:Int, y(b:Int, c:Int):Int, z:Int, w:Int }") {
+        EngineTestModule("extend type Query { x:Int, y(b:Int, c:Int):Int, z:Int, w:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 objectSelectionsText = "y(b:\$b, c:\$c), z, w",
@@ -244,7 +244,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from object field -- single-field-multiple-variable -- multiple required selections with variables`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { x:Int, y(b:Int):Int, z(c:Int):Int, w:Int }") {
+        EngineTestModule("extend type Query { x:Int, y(b:Int):Int, z(c:Int):Int, w:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 objectSelectionsText = "y(b:\$b), z(c:\$c), w",
@@ -272,7 +272,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from object field -- selection traverses through object`() =
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
                 extend type Query { x:Int, y(b:Int):Int, z:Obj }
                 type Obj { w:Int }
@@ -303,7 +303,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from object field -- selection traverses through null object`() =
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
                 extend type Query { x:Int, y(b:Int):Int!, z:Obj }
                 type Obj { w:Int }
@@ -329,7 +329,7 @@ class FromFieldVariablesFeatureTest {
     @Test
     fun `from object field -- selection traverses through union`() {
         val err = assertThrows<Throwable> {
-            MockLegacyTenantModuleBootstrapper(
+            EngineTestModule(
                 """
                     type Foo { value: String }
                     union Union = Foo
@@ -364,7 +364,7 @@ class FromFieldVariablesFeatureTest {
     @Test
     fun `invalid from object field -- selection output type is not compatible with variable input type -- nullability mismatch`() {
         val err = assertThrows<Throwable> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { x:Int, y(b:Int!):Int!, z:Int }") {
+            EngineTestModule("extend type Query { x:Int, y(b:Int!):Int!, z:Int }") {
                 fieldWithFromFieldVariables(
                     coord = "Query" to "x",
                     objectSelectionsText = "y(b:\$b), z",
@@ -381,7 +381,7 @@ class FromFieldVariablesFeatureTest {
     @Test
     fun `invalid from object field -- selection output type is not compatible with variable input type -- type mismatch`() {
         val err = assertThrows<Throwable> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { x:Int, y(b:Int!):Int!, z:String! }") {
+            EngineTestModule("extend type Query { x:Int, y(b:Int!):Int!, z:String! }") {
                 fieldWithFromFieldVariables(
                     coord = "Query" to "x",
                     objectSelectionsText = "y(b:\$b), z",
@@ -397,7 +397,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from object field - same variable name used in operation variable and annotation variable`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { x(a:Int):Int, y(b:Int):Int, z:Int }") {
+        EngineTestModule("extend type Query { x(a:Int):Int, y(b:Int):Int, z:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 objectSelectionsText = "y(b:\$b), z",
@@ -420,7 +420,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from object field - same variable name used in multiple selection sets`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { x:Int, y:Int, z(c:Int):Int, w:Int }") {
+        EngineTestModule("extend type Query { x:Int, y:Int, z(c:Int):Int, w:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 objectSelectionsText = "z(c:\$var), w",
@@ -448,7 +448,7 @@ class FromFieldVariablesFeatureTest {
     fun `from object field -- variable used in conditional directive`() {
         var yResolved = false
 
-        MockLegacyTenantModuleBootstrapper("extend type Query { x:String, y:Boolean, z:Boolean! }") {
+        EngineTestModule("extend type Query { x:String, y:Boolean, z:Boolean! }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 objectSelectionsText = "y @skip(if:\$z), z",
@@ -479,7 +479,7 @@ class FromFieldVariablesFeatureTest {
     @Test
     fun `invalid from object field -- variable depends on a field in its own subselections`() {
         val err = assertThrows<Throwable> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { x(a:Int):Query, y:Int }") {
+            EngineTestModule("extend type Query { x(a:Int):Query, y:Int }") {
                 fieldWithFromFieldVariables(
                     coord = "Query" to "x",
                     objectSelectionsText = "x(a:\$a) { y } ",
@@ -499,7 +499,7 @@ class FromFieldVariablesFeatureTest {
     @Test
     fun `invalid from object field -- variable selects a field that uses it`() {
         val err = assertThrows<Throwable> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { x(a:Int):Int }") {
+            EngineTestModule("extend type Query { x(a:Int):Int }") {
                 fieldWithFromFieldVariables(
                     coord = "Query" to "x",
                     objectSelectionsText = "x(a:\$a)",
@@ -514,7 +514,7 @@ class FromFieldVariablesFeatureTest {
     @Test
     fun `invalid from object field -- deadlock between 2 variables -- same selection set`() {
         val err = assertThrows<Throwable> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { x(a:Int):Int, y(b:Int):Int }") {
+            EngineTestModule("extend type Query { x(a:Int):Int, y(b:Int):Int }") {
                 fieldWithFromFieldVariables(
                     coord = "Query" to "x",
                     objectSelectionsText = "x(a:\$a), y(b:\$b)",
@@ -537,7 +537,7 @@ class FromFieldVariablesFeatureTest {
     @Test
     fun `invalid from object field -- deadlock between 2 variables -- diff selection sets`() {
         val err = assertThrows<Throwable> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { x(a:Int):Int, y(b:Int):Int, z:Int }") {
+            EngineTestModule("extend type Query { x(a:Int):Int, y(b:Int):Int, z:Int }") {
                 fieldWithFromFieldVariables(
                     coord = "Query" to "x",
                     objectSelectionsText = "y(b:\$b), z",
@@ -557,7 +557,7 @@ class FromFieldVariablesFeatureTest {
     @Test
     fun `invalid from query field -- path refers to missing selection`() {
         val err = assertThrows<Throwable> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { x:Int, y(b:Int):Int }") {
+            EngineTestModule("extend type Query { x:Int, y(b:Int):Int }") {
                 fieldWithFromFieldVariables(
                     coord = "Query" to "x",
                     querySelectionsText = "y(b:\$b)",
@@ -573,7 +573,7 @@ class FromFieldVariablesFeatureTest {
     @Test
     fun `invalid from query field -- path ends on object`() {
         val err = assertThrows<Throwable> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { x:Int, y(b:Int):Int, z:Query, w:Int }") {
+            EngineTestModule("extend type Query { x:Int, y(b:Int):Int, z:Query, w:Int }") {
                 fieldWithFromFieldVariables(
                     coord = "Query" to "x",
                     querySelectionsText = "y(b:\$b), z { w }",
@@ -597,7 +597,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from query field -- simple`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { x:Int, y(b:Int):Int, z:Int }") {
+        EngineTestModule("extend type Query { x:Int, y(b:Int):Int, z:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 querySelectionsText = "y(b:\$b), z",
@@ -617,7 +617,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from query field -- variables used by field on non-root object`() =
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
                 type Obj { x:Int }
                 extend type Query { obj:Obj y(b:Int):Int, z:Int }
@@ -649,7 +649,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from query field -- simple mutation field`() =
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
                 extend type Mutation { x:Int, y(b:Int):Int }
                 extend type Query { z:Int }
@@ -675,7 +675,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from query field -- binds variable to query field with different name`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { x:Int, y(a:Int):Int, z:Int }") {
+        EngineTestModule("extend type Query { x:Int, y(a:Int):Int, z:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 querySelectionsText = "y(a:\$varz), z",
@@ -695,7 +695,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from query field -- returns null value`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { x:Int!, y(a:Int):Int!, z:Int }") {
+        EngineTestModule("extend type Query { x:Int!, y(a:Int):Int!, z:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 objectSelectionsText = "y(a:\$z)",
@@ -716,7 +716,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from query field -- single-field-multiple-variable -- multiple variables on required selection`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { x:Int, y(b:Int, c:Int):Int, z:Int, w:Int }") {
+        EngineTestModule("extend type Query { x:Int, y(b:Int, c:Int):Int, z:Int, w:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 querySelectionsText = "y(b:\$b, c:\$c), z, w",
@@ -743,7 +743,7 @@ class FromFieldVariablesFeatureTest {
     @Test
     fun `invalid from query field -- variable name overlaps with object field variable`() {
         val err = assertThrows<Throwable> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { foo: String!, bar(x: String!): String! }") {
+            EngineTestModule("extend type Query { foo: String!, bar(x: String!): String! }") {
                 fieldWithFromFieldVariables(
                     coord = "Query" to "bar",
                     objectSelectionsText = "fragment _ on Query { foo }",
@@ -768,7 +768,7 @@ class FromFieldVariablesFeatureTest {
     @Test
     fun `invalid from query field -- variable name overlaps with argument variable`() {
         val err = assertThrows<Throwable> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { foo: String!, bar(name: String!): String! }") {
+            EngineTestModule("extend type Query { foo: String!, bar(name: String!): String! }") {
                 fieldWithFromFieldVariables(
                     coord = "Query" to "bar",
                     querySelectionsText = "fragment _ on Query { foo }",
@@ -791,7 +791,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `mixed variables -- from query field and from argument`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { x(a:Int):Int, y(a:Int, b:Int):Int, z:Int }") {
+        EngineTestModule("extend type Query { x(a:Int):Int, y(a:Int, b:Int):Int, z:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 objectSelectionsText = "y(a:\$vara, b:\$varb)",
@@ -817,7 +817,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `mixed variables -- from query field and from object field`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { x:Int, y(a:Int, b:Int):Int, z(w:Int):Int }") {
+        EngineTestModule("extend type Query { x:Int, y(a:Int, b:Int):Int, z(w:Int):Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
                 objectSelectionsText = "y(a:\$a, b:\$b), z1:z(w:7)",
@@ -847,7 +847,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from arg -- simple`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }") {
+        EngineTestModule("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "foo",
                 objectSelectionsText = "bar(x:\$y)",
@@ -862,7 +862,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from arg -- binds argument to variable with a different name`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }") {
+        EngineTestModule("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "foo",
                 objectSelectionsText = "bar(x:\$vary)",
@@ -877,7 +877,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from arg -- path traverses nested input`() =
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
                 input Inp { x:Int! }
                 extend type Query { foo(inp:Inp!): Int!, bar(x:Int!):Int! }
@@ -897,7 +897,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from arg -- path traverses through null object`() =
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
                 input Inp { x:Int!=2 }
                 extend type Query { foo(inp:Inp):Int, bar(x:Int):Int }
@@ -917,7 +917,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from arg -- arg has default value`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo(x:Int!=2):Int!, bar(x:Int):Int }") {
+        EngineTestModule("extend type Query { foo(x:Int!=2):Int!, bar(x:Int):Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "foo",
                 objectSelectionsText = "bar(x:\$x)",
@@ -933,7 +933,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from arg -- arg from operation variable`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo(y:Int!):Int!, bar(x:Int!): Int! }") {
+        EngineTestModule("extend type Query { foo(y:Int!):Int!, bar(x:Int!): Int! }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "foo",
                 objectSelectionsText = "bar(x:\$y)",
@@ -948,7 +948,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from arg -- same variable name used in same argument with different values`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo(x:Int):Int, bar(x:Int):Int, baz(x:Int):Int }") {
+        EngineTestModule("extend type Query { foo(x:Int):Int, bar(x:Int):Int, baz(x:Int):Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "foo",
                 objectSelectionsText = "baz(x:\$x)",
@@ -968,7 +968,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `from arg -- uses an arg variable with the same name as an unbound argument`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo(x:Int):Int, bar(x:Int):Int, baz(x:Int):Int }") {
+        EngineTestModule("extend type Query { foo(x:Int):Int, bar(x:Int):Int, baz(x:Int):Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "foo",
                 objectSelectionsText = "baz(x:\$x)",
@@ -987,7 +987,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `mixed variables -- non-root resolver uses fromObjectField in queryFragment`() =
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
                 extend type Query { x(a:Int):Int, obj:Obj }
                 type Obj { x:Int, y:Int }
@@ -1019,7 +1019,7 @@ class FromFieldVariablesFeatureTest {
         }
 }
 
-private fun MockLegacyTenantModuleBootstrapperDSL<Unit>.fieldWithFromFieldVariables(
+private fun MockTenantModuleDSL<Unit>.fieldWithFromFieldVariables(
     coord: Pair<String, String>,
     objectSelectionsText: String? = null,
     querySelectionsText: String? = null,

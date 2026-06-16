@@ -11,7 +11,7 @@ import viaduct.engine.api.instrumentation.resolver.CheckerFunction
 import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.runFeatureTest
@@ -22,7 +22,7 @@ class ResolverInstrumentationFeatureTest {
         val resolverToFields = ConcurrentHashMap<String, CopyOnWriteArrayList<String>>()
         val instrumentation = fieldTrackingInstrumentation(resolverToFields)
 
-        MockLegacyTenantModuleBootstrapper("extend type Query { idField: String, string1: String }") {
+        EngineTestModule("extend type Query { idField: String, string1: String }") {
             field("Query" to "idField") {
                 resolver {
                     resolverName("query-id-field-resolver")
@@ -51,7 +51,7 @@ class ResolverInstrumentationFeatureTest {
         val checkerToFields = ConcurrentHashMap<String, CopyOnWriteArrayList<String>>()
         val instrumentation = checkerTrackingInstrumentation(checkerToFields)
 
-        MockLegacyTenantModuleBootstrapper("extend type Query { string1: String, string2: String }") {
+        EngineTestModule("extend type Query { string1: String, string2: String }") {
             field("Query" to "string1") {
                 resolver { fn { _, _, _, _, _ -> "string1" } }
                 checker {

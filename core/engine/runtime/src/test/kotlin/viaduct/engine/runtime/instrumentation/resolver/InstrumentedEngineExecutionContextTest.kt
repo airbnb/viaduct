@@ -21,7 +21,7 @@ internal class InstrumentedEngineExecutionContextTest {
     private fun defaultImpl(): EngineExecutionContextImpl = ContextMocks().engineExecutionContextImpl
 
     @Test
-    fun `resolveSelectionSetSync wraps returned EngineObjectData Sync in InstrumentedEngineObjectData Sync`() =
+    fun `resolveSelectionSet wraps returned EngineObjectData Sync in InstrumentedEngineObjectData Sync`() =
         runBlocking {
             // Given
             val instrumentation = RecordingResolverInstrumentation()
@@ -30,12 +30,12 @@ internal class InstrumentedEngineExecutionContextTest {
             val selectionSet: EngineSelectionSet = mockk()
             val impl: EngineExecutionContextImpl = mockk(relaxed = true)
 
-            coEvery { impl.resolveSelectionSetSync(selectionSet, any()) } returns rawObjectData
+            coEvery { impl.resolveSelectionSet(selectionSet, any()) } returns rawObjectData
 
             val testClass = InstrumentedEngineExecutionContext(impl, instrumentation, state)
 
             // When
-            val result = testClass.resolveSelectionSetSync(selectionSet, ResolveSelectionSetOptions.DEFAULT)
+            val result = testClass.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.DEFAULT)
 
             // Then — result is wrapped so get callbacks fire on subsequent field access
             assertInstanceOf(InstrumentedEngineObjectData.Sync::class.java, result)
@@ -43,7 +43,7 @@ internal class InstrumentedEngineExecutionContextTest {
         }
 
     @Test
-    fun `resolveSelectionSetSync passes the same instrumentation and state to the wrapper`() =
+    fun `resolveSelectionSet passes the same instrumentation and state to the wrapper`() =
         runBlocking {
             // Given
             val instrumentation = RecordingResolverInstrumentation()
@@ -52,12 +52,12 @@ internal class InstrumentedEngineExecutionContextTest {
             val selectionSet: EngineSelectionSet = mockk()
             val impl: EngineExecutionContextImpl = mockk(relaxed = true)
 
-            coEvery { impl.resolveSelectionSetSync(selectionSet, any()) } returns rawObjectData
+            coEvery { impl.resolveSelectionSet(selectionSet, any()) } returns rawObjectData
 
             val testClass = InstrumentedEngineExecutionContext(impl, instrumentation, state)
 
             // When
-            val result = testClass.resolveSelectionSetSync(selectionSet, ResolveSelectionSetOptions.DEFAULT)
+            val result = testClass.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.DEFAULT)
                 as InstrumentedEngineObjectData.Sync
 
             // Then — the same instrumentation and state are threaded through to the wrapper so
@@ -68,7 +68,7 @@ internal class InstrumentedEngineExecutionContextTest {
         }
 
     @Test
-    fun `resolveSelectionSetSync forwards selectionSet and options to impl`() =
+    fun `resolveSelectionSet forwards selectionSet and options to impl`() =
         runBlocking {
             // Given
             val instrumentation = RecordingResolverInstrumentation()
@@ -78,15 +78,15 @@ internal class InstrumentedEngineExecutionContextTest {
             val options = ResolveSelectionSetOptions.MUTATION
             val impl: EngineExecutionContextImpl = mockk(relaxed = true)
 
-            coEvery { impl.resolveSelectionSetSync(selectionSet, options) } returns rawObjectData
+            coEvery { impl.resolveSelectionSet(selectionSet, options) } returns rawObjectData
 
             val testClass = InstrumentedEngineExecutionContext(impl, instrumentation, state)
 
             // When
-            testClass.resolveSelectionSetSync(selectionSet, options)
+            testClass.resolveSelectionSet(selectionSet, options)
 
             // Then — impl is invoked with exactly the selectionSet and options passed by the caller
-            coVerify(exactly = 1) { impl.resolveSelectionSetSync(selectionSet, options) }
+            coVerify(exactly = 1) { impl.resolveSelectionSet(selectionSet, options) }
         }
 
     @Test

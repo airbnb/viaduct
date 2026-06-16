@@ -16,7 +16,7 @@ import viaduct.engine.api.spi.NodeResolverExecutor
  * Generate resolvers for Node implementations in the provided schema,
  * capable of resolving their own output selection set.
  *
- * This generated [NodeResolverExecutor]s will be for any Node implementations
+ * This generator will produce a [NodeResolverExecutor] for any Node implementation
  * with the `@resolver` directive, or for Nodes without `@resolver` if
  * [UndeclaredNodeResolverWeight] is configured.
  */
@@ -26,7 +26,7 @@ fun Arb.Companion.nodeResolverExecutor(
 ): Arb<NodeResolverExecutor> =
     arbitrary { rs ->
         val env = ViaductGenEnv(schema, cfg, rs)
-        val typeName = Arb.of(env.resolverCoordinates.nodeResolvers).bind()
+        val typeName = Arb.of(env.resolverConfig.nodeResolvers).bind()
         env.nodeResolverExecutorGen.gen(typeName)
     }
 
@@ -43,7 +43,14 @@ fun Arb.Companion.nodeResolverExecutor(
     require(typeName in schema.nodeImpls)
 
     return arbitrary { rs ->
-        val env = ViaductGenEnv(schema, cfg, rs)
+        val resolverConfig = ResolverConfigImpl(schema, cfg, rs).let { config ->
+            if (typeName in config.nodeResolvers) {
+                config
+            } else {
+                config.plus(ResolverConfigImpl(schema, fieldResolvers = emptySet(), nodeResolvers = setOf(typeName)))
+            }
+        }
+        val env = ViaductGenEnv(schema, cfg, rs, resolverConfig)
         env.nodeResolverExecutorGen.gen(typeName)
     }
 }
@@ -54,14 +61,15 @@ internal fun interface NodeResolverExecutorGen {
     companion object {
         operator fun invoke(env: ViaductGenEnv): NodeResolverExecutorGen =
             NodeResolverExecutorGen { typeName ->
-                val isSelective = env.rs.sampleWeight(env.cfg[SelectiveResolverWeight])
+                val coord = typeName to null
+                val isSelective = env.resolverConfig.isSelective(coord)
                 val nodeResolver = env.fork().let { env ->
                     env.cfg[NodeResolverFactory]
                         .createNodeResolver(
                             NodeResolver.Factory.Params(
                                 env.schemas.viaductSchema,
                                 env.nodeResolverValueGen,
-                                env.resolverCoordinates,
+                                env.resolverConfig,
                                 typeName,
                                 isSelective,
                                 env.cfg,
@@ -126,7 +134,7 @@ fun interface NodeResolver {
         data class Params(
             val schema: ViaductSchema,
             val nodeResolverValueGen: NodeResolverValueGen,
-            val resolverCoordinates: ResolverCoordinates,
+            val resolverConfig: ResolverConfig,
             val typeName: String,
             val selective: Boolean,
             val cfg: Config,

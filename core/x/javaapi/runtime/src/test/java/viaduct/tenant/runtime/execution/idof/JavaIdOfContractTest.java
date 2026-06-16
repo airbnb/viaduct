@@ -1,38 +1,17 @@
 package viaduct.tenant.runtime.execution.idof;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import kotlin.Pair;
-import viaduct.engine.api.mocks.MockTenantAPIBootstrapper;
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper;
 import viaduct.errors.TenantUsageException;
 import viaduct.java.api.annotations.Resolver;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.reflect.Type;
-import viaduct.java.runtime.bridge.DefaultResolverClassFinder;
-import viaduct.java.runtime.bridge.ModuleBootstrapper;
-import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder;
-import viaduct.service.api.spi.CodeInjector;
-import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault;
 import viaduct.tenant.runtime.execution.idof.resolverbases.NodeResolvers;
 import viaduct.tenant.runtime.execution.idof.resolverbases.QueryResolvers;
 import viaduct.tenant.runtime.execution.idof.resolverbases.UserResolvers;
 
 public class JavaIdOfContractTest extends IdOfContractTest {
-
-  private final DefaultResolverClassFinder classFinder =
-      new DefaultResolverClassFinder(getClass().getPackageName(), getClass().getPackageName());
-
-  private final ModuleBootstrapper bootstrapper =
-      new ModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
-
-  @Override
-  protected TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>
-      createBootstrapperBuilder() {
-    return MockTenantAPIBootstrapperBuilder.INSTANCE.invoke(
-        new MockTenantAPIBootstrapper(List.of(bootstrapper)));
-  }
 
   // The Java GRT codegen exposes @idOf-annotated values as plain Strings rather than typed
   // GlobalID<T>, so the engine does not validate the encoding for us. Decode here to recover

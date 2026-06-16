@@ -14,6 +14,8 @@ In Viaduct, all module code is provided in the form of either a *node resolver* 
 
 Responsibility sets (also known as "responsibility selection sets") are an important concept in the Viaduct API. Every node and field resolver is responsible for resolving the fields in its responsibility set. This includes all fields, including nested fields, that themselves do not have a resolver. The node and field resolver pages provide more details with examples.
 
+Field resolvers declare the data they depend on as *required selection sets* in the `@Resolver` annotation. When several resolvers in a module need the same selections, you can factor them into a reusable [named fragment](named_fragments.md) and spread it (`...FragmentName`) instead of repeating them.
+
 ## Injection
 
 Viaduct is designed to create instances of resolver classes through dependency injection. You can define this behavior by implementing this interface:

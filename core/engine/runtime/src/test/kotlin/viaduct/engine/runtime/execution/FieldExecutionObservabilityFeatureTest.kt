@@ -19,7 +19,7 @@ import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
 import viaduct.engine.api.instrumentation.IViaductInstrumentation
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.fetchAs
@@ -37,7 +37,7 @@ class FieldExecutionObservabilityFeatureTest {
     fun `resolver name is passed to instrumentation`() {
         val instrumentation = ObservabilityInstrumentation()
 
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "idField") {
                 resolver {
                     resolverName("query-id-field-resolver")
@@ -74,7 +74,7 @@ class FieldExecutionObservabilityFeatureTest {
     fun `no operation name does not break attribution`() {
         val instrumentation = ObservabilityInstrumentation()
 
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "idField") {
                 resolver {
                     resolverName("query-id-field-resolver")
@@ -111,7 +111,7 @@ class FieldExecutionObservabilityFeatureTest {
             mapOf("OPERATION:testQuery" to childPlanExecuted)
         )
 
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "idField") {
                 resolver {
                     resolverName("query-id-field-resolver")
@@ -160,7 +160,7 @@ class FieldExecutionObservabilityFeatureTest {
             )
         )
 
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "idField") {
                 resolver {
                     resolverName("query-id-field-resolver")
@@ -211,7 +211,7 @@ class FieldExecutionObservabilityFeatureTest {
             )
         )
 
-        MockLegacyTenantModuleBootstrapper(schema) {
+        EngineTestModule(schema) {
             field("Query" to "idField") {
                 resolver {
                     resolverName("query-id-field-resolver")
@@ -263,7 +263,7 @@ class FieldExecutionObservabilityFeatureTest {
         """.trimIndent()
         val barObjData = mapOf<String, Any?>("value" to "Bar.value=[VALUE]")
 
-        MockLegacyTenantModuleBootstrapper(barSchema) {
+        EngineTestModule(barSchema) {
             field("Query" to "string1") {
                 resolver {
                     resolverName("query-string1-resolver")

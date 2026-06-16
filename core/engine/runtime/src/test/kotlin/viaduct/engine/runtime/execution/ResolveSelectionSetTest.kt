@@ -7,22 +7,22 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolveSelectionSetOptions
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 
 /**
- * Test suite for the [viaduct.engine.api.EngineExecutionContext.resolveSelectionSetSync] API.
+ * Test suite for the [viaduct.engine.api.EngineExecutionContext.resolveSelectionSet] API.
  *
- * resolveSelectionSetSync returns an [EngineObjectData.Sync] with all fields eagerly resolved
+ * resolveSelectionSet returns an [EngineObjectData.Sync] with all fields eagerly resolved
  * before the method returns.
  */
 class ResolveSelectionSetTest {
-    // ==================== resolveSelectionSetSync ====================
+    // ==================== resolveSelectionSet ====================
 
     @Test
-    fun `resolveSelectionSetSync returns EngineObjectData Sync with scalar fields`() {
-        MockLegacyTenantModuleBootstrapper(
+    fun `resolveSelectionSet returns EngineObjectData Sync with scalar fields`() {
+        EngineTestModule(
             """
             extend type Query {
                 name: String
@@ -53,7 +53,7 @@ class ResolveSelectionSetTest {
                     fn { _, _, _, _, ctx ->
                         val selectionSet = ctx.engineSelectionSetFactory
                             .engineSelectionSet("Query", "name age", emptyMap())
-                        val data = ctx.resolveSelectionSetSync(selectionSet)
+                        val data = ctx.resolveSelectionSet(selectionSet)
                         assertIs<EngineObjectData.Sync>(data)
                         "name=${data.get("name")}, age=${data.get("age")}"
                     }
@@ -66,8 +66,8 @@ class ResolveSelectionSetTest {
     }
 
     @Test
-    fun `resolveSelectionSetSync data supports getOrNull`() {
-        MockLegacyTenantModuleBootstrapper(
+    fun `resolveSelectionSet data supports getOrNull`() {
+        EngineTestModule(
             """
             extend type Query {
                 name: String
@@ -96,7 +96,7 @@ class ResolveSelectionSetTest {
                     fn { _, _, _, _, ctx ->
                         val selectionSet = ctx.engineSelectionSetFactory
                             .engineSelectionSet("Query", "name", emptyMap())
-                        val data = ctx.resolveSelectionSetSync(selectionSet)
+                        val data = ctx.resolveSelectionSet(selectionSet)
                         assertIs<EngineObjectData.Sync>(data)
                         val name = data.getOrNull("name")
                         assertNotNull(name)
@@ -111,8 +111,8 @@ class ResolveSelectionSetTest {
     }
 
     @Test
-    fun `resolveSelectionSetSync data supports getSelections`() {
-        MockLegacyTenantModuleBootstrapper(
+    fun `resolveSelectionSet data supports getSelections`() {
+        EngineTestModule(
             """
             extend type Query {
                 x: Int
@@ -143,7 +143,7 @@ class ResolveSelectionSetTest {
                     fn { _, _, _, _, ctx ->
                         val selectionSet = ctx.engineSelectionSetFactory
                             .engineSelectionSet("Query", "x y", emptyMap())
-                        val data = ctx.resolveSelectionSetSync(selectionSet)
+                        val data = ctx.resolveSelectionSet(selectionSet)
                         assertIs<EngineObjectData.Sync>(data)
                         val selections = data.getSelections().toList()
                         assertEquals(2, selections.size)
@@ -160,8 +160,8 @@ class ResolveSelectionSetTest {
     }
 
     @Test
-    fun `resolveSelectionSetSync works with mutation operation type`() {
-        MockLegacyTenantModuleBootstrapper(
+    fun `resolveSelectionSet works with mutation operation type`() {
+        EngineTestModule(
             """
             extend type Query {
                 container: Container
@@ -192,7 +192,7 @@ class ResolveSelectionSetTest {
                     fn { _, _, _, _, ctx ->
                         val selectionSet = ctx.engineSelectionSetFactory
                             .engineSelectionSet("Mutation", "doSomething", emptyMap())
-                        val data = ctx.resolveSelectionSetSync(selectionSet, ResolveSelectionSetOptions.MUTATION)
+                        val data = ctx.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.MUTATION)
                         assertIs<EngineObjectData.Sync>(data)
                         "mutationResult=${data.get("doSomething")}"
                     }
@@ -205,8 +205,8 @@ class ResolveSelectionSetTest {
     }
 
     @Test
-    fun `resolveSelectionSetSync returns EngineObjectData Sync for nested objects`() {
-        MockLegacyTenantModuleBootstrapper(
+    fun `resolveSelectionSet returns EngineObjectData Sync for nested objects`() {
+        EngineTestModule(
             """
             extend type Query {
                 person: Person
@@ -248,7 +248,7 @@ class ResolveSelectionSetTest {
                     fn { _, _, _, _, ctx ->
                         val selectionSet = ctx.engineSelectionSetFactory
                             .engineSelectionSet("Query", "person { name age }", emptyMap())
-                        val data = ctx.resolveSelectionSetSync(selectionSet)
+                        val data = ctx.resolveSelectionSet(selectionSet)
                         assertIs<EngineObjectData.Sync>(data)
                         val person = data.get("person")
                         assertIs<EngineObjectData.Sync>(person)

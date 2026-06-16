@@ -114,7 +114,7 @@ annotation class TenantModuleBootstrapperDsl
  * the `node` scope is similar to the `field` scope, except that
  * it's intended for node resolvers/checkers.
  */
-class MockLegacyTenantModuleBootstrapperDSL<F : Any>(
+class MockTenantModuleDSL<F : Any>(
     val schema: ViaductSchema,
     val fac: F,
 ) {
@@ -125,6 +125,15 @@ class MockLegacyTenantModuleBootstrapperDSL<F : Any>(
             nodeResolverExecutors,
             checkerExecutors,
             typeCheckerExecutors,
+        )
+
+    fun createEngineTestModule(): EngineTestModule =
+        EngineTestModule(
+            fullSchema = schema,
+            fieldResolverExecutors = fieldResolverExecutors,
+            nodeResolverExecutors = nodeResolverExecutors,
+            checkerExecutors = checkerExecutors,
+            typeCheckerExecutors = typeCheckerExecutors,
         )
 
     internal val checkerExecutors = mutableMapOf<Coordinate, CheckerExecutor>()
@@ -176,9 +185,9 @@ class MockLegacyTenantModuleBootstrapperDSL<F : Any>(
         val coord: Coordinate,
     ) {
         // DSL marker hides these -- reintroduce them
-        val schema: ViaductSchema get() = this@MockLegacyTenantModuleBootstrapperDSL.schema
-        val fac: F get() = this@MockLegacyTenantModuleBootstrapperDSL.fac
-        val queryType: GraphQLObjectType get() = this@MockLegacyTenantModuleBootstrapperDSL.queryType
+        val schema: ViaductSchema get() = this@MockTenantModuleDSL.schema
+        val fac: F get() = this@MockTenantModuleDSL.fac
+        val queryType: GraphQLObjectType get() = this@MockTenantModuleDSL.queryType
         val objectType: GraphQLObjectType get() = schema.schema.getObjectType(coord.first)!!
         val fieldType: GraphQLOutputType get() = objectType.getFieldDefinition(coord.second)!!.getType()
         val resolverId: String get() = coord.first + "." + coord.second
@@ -265,9 +274,9 @@ class MockLegacyTenantModuleBootstrapperDSL<F : Any>(
 
             // DSL marker hides these -- reintroduce them
             val coord: Coordinate get() = this@FieldScope.coord
-            val schema: ViaductSchema get() = this@MockLegacyTenantModuleBootstrapperDSL.schema
-            val fac: F get() = this@MockLegacyTenantModuleBootstrapperDSL.fac
-            val queryType: GraphQLObjectType get() = this@MockLegacyTenantModuleBootstrapperDSL.queryType
+            val schema: ViaductSchema get() = this@MockTenantModuleDSL.schema
+            val fac: F get() = this@MockTenantModuleDSL.fac
+            val queryType: GraphQLObjectType get() = this@MockTenantModuleDSL.queryType
             val objectType: GraphQLObjectType get() = this@FieldScope.objectType
             val fieldType: GraphQLOutputType get() = this@FieldScope.fieldType
 
@@ -294,9 +303,9 @@ class MockLegacyTenantModuleBootstrapperDSL<F : Any>(
 
             // DSL marker hides these -- reintroduce them
             val coord: Coordinate get() = this@FieldScope.coord
-            val schema: ViaductSchema get() = this@MockLegacyTenantModuleBootstrapperDSL.schema
-            val fac: F get() = this@MockLegacyTenantModuleBootstrapperDSL.fac
-            val queryType: GraphQLObjectType get() = this@MockLegacyTenantModuleBootstrapperDSL.queryType
+            val schema: ViaductSchema get() = this@MockTenantModuleDSL.schema
+            val fac: F get() = this@MockTenantModuleDSL.fac
+            val queryType: GraphQLObjectType get() = this@MockTenantModuleDSL.queryType
             val objectType: GraphQLObjectType get() = this@FieldScope.objectType
             val fieldType: GraphQLOutputType get() = this@FieldScope.fieldType
 
@@ -336,9 +345,9 @@ class MockLegacyTenantModuleBootstrapperDSL<F : Any>(
 
             // DSL marker hides these -- reintroduce them
             val coord: Coordinate get() = this@FieldScope.coord
-            val schema: ViaductSchema get() = this@MockLegacyTenantModuleBootstrapperDSL.schema
-            val fac: F get() = this@MockLegacyTenantModuleBootstrapperDSL.fac
-            val queryType: GraphQLObjectType get() = this@MockLegacyTenantModuleBootstrapperDSL.queryType
+            val schema: ViaductSchema get() = this@MockTenantModuleDSL.schema
+            val fac: F get() = this@MockTenantModuleDSL.fac
+            val queryType: GraphQLObjectType get() = this@MockTenantModuleDSL.queryType
             val objectType: GraphQLObjectType get() = this@FieldScope.objectType
             val fieldType: GraphQLOutputType get() = this@FieldScope.fieldType
 
@@ -379,9 +388,9 @@ class MockLegacyTenantModuleBootstrapperDSL<F : Any>(
     @TenantModuleBootstrapperDsl
     inner class TypeScope(val typeName: String) {
         // DSL marker hides these -- reintroduce them
-        val schema: ViaductSchema get() = this@MockLegacyTenantModuleBootstrapperDSL.schema
-        val fac: F get() = this@MockLegacyTenantModuleBootstrapperDSL.fac
-        val queryType: GraphQLObjectType get() = this@MockLegacyTenantModuleBootstrapperDSL.queryType
+        val schema: ViaductSchema get() = this@MockTenantModuleDSL.schema
+        val fac: F get() = this@MockTenantModuleDSL.fac
+        val queryType: GraphQLObjectType get() = this@MockTenantModuleDSL.queryType
         val objectType: GraphQLObjectType get() = schema.schema.getObjectType(typeName)!!
 
         fun nodeBatchedExecutor(
@@ -414,16 +423,17 @@ class MockLegacyTenantModuleBootstrapperDSL<F : Any>(
             private var variableProviders: MutableList<VariablesResolver> = mutableListOf()
 
             // DSL marker hides these -- reintroduce them
-            val schema: ViaductSchema get() = this@MockLegacyTenantModuleBootstrapperDSL.schema
-            val fac: F get() = this@MockLegacyTenantModuleBootstrapperDSL.fac
-            val queryType: GraphQLObjectType get() = this@MockLegacyTenantModuleBootstrapperDSL.queryType
+            val schema: ViaductSchema get() = this@MockTenantModuleDSL.schema
+            val fac: F get() = this@MockTenantModuleDSL.fac
+            val queryType: GraphQLObjectType get() = this@MockTenantModuleDSL.queryType
             val objectType: GraphQLObjectType get() = this@TypeScope.objectType
 
             fun variables(
                 vararg names: String,
+                rss: RequiredSelectionSet? = null,
                 resolveFn: VariablesResolverFn
             ) {
-                variableProviders.add(MockVariablesResolver(*names, resolveFn = resolveFn))
+                variableProviders.add(MockVariablesResolver(*names, requiredSelectionSet = rss, resolveFn = resolveFn))
             }
 
             internal fun toRSS() = createRSS(typeName, objectSelectionsText, variableProviders, forChecker)
@@ -435,9 +445,9 @@ class MockLegacyTenantModuleBootstrapperDSL<F : Any>(
             internal var executeFn: CheckerFn = { _, _ -> TODO() }
 
             // DSL marker hides these -- reintroduce them
-            val schema: ViaductSchema get() = this@MockLegacyTenantModuleBootstrapperDSL.schema
-            val fac: F get() = this@MockLegacyTenantModuleBootstrapperDSL.fac
-            val queryType: GraphQLObjectType get() = this@MockLegacyTenantModuleBootstrapperDSL.queryType
+            val schema: ViaductSchema get() = this@MockTenantModuleDSL.schema
+            val fac: F get() = this@MockTenantModuleDSL.fac
+            val queryType: GraphQLObjectType get() = this@MockTenantModuleDSL.queryType
             val typeName: String get() = this@TypeScope.typeName
             val objectType: GraphQLObjectType get() = this@TypeScope.objectType
 

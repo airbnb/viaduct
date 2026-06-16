@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport")
+@file:Suppress("ForbiddenImport", "DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION")
 
 package viaduct.engine.api.mocks
 
@@ -14,6 +14,7 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.flatten
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
+import viaduct.engine.runtime.tenantloading.ExecutionRegistryTenantModuleBootstrapper
 import viaduct.engine.runtime.tenantloading.ExecutorValidator
 import viaduct.graphql.test.assertJson as realAssertJson
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder
@@ -70,6 +71,48 @@ fun MockLegacyTenantModuleBootstrapper.runFeatureTest(
 ) {
     val executableSchema = schema ?: fullSchema
     val engine = toEngineFactory(withoutDefaultQueryNodeResolvers, engineConfig).create(executableSchema, fullSchema = fullSchema)
+    FeatureTest(engine).block()
+}
+
+/**
+ * Run a feature test using the execution-registry path.
+ *
+ * This extension constructs [ExecutionRegistryTenantModuleBootstrapper] directly from the
+ * [EngineTestModule], wraps it in [MockTenantAPIBootstrapper], and builds the engine through
+ * the same [DispatcherRegistryFactory] path as the legacy extension.
+ */
+@Suppress("OPT_IN_USAGE") // DispatcherRegistryFactory is experimental
+fun EngineTestModule.runFeatureTest(
+    withoutDefaultQueryNodeResolvers: Boolean = false,
+    schema: ViaductSchema? = null,
+    engineConfig: EngineConfiguration? = null,
+    block: FeatureTest.() -> Unit,
+) {
+    val executableSchema = schema ?: fullSchema
+    val registry = buildExecutionRegistryConfigFile()
+    val executorFactory = EngineTestModuleExecutorFactory()
+    val executionRegistryModule = ExecutionRegistryTenantModuleBootstrapper(registry, executorFactory)
+
+    val tenantAPIBootstrapper = buildList {
+        add(MockTenantAPIBootstrapperBuilder(MockTenantAPIBootstrapper(listOf(executionRegistryModule))))
+        if (!withoutDefaultQueryNodeResolvers) {
+            add(ViaductBuiltInResolversBootstrapper.Builder())
+        }
+    }.map { it.create() }.flatten()
+
+    val config = engineConfig ?: EngineConfiguration.featureTestDefault
+    val checkerExecutorFactory = MockCheckerExecutorFactory(
+        checkerExecutors = checkerExecutors,
+        typeCheckerExecutors = typeCheckerExecutors,
+    )
+    val validator = ExecutorValidator(fullSchema)
+    val dispatcherRegistry = DispatcherRegistryFactory(
+        tenantAPIBootstrapper,
+        validator,
+        checkerExecutorFactory,
+        resolverInstrumentation = config.resolverInstrumentation,
+    ).create(fullSchema)
+    val engine = EngineFactory(config, dispatcherRegistry).create(executableSchema, fullSchema = fullSchema)
     FeatureTest(engine).block()
 }
 

@@ -343,6 +343,20 @@ class GraphQLTypesTest : KotestPropertyBase() {
         }
 
     @Test
+    fun `GraphQLTypes - enum values use their names as backing values`(): Unit =
+        runBlocking {
+            val names = GraphQLNames(mapOf(TypeType.Enum to setOf("E")))
+            Arb.graphQLTypes(names, minimalConfig + (EnumTypeSize to 1..1))
+                .forAll { types ->
+                    types.enums.values.all { e ->
+                        e.values.all { v ->
+                            v.value == v.name
+                        }
+                    }
+                }
+        }
+
+    @Test
     fun `GraphQLTypes - InterfaceTypeSize`(): Unit =
         runBlocking {
             Arb

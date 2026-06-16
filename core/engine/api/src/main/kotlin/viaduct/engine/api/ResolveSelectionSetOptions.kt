@@ -3,7 +3,7 @@ package viaduct.engine.api
 import viaduct.engine.runtime.ObjectEngineResult
 
 /**
- * Options for executing a selection set via [EngineExecutionContext.resolveSelectionSetSync].
+ * Options for executing a selection set via [EngineExecutionContext.resolveSelectionSet].
  *
  * This options class provides flexibility for advanced use cases while keeping
  * the common tenant-level `ctx.query()` and `ctx.mutation()` APIs simple.

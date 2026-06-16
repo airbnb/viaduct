@@ -4,18 +4,15 @@ import com.example.starwars.filmography.resolverbases.CharacterResolvers
 import viaduct.api.resolver.Resolver
 
 /**
- * Demonstrates shorthand fragment syntax - specifies exactly which fields to fetch
+ * Demonstrates spreading a named fragment (`CharacterIdentityFieldsFragment`) in an
+ * `objectValueFragment`.
  *
- * @resolver("fragment _ on Character { name birthYear }"): Full fragment syntax that specifies
- *          exactly which fields should be fetched from the Character object. This enables
- *          computed fields that depend on multiple other fields.
+ * Rather than repeating `name birthYear` inline, this resolver spreads the shared
+ * `CharacterIdentityFields` fragment with `...CharacterIdentityFields`. The same fragment is reused
+ * by `CharacterRichSummaryResolver`.
  */
-@Resolver(
-    """
-        name
-        birthYear
-    """
-)
+// tag::named_fragment_consumer[5] Spreading a named fragment in objectValueFragment
+@Resolver("fragment _ on Character { ...CharacterIdentityFields }")
 class CharacterDisplaySummaryResolver : CharacterResolvers.DisplaySummary() {
     override suspend fun resolve(ctx: Context): String? {
         val character = ctx.getObjectValue()

@@ -80,6 +80,8 @@ You can define multiple named fragments and reference them within your main frag
 )
 ```
 
+The fragments shown above are defined inline within a single resolver. To share a fragment across **multiple** resolvers in the same tenant module, declare it once as a [named fragment](named_fragments.md) and spread it with `...FragmentName`.
+
 Note that if you have multiple fragments on the type of the main fragment (either the object type or the query type), the primary one needs to be named `Main`:
 
 ```kotlin

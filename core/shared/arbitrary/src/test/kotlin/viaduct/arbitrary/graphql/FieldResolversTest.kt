@@ -13,6 +13,7 @@ import viaduct.arbitrary.common.CompoundingWeight.Companion.Never
 import viaduct.arbitrary.common.CompoundingWeight.Companion.Once
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.engine.api.ViaductSchema
 
 class FieldResolversTest : KotestPropertyBase() {
     private val schema = """
@@ -63,19 +64,26 @@ class FieldResolversTest : KotestPropertyBase() {
     }
 
     @Test
-    fun `Arb_fieldResolverExecutor -- SelectiveResolverWeight`(): Unit =
+    fun `Arb_fieldResolverExecutor -- declared resolver selectivity`(): Unit =
         runBlocking {
-            Exhaustive.of(0.0, 1.0)
-                .forAll { weight ->
+            Exhaustive.of(
+                "extend type Query { x:Int @resolver }".asViaductSchema to false,
+                ViaductSchema(
+                    """
+                    directive @resolver(isSelective: Boolean! = false) on FIELD_DEFINITION | OBJECT
+                    type Query { x:Int @resolver(isSelective: true) }
+                    """.asSchema
+                ) to true
+            )
+                .forAll { (schema, expectedSelective) ->
                     val instr = FieldResolver.Factory.Instrumented()
                     Arb.fieldResolverExecutor(
                         schema,
                         Config.default +
-                            (SelectiveResolverWeight to weight) +
                             (FieldResolverFactory to instr)
                     ).bind()
 
-                    instr.recorder.arg.selective == (weight == 1.0)
+                    instr.recorder.arg.selective == expectedSelective
                 }
         }
 

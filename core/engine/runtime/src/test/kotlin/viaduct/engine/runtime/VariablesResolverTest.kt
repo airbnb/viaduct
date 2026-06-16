@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
@@ -16,7 +16,7 @@ import viaduct.engine.api.mocks.runFeatureTest
 class VariablesResolverTest {
     @Test
     fun `variables provider -- const`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar(x: Int!): Int! }") {
+        EngineTestModule("extend type Query { foo: Int, bar(x: Int!): Int! }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
@@ -36,7 +36,7 @@ class VariablesResolverTest {
 
     @Test
     fun `variables provider -- transform dependent field arg`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }") {
+        EngineTestModule("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
@@ -57,7 +57,7 @@ class VariablesResolverTest {
     @Disabled("Disabled until validation of variables-provider behavior is in engine.")
     @Test
     fun `variables provider -- returns extra variables`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int!, bar(x:Int!): Int! }") {
+        EngineTestModule("extend type Query { foo: Int!, bar(x:Int!): Int! }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
@@ -79,7 +79,7 @@ class VariablesResolverTest {
 
     @Test
     fun `variables provider -- returns null value`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int!, bar(x:Int): Int! }") {
+        EngineTestModule("extend type Query { foo: Int!, bar(x:Int): Int! }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
@@ -100,7 +100,7 @@ class VariablesResolverTest {
     @Disabled("Disabled until validation of variables-provider behavior is in engine.")
     @Test
     fun `variables provider -- does not return declared variable value`() =
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int!, bar(x:Int!): Int! }") {
+        EngineTestModule("extend type Query { foo: Int!, bar(x:Int!): Int! }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
@@ -124,7 +124,7 @@ class VariablesResolverTest {
     fun `variables provider -- variable name overlaps with unbound field arg`() =
         // this test defines a variable provider that defines a variable with a name that overlaps with
         // a field argument. The field argument is not bound to a variable, so this is allowed
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int!, bar(x:Int!): Int! }") {
+        EngineTestModule("extend type Query { foo: Int!, bar(x:Int!): Int! }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$x)") {
@@ -146,7 +146,7 @@ class VariablesResolverTest {
     @Test
     fun `invalid variable reference`() {
         assertThrows<Exception> {
-            MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int!, bar(x:Int!): Int! }") {
+            EngineTestModule("extend type Query { foo: Int!, bar(x:Int!): Int! }") {
                 field("Query" to "foo") {
                     resolver {
                         objectSelections("bar(x:\$invalid)")
@@ -164,7 +164,7 @@ class VariablesResolverTest {
 
     @Test
     fun `variables are coerced`() {
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar(x: [Int!]): Int! }") {
+        EngineTestModule("extend type Query { foo: Int, bar(x: [Int!]): Int! }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {
@@ -189,7 +189,7 @@ class VariablesResolverTest {
     @Test
     fun `variables resolver rss without a selection reference is missing from query plan index`() {
         var variableResolverCalls = 0
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             "extend type Query { a: Int, b: Int }"
         ) {
             field("Query" to "a") {
@@ -217,7 +217,7 @@ class VariablesResolverTest {
         // Covers the catch (e: Exception) branch in FieldResolver.launchQueryPlan, which
         // propagates the exception so the resolver's subsequent
         // await on that slot re-throws the variable-resolution error at the resolver's field.
-        MockLegacyTenantModuleBootstrapper("extend type Query { foo: Int, bar(x: Int!): Int! }") {
+        EngineTestModule("extend type Query { foo: Int, bar(x: Int!): Int! }") {
             field("Query" to "foo") {
                 resolver {
                     objectSelections("bar(x:\$varx)") {

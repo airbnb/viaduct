@@ -1,6 +1,7 @@
 package viaduct.tenant.codegen.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.file
@@ -26,6 +27,14 @@ class AssembleTenantModuleConfigJar : CliktCommand(
     private val schemaSdl: File? by option("--schema-sdl")
         .file(mustExist = true, canBeDir = false)
 
+    /**
+     * FQN of the `ExecutorFactory` recorded in the assembled config. Defaults to the Kotlin factory
+     * so existing callers are unaffected; the Java path passes
+     * `viaduct.java.runtime.bootstrap.ViaductJavaExecutorFactory` instead.
+     */
+    private val executorFactory: String by option("--executor-factory")
+        .default(MODERN_KOTLIN_EXECUTOR_FACTORY)
+
     private val outputJar: File by option("--output-jar")
         .file(mustExist = false, canBeDir = false)
         .required()
@@ -37,7 +46,7 @@ class AssembleTenantModuleConfigJar : CliktCommand(
         try {
             TenantModuleConfigAssembler.writeRegistry(
                 descriptorJsons = descriptorJsons,
-                executorFactory = MODERN_KOTLIN_EXECUTOR_FACTORY,
+                executorFactory = executorFactory,
                 tenantPackage = tenantPackage,
                 schemaSdl = schemaSdl?.readText(),
                 outputDir = outputDir,

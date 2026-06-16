@@ -43,7 +43,7 @@ class ObjectRootFieldReference(
     companion object {
         /**
          * Resolves a root field reference by constructing a selection set from a field path and args,
-         * executing it via [EngineExecutionContext.resolveSelectionSetSync], and extracting the root
+         * executing it via [EngineExecutionContext.resolveSelectionSet], and extracting the root
          * field result.
          */
         internal suspend fun resolveRootFieldReference(
@@ -71,7 +71,7 @@ class ObjectRootFieldReference(
                 selectionString,
                 variables,
             )
-            val queryResult = context.resolveSelectionSetSync(engineSS)
+            val queryResult = context.resolveSelectionSet(engineSS)
             return extractNestedResult(queryResult, rootFieldPath)
         }
 

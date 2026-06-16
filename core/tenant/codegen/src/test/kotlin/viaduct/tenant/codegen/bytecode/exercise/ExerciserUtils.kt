@@ -5,15 +5,12 @@ import graphql.schema.idl.UnExecutableSchemaGenerator
 import java.lang.reflect.Method
 import kotlin.reflect.KClass
 import kotlin.reflect.full.memberProperties
-import org.reflections.Reflections
-import org.reflections.scanners.Scanners
-import org.reflections.util.ClasspathHelper
-import org.reflections.util.ConfigurationBuilder
 import viaduct.api.internal.ReflectionLoader
 import viaduct.engine.api.ViaductSchema
 import viaduct.graphql.schema.graphqljava.readTypesFromURLs
 import viaduct.invariants.FailureCollector
 import viaduct.schema.base.ValueBase
+import viaduct.utils.classgraph.findResourcePathsMatching
 
 internal fun FailureCollector.tryResolveClass(
     msg: String,
@@ -121,20 +118,8 @@ fun loadGraphQLSchemaAsGraphQLSchema(schemaResourcePath: String? = null): Viaduc
         // Load from specific resource path
         listOf(Resources.getResource(schemaResourcePath))
     } else {
-        // scan all the graphqls files in the classloader and load them as the schema
-        val reflections = Reflections(
-            ConfigurationBuilder()
-                .setUrls(
-                    ClasspathHelper.forPackage(
-                        "graphql",
-                        ClasspathHelper.contextClassLoader(),
-                        ClasspathHelper.staticClassLoader()
-                    )
-                )
-                .addScanners(Scanners.Resources)
-        )
-        val graphqlsResources = Scanners.Resources.with(".*\\.graphqls")
-        reflections.get(graphqlsResources).map { Resources.getResource(it) }
+        findResourcePathsMatching("graphql", Regex(".*\\.graphqls"))
+            .map { resourcePath -> Resources.getResource(resourcePath) }
     }
     if (paths.isEmpty()) throw IllegalStateException("Could not find any graphqls files in the classpath")
 

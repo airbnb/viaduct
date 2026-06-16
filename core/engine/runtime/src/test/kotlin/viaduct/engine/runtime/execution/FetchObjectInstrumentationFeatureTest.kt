@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.instrumentation.IViaductInstrumentation
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.runFeatureTest
 
@@ -34,7 +34,7 @@ class FetchObjectInstrumentationFeatureTest {
         val onCompletedCalled = CountDownLatch(1)
         var onCompletedAfterAllFields = false
 
-        MockLegacyTenantModuleBootstrapper("extend type Query { string1: String, string2: String }") {
+        EngineTestModule("extend type Query { string1: String, string2: String }") {
             field("Query" to "string1") {
                 resolver {
                     fn { _, _, _, _, _ ->
@@ -76,7 +76,7 @@ class FetchObjectInstrumentationFeatureTest {
         val onCompletedCalled = CountDownLatch(1)
         var onCompletedAfterAllFields = false
 
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query { initialString: String }
             extend type Mutation { string1: String, string2: String }
@@ -138,7 +138,7 @@ class FetchObjectInstrumentationFeatureTest {
     @Test
     @DisplayName("mutation returning list with failed field checker handles result type correctly")
     fun mutationReturningListWithFailedFieldCheckerHandlesResultType() {
-        MockLegacyTenantModuleBootstrapper(
+        EngineTestModule(
             """
             extend type Query { empty: Int }
             extend type Mutation { getUrls: [String!] }
