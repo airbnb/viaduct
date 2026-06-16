@@ -11,10 +11,12 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.mocks.featureTestDefault
+import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
 import viaduct.service.api.spi.ErrorBuilder
@@ -1022,6 +1024,56 @@ class AccessCheckExecutionTest {
             assertContains(error.message, "permission denied")
             assertEquals("FOO", error.extensions.get("type"))
             assertTrue(reported)
+        }
+    }
+
+    @Test
+    fun `type checker RSS variable resolver can fetch from current object`() {
+        MockLegacyTenantModuleBootstrapper(
+            """
+            extend type Query { obj: Obj! }
+            type Obj { x: Boolean! }
+            """.trimIndent()
+        ) {
+            field("Query" to "obj") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Obj")!!,
+                            mapOf("x" to true)
+                        )
+                    }
+                }
+            }
+            type("Obj") {
+                checker {
+                    querySelections(
+                        "root",
+                        "__typename @include(if: \$var)"
+                    ) {
+                        variables(
+                            "var",
+                            rss = createRSS("Obj", "x", forChecker = true)
+                        ) { ctx, _ ->
+                            mapOf("var" to ctx.objectData.fetchAs<Boolean>("x"))
+                        }
+                    }
+                    fn { _, _ -> }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ obj { __typename } }")
+                .assertJson(
+                    """
+                    {
+                      data: {
+                        obj: {
+                          __typename: "Obj"
+                        }
+                      }
+                    }
+                    """.trimIndent()
+                )
         }
     }
 

@@ -359,16 +359,22 @@ class FieldResolver(
                 return@fold seenRssIds
             }
             val childPlan = FieldExecutionHelpers.findRssQueryPlan(childPlanId, parameters)
-            launchQueryPlan(parameters, childPlan, executionConditionEnv, seenRssIds = seenRssIds)
+            val childTarget = when (target) {
+                is ExecutionParameters.ChildPlanTarget.FieldType -> target
+                is ExecutionParameters.ChildPlanTarget.IsolatedRootResult -> target
+                else -> ExecutionParameters.ChildPlanTarget.FromContext
+            }
+            launchQueryPlan(parameters, childPlan, executionConditionEnv, childTarget, seenRssIds)
             seenRssIds + childPlanId
         }
 
         parameters.launchOnRootScope {
+            val executionTarget = parameters.childPlanVariableResolutionTarget(plan, target)
             val variables = FieldExecutionHelpers.resolveQueryPlanVariables(
                 plan,
                 parameters.executionStepInfo.arguments,
-                parameters.parentEngineResult,
-                parameters.queryEngineResult,
+                executionTarget.parentEngineResult,
+                executionTarget.queryEngineResult,
                 parameters.engineExecutionContext,
                 parameters.executionContext.graphQLContext,
                 parameters.executionContext.locale,

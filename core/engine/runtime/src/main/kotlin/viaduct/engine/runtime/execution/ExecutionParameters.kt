@@ -235,6 +235,69 @@ data class ExecutionParameters(
         ) : ChildPlanTarget
     }
 
+    data class ChildPlanExecutionTarget(
+        val objectType: GraphQLObjectType,
+        val isRootQueryQueryPlan: Boolean,
+        val parentEngineResult: ObjectEngineResultImpl,
+        val queryEngineResult: ObjectEngineResultImpl,
+    )
+
+    /**
+     * Resolves the target-sensitive object results a child plan should use.
+     */
+    fun childPlanExecutionTarget(
+        childPlan: QueryPlan,
+        target: ChildPlanTarget = ChildPlanTarget.FromContext,
+    ): ChildPlanExecutionTarget {
+        val objectType = childPlan.parentType as? GraphQLObjectType
+            ?: throw IllegalArgumentException("Child plan must have a parent type of GraphQLObjectType")
+        val isRootQueryQueryPlan = objectType == executionContext.graphQLSchema.queryType
+
+        val childQueryEngineResult = when (target) {
+            is ChildPlanTarget.IsolatedRootResult -> target.queryResult
+            else -> queryEngineResult
+        }
+
+        // ExplicitParentResult always honors the explicit parent result. IsolatedRootResult
+        // starts a new root/query result boundary. FromContext and FieldType fall back to
+        // queryEngineResult for Query plans.
+        val childParentEngineResult = when {
+            target is ChildPlanTarget.ExplicitParentResult -> target.parentResult
+            target is ChildPlanTarget.IsolatedRootResult -> {
+                if (isRootQueryQueryPlan) target.queryResult else target.rootResult
+            }
+            isRootQueryQueryPlan -> childQueryEngineResult
+            target is ChildPlanTarget.FieldType -> target.parentResult
+            else -> parentEngineResult
+        }
+
+        return ChildPlanExecutionTarget(
+            objectType = objectType,
+            isRootQueryQueryPlan = isRootQueryQueryPlan,
+            parentEngineResult = childParentEngineResult,
+            queryEngineResult = childQueryEngineResult,
+        )
+    }
+
+    /**
+     * Resolves the object results used while evaluating variables before the child plan runs.
+     *
+     * Query-typed child plans execute against the query root, but variables on query
+     * selections may have object RSS that should read from the caller's current object.
+     */
+    fun childPlanVariableResolutionTarget(
+        childPlan: QueryPlan,
+        target: ChildPlanTarget = ChildPlanTarget.FromContext,
+    ): ChildPlanExecutionTarget {
+        val executionTarget = childPlanExecutionTarget(childPlan, target)
+        val variableParentEngineResult = when (target) {
+            is ChildPlanTarget.FieldType -> target.parentResult
+            is ChildPlanTarget.IsolatedRootResult -> executionTarget.parentEngineResult
+            else -> parentEngineResult
+        }
+        return executionTarget.copy(parentEngineResult = variableParentEngineResult)
+    }
+
     /**
      * Creates ExecutionParameters for executing a child plan.
      *
@@ -254,9 +317,9 @@ data class ExecutionParameters(
         variables: CoercedVariables,
         target: ChildPlanTarget = ChildPlanTarget.FromContext,
     ): ExecutionParameters {
-        val objectType = childPlan.parentType as? GraphQLObjectType
-            ?: throw IllegalArgumentException("Child plan must have a parent type of GraphQLObjectType")
-        val isRootQueryQueryPlan = objectType == executionContext.graphQLSchema.queryType
+        val executionTarget = childPlanExecutionTarget(childPlan, target)
+        val objectType = executionTarget.objectType
+        val isRootQueryQueryPlan = executionTarget.isRootQueryQueryPlan
 
         val newConstants = when (target) {
             is ChildPlanTarget.IsolatedRootResult ->
@@ -264,24 +327,6 @@ data class ExecutionParameters(
                     rootEngineResult = target.rootResult,
                 )
             else -> constants
-        }
-
-        val newQueryEngineResult = when (target) {
-            is ChildPlanTarget.IsolatedRootResult -> target.queryResult
-            else -> queryEngineResult
-        }
-
-        // ExplicitParentResult always honors the explicit parent result. IsolatedRootResult
-        // starts a new root/query result boundary. FromContext and FieldType fall back to
-        // queryEngineResult for Query plans.
-        val newParentOER = when {
-            target is ChildPlanTarget.ExplicitParentResult -> target.parentResult
-            target is ChildPlanTarget.IsolatedRootResult -> {
-                if (isRootQueryQueryPlan) target.queryResult else target.rootResult
-            }
-            isRootQueryQueryPlan -> newQueryEngineResult
-            target is ChildPlanTarget.FieldType -> target.parentResult
-            else -> parentEngineResult
         }
 
         val childSource = if (isRootQueryQueryPlan) {
@@ -303,8 +348,8 @@ data class ExecutionParameters(
             variables,
             isRootQueryQueryPlan,
             objectType,
-            newParentOER,
-            newQueryEngineResult,
+            executionTarget.parentEngineResult,
+            executionTarget.queryEngineResult,
             childSource,
             parentStepInfo,
             newConstants,

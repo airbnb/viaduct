@@ -430,9 +430,10 @@ class MockTenantModuleDSL<F : Any>(
 
             fun variables(
                 vararg names: String,
+                rss: RequiredSelectionSet? = null,
                 resolveFn: VariablesResolverFn
             ) {
-                variableProviders.add(MockVariablesResolver(*names, resolveFn = resolveFn))
+                variableProviders.add(MockVariablesResolver(*names, requiredSelectionSet = rss, resolveFn = resolveFn))
             }
 
             internal fun toRSS() = createRSS(typeName, objectSelectionsText, variableProviders, forChecker)
