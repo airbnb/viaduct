@@ -4,9 +4,9 @@ package viaduct.arbitrary.graphql
 
 import graphql.Directives
 import graphql.Scalars
-import graphql.TypeResolutionEnvironment
 import graphql.introspection.Introspection.DirectiveLocation
 import graphql.language.Value
+import graphql.schema.DataFetcher
 import graphql.schema.GraphQLAppliedDirective
 import graphql.schema.GraphQLArgument
 import graphql.schema.GraphQLCodeRegistry
@@ -28,10 +28,10 @@ import graphql.schema.GraphQLTypeReference
 import graphql.schema.GraphQLTypeVisitorStub
 import graphql.schema.GraphQLUnionType
 import graphql.schema.GraphQLUnmodifiedType
+import graphql.schema.PropertyDataFetcher
 import graphql.schema.SchemaTransformer
 import graphql.schema.TypeResolver
 import graphql.schema.idl.FastSchemaGenerator
-import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaParser
 import graphql.util.TraversalControl
 import graphql.util.Traverser
@@ -45,7 +45,10 @@ import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import viaduct.arbitrary.common.Config
+import viaduct.engine.ViaductWiringFactory
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.mapping.graphql.GJValueConv
 
 /** Generate arbitrary [GraphQLSchema]s from a static [Config] */
@@ -82,19 +85,39 @@ internal class SchemaGenerator(val cfg: Config, val rs: RandomSource) {
             ).build()
 
     private fun codeRegistry(types: GraphQLTypes): GraphQLCodeRegistry {
-        val noopResolver =
-            object : TypeResolver {
-                override fun getType(env: TypeResolutionEnvironment?): GraphQLObjectType = throw UnsupportedOperationException("not implemented")
+        val typeResolver = TypeResolver {
+            val obj = it.getObject<Any>()
+            if (obj is EngineObjectData) {
+                obj.type
+            } else {
+                throw UnsupportedOperationException()
             }
+        }
 
         return GraphQLCodeRegistry
             .newCodeRegistry()
             .also {
+                it.defaultDataFetcher {
+                    DataFetcher { env ->
+                        val source = env.getSource<Any?>() ?: return@DataFetcher null
+                        if (source is EngineObjectData) {
+                            if (source is EngineObjectData.Sync) {
+                                source.getOrNull(env.field.name)
+                            } else {
+                                DefaultCoroutineInterop.scopedFuture { source.fetchOrNull(env.field.name) }
+                            }
+                        } else {
+                            PropertyDataFetcher.fetching<Any>(env.field.name).get(env)
+                        }
+                    }
+                }
+            }
+            .also {
                 types.interfaces.forEach { (name, _) ->
-                    it.typeResolver(name, noopResolver)
+                    it.typeResolver(name, typeResolver)
                 }
                 types.unions.forEach { (name, _) ->
-                    it.typeResolver(name, noopResolver)
+                    it.typeResolver(name, typeResolver)
                 }
             }.build()
     }
@@ -120,7 +143,10 @@ internal class SchemaGenerator(val cfg: Config, val rs: RandomSource) {
     fun createSchema(sdl: String): GraphQLSchema {
         val tdr = SchemaParser().parse(sdl)
         return FastSchemaGenerator()
-            .makeExecutableSchema(tdr, RuntimeWiring.MOCKED_WIRING)
+            .makeExecutableSchema(
+                tdr,
+                ViaductWiringFactory.buildRuntimeWiring(DefaultCoroutineInterop)
+            )
     }
 
     fun finalize(schema: GraphQLSchema): GraphQLSchema {

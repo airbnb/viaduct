@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.engine.api.ViaductSchema
 
 class NodeResolversTest : KotestPropertyBase() {
     private val schema = """
@@ -63,19 +64,28 @@ class NodeResolversTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Arb_nodeResolverExecutor -- SelectiveResolverWeight`(): Unit =
+    fun `Arb_nodeResolverExecutor -- declared resolver selectivity`(): Unit =
         runBlocking {
-            Exhaustive.of(0.0, 1.0)
-                .forAll { weight ->
+            Exhaustive.of(
+                "type Foo implements Node @resolver { id:ID! x:Int }".asViaductSchema to false,
+                ViaductSchema(
+                    """
+                    directive @resolver(isSelective: Boolean! = false) on FIELD_DEFINITION | OBJECT
+                    type Query { placeholder: Int }
+                    interface Node { id: ID! }
+                    type Foo implements Node @resolver(isSelective: true) { id:ID! x:Int }
+                    """.asSchema
+                ) to true
+            )
+                .forAll { (schema, expectedSelective) ->
                     val instr = NodeResolver.Factory.Instrumented()
                     Arb.nodeResolverExecutor(
                         schema,
                         Config.default +
-                            (SelectiveResolverWeight to weight) +
                             (NodeResolverFactory to instr)
                     ).bind()
 
-                    instr.recorder.arg.selective == (weight == 1.0)
+                    instr.recorder.arg.selective == expectedSelective
                 }
         }
 }

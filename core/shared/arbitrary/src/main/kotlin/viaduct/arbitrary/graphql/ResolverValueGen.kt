@@ -2,11 +2,13 @@ package viaduct.arbitrary.graphql
 
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLEnumType
+import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLScalarType
+import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
 import graphql.schema.GraphQLUnionType
 import graphql.schema.idl.SchemaPrinter
@@ -53,7 +55,7 @@ fun Arb.Companion.fieldResolverValue(
     arbitrary { rs ->
         val gen = ResolverValueGen(
             schema,
-            ResolverCoordinates(schema, cfg, rs),
+            ResolverConfig(schema, cfg, rs),
             cfg,
             rs
         )
@@ -96,7 +98,7 @@ fun Arb.Companion.nodeResolverValue(
     arbitrary { rs ->
         val gen = ResolverValueGen(
             schema,
-            ResolverCoordinates(schema, cfg, rs),
+            ResolverConfig(schema, cfg, rs),
             cfg,
             rs
         )
@@ -118,7 +120,7 @@ interface NodeResolverValueGen {
 
 internal class ResolverValueGen(
     private val schema: ViaductSchema,
-    private val resolverCoordinates: ResolverCoordinates,
+    private val resolverConfig: ResolverConfig,
     private val cfg: Config,
     private val rs: RandomSource
 ) : FieldResolverValueGen, NodeResolverValueGen {
@@ -128,7 +130,7 @@ internal class ResolverValueGen(
     constructor(env: ViaductGenEnv) :
         this(
             env.schemas.viaductSchema,
-            env.resolverCoordinates,
+            env.resolverConfig,
             env.cfg,
             env.rs
         )
@@ -142,7 +144,7 @@ internal class ResolverValueGen(
         val field = schema.schema.getFieldDefinition(coord.gj)
         val parent = schema.schema.getType(coord.first)
         val typeCtx = TypeCtx(field.type, field, parent)
-        return genValue(typeCtx, selective, selections, ctx)
+        return genValue(rootCtx(typeCtx), selective, selections, ctx)
     }
 
     override fun gen(
@@ -152,40 +154,75 @@ internal class ResolverValueGen(
         ctx: EngineCtx,
     ): EngineObjectData {
         val def = schema.schema.getObjectType(type)
-        val value = genValue(TypeCtx(def), selective, selections, ctx, nullable = false, genForNodeResolver = true)
+        val value = genValue(
+            rootCtx(TypeCtx(def), nonNullable = true, genForNodeResolver = true),
+            selective,
+            selections,
+            ctx
+        )
         return value as EngineObjectData
     }
 
-    private fun genValue(
+    private data class Ctx(
+        val tc: TypeCtx,
+        val depth: Int = 0,
+        val maxDepth: Int = MaxValueDepth.default,
+        val nonNullable: Boolean = false,
+        val genForNodeResolver: Boolean = false,
+    ) {
+        fun traverse(field: GraphQLFieldDefinition): Ctx = push(tc.traverse(field)).copy(genForNodeResolver = false)
+
+        fun traverse(type: GraphQLType): Ctx = copy(tc = tc.traverse(type))
+
+        private fun push(type: TypeCtx): Ctx = copy(tc = type, depth = depth + 1, nonNullable = type.type is GraphQLNonNull)
+
+        val nullable: Boolean get() = !nonNullable
+        val overBudget: Boolean get() = depth >= maxDepth
+    }
+
+    private fun rootCtx(
         tc: TypeCtx,
+        nonNullable: Boolean = false,
+        genForNodeResolver: Boolean = false
+    ): Ctx =
+        Ctx(
+            tc = tc,
+            maxDepth = cfg[MaxValueDepth],
+            nonNullable = nonNullable,
+            genForNodeResolver = genForNodeResolver,
+        )
+
+    private fun genValue(
+        valueCtx: Ctx,
         selective: Boolean,
         selections: EngineSelectionSet?,
-        ctx: EngineCtx,
-        nullable: Boolean = true,
-        genForNodeResolver: Boolean = false
+        ctx: EngineCtx
     ): Any? {
-        if (GraphQLTypeUtil.isNullable(tc.type) && nullable) {
-            return if (rs.sampleWeight(cfg[ExplicitNullValueWeight])) {
+        if (GraphQLTypeUtil.isNullable(valueCtx.tc.type) && valueCtx.nullable) {
+            return if (valueCtx.overBudget || rs.sampleWeight(cfg[ExplicitNullValueWeight])) {
                 null
             } else {
-                genValue(tc, selective, selections, ctx, nullable = false, genForNodeResolver = genForNodeResolver)
+                genValue(valueCtx.copy(nonNullable = true), selective, selections, ctx)
             }
         }
 
-        return when (val type = tc.type) {
+        return when (val type = valueCtx.tc.type) {
             is GraphQLNonNull -> genValue(
-                tc.traverse(type.wrappedType),
+                valueCtx.traverse(type.wrappedType).copy(nonNullable = true),
                 selective,
                 selections,
-                ctx,
-                nullable = false
+                ctx
             )
             is GraphQLList -> {
-                val listSize = Arb.int(cfg[ListValueSize]).next(rs)
-                val innerTc = tc.traverse(type.wrappedType)
+                val innerCtx = valueCtx.copy(
+                    tc = valueCtx.tc.traverse(type.wrappedType),
+                    nonNullable = type.wrappedType is GraphQLNonNull,
+                    depth = valueCtx.depth + 1,
+                )
+                val listSize = if (innerCtx.overBudget) 0 else Arb.int(cfg[ListValueSize]).next(rs)
                 List(listSize) {
                     genValue(
-                        innerTc,
+                        innerCtx,
                         selective,
                         selections,
                         ctx
@@ -194,7 +231,10 @@ internal class ResolverValueGen(
             }
             is GraphQLObjectType -> {
                 require(selections != null)
-                if (type.name in resolverCoordinates.nodeResolvers && !genForNodeResolver) {
+
+                // return a node reference if asked to generate a type for a node with a resolver
+                // and we're not currently generating a value for that very resolver
+                if (type.name in resolverConfig.nodeResolvers && !valueCtx.genForNodeResolver) {
                     val globalId = ctx.globalIDCodec.serialize(
                         type.name,
                         Arb.string(cfg[StringValueSize]).next(rs),
@@ -202,12 +242,20 @@ internal class ResolverValueGen(
                     return ctx.createNodeReference(globalId, type)
                 }
 
-                var coords = type.objectCoordinates - resolverCoordinates.fieldResolvers
+                // build the set of fields for which we need to generate a value.
+                // start by considering all fields in the current object, minus the fields with resolvers
+                var coords = type.objectCoordinates - resolverConfig.fieldResolvers
                 if (selective) {
-                    // if this resolver is selective, then drop any coordinates that are not selected
+                    // if this resolver is selective, then filter the coords down to just the ones
+                    // that are selected
                     coords = coords
                         .filter { (type, field) -> selections.containsField(type, field) }
                         .toSet()
+                }
+                // if we're in a node resolver, don't generate a value for the id field -- they are
+                // defined to be outside a node resolvers output selection set.
+                if (valueCtx.genForNodeResolver) {
+                    coords -= type.name to "id"
                 }
                 val data = coords.associate { coord ->
                     val subSelections = if (coord.supportsSubselections(schema)) {
@@ -218,12 +266,10 @@ internal class ResolverValueGen(
 
                     val field = type.getFieldDefinition(coord.second)
                     val value = genValue(
-                        tc.traverse(field),
+                        valueCtx.traverse(field),
                         selective,
                         subSelections,
-                        ctx,
-                        nullable,
-                        genForNodeResolver = false
+                        ctx
                     )
 
                     coord.second to value
@@ -243,12 +289,10 @@ internal class ResolverValueGen(
 
                 val obj = Arb.element(objs).next(rs)
                 genValue(
-                    tc = tc.traverse(obj),
+                    valueCtx = valueCtx.traverse(obj),
                     selective,
                     selections = selections.selectionSetForType(obj.name),
-                    ctx,
-                    nullable,
-                    genForNodeResolver
+                    ctx
                 )
             }
 
@@ -258,7 +302,7 @@ internal class ResolverValueGen(
 
             is GraphQLScalarType ->
                 EngineValueConv(schema, type, null)
-                    .invert(scalarGen.gen(tc))
+                    .invert(scalarGen.gen(valueCtx.tc))
 
             else -> throw IllegalArgumentException("Cannot generate value for unsupported type: ${SchemaPrinter().print(type)} ")
         }

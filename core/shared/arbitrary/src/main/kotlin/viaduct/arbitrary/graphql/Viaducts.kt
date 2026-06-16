@@ -18,6 +18,7 @@ import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.service.api.Viaduct
+import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
@@ -29,12 +30,16 @@ import viaduct.service.runtime.StandardViaduct
  * `@resolver` directives, though it may insert additional resolvers depending on [cfg] (see configuration
  * notes below).
  *
+ * Note that when using this generator with arbitrarily-generated [ViaductSchema]s, you will likely want
+ * to increase the resolver density with [UndeclaredFieldResolverWeight] and [UndeclaredNodeResolverWeight].
+ *
  * For all configurations, generated Viaduct instances are guaranteed to be free of illegal RSS cycles
  *
  * # Configuration
  * This generator supports these configurations:
  * - [UndeclaredFieldResolverWeight]
  * - [UndeclaredNodeResolverWeight]
+ * - [IncludeRequiredResolvers]
  * - [FieldCheckerWeight]
  * - [TypeCheckerWeight]
  * - [RequiredSelectionSetWeight]
@@ -55,7 +60,7 @@ fun Arb.Companion.viaduct(
 
 internal interface ViaductGenEnv {
     val schemas: Schemas
-    val resolverCoordinates: ResolverCoordinates
+    val resolverConfig: ResolverConfig
     val cfg: Config
     val rs: RandomSource
     val requiredSelectionSetGen: RequiredSelectionSetGen
@@ -73,7 +78,7 @@ internal interface ViaductGenEnv {
     companion object {
         private data class Impl(
             override val schemas: Schemas,
-            override val resolverCoordinates: ResolverCoordinates,
+            override val resolverConfig: ResolverConfig,
             override val cfg: Config,
             override val rs: RandomSource,
         ) : ViaductGenEnv {
@@ -91,11 +96,12 @@ internal interface ViaductGenEnv {
         operator fun invoke(
             schema: ViaductSchema,
             cfg: Config,
-            rs: RandomSource
+            rs: RandomSource,
+            resolverConfig: ResolverConfig = ResolverConfig(schema, cfg, rs),
         ): ViaductGenEnv =
             Impl(
                 Schemas(schema),
-                ResolverCoordinates(schema, cfg, rs),
+                resolverConfig,
                 cfg,
                 rs
             )
@@ -113,18 +119,24 @@ private class ViaductGen(private val env: ViaductGenEnv) {
             .withSchemaConfiguration(SchemaConfiguration.fromSchema(env.schemas.viaductSchema))
             .withTenantAPIBootstrapperBuilders(genTenantModuleBootstrapperBuilders(fieldResolverExecutors, nodeResolverExecutors))
             .withCheckerExecutorFactory(genCheckerExecutorFactory(fieldCheckerExecutors, typeCheckerExecutors))
+            // Framework flags on, matching FeatureTest's MockFlagManager.Enabled — in particular
+            // selective resolver execution, which the generated resolvers exercise.
+            .withFlagManager(object : FlagManager {
+                override fun isEnabled(flag: FlagManager.Flag): Boolean = true
+            })
             .build()
 
         val descriptorConfig = GeneratedViaductDescriptorConfig(
             schema = env.schemas.viaductSchema,
             fieldResolverExecutors = fieldResolverExecutors,
+            instrumentedFieldResolverFactory = env.cfg[FieldResolverFactory] as? FieldResolver.Factory.Instrumented,
             nodeResolverExecutors = nodeResolverExecutors,
             fieldCheckerExecutors = fieldCheckerExecutors,
             typeCheckerExecutors = typeCheckerExecutors,
         )
         return DescribedViaduct(
             viaduct,
-            lazy {
+            {
                 ViaductDescriptor.fromGenerated(viaduct, descriptorConfig)
             }
         )
@@ -164,12 +176,12 @@ private class ViaductGen(private val env: ViaductGenEnv) {
         }
 
     private fun genFieldResolverExecutors(): List<Pair<Coordinate, FieldResolverExecutor>> =
-        env.resolverCoordinates.fieldResolvers.map { coord ->
+        env.resolverConfig.fieldResolvers.map { coord ->
             coord to env.fieldResolverExecutorGen.gen(coord)
         }
 
     private fun genNodeResolverExecutors(): List<Pair<String, NodeResolverExecutor>> =
-        env.resolverCoordinates.nodeResolvers.map { tname ->
+        env.resolverConfig.nodeResolvers.map { tname ->
             tname to env.nodeResolverExecutorGen.gen(tname)
         }
 
@@ -216,5 +228,5 @@ fun Viaduct.dump(): String {
         ?: throw UnsupportedOperationException(
             "Unsupported operation: only a Viaduct created by Arb.viaduct may be dumped"
         )
-    return describedViaduct.descriptor.value.toString()
+    return describedViaduct.descriptor().toString()
 }

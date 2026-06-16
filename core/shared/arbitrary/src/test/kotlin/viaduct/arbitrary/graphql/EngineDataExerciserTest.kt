@@ -61,6 +61,7 @@ class EngineDataExerciserTest {
             fixture.apply {
                 EngineDataExerciser.exercise(
                     mkEngineObjectData("Root"),
+                    schema,
                     mkSelectionSet("Root", "x y")
                 )
             }
@@ -71,7 +72,7 @@ class EngineDataExerciserTest {
         runBlocking {
             fixture.apply {
                 val data = mkTrackingObjectData(mkEngineObjectData("Root", "x" to 1, "y" to "hello"))
-                EngineDataExerciser.exercise(data, mkSelectionSet("Root", "x y"))
+                EngineDataExerciser.exercise(data, schema, mkSelectionSet("Root", "x y"))
                 assertEquals(setOf("x", "y"), data.fetched)
             }
         }
@@ -82,10 +83,41 @@ class EngineDataExerciserTest {
             fixture.apply {
                 EngineDataExerciser.exercise(
                     mkEngineObjectData("Root", "child" to null),
+                    schema,
                     mkSelectionSet("Root", "child { value }")
                 )
             }
         }
+
+    @Test
+    fun `non-null selections throws when value is null`() {
+        runBlocking {
+            Fixture("extend type Query { x:Int! }").apply {
+                assertThrows<IllegalArgumentException> {
+                    EngineDataExerciser.exercise(
+                        mkEngineObjectData("Query", "x" to null),
+                        schema,
+                        mkSelectionSet("Query", "x")
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `non-null traversable selections throws when value is null`() {
+        runBlocking {
+            Fixture("extend type Query { x:Query! }").apply {
+                assertThrows<IllegalArgumentException> {
+                    EngineDataExerciser.exercise(
+                        mkEngineObjectData("Query", "x" to null),
+                        schema,
+                        mkSelectionSet("Query", "x { __typename }")
+                    )
+                }
+            }
+        }
+    }
 
     @Test
     fun `traversable -- EngineObjectData value recurses`(): Unit =
@@ -94,6 +126,7 @@ class EngineDataExerciserTest {
                 val inner = mkTrackingObjectData(mkEngineObjectData("Child", "value" to 42))
                 EngineDataExerciser.exercise(
                     mkEngineObjectData("Root", "child" to inner),
+                    schema,
                     mkSelectionSet("Root", "child { value }")
                 )
                 assertEquals(setOf("value"), inner.fetched)
@@ -108,6 +141,7 @@ class EngineDataExerciserTest {
                 val item2 = mkTrackingObjectData(mkEngineObjectData("Child", "value" to 2))
                 EngineDataExerciser.exercise(
                     mkEngineObjectData("Root", "items" to setOf(item1, item2)),
+                    schema,
                     mkSelectionSet("Root", "items { value }")
                 )
                 assertEquals(setOf("value"), item1.fetched)
@@ -121,6 +155,7 @@ class EngineDataExerciserTest {
             fixture.apply {
                 EngineDataExerciser.exercise(
                     mkEngineObjectData("Root", "items" to emptyList<Any>()),
+                    schema,
                     mkSelectionSet("Root", "items { value }")
                 )
             }
@@ -133,6 +168,7 @@ class EngineDataExerciserTest {
                 val item = mkTrackingObjectData(mkEngineObjectData("Child", "value" to 1))
                 EngineDataExerciser.exercise(
                     mkEngineObjectData("Root", "items" to setOf(null, item, null)),
+                    schema,
                     mkSelectionSet("Root", "items { value }")
                 )
                 assertEquals(setOf("value"), item.fetched)
@@ -146,6 +182,7 @@ class EngineDataExerciserTest {
                 fixture.apply {
                     EngineDataExerciser.exercise(
                         mkEngineObjectData("Root", "child" to "a string"),
+                        schema,
                         mkSelectionSet("Root", "child { value }")
                     )
                 }
@@ -168,6 +205,7 @@ class EngineDataExerciserTest {
             runBlocking {
                 EngineDataExerciser.exercise(
                     parent,
+                    schema,
                     mkSelectionSet(
                         "I",
                         """
@@ -201,7 +239,7 @@ class EngineDataExerciserTest {
             fixture.apply {
                 val inner = mkTrackingObjectData(mkEngineObjectData("Child", "value" to 42))
                 val root = mkTrackingObjectData(mkEngineObjectData("Root", "x" to 99, "child" to inner))
-                EngineDataExerciser.exercise(root, mkSelectionSet("Root", "x child { value }"))
+                EngineDataExerciser.exercise(root, schema, mkSelectionSet("Root", "x child { value }"))
                 assertEquals(setOf("x", "child"), root.fetched)
                 assertEquals(setOf("value"), inner.fetched)
             }
@@ -215,6 +253,7 @@ class EngineDataExerciserTest {
                 val child = mkTrackingObjectData(mkEngineObjectData("Child", "grandchild" to grandchild))
                 EngineDataExerciser.exercise(
                     mkEngineObjectData("Root", "child" to child),
+                    schema,
                     mkSelectionSet("Root", "child { grandchild { value } }")
                 )
                 assertEquals(setOf("grandchild"), child.fetched)

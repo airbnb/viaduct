@@ -7,6 +7,7 @@ import io.kotest.property.arbitrary.boolean
 import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.of
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
@@ -131,17 +132,17 @@ class ResolverValueGenTest : KotestPropertyBase() {
     @Test
     fun `nodeResolverValue -- simple`(): Unit =
         runBlocking {
-            val schema = "type Foo implements Node { id:ID! }".asViaductSchema
+            val schema = "type Foo implements Node { id:ID!, x:Int! }".asViaductSchema
 
             val arb = Arb.nodeResolverValue(
                 schema = schema,
                 type = "Foo",
-                selections = schema.mkEngineSelectionSet("Foo", "id"),
+                selections = schema.mkEngineSelectionSet("Foo", "id x"),
                 ctx = MockEngineCtx(),
             )
 
             arb.forAll {
-                it is EngineObjectData && it.type.name == "Foo" && it.fetchSelections() == setOf("id")
+                it is EngineObjectData && it.type.name == "Foo" && it.fetchSelections() == setOf("x")
             }
         }
 
@@ -170,7 +171,7 @@ class ResolverValueGenTest : KotestPropertyBase() {
                 if (selective) {
                     sels == setOf("x")
                 } else {
-                    sels == setOf("id", "x", "y")
+                    sels == setOf("x", "y")
                 }
             }
         }
@@ -190,11 +191,12 @@ class ResolverValueGenTest : KotestPropertyBase() {
                     "id, x, y, obj { x, y }"
                 ),
                 ctx = MockEngineCtx(),
+                cfg = Config.default + (ExplicitNullValueWeight to 0.0),
             )
 
             arb.checkAll {
                 it as EngineObjectData
-                assertEquals(setOf("id", "x", "obj"), it.fetchSelections())
+                assertEquals(setOf("x", "obj"), it.fetchSelections())
 
                 // check that the node resolver resolved nested fields that don't have a resolver
                 val obj = it.fetch("obj") as EngineObjectData
@@ -356,6 +358,55 @@ class ResolverValueGenTest : KotestPropertyBase() {
             arb.forAll { (size, value) ->
                 value as List<*>
                 value.size == size
+            }
+        }
+
+    @Test
+    fun `MaxValueDepth -- nullable recursive field exits with null`(): Unit =
+        runBlocking {
+            val schema = """
+                extend type Query { obj: Obj! @resolver }
+                type Obj { obj: Obj }
+            """.trimIndent().asViaductSchema
+
+            val arb = Arb.fieldResolverValue(
+                schema = schema,
+                coord = "Query" to "obj",
+                selections = schema.mkEngineSelectionSet("Obj", "obj { __typename }"),
+                ctx = MockEngineCtx(),
+                cfg = Config.default +
+                    (IncludeRequiredResolvers to false) +
+                    (ExplicitNullValueWeight to 0.0) +
+                    (MaxValueDepth to 1),
+            )
+            arb.checkAll { v ->
+                v as EngineObjectData
+                assertNull(v.fetch("obj"))
+            }
+        }
+
+    @Test
+    fun `MaxValueDepth -- recursive list exits with empty list`(): Unit =
+        runBlocking {
+            val schema = """
+                extend type Query { entries: [Entry!]! @resolver }
+                type Entry { entries: [Entry!]! }
+            """.trimIndent().asViaductSchema
+
+            val arb = Arb.fieldResolverValue(
+                schema = schema,
+                coord = "Query" to "entries",
+                selections = schema.mkEngineSelectionSet("Entry", "entries { __typename }"),
+                ctx = MockEngineCtx(),
+                cfg = Config.default +
+                    (IncludeRequiredResolvers to false) +
+                    (ExplicitNullValueWeight to 0.0) +
+                    (ListValueSize to 1.asIntRange()) +
+                    (MaxValueDepth to 1),
+            )
+            arb.checkAll { v ->
+                v as List<*>
+                assertEquals(emptyList<Any>(), v)
             }
         }
 

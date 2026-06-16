@@ -624,6 +624,7 @@ internal class GraphQLTypesGen(
                     GraphQLEnumValueDefinition
                         .newEnumValueDefinition()
                         .name(it)
+                        .value(it)
                         .build()
                 }
             }.next(rs)

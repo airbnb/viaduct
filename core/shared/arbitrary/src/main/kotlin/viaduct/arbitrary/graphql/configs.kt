@@ -303,6 +303,29 @@ object InputObjectValueWeight : ConfigKey<Double>(1.0, WeightValidator)
 object IntrospectionObjectValueWeight : ConfigKey<Double>(0.0, WeightValidator)
 
 /**
+ * If enabled, resolver graphs will be generated such that they include the minimal set of required resolvers.
+ * This includes resolvers on root query/mutation/subscription fields, as well as any resolvers required to ensure that
+ * all resolver Output Selection Sets are inhabited.
+ *
+ * For example, given a schema like:
+ * ```graphql
+ *   type Query { field:Foo! @resolver(selective: false) }
+ *   type Foo { foo:Foo! }
+ * ```
+ *
+ * The resolver for Query.field is uninhabited because it is not possible for a
+ * non-selective resolver to produce a finite value for Foo. When this key is enabled,
+ * an additional resolver will be injected into this configuration, ensuring
+ * that all resolvers are responsible for finite values:
+ *
+ * ```graphql
+ *   type Query { field:Foo! @resolver(selective: false) }
+ *   type Foo { foo:Foo! @resolver(selective: false) }  # <-- inserted resolver
+ * ```
+ */
+object IncludeRequiredResolvers : ConfigKey<Boolean>(true, Unvalidated)
+
+/**
  * The probability that a field resolver will be generated for a field that does not apply
  * a `@resolver` directive.
  */

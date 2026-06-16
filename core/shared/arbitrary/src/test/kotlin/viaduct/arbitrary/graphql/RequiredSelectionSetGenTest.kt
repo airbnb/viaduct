@@ -7,13 +7,56 @@ import io.kotest.property.arbitrary.arbitrary
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.arbitrary.common.CompoundingWeight
+import viaduct.arbitrary.common.CompoundingWeight.Companion.Never
 import viaduct.arbitrary.common.CompoundingWeight.Companion.Once
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.engine.runtime.select.allCoords
+import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreAcyclic
+import viaduct.engine.runtime.tenantloading.RequiredSelectionsValidationCtx
 
 class RequiredSelectionSetGenTest : KotestPropertyBase() {
+    @Test
+    fun `generator does not generate interface-mediated cycles`(): Unit =
+        runBlocking {
+            val schema = """
+                extend type Query { a:A }
+                interface I { x:Int }
+                type A implements I { x:Int, y:Int @resolver }
+                type B implements I { x:Int @resolver, i:I }
+            """.trimIndent().asViaductSchema
+
+            val cfg = Config.default +
+                (RequiredSelectionSetWeight to Once) +
+                (FieldSelectionWeight to CompoundingWeight(1.0, 2)) +
+                (InlineFragmentWeight to CompoundingWeight(1.0, 2)) +
+                (FragmentSpreadWeight to Never) +
+                (VariableWeight to 0.0) +
+                (AppliedDirectiveWeight to Never)
+
+            val arb = arbitrary { rs ->
+                RequiredSelectionSetGen(ViaductGenEnv(schema, cfg, rs))
+            }
+
+            arb.checkAll { gen ->
+                val aY = gen.gen("A" to "y", typeCondition = "A", forChecker = false, depth = 0)!!
+                val bX = gen.gen("B" to "x", typeCondition = "B", forChecker = false, depth = 0)!!
+                val registry = requiredSelectionSetRegistry(
+                    ("A" to "y") to aY,
+                    ("B" to "x") to bX,
+                )
+
+                gen.graph.assertAcyclic()
+                RequiredSelectionsAreAcyclic(schema).validate(
+                    RequiredSelectionsValidationCtx("A", "y", registry)
+                )
+            }
+        }
+
     @Test
     fun `generator does not produce cycles through abstract type expansion`(): Unit =
         runBlocking {
@@ -120,5 +163,22 @@ class RequiredSelectionSetGenTest : KotestPropertyBase() {
             arb.checkAll { graph ->
                 graph.assertAcyclic()
             }
+        }
+
+    private fun requiredSelectionSetRegistry(vararg entries: Pair<TypeOrFieldCoordinate, RequiredSelectionSet>): RequiredSelectionSetRegistry =
+        object : RequiredSelectionSetRegistry {
+            private val fieldResolverEntries = entries.groupBy({ it.first }, { it.second })
+
+            override fun getFieldResolverRequiredSelectionSets(
+                typeName: String,
+                fieldName: String
+            ): List<RequiredSelectionSet> = fieldResolverEntries[typeName to fieldName].orEmpty()
+
+            override fun getFieldCheckerRequiredSelectionSets(
+                typeName: String,
+                fieldName: String
+            ): List<RequiredSelectionSet> = emptyList()
+
+            override fun getTypeCheckerRequiredSelectionSets(typeName: String): List<RequiredSelectionSet> = emptyList()
         }
 }

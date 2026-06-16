@@ -3,6 +3,7 @@
 
 package viaduct.arbitrary.graphql
 
+import graphql.schema.idl.SchemaPrinter
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.arbitrary
@@ -16,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -27,9 +29,11 @@ import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.asSequence
 import viaduct.arbitrary.common.mapNotNull
+import viaduct.arbitrary.common.withCheck
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.ExecutionResult
+import viaduct.service.api.Viaduct
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 import viaduct.service.runtime.globalid.DefaultGlobalIDCodec
@@ -176,7 +180,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
         fun `SelectiveResolverWeight`(): Unit =
             runBlocking {
                 val schema = """
-                extend type Query { obj: Obj @resolver }
+                extend type Query { obj: Obj }
                 type Obj { x:Int y:Int }
             """.asViaductSchema
 
@@ -187,6 +191,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                         schema,
                         cfg +
                             (FieldResolverFactory to instr) +
+                            (UndeclaredFieldResolverWeight to 1e-12) +
                             (SelectiveResolverWeight to selectiveResolverWeight)
                     ).bind()
                     viaduct.execute(ExecutionInput.create("{ obj { x } }"))
@@ -377,14 +382,16 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                     )
 
                     val result = instr.resolver("Foo").recorder.result.getOrThrow()
-                    result.fetchSelections().toSet() == setOf("id", "y")
+                    // generated node resolvers omit `id` (it is answerable from the node
+                    // reference) and `x` (it has its own resolver)
+                    result.fetchSelections().toSet() == setOf("y")
                 }
             }
 
         @Test
         fun `SelectiveResolverWeight`(): Unit =
             runBlocking {
-                val schema = "type Foo implements Node @resolver { id:ID!, x:Int }".asViaductSchema
+                val schema = "type Foo implements Node { id:ID!, x:Int, y:Int }".asViaductSchema
 
                 val arb = arbitrary {
                     val instr = NodeResolver.Factory.Instrumented()
@@ -393,6 +400,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                         schema,
                         cfg +
                             (NodeResolverFactory to instr) +
+                            (UndeclaredNodeResolverWeight to 1.0) +
                             (SelectiveResolverWeight to selectiveResolverWeight)
                     ).bind()
                     viaduct.execute(
@@ -409,7 +417,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                     val resolvedSelections = result.fetchSelections().toSet()
 
                     if (selectiveResolverWeight == 0.0) {
-                        resolvedSelections == setOf("id", "x")
+                        resolvedSelections == setOf("x", "y")
                     } else {
                         resolvedSelections == setOf("x")
                     }
@@ -490,6 +498,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 val viaduct = Arb.viaduct(
                     "extend type Query { x:Int @resolver, y(a:Int!):Int }".asViaductSchema,
                     cfg +
+                        (IncludeRequiredResolvers to false) +
                         (RequiredSelectionSetWeight to Once) +
                         (VariableWeight to 1.0) +
                         (ResolverLatencyMillis to 100.asLongRange()) +
@@ -788,6 +797,34 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                     (TypeCheckerWeight to .5) +
                     (VariableWeight to .5)
             ).forAll { true }
+        }
+
+    @Test
+    fun `Arb_viaduct -- generates valid wiring for arbitrary schemas`(): Unit =
+        runBlocking {
+            val cfg = Config.default +
+                (GenInterfaceStubsIfNeeded to true) +
+                (UndeclaredNodeResolverWeight to .5) +
+                (UndeclaredFieldResolverWeight to .5)
+            val arb = arbitrary {
+                val schema = Arb.viaductSchema(cfg).bind()
+                val viaduct = try {
+                    Result.success(Arb.viaduct(schema, cfg).bind())
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
+                val sdl = SchemaPrinter().print(schema.schema)
+                sdl to viaduct
+            }.withCheck { (sdl, v) ->
+                assertTrue(v.isSuccess) {
+                    sdl
+                }
+            }
+
+            val comparator = Comparator<Pair<String, Result<Viaduct>>> { a, b ->
+                a.first.length.compareTo(b.first.length)
+            }
+            arb.minViolation(comparator, randomSource, iterations)?.let { v -> fail(v.err) }
         }
 
     @Test
