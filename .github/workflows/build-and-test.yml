@@ -190,6 +190,30 @@ jobs:
         run: ./gradlew -p core check --scan
         shell: bash
 
+  verify-publication-classpaths:
+    runs-on: ubuntu-latest
+    name: Verify publication runtime classpaths
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: '17'
+
+      # Guards against core modules resolving to the same archive filename (e.g. engine/service/
+      # tenant all producing `runtime-<version>.jar`). Under composite source substitution the
+      # publication facades aggregate the core modules onto their runtimeClasspath, so the
+      # checkRuntimeClasspathArtifactNamesAreUnique task (conventions.viaduct-fat-jar) fails fast
+      # if two would collide when a consumer flattens the classpath into a distribution lib/.
+      # Replaces the heavier composite demoapp assemble; resolves from source, no Maven Local.
+      - name: Check publication runtime classpath filenames are unique
+        run: ./gradlew -p publications checkRuntimeClasspathArtifactNamesAreUnique --scan
+        shell: bash
+
   coverage-reports:
     runs-on: ${{ matrix.os }}
     strategy:

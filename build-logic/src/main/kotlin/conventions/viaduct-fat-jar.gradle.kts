@@ -69,3 +69,25 @@ afterEvaluate {
 tasks.named("assemble") {
     dependsOn(tasks.shadowJar)
 }
+
+// Composite-mode collision guard. In an included build, facade consumers receive the transitive
+// core jars alongside this project's shadow jar — the POM-dependency stripping (above) that keeps
+// published consumers seeing only the self-contained fat jar does not apply to composite source
+// substitution. If two core modules resolve to the same archive filename (e.g. engine/service/
+// tenant all producing `runtime-<version>.jar`), a consumer that flattens this classpath into one
+// directory (distTar/distZip/buildLayers) collides. Model that flatten directly and fail fast: Sync
+// every runtimeClasspath artifact into a temp dir with DuplicatesStrategy.FAIL.
+val checkRuntimeClasspathArtifactNamesAreUnique by tasks.registering(Sync::class) {
+    group = "verification"
+    description = "Fails if runtimeClasspath contains duplicate artifact filenames."
+
+    from(configurations.named("runtimeClasspath"))
+    into(layout.buildDirectory.dir("tmp/checkRuntimeClasspathArtifactNamesAreUnique/lib"))
+
+    duplicatesStrategy = DuplicatesStrategy.FAIL
+    includeEmptyDirs = false
+}
+
+tasks.named("check") {
+    dependsOn(checkRuntimeClasspathArtifactNamesAreUnique)
+}
