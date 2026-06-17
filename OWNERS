@@ -1,0 +1,9 @@
+file-overrides:
+  ALLOWED_DEPS:
+    approvers:
+    - raymie-stata
+    - skevy
+    - aileen-chen
+    - james-bellenger
+watchers:
+- airbnb/ductworks
