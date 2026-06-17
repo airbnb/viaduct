@@ -1,14 +1,12 @@
 package viaduct.tenant.runtime.context.factory
 
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.mockk
 import kotlin.reflect.KClass
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import strikt.api.expectThat
-import strikt.assertions.isNotNull
-import strikt.assertions.startsWith
 import viaduct.api.NodeResolverBase
 import viaduct.api.ResolverBase
 import viaduct.api.context.FieldExecutionContext
@@ -163,7 +161,7 @@ class ResolverExecutionContextFactoryTest {
             requestContext = null,
             rawArguments = emptyMap(),
         )
-        assertInstanceOf(FieldExecutionContext::class.java, result)
+        result.shouldBeInstanceOf<FieldExecutionContext<*, *, *, *>>()
     }
 
     @Test
@@ -188,7 +186,7 @@ class ResolverExecutionContextFactoryTest {
             requestContext = null,
             rawArguments = emptyMap(),
         )
-        assertInstanceOf(MutationFieldExecutionContext::class.java, result)
+        result.shouldBeInstanceOf<MutationFieldExecutionContext<*, *, *, *>>()
     }
 
     @Test
@@ -205,7 +203,8 @@ class ResolverExecutionContextFactoryTest {
             )
         }
 
-        expectThat(exception.message).isNotNull().startsWith("Called on a missing field coordinate")
+        assertNotNull(exception.message)
+        assertTrue(exception.message!!.startsWith("Called on a missing field coordinate"))
     }
 
     @Test
@@ -264,7 +263,7 @@ class ResolverExecutionContextFactoryTest {
             requestContext = null,
             rawArguments = emptyMap(),
         )
-        assertInstanceOf(FieldExecutionContext::class.java, result)
+        result.shouldBeInstanceOf<FieldExecutionContext<*, *, *, *>>()
     }
 
     @Test
@@ -290,7 +289,7 @@ class ResolverExecutionContextFactoryTest {
             requestContext = null,
             rawArguments = emptyMap(),
         )
-        assertInstanceOf(MutationFieldExecutionContext::class.java, result)
+        result.shouldBeInstanceOf<MutationFieldExecutionContext<*, *, *, *>>()
     }
 
     @Test

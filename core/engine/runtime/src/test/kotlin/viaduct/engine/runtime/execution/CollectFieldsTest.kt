@@ -2,12 +2,11 @@ package viaduct.engine.runtime.execution
 
 import graphql.execution.CoercedVariables
 import graphql.execution.MergedField
+import io.kotest.matchers.collections.shouldContain
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.collections.shouldNotContain
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import strikt.api.expectThat
-import strikt.assertions.contains
-import strikt.assertions.hasSize
-import strikt.assertions.isEmpty
-import strikt.assertions.isEqualTo
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
@@ -35,21 +34,20 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
-        expectThat(collected) {
-            checkEquals(
-                SelectionSet(
-                    listOf(
-                        CollectedField(
-                            "x",
-                            null,
-                            MergedField.newMergedField().addField(xField.field).build(),
-                            emptyList(),
-                            emptyMap()
-                        )
+        checkEquals(
+            collected,
+            SelectionSet(
+                listOf(
+                    CollectedField(
+                        "x",
+                        null,
+                        MergedField.newMergedField().addField(xField.field).build(),
+                        emptyList(),
+                        emptyMap()
                     )
                 )
             )
-        }
+        )
     }
 
     @Test
@@ -66,11 +64,10 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
-        expectThat(collected) {
-            checkEquals(
-                SelectionSet(emptyList())
-            )
-        }
+        checkEquals(
+            collected,
+            SelectionSet(emptyList())
+        )
     }
 
     @Test
@@ -89,24 +86,23 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
-        expectThat(collected) {
-            checkEquals(
-                SelectionSet(
-                    listOf(
-                        CollectedField(
-                            "x",
-                            null,
-                            MergedField.newMergedField()
-                                .addField(x0.field)
-                                .addField(x1.field)
-                                .build(),
-                            emptyList(),
-                            emptyMap()
-                        )
+        checkEquals(
+            collected,
+            SelectionSet(
+                listOf(
+                    CollectedField(
+                        "x",
+                        null,
+                        MergedField.newMergedField()
+                            .addField(x0.field)
+                            .addField(x1.field)
+                            .build(),
+                        emptyList(),
+                        emptyMap()
                     )
                 )
             )
-        }
+        )
     }
 
     @Test
@@ -125,21 +121,20 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
-        expectThat(collected) {
-            checkEquals(
-                SelectionSet(
-                    listOf(
-                        CollectedField(
-                            "x",
-                            null,
-                            MergedField.newMergedField().addField(xField.field).build(),
-                            emptyList(),
-                            emptyMap()
-                        )
+        checkEquals(
+            collected,
+            SelectionSet(
+                listOf(
+                    CollectedField(
+                        "x",
+                        null,
+                        MergedField.newMergedField().addField(xField.field).build(),
+                        emptyList(),
+                        emptyMap()
                     )
                 )
             )
-        }
+        )
     }
 
     @Test
@@ -163,21 +158,20 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
-        expectThat(collected) {
-            checkEquals(
-                SelectionSet(
-                    listOf(
-                        CollectedField(
-                            "x",
-                            null,
-                            MergedField.newMergedField().addField(xField.field).build(),
-                            emptyList(),
-                            emptyMap()
-                        )
+        checkEquals(
+            collected,
+            SelectionSet(
+                listOf(
+                    CollectedField(
+                        "x",
+                        null,
+                        MergedField.newMergedField().addField(xField.field).build(),
+                        emptyList(),
+                        emptyMap()
                     )
                 )
             )
-        }
+        )
     }
 
     @Test
@@ -230,18 +224,12 @@ class CollectFieldsTest {
         val collectedRestrictedParentTypes =
             collectedRestricted.childPlans.map { it.queryPlanParentType }
 
-        expectThat(collectedRestrictedParentTypes)
-            .hasSize(2)
-            .and {
-                contains(userType)
-                contains(queryType)
-            }
+        collectedRestrictedParentTypes.shouldHaveSize(2)
+        collectedRestrictedParentTypes shouldContain userType
+        collectedRestrictedParentTypes shouldContain queryType
+        collectedRestrictedParentTypes shouldNotContain adminType
 
-        expectThat(collectedRestrictedParentTypes)
-            .not()
-            .contains(adminType)
-
-        expectThat(collectedRestricted.fieldTypeChildPlans).isEmpty()
+        assertEquals(0, collectedRestricted.fieldTypeChildPlans.size)
     }
 
     /**
@@ -315,8 +303,8 @@ class CollectFieldsTest {
 
         val collectedId = collected.selections.filterIsInstance<CollectedField>().single { it.fieldName == "id" }
         // Only the HiveTable.id RSS should survive.
-        expectThat(collectedId.childPlans).hasSize(1)
-        expectThat(collectedId.childPlans.single().originCoordinate).isEqualTo("HiveTable" to "id")
+        collectedId.childPlans.shouldHaveSize(1)
+        assertEquals("HiveTable" to "id", collectedId.childPlans.single().originCoordinate)
     }
 
     @Test
@@ -337,9 +325,9 @@ class CollectFieldsTest {
         val collectedId = collected.selections.filterIsInstance<CollectedField>().single { it.fieldName == "id" }
         // Both RSS entries are kept under legacy filter — HiveTable's matches by parentType,
         // OtherNode's slips through via the root-type permissive clause.
-        expectThat(collectedId.childPlans).hasSize(2)
+        collectedId.childPlans.shouldHaveSize(2)
         val origins = collectedId.childPlans.map { it.originCoordinate }.toSet()
-        expectThat(origins).isEqualTo(setOf("HiveTable" to "id", "OtherNode" to "id"))
+        assertEquals(setOf("HiveTable" to "id", "OtherNode" to "id"), origins)
     }
 
     @Test
@@ -358,8 +346,8 @@ class CollectFieldsTest {
         )
 
         val collectedId = collected.selections.filterIsInstance<CollectedField>().single { it.fieldName == "id" }
-        expectThat(collectedId.childPlans).hasSize(1)
-        expectThat(collectedId.childPlans.single().originCoordinate).isEqualTo("OtherNode" to "id")
+        collectedId.childPlans.shouldHaveSize(1)
+        assertEquals("OtherNode" to "id", collectedId.childPlans.single().originCoordinate)
     }
 
     @Test
@@ -388,7 +376,7 @@ class CollectFieldsTest {
         )
 
         val collectedX = collected.selections.filterIsInstance<CollectedField>().single { it.fieldName == "x" }
-        expectThat(collectedX.childPlans).hasSize(1)
-        expectThat(collectedX.childPlans.single().originCoordinate).isEqualTo("Query" to "x")
+        collectedX.childPlans.shouldHaveSize(1)
+        assertEquals("Query" to "x", collectedX.childPlans.single().originCoordinate)
     }
 }

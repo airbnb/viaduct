@@ -10,14 +10,14 @@ import graphql.schema.GraphQLAppliedDirectiveArgument
 import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLType
+import io.kotest.matchers.string.shouldContain
 import io.mockk.every
 import io.mockk.mockk
 import java.util.concurrent.CompletionException
-import kotlin.test.assertContains
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.engine.runtime.exceptions.FieldFetchingException
@@ -141,7 +141,7 @@ class ViaductDataFetcherExceptionHandlerTest {
         val result = exceptionHandler.handleException(params).join()
 
         assertEquals(1, result.errors.size)
-        assertContains(result.errors.first().message, "TEST MESSAGE")
+        result.errors.first().message shouldContain "TEST MESSAGE"
         assertEquals(result.errors[0].extensions["fieldName"], capturedMetadata[0].fieldName)
         assertEquals(result.errors[0].extensions["operationName"], capturedMetadata[0].operationName)
 
@@ -252,7 +252,7 @@ class ViaductDataFetcherExceptionHandlerTest {
         val result = exceptionHandler.handleException(params).join()
 
         assertEquals(actualException, capturedThrowables.first())
-        assertContains(result.errors.first().message, "deep error")
+        result.errors.first().message shouldContain "deep error"
     }
 
     @Test

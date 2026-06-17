@@ -1,9 +1,9 @@
 package viaduct.engine.runtime.execution
 
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
+import io.kotest.matchers.types.shouldBeInstanceOf
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolveSelectionSetOptions
@@ -54,7 +54,7 @@ class ResolveSelectionSetTest {
                         val selectionSet = ctx.engineSelectionSetFactory
                             .engineSelectionSet("Query", "name age", emptyMap())
                         val data = ctx.resolveSelectionSet(selectionSet)
-                        assertIs<EngineObjectData.Sync>(data)
+                        data.shouldBeInstanceOf<EngineObjectData.Sync>()
                         "name=${data.get("name")}, age=${data.get("age")}"
                     }
                 }
@@ -97,7 +97,7 @@ class ResolveSelectionSetTest {
                         val selectionSet = ctx.engineSelectionSetFactory
                             .engineSelectionSet("Query", "name", emptyMap())
                         val data = ctx.resolveSelectionSet(selectionSet)
-                        assertIs<EngineObjectData.Sync>(data)
+                        data.shouldBeInstanceOf<EngineObjectData.Sync>()
                         val name = data.getOrNull("name")
                         assertNotNull(name)
                         "name=$name"
@@ -144,7 +144,7 @@ class ResolveSelectionSetTest {
                         val selectionSet = ctx.engineSelectionSetFactory
                             .engineSelectionSet("Query", "x y", emptyMap())
                         val data = ctx.resolveSelectionSet(selectionSet)
-                        assertIs<EngineObjectData.Sync>(data)
+                        data.shouldBeInstanceOf<EngineObjectData.Sync>()
                         val selections = data.getSelections().toList()
                         assertEquals(2, selections.size)
                         assertTrue(selections.contains("x"))
@@ -193,7 +193,7 @@ class ResolveSelectionSetTest {
                         val selectionSet = ctx.engineSelectionSetFactory
                             .engineSelectionSet("Mutation", "doSomething", emptyMap())
                         val data = ctx.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.MUTATION)
-                        assertIs<EngineObjectData.Sync>(data)
+                        data.shouldBeInstanceOf<EngineObjectData.Sync>()
                         "mutationResult=${data.get("doSomething")}"
                     }
                 }
@@ -249,9 +249,8 @@ class ResolveSelectionSetTest {
                         val selectionSet = ctx.engineSelectionSetFactory
                             .engineSelectionSet("Query", "person { name age }", emptyMap())
                         val data = ctx.resolveSelectionSet(selectionSet)
-                        assertIs<EngineObjectData.Sync>(data)
-                        val person = data.get("person")
-                        assertIs<EngineObjectData.Sync>(person)
+                        data.shouldBeInstanceOf<EngineObjectData.Sync>()
+                        val person = data.get("person").shouldBeInstanceOf<EngineObjectData.Sync>()
                         "name=${person.get("name")}, age=${person.get("age")}"
                     }
                 }

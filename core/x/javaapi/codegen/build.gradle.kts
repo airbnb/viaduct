@@ -27,7 +27,6 @@ dependencies {
     implementation(libs.viaduct.shared.codegen)
 
     // Testing
-    testImplementation(libs.assertj.core)
     testImplementation(libs.kotest.assertions.core.jvm)
 
     // For GraphQLInput interface in exercise tests

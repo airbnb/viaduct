@@ -1,6 +1,6 @@
 package viaduct.x.javaapi.codegen;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -15,11 +15,10 @@ class UnionGeneratorTest {
 
     String generated = JavaGRTGenerator.UnionGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("package com.example.types;")
-        .contains("import viaduct.java.api.types.GraphQLUnion;")
-        .contains("public interface SearchResult extends GraphQLUnion")
-        .contains("Possible types: User, Listing, Booking");
+    assertTrue(generated.contains("package com.example.types;"));
+    assertTrue(generated.contains("import viaduct.java.api.types.GraphQLUnion;"));
+    assertTrue(generated.contains("public interface SearchResult extends GraphQLUnion"));
+    assertTrue(generated.contains("Possible types: User, Listing, Booking"));
   }
 
   @Test
@@ -33,11 +32,10 @@ class UnionGeneratorTest {
 
     String generated = JavaGRTGenerator.UnionGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("/**")
-        .contains(" * A search result can be a user or listing.")
-        .contains("Possible types: User, Listing")
-        .contains("public interface SearchResult extends GraphQLUnion");
+    assertTrue(generated.contains("/**"));
+    assertTrue(generated.contains(" * A search result can be a user or listing."));
+    assertTrue(generated.contains("Possible types: User, Listing"));
+    assertTrue(generated.contains("public interface SearchResult extends GraphQLUnion"));
   }
 
   @Test
@@ -47,9 +45,8 @@ class UnionGeneratorTest {
 
     String generated = JavaGRTGenerator.UnionGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public interface SingleUnion extends GraphQLUnion")
-        .contains("Possible types: OnlyType");
+    assertTrue(generated.contains("public interface SingleUnion extends GraphQLUnion"));
+    assertTrue(generated.contains("Possible types: OnlyType"));
   }
 
   @Test
@@ -63,8 +60,7 @@ class UnionGeneratorTest {
 
     String generated = JavaGRTGenerator.UnionGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public interface LargeUnion extends GraphQLUnion")
-        .contains("Possible types: TypeA, TypeB, TypeC, TypeD, TypeE");
+    assertTrue(generated.contains("public interface LargeUnion extends GraphQLUnion"));
+    assertTrue(generated.contains("Possible types: TypeA, TypeB, TypeC, TypeD, TypeE"));
   }
 }

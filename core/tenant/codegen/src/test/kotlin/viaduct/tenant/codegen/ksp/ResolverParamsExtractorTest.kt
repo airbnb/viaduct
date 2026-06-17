@@ -14,8 +14,8 @@ import com.google.devtools.ksp.symbol.KSValueArgument
 import com.google.devtools.ksp.symbol.Location
 import com.google.devtools.ksp.symbol.NonExistLocation
 import java.lang.reflect.Proxy
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.documents.GraphQLFragment
 import viaduct.api.resolver.Resolver as ResolverAnnotation

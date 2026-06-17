@@ -2,9 +2,12 @@ package viaduct.java.runtime.bridge
 
 import io.mockk.every
 import io.mockk.mockk
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
@@ -20,7 +23,7 @@ class SimpleFieldExecutionContextTest {
             requestContext = requestContext
         )
 
-        assertThat(context.getRequestContext()).isEqualTo(requestContext)
+        assertEquals(requestContext, context.getRequestContext())
     }
 
     @Test
@@ -29,7 +32,7 @@ class SimpleFieldExecutionContextTest {
             requestContext = null
         )
 
-        assertThat(context.getRequestContext()).isNull()
+        assertNull(context.getRequestContext())
     }
 
     @Test
@@ -38,9 +41,8 @@ class SimpleFieldExecutionContextTest {
             requestContext = null
         )
 
-        assertThatThrownBy { context.getObjectValue() }
-            .isInstanceOf(FrameworkException::class.java)
-            .hasMessageContaining("Object value not available")
+        val ex = assertThrows<FrameworkException> { context.getObjectValue() }
+        assertTrue(ex.message!!.contains("Object value not available"))
     }
 
     @Test
@@ -51,7 +53,7 @@ class SimpleFieldExecutionContextTest {
             objectValue = testObject
         )
 
-        assertThat(context.getObjectValue()).isSameAs(testObject)
+        assertSame(testObject, context.getObjectValue())
     }
 
     @Test
@@ -60,9 +62,8 @@ class SimpleFieldExecutionContextTest {
             requestContext = null
         )
 
-        assertThatThrownBy { context.getQueryValue() }
-            .isInstanceOf(FrameworkException::class.java)
-            .hasMessageContaining("Query value not available")
+        val ex = assertThrows<FrameworkException> { context.getQueryValue() }
+        assertTrue(ex.message!!.contains("Query value not available"))
     }
 
     @Test
@@ -71,7 +72,7 @@ class SimpleFieldExecutionContextTest {
             requestContext = null
         )
 
-        assertThat(context.getArguments()).isSameAs(viaduct.java.api.types.Arguments.NoArguments)
+        assertSame(viaduct.java.api.types.Arguments.NoArguments, context.getArguments())
     }
 
     @Test
@@ -82,7 +83,7 @@ class SimpleFieldExecutionContextTest {
             arguments = args
         )
 
-        assertThat(context.getArguments()).isSameAs(args)
+        assertSame(args, context.getArguments())
     }
 
     @Test
@@ -91,9 +92,8 @@ class SimpleFieldExecutionContextTest {
             requestContext = null
         )
 
-        assertThatThrownBy { context.getSelections() }
-            .isInstanceOf(FrameworkException::class.java)
-            .hasMessageContaining("Selections access not yet implemented")
+        val ex = assertThrows<FrameworkException> { context.getSelections() }
+        assertTrue(ex.message!!.contains("Selections access not yet implemented"))
     }
 
     // ── InternalContext tests ──
@@ -109,16 +109,15 @@ class SimpleFieldExecutionContextTest {
             engineExecutionContext = engineCtx
         )
 
-        assertThat(context.getSchema()).isSameAs(schema)
+        assertSame(schema, context.getSchema())
     }
 
     @Test
     fun `getSchema throws when engineExecutionContext is null`() {
         val context = SimpleFieldExecutionContext(requestContext = null)
 
-        assertThatThrownBy { context.getSchema() }
-            .isInstanceOf(FrameworkException::class.java)
-            .hasMessageContaining("engineExecutionContext")
+        val ex = assertThrows<FrameworkException> { context.getSchema() }
+        assertTrue(ex.message!!.contains("engineExecutionContext"))
     }
 
     @Test
@@ -132,16 +131,15 @@ class SimpleFieldExecutionContextTest {
             engineExecutionContext = engineCtx
         )
 
-        assertThat(context.getGlobalIDCodec()).isSameAs(codec)
+        assertSame(codec, context.getGlobalIDCodec())
     }
 
     @Test
     fun `getGlobalIDCodec throws when engineExecutionContext is null`() {
         val context = SimpleFieldExecutionContext(requestContext = null)
 
-        assertThatThrownBy { context.getGlobalIDCodec() }
-            .isInstanceOf(FrameworkException::class.java)
-            .hasMessageContaining("engineExecutionContext")
+        val ex = assertThrows<FrameworkException> { context.getGlobalIDCodec() }
+        assertTrue(ex.message!!.contains("engineExecutionContext"))
     }
 
     @Test
@@ -152,15 +150,14 @@ class SimpleFieldExecutionContextTest {
             classFinder = finder
         )
 
-        assertThat(context.getClassFinder()).isSameAs(finder)
+        assertSame(finder, context.getClassFinder())
     }
 
     @Test
     fun `getClassFinder throws when classFinder is null`() {
         val context = SimpleFieldExecutionContext(requestContext = null)
 
-        assertThatThrownBy { context.getClassFinder() }
-            .isInstanceOf(FrameworkException::class.java)
-            .hasMessageContaining("classFinder")
+        val ex = assertThrows<FrameworkException> { context.getClassFinder() }
+        assertTrue(ex.message!!.contains("classFinder"))
     }
 }

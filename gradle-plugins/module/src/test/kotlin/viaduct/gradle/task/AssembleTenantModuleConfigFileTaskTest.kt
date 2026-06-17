@@ -1,10 +1,12 @@
 package viaduct.gradle.task
 
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldContainExactly
 import java.io.File
-import org.assertj.core.api.Assertions.assertThat
 import org.gradle.api.file.FileType
 import org.gradle.work.ChangeType
 import org.gradle.work.FileChange
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import viaduct.gradle.task.AssembleTenantModuleConfigFileTask.Companion.processChanges
@@ -48,7 +50,7 @@ class AssembleTenantModuleConfigFileTaskTest {
         val recorder = RecordingIncrementalActions()
         recorder.processChanges(dir, TEST_PACKAGE, emptyList())
 
-        assertThat(recorder.actions).isEmpty()
+        recorder.actions.shouldBeEmpty()
     }
 
     // ── Descriptor added ────────────────────────────────────────────────────
@@ -61,7 +63,7 @@ class AssembleTenantModuleConfigFileTaskTest {
         val recorder = RecordingIncrementalActions()
         recorder.processChanges(dir, TEST_PACKAGE, listOf(change(dir, "NewResolver.json", ChangeType.ADDED)))
 
-        assertThat(recorder.actions).containsExactly(RecordingIncrementalActions.Action.Assembled)
+        recorder.actions.shouldContainExactly(RecordingIncrementalActions.Action.Assembled)
     }
 
     // ── Descriptor modified ─────────────────────────────────────────────────
@@ -74,7 +76,7 @@ class AssembleTenantModuleConfigFileTaskTest {
         val recorder = RecordingIncrementalActions()
         recorder.processChanges(dir, TEST_PACKAGE, listOf(change(dir, "MyResolver.json", ChangeType.MODIFIED)))
 
-        assertThat(recorder.actions).containsExactly(RecordingIncrementalActions.Action.Assembled)
+        recorder.actions.shouldContainExactly(RecordingIncrementalActions.Action.Assembled)
     }
 
     // ── Descriptor removed with remaining ───────────────────────────────────
@@ -87,7 +89,7 @@ class AssembleTenantModuleConfigFileTaskTest {
         val recorder = RecordingIncrementalActions()
         recorder.processChanges(dir, TEST_PACKAGE, listOf(change(dir, "Removed.json", ChangeType.REMOVED)))
 
-        assertThat(recorder.actions).containsExactly(RecordingIncrementalActions.Action.Assembled)
+        recorder.actions.shouldContainExactly(RecordingIncrementalActions.Action.Assembled)
     }
 
     // ── All descriptors removed ─────────────────────────────────────────────
@@ -100,7 +102,7 @@ class AssembleTenantModuleConfigFileTaskTest {
         val recorder = RecordingIncrementalActions()
         recorder.processChanges(dir, TEST_PACKAGE, listOf(change(dir, "Last.json", ChangeType.REMOVED)))
 
-        assertThat(recorder.actions).containsExactly(RecordingIncrementalActions.Action.Deleted(TEST_PACKAGE))
+        recorder.actions.shouldContainExactly(RecordingIncrementalActions.Action.Deleted(TEST_PACKAGE))
     }
 
     @Test
@@ -111,7 +113,7 @@ class AssembleTenantModuleConfigFileTaskTest {
         val recorder = RecordingIncrementalActions()
         recorder.processChanges(dir, TEST_PACKAGE, listOf(change(dir, "Gone.json", ChangeType.REMOVED)))
 
-        assertThat(recorder.actions).containsExactly(RecordingIncrementalActions.Action.Deleted(TEST_PACKAGE))
+        recorder.actions.shouldContainExactly(RecordingIncrementalActions.Action.Deleted(TEST_PACKAGE))
     }
 
     // ── Multiple changes ────────────────────────────────────────────────────
@@ -133,7 +135,7 @@ class AssembleTenantModuleConfigFileTaskTest {
             ),
         )
 
-        assertThat(recorder.actions).containsExactly(RecordingIncrementalActions.Action.Assembled)
+        recorder.actions.shouldContainExactly(RecordingIncrementalActions.Action.Assembled)
     }
 
     // ── Non-file changes are skipped ────────────────────────────────────────
@@ -153,7 +155,7 @@ class AssembleTenantModuleConfigFileTaskTest {
         val recorder = RecordingIncrementalActions()
         recorder.processChanges(dir, TEST_PACKAGE, listOf(dirChange))
 
-        assertThat(recorder.actions).isEmpty()
+        recorder.actions.shouldBeEmpty()
     }
 
     @Test
@@ -171,7 +173,7 @@ class AssembleTenantModuleConfigFileTaskTest {
         val recorder = RecordingIncrementalActions()
         recorder.processChanges(dir, TEST_PACKAGE, listOf(nonJsonChange))
 
-        assertThat(recorder.actions).isEmpty()
+        recorder.actions.shouldBeEmpty()
     }
 
     // ── Regression: deleteConfig receives correct package ───────────────────
@@ -184,7 +186,7 @@ class AssembleTenantModuleConfigFileTaskTest {
         val recorder = RecordingIncrementalActions()
         recorder.processChanges(dir, pkg, listOf(change(dir, "Last.json", ChangeType.REMOVED)))
 
-        assertThat(recorder.actions).containsExactly(RecordingIncrementalActions.Action.Deleted(pkg))
+        recorder.actions.shouldContainExactly(RecordingIncrementalActions.Action.Deleted(pkg))
     }
 }
 
@@ -206,7 +208,7 @@ class AssembleTenantModuleConfigFileCleanupTest {
         val task = createTaskForTest(outputDir)
         task.clearOwnedModuleConfigs()
 
-        assertThat(modules.listFiles()).isEmpty()
+        assertTrue(modules.listFiles()!!.isEmpty())
     }
 
     @Test
@@ -218,7 +220,7 @@ class AssembleTenantModuleConfigFileCleanupTest {
         val task = createTaskForTest(outputDir)
         task.clearOwnedModuleConfigs()
 
-        assertThat(modules.listFiles()?.map { it.name }).containsExactly("README.txt")
+        modules.listFiles()!!.map { it.name }.shouldContainExactly("README.txt")
     }
 
     @Test
@@ -230,7 +232,7 @@ class AssembleTenantModuleConfigFileCleanupTest {
         val task = createTaskForTest(outputDir)
         task.clearOwnedModuleConfigs()
 
-        assertThat(File(sibling, "important.txt").exists()).isTrue()
+        assertTrue(File(sibling, "important.txt").exists())
     }
 
     @Test

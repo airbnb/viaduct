@@ -3,12 +3,12 @@ package viaduct.tenant.codegen.bytecode
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneOffset
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlinx.metadata.KmClassifier
 import kotlinx.metadata.KmType
 import kotlinx.metadata.KmVariance
 import kotlinx.metadata.isNullable
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import viaduct.codegen.km.kmListOfType
 import viaduct.codegen.utils.Km

@@ -1,11 +1,11 @@
 package viaduct.engine.runtime
 
+import io.kotest.matchers.string.shouldContain
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.test.assertContains
-import kotlin.test.assertNull
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
@@ -116,7 +116,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("boo"), error.path)
-            assertTrue(error.message.contains("permission denied"))
+            error.message shouldContain "permission denied"
         }
     }
 
@@ -135,7 +135,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("boo", "value"), error.path)
-            assertTrue(error.message.contains("permission denied"))
+            error.message shouldContain "permission denied"
         }
     }
 
@@ -157,7 +157,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("boo"), error.path)
-            assertTrue(error.message.contains("not found"))
+            error.message shouldContain "not found"
         }
     }
 
@@ -196,7 +196,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("boo", "value"), error.path)
-            assertTrue(error.message.contains("FakeBoo.value is throwing"))
+            error.message shouldContain "FakeBoo.value is throwing"
         }
     }
 
@@ -248,7 +248,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("string1"), error.path)
-            assertTrue(error.message.contains("string2 permission denied"))
+            error.message shouldContain "string2 permission denied"
         }
     }
 
@@ -279,7 +279,7 @@ class AccessCheckExecutionTest {
             val error = result.errors[0]
             assertEquals(listOf("string1"), error.path)
             // datafetcher error takes priority
-            assertTrue(error.message.contains("string2 resolver throws"))
+            error.message shouldContain "string2 resolver throws"
         }
     }
 
@@ -309,7 +309,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("string1"), error.path)
-            assertTrue(error.message.contains("string2 resolver throws"))
+            error.message shouldContain "string2 resolver throws"
         }
     }
 
@@ -357,7 +357,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("string1"), error.path)
-            assertTrue(error.message.contains("this should get thrown"))
+            error.message shouldContain "this should get thrown"
         }
     }
 
@@ -383,7 +383,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("string1"), error.path)
-            assertTrue(error.message.contains("string1 checker failed"))
+            error.message shouldContain "string1 checker failed"
         }
 
         assertFalse(mutationResolverRan)
@@ -414,7 +414,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("baz"), error.path)
-            assertTrue(error.message.contains("field checker failed"))
+            error.message shouldContain "field checker failed"
         }
     }
 
@@ -440,7 +440,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("boo"), error.path)
-            assertTrue(error.message.contains("type checker failed"))
+            error.message shouldContain "type checker failed"
         }
     }
 
@@ -492,7 +492,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("baz"), error.path)
-            assertTrue(error.message.contains("type checker failed"))
+            error.message shouldContain "type checker failed"
         }
     }
 
@@ -518,7 +518,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("nonNullBaz"), error.path)
-            assertTrue(error.message.contains("type checker failed"))
+            error.message shouldContain "type checker failed"
         }
     }
 
@@ -544,7 +544,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("node"), error.path)
-            assertTrue(error.message.contains("type checker failed"))
+            error.message shouldContain "type checker failed"
         }
     }
 
@@ -607,7 +607,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("baz"), error.path)
-            assertTrue(error.message.contains("this should get thrown"))
+            error.message shouldContain "this should get thrown"
         }
     }
 
@@ -702,7 +702,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("bazList", 1), error.path)
-            assertTrue(error.message.contains("permission denied for baz with internal ID 2"))
+            error.message shouldContain "permission denied for baz with internal ID 2"
         }
     }
 
@@ -824,7 +824,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("nodes", 1), error.path)
-            assertTrue(error.message.contains("permission denied for bar with internal ID 2"))
+            error.message shouldContain "permission denied for bar with internal ID 2"
         }
     }
 
@@ -851,7 +851,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("string1"), error.path)
-            assertContains(error.message, "field checker accessed query field")
+            error.message shouldContain "field checker accessed query field"
         }
     }
 
@@ -885,7 +885,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("baz"), error.path)
-            assertContains(error.message, "type checker accessed query field")
+            error.message shouldContain "type checker accessed query field"
         }
     }
 
@@ -975,7 +975,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("string1"), error.path)
-            assertContains(error.message, "permission denied")
+            error.message shouldContain "permission denied"
             assertEquals("FOO", error.extensions.get("type"))
             assertTrue(reported)
         }
@@ -1021,7 +1021,7 @@ class AccessCheckExecutionTest {
             assertEquals(1, result.errors.size)
             val error = result.errors[0]
             assertEquals(listOf("bazList", 1), error.path)
-            assertContains(error.message, "permission denied")
+            error.message shouldContain "permission denied"
             assertEquals("FOO", error.extensions.get("type"))
             assertTrue(reported)
         }

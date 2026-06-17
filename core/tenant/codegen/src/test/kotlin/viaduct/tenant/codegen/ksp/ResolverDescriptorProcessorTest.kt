@@ -3,8 +3,8 @@ package viaduct.tenant.codegen.ksp
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSName
 import java.lang.reflect.Proxy
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ResolverDescriptorProcessorTest {

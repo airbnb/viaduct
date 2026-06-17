@@ -1,7 +1,7 @@
 package viaduct.codegen.st
 
+import io.kotest.matchers.shouldBe
 import java.io.File
-import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -31,7 +31,7 @@ class STUtilsTest {
               c
             }
         """.trimIndent()
-        assertThat(contents.toString()).isEqualToNormalizingNewlines(exp)
+        contents.toString().replace("\r\n", "\n") shouldBe exp.replace("\r\n", "\n")
     }
 
     @Test

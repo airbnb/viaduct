@@ -2,13 +2,18 @@ package viaduct.java.registry.apt
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.kotest.matchers.booleans.shouldBeFalse
+import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.shouldBe
 import java.io.File
 import java.nio.charset.StandardCharsets
 import javax.tools.JavaFileObject
 import javax.tools.SimpleJavaFileObject
 import javax.tools.StandardLocation
 import javax.tools.ToolProvider
-import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
@@ -30,20 +35,19 @@ class JavaRegistryExtractorProcessorTest {
         val descriptors = compileAndReadDescriptors(tempDir, GRT_STUBS, QUERY_RESOLVER_BASES, QUERY_RESOLVER_SOURCE)
 
         val json = descriptors.getValue("com/example/tenant/Resolvers.json")
-        assertThat(json.path("fields")).hasSize(1)
+        json.path("fields").shouldHaveSize(1)
         val field = json.path("fields")[0]
-        assertThat(field.path("typeName").asText()).isEqualTo("Query")
-        assertThat(field.path("fieldName").asText()).isEqualTo("greeting")
-        assertThat(field.path("isBatching").asBoolean()).isFalse()
-        assertThat(field.path("isSelective").asBoolean()).isFalse()
-        assertThat(field.path("hasArguments").asBoolean()).isFalse()
-        assertThat(field.path("queryTypeName").asText()).isEqualTo("MyQuery")
-        assertThat(field.path("returnTypeName").asText()).isEqualTo("String")
-        assertThat(field.path("implFqn").asText()).isEqualTo("com.example.tenant.Resolvers\$GreetingResolver")
-        assertThat(field.path("resolverBaseClass").asText())
-            .isEqualTo("com.example.tenant.QueryResolvers\$Greeting")
-        assertThat(json.path("grtPackagePrefix").asText()).isEqualTo("com.example.grts")
-        assertThat(json.has("bootstrapClass")).isFalse()
+        field.path("typeName").asText() shouldBe "Query"
+        field.path("fieldName").asText() shouldBe "greeting"
+        field.path("isBatching").asBoolean().shouldBeFalse()
+        field.path("isSelective").asBoolean().shouldBeFalse()
+        field.path("hasArguments").asBoolean().shouldBeFalse()
+        field.path("queryTypeName").asText() shouldBe "MyQuery"
+        field.path("returnTypeName").asText() shouldBe "String"
+        field.path("implFqn").asText() shouldBe "com.example.tenant.Resolvers\$GreetingResolver"
+        field.path("resolverBaseClass").asText() shouldBe "com.example.tenant.QueryResolvers\$Greeting"
+        json.path("grtPackagePrefix").asText() shouldBe "com.example.grts"
+        json.has("bootstrapClass").shouldBeFalse()
     }
 
     @Test
@@ -54,12 +58,12 @@ class JavaRegistryExtractorProcessorTest {
 
         val json = descriptors.getValue("com/example/tenant/FragResolvers.json")
         val field = json.path("fields")[0]
-        assertThat(field.path("hasArguments").asBoolean()).isTrue()
-        assertThat(field.path("objectSelections").path("selections").asText()).isEqualTo("name")
+        field.path("hasArguments").asBoolean().shouldBeTrue()
+        field.path("objectSelections").path("selections").asText() shouldBe "name"
         val variable = field.path("objectSelections").path("variablesProviders")[0]
-        assertThat(variable.path("kind").asText()).isEqualTo("fromArgument")
-        assertThat(variable.path("name").asText()).isEqualTo("v")
-        assertThat(variable.path("path").asText()).isEqualTo("limit")
+        variable.path("kind").asText() shouldBe "fromArgument"
+        variable.path("name").asText() shouldBe "v"
+        variable.path("path").asText() shouldBe "limit"
     }
 
     @Test
@@ -71,9 +75,9 @@ class JavaRegistryExtractorProcessorTest {
 
         val variable = descriptors.getValue("com/example/tenant/ObjFieldResolvers.json")
             .path("fields")[0].path("objectSelections").path("variablesProviders")[0]
-        assertThat(variable.path("kind").asText()).isEqualTo("fromObjectField")
-        assertThat(variable.path("name").asText()).isEqualTo("v")
-        assertThat(variable.path("path").asText()).isEqualTo("author.id")
+        variable.path("kind").asText() shouldBe "fromObjectField"
+        variable.path("name").asText() shouldBe "v"
+        variable.path("path").asText() shouldBe "author.id"
     }
 
     @Test
@@ -84,12 +88,12 @@ class JavaRegistryExtractorProcessorTest {
             compileAndReadDescriptors(tempDir, GRT_STUBS, QUERY_RESOLVER_BASES, QUERY_FRAGMENT_RESOLVER_SOURCE)
 
         val field = descriptors.getValue("com/example/tenant/QueryFragResolvers.json").path("fields")[0]
-        assertThat(field.has("objectSelections")).isFalse()
-        assertThat(field.path("querySelections").path("selections").asText()).isEqualTo("currentUser")
+        field.has("objectSelections").shouldBeFalse()
+        field.path("querySelections").path("selections").asText() shouldBe "currentUser"
         val variable = field.path("querySelections").path("variablesProviders")[0]
-        assertThat(variable.path("kind").asText()).isEqualTo("fromQueryField")
-        assertThat(variable.path("name").asText()).isEqualTo("u")
-        assertThat(variable.path("path").asText()).isEqualTo("currentUser.id")
+        variable.path("kind").asText() shouldBe "fromQueryField"
+        variable.path("name").asText() shouldBe "u"
+        variable.path("path").asText() shouldBe "currentUser.id"
     }
 
     @Test
@@ -100,11 +104,10 @@ class JavaRegistryExtractorProcessorTest {
             compileAndReadDescriptors(tempDir, GRT_STUBS, QUERY_RESOLVER_BASES, BOTH_FRAGMENTS_RESOLVER_SOURCE)
 
         val field = descriptors.getValue("com/example/tenant/BothFragResolvers.json").path("fields")[0]
-        assertThat(field.path("objectSelections").path("variablesProviders")).hasSize(1)
-        assertThat(field.path("objectSelections").path("variablesProviders")[0].path("name").asText())
-            .isEqualTo("v")
-        assertThat(field.path("querySelections").path("selections").asText()).isEqualTo("currentUser")
-        assertThat(field.path("querySelections").path("variablesProviders")).isEmpty()
+        field.path("objectSelections").path("variablesProviders").shouldHaveSize(1)
+        field.path("objectSelections").path("variablesProviders")[0].path("name").asText() shouldBe "v"
+        field.path("querySelections").path("selections").asText() shouldBe "currentUser"
+        field.path("querySelections").path("variablesProviders").shouldBeEmpty()
     }
 
     @Test
@@ -116,8 +119,8 @@ class JavaRegistryExtractorProcessorTest {
 
         val variable = descriptors.getValue("com/example/tenant/VarProviderResolvers.json")
             .path("fields")[0].path("objectSelections").path("variablesProviders")[0]
-        assertThat(variable.path("name").asText()).isEqualTo("limit")
-        assertThat(variable.path("providedVariables").path("limit").asText()).isEqualTo("Int!")
+        variable.path("name").asText() shouldBe "limit"
+        variable.path("providedVariables").path("limit").asText() shouldBe "Int!"
     }
 
     @Test
@@ -128,7 +131,7 @@ class JavaRegistryExtractorProcessorTest {
             compileAndReadDescriptors(tempDir, GRT_STUBS, LIST_RETURN_RESOLVER_BASES, LIST_RETURN_RESOLVER_SOURCE)
 
         val field = descriptors.getValue("com/example/tenant/ListResolvers.json").path("fields")[0]
-        assertThat(field.path("returnTypeName").asText()).isEqualTo("User")
+        field.path("returnTypeName").asText() shouldBe "User"
     }
 
     @Test
@@ -139,8 +142,8 @@ class JavaRegistryExtractorProcessorTest {
             compileAndReadDescriptors(tempDir, GRT_STUBS, BATCHING_FIELD_BASES, BATCHING_FIELD_SOURCE)
 
         val field = descriptors.getValue("com/example/tenant/BatchResolvers.json").path("fields")[0]
-        assertThat(field.path("isBatching").asBoolean()).isTrue()
-        assertThat(field.path("isSelective").asBoolean()).isTrue()
+        field.path("isBatching").asBoolean().shouldBeTrue()
+        field.path("isSelective").asBoolean().shouldBeTrue()
     }
 
     @Test
@@ -150,13 +153,12 @@ class JavaRegistryExtractorProcessorTest {
         val descriptors = compileAndReadDescriptors(tempDir, GRT_STUBS, NODE_RESOLVER_BASES, NODE_RESOLVER_SOURCE)
 
         val json = descriptors.getValue("com/example/tenant/NodeResolvers.json")
-        assertThat(json.path("nodes")).hasSize(1)
+        json.path("nodes").shouldHaveSize(1)
         val node = json.path("nodes")[0]
-        assertThat(node.path("typeName").asText()).isEqualTo("User")
-        assertThat(node.path("isBatching").asBoolean()).isFalse()
-        assertThat(node.path("resolverBaseClass").asText())
-            .isEqualTo("com.example.tenant.UserNodeResolvers\$UserNode")
-        assertThat(json.path("grtPackagePrefix").asText()).isEqualTo("com.example.grts")
+        node.path("typeName").asText() shouldBe "User"
+        node.path("isBatching").asBoolean().shouldBeFalse()
+        node.path("resolverBaseClass").asText() shouldBe "com.example.tenant.UserNodeResolvers\$UserNode"
+        json.path("grtPackagePrefix").asText() shouldBe "com.example.grts"
     }
 
     @Test
@@ -167,8 +169,8 @@ class JavaRegistryExtractorProcessorTest {
             compileAndReadDescriptors(tempDir, GRT_STUBS, BATCHING_NODE_BASES, BATCHING_NODE_SOURCE)
 
         val node = descriptors.getValue("com/example/tenant/BatchNodeResolvers.json").path("nodes")[0]
-        assertThat(node.path("isBatching").asBoolean()).isTrue()
-        assertThat(node.path("isSelective").asBoolean()).isTrue()
+        node.path("isBatching").asBoolean().shouldBeTrue()
+        node.path("isSelective").asBoolean().shouldBeTrue()
     }
 
     @Test
@@ -178,10 +180,12 @@ class JavaRegistryExtractorProcessorTest {
         val (success, diagnostics) =
             compile(tempDir, GRT_STUBS, NODE_RESOLVER_BASES, NODE_WITH_FRAGMENT_SOURCE)
 
-        assertThat(success).isFalse()
-        assertThat(diagnostics).anyMatch {
-            it.contains("Node resolvers do not support required selection sets")
-        }
+        success.shouldBeFalse()
+        assertTrue(
+            diagnostics.any {
+                it.contains("Node resolvers do not support required selection sets")
+            }
+        )
     }
 
     @Test
@@ -192,7 +196,7 @@ class JavaRegistryExtractorProcessorTest {
             compileAndReadDescriptors(tempDir, GRT_STUBS, QUERY_RESOLVER_BASES, EMPTY_VARIABLE_RESOLVER_SOURCE)
 
         val field = descriptors.getValue("com/example/tenant/EmptyVarResolvers.json").path("fields")[0]
-        assertThat(field.path("objectSelections").path("variablesProviders")).isEmpty()
+        field.path("objectSelections").path("variablesProviders").shouldBeEmpty()
     }
 
     // ── Compilation harness ───────────────────────────────────────────────────
@@ -203,9 +207,7 @@ class JavaRegistryExtractorProcessorTest {
     ): Map<String, JsonNode> {
         val classOutput = File(tempDir, "classes").apply { mkdirs() }
         val (success, diagnostics) = runProcessor(classOutput, sources)
-        assertThat(success)
-            .withFailMessage { "annotation processing/compilation failed:\n" + diagnostics.joinToString("\n") }
-            .isTrue()
+        assertTrue(success) { "annotation processing/compilation failed:\n" + diagnostics.joinToString("\n") }
 
         val registryRoot = File(classOutput, DESCRIPTOR_ROOT)
         if (!registryRoot.exists()) return emptyMap()

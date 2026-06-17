@@ -6,11 +6,11 @@ import io.mockk.mockk
 import io.mockk.verify
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import viaduct.service.api.spi.FlagManager

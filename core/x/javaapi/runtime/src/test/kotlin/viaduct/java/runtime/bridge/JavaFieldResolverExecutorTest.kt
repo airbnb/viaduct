@@ -2,13 +2,18 @@
 
 package viaduct.java.runtime.bridge
 
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
@@ -48,11 +53,11 @@ class JavaFieldResolverExecutorTest {
             val results = executor.batchResolve(listOf(selector), mockEngineContext)
 
             // Verify
-            assertThat(results).hasSize(1)
+            assertEquals(1, results.size)
             val result = results[selector]
-            assertThat(result).isNotNull
-            assertThat(result!!.isSuccess).isTrue()
-            assertThat(result.getOrNull()).isEqualTo("Hello, World!")
+            assertNotNull(result)
+            assertTrue(result!!.isSuccess)
+            assertEquals("Hello, World!", result.getOrNull())
         }
 
     @Test
@@ -63,13 +68,13 @@ class JavaFieldResolverExecutorTest {
             resolverName = "GreetingResolver"
         )
 
-        assertThat(executor.resolverId).isEqualTo("Query.greeting")
-        assertThat(executor.metadata.name).isEqualTo("GreetingResolver")
-        assertThat(executor.metadata.flavor).isEqualTo("modern")
-        assertThat(executor.isBatching).isFalse()
-        assertThat(executor.isSelective).isFalse()
-        assertThat(executor.objectSelectionSet).isNull()
-        assertThat(executor.querySelectionSet).isNull()
+        assertEquals("Query.greeting", executor.resolverId)
+        assertEquals("GreetingResolver", executor.metadata.name)
+        assertEquals("modern", executor.metadata.flavor)
+        assertFalse(executor.isBatching)
+        assertFalse(executor.isSelective)
+        assertNull(executor.objectSelectionSet)
+        assertNull(executor.querySelectionSet)
     }
 
     @Test
@@ -99,14 +104,13 @@ class JavaFieldResolverExecutorTest {
 
             val results = executor.batchResolve(listOf(selector), mockEngineContext)
 
-            assertThat(results).hasSize(1)
+            assertEquals(1, results.size)
             val result = results[selector]
-            assertThat(result).isNotNull
-            assertThat(result!!.isFailure).isTrue()
-            assertThat(result.exceptionOrNull())
-                .isInstanceOf(TenantResolverException::class.java)
-                .hasCauseInstanceOf(RuntimeException::class.java)
-                .hasRootCauseMessage("Test error")
+            assertNotNull(result)
+            assertTrue(result!!.isFailure)
+            val ex = result.exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
+            ex.cause.shouldBeInstanceOf<RuntimeException>()
+            assertEquals("Test error", generateSequence(ex.cause) { it.cause }.last().message)
         }
 
     @Test
@@ -158,9 +162,9 @@ class JavaFieldResolverExecutorTest {
             objectSelectionSet = requiredSelectionSet
         )
 
-        assertThat(executor.objectSelectionSet).isNotNull
-        assertThat(executor.objectSelectionSet).isEqualTo(requiredSelectionSet)
-        assertThat(executor.querySelectionSet).isNull()
+        assertNotNull(executor.objectSelectionSet)
+        assertEquals(requiredSelectionSet, executor.objectSelectionSet)
+        assertNull(executor.querySelectionSet)
     }
 
     @Test
@@ -180,9 +184,9 @@ class JavaFieldResolverExecutorTest {
             querySelectionSet = requiredSelectionSet
         )
 
-        assertThat(executor.querySelectionSet).isNotNull
-        assertThat(executor.querySelectionSet).isEqualTo(requiredSelectionSet)
-        assertThat(executor.objectSelectionSet).isNull()
+        assertNotNull(executor.querySelectionSet)
+        assertEquals(requiredSelectionSet, executor.querySelectionSet)
+        assertNull(executor.objectSelectionSet)
     }
 
     @Test
@@ -212,9 +216,9 @@ class JavaFieldResolverExecutorTest {
             querySelectionSet = querySelectionSet
         )
 
-        assertThat(executor.objectSelectionSet).isNotNull
-        assertThat(executor.objectSelectionSet).isEqualTo(objectSelectionSet)
-        assertThat(executor.querySelectionSet).isNotNull
-        assertThat(executor.querySelectionSet).isEqualTo(querySelectionSet)
+        assertNotNull(executor.objectSelectionSet)
+        assertEquals(objectSelectionSet, executor.objectSelectionSet)
+        assertNotNull(executor.querySelectionSet)
+        assertEquals(querySelectionSet, executor.querySelectionSet)
     }
 }

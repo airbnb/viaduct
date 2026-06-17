@@ -1,6 +1,6 @@
 package viaduct.tenant.runtime.execution.enums;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
@@ -33,9 +33,9 @@ public class JavaEnumContractTest extends EnumContractTest {
 
   @Test
   public void allEnumValuesAreAccessible() {
-    assertThat(Status.values()).hasSize(3);
-    assertThat(Status.valueOf("ACTIVE")).isEqualTo(Status.ACTIVE);
-    assertThat(Status.valueOf("INACTIVE")).isEqualTo(Status.INACTIVE);
-    assertThat(Status.valueOf("PENDING")).isEqualTo(Status.PENDING);
+    assertEquals(3, Status.values().length);
+    assertEquals(Status.ACTIVE, Status.valueOf("ACTIVE"));
+    assertEquals(Status.INACTIVE, Status.valueOf("INACTIVE"));
+    assertEquals(Status.PENDING, Status.valueOf("PENDING"));
   }
 }

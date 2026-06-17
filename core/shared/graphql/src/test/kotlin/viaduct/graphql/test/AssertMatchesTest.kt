@@ -1,6 +1,6 @@
 package viaduct.graphql.test
 
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 

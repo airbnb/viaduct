@@ -1,6 +1,9 @@
 package viaduct.x.javaapi.codegen;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,9 +30,8 @@ class JavaNodeResolverGeneratorTest {
     String generated =
         JavaNodeResolverGenerator.generate(fileModel(resolver("User", false, false)));
 
-    assertThat(generated)
-        .contains("package com.example.tenant.resolverbases;")
-        .contains("public final class NodeResolvers");
+    assertTrue(generated.contains("package com.example.tenant.resolverbases;"));
+    assertTrue(generated.contains("public final class NodeResolvers"));
   }
 
   @Test
@@ -38,9 +40,8 @@ class JavaNodeResolverGeneratorTest {
         JavaNodeResolverGenerator.generate(fileModel(resolver("User", false, false)));
 
     // Package declaration uses tenantPackage, GRT import uses grtPackage
-    assertThat(generated)
-        .contains("package com.example.tenant.resolverbases;")
-        .contains("import com.example.types.*;");
+    assertTrue(generated.contains("package com.example.tenant.resolverbases;"));
+    assertTrue(generated.contains("import com.example.types.*;"));
   }
 
   @Test
@@ -48,8 +49,9 @@ class JavaNodeResolverGeneratorTest {
     String generated =
         JavaNodeResolverGenerator.generate(fileModel(resolver("User", false, false)));
 
-    assertThat(generated)
-        .contains("@NodeResolverFor(typeName = \"User\", isBatching = false, isSelective = false)");
+    assertTrue(
+        generated.contains(
+            "@NodeResolverFor(typeName = \"User\", isBatching = false, isSelective = false)"));
   }
 
   @Test
@@ -57,9 +59,10 @@ class JavaNodeResolverGeneratorTest {
     String generated =
         JavaNodeResolverGenerator.generate(fileModel(resolver("User", false, false)));
 
-    assertThat(generated)
-        .contains("public abstract CompletableFuture<com.example.types.User> resolve(Context ctx)")
-        .doesNotContain("batchResolve");
+    assertTrue(
+        generated.contains(
+            "public abstract CompletableFuture<com.example.types.User> resolve(Context ctx)"));
+    assertTrue(!generated.contains("batchResolve"));
   }
 
   @Test
@@ -68,11 +71,12 @@ class JavaNodeResolverGeneratorTest {
         JavaNodeResolverGenerator.generate(fileModel(resolver("Booking", true, false)));
 
     // Mirrors Kotlin: List<FieldValue<T>> wrapped in CompletableFuture
-    assertThat(generated)
-        .contains(
+    assertTrue(
+        generated.contains(
             "public abstract CompletableFuture<List<FieldValue<com.example.types.Booking>>>"
-                + " batchResolve(List<Context> contexts)")
-        .doesNotContain("CompletableFuture<com.example.types.Booking> resolve(Context ctx)");
+                + " batchResolve(List<Context> contexts)"));
+    assertTrue(
+        !generated.contains("CompletableFuture<com.example.types.Booking> resolve(Context ctx)"));
   }
 
   @Test
@@ -80,24 +84,24 @@ class JavaNodeResolverGeneratorTest {
     String generated =
         JavaNodeResolverGenerator.generate(fileModel(resolver("User", false, false)));
 
-    assertThat(generated)
-        .contains(
+    assertTrue(
+        generated.contains(
             "public static final class Context implements"
                 + " NodeExecutionContext<com.example.types.User>,"
-                + " NodeResolverBase.Context<com.example.types.User>")
-        .doesNotContain("SelectiveNodeExecutionContext<com.example.types.User>");
+                + " NodeResolverBase.Context<com.example.types.User>"));
+    assertTrue(!generated.contains("SelectiveNodeExecutionContext<com.example.types.User>"));
   }
 
   @Test
   void generate_producesContextImplementingSelectiveNodeExecutionContext_whenSelective() {
     String generated = JavaNodeResolverGenerator.generate(fileModel(resolver("User", false, true)));
 
-    assertThat(generated)
-        .contains(
+    assertTrue(
+        generated.contains(
             "public static final class Context implements"
                 + " SelectiveNodeExecutionContext<com.example.types.User>,"
-                + " NodeResolverBase.Context<com.example.types.User>")
-        .contains("public Object selections()");
+                + " NodeResolverBase.Context<com.example.types.User>"));
+    assertTrue(generated.contains("public Object selections()"));
   }
 
   @Test
@@ -105,7 +109,7 @@ class JavaNodeResolverGeneratorTest {
     String generated =
         JavaNodeResolverGenerator.generate(fileModel(resolver("User", false, false)));
 
-    assertThat(generated).doesNotContain("public Object selections()");
+    assertTrue(!generated.contains("public Object selections()"));
   }
 
   @Test
@@ -113,29 +117,36 @@ class JavaNodeResolverGeneratorTest {
     String generated =
         JavaNodeResolverGenerator.generate(fileModel(resolver("User", false, false)));
 
-    assertThat(generated)
-        .contains("public GlobalID<com.example.types.User> getId()")
-        .contains("public Object getRequestContext()")
-        .contains(
+    assertTrue(generated.contains("public GlobalID<com.example.types.User> getId()"));
+    assertTrue(generated.contains("public Object getRequestContext()"));
+    assertTrue(
+        generated.contains(
             "public <T extends NodeObject> String globalIDStringFor(Type<T> type, String"
-                + " internalID)")
-        .contains("public <T extends NodeCompositeOutput> GlobalID<T> globalIDFor(")
-        .contains("public <T extends NodeCompositeOutput> String serialize(GlobalID<T> globalID)")
-        .contains("public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id)")
-        .contains(
+                + " internalID)"));
+    assertTrue(
+        generated.contains("public <T extends NodeCompositeOutput> GlobalID<T> globalIDFor("));
+    assertTrue(
+        generated.contains(
+            "public <T extends NodeCompositeOutput> String serialize(GlobalID<T> globalID)"));
+    assertTrue(
+        generated.contains("public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id)"));
+    assertTrue(
+        generated.contains(
             "public <T> CompletableFuture<T> query(String selections,"
-                + " Map<String, Object> variables, Class<T> targetClass)")
-        .contains(
+                + " Map<String, Object> variables, Class<T> targetClass)"));
+    assertTrue(
+        generated.contains(
             "public <T> CompletableFuture<T> mutation(String selections,"
-                + " Map<String, Object> variables, Class<T> targetClass)");
+                + " Map<String, Object> variables, Class<T> targetClass)"));
   }
 
   @Test
   void generate_producesCorrectSelectiveLiteral() {
     String generated = JavaNodeResolverGenerator.generate(fileModel(resolver("User", false, true)));
 
-    assertThat(generated)
-        .contains("@NodeResolverFor(typeName = \"User\", isBatching = false, isSelective = true)");
+    assertTrue(
+        generated.contains(
+            "@NodeResolverFor(typeName = \"User\", isBatching = false, isSelective = true)"));
   }
 
   @Test
@@ -144,12 +155,14 @@ class JavaNodeResolverGeneratorTest {
         JavaNodeResolverGenerator.generate(
             fileModel(resolver("User", false, false), resolver("Booking", true, false)));
 
-    assertThat(generated)
-        .contains("@NodeResolverFor(typeName = \"User\", isBatching = false, isSelective = false)")
-        .contains("public abstract static class User")
-        .contains(
-            "@NodeResolverFor(typeName = \"Booking\", isBatching = true, isSelective = false)")
-        .contains("public abstract static class Booking");
+    assertTrue(
+        generated.contains(
+            "@NodeResolverFor(typeName = \"User\", isBatching = false, isSelective = false)"));
+    assertTrue(generated.contains("public abstract static class User"));
+    assertTrue(
+        generated.contains(
+            "@NodeResolverFor(typeName = \"Booking\", isBatching = true, isSelective = false)"));
+    assertTrue(generated.contains("public abstract static class Booking"));
   }
 
   @Test
@@ -157,11 +170,11 @@ class JavaNodeResolverGeneratorTest {
     String generated =
         JavaNodeResolverGenerator.generate(fileModel(resolver("User", false, false)));
 
-    assertThat(generated)
-        .contains("import viaduct.java.api.resolvers.NodeResolverBase;")
-        .contains("import viaduct.java.api.resolvers.FieldValue;")
-        .contains("import viaduct.java.api.context.NodeExecutionContext;")
-        .contains("import viaduct.java.api.context.SelectiveNodeExecutionContext;");
+    assertTrue(generated.contains("import viaduct.java.api.resolvers.NodeResolverBase;"));
+    assertTrue(generated.contains("import viaduct.java.api.resolvers.FieldValue;"));
+    assertTrue(generated.contains("import viaduct.java.api.context.NodeExecutionContext;"));
+    assertTrue(
+        generated.contains("import viaduct.java.api.context.SelectiveNodeExecutionContext;"));
   }
 
   @Test
@@ -170,12 +183,12 @@ class JavaNodeResolverGeneratorTest {
         JavaNodeResolverGenerator.generateToFile(
             fileModel(resolver("User", false, false)), tempDir.toFile());
 
-    assertThat(outputFile).isNotNull();
-    assertThat(outputFile.getName()).isEqualTo("NodeResolvers.java");
-    assertThat(outputFile.exists()).isTrue();
+    assertNotNull(outputFile);
+    assertEquals("NodeResolvers.java", outputFile.getName());
+    assertTrue(outputFile.exists());
 
     String content = Files.readString(outputFile.toPath());
-    assertThat(content).contains("package com.example.tenant.resolverbases;");
+    assertTrue(content.contains("package com.example.tenant.resolverbases;"));
   }
 
   @Test
@@ -186,6 +199,6 @@ class JavaNodeResolverGeneratorTest {
 
     File outputFile = JavaNodeResolverGenerator.generateToFile(model, tempDir.toFile());
 
-    assertThat(outputFile).isNull();
+    assertNull(outputFile);
   }
 }

@@ -1,7 +1,7 @@
 package viaduct.service.api
 
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import viaduct.graphql.SourceLocation
 
@@ -31,7 +31,7 @@ class GraphQLErrorTest {
         assertEquals("Something went wrong", error.message)
         assertNull(error.path)
         assertNull(error.locations)
-        assertEquals(emptyMap(), error.extensions)
+        assertEquals(emptyMap<String, Any?>(), error.extensions)
     }
 
     @Test

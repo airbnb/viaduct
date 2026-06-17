@@ -3,11 +3,10 @@ package com.example.execution.oneproject
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.readText
-import kotlin.test.Test
-import kotlin.test.assertContains
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 import viaduct.service.BasicViaductFactory
 import viaduct.service.api.ExecutionInput
 
@@ -37,10 +36,10 @@ class PluginExecutionSmokeTest {
             )
         )
 
-        assertContains(baseSchemaFile.readText(), "directive @oneProjectBase")
-        assertContains(commonSchemaFile.readText(), "directive @oneProjectCommon")
-        assertContains(partitionSchemaFile.readText(), "greeting: String")
-        assertContains(partitionSchemaFile.readText(), "echo(message: String!): String")
+        assertTrue(baseSchemaFile.readText().contains("directive @oneProjectBase"))
+        assertTrue(commonSchemaFile.readText().contains("directive @oneProjectCommon"))
+        assertTrue(partitionSchemaFile.readText().contains("greeting: String"))
+        assertTrue(partitionSchemaFile.readText().contains("echo(message: String!): String"))
     }
 
     @Test
@@ -53,9 +52,9 @@ class PluginExecutionSmokeTest {
         assertExists(configFile)
 
         val contents = configFile.readText()
-        assertContains(contents, "GreetingResolver")
-        assertContains(contents, "AuthorResolver")
-        assertContains(contents, "EchoMutationResolver")
+        assertTrue(contents.contains("GreetingResolver"))
+        assertTrue(contents.contains("AuthorResolver"))
+        assertTrue(contents.contains("EchoMutationResolver"))
     }
 
     @Test
@@ -91,7 +90,7 @@ class PluginExecutionSmokeTest {
 
         assertNull(result.getData())
         assertTrue(result.errors.isNotEmpty(), "Expected parse errors for invalid syntax")
-        assertContains(result.errors.first().message, "Invalid syntax")
+        assertTrue(result.errors.first().message.contains("Invalid syntax"))
     }
 
     private fun assertExists(path: Path) {

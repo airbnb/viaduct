@@ -3,6 +3,7 @@
 package viaduct.engine.runtime
 
 import graphql.language.AstPrinter
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -13,7 +14,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -423,9 +423,9 @@ class DispatcherRegistryTest {
 
         val batchResolver = registry.getNodeResolverDispatcher("TestBatchNode")
 
-        assertInstanceOf(InstrumentedNodeResolverDispatcher::class.java, batchResolver)
+        batchResolver.shouldBeInstanceOf<InstrumentedNodeResolverDispatcher>()
         val instrumentedDispatcher = batchResolver as InstrumentedNodeResolverDispatcher
-        assertInstanceOf(NodeResolverDispatcherImpl::class.java, instrumentedDispatcher.dispatcher)
+        instrumentedDispatcher.dispatcher.shouldBeInstanceOf<NodeResolverDispatcherImpl>()
     }
 
     @Test
@@ -491,9 +491,9 @@ class DispatcherRegistryTest {
         assertNotNull(registry.getNodeResolverDispatcher("BatchNodeType1"))
 
         val batchNodeDispatcher = registry.getNodeResolverDispatcher("BatchNodeType1")
-        assertInstanceOf(InstrumentedNodeResolverDispatcher::class.java, batchNodeDispatcher)
+        batchNodeDispatcher.shouldBeInstanceOf<InstrumentedNodeResolverDispatcher>()
         val instrumentedDispatcher = batchNodeDispatcher as InstrumentedNodeResolverDispatcher
-        assertInstanceOf(NodeResolverDispatcherImpl::class.java, instrumentedDispatcher.dispatcher)
+        instrumentedDispatcher.dispatcher.shouldBeInstanceOf<NodeResolverDispatcherImpl>()
     }
 
     @Test

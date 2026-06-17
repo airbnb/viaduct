@@ -9,6 +9,7 @@ import graphql.language.ListType
 import graphql.language.NonNullType
 import graphql.language.Type
 import graphql.language.TypeName
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.char
@@ -31,7 +32,6 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -419,17 +419,17 @@ private fun assertTypesEqual(
 ) {
     when (t1) {
         is TypeName -> {
-            assertInstanceOf(TypeName::class.java, t2)
+            t2.shouldBeInstanceOf<TypeName>()
             t2 as TypeName
             assertEquals(t1.name, t2.name)
         }
         is NonNullType -> {
-            assertInstanceOf(NonNullType::class.java, t2)
+            t2.shouldBeInstanceOf<NonNullType>()
             t2 as NonNullType
             assertTypesEqual(t1.type, t2.type)
         }
         is ListType -> {
-            assertInstanceOf(ListType::class.java, t2)
+            t2.shouldBeInstanceOf<ListType>()
             t2 as ListType
             assertTypesEqual(t1.type, t2.type)
         }

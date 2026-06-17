@@ -3,10 +3,10 @@
 package viaduct.api.internal
 
 import graphql.schema.GraphQLObjectType
+import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -61,7 +61,7 @@ class ObjectBaseTest {
                     o1.getObjectField()!!.getObjectField()
                 }
             }
-            assertInstanceOf(EngineObjectData::class.java, (o1.__engineObject as EngineObjectData).fetch("objectField"))
+            (o1.__engineObject as EngineObjectData).fetch("objectField").shouldBeInstanceOf<EngineObjectData>()
         }
 
     @Test
@@ -640,7 +640,7 @@ class ObjectBaseTest {
                 }
             )
             val e11 = runCatching { o11.getId() }.exceptionOrNull()!!
-            assertInstanceOf(TenantException::class.java, e11)
+            e11.shouldBeInstanceOf<TenantException>()
             assertEquals("foo", e11.message)
 
             val o12 = O1(
@@ -661,7 +661,7 @@ class ObjectBaseTest {
                 }
             )
             val e13 = runCatching { o13.getId() }.exceptionOrNull()!!
-            assertInstanceOf(FrameworkException::class.java, e13)
+            e13.shouldBeInstanceOf<FrameworkException>()
             assertEquals("foo", e13.cause!!.message)
         }
 

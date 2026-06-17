@@ -1,8 +1,8 @@
 package viaduct.remote.config
 
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class RemoteResolverConfigTest {
@@ -15,7 +15,7 @@ class RemoteResolverConfigTest {
     fun `defaults to disabled when env is empty`() {
         val cfg = RemoteResolverConfig.fromEnvironment(envOf())
         assertFalse(cfg.enabled)
-        assertEquals(emptySet(), cfg.remoteTypes)
+        assertEquals(emptySet<String>(), cfg.remoteTypes)
     }
 
     @Test
@@ -48,7 +48,7 @@ class RemoteResolverConfigTest {
     @Test
     fun `types defaults to empty set when env is unset`() {
         val cfg = RemoteResolverConfig.fromEnvironment(envOf())
-        assertEquals(emptySet(), cfg.remoteTypes)
+        assertEquals(emptySet<String>(), cfg.remoteTypes)
     }
 
     @Test

@@ -4,10 +4,10 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlin.reflect.KClass
-import kotlin.test.assertFailsWith
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.api.globalid.GlobalID
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
@@ -70,7 +70,7 @@ class ResolverExecutionContextExtensionsTest {
     fun `nodeRef T throws a descriptive error when no nested Reflection exists`() {
         val ctx = mockk<ResolverExecutionContext<*>>()
 
-        val ex = assertFailsWith<Throwable> {
+        val ex = assertThrows<Throwable> {
             ctx.nodeRef<NoReflectionNode>("id-1")
         }
 

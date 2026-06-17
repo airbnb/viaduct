@@ -1,7 +1,7 @@
 package viaduct.engine.runtime.execution
 
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.test.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData

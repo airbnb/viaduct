@@ -1,7 +1,7 @@
 package com.example.rrs
 
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatCode
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class RrsServerTest {
@@ -12,11 +12,11 @@ class RrsServerTest {
         val server = RrsServer(cfg())
         try {
             server.start()
-            assertThat(server.isRunning()).isTrue()
+            assertTrue(server.isRunning())
         } finally {
             server.stop()
         }
-        assertThat(server.isRunning()).isFalse()
+        assertFalse(server.isRunning())
     }
 
     @Test
@@ -25,7 +25,7 @@ class RrsServerTest {
         try {
             server.start()
             server.start()
-            assertThat(server.isRunning()).isTrue()
+            assertTrue(server.isRunning())
         } finally {
             server.stop()
         }
@@ -34,6 +34,6 @@ class RrsServerTest {
     @Test
     fun `stop before start does not throw`() {
         val server = RrsServer(cfg())
-        assertThatCode { server.stop() }.doesNotThrowAnyException()
+        server.stop()
     }
 }

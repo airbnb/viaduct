@@ -32,9 +32,9 @@ dependencies {
 
     /** Test dependencies - External **/
     testImplementation(libs.io.mockk.jvm)
+    testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.kotest.property.jvm)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.strikt.core)
 }
 
 dokka {

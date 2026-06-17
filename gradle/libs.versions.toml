@@ -4,7 +4,6 @@ project = "INCLUDED"
 
 # Libraries
 asm = "9.7.1"
-assertj = "3.27.6"
 antlr-st4 = "4.3.1"
 binaryCompatibility = "0.18.1"
 caffeine = "2.9.3"
@@ -33,7 +32,6 @@ grpc-kotlin = "1.4.1"
 protobuf = "3.25.1"
 slf4j = "2.0.7"
 jspecify = "1.0.0"
-strikt = "0.35.1"
 micrometer = "1.10.8"
 
 # Plugins
@@ -160,9 +158,7 @@ grpc-services = { module = "io.grpc:grpc-services", version.ref = "grpc" }
 protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
 protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "protobuf" }
 # Testing
-assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
-guava-testlib = { module = "com.google.guava:guava-testlib", version.ref = "guava" }
 io-mockk-dsl = { module = "io.mockk:mockk-dsl", version.ref = "mockk-jvm" }
 io-mockk-jvm = { module = "io.mockk:mockk-jvm", version.ref = "mockk-jvm" }
 jmh-annotation-processor = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
@@ -175,8 +171,6 @@ kotest-assertions-shared = { module = "io.kotest:kotest-assertions-shared", vers
 kotest-assertions-core-jvm = { module = "io.kotest:kotest-assertions-core-jvm", version.ref = "kotest" }
 kotest-common-jvm = { module = "io.kotest:kotest-common-jvm", version.ref = "kotest" }
 kotest-property-jvm = { module = "io.kotest:kotest-property-jvm", version.ref = "kotest" }
-kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
-strikt-core = { module = "io.strikt:strikt-core", version.ref = "strikt" }
 checker-qual = { module = "org.checkerframework:checker-qual", version.ref = "checker" }
 
 # Linting

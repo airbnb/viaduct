@@ -59,7 +59,7 @@ dependencies {
     testImplementation(libs.jspecify)
     testImplementation(libs.kotest.property.jvm)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.strikt.core)
+    testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.viaduct.engine.wiring)
     testImplementation(libs.viaduct.service.runtime)
     testImplementation(libs.viaduct.shared.arbitrary)

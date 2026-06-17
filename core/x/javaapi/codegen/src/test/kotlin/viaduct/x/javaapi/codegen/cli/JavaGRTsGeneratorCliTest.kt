@@ -5,11 +5,12 @@ import java.io.PrintStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.zip.ZipFile
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 
 /** Tests for the JavaGRTsGenerator CLI. */
@@ -66,14 +67,14 @@ class JavaGRTsGeneratorCliTest {
         )
 
         val output = outputCapture.toString()
-        assertThat(output).contains("Generated")
-        assertThat(output).contains("enum(s)")
-        assertThat(output).contains("object(s)")
-        assertThat(output).contains("resolver(s)")
+        assertTrue(output.contains("Generated"))
+        assertTrue(output.contains("enum(s)"))
+        assertTrue(output.contains("object(s)"))
+        assertTrue(output.contains("resolver(s)"))
 
         // Verify files were created
-        assertThat(grtOutputDir.resolve("com/example/Status.java")).exists()
-        assertThat(grtOutputDir.resolve("com/example/User.java")).exists()
+        assertTrue(Files.exists(grtOutputDir.resolve("com/example/Status.java")))
+        assertTrue(Files.exists(grtOutputDir.resolve("com/example/User.java")))
     }
 
     @Test
@@ -103,10 +104,10 @@ class JavaGRTsGeneratorCliTest {
         )
 
         val output = outputCapture.toString()
-        assertThat(output).isEmpty()
+        assertTrue(output.isEmpty())
 
         // Files should still be created
-        assertThat(grtOutputDir.resolve("com/example/Status.java")).exists()
+        assertTrue(Files.exists(grtOutputDir.resolve("com/example/Status.java")))
     }
 
     @Test
@@ -130,7 +131,7 @@ class JavaGRTsGeneratorCliTest {
             )
         )
 
-        assertThat(grtOutputDir.resolve("com/fromfile/Color.java")).exists()
+        assertTrue(Files.exists(grtOutputDir.resolve("com/fromfile/Color.java")))
     }
 
     @Test
@@ -162,9 +163,9 @@ class JavaGRTsGeneratorCliTest {
         )
 
         // Verifies tenant_package_file was read and the codegen completed successfully
-        assertThat(grtOutputDir.resolve("com/example/Color.java")).exists()
+        assertTrue(Files.exists(grtOutputDir.resolve("com/example/Color.java")))
         val output = outputCapture.toString()
-        assertThat(output).contains("Generated")
+        assertTrue(output.contains("Generated"))
     }
 
     @Test
@@ -191,7 +192,7 @@ class JavaGRTsGeneratorCliTest {
         )
 
         // Codegen completes without error; GRT output uses the specified package
-        assertThat(grtOutputDir.resolve("com/fallback/Priority.java")).exists()
+        assertTrue(Files.exists(grtOutputDir.resolve("com/fallback/Priority.java")))
     }
 
     @Test
@@ -229,12 +230,12 @@ class JavaGRTsGeneratorCliTest {
         )
 
         // Query and Mutation should be generated (root types included, _ field is skipped)
-        assertThat(grtOutputDir.resolve("com/example/Query.java")).exists()
-        assertThat(grtOutputDir.resolve("com/example/Mutation.java")).exists()
+        assertTrue(Files.exists(grtOutputDir.resolve("com/example/Query.java")))
+        assertTrue(Files.exists(grtOutputDir.resolve("com/example/Mutation.java")))
         // Subscription should be removed (no viaduct.java.api.types.Subscription marker interface)
-        assertThat(grtOutputDir.resolve("com/example/Subscription.java")).doesNotExist()
+        assertFalse(Files.exists(grtOutputDir.resolve("com/example/Subscription.java")))
         // Regular types should still exist
-        assertThat(grtOutputDir.resolve("com/example/User.java")).exists()
+        assertTrue(Files.exists(grtOutputDir.resolve("com/example/User.java")))
     }
 
     @Test
@@ -258,13 +259,13 @@ class JavaGRTsGeneratorCliTest {
         )
 
         // Archive should exist and contain the generated file
-        assertThat(grtArchive).exists()
+        assertTrue(Files.exists(grtArchive))
         ZipFile(grtArchive.toFile()).use { zip ->
             val entries = zip.entries().toList().map { it.name }
-            assertThat(entries).anyMatch { it.endsWith("Size.java") }
+            assertTrue(entries.any { it.endsWith("Size.java") })
         }
         // Original directory should be deleted after archiving
-        assertThat(grtOutputDir).doesNotExist()
+        assertFalse(Files.exists(grtOutputDir))
     }
 
     @Test
@@ -288,8 +289,8 @@ class JavaGRTsGeneratorCliTest {
         )
 
         // Archive is created and original directory is cleaned up
-        assertThat(resolverArchive).exists()
-        assertThat(resolverOutputDir).doesNotExist()
+        assertTrue(Files.exists(resolverArchive))
+        assertFalse(Files.exists(resolverOutputDir))
     }
 
     @Test
@@ -322,10 +323,9 @@ class JavaGRTsGeneratorCliTest {
         val resolverContent = java.nio.file.Files.readString(
             resolverOutputDir.resolve("com/example/viadapp/resolvers/resolverbases/QueryResolvers.java")
         )
-        assertThat(resolverContent)
-            .contains("package com.example.viadapp.resolvers.resolverbases;")
-            .contains("import viaduct.java.grts.*;")
-            .doesNotContain("import com.example.viadapp.resolvers.*;")
+        assertTrue(resolverContent.contains("package com.example.viadapp.resolvers.resolverbases;"))
+        assertTrue(resolverContent.contains("import viaduct.java.grts.*;"))
+        assertFalse(resolverContent.contains("import com.example.viadapp.resolvers.*;"))
     }
 
     @Test
@@ -336,7 +336,7 @@ class JavaGRTsGeneratorCliTest {
         val grtOutputDir = tempDir.resolve("grt-output")
         val resolverOutputDir = tempDir.resolve("resolver-output")
 
-        assertThatThrownBy {
+        val ex = assertThrows<Exception> {
             JavaGRTsGenerator().parse(
                 listOf(
                     "--schema_files=${schemaFile.toAbsolutePath()}",
@@ -344,6 +344,7 @@ class JavaGRTsGeneratorCliTest {
                     "--resolver_generated_dir=${resolverOutputDir.toAbsolutePath()}"
                 )
             )
-        }.hasMessageContaining("--grt_package or --grt_package_file must be provided")
+        }
+        assertTrue(ex.message!!.contains("--grt_package or --grt_package_file must be provided"))
     }
 }

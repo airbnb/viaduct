@@ -25,9 +25,9 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.verify
-import kotlin.test.assertNotNull
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory

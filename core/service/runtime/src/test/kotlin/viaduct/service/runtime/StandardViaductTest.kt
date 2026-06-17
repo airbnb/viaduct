@@ -11,11 +11,11 @@ import graphql.schema.idl.UnExecutableSchemaGenerator
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
@@ -108,7 +108,7 @@ class StandardViaductTest {
 
         assertEquals(mapOf("field" to "Test"), executionResultImpl.getData())
         assertEquals(graphqlErrors, executionResultImpl.errors)
-        assertEquals(mapOf(), executionResultImpl.extensions)
+        assertEquals(emptyMap<String, Any>(), executionResultImpl.extensions)
     }
 
     @Test

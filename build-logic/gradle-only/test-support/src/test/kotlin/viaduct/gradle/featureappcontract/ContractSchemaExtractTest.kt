@@ -1,10 +1,14 @@
 package viaduct.gradle.featureappcontract
 
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.string.shouldContain
 import java.io.File
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.gradle.testfixtures.ProjectBuilder
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.Opcodes
@@ -27,7 +31,7 @@ class ContractSchemaExtractTest {
             schemaValue = "type Query { hello: String }"
         )
         val result = extractSchemaFromClassFile(classFile)
-        assertThat(result).isEqualTo("type Query { hello: String }")
+        assertEquals("type Query { hello: String }", result)
     }
 
     @Test
@@ -36,7 +40,7 @@ class ContractSchemaExtractTest {
             className = "com/example/PlainClass",
             schemaValue = null
         )
-        assertThat(extractSchemaFromClassFile(classFile)).isNull()
+        assertNull(extractSchemaFromClassFile(classFile))
     }
 
     @Test
@@ -54,7 +58,7 @@ class ContractSchemaExtractTest {
             className = "com/example/MultilineTest",
             schemaValue = schema
         )
-        assertThat(extractSchemaFromClassFile(classFile)).isEqualTo(schema)
+        assertEquals(schema, extractSchemaFromClassFile(classFile))
     }
 
     @Test
@@ -62,7 +66,7 @@ class ContractSchemaExtractTest {
         val classFile = synthesizeClassFileWithUnrelatedAnnotation(
             className = "com/example/DeprecatedClass"
         )
-        assertThat(extractSchemaFromClassFile(classFile)).isNull()
+        assertNull(extractSchemaFromClassFile(classFile))
     }
 
     @Test
@@ -72,7 +76,7 @@ class ContractSchemaExtractTest {
             schemaValue = "type Query { x: String }",
             runtimeVisible = false
         )
-        assertThat(extractSchemaFromClassFile(classFile)).isNull()
+        assertNull(extractSchemaFromClassFile(classFile))
     }
 
     // ── Layer 2: real task via ProjectBuilder ────────────────────────────────
@@ -88,10 +92,8 @@ class ContractSchemaExtractTest {
         val outputDir = tempDir.resolve("output")
         executeTask(classesDir, outputDir)
 
-        assertThat(outputDir.resolve("com/example/alpha/schema.graphql"))
-            .hasContent("type Query { a: String }")
-        assertThat(outputDir.resolve("com/example/beta/schema.graphql"))
-            .hasContent("type Query { b: String }")
+        assertEquals("type Query { a: String }", outputDir.resolve("com/example/alpha/schema.graphql").readText())
+        assertEquals("type Query { b: String }", outputDir.resolve("com/example/beta/schema.graphql").readText())
     }
 
     @Test
@@ -105,9 +107,8 @@ class ContractSchemaExtractTest {
         val outputDir = tempDir.resolve("output")
         executeTask(classesDir, outputDir)
 
-        assertThat(outputDir.resolve("com/example/alpha/schema.graphql")).exists()
-        assertThat(outputDir.walkTopDown().filter { it.name == "schema.graphql" }.toList())
-            .hasSize(1)
+        assertTrue(outputDir.resolve("com/example/alpha/schema.graphql").exists())
+        outputDir.walkTopDown().filter { it.name == "schema.graphql" }.toList().shouldHaveSize(1)
     }
 
     @Test
@@ -119,9 +120,8 @@ class ContractSchemaExtractTest {
         writeClassFile(classesDir, "com/example/alpha/ContractB", "type Query { b: String }")
 
         val outputDir = tempDir.resolve("output")
-        assertThatThrownBy { executeTask(classesDir, outputDir) }
-            .isInstanceOf(IllegalStateException::class.java)
-            .hasMessageContaining("Two contracts in package")
+        val e = assertThrows<IllegalStateException> { executeTask(classesDir, outputDir) }
+        e.message!! shouldContain "Two contracts in package"
     }
 
     @Test
@@ -135,9 +135,8 @@ class ContractSchemaExtractTest {
         val outputDir = tempDir.resolve("output")
         executeTask(classesDir, outputDir)
 
-        assertThat(outputDir.resolve("com/example/alpha/schema.graphql")).exists()
-        assertThat(outputDir.walkTopDown().filter { it.name == "schema.graphql" }.toList())
-            .hasSize(1)
+        assertTrue(outputDir.resolve("com/example/alpha/schema.graphql").exists())
+        outputDir.walkTopDown().filter { it.name == "schema.graphql" }.toList().shouldHaveSize(1)
     }
 
     @Test
@@ -156,7 +155,7 @@ class ContractSchemaExtractTest {
         executeTask(classesDir, outputDir)
 
         val content = outputDir.resolve("com/example/alpha/schema.graphql").readText()
-        assertThat(content).isEqualTo(rawSchema.trimIndent().trim())
+        assertEquals(rawSchema.trimIndent().trim(), content)
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

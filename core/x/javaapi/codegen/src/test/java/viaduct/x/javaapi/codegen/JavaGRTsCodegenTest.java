@@ -1,6 +1,8 @@
 package viaduct.x.javaapi.codegen;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -63,59 +65,54 @@ class JavaGRTsCodegenTest {
             List.of(schemaFile.toFile()), grtOutputDir, "com.example.generated", false);
 
     // Verify counts
-    assertThat(result.enumCount()).isEqualTo(1);
-    assertThat(result.objectCount()).isEqualTo(1);
-    assertThat(result.inputCount()).isEqualTo(1);
-    assertThat(result.interfaceCount()).isEqualTo(1);
-    assertThat(result.unionCount()).isEqualTo(1);
-    assertThat(result.totalCount()).isEqualTo(5);
+    assertEquals(1, result.enumCount());
+    assertEquals(1, result.objectCount());
+    assertEquals(1, result.inputCount());
+    assertEquals(1, result.interfaceCount());
+    assertEquals(1, result.unionCount());
+    assertEquals(5, result.totalCount());
 
     // Verify generated files list
-    assertThat(result.generatedFiles()).hasSize(5);
+    assertEquals(5, result.generatedFiles().size());
 
     // Verify files were created on disk
     Path packageDir = grtOutputDir.toPath().resolve("com/example/generated");
-    assertThat(packageDir.resolve("BookingStatus.java")).exists();
-    assertThat(packageDir.resolve("User.java")).exists();
-    assertThat(packageDir.resolve("CreateUserInput.java")).exists();
-    assertThat(packageDir.resolve("Node.java")).exists();
-    assertThat(packageDir.resolve("SearchResult.java")).exists();
+    assertTrue(Files.exists(packageDir.resolve("BookingStatus.java")));
+    assertTrue(Files.exists(packageDir.resolve("User.java")));
+    assertTrue(Files.exists(packageDir.resolve("CreateUserInput.java")));
+    assertTrue(Files.exists(packageDir.resolve("Node.java")));
+    assertTrue(Files.exists(packageDir.resolve("SearchResult.java")));
 
     // Verify file contents
     String enumContent = Files.readString(packageDir.resolve("BookingStatus.java"));
-    assertThat(enumContent)
-        .contains("package com.example.generated;")
-        .contains("public enum BookingStatus");
+    assertTrue(enumContent.contains("package com.example.generated;"));
+    assertTrue(enumContent.contains("public enum BookingStatus"));
 
     String objectContent = Files.readString(packageDir.resolve("User.java"));
-    assertThat(objectContent)
-        .contains("package com.example.generated;")
-        .contains("public class User");
+    assertTrue(objectContent.contains("package com.example.generated;"));
+    assertTrue(objectContent.contains("public class User"));
 
     String inputContent = Files.readString(packageDir.resolve("CreateUserInput.java"));
-    assertThat(inputContent)
-        .contains("package com.example.generated;")
-        .contains("public class CreateUserInput");
+    assertTrue(inputContent.contains("package com.example.generated;"));
+    assertTrue(inputContent.contains("public class CreateUserInput"));
 
     String interfaceContent = Files.readString(packageDir.resolve("Node.java"));
-    assertThat(interfaceContent)
-        .contains("package com.example.generated;")
-        .contains("public interface Node");
+    assertTrue(interfaceContent.contains("package com.example.generated;"));
+    assertTrue(interfaceContent.contains("public interface Node"));
 
     String unionContent = Files.readString(packageDir.resolve("SearchResult.java"));
-    assertThat(unionContent)
-        .contains("package com.example.generated;")
-        .contains("public interface SearchResult");
+    assertTrue(unionContent.contains("package com.example.generated;"));
+    assertTrue(unionContent.contains("public interface SearchResult"));
   }
 
   @Test
   void createsOutputDirectoryIfNotExists() throws IOException {
     File grtOutputDir = tempDir.resolve("nested/grt/dir").toFile();
-    assertThat(grtOutputDir).doesNotExist();
+    assertFalse(grtOutputDir.exists());
 
     codegen.generate(List.of(schemaFile.toFile()), grtOutputDir, "com.example", false);
 
-    assertThat(grtOutputDir).exists();
+    assertTrue(grtOutputDir.exists());
   }
 
   @Test
@@ -148,30 +145,27 @@ class JavaGRTsCodegenTest {
         codegen.generate(List.of(rootSchemaFile.toFile()), grtOutputDir, "com.example.root", true);
 
     // All 4 object types should be generated (3 root + 1 regular)
-    assertThat(result.objectCount()).isEqualTo(4);
+    assertEquals(4, result.objectCount());
 
     Path packageDir = grtOutputDir.toPath().resolve("com/example/root");
-    assertThat(packageDir.resolve("Query.java")).exists();
-    assertThat(packageDir.resolve("Mutation.java")).exists();
-    assertThat(packageDir.resolve("Subscription.java")).exists();
-    assertThat(packageDir.resolve("User.java")).exists();
+    assertTrue(Files.exists(packageDir.resolve("Query.java")));
+    assertTrue(Files.exists(packageDir.resolve("Mutation.java")));
+    assertTrue(Files.exists(packageDir.resolve("Subscription.java")));
+    assertTrue(Files.exists(packageDir.resolve("User.java")));
 
     // Root types should use marker interfaces
     String queryContent = Files.readString(packageDir.resolve("Query.java"));
-    assertThat(queryContent)
-        .contains("extends ObjectBase")
-        .contains("implements viaduct.java.api.types.Query");
+    assertTrue(queryContent.contains("extends ObjectBase"));
+    assertTrue(queryContent.contains("implements viaduct.java.api.types.Query"));
 
     String mutationContent = Files.readString(packageDir.resolve("Mutation.java"));
-    assertThat(mutationContent)
-        .contains("extends ObjectBase")
-        .contains("implements viaduct.java.api.types.Mutation");
+    assertTrue(mutationContent.contains("extends ObjectBase"));
+    assertTrue(mutationContent.contains("implements viaduct.java.api.types.Mutation"));
 
     // Regular types should extend ObjectBase (GraphQLObject is inherited)
     String userContent = Files.readString(packageDir.resolve("User.java"));
-    assertThat(userContent)
-        .contains("extends ObjectBase")
-        .doesNotContain("implements GraphQLObject");
+    assertTrue(userContent.contains("extends ObjectBase"));
+    assertFalse(userContent.contains("implements GraphQLObject"));
   }
 
   @Test
@@ -196,11 +190,11 @@ class JavaGRTsCodegenTest {
             List.of(rootSchemaFile.toFile()), grtOutputDir, "com.example.exclude", false);
 
     // Only User should be generated, Query should be excluded
-    assertThat(result.objectCount()).isEqualTo(1);
+    assertEquals(1, result.objectCount());
 
     Path packageDir = grtOutputDir.toPath().resolve("com/example/exclude");
-    assertThat(packageDir.resolve("Query.java")).doesNotExist();
-    assertThat(packageDir.resolve("User.java")).exists();
+    assertFalse(Files.exists(packageDir.resolve("Query.java")));
+    assertTrue(Files.exists(packageDir.resolve("User.java")));
   }
 
   @Test
@@ -211,8 +205,8 @@ class JavaGRTsCodegenTest {
         codegen.generate(List.of(schemaFile.toFile()), grtOutputDir, "com.example", false);
 
     for (File file : result.generatedFiles()) {
-      assertThat(file.isAbsolute()).isTrue();
-      assertThat(file).exists();
+      assertTrue(file.isAbsolute());
+      assertTrue(file.exists());
     }
   }
 }

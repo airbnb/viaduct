@@ -2,7 +2,9 @@ package detekt
 
 import io.gitlab.arturbosch.detekt.api.Config
 import io.gitlab.arturbosch.detekt.test.lint
-import org.assertj.core.api.Assertions.assertThat
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.string.shouldContain
 import org.junit.jupiter.api.Test
 
 class ApiAnnotationConflictRuleTest {
@@ -21,8 +23,9 @@ class ApiAnnotationConflictRuleTest {
             }
             """.trimIndent()
         )
-        assertThat(findings).hasSize(1)
-        assertThat(findings.first().message).contains("bar").contains("Foo")
+        findings.shouldHaveSize(1)
+        findings.first().message shouldContain "bar"
+        findings.first().message shouldContain "Foo"
     }
 
     @Test
@@ -36,7 +39,7 @@ class ApiAnnotationConflictRuleTest {
             }
             """.trimIndent()
         )
-        assertThat(findings).hasSize(1)
+        findings.shouldHaveSize(1)
     }
 
     @Test
@@ -50,7 +53,7 @@ class ApiAnnotationConflictRuleTest {
             }
             """.trimIndent()
         )
-        assertThat(findings).hasSize(1)
+        findings.shouldHaveSize(1)
     }
 
     @Test
@@ -64,7 +67,7 @@ class ApiAnnotationConflictRuleTest {
             }
             """.trimIndent()
         )
-        assertThat(findings).hasSize(1)
+        findings.shouldHaveSize(1)
     }
 
     @Test
@@ -81,7 +84,7 @@ class ApiAnnotationConflictRuleTest {
             }
             """.trimIndent()
         )
-        assertThat(findings).hasSize(2)
+        findings.shouldHaveSize(2)
     }
 
     @Test
@@ -95,7 +98,7 @@ class ApiAnnotationConflictRuleTest {
             }
             """.trimIndent()
         )
-        assertThat(findings).hasSize(1)
+        findings.shouldHaveSize(1)
     }
 
     @Test
@@ -109,7 +112,7 @@ class ApiAnnotationConflictRuleTest {
             }
             """.trimIndent()
         )
-        assertThat(findings).hasSize(1)
+        findings.shouldHaveSize(1)
     }
 
     @Test
@@ -126,7 +129,7 @@ class ApiAnnotationConflictRuleTest {
             }
             """.trimIndent()
         )
-        assertThat(findings).hasSize(1)
+        findings.shouldHaveSize(1)
     }
 
     @Test
@@ -140,7 +143,7 @@ class ApiAnnotationConflictRuleTest {
             }
             """.trimIndent()
         )
-        assertThat(findings).hasSize(1)
+        findings.shouldHaveSize(1)
     }
 
     // --- no violations ---
@@ -156,7 +159,7 @@ class ApiAnnotationConflictRuleTest {
             }
             """.trimIndent()
         )
-        assertThat(findings).isEmpty()
+        findings.shouldBeEmpty()
     }
 
     @Test
@@ -169,7 +172,7 @@ class ApiAnnotationConflictRuleTest {
             }
             """.trimIndent()
         )
-        assertThat(findings).isEmpty()
+        findings.shouldBeEmpty()
     }
 
     @Test
@@ -183,7 +186,7 @@ class ApiAnnotationConflictRuleTest {
             }
             """.trimIndent()
         )
-        assertThat(findings).isEmpty()
+        findings.shouldBeEmpty()
     }
 
     @Test
@@ -197,7 +200,7 @@ class ApiAnnotationConflictRuleTest {
             }
             """.trimIndent()
         )
-        assertThat(findings).isEmpty()
+        findings.shouldBeEmpty()
     }
 
     @Test
@@ -210,7 +213,7 @@ class ApiAnnotationConflictRuleTest {
             }
             """.trimIndent()
         )
-        assertThat(findings).isEmpty()
+        findings.shouldBeEmpty()
     }
 
     @Test
@@ -224,6 +227,6 @@ class ApiAnnotationConflictRuleTest {
             }
             """.trimIndent()
         )
-        assertThat(findings).isEmpty()
+        findings.shouldBeEmpty()
     }
 }

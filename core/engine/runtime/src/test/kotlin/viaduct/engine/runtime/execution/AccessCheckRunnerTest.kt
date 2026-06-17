@@ -18,12 +18,12 @@ import io.mockk.verify
 import java.util.Locale
 import java.util.function.Supplier
 import kotlin.coroutines.EmptyCoroutineContext
-import kotlin.test.assertEquals
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.CheckerResult
@@ -87,7 +87,7 @@ class AccessCheckRunnerTest {
                 val result = checkField(errorCheckerExecutor)
                 val error = result.await()?.asError?.error
                 assertTrue(error is IllegalAccessException)
-                assertEquals("denied", error.message)
+                assertEquals("denied", error!!.message)
             }
         }
 
@@ -153,7 +153,7 @@ class AccessCheckRunnerTest {
                 val result = checkType(errorCheckerExecutor)
                 val error = result.await()?.asError?.error
                 assertTrue(error is IllegalAccessException)
-                assertEquals("denied", error.message)
+                assertEquals("denied", error!!.message)
             }
         }
 
@@ -214,7 +214,7 @@ class AccessCheckRunnerTest {
                 )
                 val error = result.await()?.asError?.error
                 assertTrue(error is IllegalAccessException)
-                assertEquals("denied", error.message)
+                assertEquals("denied", error!!.message)
             }
         }
 

@@ -1,10 +1,9 @@
 package com.example.execution.twoproject
 
-import kotlin.test.Test
-import kotlin.test.assertContains
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 import viaduct.service.BasicViaductFactory
 import viaduct.service.api.ExecutionInput
 
@@ -42,6 +41,6 @@ class PluginExecutionSmokeTest {
 
         assertNull(result.getData())
         assertTrue(result.errors.isNotEmpty(), "Expected validation errors for undefined field")
-        assertContains(result.errors.first().message, "notAField")
+        assertTrue(result.errors.first().message.contains("notAField"))
     }
 }

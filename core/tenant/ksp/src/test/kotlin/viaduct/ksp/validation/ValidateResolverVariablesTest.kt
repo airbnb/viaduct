@@ -1,6 +1,6 @@
 package viaduct.ksp.validation
 
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ValidateResolverVariablesTest {

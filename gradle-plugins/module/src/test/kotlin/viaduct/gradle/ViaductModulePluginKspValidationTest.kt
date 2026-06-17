@@ -1,10 +1,10 @@
 package viaduct.gradle
 
+import io.kotest.matchers.string.shouldContain
 import java.io.File
-import kotlin.test.Test
-import kotlin.test.assertContains
-import kotlin.test.assertNull
 import org.gradle.testkit.runner.GradleRunner
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
 /**
@@ -41,22 +41,22 @@ class ViaductModulePluginKspValidationTest {
     @Test
     fun `Kotlin 1_8_22 is rejected`() {
         val error = ViaductModulePlugin.validateKotlinVersion("1.8.22")
-        assertContains(error!!, "[1.9, 2.2]")
-        assertContains(error, "1.8.22")
+        error!! shouldContain "[1.9, 2.2]"
+        error shouldContain "1.8.22"
     }
 
     @Test
     fun `Kotlin 2_3_0 is rejected`() {
         val error = ViaductModulePlugin.validateKotlinVersion("2.3.0")
-        assertContains(error!!, "[1.9, 2.2]")
-        assertContains(error, "2.3.0")
-        assertContains(error, "KSP2")
+        error!! shouldContain "[1.9, 2.2]"
+        error shouldContain "2.3.0"
+        error shouldContain "KSP2"
     }
 
     @Test
     fun `Kotlin 3_0_0 is rejected`() {
         val error = ViaductModulePlugin.validateKotlinVersion("3.0.0")
-        assertContains(error!!, "[1.9, 2.2]")
+        error!! shouldContain "[1.9, 2.2]"
     }
 
     @Test
@@ -102,7 +102,7 @@ class ViaductModulePluginKspValidationTest {
             .withArguments("help")
             .buildAndFail()
 
-        assertContains(result.output, "BUILD FAILED")
-        assertContains(result.output, "com.google.devtools.ksp")
+        result.output shouldContain "BUILD FAILED"
+        result.output shouldContain "com.google.devtools.ksp"
     }
 }

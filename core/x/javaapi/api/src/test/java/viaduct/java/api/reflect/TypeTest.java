@@ -1,7 +1,9 @@
 package viaduct.java.api.reflect;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import viaduct.java.api.types.GRT;
@@ -18,22 +20,24 @@ class TypeTest {
   void ofClass_returnsTypeWithCorrectName() {
     var type = Type.ofClass(TestGRT.class);
 
-    assertThat(type.getName()).isEqualTo("TestGRT");
+    assertEquals("TestGRT", type.getName());
   }
 
   @Test
   void ofClass_returnsTypeWithCorrectJavaClass() {
     var type = Type.ofClass(TestGRT.class);
 
-    assertThat(type.getJavaClass()).isEqualTo(TestGRT.class);
+    assertEquals(TestGRT.class, type.getJavaClass());
   }
 
   @Test
   void ofClass_throwsIllegalArgumentException_whenClassDoesNotImplementGRT() {
     //noinspection unchecked
-    assertThatThrownBy(() -> Type.ofClass((Class<GRT>) (Class<?>) NotAGRT.class))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Class must implement GRT");
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> Type.ofClass((Class<GRT>) (Class<?>) NotAGRT.class));
+    assertTrue(e.getMessage().contains("Class must implement GRT"));
   }
 
   @Test
@@ -41,7 +45,7 @@ class TypeTest {
     var type1 = Type.ofClass(TestGRT.class);
     var type2 = Type.ofClass(TestGRT.class);
 
-    assertThat(type1).isEqualTo(type2);
+    assertEquals(type1, type2);
   }
 
   @Test
@@ -50,7 +54,7 @@ class TypeTest {
     var type2 = Type.ofClass(AnotherTestGRT.class);
 
     //noinspection AssertBetweenInconvertibleTypes
-    assertThat(type1).isNotEqualTo(type2);
+    assertNotEquals(type1, type2);
   }
 
   @Test
@@ -58,8 +62,8 @@ class TypeTest {
     var type = Type.ofClass(TestGRT.class);
 
     //noinspection AssertBetweenInconvertibleTypes
-    assertThat(type).isNotEqualTo("not a type");
-    assertThat(type).isNotEqualTo(null);
+    assertNotEquals(type, "not a type");
+    assertNotEquals(type, null);
   }
 
   @Test
@@ -67,7 +71,7 @@ class TypeTest {
     var type1 = Type.ofClass(TestGRT.class);
     var type2 = Type.ofClass(TestGRT.class);
 
-    assertThat(type1.hashCode()).isEqualTo(type2.hashCode());
+    assertEquals(type1.hashCode(), type2.hashCode());
   }
 
   @Test
@@ -75,21 +79,21 @@ class TypeTest {
     var type1 = Type.ofClass(TestGRT.class);
     var type2 = Type.ofClass(AnotherTestGRT.class);
 
-    assertThat(type1.hashCode()).isNotEqualTo(type2.hashCode());
+    assertNotEquals(type1.hashCode(), type2.hashCode());
   }
 
   @Test
   void toString_returnsExpectedFormat() {
     var type = Type.ofClass(TestGRT.class);
 
-    assertThat(type.toString()).isEqualTo("Type(TestGRT)");
+    assertEquals("Type(TestGRT)", type.toString());
   }
 
   @Test
   void ofClass_worksWithGRTInterface() {
     var type = Type.ofClass(GRT.class);
 
-    assertThat(type.getName()).isEqualTo("GRT");
-    assertThat(type.getJavaClass()).isEqualTo(GRT.class);
+    assertEquals("GRT", type.getName());
+    assertEquals(GRT.class, type.getJavaClass());
   }
 }

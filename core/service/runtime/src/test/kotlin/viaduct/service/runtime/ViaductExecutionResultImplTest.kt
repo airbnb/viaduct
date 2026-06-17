@@ -6,7 +6,7 @@ import graphql.ExecutionResult as GJExecutionResult
 import graphql.GraphQLError as GJGraphQLError
 import io.mockk.every
 import io.mockk.mockk
-import kotlin.test.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class ViaductExecutionResultImplTest {

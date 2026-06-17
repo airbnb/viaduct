@@ -3,7 +3,7 @@
 package viaduct.tenant.tutorial07
 
 import java.util.concurrent.ConcurrentLinkedQueue
-import kotlin.test.assertEquals as kotlinAssertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.api.FieldValue
@@ -181,8 +181,8 @@ class SimpleBatchResolverFeatureAppTest : SimpleBatchResolverContractTest() {
         }
 
         // EFFICIENCY PROOF - only 1 batch call for all 3 users
-        kotlinAssertEquals(1, getTotalBatchResolveCalls(), "Expected exactly 1 batchResolve call")
-        kotlinAssertEquals(3, batchResolveCalls.first(), "Expected batch size of 3 users")
+        assertEquals(1, getTotalBatchResolveCalls(), "Expected exactly 1 batchResolve call")
+        assertEquals(3, batchResolveCalls.first(), "Expected batch size of 3 users")
     }
 
     @Test
@@ -210,8 +210,8 @@ class SimpleBatchResolverFeatureAppTest : SimpleBatchResolverContractTest() {
         }
 
         // Even single requests use batch pattern
-        kotlinAssertEquals(1, getTotalBatchResolveCalls(), "Expected 1 batchResolve call")
-        kotlinAssertEquals(1, batchResolveCalls.first(), "Expected batch size of 1")
+        assertEquals(1, getTotalBatchResolveCalls(), "Expected 1 batchResolve call")
+        assertEquals(1, batchResolveCalls.first(), "Expected batch size of 1")
     }
 
     @Test
@@ -261,8 +261,8 @@ class SimpleBatchResolverFeatureAppTest : SimpleBatchResolverContractTest() {
         }
 
         // ALL department requests batched together: 3 + 1 = 4 in single call
-        kotlinAssertEquals(1, getTotalBatchResolveCalls(), "Expected 1 batchResolve call")
-        kotlinAssertEquals(4, batchResolveCalls.first(), "Expected batch size of 4 (includes duplicate)")
+        assertEquals(1, getTotalBatchResolveCalls(), "Expected 1 batchResolve call")
+        assertEquals(4, batchResolveCalls.first(), "Expected batch size of 4 (includes duplicate)")
     }
 
     @Test
@@ -299,7 +299,7 @@ class SimpleBatchResolverFeatureAppTest : SimpleBatchResolverContractTest() {
         }
 
         // No department requests = no batch resolver calls
-        kotlinAssertEquals(0, getTotalBatchResolveCalls(), "Expected no batchResolve calls")
+        assertEquals(0, getTotalBatchResolveCalls(), "Expected no batchResolve calls")
     }
 
     /**

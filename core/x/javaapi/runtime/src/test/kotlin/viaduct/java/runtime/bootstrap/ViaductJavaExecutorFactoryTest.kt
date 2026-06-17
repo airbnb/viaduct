@@ -2,14 +2,20 @@
 
 package viaduct.java.runtime.bootstrap
 
+import io.kotest.matchers.booleans.shouldBeFalse
+import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
 import java.net.URL
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.runBlocking
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
@@ -276,10 +282,10 @@ class ViaductJavaExecutorFactoryTest {
             schema,
         )
 
-        assertThat(executor.resolverId).isEqualTo("Query.testField")
-        assertThat(executor.isSelective).isFalse()
-        assertThat(executor.objectSelectionSet).isNull()
-        assertThat(executor.querySelectionSet).isNull()
+        executor.resolverId shouldBe "Query.testField"
+        executor.isSelective.shouldBeFalse()
+        executor.objectSelectionSet.shouldBeNull()
+        executor.querySelectionSet.shouldBeNull()
     }
 
     @Test
@@ -289,7 +295,7 @@ class ViaductJavaExecutorFactoryTest {
             schema,
         )
 
-        assertThat(executor.isSelective).isTrue()
+        executor.isSelective.shouldBeTrue()
     }
 
     @Test
@@ -305,8 +311,8 @@ class ViaductJavaExecutorFactoryTest {
             schema,
         )
 
-        assertThat(executor.objectSelectionSet).isNotNull()
-        assertThat(executor.querySelectionSet).isNull()
+        executor.objectSelectionSet.shouldNotBeNull()
+        executor.querySelectionSet.shouldBeNull()
     }
 
     @Test
@@ -316,7 +322,7 @@ class ViaductJavaExecutorFactoryTest {
             schema,
         )
 
-        assertThat(executor.isBatching).isTrue()
+        executor.isBatching.shouldBeTrue()
     }
 
     @Test
@@ -326,9 +332,9 @@ class ViaductJavaExecutorFactoryTest {
             schema,
         )
 
-        assertThat(executor.typeName).isEqualTo("TestNodeType")
-        assertThat(executor.isSelective).isFalse()
-        assertThat(executor.isBatching).isFalse()
+        executor.typeName shouldBe "TestNodeType"
+        executor.isSelective.shouldBeFalse()
+        executor.isBatching.shouldBeFalse()
     }
 
     @Test
@@ -338,7 +344,7 @@ class ViaductJavaExecutorFactoryTest {
             schema,
         )
 
-        assertThat(executor.isBatching).isTrue()
+        executor.isBatching.shouldBeTrue()
     }
 
     // ── Invocation tests (drive the factory's resolveFunction / batchResolveFunction) ──────────
@@ -354,7 +360,7 @@ class ViaductJavaExecutorFactoryTest {
             val selector = fieldSelector()
             val results = executor.batchResolve(listOf(selector), mockEngineContext())
 
-            assertThat(results[selector]!!.getOrThrow()).isEqualTo("invoked")
+            results[selector]!!.getOrThrow() shouldBe "invoked"
         }
 
     @Test
@@ -368,7 +374,7 @@ class ViaductJavaExecutorFactoryTest {
             val selector = fieldSelector()
             val results = executor.batchResolve(listOf(selector), mockEngineContext())
 
-            assertThat(results[selector]!!.getOrThrow()).isEqualTo("batched")
+            results[selector]!!.getOrThrow() shouldBe "batched"
         }
 
     @Test
@@ -385,7 +391,7 @@ class ViaductJavaExecutorFactoryTest {
             val selector = nodeSelector()
             val results = executor.resolve(listOf(selector), mockEngineContext())
 
-            assertThat(results[selector]!!.getOrThrow()).isEqualTo(engineData)
+            results[selector]!!.getOrThrow() shouldBe engineData
         }
 
     @Test
@@ -403,7 +409,7 @@ class ViaductJavaExecutorFactoryTest {
             val selector = nodeSelector()
             val results = executor.resolve(listOf(selector), mockEngineContext())
 
-            assertThat(results[selector]!!.isFailure).isTrue()
+            results[selector]!!.isFailure.shouldBeTrue()
         }
 
     @Test
@@ -419,7 +425,7 @@ class ViaductJavaExecutorFactoryTest {
             val selector = nodeSelector()
             val results = executor.resolve(listOf(selector), mockEngineContext())
 
-            assertThat(results[selector]!!.getOrThrow()).isEqualTo(engineData)
+            results[selector]!!.getOrThrow() shouldBe engineData
         }
 
     // ── Argument-class derivation branch ──────────────────────────────────────
@@ -434,7 +440,7 @@ class ViaductJavaExecutorFactoryTest {
             schema,
         )
 
-        assertThat(executor.resolverId).isEqualTo("Query.testField")
+        executor.resolverId shouldBe "Query.testField"
     }
 
     // ── Failure paths ──────────────────────────────────────────────────────────
@@ -456,9 +462,9 @@ class ViaductJavaExecutorFactoryTest {
             ),
         )
 
-        assertThatThrownBy { factory().createFieldResolverExecutor(entry, schema) }
-            .isInstanceOf(ClassNotFoundException::class.java)
-            .hasMessageContaining("com.example.DoesNotExist")
+        val e1 = assertThrows<ClassNotFoundException> { factory().createFieldResolverExecutor(entry, schema) }
+        e1.shouldBeInstanceOf<ClassNotFoundException>()
+        assertTrue(e1.message!!.contains("com.example.DoesNotExist"))
     }
 
     @Test
@@ -474,9 +480,9 @@ class ViaductJavaExecutorFactoryTest {
             ),
         )
 
-        assertThatThrownBy { factory().createNodeResolverExecutor(entry, schema) }
-            .isInstanceOf(ClassNotFoundException::class.java)
-            .hasMessageContaining("com.example.MissingNode")
+        val e2 = assertThrows<ClassNotFoundException> { factory().createNodeResolverExecutor(entry, schema) }
+        e2.shouldBeInstanceOf<ClassNotFoundException>()
+        assertTrue(e2.message!!.contains("com.example.MissingNode"))
     }
 }
 

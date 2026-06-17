@@ -2,11 +2,11 @@
 
 package viaduct.api
 
+import io.kotest.matchers.types.shouldBeInstanceOf
 import java.lang.reflect.InvocationTargetException
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -64,7 +64,7 @@ class TenantResolverExceptionTest {
                 }
             }
             assertEquals("ResolverA", thrown.resolver)
-            assertInstanceOf(TenantUsageException::class.java, thrown.cause)
+            thrown.cause.shouldBeInstanceOf<TenantUsageException>()
             assertEquals("tenant api misuse", thrown.cause.message)
         }
 
@@ -99,9 +99,9 @@ class TenantResolverExceptionTest {
             }
 
             assertTrue(result.isFailure)
-            val thrown = assertInstanceOf(IllegalStateException::class.java, result.exceptionOrNull())
+            val thrown = result.exceptionOrNull().shouldBeInstanceOf<IllegalStateException>()
             assertEquals("mapped: plain failure", thrown.message)
-            assertInstanceOf(RuntimeException::class.java, thrown.cause)
+            thrown.cause.shouldBeInstanceOf<RuntimeException>()
         }
 
     @Test
@@ -130,9 +130,9 @@ class TenantResolverExceptionTest {
             }
 
             assertTrue(result.isFailure)
-            val thrown = assertInstanceOf(TenantResolverException::class.java, result.exceptionOrNull())
+            val thrown = result.exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
             assertEquals("ResolverA", thrown.resolver)
-            assertInstanceOf(RuntimeException::class.java, thrown.cause)
+            thrown.cause.shouldBeInstanceOf<RuntimeException>()
             assertEquals("a tenant exception occurred", thrown.cause?.message)
         }
 }

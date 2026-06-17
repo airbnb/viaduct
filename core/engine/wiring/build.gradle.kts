@@ -31,5 +31,6 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.io.mockk.dsl)
+    testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(testFixtures(libs.viaduct.engine.api))
 }

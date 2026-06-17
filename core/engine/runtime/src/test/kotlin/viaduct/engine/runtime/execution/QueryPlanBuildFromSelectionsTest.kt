@@ -3,16 +3,16 @@
 package viaduct.engine.runtime.execution
 
 import graphql.schema.GraphQLNamedType
+import io.kotest.matchers.collections.shouldContain
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.string.shouldContain as shouldContainString
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNotSame
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import strikt.api.expectThat
-import strikt.assertions.contains
-import strikt.assertions.hasSize
-import strikt.assertions.isEqualTo
-import strikt.assertions.isNotNull
-import strikt.assertions.isNotSameInstanceAs
-import strikt.assertions.isSameInstanceAs
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineSelectionSet
@@ -95,16 +95,16 @@ class QueryPlanBuildFromSelectionsTest {
 
             val plan = QueryPlanFactory.Default.buildFromSelections(params, rss)
 
-            expectThat(plan.parentTypeName()).isEqualTo("Query")
+            assertEquals("Query", plan.parentTypeName())
             // EngineSelectionSet.toSelectionSet() wraps fields in inline fragments by type condition
-            expectThat(plan.selectionSet.selections).hasSize(1)
+            plan.selectionSet.selections.shouldHaveSize(1)
 
             // The selections are wrapped in an InlineFragment
             val inlineFragment = plan.selectionSet.selections.first() as QueryPlan.InlineFragment
-            expectThat(inlineFragment.selectionSet.selections).hasSize(1)
+            inlineFragment.selectionSet.selections.shouldHaveSize(1)
 
             val userField = inlineFragment.selectionSet.selections.first() as QueryPlan.Field
-            expectThat(userField.resultKey).isEqualTo("user")
+            assertEquals("user", userField.resultKey)
         }
 
     @Test
@@ -115,13 +115,13 @@ class QueryPlanBuildFromSelectionsTest {
 
             val plan = QueryPlanFactory.Default.buildFromSelections(params, rss)
 
-            expectThat(plan.parentTypeName()).isEqualTo("User")
+            assertEquals("User", plan.parentTypeName())
             // EngineSelectionSet.toSelectionSet() wraps fields in inline fragments by type condition
             // So we get one InlineFragment containing 3 fields
-            expectThat(plan.selectionSet.selections).hasSize(1)
+            plan.selectionSet.selections.shouldHaveSize(1)
 
             val inlineFragment = plan.selectionSet.selections.first() as QueryPlan.InlineFragment
-            expectThat(inlineFragment.selectionSet.selections).hasSize(3)
+            inlineFragment.selectionSet.selections.shouldHaveSize(3)
         }
 
     @Test
@@ -132,12 +132,12 @@ class QueryPlanBuildFromSelectionsTest {
 
             val plan = QueryPlanFactory.Default.buildFromSelections(params, rss)
 
-            expectThat(plan.parentTypeName()).isEqualTo("Query")
+            assertEquals("Query", plan.parentTypeName())
 
             // Navigate through the inline fragment wrapper to find the viewer field
             val inlineFragment = plan.selectionSet.selections.first() as QueryPlan.InlineFragment
             val viewerField = inlineFragment.selectionSet.selections.first() as QueryPlan.Field
-            expectThat(viewerField.resultKey).isEqualTo("viewer")
+            assertEquals("viewer", viewerField.resultKey)
         }
 
     @Test
@@ -152,10 +152,9 @@ class QueryPlanBuildFromSelectionsTest {
                 }
             }
 
-            expectThat(exception.message).isNotNull().and {
-                contains("Empty EngineSelectionSet")
-                contains("not supported")
-            }
+            assertNotNull(exception.message)
+            exception.message!! shouldContainString "Empty EngineSelectionSet"
+            exception.message!! shouldContainString "not supported"
         }
 
     @Test
@@ -170,7 +169,7 @@ class QueryPlanBuildFromSelectionsTest {
             val plan2 = factory.buildFromSelections(params, rss2)
 
             // Same selection text should produce same cached plan within the same factory instance
-            expectThat(plan1).isSameInstanceAs(plan2)
+            assertSame(plan2, plan1)
         }
 
     @Test
@@ -183,7 +182,7 @@ class QueryPlanBuildFromSelectionsTest {
             val plan1 = QueryPlanFactory.Default.buildFromSelections(params, rss1)
             val plan2 = QueryPlanFactory.Default.buildFromSelections(params, rss2)
 
-            expectThat(plan1).isNotSameInstanceAs(plan2)
+            assertNotSame(plan2, plan1)
         }
 
     @Test
@@ -194,9 +193,9 @@ class QueryPlanBuildFromSelectionsTest {
 
             val plan = QueryPlanFactory.Default.buildFromSelections(params, rss)
 
-            expectThat(plan.parentTypeName()).isEqualTo("Item")
+            assertEquals("Item", plan.parentTypeName())
             // Should have inline fragments for Item (id) and User (name, email)
-            expectThat(plan.selectionSet.selections.size).isEqualTo(2)
+            assertEquals(2, plan.selectionSet.selections.size)
         }
 
     @Test
@@ -208,13 +207,13 @@ class QueryPlanBuildFromSelectionsTest {
 
             val plan = QueryPlanFactory.Default.buildFromSelections(params, rss)
 
-            expectThat(plan.parentTypeName()).isEqualTo("Query")
-            expectThat(plan.selectionSet.selections).hasSize(1)
+            assertEquals("Query", plan.parentTypeName())
+            plan.selectionSet.selections.shouldHaveSize(1)
 
             // Navigate through inline fragment to get the item field
             val inlineFragment = plan.selectionSet.selections.first() as QueryPlan.InlineFragment
             val itemField = inlineFragment.selectionSet.selections.first() as QueryPlan.Field
-            expectThat(itemField.resultKey).isEqualTo("item")
+            assertEquals("item", itemField.resultKey)
         }
 
     @Test
@@ -225,14 +224,14 @@ class QueryPlanBuildFromSelectionsTest {
 
             val plan = QueryPlanFactory.Default.buildFromSelections(params, rss)
 
-            expectThat(plan.parentTypeName()).isEqualTo("User")
+            assertEquals("User", plan.parentTypeName())
             // Wrapped in inline fragment
-            expectThat(plan.selectionSet.selections).hasSize(1)
+            plan.selectionSet.selections.shouldHaveSize(1)
 
             val inlineFragment = plan.selectionSet.selections.first() as QueryPlan.InlineFragment
             val selections = inlineFragment.selectionSet.selections.map { (it as QueryPlan.Field).resultKey }
-            expectThat(selections).contains("userId")
-            expectThat(selections).contains("userName")
+            selections shouldContain "userId"
+            selections shouldContain "userName"
         }
 
     @Test
@@ -247,10 +246,10 @@ class QueryPlanBuildFromSelectionsTest {
             val planUser = factory.buildFromSelections(params, rssUser)
             val planItem = factory.buildFromSelections(params, rssItem)
 
-            expectThat(planUser.parentTypeName()).isEqualTo("User")
-            expectThat(planItem.parentTypeName()).isEqualTo("Item")
+            assertEquals("User", planUser.parentTypeName())
+            assertEquals("Item", planItem.parentTypeName())
             // Different parent types should produce different plans
-            expectThat(planUser).isNotSameInstanceAs(planItem)
+            assertNotSame(planItem, planUser)
         }
 
     @Test
@@ -269,21 +268,21 @@ class QueryPlanBuildFromSelectionsTest {
 
             val plan = QueryPlanFactory.Default.buildFromSelections(params, rss)
 
-            expectThat(plan.parentTypeName()).isEqualTo("User")
+            assertEquals("User", plan.parentTypeName())
             // EngineSelectionSet.toSelectionSet() inlines fragment spreads, so we should
             // see all fields from both the main selection and the spread fragment
-            expectThat(plan.selectionSet.selections).hasSize(1)
+            plan.selectionSet.selections.shouldHaveSize(1)
 
             val inlineFragment = plan.selectionSet.selections.first() as QueryPlan.InlineFragment
             // Should have id, name, email, and profile fields (fragment spread is inlined)
-            expectThat(inlineFragment.selectionSet.selections).hasSize(4)
+            inlineFragment.selectionSet.selections.shouldHaveSize(4)
 
             val fieldNames = inlineFragment.selectionSet.selections
                 .filterIsInstance<QueryPlan.Field>()
                 .map { it.resultKey }
-            expectThat(fieldNames).contains("id")
-            expectThat(fieldNames).contains("name")
-            expectThat(fieldNames).contains("email")
-            expectThat(fieldNames).contains("profile")
+            fieldNames shouldContain "id"
+            fieldNames shouldContain "name"
+            fieldNames shouldContain "email"
+            fieldNames shouldContain "profile"
         }
 }

@@ -6,10 +6,10 @@ import graphql.schema.DataFetcher
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.constant
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.test.assertNotEquals
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.future.await
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Test

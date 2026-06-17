@@ -1,6 +1,6 @@
 package viaduct.x.javaapi.codegen;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -19,10 +19,9 @@ class InterfaceGeneratorTest {
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("package com.example.types;")
-        .contains("public interface Node extends GraphQLInterface")
-        .contains("String getId();");
+    assertTrue(generated.contains("package com.example.types;"));
+    assertTrue(generated.contains("public interface Node extends GraphQLInterface"));
+    assertTrue(generated.contains("String getId();"));
   }
 
   @Test
@@ -39,11 +38,10 @@ class InterfaceGeneratorTest {
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("/**")
-        .contains(" * Interface for objects with timestamps.")
-        .contains(" */")
-        .contains("public interface Timestamped extends GraphQLInterface");
+    assertTrue(generated.contains("/**"));
+    assertTrue(generated.contains(" * Interface for objects with timestamps."));
+    assertTrue(generated.contains(" */"));
+    assertTrue(generated.contains("public interface Timestamped extends GraphQLInterface"));
   }
 
   @Test
@@ -61,8 +59,9 @@ class InterfaceGeneratorTest {
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public interface Auditable extends GraphQLInterface, Node, Timestamped");
+    assertTrue(
+        generated.contains(
+            "public interface Auditable extends GraphQLInterface, Node, Timestamped"));
   }
 
   @Test
@@ -79,7 +78,8 @@ class InterfaceGeneratorTest {
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
 
-    assertThat(generated).contains("User getOwner();").contains("List<User> getCollaborators();");
+    assertTrue(generated.contains("User getOwner();"));
+    assertTrue(generated.contains("List<User> getCollaborators();"));
   }
 
   @Test
@@ -97,9 +97,8 @@ class InterfaceGeneratorTest {
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("String getId();")
-        .contains("String getName();")
-        .contains("boolean getIsActive();");
+    assertTrue(generated.contains("String getId();"));
+    assertTrue(generated.contains("String getName();"));
+    assertTrue(generated.contains("boolean getIsActive();"));
   }
 }

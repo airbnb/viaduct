@@ -49,7 +49,6 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit.jupiter)
-    testImplementation(libs.assertj.core)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 

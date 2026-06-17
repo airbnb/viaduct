@@ -2,7 +2,6 @@ package viaduct.tenant.codegen.kotlingen
 
 import graphql.schema.idl.SchemaParser
 import java.io.File
-import kotlin.test.assertContains
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -75,9 +74,9 @@ class FieldResolverGeneratorTest {
 
         assertTrue(contents.startsWith("package pkg.tenant.resolverbases\n"))
         assertFalse(contents.contains("MutationExecutionContext"))
-        assertContains(contents, "object SubjectResolvers ")
-        assertContains(contents, "class Field ")
-        assertContains(contents, "abstract suspend fun resolve(ctx: Context)")
+        assertTrue(contents.contains("object SubjectResolvers "))
+        assertTrue(contents.contains("class Field "))
+        assertTrue(contents.contains("abstract suspend fun resolve(ctx: Context)"))
         assertFalse(contents.contains("batchResolve"))
     }
 
@@ -96,8 +95,8 @@ class FieldResolverGeneratorTest {
             "Subject"
         )
 
-        assertContains(contents, "@ResolverFor(typeName = \"Subject\", fieldName = \"field\", isSelective = false, isBatching = true)")
-        assertContains(contents, "batchResolve")
+        assertTrue(contents.contains("@ResolverFor(typeName = \"Subject\", fieldName = \"field\", isSelective = false, isBatching = true)"))
+        assertTrue(contents.contains("batchResolve"))
         assertFalse(contents.contains("abstract suspend fun resolve(ctx: Context)"))
     }
 
@@ -262,18 +261,17 @@ class FieldResolverGeneratorTest {
         )
 
         // Connection field should use ConnectionFieldExecutionContext
-        assertContains(contents, "ConnectionFieldExecutionContext")
-        assertContains(
-            contents,
-            "ConnectionFieldExecutionContext<viaduct.api.grts.Subject, viaduct.api.grts.Query, viaduct.api.grts.Subject_Books_Arguments, viaduct.api.grts.BookConnection>"
+        assertTrue(contents.contains("ConnectionFieldExecutionContext"))
+        assertTrue(
+            contents.contains("ConnectionFieldExecutionContext<viaduct.api.grts.Subject, viaduct.api.grts.Query, viaduct.api.grts.Subject_Books_Arguments, viaduct.api.grts.BookConnection>")
         )
 
         // Regular field should still use FieldExecutionContext (not Connection variant)
-        assertContains(contents, "FieldExecutionContext<viaduct.api.grts.Subject, viaduct.api.grts.Query,")
+        assertTrue(contents.contains("FieldExecutionContext<viaduct.api.grts.Subject, viaduct.api.grts.Query,"))
 
         // Both resolver classes should be generated
-        assertContains(contents, "class Books ")
-        assertContains(contents, "class Title ")
+        assertTrue(contents.contains("class Books "))
+        assertTrue(contents.contains("class Title "))
     }
 
     @Test
@@ -291,12 +289,13 @@ class FieldResolverGeneratorTest {
             "Query"
         )
 
-        assertContains(contents, "@ResolverFor(typeName = \"Query\", fieldName = \"foo\", isSelective = true, isBatching = false)")
-        assertContains(
-            contents,
-            "FieldExecutionContext<viaduct.api.grts.Query, viaduct.api.grts.Query, viaduct.api.types.Arguments.NoArguments, viaduct.api.grts.Foo> by inner, viaduct.api.context.SelectiveFieldExecutionContext<viaduct.api.grts.Foo>"
+        assertTrue(contents.contains("@ResolverFor(typeName = \"Query\", fieldName = \"foo\", isSelective = true, isBatching = false)"))
+        assertTrue(
+            contents.contains(
+                "FieldExecutionContext<viaduct.api.grts.Query, viaduct.api.grts.Query, viaduct.api.types.Arguments.NoArguments, viaduct.api.grts.Foo> by inner, viaduct.api.context.SelectiveFieldExecutionContext<viaduct.api.grts.Foo>"
+            )
         )
-        assertContains(contents, "override fun selections(): viaduct.api.select.SelectionSet<viaduct.api.grts.Foo>")
+        assertTrue(contents.contains("override fun selections(): viaduct.api.select.SelectionSet<viaduct.api.grts.Foo>"))
     }
 
     @Test

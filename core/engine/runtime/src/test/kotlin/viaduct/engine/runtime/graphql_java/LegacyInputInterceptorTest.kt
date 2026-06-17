@@ -9,7 +9,7 @@ import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.Locale
-import kotlin.test.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.graphql.Scalars
 

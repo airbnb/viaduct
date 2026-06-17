@@ -1,9 +1,9 @@
 package viaduct.gradle
 
 import java.io.File
-import kotlin.test.Test
-import kotlin.test.assertTrue
 import org.gradle.testkit.runner.GradleRunner
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
 /**

@@ -5,6 +5,7 @@ package viaduct.engine.runtime.instrumentation.resolver
 import graphql.execution.ExecutionStepInfo
 import graphql.execution.ResultPath
 import graphql.schema.DataFetchingEnvironment
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -13,7 +14,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
@@ -220,7 +220,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             testClass.resolve(emptyMap(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
 
             // Then — the context passed to the inner dispatcher is wrapped in InstrumentedEngineExecutionContext
-            assertInstanceOf(InstrumentedEngineExecutionContext::class.java, capturedContext.captured)
+            capturedContext.captured.shouldBeInstanceOf<InstrumentedEngineExecutionContext>()
         }
 
     @Test
@@ -242,7 +242,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
 
             // Then — context is a plain EngineExecutionContextImpl, not wrapped
             assertFalse(capturedContext.captured is InstrumentedEngineExecutionContext)
-            assertInstanceOf(EngineExecutionContextImpl::class.java, capturedContext.captured)
+            capturedContext.captured.shouldBeInstanceOf<EngineExecutionContextImpl>()
         }
 
     @Test
@@ -313,7 +313,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             testClass.resolve(emptyMap(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
 
             // Then — sync getter returns InstrumentedEngineObjectData.Sync
-            assertInstanceOf(InstrumentedEngineObjectData.Sync::class.java, capturedSyncObjectGetter.captured())
+            capturedSyncObjectGetter.captured().shouldBeInstanceOf<InstrumentedEngineObjectData.Sync>()
         }
 
     @Test
@@ -334,6 +334,6 @@ internal class InstrumentedFieldResolverDispatcherTest {
             testClass.resolve(emptyMap(), stubSyncObjectValue, stubSyncQueryValue, null, defaultContext)
 
             // Then — sync getter still returns InstrumentedEngineObjectData.Sync regardless of the debug gate
-            assertInstanceOf(InstrumentedEngineObjectData.Sync::class.java, capturedSyncObjectGetter.captured())
+            capturedSyncObjectGetter.captured().shouldBeInstanceOf<InstrumentedEngineObjectData.Sync>()
         }
 }

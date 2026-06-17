@@ -1,7 +1,7 @@
 package viaduct.engine.runtime.execution
 
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.CompleteSelectionSetOptions
 import viaduct.engine.api.ResolveSelectionSetOptions

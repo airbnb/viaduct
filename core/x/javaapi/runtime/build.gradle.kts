@@ -45,7 +45,7 @@ dependencies {
     implementation(libs.viaduct.shared.graphql)
 
     // Testing
-    testImplementation(libs.assertj.core)
+    testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.viaduct.engine.runtime)

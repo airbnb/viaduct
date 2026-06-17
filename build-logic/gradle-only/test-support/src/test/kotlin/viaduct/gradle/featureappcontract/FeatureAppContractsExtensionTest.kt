@@ -1,10 +1,11 @@
 package viaduct.gradle.featureappcontract
 
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
+import io.kotest.matchers.string.shouldContain
 import org.gradle.api.Project
 import org.gradle.testfixtures.ProjectBuilder
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /**
  * Unit tests for [FeatureAppContractsExtension]'s cross-language exclusivity guard.
@@ -21,8 +22,8 @@ class FeatureAppContractsExtensionTest {
 
         ext.kotlin.contractsFrom(project.path)
 
-        assertThat(kotlinRuns.get()).isEqualTo(1)
-        assertThat(javaRuns.get()).isEqualTo(0)
+        assertEquals(1, kotlinRuns.get())
+        assertEquals(0, javaRuns.get())
     }
 
     @Test
@@ -31,8 +32,8 @@ class FeatureAppContractsExtensionTest {
 
         ext.java.contractsFrom(project.path)
 
-        assertThat(kotlinRuns.get()).isEqualTo(0)
-        assertThat(javaRuns.get()).isEqualTo(1)
+        assertEquals(0, kotlinRuns.get())
+        assertEquals(1, javaRuns.get())
     }
 
     @Test
@@ -43,7 +44,7 @@ class FeatureAppContractsExtensionTest {
         ext.kotlin.contractsFrom(project.path)
 
         // Setup only fires on first activation of the block.
-        assertThat(kotlinRuns.get()).isEqualTo(1)
+        assertEquals(1, kotlinRuns.get())
     }
 
     @Test
@@ -52,14 +53,13 @@ class FeatureAppContractsExtensionTest {
 
         ext.kotlin.contractsFrom(project.path)
 
-        assertThatThrownBy { ext.java.contractsFrom(project.path) }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("only one language per project")
-            .hasMessageContaining("'kotlin'")
-            .hasMessageContaining("'java'")
+        val e1 = assertThrows<IllegalArgumentException> { ext.java.contractsFrom(project.path) }
+        e1.message!! shouldContain "only one language per project"
+        e1.message!! shouldContain "'kotlin'"
+        e1.message!! shouldContain "'java'"
 
         // The Java setup must not have run — the guard throws before it fires.
-        assertThat(javaRuns.get()).isEqualTo(0)
+        assertEquals(0, javaRuns.get())
     }
 
     @Test
@@ -68,11 +68,10 @@ class FeatureAppContractsExtensionTest {
 
         ext.java.contractsFrom(project.path)
 
-        assertThatThrownBy { ext.kotlin.contractsFrom(project.path) }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("only one language per project")
+        val e2 = assertThrows<IllegalArgumentException> { ext.kotlin.contractsFrom(project.path) }
+        e2.message!! shouldContain "only one language per project"
 
-        assertThat(kotlinRuns.get()).isEqualTo(0)
+        assertEquals(0, kotlinRuns.get())
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

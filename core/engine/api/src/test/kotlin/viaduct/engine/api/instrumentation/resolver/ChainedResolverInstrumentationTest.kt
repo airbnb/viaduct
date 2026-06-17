@@ -3,10 +3,10 @@
 package viaduct.engine.api.instrumentation.resolver
 
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.CheckerMetadata
 import viaduct.engine.api.ResolverMetadata

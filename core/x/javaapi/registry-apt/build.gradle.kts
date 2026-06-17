@@ -19,7 +19,7 @@ dependencies {
     // Shared descriptor model + JSON codec — single source of truth for the registry JSON shape.
     implementation(libs.viaduct.tenant.codegen)
 
-    testImplementation(libs.assertj.core)
+    testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.jackson.databind)
     testImplementation(libs.jackson.module)
 }

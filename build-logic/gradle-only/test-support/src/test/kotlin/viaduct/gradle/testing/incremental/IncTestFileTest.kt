@@ -1,8 +1,10 @@
 package viaduct.gradle.testing.incremental
 
 import java.io.File
-import org.assertj.core.api.Assertions.assertThat
 import org.gradle.work.ChangeType
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
@@ -15,8 +17,9 @@ class IncTestFileTest {
         leaf.writeInto(root)
 
         val file = File(root, "hello.txt")
-        assertThat(file).exists().isFile
-        assertThat(file.length()).isZero()
+        assertTrue(file.exists())
+        assertTrue(file.isFile)
+        assertEquals(0L, file.length())
     }
 
     @Test
@@ -26,7 +29,8 @@ class IncTestFileTest {
         val leaf = IncTestFile("added.txt", status = ChangeType.ADDED, files = null)
         leaf.writeInto(root)
 
-        assertThat(File(root, "added.txt")).exists().isFile
+        assertTrue(File(root, "added.txt").exists())
+        assertTrue(File(root, "added.txt").isFile)
     }
 
     @Test
@@ -36,7 +40,8 @@ class IncTestFileTest {
         val leaf = IncTestFile("mod.txt", status = ChangeType.MODIFIED, files = null)
         leaf.writeInto(root)
 
-        assertThat(File(root, "mod.txt")).exists().isFile
+        assertTrue(File(root, "mod.txt").exists())
+        assertTrue(File(root, "mod.txt").isFile)
     }
 
     @Test
@@ -46,7 +51,7 @@ class IncTestFileTest {
         val leaf = IncTestFile("gone.txt", status = ChangeType.REMOVED, files = null)
         leaf.writeInto(root)
 
-        assertThat(File(root, "gone.txt")).doesNotExist()
+        assertFalse(File(root, "gone.txt").exists())
     }
 
     @Test
@@ -63,9 +68,12 @@ class IncTestFileTest {
         )
         dir.writeInto(root)
 
-        assertThat(File(root, "mydir")).exists().isDirectory
-        assertThat(File(root, "mydir/a.txt")).exists().isFile
-        assertThat(File(root, "mydir/b.txt")).exists().isFile
+        assertTrue(File(root, "mydir").exists())
+        assertTrue(File(root, "mydir").isDirectory)
+        assertTrue(File(root, "mydir/a.txt").exists())
+        assertTrue(File(root, "mydir/a.txt").isFile)
+        assertTrue(File(root, "mydir/b.txt").exists())
+        assertTrue(File(root, "mydir/b.txt").isFile)
     }
 
     @Test
@@ -76,8 +84,9 @@ class IncTestFileTest {
         dir.writeInto(root)
 
         val d = File(root, "empty")
-        assertThat(d).exists().isDirectory
-        assertThat(d.listFiles()).isEmpty()
+        assertTrue(d.exists())
+        assertTrue(d.isDirectory)
+        assertTrue(d.listFiles()!!.isEmpty())
     }
 
     @Test
@@ -99,9 +108,9 @@ class IncTestFileTest {
         )
         tree.writeInto(root)
 
-        assertThat(File(root, "a")).isDirectory
-        assertThat(File(root, "a/b")).isDirectory
-        assertThat(File(root, "a/b/deep.txt")).isFile
+        assertTrue(File(root, "a").isDirectory)
+        assertTrue(File(root, "a/b").isDirectory)
+        assertTrue(File(root, "a/b/deep.txt").isFile)
     }
 
     @Test
@@ -117,8 +126,8 @@ class IncTestFileTest {
         )
         dir.writeInto(root)
 
-        assertThat(File(root, "gone")).doesNotExist()
-        assertThat(File(root, "gone/child.txt")).doesNotExist()
+        assertFalse(File(root, "gone").exists())
+        assertFalse(File(root, "gone/child.txt").exists())
     }
 
     @Test
@@ -137,10 +146,10 @@ class IncTestFileTest {
         )
         dir.writeInto(root)
 
-        assertThat(File(root, "mix/added.txt")).exists()
-        assertThat(File(root, "mix/modified.txt")).exists()
-        assertThat(File(root, "mix/unchanged.txt")).exists()
-        assertThat(File(root, "mix/removed.txt")).doesNotExist()
+        assertTrue(File(root, "mix/added.txt").exists())
+        assertTrue(File(root, "mix/modified.txt").exists())
+        assertTrue(File(root, "mix/unchanged.txt").exists())
+        assertFalse(File(root, "mix/removed.txt").exists())
     }
 
     @Test
@@ -157,8 +166,8 @@ class IncTestFileTest {
         )
         dir.writeInto(root)
 
-        assertThat(File(root, "dir")).isDirectory
-        assertThat(File(root, "dir/keep.txt")).exists()
-        assertThat(File(root, "dir/drop.txt")).doesNotExist()
+        assertTrue(File(root, "dir").isDirectory)
+        assertTrue(File(root, "dir/keep.txt").exists())
+        assertFalse(File(root, "dir/drop.txt").exists())
     }
 }

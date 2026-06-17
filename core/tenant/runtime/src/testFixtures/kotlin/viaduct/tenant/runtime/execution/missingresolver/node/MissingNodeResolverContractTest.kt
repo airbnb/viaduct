@@ -1,6 +1,6 @@
 package viaduct.tenant.runtime.execution.missingresolver.node
 
-import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.testing.TestSchema
@@ -32,7 +32,6 @@ abstract class MissingNodeResolverContractTest : KotlinFeatureAppTestContractBas
         val exception = assertThrows<MissingResolverImplementationException> {
             tryBuildViaductService()
         }
-        assertThat(exception.message)
-            .contains("Node(Widget)")
+        assertTrue(exception.message!!.contains("Node(Widget)"))
     }
 }

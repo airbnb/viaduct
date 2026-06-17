@@ -3,9 +3,9 @@
 package viaduct.remote
 
 import io.grpc.inprocess.InProcessChannelBuilder
-import kotlin.test.assertFailsWith
-import kotlin.test.assertSame
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
@@ -33,7 +33,7 @@ class RemoteEngineExecutionContextTest {
             contextHandle = "h",
             localSchema = null,
         )
-        assertFailsWith<UnsupportedOperationException> { ctx.fullSchema }
-        assertFailsWith<UnsupportedOperationException> { ctx.engine }
+        assertThrows<UnsupportedOperationException> { ctx.fullSchema }
+        assertThrows<UnsupportedOperationException> { ctx.engine }
     }
 }

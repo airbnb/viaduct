@@ -3,13 +3,13 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
 import graphql.schema.GraphQLObjectType
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Nested
@@ -156,7 +156,7 @@ internal class InstrumentedEngineObjectDataTest {
                 val result = testClass.fetch("nestedField")
 
                 // Then
-                assertInstanceOf(InstrumentedEngineObjectData::class.java, result)
+                result.shouldBeInstanceOf<InstrumentedEngineObjectData>()
                 assertSame(nestedEngineObjectData, (result as InstrumentedEngineObjectData).engineObjectData)
             }
 
@@ -181,7 +181,7 @@ internal class InstrumentedEngineObjectDataTest {
 
                 // Then
                 assertEquals(1, result.size)
-                assertInstanceOf(InstrumentedEngineObjectData::class.java, result[0])
+                result[0].shouldBeInstanceOf<InstrumentedEngineObjectData>()
                 assertSame(nestedEngineObjectData, (result[0] as InstrumentedEngineObjectData).engineObjectData)
             }
 

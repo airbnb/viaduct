@@ -1,8 +1,8 @@
 package viaduct.service.api.spi
 
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import viaduct.graphql.SourceLocation
 import viaduct.service.api.GraphQLError
@@ -43,7 +43,7 @@ class ResolverErrorBuilderTest {
         )
 
         assertNotNull(result)
-        assertEquals(1, result.size)
+        assertEquals(1, result!!.size)
         assertEquals("Custom error: Something failed", result[0].message)
         assertEquals(listOf("query", "user"), result[0].path)
         assertEquals(10, result[0].locations?.first()?.line)
@@ -66,7 +66,7 @@ class ResolverErrorBuilderTest {
         )
 
         assertNotNull(result)
-        assertEquals(3, result.size)
+        assertEquals(3, result!!.size)
         assertEquals("Error 1: Invalid input", result[0].message)
         assertEquals("Error 2: Related issue", result[1].message)
         assertEquals("Error 3: Recommendation", result[2].message)
@@ -101,14 +101,14 @@ class ResolverErrorBuilderTest {
             errorMetadata = ErrorReporter.Metadata()
         )
         assertNotNull(customResult)
-        assertEquals("CUSTOM_ERROR", customResult[0].extensions.get("errorType"))
+        assertEquals("CUSTOM_ERROR", customResult!![0].extensions.get("errorType"))
 
         val illegalArgResult = selectiveBuilder.exceptionToGraphQLError(
             throwable = IllegalArgumentException("Bad arg"),
             errorMetadata = ErrorReporter.Metadata()
         )
         assertNotNull(illegalArgResult)
-        assertEquals("INVALID_ARGUMENT", illegalArgResult[0].extensions.get("errorType"))
+        assertEquals("INVALID_ARGUMENT", illegalArgResult!![0].extensions.get("errorType"))
 
         val unhandledResult = selectiveBuilder.exceptionToGraphQLError(
             throwable = NullPointerException("null"),
@@ -143,7 +143,7 @@ class ResolverErrorBuilderTest {
         )
 
         assertNotNull(result)
-        assertEquals(1, result.size)
+        assertEquals(1, result!!.size)
         assertEquals("Error: Database connection failed", result[0].message)
         assertEquals(listOf("user", "userName"), result[0].path)
         assertEquals(5, result[0].locations?.first()?.line)
@@ -161,6 +161,6 @@ class ResolverErrorBuilderTest {
         )
 
         assertNotNull(result)
-        assertEquals(0, result.size)
+        assertEquals(0, result!!.size)
     }
 }

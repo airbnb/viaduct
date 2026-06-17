@@ -1,6 +1,6 @@
 package viaduct.x.javaapi.codegen;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -24,16 +24,15 @@ class ObjectGeneratorTest {
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("package com.example.types;")
-        .contains("public class User extends ObjectBase")
-        .doesNotContain("implements GraphQLObject")
-        .contains("public String getId()")
-        .contains("return fetchScalar(\"id\")")
-        .doesNotContain("private String id;")
-        .doesNotContain("public void setId(")
-        .contains("public static Builder builder(ExecutionContext context)")
-        .contains("public static class Builder");
+    assertTrue(generated.contains("package com.example.types;"));
+    assertTrue(generated.contains("public class User extends ObjectBase"));
+    assertTrue(!generated.contains("implements GraphQLObject"));
+    assertTrue(generated.contains("public String getId()"));
+    assertTrue(generated.contains("return fetchScalar(\"id\")"));
+    assertTrue(!generated.contains("private String id;"));
+    assertTrue(!generated.contains("public void setId("));
+    assertTrue(generated.contains("public static Builder builder(ExecutionContext context)"));
+    assertTrue(generated.contains("public static class Builder"));
   }
 
   @Test
@@ -50,11 +49,10 @@ class ObjectGeneratorTest {
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("/**")
-        .contains(" * A booking for a listing.")
-        .contains(" */")
-        .contains("public class Booking");
+    assertTrue(generated.contains("/**"));
+    assertTrue(generated.contains(" * A booking for a listing."));
+    assertTrue(generated.contains(" */"));
+    assertTrue(generated.contains("public class Booking"));
   }
 
   @Test
@@ -73,8 +71,8 @@ class ObjectGeneratorTest {
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public class Human extends ObjectBase implements Character, Node");
+    assertTrue(
+        generated.contains("public class Human extends ObjectBase implements Character, Node"));
   }
 
   @Test
@@ -94,12 +92,11 @@ class ObjectGeneratorTest {
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public User getHost()")
-        .contains("return fetchObject(\"host\", User::new)")
-        .contains("public List<String> getAmenities()")
-        .contains("return fetchScalar(\"amenities\")")
-        .contains("public double getPricePerNight()");
+    assertTrue(generated.contains("public User getHost()"));
+    assertTrue(generated.contains("return fetchObject(\"host\", User::new)"));
+    assertTrue(generated.contains("public List<String> getAmenities()"));
+    assertTrue(generated.contains("return fetchScalar(\"amenities\")"));
+    assertTrue(generated.contains("public double getPricePerNight()"));
   }
 
   @Test
@@ -116,9 +113,8 @@ class ObjectGeneratorTest {
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public List<String> getTags()")
-        .contains("return fetchScalarList(\"tags\")");
+    assertTrue(generated.contains("public List<String> getTags()"));
+    assertTrue(generated.contains("return fetchScalarList(\"tags\")"));
   }
 
   @Test
@@ -137,11 +133,10 @@ class ObjectGeneratorTest {
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public List<Book> getBooks()")
-        .contains("return fetchObjectList(\"books\", Book::new)")
-        .contains("public List<Tag> getTags()")
-        .contains("return fetchEnumList(\"tags\", Tag.class)");
+    assertTrue(generated.contains("public List<Book> getBooks()"));
+    assertTrue(generated.contains("return fetchObjectList(\"books\", Book::new)"));
+    assertTrue(generated.contains("public List<Tag> getTags()"));
+    assertTrue(generated.contains("return fetchEnumList(\"tags\", Tag.class)"));
   }
 
   @Test
@@ -170,13 +165,13 @@ class ObjectGeneratorTest {
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public Node getTopNode()")
-        .contains("return fetchAbstractObject(\"topNode\", Node.class)")
-        .contains("public SearchResult getTopResult()")
-        .contains("return fetchAbstractObject(\"topResult\", SearchResult.class)")
-        .contains("public List<SearchResult> getAllResults()")
-        .contains("return fetchAbstractObjectList(\"allResults\", SearchResult.class)");
+    assertTrue(generated.contains("public Node getTopNode()"));
+    assertTrue(generated.contains("return fetchAbstractObject(\"topNode\", Node.class)"));
+    assertTrue(generated.contains("public SearchResult getTopResult()"));
+    assertTrue(generated.contains("return fetchAbstractObject(\"topResult\", SearchResult.class)"));
+    assertTrue(generated.contains("public List<SearchResult> getAllResults()"));
+    assertTrue(
+        generated.contains("return fetchAbstractObjectList(\"allResults\", SearchResult.class)"));
   }
 
   @Test
@@ -195,10 +190,9 @@ class ObjectGeneratorTest {
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public Builder name(String name)")
-        .contains("public Builder age(Integer age)")
-        .contains("public User build()");
+    assertTrue(generated.contains("public Builder name(String name)"));
+    assertTrue(generated.contains("public Builder age(Integer age)"));
+    assertTrue(generated.contains("public User build()"));
   }
 
   @Test
@@ -219,15 +213,14 @@ class ObjectGeneratorTest {
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public Instant getCreatedAt()")
-        .contains("return fetchScalar(\"createdAt\", \"DateTime\")")
-        .contains("public LocalDate getEventDate()")
-        .contains("return fetchScalar(\"eventDate\", \"Date\")")
-        .contains("public OffsetTime getStartTime()")
-        .contains("return fetchScalar(\"startTime\", \"Time\")")
-        .contains("public String getLabel()")
-        .contains("return fetchScalar(\"label\")");
+    assertTrue(generated.contains("public Instant getCreatedAt()"));
+    assertTrue(generated.contains("return fetchScalar(\"createdAt\", \"DateTime\")"));
+    assertTrue(generated.contains("public LocalDate getEventDate()"));
+    assertTrue(generated.contains("return fetchScalar(\"eventDate\", \"Date\")"));
+    assertTrue(generated.contains("public OffsetTime getStartTime()"));
+    assertTrue(generated.contains("return fetchScalar(\"startTime\", \"Time\")"));
+    assertTrue(generated.contains("public String getLabel()"));
+    assertTrue(generated.contains("return fetchScalar(\"label\")"));
   }
 
   @Test
@@ -247,11 +240,10 @@ class ObjectGeneratorTest {
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public List<Instant> getTimestamps()")
-        .contains("return fetchScalarList(\"timestamps\", \"DateTime\")")
-        .contains("public List<LocalDate> getDates()")
-        .contains("return fetchScalarList(\"dates\", \"Date\")");
+    assertTrue(generated.contains("public List<Instant> getTimestamps()"));
+    assertTrue(generated.contains("return fetchScalarList(\"timestamps\", \"DateTime\")"));
+    assertTrue(generated.contains("public List<LocalDate> getDates()"));
+    assertTrue(generated.contains("return fetchScalarList(\"dates\", \"Date\")"));
   }
 
   @Test
@@ -268,10 +260,11 @@ class ObjectGeneratorTest {
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public User(InternalContext context, EngineObjectData.Sync data)")
-        .contains("private User(InternalContext context, Map<String, Object> data)")
-        .contains("private final Map<String, Object> data = new LinkedHashMap<>")
-        .contains("return new User(__context, new LinkedHashMap<>(data))");
+    assertTrue(
+        generated.contains("public User(InternalContext context, EngineObjectData.Sync data)"));
+    assertTrue(
+        generated.contains("private User(InternalContext context, Map<String, Object> data)"));
+    assertTrue(generated.contains("private final Map<String, Object> data = new LinkedHashMap<>"));
+    assertTrue(generated.contains("return new User(__context, new LinkedHashMap<>(data))"));
   }
 }

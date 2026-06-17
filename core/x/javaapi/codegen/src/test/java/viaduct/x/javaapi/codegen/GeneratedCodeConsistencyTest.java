@@ -1,6 +1,6 @@
 package viaduct.x.javaapi.codegen;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -18,9 +18,8 @@ class GeneratedCodeConsistencyTest {
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("import viaduct.java.api.types.GraphQLInterface;")
-        .contains("extends GraphQLInterface");
+    assertTrue(generated.contains("import viaduct.java.api.types.GraphQLInterface;"));
+    assertTrue(generated.contains("extends GraphQLInterface"));
   }
 
   @Test
@@ -30,9 +29,8 @@ class GeneratedCodeConsistencyTest {
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("import viaduct.java.api.internal.ObjectBase;")
-        .contains("extends ObjectBase");
+    assertTrue(generated.contains("import viaduct.java.api.internal.ObjectBase;"));
+    assertTrue(generated.contains("extends ObjectBase"));
   }
 
   @Test
@@ -42,9 +40,8 @@ class GeneratedCodeConsistencyTest {
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("import viaduct.java.api.internal.NodeObjectBase;")
-        .contains("extends NodeObjectBase");
+    assertTrue(generated.contains("import viaduct.java.api.internal.NodeObjectBase;"));
+    assertTrue(generated.contains("extends NodeObjectBase"));
   }
 
   @Test
@@ -53,9 +50,8 @@ class GeneratedCodeConsistencyTest {
 
     String generated = JavaGRTGenerator.InputGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("import viaduct.java.api.internal.InputBase;")
-        .contains("extends InputBase");
+    assertTrue(generated.contains("import viaduct.java.api.internal.InputBase;"));
+    assertTrue(generated.contains("extends InputBase"));
   }
 
   @Test
@@ -64,8 +60,7 @@ class GeneratedCodeConsistencyTest {
 
     String generated = JavaGRTGenerator.UnionGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("import viaduct.java.api.types.GraphQLUnion;")
-        .contains("extends GraphQLUnion");
+    assertTrue(generated.contains("import viaduct.java.api.types.GraphQLUnion;"));
+    assertTrue(generated.contains("extends GraphQLUnion"));
   }
 }

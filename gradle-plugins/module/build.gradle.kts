@@ -26,7 +26,7 @@ dependencies {
     // Testing
     testImplementation(gradleTestKit())
     testImplementation(project(":application"))
-    testImplementation(libs.assertj.core)
+    testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.ksp.gradle.plugin)
     testImplementation(libs.kotlin.gradle.plugin)
 }

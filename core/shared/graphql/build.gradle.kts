@@ -20,7 +20,6 @@ dependencies {
     testFixturesImplementation(libs.jackson.core)
     testFixturesImplementation(libs.jackson.databind)
     testFixturesImplementation(libs.jackson.module)
-    testFixturesImplementation(libs.kotlin.test)
     testFixturesImplementation(libs.viaduct.shared.invariants)
 
     testImplementation(libs.guava)

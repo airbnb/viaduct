@@ -2,10 +2,12 @@
 
 package viaduct.java.runtime.bridge
 
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.string.shouldContain
 import io.mockk.every
 import io.mockk.mockk
-import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -73,7 +75,7 @@ class RequiredSelectionSetFactoryTest {
             injector = CodeInjector.Naive,
         )
 
-        assertThat(result).isEqualTo(RequiredSelectionSets.empty())
+        assertEquals(RequiredSelectionSets.empty(), result)
         assertNull(result.objectSelections)
         assertNull(result.querySelections)
     }
@@ -93,7 +95,7 @@ class RequiredSelectionSetFactoryTest {
             injector = CodeInjector.Naive,
         )
 
-        assertThat(result).isEqualTo(RequiredSelectionSets.empty())
+        assertEquals(RequiredSelectionSets.empty(), result)
     }
 
     // ============================================================================
@@ -114,10 +116,10 @@ class RequiredSelectionSetFactoryTest {
             injector = CodeInjector.Naive,
         )
 
-        assertThat(result.objectSelections).isNotNull
+        assertNotNull(result.objectSelections)
         assertNull(result.querySelections)
         // No variables declared, so variableResolvers should be empty
-        assertThat(result.objectSelections?.variablesResolvers).isEmpty()
+        result.objectSelections?.variablesResolvers?.shouldBeEmpty()
     }
 
     @Test
@@ -134,7 +136,7 @@ class RequiredSelectionSetFactoryTest {
             injector = CodeInjector.Naive,
         )
 
-        assertThat(result.objectSelections).isNotNull
+        assertNotNull(result.objectSelections)
         assertNull(result.querySelections)
     }
 
@@ -157,7 +159,7 @@ class RequiredSelectionSetFactoryTest {
         )
 
         assertNull(result.objectSelections)
-        assertThat(result.querySelections).isNotNull
+        assertNotNull(result.querySelections)
     }
 
     @Test
@@ -175,8 +177,8 @@ class RequiredSelectionSetFactoryTest {
             injector = CodeInjector.Naive,
         )
 
-        assertThat(result.objectSelections).isNotNull
-        assertThat(result.querySelections).isNotNull
+        assertNotNull(result.objectSelections)
+        assertNotNull(result.querySelections)
     }
 
     // ============================================================================
@@ -200,7 +202,7 @@ class RequiredSelectionSetFactoryTest {
             injector = CodeInjector.Naive,
         )
 
-        assertThat(result.objectSelections).isNotNull
+        assertNotNull(result.objectSelections)
         assertEquals(setOf("argVar"), result.objectSelections?.variablesResolvers?.variableNames)
     }
 
@@ -225,7 +227,7 @@ class RequiredSelectionSetFactoryTest {
             injector = CodeInjector.Naive,
         )
 
-        assertThat(result.objectSelections).isNotNull
+        assertNotNull(result.objectSelections)
         assertEquals(setOf("objVar"), result.objectSelections?.variablesResolvers?.variableNames)
     }
 
@@ -251,8 +253,8 @@ class RequiredSelectionSetFactoryTest {
             injector = CodeInjector.Naive,
         )
 
-        assertThat(result.objectSelections).isNotNull
-        assertThat(result.querySelections).isNotNull
+        assertNotNull(result.objectSelections)
+        assertNotNull(result.querySelections)
         assertEquals(setOf("queryVar"), result.objectSelections?.variablesResolvers?.variableNames)
     }
 
@@ -303,8 +305,8 @@ class RequiredSelectionSetFactoryTest {
             )
         }
 
-        assertThat(exception.message).contains("badVar")
-        assertThat(exception.message).contains("exactly one")
+        exception.message!! shouldContain "badVar"
+        exception.message!! shouldContain "exactly one"
     }
 
     @Test
@@ -355,8 +357,8 @@ class RequiredSelectionSetFactoryTest {
             )
         }
 
-        assertThat(exception.message).contains("unused variables")
-        assertThat(exception.message).contains("unusedVar")
+        exception.message!! shouldContain "unused variables"
+        exception.message!! shouldContain "unusedVar"
     }
 
     @Test
@@ -379,8 +381,8 @@ class RequiredSelectionSetFactoryTest {
             )
         }
 
-        assertThat(exception.message).contains("unused1")
-        assertThat(exception.message).contains("unused2")
+        exception.message!! shouldContain "unused1"
+        exception.message!! shouldContain "unused2"
     }
 
     // ============================================================================
@@ -459,7 +461,7 @@ class RequiredSelectionSetFactoryTest {
             injector = CodeInjector.Naive,
         )
 
-        assertThat(result.objectSelections).isNotNull
+        assertNotNull(result.objectSelections)
     }
 
     // ============================================================================
@@ -480,7 +482,7 @@ class RequiredSelectionSetFactoryTest {
         )
 
         // Should return empty result without errors
-        assertThat(result).isEqualTo(RequiredSelectionSets.empty())
+        assertEquals(RequiredSelectionSets.empty(), result)
     }
 
     // ============================================================================

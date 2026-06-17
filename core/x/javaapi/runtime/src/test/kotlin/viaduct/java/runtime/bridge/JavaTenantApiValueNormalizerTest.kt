@@ -2,6 +2,7 @@
 
 package viaduct.java.runtime.bridge
 
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.Codepoint
 import io.kotest.property.arbitrary.alphanumeric
@@ -14,9 +15,10 @@ import io.kotest.property.checkAll
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.common.NormalizedValue
 import viaduct.arbitrary.common.normalizedVariables
 import viaduct.engine.api.EngineExecutionContext
@@ -52,16 +54,7 @@ class JavaTenantApiValueNormalizerTest {
             ),
         )
 
-        assertThat(
-            JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(
-                mapOf(
-                    "input" to input,
-                    "nullable" to null,
-                    "scalar" to 42,
-                ),
-                engineContext,
-            ),
-        ).isEqualTo(
+        assertEquals(
             mapOf(
                 "input" to mapOf(
                     "id" to serializedGlobalID,
@@ -75,6 +68,14 @@ class JavaTenantApiValueNormalizerTest {
                 "nullable" to null,
                 "scalar" to 42,
             ),
+            JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(
+                mapOf(
+                    "input" to input,
+                    "nullable" to null,
+                    "scalar" to 42,
+                ),
+                engineContext,
+            ),
         )
     }
 
@@ -82,20 +83,20 @@ class JavaTenantApiValueNormalizerTest {
     fun `normalizes arbitrary nested Java Tenant API values for engine variables`(): Unit =
         runBlocking {
             Arb.normalizedVariables(javaTenantApiLeaf()).checkAll { case ->
-                assertThat(JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(case.raw, engineContext))
-                    .isEqualTo(case.normalized)
+                assertEquals(case.normalized, JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(case.raw, engineContext))
             }
         }
 
     @Test
     fun `rejects unsupported Java Tenant API GRT values`() {
-        assertThatThrownBy {
+        val ex = assertThrows<TenantUsageException> {
             JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(
                 mapOf("object" to object : GraphQLObject {}),
                 engineContext,
             )
-        }.isInstanceOf(TenantUsageException::class.java)
-            .hasMessageContaining("Unsupported Java Tenant API value in engine variables")
+        }
+        ex.shouldBeInstanceOf<TenantUsageException>()
+        assertTrue(ex.message!!.contains("Unsupported Java Tenant API value in engine variables"))
     }
 
     private fun javaTenantApiLeaf(): Arb<NormalizedValue> =

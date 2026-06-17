@@ -1,8 +1,8 @@
 package viaduct.graphql.schema.cli
 
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.graphql.schema.test.createSchema
@@ -420,7 +420,7 @@ class RootsIteratorTest {
         // Verify we got actual Field objects with correct containing type
         val userField = rootFields.find { it.name == "user" }
         assertTrue(userField != null, "Should find user field")
-        assertEquals("Query", userField.containingDef.name, "user field should belong to Query")
+        assertEquals("Query", userField!!.containingDef.name, "user field should belong to Query")
     }
 
     @Test

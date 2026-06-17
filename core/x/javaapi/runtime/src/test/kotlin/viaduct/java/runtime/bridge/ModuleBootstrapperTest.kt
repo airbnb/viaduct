@@ -7,10 +7,16 @@ import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import graphql.schema.TypeResolver
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldHaveSize
 import io.mockk.every
 import io.mockk.mockk
 import java.util.concurrent.CompletableFuture
-import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
@@ -99,7 +105,7 @@ class ModuleBootstrapperTest {
 
         val executors = bootstrapper.fieldResolverExecutors(schema).toList()
 
-        assertThat(executors).isEmpty()
+        executors.shouldBeEmpty()
     }
 
     @Test
@@ -114,7 +120,7 @@ class ModuleBootstrapperTest {
         val executors = bootstrapper.fieldResolverExecutors(schema).toList()
 
         // Should skip because TestType doesn't exist in schema
-        assertThat(executors).isEmpty()
+        executors.shouldBeEmpty()
     }
 
     @Test
@@ -138,12 +144,12 @@ class ModuleBootstrapperTest {
 
         val executors = bootstrapper.fieldResolverExecutors(schema).toList()
 
-        assertThat(executors).hasSize(2)
+        executors.shouldHaveSize(2)
         val executorsByCoordinate = executors.toMap()
-        assertThat(executorsByCoordinate.getValue("TestType" to "testField").resolverId).isEqualTo("TestType.testField")
-        assertThat(executorsByCoordinate.getValue("TestType" to "testField").isSelective).isFalse()
-        assertThat(executorsByCoordinate.getValue("TestType" to "selectiveField").resolverId).isEqualTo("TestType.selectiveField")
-        assertThat(executorsByCoordinate.getValue("TestType" to "selectiveField").isSelective).isTrue()
+        assertEquals("TestType.testField", executorsByCoordinate.getValue("TestType" to "testField").resolverId)
+        assertFalse(executorsByCoordinate.getValue("TestType" to "testField").isSelective)
+        assertEquals("TestType.selectiveField", executorsByCoordinate.getValue("TestType" to "selectiveField").resolverId)
+        assertTrue(executorsByCoordinate.getValue("TestType" to "selectiveField").isSelective)
     }
 
     // Node resolver test fixtures
@@ -218,7 +224,7 @@ class ModuleBootstrapperTest {
 
         val executors = bootstrapper.nodeResolverExecutors(createMockSchema()).toList()
 
-        assertThat(executors).isEmpty()
+        executors.shouldBeEmpty()
     }
 
     @Test
@@ -232,8 +238,8 @@ class ModuleBootstrapperTest {
 
         val executors = bootstrapper.nodeResolverExecutors(createMockSchemaWithNodeType()).toList()
 
-        assertThat(executors).hasSize(1)
-        assertThat(executors.first().first).isEqualTo("TestNodeType")
+        executors.shouldHaveSize(1)
+        assertEquals("TestNodeType", executors.first().first)
     }
 
     @Test
@@ -245,7 +251,7 @@ class ModuleBootstrapperTest {
 
         val executors = bootstrapper.nodeResolverExecutors(createMockSchema()).toList()
 
-        assertThat(executors).isEmpty()
+        executors.shouldBeEmpty()
     }
 
     @Test
@@ -259,10 +265,10 @@ class ModuleBootstrapperTest {
         val schema = createMockSchemaWithNodeType()
         val executors = bootstrapper.nodeResolverExecutors(schema).toList()
 
-        assertThat(executors).hasSize(1)
+        executors.shouldHaveSize(1)
         val (typeName, executor) = executors.first()
-        assertThat(typeName).isEqualTo("TestNodeType")
-        assertThat(executor.isBatching).isFalse()
+        assertEquals("TestNodeType", typeName)
+        assertFalse(executor.isBatching)
 
         // Exercise the wired executor lambda by calling resolve(). The lambda invokes the
         // tenant's resolve method via reflection, so a successful round-trip confirms the lambda
@@ -284,8 +290,8 @@ class ModuleBootstrapperTest {
         // bridge will surface a conversion failure — what we're verifying here is that the
         // executor lambda chain (resolveFunction -> invokeNodeResolver -> reflective invoke) is
         // wired correctly.
-        assertThat(result).hasSize(1)
-        assertThat(result[selector]).isNotNull
+        assertEquals(1, result.size)
+        assertNotNull(result[selector])
     }
 
     @Test
@@ -299,10 +305,10 @@ class ModuleBootstrapperTest {
         val schema = createMockSchemaWithNodeTypes("TestBatchNodeType")
         val executors = bootstrapper.nodeResolverExecutors(schema).toList()
 
-        assertThat(executors).hasSize(1)
+        executors.shouldHaveSize(1)
         val (typeName, executor) = executors.first()
-        assertThat(typeName).isEqualTo("TestBatchNodeType")
-        assertThat(executor.isBatching).isTrue()
+        assertEquals("TestBatchNodeType", typeName)
+        assertTrue(executor.isBatching)
 
         // Exercise the batch executor lambda end-to-end.
         val engineCtx: EngineExecutionContext = mockk {
@@ -325,9 +331,9 @@ class ModuleBootstrapperTest {
         }
         // Lambda invocation succeeded; conversion may produce a failed Result for TestNodeObj
         // (not a ObjectBase), but each selector gets a Result entry.
-        assertThat(result).hasSize(2)
-        assertThat(result[selectors[0]]).isNotNull
-        assertThat(result[selectors[1]]).isNotNull
+        assertEquals(2, result.size)
+        assertNotNull(result[selectors[0]])
+        assertNotNull(result[selectors[1]])
     }
 
     @Test
@@ -392,13 +398,13 @@ class ModuleBootstrapperTest {
 
         val executors = bootstrapper.fieldResolverExecutors(schema).toList()
 
-        assertThat(executors).hasSize(1)
+        executors.shouldHaveSize(1)
         val (coordinate, executor) = executors.first()
-        assertThat(coordinate.first).isEqualTo("Person")
-        assertThat(coordinate.second).isEqualTo("fullName")
+        assertEquals("Person", coordinate.first)
+        assertEquals("fullName", coordinate.second)
         // The executor should have objectSelectionSet populated from the annotation
-        assertThat(executor.objectSelectionSet).isNotNull
-        assertThat(executor.querySelectionSet).isNull()
+        assertNotNull(executor.objectSelectionSet)
+        assertNull(executor.querySelectionSet)
     }
 
     @Test
@@ -414,11 +420,11 @@ class ModuleBootstrapperTest {
 
         val executors = bootstrapper.fieldResolverExecutors(schema).toList()
 
-        assertThat(executors).hasSize(1)
+        executors.shouldHaveSize(1)
         val (_, executor) = executors.first()
         // Plain @Resolver annotation should result in null selection sets (backward compatible)
-        assertThat(executor.objectSelectionSet).isNull()
-        assertThat(executor.querySelectionSet).isNull()
+        assertNull(executor.objectSelectionSet)
+        assertNull(executor.querySelectionSet)
     }
 
     // Helper to create mock schema

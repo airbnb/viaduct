@@ -4,16 +4,13 @@ package viaduct.tenant.runtime.bootstrap
 
 import com.google.inject.Guice
 import kotlin.reflect.full.findAnnotation
-import kotlin.test.assertTrue
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
-import strikt.api.expectThat
-import strikt.assertions.isNotNull
-import strikt.assertions.isTrue
-import strikt.assertions.startsWith
 import viaduct.api.ResolverBase
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.internal.DefaultGRTConvFactory
@@ -290,9 +287,8 @@ class RequiredSelectionSetFactoryTest {
         }
 
         // Verify the error message matches what is expected for this error condition
-        expectThat(exception.message) {
-            isNotNull().startsWith("Multiple VariablesResolver's provide a value for variable `x`")
-        }
+        assertNotNull(exception.message)
+        assertTrue(exception.message!!.startsWith("Multiple VariablesResolver's provide a value for variable `x`"))
     }
 
     @Test
@@ -449,10 +445,9 @@ class RequiredSelectionSetFactoryTest {
         }
 
         // Verify the error message describes the issue with unused variables
-        expectThat(exception.message)
-            .isNotNull()
-            .startsWith("Cannot build required selection sets: found declarations for unused variables:")
-        expectThat(exception.message!!.contains("undeclaredVar")).isTrue()
+        assertNotNull(exception.message)
+        assertTrue(exception.message!!.startsWith("Cannot build required selection sets: found declarations for unused variables:"))
+        assertTrue(exception.message!!.contains("undeclaredVar"))
     }
 
     @Test
@@ -495,11 +490,10 @@ class RequiredSelectionSetFactoryTest {
         }
 
         // Verify both unused variables are mentioned in the error
-        expectThat(exception.message)
-            .isNotNull()
-            .startsWith("Cannot build required selection sets: found declarations for unused variables:")
-        expectThat(exception.message!!.contains("unusedProviderVar")).isTrue()
-        expectThat(exception.message!!.contains("unusedAnnotationVar")).isTrue()
+        assertNotNull(exception.message)
+        assertTrue(exception.message!!.startsWith("Cannot build required selection sets: found declarations for unused variables:"))
+        assertTrue(exception.message!!.contains("unusedProviderVar"))
+        assertTrue(exception.message!!.contains("unusedAnnotationVar"))
     }
 
     @Test

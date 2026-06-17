@@ -1,7 +1,7 @@
 package viaduct.engine.runtime
 
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor

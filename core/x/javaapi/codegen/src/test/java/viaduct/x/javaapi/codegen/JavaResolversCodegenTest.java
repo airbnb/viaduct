@@ -1,6 +1,8 @@
 package viaduct.x.javaapi.codegen;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import graphql.schema.idl.SchemaParser;
 import java.io.File;
@@ -60,47 +62,47 @@ class JavaResolversCodegenTest {
             "com.example.tenant");
 
     // Verify counts - 2 resolver files (Query, User), 2 resolvers total
-    assertThat(result.resolverFileCount()).isEqualTo(2);
-    assertThat(result.resolverCount()).isEqualTo(2);
-    assertThat(result.generatedFiles()).hasSize(2);
+    assertEquals(2, result.resolverFileCount());
+    assertEquals(2, result.resolverCount());
+    assertEquals(2, result.generatedFiles().size());
 
     // Verify files were created on disk
     Path resolverPackageDir =
         resolverOutputDir.toPath().resolve("com/example/tenant/resolverbases");
-    assertThat(resolverPackageDir.resolve("QueryResolvers.java")).exists();
-    assertThat(resolverPackageDir.resolve("UserResolvers.java")).exists();
+    assertTrue(Files.exists(resolverPackageDir.resolve("QueryResolvers.java")));
+    assertTrue(Files.exists(resolverPackageDir.resolve("UserResolvers.java")));
 
     // Verify file contents
     String queryResolverContent =
         Files.readString(resolverPackageDir.resolve("QueryResolvers.java"));
-    assertThat(queryResolverContent)
-        .contains("package com.example.tenant.resolverbases;")
-        .contains("import com.example.grt.*;")
-        .doesNotContain("import com.example.tenant.*;")
-        .contains("public final class QueryResolvers")
-        .contains(
+    assertTrue(queryResolverContent.contains("package com.example.tenant.resolverbases;"));
+    assertTrue(queryResolverContent.contains("import com.example.grt.*;"));
+    assertFalse(queryResolverContent.contains("import com.example.tenant.*;"));
+    assertTrue(queryResolverContent.contains("public final class QueryResolvers"));
+    assertTrue(
+        queryResolverContent.contains(
             "@ResolverFor(typeName = \"Query\", fieldName = \"user\", isSelective = false,"
-                + " isBatching = false)");
+                + " isBatching = false)"));
 
     String userResolverContent = Files.readString(resolverPackageDir.resolve("UserResolvers.java"));
-    assertThat(userResolverContent)
-        .contains("package com.example.tenant.resolverbases;")
-        .contains("public final class UserResolvers")
-        .contains(
+    assertTrue(userResolverContent.contains("package com.example.tenant.resolverbases;"));
+    assertTrue(userResolverContent.contains("public final class UserResolvers"));
+    assertTrue(
+        userResolverContent.contains(
             "@ResolverFor(typeName = \"User\", fieldName = \"profile\", isSelective = true,"
-                + " isBatching = false)")
-        .contains("public Object getSelections()");
+                + " isBatching = false)"));
+    assertTrue(userResolverContent.contains("public Object getSelections()"));
   }
 
   @Test
   void createsOutputDirectoryIfNotExists() throws IOException {
     File resolverOutputDir = tempDir.resolve("nested/resolver/dir").toFile();
-    assertThat(resolverOutputDir).doesNotExist();
+    assertFalse(resolverOutputDir.exists());
 
     codegen.generate(
         List.of(schemaFile.toFile()), resolverOutputDir, "com.example.grt", "com.example.tenant");
 
-    assertThat(resolverOutputDir).exists();
+    assertTrue(resolverOutputDir.exists());
   }
 
   @Test
@@ -115,8 +117,8 @@ class JavaResolversCodegenTest {
             "com.example.tenant");
 
     for (File file : result.generatedFiles()) {
-      assertThat(file.isAbsolute()).isTrue();
-      assertThat(file).exists();
+      assertTrue(file.isAbsolute());
+      assertTrue(file.exists());
     }
   }
 
@@ -147,9 +149,9 @@ class JavaResolversCodegenTest {
             "com.example.grt",
             "com.example.tenant");
 
-    assertThat(result.resolverFileCount()).isEqualTo(0);
-    assertThat(result.resolverCount()).isEqualTo(0);
-    assertThat(result.generatedFiles()).isEmpty();
+    assertEquals(0, result.resolverFileCount());
+    assertEquals(0, result.resolverCount());
+    assertTrue(result.generatedFiles().isEmpty());
   }
 
   private Path writeSchemaWithDefaults(String fileName, String schema) throws IOException {

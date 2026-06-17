@@ -1,9 +1,9 @@
 package viaduct.tenant.codegen.ksp
 
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
-import org.assertj.core.api.Assertions.assertThat
+import io.kotest.matchers.shouldBe
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ResolverParamsJsonCodecTest {
@@ -27,8 +27,7 @@ class ResolverParamsJsonCodecTest {
             ),
         )
 
-        assertThat(json).isEqualToNormalizingNewlines(
-            """
+        json.replace("\r\n", "\n") shouldBe """
                 {
                   "fields" : [ ],
                   "grtPackagePrefix" : "viaduct.api.grts",
@@ -43,8 +42,7 @@ class ResolverParamsJsonCodecTest {
                   } ]
                 }
 
-            """.trimIndent(),
-        )
+        """.trimIndent().replace("\r\n", "\n")
     }
 
     @Test
@@ -124,8 +122,7 @@ class ResolverParamsJsonCodecTest {
             ),
         )
 
-        assertThat(json).isEqualToNormalizingNewlines(
-            """
+        json.replace("\r\n", "\n") shouldBe """
                 {
                   "fields" : [ {
                     "attribution" : "ExampleNameResolver",
@@ -143,8 +140,7 @@ class ResolverParamsJsonCodecTest {
                   "nodes" : [ ]
                 }
 
-            """.trimIndent(),
-        )
+        """.trimIndent().replace("\r\n", "\n")
     }
 
     @Test
@@ -179,8 +175,7 @@ class ResolverParamsJsonCodecTest {
             ),
         )
 
-        assertThat(json).isEqualToNormalizingNewlines(
-            """
+        json.replace("\r\n", "\n") shouldBe """
                 {
                   "fields" : [ {
                     "attribution" : "ExampleNameResolver",
@@ -207,8 +202,7 @@ class ResolverParamsJsonCodecTest {
                   "nodes" : [ ]
                 }
 
-            """.trimIndent(),
-        )
+        """.trimIndent().replace("\r\n", "\n")
     }
 
     @Test
@@ -238,8 +232,7 @@ class ResolverParamsJsonCodecTest {
             ),
         )
 
-        assertThat(json).isEqualToNormalizingNewlines(
-            """
+        json.replace("\r\n", "\n") shouldBe """
                 {
                   "fields" : [ {
                     "attribution" : "GreetingResolver",
@@ -265,8 +258,7 @@ class ResolverParamsJsonCodecTest {
                   "nodes" : [ ]
                 }
 
-            """.trimIndent(),
-        )
+        """.trimIndent().replace("\r\n", "\n")
     }
 
     @Test

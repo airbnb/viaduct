@@ -1,9 +1,9 @@
 package viaduct.graphql.test
 
 import graphql.ExecutionResult as GJExecutionResult
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import viaduct.invariants.FailureCollector
 import viaduct.service.api.ExecutionResult
 
@@ -90,9 +90,10 @@ fun Map<String, Any?>.assertHasError(expectedSubMessage: String) {
     val errors = this["errors"] as? List<*>
 
     assertNotNull(errors, "Expected errors but found none. Result: $this")
-    assertTrue(errors.isNotEmpty(), "Expected errors but errors list was empty. Result: $this")
+    val nonNullErrors = checkNotNull(errors)
+    assertTrue(nonNullErrors.isNotEmpty(), "Expected errors but errors list was empty. Result: $this")
 
-    val errorMessages = errors.mapNotNull { error ->
+    val errorMessages = nonNullErrors.mapNotNull { error ->
         (error as? Map<*, *>)?.get("message") as? String
     }
 

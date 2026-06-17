@@ -7,9 +7,10 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import io.mockk.every
 import io.mockk.mockk
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ViaductSchema
 import viaduct.java.api.internal.InternalContext
@@ -30,9 +31,9 @@ class GRTConverterTest {
 
         val result: InternalContext = buildInternalContext(engineCtx, classFinder)
 
-        assertThat(result.schema).isSameAs(schema)
-        assertThat(result.globalIDCodec).isSameAs(codec)
-        assertThat(result.classFinder).isSameAs(classFinder)
+        assertSame(schema, result.schema)
+        assertSame(codec, result.globalIDCodec)
+        assertSame(classFinder, result.classFinder)
     }
 
     @Test
@@ -66,9 +67,9 @@ class GRTConverterTest {
             context
         )
 
-        assertThat(result.name).isEqualTo("TestArguments")
-        assertThat(result.fields).hasSize(1)
-        assertThat(result.fields[0].name).isEqualTo("id")
+        assertEquals("TestArguments", result.name)
+        assertEquals(1, result.fields.size)
+        assertEquals("id", result.fields[0].name)
     }
 
     @Test
@@ -101,18 +102,18 @@ class GRTConverterTest {
             context
         )
 
-        assertThat(result.name).isEqualTo("Query_greeting_Arguments")
-        assertThat(result.fields).hasSize(1)
-        assertThat(result.fields[0].name).isEqualTo("name")
+        assertEquals("Query_greeting_Arguments", result.name)
+        assertEquals(1, result.fields.size)
+        assertEquals("name", result.fields[0].name)
     }
 
     @Test
     fun `buildArgumentsInputType from class name throws for invalid name format`() {
         val context = mockk<InternalContext>()
 
-        assertThatThrownBy {
+        assertThrows<IllegalArgumentException> {
             buildArgumentsInputType(NoUnderscoreArguments::class.java, context)
-        }.isInstanceOf(IllegalArgumentException::class.java)
+        }
     }
 }
 

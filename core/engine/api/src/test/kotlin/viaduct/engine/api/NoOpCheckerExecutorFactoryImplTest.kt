@@ -1,6 +1,6 @@
 package viaduct.engine.api
 
-import kotlin.test.assertNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.NoOpCheckerExecutorFactoryImpl

@@ -12,9 +12,9 @@ import graphql.schema.idl.InterfaceWiringEnvironment
 import graphql.schema.idl.UnionWiringEnvironment
 import io.mockk.every
 import io.mockk.mockk
-import kotlin.test.assertTrue
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.ResolvedEngineObjectData

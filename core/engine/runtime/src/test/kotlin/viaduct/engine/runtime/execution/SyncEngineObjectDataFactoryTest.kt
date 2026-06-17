@@ -7,6 +7,7 @@ import graphql.execution.ResultPath
 import graphql.schema.GraphQLObjectType
 import graphql.validation.ValidationError
 import graphql.validation.ValidationErrorType
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
@@ -17,7 +18,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -168,7 +168,7 @@ class SyncEngineObjectDataFactoryTest {
             assertEquals("hello", syncData.get("stringField"))
 
             val nested = syncData.get("object2")
-            assertInstanceOf(SyncProxyEngineObjectData::class.java, nested)
+            nested.shouldBeInstanceOf<SyncProxyEngineObjectData>()
             assertEquals(42, (nested as EngineObjectData.Sync).get("intField"))
         }
     }

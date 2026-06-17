@@ -3,10 +3,9 @@ package com.example.execution.multiproject
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.readText
-import kotlin.test.Test
-import kotlin.test.assertContains
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 import viaduct.service.BasicViaductFactory
 import viaduct.service.api.ExecutionInput
 
@@ -42,9 +41,9 @@ class PluginExecutionSmokeTest {
             )
         )
 
-        assertContains(alphaPartitionSchemaFile.readText(), "greeting: String")
-        assertContains(betaPartitionSchemaFile.readText(), "author: String")
-        assertContains(betaPartitionSchemaFile.readText(), "echo(message: String!): String")
+        assertTrue(alphaPartitionSchemaFile.readText().contains("greeting: String"))
+        assertTrue(betaPartitionSchemaFile.readText().contains("author: String"))
+        assertTrue(betaPartitionSchemaFile.readText().contains("echo(message: String!): String"))
     }
 
     @Test
@@ -61,10 +60,10 @@ class PluginExecutionSmokeTest {
         assertExists(alphaConfigFile)
         assertExists(betaConfigFile)
 
-        assertContains(alphaConfigFile.readText(), "GreetingResolver")
+        assertTrue(alphaConfigFile.readText().contains("GreetingResolver"))
         val betaContents = betaConfigFile.readText()
-        assertContains(betaContents, "AuthorResolver")
-        assertContains(betaContents, "EchoMutationResolver")
+        assertTrue(betaContents.contains("AuthorResolver"))
+        assertTrue(betaContents.contains("EchoMutationResolver"))
     }
 
     @Test

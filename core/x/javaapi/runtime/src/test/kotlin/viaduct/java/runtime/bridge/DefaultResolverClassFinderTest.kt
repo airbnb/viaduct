@@ -1,9 +1,10 @@
 package viaduct.java.runtime.bridge
 
 import java.util.concurrent.CompletableFuture
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.java.api.annotations.Resolver
 import viaduct.java.api.annotations.ResolverFor
 import viaduct.java.api.resolvers.FieldResolverBase
@@ -45,10 +46,8 @@ class DefaultResolverClassFinderTest {
         val resolverClasses = classFinder.resolverClassesInPackage()
 
         // Should find TestResolverBase which has @ResolverFor
-        assertThat(resolverClasses).isNotEmpty
-        assertThat(resolverClasses).anyMatch {
-            it.name.contains("TestResolverBase")
-        }
+        assertTrue(resolverClasses.isNotEmpty())
+        assertTrue(resolverClasses.any { it.name.contains("TestResolverBase") })
     }
 
     @Test
@@ -56,7 +55,7 @@ class DefaultResolverClassFinderTest {
         val nodeResolverClasses = classFinder.nodeResolverForClassesInPackage()
 
         // Should not include field resolver bases (which have @ResolverFor, not @NodeResolverFor)
-        assertThat(nodeResolverClasses).noneMatch { it.name.contains("TestResolverBase") }
+        assertTrue(nodeResolverClasses.none { it.name.contains("TestResolverBase") })
     }
 
     @Test
@@ -64,10 +63,8 @@ class DefaultResolverClassFinderTest {
         val subTypes = classFinder.getSubTypesOf(FieldResolverBase::class.java)
 
         // Should find TestResolverImpl which extends TestResolverBase
-        assertThat(subTypes).isNotEmpty
-        assertThat(subTypes).anyMatch {
-            it.name.contains("TestResolverImpl")
-        }
+        assertTrue(subTypes.isNotEmpty())
+        assertTrue(subTypes.any { it.name.contains("TestResolverImpl") })
     }
 
     @Test
@@ -75,9 +72,7 @@ class DefaultResolverClassFinderTest {
         val subTypes = classFinder.getSubTypesOf(FieldResolverBase::class.java)
 
         // TestResolverBase implements FieldResolverBase
-        assertThat(subTypes).anyMatch {
-            it.name.contains("TestResolverBase")
-        }
+        assertTrue(subTypes.any { it.name.contains("TestResolverBase") })
     }
 
     @Test
@@ -85,15 +80,15 @@ class DefaultResolverClassFinderTest {
         // Use nested class name format for inner classes
         val grtClass = classFinder.grtClassForName("DefaultResolverClassFinderTest\$TestGrt")
 
-        assertThat(grtClass.name).isEqualTo(
-            "viaduct.java.runtime.bridge.DefaultResolverClassFinderTest\$TestGrt"
+        assertEquals(
+            "viaduct.java.runtime.bridge.DefaultResolverClassFinderTest\$TestGrt",
+            grtClass.name
         )
     }
 
     @Test
     fun `grtClassForName throws ClassNotFoundException for unknown type`() {
-        assertThatThrownBy { classFinder.grtClassForName("NonExistentType") }
-            .isInstanceOf(ClassNotFoundException::class.java)
+        assertThrows<ClassNotFoundException> { classFinder.grtClassForName("NonExistentType") }
     }
 
     @Test
@@ -104,14 +99,12 @@ class DefaultResolverClassFinderTest {
             grtPackagePrefix = "java.lang" // String exists but is not a GRT
         )
 
-        assertThatThrownBy { badFinder.grtClassForName("String") }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("does not implement GRT")
+        val e = assertThrows<IllegalArgumentException> { badFinder.grtClassForName("String") }
+        assertTrue(e.message!!.contains("does not implement GRT"))
     }
 
     @Test
     fun `argumentClassForName throws ClassNotFoundException for unknown class`() {
-        assertThatThrownBy { classFinder.argumentClassForName("NonExistentArgs") }
-            .isInstanceOf(ClassNotFoundException::class.java)
+        assertThrows<ClassNotFoundException> { classFinder.argumentClassForName("NonExistentArgs") }
     }
 }

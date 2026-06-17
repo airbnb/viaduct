@@ -6,10 +6,10 @@ import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.Coordinate

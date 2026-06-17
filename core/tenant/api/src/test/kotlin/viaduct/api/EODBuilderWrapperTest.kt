@@ -1,7 +1,7 @@
 package viaduct.api
 
 import graphql.schema.GraphQLObjectType
-import kotlin.test.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.internal.EODBuilderWrapper

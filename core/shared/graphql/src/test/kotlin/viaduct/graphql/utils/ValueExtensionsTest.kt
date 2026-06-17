@@ -30,7 +30,7 @@ import graphql.util.TraversalControl
 import graphql.util.TraverserContext
 import java.math.BigDecimal
 import java.math.BigInteger
-import kotlin.test.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -145,7 +145,7 @@ class ValueExtensionsTest {
 
     @Test
     fun `collectVariableReferences -- non-variable value`() {
-        assertEquals(emptySet(), BooleanValue.of(true).collectVariableReferences())
+        assertEquals(emptySet<String>(), BooleanValue.of(true).collectVariableReferences())
     }
 
     @Test
@@ -155,7 +155,7 @@ class ValueExtensionsTest {
 
     @Test
     fun `collectVariableReferences -- VariableDefinition`() {
-        assertEquals(emptySet(), VariableDefinition("foo", TypeName("Int")).collectVariableReferences())
+        assertEquals(emptySet<String>(), VariableDefinition("foo", TypeName("Int")).collectVariableReferences())
     }
 
     @Test

@@ -74,7 +74,7 @@ class OverlayEngineObjectDataTest {
                 .build()
 
             val combined = OverlayEngineObjectData(overlay, base)
-            kotlin.test.assertFailsWith<UnsetFieldException> {
+            org.junit.jupiter.api.assertThrows<UnsetFieldException> {
                 combined.fetch(FIELD_1)
             }
         }

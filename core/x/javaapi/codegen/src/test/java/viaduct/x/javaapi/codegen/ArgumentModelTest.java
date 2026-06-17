@@ -1,6 +1,7 @@
 package viaduct.x.javaapi.codegen;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -15,9 +16,9 @@ class ArgumentModelTest {
 
     ArgumentModel model = new ArgumentModel("com.example", "MyArgs", fields);
 
-    assertThat(model.packageName()).isEqualTo("com.example");
-    assertThat(model.className()).isEqualTo("MyArgs");
-    assertThat(model.fields()).isEqualTo(fields);
+    assertEquals("com.example", model.packageName());
+    assertEquals("MyArgs", model.className());
+    assertEquals(fields, model.fields());
   }
 
   @Test
@@ -26,17 +27,17 @@ class ArgumentModelTest {
 
     ArgumentModel model = new ArgumentModel("com.airbnb.types", "SearchArgs", fields);
 
-    assertThat(model.getPackageName()).isEqualTo(model.packageName());
-    assertThat(model.getClassName()).isEqualTo(model.className());
-    assertThat(model.getFields()).isEqualTo(model.fields());
+    assertEquals(model.packageName(), model.getPackageName());
+    assertEquals(model.className(), model.getClassName());
+    assertEquals(model.fields(), model.getFields());
   }
 
   @Test
   void emptyFieldsList() {
     ArgumentModel model = new ArgumentModel("com.example", "EmptyArgs", List.of());
 
-    assertThat(model.getFields()).isEmpty();
-    assertThat(model.getPackageName()).isEqualTo("com.example");
-    assertThat(model.getClassName()).isEqualTo("EmptyArgs");
+    assertTrue(model.getFields().isEmpty());
+    assertEquals("com.example", model.getPackageName());
+    assertEquals("EmptyArgs", model.getClassName());
   }
 }

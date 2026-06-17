@@ -2,12 +2,12 @@ package viaduct.engine.runtime.execution
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.test.assertContains
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.EngineConfiguration
@@ -457,7 +457,7 @@ class RequiredSelectionsTest {
                 result.getData()
             )
             assertEquals(1, result.errors.size)
-            assertContains(result.errors.first().message, "null cannot be cast to non-null type kotlin.Int")
+            assertTrue(result.errors.first().message.contains("null cannot be cast to non-null type kotlin.Int"))
         }
 
         assertEquals(1, detailsCount.get())

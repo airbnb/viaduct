@@ -3,7 +3,7 @@
 package viaduct.tenant.tutorial08
 
 import java.util.concurrent.ConcurrentLinkedQueue
-import kotlin.test.assertEquals as kotlinAssertEquals
+import org.junit.jupiter.api.Assertions.assertEquals as kotlinAssertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.api.FieldValue

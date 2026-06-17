@@ -2,12 +2,12 @@ package viaduct.gradle
 
 import java.io.File
 import java.nio.file.Path
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.testfixtures.ProjectBuilder
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

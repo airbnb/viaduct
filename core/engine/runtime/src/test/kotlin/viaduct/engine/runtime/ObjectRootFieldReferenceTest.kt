@@ -3,9 +3,9 @@
 package viaduct.engine.runtime
 
 import graphql.schema.GraphQLObjectType
-import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

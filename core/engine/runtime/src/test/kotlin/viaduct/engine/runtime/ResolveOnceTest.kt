@@ -1,11 +1,11 @@
 package viaduct.engine.runtime
 
 import io.mockk.mockk
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlin.test.assertSame
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineObjectData

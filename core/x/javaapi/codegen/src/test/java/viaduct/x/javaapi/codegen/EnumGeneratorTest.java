@@ -1,6 +1,6 @@
 package viaduct.x.javaapi.codegen;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -18,13 +18,12 @@ class EnumGeneratorTest {
 
     String generated = JavaGRTGenerator.EnumGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("package com.example.types;")
-        .contains("import viaduct.java.api.types.GraphQLEnum;")
-        .contains("public enum BookingStatus implements GraphQLEnum")
-        .contains("PENDING,")
-        .contains("CONFIRMED,")
-        .contains("CANCELLED");
+    assertTrue(generated.contains("package com.example.types;"));
+    assertTrue(generated.contains("import viaduct.java.api.types.GraphQLEnum;"));
+    assertTrue(generated.contains("public enum BookingStatus implements GraphQLEnum"));
+    assertTrue(generated.contains("PENDING,"));
+    assertTrue(generated.contains("CONFIRMED,"));
+    assertTrue(generated.contains("CANCELLED"));
   }
 
   @Test
@@ -38,11 +37,10 @@ class EnumGeneratorTest {
 
     String generated = JavaGRTGenerator.EnumGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("/**")
-        .contains(" * Type of listing accommodation.")
-        .contains(" */")
-        .contains("public enum ListingType");
+    assertTrue(generated.contains("/**"));
+    assertTrue(generated.contains(" * Type of listing accommodation."));
+    assertTrue(generated.contains(" */"));
+    assertTrue(generated.contains("public enum ListingType"));
   }
 
   @Test
@@ -51,6 +49,7 @@ class EnumGeneratorTest {
 
     String generated = JavaGRTGenerator.EnumGenerator.generate(model);
 
-    assertThat(generated).contains("public enum SingleValue").contains("ONLY_ONE");
+    assertTrue(generated.contains("public enum SingleValue"));
+    assertTrue(generated.contains("ONLY_ONE"));
   }
 }

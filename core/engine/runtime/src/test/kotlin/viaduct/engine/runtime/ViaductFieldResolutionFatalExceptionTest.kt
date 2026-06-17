@@ -4,8 +4,8 @@ import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
-import kotlin.test.assertTrue
 import kotlinx.coroutines.delay
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.EngineConfiguration

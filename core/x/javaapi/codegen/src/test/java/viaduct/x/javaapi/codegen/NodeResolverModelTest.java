@@ -1,6 +1,7 @@
 package viaduct.x.javaapi.codegen;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import org.junit.jupiter.api.Test;
 
@@ -11,11 +12,11 @@ class NodeResolverModelTest {
     NodeResolverModel model =
         new NodeResolverModel("com.example.tenant", "com.example.types", "User", false, false);
 
-    assertThat(model.getTenantPackage()).isEqualTo("com.example.tenant");
-    assertThat(model.getGrtPackage()).isEqualTo("com.example.types");
-    assertThat(model.getTypeName()).isEqualTo("User");
-    assertThat(model.getIsBatching()).isFalse();
-    assertThat(model.getIsSelective()).isFalse();
+    assertEquals("com.example.tenant", model.getTenantPackage());
+    assertEquals("com.example.types", model.getGrtPackage());
+    assertEquals("User", model.getTypeName());
+    assertFalse(model.getIsBatching());
+    assertFalse(model.getIsSelective());
   }
 
   @Test
@@ -23,7 +24,7 @@ class NodeResolverModelTest {
     NodeResolverModel model =
         new NodeResolverModel("com.example", "com.example", "Booking", true, false);
 
-    assertThat(model.getBatchingLiteral()).isEqualTo("true");
+    assertEquals("true", model.getBatchingLiteral());
   }
 
   @Test
@@ -31,7 +32,7 @@ class NodeResolverModelTest {
     NodeResolverModel model =
         new NodeResolverModel("com.example", "com.example", "Booking", false, false);
 
-    assertThat(model.getBatchingLiteral()).isEqualTo("false");
+    assertEquals("false", model.getBatchingLiteral());
   }
 
   @Test
@@ -39,7 +40,7 @@ class NodeResolverModelTest {
     NodeResolverModel model =
         new NodeResolverModel("com.example", "com.example", "Booking", false, true);
 
-    assertThat(model.getSelectiveLiteral()).isEqualTo("true");
+    assertEquals("true", model.getSelectiveLiteral());
   }
 
   @Test
@@ -47,7 +48,7 @@ class NodeResolverModelTest {
     NodeResolverModel model =
         new NodeResolverModel("com.example", "com.example", "Booking", false, false);
 
-    assertThat(model.getSelectiveLiteral()).isEqualTo("false");
+    assertEquals("false", model.getSelectiveLiteral());
   }
 
   @Test
@@ -56,7 +57,7 @@ class NodeResolverModelTest {
         new NodeResolverModel("com.example.tenant", "com.example.types", "User", false, false);
 
     // GRT type uses grtPackage, not tenantPackage
-    assertThat(model.getGrtType()).isEqualTo("com.example.types.User");
+    assertEquals("com.example.types.User", model.getGrtType());
   }
 
   @Test
@@ -64,8 +65,9 @@ class NodeResolverModelTest {
     NodeResolverModel model =
         new NodeResolverModel("com.example.tenant", "com.example.types", "User", true, false);
 
-    assertThat(model.getBatchResolveFutureType())
-        .isEqualTo("CompletableFuture<List<FieldValue<com.example.types.User>>>");
+    assertEquals(
+        "CompletableFuture<List<FieldValue<com.example.types.User>>>",
+        model.getBatchResolveFutureType());
   }
 
   @Test
@@ -73,7 +75,7 @@ class NodeResolverModelTest {
     NodeResolverModel model =
         new NodeResolverModel("com.example", "com.example", "User", false, false);
 
-    assertThat(model.getCtxInterface()).isEqualTo("NodeExecutionContext");
+    assertEquals("NodeExecutionContext", model.getCtxInterface());
   }
 
   @Test
@@ -81,6 +83,6 @@ class NodeResolverModelTest {
     NodeResolverModel model =
         new NodeResolverModel("com.example", "com.example", "User", false, true);
 
-    assertThat(model.getCtxInterface()).isEqualTo("SelectiveNodeExecutionContext");
+    assertEquals("SelectiveNodeExecutionContext", model.getCtxInterface());
   }
 }

@@ -14,11 +14,11 @@ import io.mockk.mockk
 import java.util.Locale
 import java.util.concurrent.CompletionException
 import kotlin.coroutines.EmptyCoroutineContext
-import kotlin.test.assertEquals
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test

@@ -1,10 +1,10 @@
 package viaduct.tenant.codegen.bytecode.exercise
 
 import kotlin.reflect.KClass
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 import viaduct.api.grts.MissingBuilderObjectV2
 import viaduct.api.grts.MissingDefaultGetterObjectV2

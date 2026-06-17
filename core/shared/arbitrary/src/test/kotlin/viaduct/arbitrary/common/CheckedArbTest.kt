@@ -1,5 +1,7 @@
 package viaduct.arbitrary.common
 
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.Sample
@@ -8,29 +10,28 @@ import io.kotest.property.arbitrary.int
 import io.kotest.property.asSample
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatCode
-import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class CheckedArbTest : KotestPropertyBase() {
     @Test
     fun `checkAll -- succeeds`() {
-        assertThatCode {
-            Arb.constant(1).withCheck({}).checkAll()
-        }.doesNotThrowAnyException()
+        Arb.constant(1).withCheck({}).checkAll()
     }
 
     @Test
     fun `checkAll -- fails`() {
         val err = RuntimeException()
-        assertThatThrownBy {
+        val thrown = assertThrows<AssertionError> {
             Arb.constant(1)
                 .withCheck { throw err }
                 .checkAll()
         }
-            .isInstanceOf(AssertionError::class.java)
-            .hasCause(err)
+        assertEquals(err, thrown.cause)
     }
 
     @Test
@@ -38,7 +39,7 @@ class CheckedArbTest : KotestPropertyBase() {
         val mv = Arb.constant(1)
             .withCheck {}
             .minViolation(Comparator.naturalOrder(), randomSource)
-        assertThat(mv).isNull()
+        assertNull(mv)
     }
 
     @Test
@@ -53,8 +54,8 @@ class CheckedArbTest : KotestPropertyBase() {
                 printEvery = 0,
                 out = PrintStream(out)
             )
-        assertThat(mv).isNull()
-        assertThat(out.toString()).isEmpty()
+        assertNull(mv)
+        assertEquals("", out.toString())
     }
 
     @Test
@@ -65,7 +66,7 @@ class CheckedArbTest : KotestPropertyBase() {
                 if (i == 0) throw err
             }
             .minViolation(Comparator.naturalOrder(), randomSource)
-        assertThat(mv).isEqualTo(Violation(0, err, seed))
+        assertEquals(Violation(0, err, seed), mv)
     }
 
     @Test
@@ -91,7 +92,7 @@ class CheckedArbTest : KotestPropertyBase() {
                 rs = randomSource,
                 iter = values.size
             )
-        assertThat(mv).isEqualTo(Violation(1, err, seed))
+        assertEquals(Violation(1, err, seed), mv)
     }
 
     @Test
@@ -99,7 +100,7 @@ class CheckedArbTest : KotestPropertyBase() {
         val result = Arb.int(0..100)
             .withCheck {}
             .seedMarch(maxIter = iterations, printEvery = -1)
-        assertThat(result).isNull()
+        assertNull(result)
     }
 
     @Test
@@ -113,7 +114,7 @@ class CheckedArbTest : KotestPropertyBase() {
                 }
             }
             .seedMarch(maxIter = iterations, printEvery = -1)
-        assertThat(result).isEqualTo(Violation(1, err, 3))
+        assertEquals(Violation(1, err, 3), result)
     }
 
     @Test
@@ -132,19 +133,19 @@ class CheckedArbTest : KotestPropertyBase() {
         val result = arb
             .withCheck {}
             .seedMarch(startingSeed = 3, maxIter = 3, printEvery = -1)
-        assertThat(result?.value).isNull()
-        assertThat(result?.err).isSameAs(err)
-        assertThat(result?.seed).isEqualTo(5)
+        assertNull(result?.value)
+        assertSame(err, result?.err)
+        assertEquals(5, result?.seed)
     }
 
     @Test
     fun `seedMarch -- returns assertion failures`() {
         val result = Arb.constant(1)
-            .withCheck { assertThat(it).isLessThan(0) }
+            .withCheck { assertTrue(it < 0) }
             .seedMarch(maxIter = 1, printEvery = -1)
-        assertThat(result?.value).isEqualTo(1)
-        assertThat(result?.seed).isEqualTo(0)
-        assertThat(result?.err).isInstanceOf(AssertionError::class.java)
+        assertEquals(1, result?.value)
+        assertEquals(0, result?.seed)
+        result?.err.shouldBeInstanceOf<AssertionError>()
     }
 
     @Test
@@ -153,7 +154,7 @@ class CheckedArbTest : KotestPropertyBase() {
         Arb.int(0..100)
             .withCheck {}
             .seedMarch(maxIter = iterations, printEvery = -1, out = PrintStream(out))
-        assertThat(out.toString()).isEmpty()
+        out.toString() shouldBe ""
     }
 
     @Test
@@ -162,14 +163,12 @@ class CheckedArbTest : KotestPropertyBase() {
         Arb.int(0..50)
             .withCheck {}
             .seedMarch(startingSeed = 3, maxIter = 40, printEvery = 10, out = PrintStream(out))
-        assertThat(out.toString()).isEqualToNormalizingNewlines(
-            """
+        out.toString().replace("\r\n", "\n") shouldBe """
                     |Seed 3...
                     |Seed 13...
                     |Seed 23...
                     |Seed 33...
                     |
-            """.trimMargin()
-        )
+        """.trimMargin().replace("\r\n", "\n")
     }
 }

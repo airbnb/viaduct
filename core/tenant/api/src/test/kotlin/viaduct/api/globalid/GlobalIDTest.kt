@@ -1,10 +1,10 @@
 package viaduct.api.globalid
 
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.api.reflect.Type
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
@@ -46,7 +46,7 @@ class GlobalIDTest {
 
     @Test
     fun `throws exception when type is not a concrete node object`() {
-        assertFailsWith<IllegalArgumentException> {
+        assertThrows<IllegalArgumentException> {
             // This should fail at runtime because NotNode doesn't extend NodeObject
             // We need to suppress the unchecked cast warning because we're intentionally
             // testing the runtime check

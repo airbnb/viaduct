@@ -37,7 +37,6 @@ java {
 val libs = extensions.getByType(VersionCatalogsExtension::class.java).named("libs")
 
 dependencies {
-    testImplementation(libs.findLibrary("kotlin-test").get())
     testImplementation(libs.findLibrary("junit").get())
 
     testRuntimeOnly(libs.findLibrary("junit-engine").get())

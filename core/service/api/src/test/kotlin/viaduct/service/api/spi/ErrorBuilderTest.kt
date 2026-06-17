@@ -1,8 +1,8 @@
 package viaduct.service.api.spi
 
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import viaduct.graphql.SourceLocation
 
@@ -17,7 +17,7 @@ class ErrorBuilderTest {
         assertEquals("Test error", error.message)
         assertNull(error.path)
         assertNull(error.locations)
-        assertEquals(emptyMap(), error.extensions)
+        assertEquals(emptyMap<String, Any?>(), error.extensions)
     }
 
     @Test
@@ -169,7 +169,7 @@ class ErrorBuilderTest {
             .message("Test")
             .build()
 
-        assertEquals(emptyMap(), error.extensions)
+        assertEquals(emptyMap<String, Any?>(), error.extensions)
     }
 
     @Test

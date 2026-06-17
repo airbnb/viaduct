@@ -1,7 +1,7 @@
 package viaduct.engine
 
 import graphql.schema.idl.errors.SchemaProblem
-import kotlin.test.assertContains
+import io.kotest.matchers.string.shouldContain
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -151,8 +151,8 @@ class SchemaFactoryTest {
             }
 
             with(exception.message ?: "") {
-                assertContains(this, "GraphQL schema SDL is empty or contains only whitespace")
-                assertContains(this, "Please provide a valid GraphQL schema definition")
+                this shouldContain "GraphQL schema SDL is empty or contains only whitespace"
+                this shouldContain "Please provide a valid GraphQL schema definition"
             }
         }
 
@@ -162,7 +162,7 @@ class SchemaFactoryTest {
                 schemaFactory.fromSdl("   \n\t   ")
             }
 
-            assertContains(exception.message ?: "", "GraphQL schema SDL is empty or contains only whitespace")
+            (exception.message ?: "") shouldContain "GraphQL schema SDL is empty or contains only whitespace"
         }
 
         @Test
@@ -173,8 +173,8 @@ class SchemaFactoryTest {
                 schemaFactory.fromSdl(invalidSchema)
             }
 
-            assertContains(exception.message ?: "", "Failed to parse GraphQL schema")
-            assertContains(exception.message ?: "", "Original error:")
+            (exception.message ?: "") shouldContain "Failed to parse GraphQL schema"
+            (exception.message ?: "") shouldContain "Original error:"
         }
 
         @Test
@@ -196,8 +196,8 @@ class SchemaFactoryTest {
                 schemaFactory.fromResources("nonexistent.package.that.does.not.exist", Regex("nonexistent-file-pattern-xyz"))
             }
 
-            assertContains(exception.message ?: "", "No GraphQL schema files found matching pattern")
-            assertContains(exception.message ?: "", "Please ensure your .graphqls files are available in the classpath")
+            (exception.message ?: "") shouldContain "No GraphQL schema files found matching pattern"
+            (exception.message ?: "") shouldContain "Please ensure your .graphqls files are available in the classpath"
         }
 
         @Test
@@ -224,10 +224,9 @@ class SchemaFactoryTest {
                 schemaFactory.fromSdl(sdl)
             }
 
-            assertContains(
-                exception.cause?.message ?: "",
-                "cannot be redefined",
-                message = "Should error when core directives are redefined"
+            assertTrue(
+                (exception.cause?.message ?: "").contains("cannot be redefined"),
+                "Should error when core directives are redefined"
             )
         }
 
@@ -247,10 +246,9 @@ class SchemaFactoryTest {
                 schemaFactory.fromSdl(sdl)
             }
 
-            assertContains(
-                exception.cause?.message ?: "",
-                "Root type Query cannot be manually defined",
-                message = "Should error when Query type is manually defined"
+            assertTrue(
+                (exception.cause?.message ?: "").contains("Root type Query cannot be manually defined"),
+                "Should error when Query type is manually defined"
             )
         }
 
@@ -278,10 +276,9 @@ class SchemaFactoryTest {
                 schemaFactory.fromSdl(sdl)
             }
 
-            assertContains(
-                exception.cause?.message ?: "",
-                "Root type Query cannot be manually defined",
-                message = "Should error when Query definition conflicts with Query extensions"
+            assertTrue(
+                (exception.cause?.message ?: "").contains("Root type Query cannot be manually defined"),
+                "Should error when Query definition conflicts with Query extensions"
             )
         }
     }

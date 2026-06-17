@@ -1,7 +1,9 @@
 package viaduct.java.api.internal;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import viaduct.errors.FrameworkException;
@@ -17,49 +19,54 @@ class HandleErrorsTest {
   @Test
   void framework_returnsValueFromBlock() {
     String result = HandleErrors.framework("op", () -> "hello");
-    assertThat(result).isEqualTo("hello");
+    assertEquals("hello", result);
   }
 
   @Test
   void framework_passesThroughFrameworkException() {
     FrameworkException original = new FrameworkException("inner", null);
-    assertThatThrownBy(
+    Exception e =
+        assertThrows(
+            Exception.class,
             () ->
                 HandleErrors.framework(
                     "op",
                     () -> {
                       throw original;
-                    }))
-        .isSameAs(original);
+                    }));
+    assertSame(original, e);
   }
 
   @Test
   void framework_passesThroughTenantException() {
     TenantUsageException original = new TenantUsageException("tenant bug", null);
-    assertThatThrownBy(
+    TenantUsageException e =
+        assertThrows(
+            TenantUsageException.class,
             () ->
                 HandleErrors.framework(
                     "op",
                     () -> {
                       throw original;
-                    }))
-        .isSameAs(original);
+                    }));
+    assertSame(original, e);
   }
 
   @Test
   void framework_wrapsGenericExceptionAsFrameworkException() {
     IllegalArgumentException boom = new IllegalArgumentException("boom");
-    assertThatThrownBy(
+    FrameworkException e =
+        assertThrows(
+            FrameworkException.class,
             () ->
                 HandleErrors.framework(
                     "myOp",
                     () -> {
                       throw boom;
-                    }))
-        .isInstanceOf(FrameworkException.class)
-        .hasMessageContaining("myOp")
-        .hasMessageContaining("boom")
-        .hasCause(boom);
+                    }));
+    assertTrue(e.getMessage().contains("myOp"));
+    assertTrue(e.getMessage().contains("boom"));
+    assertEquals(boom, e.getCause());
   }
 
   // ── tenant() ──────────────────────────────────────────────────────────────────
@@ -67,35 +74,37 @@ class HandleErrorsTest {
   @Test
   void tenant_returnsValueFromBlock() {
     String result = HandleErrors.tenant("resolver", () -> "hello");
-    assertThat(result).isEqualTo("hello");
+    assertEquals("hello", result);
   }
 
   @Test
   void tenant_passesThroughPassthroughException() {
     FrameworkException original = new FrameworkException("framework bug", null);
-    assertThatThrownBy(
+    Exception e =
+        assertThrows(
+            Exception.class,
             () ->
                 HandleErrors.tenant(
                     "resolver",
                     () -> {
                       throw original;
-                    }))
-        .isSameAs(original);
+                    }));
+    assertSame(original, e);
   }
 
   @Test
   void tenant_wrapsGenericExceptionAsTenantResolverException() {
     IllegalArgumentException boom = new IllegalArgumentException("boom");
-    assertThatThrownBy(
+    TenantResolverException e =
+        assertThrows(
+            TenantResolverException.class,
             () ->
                 HandleErrors.tenant(
                     "MyResolver",
                     () -> {
                       throw boom;
-                    }))
-        .isInstanceOf(TenantResolverException.class)
-        .hasCause(boom)
-        .extracting("resolver")
-        .isEqualTo("MyResolver");
+                    }));
+    assertEquals(boom, e.getCause());
+    assertEquals("MyResolver", e.getResolver());
   }
 }

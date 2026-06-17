@@ -1,6 +1,6 @@
 package viaduct.x.javaapi.codegen;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -31,21 +31,23 @@ class ResolverGeneratorTest {
 
     String generated = JavaResolverGenerator.generate(fileModel);
 
-    assertThat(generated)
-        .contains("package com.example.tenant.resolverbases;")
-        .contains("import com.example.grt.*;")
-        .doesNotContain("import com.example.tenant.*;")
-        .contains("public final class UserResolvers")
-        .contains(
+    assertTrue(generated.contains("package com.example.tenant.resolverbases;"));
+    assertTrue(generated.contains("import com.example.grt.*;"));
+    assertTrue(!generated.contains("import com.example.tenant.*;"));
+    assertTrue(generated.contains("public final class UserResolvers"));
+    assertTrue(
+        generated.contains(
             "@ResolverFor(typeName = \"User\", fieldName = \"profile\", isSelective = false,"
-                + " isBatching = false)")
-        .contains("public abstract static class Profile")
-        .contains(
+                + " isBatching = false)"));
+    assertTrue(generated.contains("public abstract static class Profile"));
+    assertTrue(
+        generated.contains(
             "implements FieldResolverBase<Profile, com.example.types.User, com.example.types.Query,"
-                + " Arguments.None, com.example.types.Profile>")
-        .contains("public static final class Context")
-        .contains("public abstract CompletableFuture<Profile> resolve(Context ctx)")
-        .doesNotContain("batchResolve");
+                + " Arguments.None, com.example.types.Profile>"));
+    assertTrue(generated.contains("public static final class Context"));
+    assertTrue(
+        generated.contains("public abstract CompletableFuture<Profile> resolve(Context ctx)"));
+    assertTrue(!generated.contains("batchResolve"));
   }
 
   @Test
@@ -72,14 +74,15 @@ class ResolverGeneratorTest {
 
     String generated = JavaResolverGenerator.generate(fileModel);
 
-    assertThat(generated)
-        .contains(
+    assertTrue(
+        generated.contains(
             "@ResolverFor(typeName = \"User\", fieldName = \"profile\", isSelective = false,"
-                + " isBatching = true)")
-        .contains(
+                + " isBatching = true)"));
+    assertTrue(
+        generated.contains(
             "public abstract CompletableFuture<Map<Context, Profile>> batchResolve(List<Context>"
-                + " contexts)")
-        .doesNotContain("CompletableFuture<Profile> resolve(Context ctx)");
+                + " contexts)"));
+    assertTrue(!generated.contains("CompletableFuture<Profile> resolve(Context ctx)"));
   }
 
   @Test
@@ -106,11 +109,11 @@ class ResolverGeneratorTest {
 
     String generated = JavaResolverGenerator.generate(fileModel);
 
-    assertThat(generated)
-        .contains(
+    assertTrue(
+        generated.contains(
             "@ResolverFor(typeName = \"Query\", fieldName = \"user\", isSelective = false,"
-                + " isBatching = false)")
-        .contains("com.example.types.Query_User_Arguments");
+                + " isBatching = false)"));
+    assertTrue(generated.contains("com.example.types.Query_User_Arguments"));
   }
 
   @Test
@@ -137,12 +140,12 @@ class ResolverGeneratorTest {
 
     String generated = JavaResolverGenerator.generate(fileModel);
 
-    assertThat(generated)
-        .contains(
+    assertTrue(
+        generated.contains(
             "@ResolverFor(typeName = \"Mutation\", fieldName = \"createUser\", isSelective = false,"
-                + " isBatching = false)")
-        .contains("public abstract CompletableFuture<User> resolve(Context ctx)")
-        .doesNotContain("batchResolve");
+                + " isBatching = false)"));
+    assertTrue(generated.contains("public abstract CompletableFuture<User> resolve(Context ctx)"));
+    assertTrue(!generated.contains("batchResolve"));
   }
 
   @Test
@@ -185,16 +188,17 @@ class ResolverGeneratorTest {
 
     String generated = JavaResolverGenerator.generate(fileModel);
 
-    assertThat(generated)
-        .contains("public final class UserResolvers")
-        .contains(
+    assertTrue(generated.contains("public final class UserResolvers"));
+    assertTrue(
+        generated.contains(
             "@ResolverFor(typeName = \"User\", fieldName = \"profile\", isSelective = false,"
-                + " isBatching = false)")
-        .contains("public abstract static class Profile")
-        .contains(
+                + " isBatching = false)"));
+    assertTrue(generated.contains("public abstract static class Profile"));
+    assertTrue(
+        generated.contains(
             "@ResolverFor(typeName = \"User\", fieldName = \"orders\", isSelective = false,"
-                + " isBatching = false)")
-        .contains("public abstract static class Orders");
+                + " isBatching = false)"));
+    assertTrue(generated.contains("public abstract static class Orders"));
   }
 
   @Test
@@ -221,12 +225,13 @@ class ResolverGeneratorTest {
 
     String generated = JavaResolverGenerator.generate(fileModel);
 
-    assertThat(generated)
-        .contains(
+    assertTrue(
+        generated.contains(
             "@ResolverFor(typeName = \"User\", fieldName = \"fullName\", isSelective = false,"
-                + " isBatching = false)")
-        .contains("CompositeOutput.None")
-        .contains("public abstract CompletableFuture<String> resolve(Context ctx)");
+                + " isBatching = false)"));
+    assertTrue(generated.contains("CompositeOutput.None"));
+    assertTrue(
+        generated.contains("public abstract CompletableFuture<String> resolve(Context ctx)"));
   }
 
   @Test
@@ -254,24 +259,29 @@ class ResolverGeneratorTest {
     String generated = JavaResolverGenerator.generate(fileModel);
 
     // Check that Context class has all required delegate methods
-    assertThat(generated)
-        .contains("public com.example.types.User getObjectValue()")
-        .contains("public com.example.types.Query getQueryValue()")
-        .contains("public Arguments.None getArguments()")
-        .contains(
+    assertTrue(generated.contains("public com.example.types.User getObjectValue()"));
+    assertTrue(generated.contains("public com.example.types.Query getQueryValue()"));
+    assertTrue(generated.contains("public Arguments.None getArguments()"));
+    assertTrue(
+        generated.contains(
             "@ResolverFor(typeName = \"User\", fieldName = \"profile\", isSelective = true,"
-                + " isBatching = false)")
-        .contains(
+                + " isBatching = false)"));
+    assertTrue(
+        generated.contains(
             "implements FieldResolverBase.Context<com.example.types.User, com.example.types.Query,"
                 + " Arguments.None, com.example.types.Profile>,"
-                + " SelectiveFieldExecutionContext<com.example.types.Profile>")
-        .contains("public Object getSelections()")
-        .contains(
+                + " SelectiveFieldExecutionContext<com.example.types.Profile>"));
+    assertTrue(generated.contains("public Object getSelections()"));
+    assertTrue(
+        generated.contains(
             "public <T extends NodeCompositeOutput> GlobalID<T> globalIDFor(Type<T> type, String"
-                + " internalID)")
-        .contains("public <T extends NodeCompositeOutput> String serialize(GlobalID<T> globalID)")
-        .contains("public Object getRequestContext()")
-        .contains("public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id)");
+                + " internalID)"));
+    assertTrue(
+        generated.contains(
+            "public <T extends NodeCompositeOutput> String serialize(GlobalID<T> globalID)"));
+    assertTrue(generated.contains("public Object getRequestContext()"));
+    assertTrue(
+        generated.contains("public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id)"));
   }
 
   @Test
@@ -299,19 +309,26 @@ class ResolverGeneratorTest {
     String generated = JavaResolverGenerator.generate(fileModel);
 
     // Check that Context has typed query() and mutation() convenience methods
-    assertThat(generated)
-        .contains("public CompletableFuture<com.example.types.Query> query(String selections)")
-        .contains(
+    assertTrue(
+        generated.contains(
+            "public CompletableFuture<com.example.types.Query> query(String selections)"));
+    assertTrue(
+        generated.contains(
             "public CompletableFuture<com.example.types.Query> query(String selections,"
-                + " Map<String, Object> variables)")
-        .contains(
-            "public CompletableFuture<com.example.types.Mutation> mutation(String selections)")
-        .contains(
+                + " Map<String, Object> variables)"));
+    assertTrue(
+        generated.contains(
+            "public CompletableFuture<com.example.types.Mutation> mutation(String selections)"));
+    assertTrue(
+        generated.contains(
             "public CompletableFuture<com.example.types.Mutation> mutation(String selections,"
-                + " Map<String, Object> variables)")
-        .contains("inner.query(selections, java.util.Map.of(), com.example.types.Query.class)")
-        .contains(
-            "inner.mutation(selections, java.util.Map.of(), com.example.types.Mutation.class)");
+                + " Map<String, Object> variables)"));
+    assertTrue(
+        generated.contains(
+            "inner.query(selections, java.util.Map.of(), com.example.types.Query.class)"));
+    assertTrue(
+        generated.contains(
+            "inner.mutation(selections, java.util.Map.of(), com.example.types.Mutation.class)"));
   }
 
   @Test
@@ -339,8 +356,9 @@ class ResolverGeneratorTest {
     String generated = JavaResolverGenerator.generate(fileModel);
 
     // Should have query() methods but not mutation() methods
-    assertThat(generated)
-        .contains("public CompletableFuture<com.example.types.Query> query(String selections)")
-        .doesNotContain("mutation(String selections)");
+    assertTrue(
+        generated.contains(
+            "public CompletableFuture<com.example.types.Query> query(String selections)"));
+    assertTrue(!generated.contains("mutation(String selections)"));
   }
 }

@@ -1,6 +1,6 @@
 package viaduct.x.javaapi.codegen;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -21,20 +21,20 @@ class InputGeneratorTest {
 
     String generated = JavaGRTGenerator.InputGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("package com.example.types;")
-        .contains("public class CreateUserInput extends InputBase")
-        .doesNotContain("implements GraphQLInput")
-        .contains(
+    assertTrue(generated.contains("package com.example.types;"));
+    assertTrue(generated.contains("public class CreateUserInput extends InputBase"));
+    assertTrue(!generated.contains("implements GraphQLInput"));
+    assertTrue(
+        generated.contains(
             "public CreateUserInput(InternalContext context, Map<String, Object> data,"
-                + " GraphQLInputObjectType graphQLInputObjectType)")
-        .contains("private final Map<String, Object> data = new LinkedHashMap<>")
-        .contains("public String getName()")
-        .contains("return get(\"name\")")
-        .doesNotContain("private String name;")
-        .doesNotContain("public void setName(")
-        .contains("public static Builder builder(ExecutionContext context)")
-        .contains("public static class Builder");
+                + " GraphQLInputObjectType graphQLInputObjectType)"));
+    assertTrue(generated.contains("private final Map<String, Object> data = new LinkedHashMap<>"));
+    assertTrue(generated.contains("public String getName()"));
+    assertTrue(generated.contains("return get(\"name\")"));
+    assertTrue(!generated.contains("private String name;"));
+    assertTrue(!generated.contains("public void setName("));
+    assertTrue(generated.contains("public static Builder builder(ExecutionContext context)"));
+    assertTrue(generated.contains("public static class Builder"));
   }
 
   @Test
@@ -48,11 +48,10 @@ class InputGeneratorTest {
 
     String generated = JavaGRTGenerator.InputGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("/**")
-        .contains(" * Input for creating a booking.")
-        .contains(" */")
-        .contains("public class CreateBookingInput");
+    assertTrue(generated.contains("/**"));
+    assertTrue(generated.contains(" * Input for creating a booking."));
+    assertTrue(generated.contains(" */"));
+    assertTrue(generated.contains("public class CreateBookingInput"));
   }
 
   @Test
@@ -70,11 +69,10 @@ class InputGeneratorTest {
 
     String generated = JavaGRTGenerator.InputGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public ListingType getListingType()")
-        .contains("return getEnum(\"listingType\", ListingType.class)")
-        .contains("public List<String> getAmenities()")
-        .contains("return get(\"amenities\")");
+    assertTrue(generated.contains("public ListingType getListingType()"));
+    assertTrue(generated.contains("return getEnum(\"listingType\", ListingType.class)"));
+    assertTrue(generated.contains("public List<String> getAmenities()"));
+    assertTrue(generated.contains("return get(\"amenities\")"));
   }
 
   @Test
@@ -90,11 +88,10 @@ class InputGeneratorTest {
 
     String generated = JavaGRTGenerator.InputGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public List<String> getTags()")
-        .contains("return getScalarList(\"tags\")")
-        .contains("public List<Integer> getIds()")
-        .contains("return getScalarList(\"ids\")");
+    assertTrue(generated.contains("public List<String> getTags()"));
+    assertTrue(generated.contains("return getScalarList(\"tags\")"));
+    assertTrue(generated.contains("public List<Integer> getIds()"));
+    assertTrue(generated.contains("return getScalarList(\"ids\")"));
   }
 
   @Test
@@ -112,11 +109,10 @@ class InputGeneratorTest {
 
     String generated = JavaGRTGenerator.InputGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public List<ItemInput> getNestedItems()")
-        .contains("return getInputList(\"nestedItems\", ItemInput::new)")
-        .contains("public List<Status> getStatuses()")
-        .contains("return getEnumList(\"statuses\", Status.class)");
+    assertTrue(generated.contains("public List<ItemInput> getNestedItems()"));
+    assertTrue(generated.contains("return getInputList(\"nestedItems\", ItemInput::new)"));
+    assertTrue(generated.contains("public List<Status> getStatuses()"));
+    assertTrue(generated.contains("return getEnumList(\"statuses\", Status.class)"));
   }
 
   @Test
@@ -134,15 +130,14 @@ class InputGeneratorTest {
 
     String generated = JavaGRTGenerator.InputGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public Instant getCreatedAt()")
-        .contains("return get(\"createdAt\", \"DateTime\")")
-        .contains("public LocalDate getEventDate()")
-        .contains("return get(\"eventDate\", \"Date\")")
-        .contains("public OffsetTime getStartTime()")
-        .contains("return get(\"startTime\", \"Time\")")
-        .contains("public String getLabel()")
-        .contains("return get(\"label\")");
+    assertTrue(generated.contains("public Instant getCreatedAt()"));
+    assertTrue(generated.contains("return get(\"createdAt\", \"DateTime\")"));
+    assertTrue(generated.contains("public LocalDate getEventDate()"));
+    assertTrue(generated.contains("return get(\"eventDate\", \"Date\")"));
+    assertTrue(generated.contains("public OffsetTime getStartTime()"));
+    assertTrue(generated.contains("return get(\"startTime\", \"Time\")"));
+    assertTrue(generated.contains("public String getLabel()"));
+    assertTrue(generated.contains("return get(\"label\")"));
   }
 
   @Test
@@ -158,9 +153,8 @@ class InputGeneratorTest {
 
     String generated = JavaGRTGenerator.InputGenerator.generate(model);
 
-    assertThat(generated)
-        .contains("public Builder name(String name)")
-        .contains("public Builder age(Integer age)")
-        .contains("public CreateUserInput build()");
+    assertTrue(generated.contains("public Builder name(String name)"));
+    assertTrue(generated.contains("public Builder age(Integer age)"));
+    assertTrue(generated.contains("public CreateUserInput build()"));
   }
 }

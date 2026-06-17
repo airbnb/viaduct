@@ -1,10 +1,10 @@
 package viaduct.gradle
 
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 import org.gradle.api.GradleException
 import org.gradle.testfixtures.ProjectBuilder
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -32,8 +32,8 @@ class ViaductApplicationExtensionTest {
     @Test
     fun `schemaScoping is empty by default`() {
         val scoping = extension.schemaScoping.get()
-        assertEquals(emptySet(), scoping.scopeUniverse)
-        assertEquals(emptyMap(), scoping.scopedSchemas)
+        assertEquals(emptySet<String>(), scoping.scopeUniverse)
+        assertEquals(emptyMap<String, Set<String>>(), scoping.scopedSchemas)
         assertFalse(scoping.isScoped)
     }
 
@@ -95,7 +95,7 @@ class ViaductApplicationExtensionTest {
 
         val schemas = extension.schemaScoping.get().scopedSchemas
         assertTrue(schemas.containsKey("FULL_ALIAS"))
-        assertEquals(emptySet(), schemas["FULL_ALIAS"])
+        assertEquals(emptySet<String>(), schemas["FULL_ALIAS"])
     }
 
     @Test
@@ -165,7 +165,7 @@ class ViaductApplicationExtensionTest {
 
         // First snapshot retains the state it captured: scoped-schemas map still empty.
         assertEquals(setOf("public", "internal"), first.scopeUniverse)
-        assertEquals(emptyMap(), first.scopedSchemas)
+        assertEquals(emptyMap<String, Set<String>>(), first.scopedSchemas)
 
         // Second snapshot reflects the additional declaration.
         assertEquals(setOf("public", "internal"), second.scopeUniverse)

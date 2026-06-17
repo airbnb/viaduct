@@ -3,6 +3,7 @@
 package viaduct.tenant.runtime.internal
 
 import graphql.schema.GraphQLObjectType
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -11,8 +12,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import strikt.api.expectThat
-import strikt.assertions.isA
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.internal.InternalContext
@@ -41,7 +40,7 @@ class NodeReferenceFactoryImplTest {
 
             val reflectionLoader = ReflectionLoaderImpl { TODO("unused") }
             val result = factory.nodeRef(globalId, InternalContextImpl(schema, GlobalIDCodecDefault, reflectionLoader, DefaultGRTConvFactory))
-            expectThat(result.__engineObject).isA<NodeReference>()
+            result.__engineObject.shouldBeInstanceOf<NodeReference>()
         }
 
     private fun createMockInternalContext(globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault): InternalContext =

@@ -93,14 +93,13 @@ dependencies {
     testImplementation(testFixtures(libs.viaduct.engine.api))
 
     /** Test dependencies - External **/
-    testImplementation(libs.assertj.core)
     testImplementation(libs.graphql.java.extension)
     testImplementation(libs.io.mockk.dsl)
     testImplementation(libs.io.mockk.jvm)
+    testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.kotest.property.jvm)
     testImplementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.strikt.core)
 
     /** JMH dependencies **/
     jmh(libs.jmh.annotation.processor)

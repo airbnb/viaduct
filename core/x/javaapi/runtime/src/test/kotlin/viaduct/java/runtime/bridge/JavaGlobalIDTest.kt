@@ -1,8 +1,11 @@
 package viaduct.java.runtime.bridge
 
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
-import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.NodeReference
 import viaduct.java.api.globalid.GlobalID
@@ -21,30 +24,30 @@ class JavaGlobalIDTest {
     @Test
     fun `JavaGlobalID returns the configured internal id`() {
         val gid = GlobalIDImpl<NodeObject>(type = nodeType("NodeObj"), internalId = "abc")
-        assertThat(gid.getInternalID()).isEqualTo("abc")
+        assertEquals("abc", gid.getInternalID())
     }
 
     @Test
     fun `JavaGlobalID returns the configured Type`() {
         val type = nodeType("NodeObj")
         val gid = GlobalIDImpl<NodeObject>(type = type, internalId = "abc")
-        assertThat(gid.getType()).isSameAs(type)
-        assertThat(gid.getType().name).isEqualTo("NodeObj")
+        assertSame(type, gid.getType())
+        assertEquals("NodeObj", gid.getType().name)
     }
 
     @Test
     fun `createGlobalID extension returns a JavaGlobalID with type and id`() {
         val gid: GlobalID<NodeObject> = GlobalIDCodecDefault.createGlobalID("NodeObj", "tenant1")
-        assertThat(gid).isInstanceOf(GlobalIDImpl::class.java)
-        assertThat(gid.getInternalID()).isEqualTo("tenant1")
-        assertThat(gid.getType().name).isEqualTo("NodeObj")
+        gid.shouldBeInstanceOf<GlobalIDImpl<*>>()
+        assertEquals("tenant1", gid.getInternalID())
+        assertEquals("NodeObj", gid.getType().name)
     }
 
     @Test
     fun `serializeGlobalID extension uses Type name from JavaGlobalID`() {
         val gid: GlobalID<NodeObject> = GlobalIDCodecDefault.createGlobalID("NodeObj", "tenant1")
         val serialized = GlobalIDCodecDefault.serializeGlobalID(gid)
-        assertThat(serialized).isEqualTo(GlobalIDCodecDefault.serialize("NodeObj", "tenant1"))
+        assertEquals(GlobalIDCodecDefault.serialize("NodeObj", "tenant1"), serialized)
     }
 
     @Test
@@ -57,7 +60,7 @@ class JavaGlobalIDTest {
             override fun getInternalID(): String = "id1"
         }
         val serialized = GlobalIDCodecDefault.serializeGlobalID(gid)
-        assertThat(serialized).isEqualTo(GlobalIDCodecDefault.serialize("OtherType", "id1"))
+        assertEquals(GlobalIDCodecDefault.serialize("OtherType", "id1"), serialized)
     }
 
     @Test
@@ -65,8 +68,8 @@ class JavaGlobalIDTest {
         val nodeReference = mockk<NodeReference>()
         every { nodeReference.id } returns "ref-id"
         val wrapper = NodeRefWrapper(null, nodeReference)
-        assertThat(wrapper.javaNodeReference).isSameAs(nodeReference)
-        assertThat(wrapper.javaEngineObjectData).isNull()
-        assertThat(wrapper.javaMapData).isNull()
+        assertSame(nodeReference, wrapper.javaNodeReference)
+        assertNull(wrapper.javaEngineObjectData)
+        assertNull(wrapper.javaMapData)
     }
 }

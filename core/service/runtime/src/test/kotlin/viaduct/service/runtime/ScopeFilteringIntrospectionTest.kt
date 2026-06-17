@@ -3,10 +3,10 @@
 package viaduct.service.runtime
 
 import io.mockk.mockk
-import kotlin.test.assertEquals
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.service.api.ExecutionInput

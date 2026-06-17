@@ -1,6 +1,6 @@
 package com.example.rrs
 
-import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.remote.config.EnvLookup
 
@@ -13,9 +13,9 @@ class RrsConfigurationTest {
     @Test
     fun `defaults when env is empty`() {
         val cfg = RrsConfiguration.fromEnvironment(envOf())
-        assertThat(cfg.port).isEqualTo(RrsConfiguration.DEFAULT_PORT)
-        assertThat(cfg.callbackHost).isEqualTo(RrsConfiguration.DEFAULT_CALLBACK_HOST)
-        assertThat(cfg.callbackPort).isEqualTo(RrsConfiguration.DEFAULT_CALLBACK_PORT)
+        assertEquals(RrsConfiguration.DEFAULT_PORT, cfg.port)
+        assertEquals(RrsConfiguration.DEFAULT_CALLBACK_HOST, cfg.callbackHost)
+        assertEquals(RrsConfiguration.DEFAULT_CALLBACK_PORT, cfg.callbackPort)
     }
 
     @Test
@@ -27,15 +27,15 @@ class RrsConfigurationTest {
                 RrsConfiguration.ENV_CALLBACK_PORT to "60002",
             )
         )
-        assertThat(cfg.port).isEqualTo(60001)
-        assertThat(cfg.callbackHost).isEqualTo("callback.example")
-        assertThat(cfg.callbackPort).isEqualTo(60002)
+        assertEquals(60001, cfg.port)
+        assertEquals("callback.example", cfg.callbackHost)
+        assertEquals(60002, cfg.callbackPort)
     }
 
     @Test
     fun `unparseable port falls back to default`() {
         val cfg = RrsConfiguration.fromEnvironment(envOf(RrsConfiguration.ENV_PORT to "not-a-port"))
-        assertThat(cfg.port).isEqualTo(RrsConfiguration.DEFAULT_PORT)
+        assertEquals(RrsConfiguration.DEFAULT_PORT, cfg.port)
     }
 
     @Test
@@ -49,29 +49,29 @@ class RrsConfigurationTest {
             arrayOf("--port", "70001", "--callback-host", "override.example", "--callback-port", "70002"),
             env,
         )
-        assertThat(cfg.port).isEqualTo(70001)
-        assertThat(cfg.callbackHost).isEqualTo("override.example")
-        assertThat(cfg.callbackPort).isEqualTo(70002)
+        assertEquals(70001, cfg.port)
+        assertEquals("override.example", cfg.callbackHost)
+        assertEquals(70002, cfg.callbackPort)
     }
 
     @Test
     fun `args inherit unspecified values from env`() {
         val env = envOf(RrsConfiguration.ENV_CALLBACK_HOST to "callback.example")
         val cfg = RrsConfiguration.fromArgs(arrayOf("--port", "70001"), env)
-        assertThat(cfg.port).isEqualTo(70001)
-        assertThat(cfg.callbackHost).isEqualTo("callback.example")
-        assertThat(cfg.callbackPort).isEqualTo(RrsConfiguration.DEFAULT_CALLBACK_PORT)
+        assertEquals(70001, cfg.port)
+        assertEquals("callback.example", cfg.callbackHost)
+        assertEquals(RrsConfiguration.DEFAULT_CALLBACK_PORT, cfg.callbackPort)
     }
 
     @Test
     fun `unknown args are skipped`() {
         val cfg = RrsConfiguration.fromArgs(arrayOf("--port", "70001", "--bogus", "value"), envOf())
-        assertThat(cfg.port).isEqualTo(70001)
+        assertEquals(70001, cfg.port)
     }
 
     @Test
     fun `unparseable arg port falls back to env or default`() {
         val cfg = RrsConfiguration.fromArgs(arrayOf("--port", "not-a-port"), envOf())
-        assertThat(cfg.port).isEqualTo(RrsConfiguration.DEFAULT_PORT)
+        assertEquals(RrsConfiguration.DEFAULT_PORT, cfg.port)
     }
 }

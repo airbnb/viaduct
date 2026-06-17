@@ -17,5 +17,4 @@ dependencies {
     testImplementation(libs.graphql.java)
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.junit)
-    testImplementation(libs.kotlin.test)
 }

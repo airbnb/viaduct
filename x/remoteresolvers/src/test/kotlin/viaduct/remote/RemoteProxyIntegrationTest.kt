@@ -4,10 +4,11 @@ package viaduct.remote
 
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -63,8 +64,8 @@ class RemoteProxyIntegrationTest {
             val result = results[selector]
 
             // Verify the result
-            assertTrue(result != null)
-            assertTrue(result.isSuccess)
+            assertNotNull(result)
+            assertTrue(result!!.isSuccess)
             val userData = result.getOrNull()
             assertEquals("user:1", userData?.fetch("id"))
             assertEquals("Alice", userData?.fetch("name"))
@@ -115,8 +116,8 @@ class RemoteProxyIntegrationTest {
 
             // Verify the result came through the proxy
             val result = results[selector]
-            assertTrue(result != null)
-            assertTrue(result.isSuccess)
+            assertNotNull(result)
+            assertTrue(result!!.isSuccess)
 
             val userData = result.getOrNull()
             assertEquals("user:3", userData?.fetch("id"))
@@ -140,8 +141,8 @@ class RemoteProxyIntegrationTest {
             val result = results[selector]
 
             // Should return failure
-            assertTrue(result != null)
-            assertFalse(result.isSuccess)
+            assertNotNull(result)
+            assertFalse(result!!.isSuccess)
             assertTrue(result.exceptionOrNull() is NoSuchElementException)
         }
 
@@ -208,12 +209,12 @@ class RemoteProxyIntegrationTest {
 
                 // 9. Verify: Check the result came back correctly through the full gRPC round-trip
                 val result = results[selector]
-                assertTrue(result != null, "Result should not be null")
-                assertTrue(result.isSuccess, "Result should be success")
+                assertNotNull(result, "Result should not be null")
+                assertTrue(result!!.isSuccess, "Result should be success")
 
                 val userData = result.getOrNull()
-                assertTrue(userData != null, "User data should not be null")
-                assertEquals("user:1", userData.fetch("id"), "ID should match")
+                assertNotNull(userData, "User data should not be null")
+                assertEquals("user:1", userData!!.fetch("id"), "ID should match")
                 assertEquals("Alice", userData.fetch("name"), "Name should match")
                 assertEquals("alice@example.com", userData.fetch("email"), "Email should match")
 
@@ -237,12 +238,12 @@ class RemoteProxyIntegrationTest {
                 val errorResults = remoteProxy.resolve(listOf(missingSelector), context)
                 val errorResult = errorResults[missingSelector]
 
-                assertTrue(errorResult != null, "Error result should not be null")
-                assertFalse(errorResult.isSuccess, "Error result should be failure")
+                assertNotNull(errorResult, "Error result should not be null")
+                assertFalse(errorResult!!.isSuccess, "Error result should be failure")
                 val exception = errorResult.exceptionOrNull()
                 assertTrue(exception is RemoteResolverException, "Should be RemoteResolverException")
                 assertTrue(
-                    exception.message?.contains("NoSuchElementException") == true,
+                    exception!!.message?.contains("NoSuchElementException") == true,
                     "Error message should mention NoSuchElementException"
                 )
             } finally {

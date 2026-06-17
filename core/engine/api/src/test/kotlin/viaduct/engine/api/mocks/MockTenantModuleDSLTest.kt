@@ -2,9 +2,9 @@
 
 package viaduct.engine.api.mocks
 
+import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -54,7 +54,7 @@ class MockTenantModuleDSLTest {
                 }
             }
         }
-        assertInstanceOf(NodeEngineObjectData::class.java, module.resolveField(coord))
+        module.resolveField(coord).shouldBeInstanceOf<NodeEngineObjectData>()
     }
 
     @Test
@@ -91,7 +91,7 @@ class MockTenantModuleDSLTest {
             }
         }
         val result = module.checkField(coord)
-        assertInstanceOf(MockCheckerErrorResult::class.java, result)
+        result.shouldBeInstanceOf<MockCheckerErrorResult>()
         assertNotNull(myException)
         assertSame(myException, (result as MockCheckerErrorResult).error)
     }

@@ -2,11 +2,14 @@
 
 package viaduct.java.runtime.bridge
 
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.runBlocking
-import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
@@ -48,10 +51,10 @@ class JavaNodeResolverExecutorTest {
 
             val result = executor.resolve(listOf(selector()), mockEngineContext())
 
-            assertThat(result).hasSize(1)
+            assertEquals(1, result.size)
             val value = result.values.single()
-            assertThat(value.isSuccess).isTrue()
-            assertThat(value.getOrNull()).isEqualTo(engineData)
+            assertTrue(value.isSuccess)
+            assertEquals(engineData, value.getOrNull())
         }
 
     @Test
@@ -71,7 +74,7 @@ class JavaNodeResolverExecutorTest {
 
             executor.resolve(listOf(selector(serializedId)), mockEngineContext())
 
-            assertThat(capturedInternalId).isEqualTo("abc-456")
+            assertEquals("abc-456", capturedInternalId)
         }
 
     @Test
@@ -88,12 +91,11 @@ class JavaNodeResolverExecutorTest {
 
             val result = executor.resolve(listOf(selector()), mockEngineContext())
 
-            assertThat(result).hasSize(1)
+            assertEquals(1, result.size)
             val value = result.values.single()
-            assertThat(value.isFailure).isTrue()
-            assertThat(value.exceptionOrNull())
-                .isInstanceOf(TenantResolverException::class.java)
-                .hasRootCauseMessage("node fetch failed")
+            assertTrue(value.isFailure)
+            val ex = value.exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
+            assertEquals("node fetch failed", generateSequence(ex.cause) { it.cause }.last().message)
         }
 
     @Test
@@ -104,10 +106,10 @@ class JavaNodeResolverExecutorTest {
             resolverName = "TestNodeResolver",
         )
 
-        assertThat(executor.typeName).isEqualTo("TestType")
-        assertThat(executor.metadata.name).isEqualTo("TestNodeResolver")
-        assertThat(executor.isBatching).isFalse()
-        assertThat(executor.isSelective).isFalse()
+        assertEquals("TestType", executor.typeName)
+        assertEquals("TestNodeResolver", executor.metadata.name)
+        assertFalse(executor.isBatching)
+        assertFalse(executor.isSelective)
     }
 
     @Test
@@ -133,11 +135,11 @@ class JavaNodeResolverExecutorTest {
             val selectors = listOf(selector(id1), selector(id2))
             val result = executor.resolve(selectors, mockEngineContext())
 
-            assertThat(result).hasSize(2)
-            assertThat(result[selectors[0]]!!.isSuccess).isTrue()
-            assertThat(result[selectors[0]]!!.getOrNull()).isEqualTo(engineData1)
-            assertThat(result[selectors[1]]!!.isSuccess).isTrue()
-            assertThat(result[selectors[1]]!!.getOrNull()).isEqualTo(engineData2)
+            assertEquals(2, result.size)
+            assertTrue(result[selectors[0]]!!.isSuccess)
+            assertEquals(engineData1, result[selectors[0]]!!.getOrNull())
+            assertTrue(result[selectors[1]]!!.isSuccess)
+            assertEquals(engineData2, result[selectors[1]]!!.getOrNull())
         }
 
     @Test
@@ -162,13 +164,12 @@ class JavaNodeResolverExecutorTest {
             val selectors = listOf(selector(id1), selector(id2))
             val result = executor.resolve(selectors, mockEngineContext())
 
-            assertThat(result[selectors[0]]!!.isSuccess).isTrue()
-            assertThat(result[selectors[1]]!!.isFailure).isTrue()
+            assertTrue(result[selectors[0]]!!.isSuccess)
+            assertTrue(result[selectors[1]]!!.isFailure)
             // The error from FieldValue.ofError is rethrown by FieldValue.get() and wrapped in
             // TenantResolverException (mirrors Kotlin NodeBatchResolverExecutorImpl).
-            assertThat(result[selectors[1]]!!.exceptionOrNull())
-                .isInstanceOf(TenantResolverException::class.java)
-                .hasRootCauseMessage("boom")
+            val ex = result[selectors[1]]!!.exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
+            assertEquals("boom", generateSequence(ex.cause) { it.cause }.last().message)
         }
 
     @Test
@@ -179,9 +180,9 @@ class JavaNodeResolverExecutorTest {
             resolverName = "TestBatchNodeResolver",
         )
 
-        assertThat(executor.typeName).isEqualTo("TestType")
-        assertThat(executor.isBatching).isTrue()
-        assertThat(executor.isSelective).isFalse()
+        assertEquals("TestType", executor.typeName)
+        assertTrue(executor.isBatching)
+        assertFalse(executor.isSelective)
     }
 
     @Test
@@ -225,10 +226,9 @@ class JavaNodeResolverExecutorTest {
 
             val result = executor.resolve(listOf(selector()), mockEngineContext())
             val value = result.values.single()
-            assertThat(value.isFailure).isTrue()
-            assertThat(value.exceptionOrNull())
-                .isInstanceOf(TenantUsageException::class.java)
-                .hasMessageContaining("not a GRT for a node object")
+            assertTrue(value.isFailure)
+            val ex = value.exceptionOrNull().shouldBeInstanceOf<TenantUsageException>()
+            assertTrue(ex.message!!.contains("not a GRT for a node object"))
         }
 
     @Test
@@ -244,10 +244,9 @@ class JavaNodeResolverExecutorTest {
 
             val result = executor.resolve(listOf(selector()), mockEngineContext())
             val value = result.values.single()
-            assertThat(value.isFailure).isTrue()
-            assertThat(value.exceptionOrNull())
-                .isInstanceOf(TenantUsageException::class.java)
-                .hasMessageContaining("NodeReference returned from node resolver")
+            assertTrue(value.isFailure)
+            val ex = value.exceptionOrNull().shouldBeInstanceOf<TenantUsageException>()
+            assertTrue(ex.message!!.contains("NodeReference returned from node resolver"))
         }
 
     @Test
@@ -263,10 +262,9 @@ class JavaNodeResolverExecutorTest {
 
             val result = executor.resolve(listOf(selector()), mockEngineContext())
             val value = result.values.single()
-            assertThat(value.isFailure).isTrue()
-            assertThat(value.exceptionOrNull())
-                .isInstanceOf(TenantResolverException::class.java)
-                .hasRootCauseInstanceOf(TenantUsageException::class.java)
+            assertTrue(value.isFailure)
+            val ex = value.exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
+            generateSequence(ex.cause) { it.cause }.last().shouldBeInstanceOf<TenantUsageException>()
         }
 
     @Test
@@ -283,10 +281,9 @@ class JavaNodeResolverExecutorTest {
 
             val result = executor.resolve(listOf(selector()), mockEngineContext())
             val value = result.values.single()
-            assertThat(value.isFailure).isTrue()
-            assertThat(value.exceptionOrNull())
-                .isInstanceOf(TenantResolverException::class.java)
-                .hasRootCauseInstanceOf(TenantUsageException::class.java)
+            assertTrue(value.isFailure)
+            val ex = value.exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
+            generateSequence(ex.cause) { it.cause }.last().shouldBeInstanceOf<TenantUsageException>()
         }
 
     @Test
@@ -305,9 +302,8 @@ class JavaNodeResolverExecutorTest {
 
             val result = executor.resolve(listOf(selector()), mockEngineContext())
             val value = result.values.single()
-            assertThat(value.isFailure).isTrue()
-            assertThat(value.exceptionOrNull())
-                .isInstanceOf(TenantResolverException::class.java)
-                .hasRootCauseInstanceOf(TenantUsageException::class.java)
+            assertTrue(value.isFailure)
+            val ex = value.exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
+            generateSequence(ex.cause) { it.cause }.last().shouldBeInstanceOf<TenantUsageException>()
         }
 }

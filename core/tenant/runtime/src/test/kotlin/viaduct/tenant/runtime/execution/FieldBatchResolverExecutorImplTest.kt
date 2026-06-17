@@ -2,12 +2,12 @@
 
 package viaduct.tenant.runtime.execution
 
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
 import javax.inject.Provider
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -63,7 +63,7 @@ class FieldBatchResolverExecutorImplTest {
             }
         }
 
-        val cause = assertInstanceOf(TenantUsageException::class.java, thrown.cause)
+        val cause = thrown.cause.shouldBeInstanceOf<TenantUsageException>()
         assertTrue(cause.message!!.contains("was given a batch of size 2 but returned 1 elements"))
         assertEquals("Query.batchedField", thrown.resolver)
     }
@@ -78,8 +78,8 @@ class FieldBatchResolverExecutorImplTest {
                 executor.batchResolve(listOf(selector), engineExecutionContext)
             }
 
-        val thrown = assertInstanceOf(TenantResolverException::class.java, result.getValue(selector).exceptionOrNull())
-        val cause = assertInstanceOf(TenantUsageException::class.java, thrown.cause)
+        val thrown = result.getValue(selector).exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
+        val cause = thrown.cause.shouldBeInstanceOf<TenantUsageException>()
         assertTrue(cause.message!!.contains("Unexpected result type that is not a FieldValue"))
         assertEquals("Query.batchedField", thrown.resolver)
     }

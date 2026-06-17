@@ -1,7 +1,10 @@
 package ktlint
 
 import com.pinterest.ktlint.rule.engine.core.api.Rule
-import org.assertj.core.api.Assertions.assertThat
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.collections.shouldNotBeEmpty
+import io.kotest.matchers.string.shouldContain
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.MessageRenderer
 import org.jetbrains.kotlin.cli.common.messages.PrintingMessageCollector
@@ -76,14 +79,14 @@ class KtlintRulesTest {
     @Test
     fun `NoPrintln - flags println in gradle kts`() {
         lint("test.gradle.kts", """println("hello")""", NoPrintlnInGradleRule())
-        assertThat(violations).isNotEmpty
-        assertThat(violations.first().second).contains("logger")
+        violations.shouldNotBeEmpty()
+        violations.first().second.shouldContain("logger")
     }
 
     @Test
     fun `NoPrintln - ignores println in regular kt file`() {
         lint("Test.kt", """fun foo() { println("hello") }""", NoPrintlnInGradleRule())
-        assertThat(violations).isEmpty()
+        violations.shouldBeEmpty()
     }
 
     // --- NoStringDependenciesInGradleRule ---
@@ -99,8 +102,8 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isNotEmpty
-        assertThat(violations.first().second).contains("raw string literals")
+        violations.shouldNotBeEmpty()
+        violations.first().second.shouldContain("raw string literals")
     }
 
     @Test
@@ -114,8 +117,8 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isNotEmpty
-        assertThat(violations.first().second).contains("group/name/version")
+        violations.shouldNotBeEmpty()
+        violations.first().second.shouldContain("group/name/version")
     }
 
     @Test
@@ -129,7 +132,7 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isEmpty()
+        violations.shouldBeEmpty()
     }
 
     @Test
@@ -143,7 +146,7 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isEmpty()
+        violations.shouldBeEmpty()
     }
 
     @Test
@@ -153,7 +156,7 @@ class KtlintRulesTest {
             """val x = "com.example:foo:1.0"""",
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isEmpty()
+        violations.shouldBeEmpty()
     }
 
     @Test
@@ -167,8 +170,8 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isNotEmpty
-        assertThat(violations.first().second).contains("raw string literals")
+        violations.shouldNotBeEmpty()
+        violations.first().second.shouldContain("raw string literals")
     }
 
     @Test
@@ -182,8 +185,8 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isNotEmpty
-        assertThat(violations.first().second).contains("raw string literals")
+        violations.shouldNotBeEmpty()
+        violations.first().second.shouldContain("raw string literals")
     }
 
     @Test
@@ -197,7 +200,7 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isEmpty()
+        violations.shouldBeEmpty()
     }
 
     @Test
@@ -211,7 +214,7 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isEmpty()
+        violations.shouldBeEmpty()
     }
 
     // --- NoPrintlnInGradleRule additional cases ---
@@ -227,8 +230,8 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoPrintlnInGradleRule(),
         )
-        assertThat(violations).isNotEmpty
-        assertThat(violations.first().second).contains("logger")
+        violations.shouldNotBeEmpty()
+        violations.first().second.shouldContain("logger")
     }
 
     @Test
@@ -241,7 +244,7 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoPrintlnInGradleRule(),
         )
-        assertThat(violations).hasSize(2)
+        violations.shouldHaveSize(2)
     }
 
     @Test
@@ -251,7 +254,7 @@ class KtlintRulesTest {
             """logger.lifecycle("hello")""",
             NoPrintlnInGradleRule(),
         )
-        assertThat(violations).isEmpty()
+        violations.shouldBeEmpty()
     }
 
     // --- NoStringDependenciesInGradleRule additional cases ---
@@ -267,7 +270,7 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isNotEmpty
+        violations.shouldNotBeEmpty()
     }
 
     @Test
@@ -281,7 +284,7 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isNotEmpty
+        violations.shouldNotBeEmpty()
     }
 
     @Test
@@ -295,7 +298,7 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isEmpty()
+        violations.shouldBeEmpty()
     }
 
     @Test
@@ -310,7 +313,7 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isEmpty()
+        violations.shouldBeEmpty()
     }
 
     @Test
@@ -324,7 +327,7 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isEmpty()
+        violations.shouldBeEmpty()
     }
 
     @Test
@@ -338,7 +341,7 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isEmpty()
+        violations.shouldBeEmpty()
     }
 
     @Test
@@ -352,7 +355,7 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isNotEmpty
+        violations.shouldNotBeEmpty()
     }
 
     @Test
@@ -366,7 +369,7 @@ class KtlintRulesTest {
             """.trimIndent(),
             NoStringDependenciesInGradleRule(),
         )
-        assertThat(violations).isNotEmpty
+        violations.shouldNotBeEmpty()
     }
 
     // --- CoroutinesDependencyUsageRule ---
@@ -382,8 +385,8 @@ class KtlintRulesTest {
             """.trimIndent(),
             CoroutinesDependencyUsageRule(),
         )
-        assertThat(violations).hasSize(1)
-        assertThat(violations.first().second).contains("test-scoped configurations")
+        violations.shouldHaveSize(1)
+        violations.first().second.shouldContain("test-scoped configurations")
     }
 
     @Test
@@ -397,7 +400,7 @@ class KtlintRulesTest {
             """.trimIndent(),
             CoroutinesDependencyUsageRule(),
         )
-        assertThat(violations).isEmpty()
+        violations.shouldBeEmpty()
     }
 
     @Test
@@ -411,7 +414,7 @@ class KtlintRulesTest {
             """.trimIndent(),
             CoroutinesDependencyUsageRule(),
         )
-        assertThat(violations).isEmpty()
+        violations.shouldBeEmpty()
     }
 
     @Test
@@ -425,6 +428,6 @@ class KtlintRulesTest {
             """.trimIndent(),
             CoroutinesDependencyUsageRule(),
         )
-        assertThat(violations).isEmpty()
+        violations.shouldBeEmpty()
     }
 }

@@ -1,39 +1,32 @@
 package viaduct.service.api.spi
 
+import io.kotest.matchers.types.shouldBeInstanceOf
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import strikt.api.expectCatching
-import strikt.api.expectThat
-import strikt.assertions.isA
-import strikt.assertions.isEqualTo
-import strikt.assertions.isFailure
+import org.junit.jupiter.api.assertThrows
 
 class NaiveCodeInjectorTests {
     private val subject = CodeInjector.Naive as NaiveCodeInjector
 
     @Test
     fun `When good fixture then succeed`() {
-        expectThat(subject.getProvider(GoodFixture::class.java).get())
-            .isA<GoodFixture>()
-            .get { f }
-            .isEqualTo(1)
+        val result = subject.getProvider(GoodFixture::class.java).get().shouldBeInstanceOf<GoodFixture>()
+        assertEquals(1, result.f)
     }
 
     @Test
     fun `When constructor is inaccessible then fail`() {
-        expectCatching { subject.getProvider(BadFixtureNotAccessible::class.java).get() }
-            .isFailure()
+        assertThrows<Exception> { subject.getProvider(BadFixtureNotAccessible::class.java).get() }
     }
 
     @Test
     fun `When no no-arg constructor then fail`() {
-        expectCatching { subject.getProvider(BadFixtureNoNoArgs::class.java).get() }
-            .isFailure()
+        assertThrows<Exception> { subject.getProvider(BadFixtureNoNoArgs::class.java).get() }
     }
 
     @Test
     fun `When interface then fail`() {
-        expectCatching { subject.getProvider(BadFixtureNoNoArgs::class.java).get() }
-            .isFailure()
+        assertThrows<Exception> { subject.getProvider(BadFixtureNoNoArgs::class.java).get() }
     }
 
     @Test
@@ -41,8 +34,6 @@ class NaiveCodeInjectorTests {
         subject.constructorCache.computeIfAbsent(BadFixtureKey::class.java) {
             GoodFixture::class.java.getDeclaredConstructor()
         }
-        expectCatching { subject.getProvider(BadFixtureKey::class.java).get() }
-            .isFailure()
-            .isA<IllegalStateException>()
+        assertThrows<IllegalStateException> { subject.getProvider(BadFixtureKey::class.java).get() }
     }
 }

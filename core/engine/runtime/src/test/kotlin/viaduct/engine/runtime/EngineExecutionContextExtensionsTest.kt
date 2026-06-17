@@ -5,13 +5,13 @@ import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLObjectType
 import io.mockk.mockk
 import java.util.function.Supplier
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNotSame
-import kotlin.test.assertNull
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotSame
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.CompleteSelectionSetOptions
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.Engine
@@ -286,7 +286,7 @@ class EngineExecutionContextExtensionsTest {
             override fun hasModernNodeResolver(typeName: String) = false
         }
 
-        val exception = assertFailsWith<IllegalStateException> {
+        val exception = assertThrows<IllegalStateException> {
             fakeContext.selectiveOERKeysEnabled
         }
         assertTrue(exception.message!!.contains("Expected InternalEngineExecutionContext"))

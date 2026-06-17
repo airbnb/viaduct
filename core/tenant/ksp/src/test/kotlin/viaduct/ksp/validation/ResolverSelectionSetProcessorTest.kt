@@ -16,8 +16,8 @@ import io.mockk.mockk
 import io.mockk.verify
 import java.io.ByteArrayOutputStream
 import java.io.File
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -562,12 +562,12 @@ class ResolverSelectionSetProcessorTest {
     inner class ParseVariableNamesFromTypes {
         @Test
         fun `empty list returns empty set`() {
-            assertEquals(emptySet(), parseVariableNamesFromTypes(emptyList()))
+            assertEquals(emptySet<String>(), parseVariableNamesFromTypes(emptyList()))
         }
 
         @Test
         fun `blank entries are filtered out`() {
-            assertEquals(emptySet(), parseVariableNamesFromTypes(listOf("", " ", "\t")))
+            assertEquals(emptySet<String>(), parseVariableNamesFromTypes(listOf("", " ", "\t")))
         }
 
         @Test

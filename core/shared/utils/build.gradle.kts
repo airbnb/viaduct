@@ -15,7 +15,6 @@ dependencies {
     implementation(libs.slf4j.api)
 
     testImplementation(libs.kotest.assertions.shared)
-    testImplementation(libs.guava.testlib)
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.kotest.property.jvm)
 

@@ -1,12 +1,18 @@
 package viaduct.gradle.testing.incremental
 
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.string.shouldContain
 import java.io.File
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.gradle.api.file.FileType
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.work.ChangeType
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 
 class IncTestFSTest {
@@ -31,8 +37,8 @@ class IncTestFSTest {
         )
         IncTestFS(root, tree)
 
-        assertThat(File(root, "sub/a.txt")).exists()
-        assertThat(File(root, "sub/b.txt")).exists()
+        assertTrue(File(root, "sub/a.txt").exists())
+        assertTrue(File(root, "sub/b.txt").exists())
     }
 
     // ── toChanges: basic change collection ──────────────────────────────────
@@ -53,7 +59,7 @@ class IncTestFSTest {
         )
         val fs = IncTestFS(root, tree)
 
-        assertThat(fs.toChanges("sub")).isEmpty()
+        fs.toChanges("sub").shouldBeEmpty()
     }
 
     @Test
@@ -72,9 +78,9 @@ class IncTestFSTest {
         val fs = IncTestFS(root, tree)
         val changes = fs.toChanges("sub")
 
-        assertThat(changes).hasSize(1)
-        assertThat(changes[0].changeType).isEqualTo(ChangeType.ADDED)
-        assertThat(changes[0].fileType).isEqualTo(FileType.FILE)
+        changes.shouldHaveSize(1)
+        assertEquals(ChangeType.ADDED, changes[0].changeType)
+        assertEquals(FileType.FILE, changes[0].fileType)
     }
 
     @Test
@@ -93,8 +99,8 @@ class IncTestFSTest {
         val fs = IncTestFS(root, tree)
         val changes = fs.toChanges("sub")
 
-        assertThat(changes).hasSize(1)
-        assertThat(changes[0].changeType).isEqualTo(ChangeType.MODIFIED)
+        changes.shouldHaveSize(1)
+        assertEquals(ChangeType.MODIFIED, changes[0].changeType)
     }
 
     @Test
@@ -113,9 +119,9 @@ class IncTestFSTest {
         val fs = IncTestFS(root, tree)
         val changes = fs.toChanges("sub")
 
-        assertThat(changes).hasSize(1)
-        assertThat(changes[0].changeType).isEqualTo(ChangeType.REMOVED)
-        assertThat(changes[0].file).doesNotExist()
+        changes.shouldHaveSize(1)
+        assertEquals(ChangeType.REMOVED, changes[0].changeType)
+        assertFalse(changes[0].file.exists())
     }
 
     @Test
@@ -137,8 +143,8 @@ class IncTestFSTest {
         val fs = IncTestFS(root, tree)
         val changes = fs.toChanges("sub")
 
-        assertThat(changes).hasSize(3)
-        assertThat(changes.map { it.changeType }).containsExactly(
+        changes.shouldHaveSize(3)
+        changes.map { it.changeType }.shouldContainExactly(
             ChangeType.ADDED,
             ChangeType.MODIFIED,
             ChangeType.REMOVED,
@@ -167,9 +173,9 @@ class IncTestFSTest {
         val fs = IncTestFS(root, tree)
         val changes = fs.toChanges("sub")
 
-        assertThat(changes).hasSize(1)
-        assertThat(changes[0].file.name).isEqualTo("leaf.json")
-        assertThat(changes[0].fileType).isEqualTo(FileType.FILE)
+        changes.shouldHaveSize(1)
+        assertEquals("leaf.json", changes[0].file.name)
+        assertEquals(FileType.FILE, changes[0].fileType)
     }
 
     @Test
@@ -200,8 +206,8 @@ class IncTestFSTest {
         val fs = IncTestFS(root, tree)
         val changes = fs.toChanges("sub")
 
-        assertThat(changes).hasSize(1)
-        assertThat(changes[0].file.name).isEqualTo("deep.json")
+        changes.shouldHaveSize(1)
+        assertEquals("deep.json", changes[0].file.name)
     }
 
     @Test
@@ -213,7 +219,7 @@ class IncTestFSTest {
         )
         val fs = IncTestFS(root, tree)
 
-        assertThat(fs.toChanges("empty")).isEmpty()
+        fs.toChanges("empty").shouldBeEmpty()
     }
 
     @Test
@@ -234,7 +240,7 @@ class IncTestFSTest {
         val fs = IncTestFS(root, tree)
         val changes = fs.toChanges("sub")
 
-        assertThat(changes.map { it.file.name }).containsExactly("z.json", "a.json", "m.json")
+        changes.map { it.file.name }.shouldContainExactly("z.json", "a.json", "m.json")
     }
 
     // ── toChanges: path resolution ──────────────────────────────────────────
@@ -254,7 +260,7 @@ class IncTestFSTest {
         )
         val fs = IncTestFS(root, tree)
 
-        assertThat(fs.toChanges("schemas")).hasSize(1)
+        fs.toChanges("schemas").shouldHaveSize(1)
     }
 
     @Test
@@ -285,8 +291,8 @@ class IncTestFSTest {
         val fs = IncTestFS(root, tree)
         val changes = fs.toChanges("a/b/c")
 
-        assertThat(changes).hasSize(1)
-        assertThat(changes[0].file.name).isEqualTo("file.txt")
+        changes.shouldHaveSize(1)
+        assertEquals("file.txt", changes[0].file.name)
     }
 
     @Test
@@ -304,9 +310,8 @@ class IncTestFSTest {
         )
         val fs = IncTestFS(root, tree)
 
-        assertThatThrownBy { fs.toChanges("dir/leaf.txt/deeper") }
-            .isInstanceOf(IllegalStateException::class.java)
-            .hasMessageContaining("Expected directory")
+        val e1 = assertThrows<IllegalStateException> { fs.toChanges("dir/leaf.txt/deeper") }
+        e1.message!! shouldContain "Expected directory"
     }
 
     @Test
@@ -318,9 +323,8 @@ class IncTestFSTest {
         )
         val fs = IncTestFS(root, tree)
 
-        assertThatThrownBy { fs.toChanges("nonexistent") }
-            .isInstanceOf(IllegalStateException::class.java)
-            .hasMessageContaining("No child named")
+        val e2 = assertThrows<IllegalStateException> { fs.toChanges("nonexistent") }
+        e2.message!! shouldContain "No child named"
     }
 
     // ── toChanges: file paths ───────────────────────────────────────────────
@@ -348,7 +352,7 @@ class IncTestFSTest {
         val changes = fs.toChanges("sub")
 
         val expected = File(root, "sub/pkg/file.json")
-        assertThat(changes[0].file.canonicalPath).isEqualTo(expected.canonicalPath)
+        assertEquals(expected.canonicalPath, changes[0].file.canonicalPath)
     }
 
     // ── toChanges: PathSensitivity ──────────────────────────────────────────
@@ -375,7 +379,7 @@ class IncTestFSTest {
         val fs = IncTestFS(root, tree, PathSensitivity.RELATIVE)
         val changes = fs.toChanges("sub")
 
-        assertThat(changes[0].normalizedPath).isEqualTo("pkg${File.separator}f.json")
+        assertEquals("pkg${File.separator}f.json", changes[0].normalizedPath)
     }
 
     @Test
@@ -394,7 +398,7 @@ class IncTestFSTest {
         val fs = IncTestFS(root, tree, PathSensitivity.RELATIVE)
         val changes = fs.toChanges("sub")
 
-        assertThat(changes[0].normalizedPath).isEqualTo("direct.json")
+        assertEquals("direct.json", changes[0].normalizedPath)
     }
 
     @Test
@@ -419,7 +423,7 @@ class IncTestFSTest {
         val fs = IncTestFS(root, tree, PathSensitivity.NAME_ONLY)
         val changes = fs.toChanges("sub")
 
-        assertThat(changes[0].normalizedPath).isEqualTo("f.json")
+        assertEquals("f.json", changes[0].normalizedPath)
     }
 
     @Test
@@ -439,7 +443,7 @@ class IncTestFSTest {
         val changes = fs.toChanges("sub")
 
         val expected = File(root, "sub/f.json").absolutePath
-        assertThat(changes[0].normalizedPath).isEqualTo(expected)
+        assertEquals(expected, changes[0].normalizedPath)
     }
 
     @Test
@@ -459,6 +463,6 @@ class IncTestFSTest {
         val changes = fs.toChanges("sub")
 
         val expected = File(root, "sub/f.json").absolutePath
-        assertThat(changes[0].normalizedPath).isEqualTo(expected)
+        assertEquals(expected, changes[0].normalizedPath)
     }
 }

@@ -2,12 +2,12 @@
 
 package viaduct.engine.runtime.instrumentation.resolver
 
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
@@ -38,7 +38,7 @@ internal class InstrumentedEngineExecutionContextTest {
             val result = testClass.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.DEFAULT)
 
             // Then — result is wrapped so get callbacks fire on subsequent field access
-            assertInstanceOf(InstrumentedEngineObjectData.Sync::class.java, result)
+            result.shouldBeInstanceOf<InstrumentedEngineObjectData.Sync>()
             assertSame(rawObjectData, (result as InstrumentedEngineObjectData.Sync).engineObjectData)
         }
 

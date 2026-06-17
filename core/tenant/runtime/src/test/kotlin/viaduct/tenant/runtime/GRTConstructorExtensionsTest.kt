@@ -3,12 +3,12 @@
 package viaduct.tenant.runtime
 
 import graphql.schema.GraphQLInputObjectType
+import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.primaryConstructor
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -213,7 +213,7 @@ class GRTConstructorExtensionsTest {
     @Test
     fun `toObjectGRT - succeeds for FakeObject`() {
         val o = fakeEOD.toObjectGRT(ictx, FakeObject::class)
-        assertInstanceOf(FakeObject::class.java, o)
+        o.shouldBeInstanceOf<FakeObject>()
         runBlocking {
             assertEquals(42, o.get<Int>("i"))
         }
@@ -222,7 +222,7 @@ class GRTConstructorExtensionsTest {
     @Test
     fun `toObjectGRT - succeeds for FakeQuery`() {
         val o = fakeEOD.toObjectGRT(ictx, FakeQuery::class)
-        assertInstanceOf(FakeQuery::class.java, o)
+        o.shouldBeInstanceOf<FakeQuery>()
         runBlocking {
             assertEquals(true, o.get<Boolean>("s"))
         }
@@ -258,7 +258,7 @@ class GRTConstructorExtensionsTest {
     @Test
     fun `toInputLikeGRT - succeeds for FakeArguments`() {
         val args = fakeInputData.toInputLikeGRT(ictx, FakeArguments::class)
-        assertInstanceOf(FakeArguments::class.java, args)
+        args.shouldBeInstanceOf<FakeArguments>()
         assertEquals(99, args.get<Int>("i"))
     }
 

@@ -9,6 +9,7 @@ import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.parameters.InstrumentationFieldCompleteParameters
 import graphql.schema.DataFetcher
+import io.kotest.matchers.types.shouldBeInstanceOf
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
@@ -26,7 +27,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertNull
@@ -1549,7 +1549,7 @@ class ViaductExecutionStrategyTest {
                     hangingJobCancelled.await()
                 }
                 assertNotNull(cause)
-                assertInstanceOf(RequestScopeCancellationException::class.java, cause)
+                cause.shouldBeInstanceOf<RequestScopeCancellationException>()
                 Unit
             }
         }
@@ -1808,7 +1808,7 @@ class ViaductExecutionStrategyTest {
                 }
 
                 assertNotNull(cause)
-                assertInstanceOf(RequestScopeCancellationException::class.java, cause)
+                cause.shouldBeInstanceOf<RequestScopeCancellationException>()
                 Unit
             }
 
@@ -1949,7 +1949,7 @@ class ViaductExecutionStrategyTest {
                 }
 
                 assertNotNull(cause)
-                assertInstanceOf(RequestScopeCancellationException::class.java, cause)
+                cause.shouldBeInstanceOf<RequestScopeCancellationException>()
                 Unit
             }
     }

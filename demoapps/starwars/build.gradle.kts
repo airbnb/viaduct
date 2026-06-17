@@ -58,8 +58,6 @@ dependencies {
     testImplementation(enforcedPlatform(libs.junit.bom))
     testImplementation(libs.micronaut.test.kotest5)
     testImplementation(libs.junit.jupiter)
-    testImplementation(libs.assertj.core)
-
     testRuntimeOnly(libs.junit.platform.launcher)
 
     testImplementation(project(":modules:filmography"))

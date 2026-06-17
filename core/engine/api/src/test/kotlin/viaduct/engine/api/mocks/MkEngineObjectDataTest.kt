@@ -2,9 +2,9 @@
 
 package viaduct.engine.api.mocks
 
+import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -158,13 +158,13 @@ class MkEngineObjectDataTest {
         actual!!
         when (expected) {
             is List<*> -> {
-                assertInstanceOf(List::class.java, actual)
+                actual.shouldBeInstanceOf<List<*>>()
                 assertEquals(expected.size, (actual as List<*>).size)
                 expected.zip(actual) { e, a -> test(e, a) }
             }
             is EngineObjectData -> throw IllegalArgumentException("Expected values can't be EODs ($expected).")
             is Map<*, *> -> {
-                assertInstanceOf(ResolvedEngineObjectData::class.java, actual)
+                actual.shouldBeInstanceOf<ResolvedEngineObjectData>()
                 actual as ResolvedEngineObjectData
                 val actualKeys = runBlocking { actual.fetchSelections().toSet() }
                 assertEquals(expected.keys, actualKeys)

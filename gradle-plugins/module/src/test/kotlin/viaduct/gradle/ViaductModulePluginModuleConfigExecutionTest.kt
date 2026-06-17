@@ -1,11 +1,11 @@
 package viaduct.gradle
 
+import io.kotest.matchers.string.shouldContain
 import java.io.File
-import kotlin.test.Test
-import kotlin.test.assertContains
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 import org.gradle.testkit.runner.GradleRunner
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
 class ViaductModulePluginModuleConfigExecutionTest {
@@ -44,7 +44,7 @@ class ViaductModulePluginModuleConfigExecutionTest {
         assertTrue(greetingDescriptor.exists(), "Expected greeting descriptor to exist after initial build")
         assertFalse(authorDescriptor.exists(), "Did not expect author descriptor before its source file exists")
         assertTrue(moduleConfigFile.exists(), "Expected module config JSON to exist after initial build")
-        assertContains(moduleConfigFile.readText(), "GreetingResolver")
+        moduleConfigFile.readText() shouldContain "GreetingResolver"
         assertFalse(
             moduleConfigFile.readText().contains("AuthorResolver"),
             "Did not expect author resolver in module config before its source file exists",
@@ -55,8 +55,8 @@ class ViaductModulePluginModuleConfigExecutionTest {
         runModuleConfigBuild(skipKsp = false)
 
         assertTrue(authorDescriptor.exists(), "Expected author descriptor to exist after adding its source file")
-        assertContains(moduleConfigFile.readText(), "GreetingResolver")
-        assertContains(moduleConfigFile.readText(), "AuthorResolver")
+        moduleConfigFile.readText() shouldContain "GreetingResolver"
+        moduleConfigFile.readText() shouldContain "AuthorResolver"
 
         // After the real KSP path has produced descriptors in the current on-disk format, drive
         // the stale-output phases by mutating those descriptor inputs directly. This avoids
@@ -67,7 +67,7 @@ class ViaductModulePluginModuleConfigExecutionTest {
         runModuleConfigBuild(skipKsp = true)
 
         assertFalse(authorDescriptor.exists(), "Expected author descriptor to be removed after deleting its descriptor file")
-        assertContains(moduleConfigFile.readText(), "GreetingResolver")
+        moduleConfigFile.readText() shouldContain "GreetingResolver"
         assertFalse(
             moduleConfigFile.readText().contains("AuthorResolver"),
             "Did not expect author resolver in module config after deleting its descriptor file",

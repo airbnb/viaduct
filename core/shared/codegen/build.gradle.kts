@@ -18,7 +18,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.viaduct.shared.apiannotations)
 
-    testImplementation(libs.assertj.core)
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.kotest.assertions.shared)
     testImplementation(libs.kotlin.reflect)

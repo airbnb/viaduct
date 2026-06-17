@@ -8,9 +8,9 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.graphql.schema.SchemaWithData
 import viaduct.graphql.schema.ViaductSchema

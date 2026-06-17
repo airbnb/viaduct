@@ -4,11 +4,11 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlin.reflect.KClass
-import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.context.FieldExecutionContext

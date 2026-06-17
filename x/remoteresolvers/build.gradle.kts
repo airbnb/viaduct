@@ -65,7 +65,6 @@ dependencies {
     // Testing dependencies
     testImplementation(libs.junit)
     testImplementation(libs.kotest.assertions.core.jvm)
-    testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)
 
     // Test fixtures from Viaduct engine for mocks

@@ -1,6 +1,8 @@
 package viaduct.x.javaapi.codegen;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import org.junit.jupiter.api.BeforeEach;
@@ -69,102 +71,102 @@ class TypeMapperTest {
   void mapsStringType() {
     ViaductSchema.Field field = getQueryField("stringField");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("String");
-    assertThat(field.getType().isNullable()).isTrue();
+    assertEquals("String", mapper.toJavaType(field.getType()));
+    assertTrue(field.getType().isNullable());
   }
 
   @Test
   void mapsNonNullStringType() {
     ViaductSchema.Field field = getQueryField("nonNullStringField");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("String");
-    assertThat(field.getType().isNullable()).isFalse();
+    assertEquals("String", mapper.toJavaType(field.getType()));
+    assertFalse(field.getType().isNullable());
   }
 
   @Test
   void mapsIntType() {
     ViaductSchema.Field field = getQueryField("intField");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("Integer");
-    assertThat(field.getType().isNullable()).isTrue();
+    assertEquals("Integer", mapper.toJavaType(field.getType()));
+    assertTrue(field.getType().isNullable());
   }
 
   @Test
   void mapsNonNullIntType() {
     ViaductSchema.Field field = getQueryField("nonNullIntField");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("int");
-    assertThat(field.getType().isNullable()).isFalse();
+    assertEquals("int", mapper.toJavaType(field.getType()));
+    assertFalse(field.getType().isNullable());
   }
 
   @Test
   void mapsFloatType() {
     ViaductSchema.Field field = getQueryField("floatField");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("Double");
+    assertEquals("Double", mapper.toJavaType(field.getType()));
   }
 
   @Test
   void mapsNonNullFloatType() {
     ViaductSchema.Field field = getQueryField("nonNullFloatField");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("double");
+    assertEquals("double", mapper.toJavaType(field.getType()));
   }
 
   @Test
   void mapsBooleanType() {
     ViaductSchema.Field field = getQueryField("booleanField");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("Boolean");
+    assertEquals("Boolean", mapper.toJavaType(field.getType()));
   }
 
   @Test
   void mapsNonNullBooleanType() {
     ViaductSchema.Field field = getQueryField("nonNullBooleanField");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("boolean");
+    assertEquals("boolean", mapper.toJavaType(field.getType()));
   }
 
   @Test
   void mapsIdType() {
     ViaductSchema.Field field = getQueryField("idField");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("String");
+    assertEquals("String", mapper.toJavaType(field.getType()));
   }
 
   @Test
   void mapsCustomType() {
     ViaductSchema.Field field = getQueryField("userField");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("User");
+    assertEquals("User", mapper.toJavaType(field.getType()));
   }
 
   @Test
   void mapsListType() {
     ViaductSchema.Field field = getQueryField("listOfStrings");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("List<String>");
+    assertEquals("List<String>", mapper.toJavaType(field.getType()));
   }
 
   @Test
   void mapsNonNullListType() {
     ViaductSchema.Field field = getQueryField("nonNullListOfStrings");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("List<String>");
+    assertEquals("List<String>", mapper.toJavaType(field.getType()));
   }
 
   @Test
   void mapsListOfNonNullType() {
     ViaductSchema.Field field = getQueryField("listOfNonNullStrings");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("List<String>");
+    assertEquals("List<String>", mapper.toJavaType(field.getType()));
   }
 
   @Test
   void mapsListOfCustomType() {
     ViaductSchema.Field field = getQueryField("listOfUsers");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("List<User>");
+    assertEquals("List<User>", mapper.toJavaType(field.getType()));
   }
 
   @Test
@@ -172,7 +174,7 @@ class TypeMapperTest {
     // [Int!] should map to List<Integer>, not List<int> (primitives can't be generic type params)
     ViaductSchema.Field field = getQueryField("listOfNonNullInts");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("List<Integer>");
+    assertEquals("List<Integer>", mapper.toJavaType(field.getType()));
   }
 
   @Test
@@ -180,7 +182,7 @@ class TypeMapperTest {
     // [Float!] should map to List<Double>, not List<double>
     ViaductSchema.Field field = getQueryField("listOfNonNullFloats");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("List<Double>");
+    assertEquals("List<Double>", mapper.toJavaType(field.getType()));
   }
 
   @Test
@@ -188,7 +190,7 @@ class TypeMapperTest {
     // [Boolean!] should map to List<Boolean>, not List<boolean>
     ViaductSchema.Field field = getQueryField("listOfNonNullBooleans");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("List<Boolean>");
+    assertEquals("List<Boolean>", mapper.toJavaType(field.getType()));
   }
 
   @Test
@@ -196,6 +198,6 @@ class TypeMapperTest {
     // [[Int!]!] should map to List<List<Integer>>
     ViaductSchema.Field field = getQueryField("nestedList");
 
-    assertThat(mapper.toJavaType(field.getType())).isEqualTo("List<List<Integer>>");
+    assertEquals("List<List<Integer>>", mapper.toJavaType(field.getType()));
   }
 }

@@ -1,6 +1,6 @@
 package viaduct.tenant.runtime.execution.missingresolver.field
 
-import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.testing.TestSchema
@@ -28,8 +28,7 @@ abstract class MissingFieldResolverContractTest : KotlinFeatureAppTestContractBa
         val exception = assertThrows<MissingResolverImplementationException> {
             tryBuildViaductService()
         }
-        assertThat(exception.message)
-            .contains("Query.forgotten")
-            .contains("@Resolver")
+        assertTrue(exception.message!!.contains("Query.forgotten"))
+        assertTrue(exception.message!!.contains("@Resolver"))
     }
 }

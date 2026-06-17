@@ -8,11 +8,11 @@ import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
 import io.mockk.mockk
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest

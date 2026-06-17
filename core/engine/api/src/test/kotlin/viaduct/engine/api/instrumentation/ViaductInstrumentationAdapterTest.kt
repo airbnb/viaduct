@@ -13,9 +13,9 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import java.util.function.Supplier
-import kotlin.test.assertTrue
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.spi.CheckerExecutor

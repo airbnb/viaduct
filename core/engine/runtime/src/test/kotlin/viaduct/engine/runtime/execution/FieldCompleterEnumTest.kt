@@ -1,10 +1,10 @@
 package viaduct.engine.runtime.execution
 
 import graphql.schema.DataFetcher
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.executeViaductModernGraphQL
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest

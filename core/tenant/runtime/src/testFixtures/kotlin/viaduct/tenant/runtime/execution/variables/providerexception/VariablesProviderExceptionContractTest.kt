@@ -1,9 +1,7 @@
 package viaduct.tenant.runtime.execution.variables.providerexception
 
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import strikt.api.expectThat
-import strikt.assertions.contains
 import viaduct.api.testing.TestSchema
 import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
@@ -54,8 +52,9 @@ abstract class VariablesProviderExceptionContractTest : KotlinFeatureAppTestCont
 
         // expect that result.errors is not empty and contains the expected error message
         assertTrue(result.errors.isNotEmpty(), "Expected errors but found none")
-        expectThat(result.errors[0].message)
-            .describedAs("Expected error message to contain 'Variables provider failed!'")
-            .contains("Variables provider failed!")
+        assertTrue(
+            result.errors[0].message?.contains("Variables provider failed!") == true,
+            "Expected error message to contain 'Variables provider failed!'"
+        )
     }
 }

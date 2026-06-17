@@ -1,6 +1,6 @@
 package viaduct.tenant.runtime.execution.missingresolver.disabled
 
-import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
 import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
@@ -26,6 +26,6 @@ abstract class ValidationCanBeDisabledContractTest : KotlinFeatureAppTestContrac
         tryBuildViaductService()
         // Query returns null since there's no resolver, but that's expected here
         val result = execute(query = "{ unimplemented }")
-        assertThat(result.getData()).isNotNull()
+        assertNotNull(result.getData())
     }
 }

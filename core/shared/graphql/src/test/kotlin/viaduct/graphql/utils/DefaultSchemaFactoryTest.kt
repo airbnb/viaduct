@@ -19,7 +19,6 @@ import java.io.File
 import kotlin.io.path.writeText
 import kotlin.jvm.optionals.getOrNull
 import kotlin.jvm.optionals.toList
-import kotlin.test.assertContains
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -108,9 +107,9 @@ class DefaultSchemaFactoryTest {
         }
 
         assertAll(
-            { assertContains(exception.message ?: "", "Standard Viaduct scalar", message = "Should mention standard scalar policy") },
-            { assertContains(exception.message ?: "", scalarName, message = "Should mention specific scalar") },
-            { assertContains(exception.message ?: "", "cannot be redefined", message = "Should prevent redefinition") }
+            { assertTrue((exception.message ?: "").contains("Standard Viaduct scalar"), "Should mention standard scalar policy") },
+            { assertTrue((exception.message ?: "").contains(scalarName), "Should mention specific scalar") },
+            { assertTrue((exception.message ?: "").contains("cannot be redefined"), "Should prevent redefinition") }
         )
     }
 
@@ -217,8 +216,8 @@ class DefaultSchemaFactoryTest {
         }
 
         assertAll(
-            { assertContains(exception.message ?: "", "@$directiveName", message = "Should mention directive") },
-            { assertContains(exception.message ?: "", "cannot be redefined", message = "Should prevent redefinition") }
+            { assertTrue((exception.message ?: "").contains("@$directiveName"), "Should mention directive") },
+            { assertTrue((exception.message ?: "").contains("cannot be redefined"), "Should prevent redefinition") }
         )
     }
 
@@ -268,11 +267,7 @@ class DefaultSchemaFactoryTest {
         val exception = assertThrows<RuntimeException> {
             DefaultSchemaFactory.addDefaults(registry)
         }
-        assertContains(
-            exception.message ?: "",
-            "connection",
-            message = "Error should mention the conflicting directive"
-        )
+        assertTrue((exception.message ?: "").contains("connection"), "Error should mention the conflicting directive")
     }
 
     @Test
@@ -285,11 +280,7 @@ class DefaultSchemaFactoryTest {
         val exception = assertThrows<RuntimeException> {
             DefaultSchemaFactory.addDefaults(registry)
         }
-        assertContains(
-            exception.message ?: "",
-            "edge",
-            message = "Error should mention the conflicting directive"
-        )
+        assertTrue((exception.message ?: "").contains("edge"), "Error should mention the conflicting directive")
     }
 
     @Test
@@ -515,8 +506,8 @@ class DefaultSchemaFactoryTest {
         }
 
         assertAll(
-            { assertContains(exception.message ?: "", "Node query fields", message = "Should mention Node query fields") },
-            { assertContains(exception.message ?: "", "cannot be redefined", message = "Should prevent redefinition") }
+            { assertTrue((exception.message ?: "").contains("Node query fields"), "Should mention Node query fields") },
+            { assertTrue((exception.message ?: "").contains("cannot be redefined"), "Should prevent redefinition") }
         )
     }
 
@@ -558,8 +549,8 @@ class DefaultSchemaFactoryTest {
         val exception = assertThrows<RuntimeException> { DefaultSchemaFactory.addDefaults(registry) }
 
         assertAll(
-            { assertContains(exception.message ?: "", "Root type Query", message = "Should mention Query root") },
-            { assertContains(exception.message ?: "", "cannot be manually defined", message = "Should forbid manual def") }
+            { assertTrue((exception.message ?: "").contains("Root type Query"), "Should mention Query root") },
+            { assertTrue((exception.message ?: "").contains("cannot be manually defined"), "Should forbid manual def") }
         )
     }
 
@@ -579,8 +570,8 @@ class DefaultSchemaFactoryTest {
         val exception = assertThrows<RuntimeException> { DefaultSchemaFactory.addDefaults(registry) }
 
         assertAll(
-            { assertContains(exception.message ?: "", "Root type Query", message = "Should mention Query root") },
-            { assertContains(exception.message ?: "", "cannot be manually defined", message = "Should forbid manual def") }
+            { assertTrue((exception.message ?: "").contains("Root type Query"), "Should mention Query root") },
+            { assertTrue((exception.message ?: "").contains("cannot be manually defined"), "Should forbid manual def") }
         )
     }
 
@@ -600,8 +591,8 @@ class DefaultSchemaFactoryTest {
         val exception = assertThrows<RuntimeException> { DefaultSchemaFactory.addDefaults(registry) }
 
         assertAll(
-            { assertContains(exception.message ?: "", "Root type Mutation", message = "Should mention Mutation root") },
-            { assertContains(exception.message ?: "", "cannot be manually defined", message = "Should forbid manual def") }
+            { assertTrue((exception.message ?: "").contains("Root type Mutation"), "Should mention Mutation root") },
+            { assertTrue((exception.message ?: "").contains("cannot be manually defined"), "Should forbid manual def") }
         )
     }
 
@@ -649,8 +640,8 @@ class DefaultSchemaFactoryTest {
         val exception = assertThrows<RuntimeException> { DefaultSchemaFactory.addDefaults(registry) }
 
         assertAll(
-            { assertContains(exception.message ?: "", "Node interface", message = "Should mention Node interface") },
-            { assertContains(exception.message ?: "", "cannot be redefined", message = "Should prevent redefinition") }
+            { assertTrue((exception.message ?: "").contains("Node interface"), "Should mention Node interface") },
+            { assertTrue((exception.message ?: "").contains("cannot be redefined"), "Should prevent redefinition") }
         )
     }
 
@@ -902,8 +893,8 @@ class DefaultSchemaFactoryTest {
         }
 
         assertAll(
-            { assertContains(exception.message ?: "", "PageInfo", message = "Should mention PageInfo") },
-            { assertContains(exception.message ?: "", "does not conform to Relay", message = "Should explain non-conformance") }
+            { assertTrue((exception.message ?: "").contains("PageInfo"), "Should mention PageInfo") },
+            { assertTrue((exception.message ?: "").contains("does not conform to Relay"), "Should explain non-conformance") }
         )
     }
 
@@ -925,9 +916,9 @@ class DefaultSchemaFactoryTest {
         }
 
         assertAll(
-            { assertContains(exception.message ?: "", "PageInfo", message = "Should mention PageInfo") },
-            { assertContains(exception.message ?: "", "extra", message = "Should mention extra fields") },
-            { assertContains(exception.message ?: "", "extraField", message = "Should mention the specific field") }
+            { assertTrue((exception.message ?: "").contains("PageInfo"), "Should mention PageInfo") },
+            { assertTrue((exception.message ?: "").contains("extra"), "Should mention extra fields") },
+            { assertTrue((exception.message ?: "").contains("extraField"), "Should mention the specific field") }
         )
     }
 
@@ -964,9 +955,9 @@ class DefaultSchemaFactoryTest {
         }
 
         assertAll(
-            { assertContains(exception.message ?: "", "PageInfo", message = "Should mention PageInfo") },
-            { assertContains(exception.message ?: "", "hasNextPage", message = "Should mention missing field") },
-            { assertContains(exception.message ?: "", "Missing required field", message = "Should indicate field is missing") }
+            { assertTrue((exception.message ?: "").contains("PageInfo"), "Should mention PageInfo") },
+            { assertTrue((exception.message ?: "").contains("hasNextPage"), "Should mention missing field") },
+            { assertTrue((exception.message ?: "").contains("Missing required field"), "Should indicate field is missing") }
         )
     }
 
@@ -985,7 +976,7 @@ class DefaultSchemaFactoryTest {
             DefaultSchemaFactory.addDefaults(registry, allowExisting = true)
         }
 
-        assertContains(exception.message ?: "", "hasPreviousPage", message = "Should mention missing field")
+        assertTrue((exception.message ?: "").contains("hasPreviousPage"), "Should mention missing field")
     }
 
     @Test
@@ -1003,7 +994,7 @@ class DefaultSchemaFactoryTest {
             DefaultSchemaFactory.addDefaults(registry, allowExisting = true)
         }
 
-        assertContains(exception.message ?: "", "startCursor", message = "Should mention missing field")
+        assertTrue((exception.message ?: "").contains("startCursor"), "Should mention missing field")
     }
 
     @Test
@@ -1021,7 +1012,7 @@ class DefaultSchemaFactoryTest {
             DefaultSchemaFactory.addDefaults(registry, allowExisting = true)
         }
 
-        assertContains(exception.message ?: "", "endCursor", message = "Should mention missing field")
+        assertTrue((exception.message ?: "").contains("endCursor"), "Should mention missing field")
     }
 
     @Test
@@ -1041,8 +1032,8 @@ class DefaultSchemaFactoryTest {
         }
 
         assertAll(
-            { assertContains(exception.message ?: "", "hasNextPage", message = "Should mention the field") },
-            { assertContains(exception.message ?: "", "non-nullable", message = "Should indicate nullability issue") }
+            { assertTrue((exception.message ?: "").contains("hasNextPage"), "Should mention the field") },
+            { assertTrue((exception.message ?: "").contains("non-nullable"), "Should indicate nullability issue") }
         )
     }
 
@@ -1063,8 +1054,8 @@ class DefaultSchemaFactoryTest {
         }
 
         assertAll(
-            { assertContains(exception.message ?: "", "hasPreviousPage", message = "Should mention the field") },
-            { assertContains(exception.message ?: "", "non-nullable", message = "Should indicate nullability issue") }
+            { assertTrue((exception.message ?: "").contains("hasPreviousPage"), "Should mention the field") },
+            { assertTrue((exception.message ?: "").contains("non-nullable"), "Should indicate nullability issue") }
         )
     }
 
@@ -1085,8 +1076,8 @@ class DefaultSchemaFactoryTest {
         }
 
         assertAll(
-            { assertContains(exception.message ?: "", "startCursor", message = "Should mention startCursor") },
-            { assertContains(exception.message ?: "", "String", message = "Should mention expected type") }
+            { assertTrue((exception.message ?: "").contains("startCursor"), "Should mention startCursor") },
+            { assertTrue((exception.message ?: "").contains("String"), "Should mention expected type") }
         )
     }
 
@@ -1106,10 +1097,10 @@ class DefaultSchemaFactoryTest {
 
         val message = exception.message ?: ""
         assertAll(
-            { assertContains(message, "hasNextPage", message = "Should mention nullable hasNextPage") },
-            { assertContains(message, "hasPreviousPage", message = "Should mention missing hasPreviousPage") },
-            { assertContains(message, "startCursor", message = "Should mention missing startCursor") },
-            { assertContains(message, "endCursor", message = "Should mention missing endCursor") }
+            { assertTrue(message.contains("hasNextPage"), "Should mention nullable hasNextPage") },
+            { assertTrue(message.contains("hasPreviousPage"), "Should mention missing hasPreviousPage") },
+            { assertTrue(message.contains("startCursor"), "Should mention missing startCursor") },
+            { assertTrue(message.contains("endCursor"), "Should mention missing endCursor") }
         )
     }
 
@@ -1164,7 +1155,7 @@ class DefaultSchemaFactoryTest {
             DefaultSchemaFactory.addDefaults(registry, allowExisting = true, airbnbModeEnabled = true)
         }
 
-        assertContains(exception.message ?: "", "hasNextPage", message = "Should mention missing field")
+        assertTrue((exception.message ?: "").contains("hasNextPage"), "Should mention missing field")
     }
 
     // ---- helpers ----

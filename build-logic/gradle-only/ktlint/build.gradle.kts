@@ -17,7 +17,7 @@ dependencies {
     compileOnly(libs.ktlint.cli.ruleset.core)
     testImplementation(libs.ktlint.rule.engine.core)
     testImplementation(libs.ktlint.cli.ruleset.core)
-    testImplementation(libs.assertj.core)
+    testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.junit)
     testRuntimeOnly(libs.junit.engine)
 }

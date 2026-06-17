@@ -3,11 +3,11 @@ package viaduct.tenant.codegen.bytecode.testschema
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
 import java.io.File
-import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import viaduct.codegen.utils.JavaName

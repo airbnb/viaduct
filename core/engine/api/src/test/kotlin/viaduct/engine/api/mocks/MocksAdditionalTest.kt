@@ -1,8 +1,8 @@
 package viaduct.engine.api.mocks
 
+import io.kotest.matchers.types.shouldBeInstanceOf
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -135,7 +135,7 @@ class MocksAdditionalTest {
 
         val (typeName, executor) = nodeResolvers[0]
         assertEquals("TestNode", typeName)
-        assertInstanceOf(MockNodeUnbatchedResolverExecutor::class.java, executor)
+        executor.shouldBeInstanceOf<MockNodeUnbatchedResolverExecutor>()
     }
 
     @Test
@@ -153,7 +153,7 @@ class MocksAdditionalTest {
 
         val (typeName, resolver) = resolverExecutors[0]
         assertEquals("TestBatchNode", typeName)
-        assertInstanceOf(MockNodeBatchResolverExecutor::class.java, resolver)
+        resolver.shouldBeInstanceOf<MockNodeBatchResolverExecutor>()
     }
 
     @Test
@@ -228,12 +228,12 @@ class MocksAdditionalTest {
 
         // Verify unbatched node resolvers
         val unbatchedResolver = nodeResolvers[0]
-        assertInstanceOf(MockNodeUnbatchedResolverExecutor::class.java, unbatchedResolver.second)
+        unbatchedResolver.second.shouldBeInstanceOf<MockNodeUnbatchedResolverExecutor>()
         assertEquals("TestNode", unbatchedResolver.first)
 
         // Verify batch resolvers
         val resolver = nodeResolvers[1]
-        assertInstanceOf(MockNodeBatchResolverExecutor::class.java, resolver.second)
+        resolver.second.shouldBeInstanceOf<MockNodeBatchResolverExecutor>()
         assertEquals("TestBatchNode", resolver.first)
     }
 

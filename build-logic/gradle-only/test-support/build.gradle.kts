@@ -25,7 +25,7 @@ dependencies {
 
     testFixturesImplementation(gradleApi())
     testImplementation(gradleTestKit())
-    testImplementation(libs.assertj.core)
+    testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.junit)
     testRuntimeOnly(libs.junit.engine)
 }

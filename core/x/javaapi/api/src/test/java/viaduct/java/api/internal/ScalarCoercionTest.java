@@ -1,7 +1,11 @@
 package viaduct.java.api.internal;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -17,17 +21,17 @@ class ScalarCoercionTest {
 
   @Test
   void nullRawValue_returnsNull() {
-    assertThat(ObjectBase.coerceScalar(null, "DateTime")).isNull();
+    assertNull(ObjectBase.coerceScalar(null, "DateTime"));
   }
 
   @Test
   void nullScalarType_returnsRawValue() {
-    assertThat(ObjectBase.coerceScalar("hello", null)).isEqualTo("hello");
+    assertEquals("hello", ObjectBase.coerceScalar("hello", null));
   }
 
   @Test
   void bothNull_returnsNull() {
-    assertThat(ObjectBase.coerceScalar(null, null)).isNull();
+    assertNull(ObjectBase.coerceScalar(null, null));
   }
 
   // ===== DateTime → Instant =====
@@ -35,35 +39,34 @@ class ScalarCoercionTest {
   @Test
   void dateTime_stringToInstant() {
     Object result = ObjectBase.coerceScalar("2024-01-15T10:30:00+00:00", "DateTime");
-    assertThat(result).isInstanceOf(Instant.class);
-    assertThat(result).isEqualTo(Instant.parse("2024-01-15T10:30:00Z"));
+    assertInstanceOf(Instant.class, result);
+    assertEquals(Instant.parse("2024-01-15T10:30:00Z"), result);
   }
 
   @Test
   void dateTime_stringWithOffsetToInstant() {
     Object result = ObjectBase.coerceScalar("2024-06-15T12:00:00+05:30", "DateTime");
-    assertThat(result).isInstanceOf(Instant.class);
-    assertThat(result).isEqualTo(Instant.parse("2024-06-15T06:30:00Z"));
+    assertInstanceOf(Instant.class, result);
+    assertEquals(Instant.parse("2024-06-15T06:30:00Z"), result);
   }
 
   @Test
   void dateTime_instantPassThrough() {
     Instant instant = Instant.parse("2024-01-15T10:30:00Z");
     Object result = ObjectBase.coerceScalar(instant, "DateTime");
-    assertThat(result).isSameAs(instant);
+    assertSame(instant, result);
   }
 
   @Test
   void dateTime_invalidFormat_throwsFrameworkException() {
-    assertThatThrownBy(() -> ObjectBase.coerceScalar("not-a-date", "DateTime"))
-        .isInstanceOf(Exception.class);
+    assertThrows(Exception.class, () -> ObjectBase.coerceScalar("not-a-date", "DateTime"));
   }
 
   @Test
   void dateTime_unsupportedType_throwsFrameworkException() {
-    assertThatThrownBy(() -> ObjectBase.coerceScalar(12345, "DateTime"))
-        .isInstanceOf(FrameworkException.class)
-        .hasMessageContaining("Could not convert");
+    FrameworkException e =
+        assertThrows(FrameworkException.class, () -> ObjectBase.coerceScalar(12345, "DateTime"));
+    assertTrue(e.getMessage().contains("Could not convert"));
   }
 
   // ===== Date → LocalDate =====
@@ -71,22 +74,22 @@ class ScalarCoercionTest {
   @Test
   void date_stringToLocalDate() {
     Object result = ObjectBase.coerceScalar("2024-01-15", "Date");
-    assertThat(result).isInstanceOf(LocalDate.class);
-    assertThat(result).isEqualTo(LocalDate.of(2024, 1, 15));
+    assertInstanceOf(LocalDate.class, result);
+    assertEquals(LocalDate.of(2024, 1, 15), result);
   }
 
   @Test
   void date_localDatePassThrough() {
     LocalDate date = LocalDate.of(2024, 1, 15);
     Object result = ObjectBase.coerceScalar(date, "Date");
-    assertThat(result).isSameAs(date);
+    assertSame(date, result);
   }
 
   @Test
   void date_unsupportedType_throwsFrameworkException() {
-    assertThatThrownBy(() -> ObjectBase.coerceScalar(12345, "Date"))
-        .isInstanceOf(FrameworkException.class)
-        .hasMessageContaining("Could not convert");
+    FrameworkException e =
+        assertThrows(FrameworkException.class, () -> ObjectBase.coerceScalar(12345, "Date"));
+    assertTrue(e.getMessage().contains("Could not convert"));
   }
 
   // ===== Time → OffsetTime =====
@@ -94,29 +97,29 @@ class ScalarCoercionTest {
   @Test
   void time_stringToOffsetTime() {
     Object result = ObjectBase.coerceScalar("14:30:00+00:00", "Time");
-    assertThat(result).isInstanceOf(OffsetTime.class);
-    assertThat(result).isEqualTo(OffsetTime.of(14, 30, 0, 0, ZoneOffset.UTC));
+    assertInstanceOf(OffsetTime.class, result);
+    assertEquals(OffsetTime.of(14, 30, 0, 0, ZoneOffset.UTC), result);
   }
 
   @Test
   void time_offsetTimePassThrough() {
     OffsetTime time = OffsetTime.of(14, 30, 0, 0, ZoneOffset.UTC);
     Object result = ObjectBase.coerceScalar(time, "Time");
-    assertThat(result).isSameAs(time);
+    assertSame(time, result);
   }
 
   @Test
   void time_unsupportedType_throwsFrameworkException() {
-    assertThatThrownBy(() -> ObjectBase.coerceScalar(12345, "Time"))
-        .isInstanceOf(FrameworkException.class)
-        .hasMessageContaining("Could not convert");
+    FrameworkException e =
+        assertThrows(FrameworkException.class, () -> ObjectBase.coerceScalar(12345, "Time"));
+    assertTrue(e.getMessage().contains("Could not convert"));
   }
 
   // ===== Unknown scalar type =====
 
   @Test
   void unknownScalarType_returnsRawValue() {
-    assertThat(ObjectBase.coerceScalar("hello", "String")).isEqualTo("hello");
-    assertThat(ObjectBase.coerceScalar(42, "Int")).isEqualTo(42);
+    assertEquals("hello", ObjectBase.coerceScalar("hello", "String"));
+    assertEquals(42, ObjectBase.coerceScalar(42, "Int"));
   }
 }

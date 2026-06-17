@@ -3,10 +3,10 @@
 package viaduct.engine.api.instrumentation
 
 import java.util.concurrent.CompletableFuture
-import kotlin.test.assertNull
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 class ViaductTenantNameContextTest {

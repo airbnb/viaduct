@@ -5,14 +5,14 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import java.time.Duration
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withTimeout
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData

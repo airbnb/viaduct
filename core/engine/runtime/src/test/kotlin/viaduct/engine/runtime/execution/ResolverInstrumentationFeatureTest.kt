@@ -2,9 +2,8 @@ package viaduct.engine.runtime.execution
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.test.assertContains
-import kotlin.test.assertTrue
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.instrumentation.resolver.CheckerFunction
@@ -72,7 +71,7 @@ class ResolverInstrumentationFeatureTest {
 
             val checkerKey = checkerToFields.keys.find { it.contains("string1") }
             assertTrue(checkerKey != null, "checker instrumentation should be invoked for string1 checker")
-            assertContains(checkerToFields[checkerKey]!!.toSet(), "string2")
+            assertTrue("string2" in checkerToFields[checkerKey!!]!!.toSet())
         }
     }
 

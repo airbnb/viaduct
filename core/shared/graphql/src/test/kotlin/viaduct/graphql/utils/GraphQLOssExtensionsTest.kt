@@ -15,8 +15,8 @@ import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeVisitor
 import graphql.util.TraversalControl.CONTINUE
 import graphql.util.TraverserContext
+import io.kotest.matchers.types.shouldBeInstanceOf
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
@@ -28,9 +28,9 @@ class GraphQLOssExtensionsTest {
     fun `node allChildren`() {
         val children = "{x}".asDocument.allChildren
         assertEquals(3, children.size)
-        assertInstanceOf(OperationDefinition::class.java, children[0])
-        assertInstanceOf(SelectionSet::class.java, children[1])
-        assertInstanceOf(Field::class.java, children[2])
+        children[0].shouldBeInstanceOf<OperationDefinition>()
+        children[1].shouldBeInstanceOf<SelectionSet>()
+        children[2].shouldBeInstanceOf<Field>()
     }
 
     @Test
@@ -46,7 +46,7 @@ class GraphQLOssExtensionsTest {
         val namedType = Scalars.GraphQLString
         val result = namedType.asNamedElement()
         assertNotNull(result)
-        assertInstanceOf(GraphQLNamedSchemaElement::class.java, result)
+        result.shouldBeInstanceOf<GraphQLNamedSchemaElement>()
         assertEquals("String", result.name)
     }
 
@@ -154,8 +154,8 @@ class GraphQLOssExtensionsTest {
         val doc = "{ simpleField }".asDocument
         val children = doc.allChildren
         assertEquals(3, children.size)
-        assertInstanceOf(OperationDefinition::class.java, children[0])
-        assertInstanceOf(SelectionSet::class.java, children[1])
-        assertInstanceOf(Field::class.java, children[2])
+        children[0].shouldBeInstanceOf<OperationDefinition>()
+        children[1].shouldBeInstanceOf<SelectionSet>()
+        children[2].shouldBeInstanceOf<Field>()
     }
 }

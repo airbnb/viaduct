@@ -8,9 +8,9 @@ import graphql.schema.GraphQLSchema
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
-import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineExecutionContext

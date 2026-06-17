@@ -6,6 +6,7 @@ import io.mockk.every
 import io.mockk.mockk
 import javax.inject.Provider
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.NodeResolverBase
@@ -63,7 +64,7 @@ class BatchResolverExecutorTest {
             }
         }
 
-        kotlin.test.assertEquals(
+        assertEquals(
             "Unexpected return value from batchResolve function for field Query.testField: not a list",
             exception.message
         )
@@ -101,7 +102,7 @@ class BatchResolverExecutorTest {
             }
         }
 
-        kotlin.test.assertEquals(
+        assertEquals(
             "Unexpected return value from batchResolve function for node TestNode: not a list",
             exception.message
         )

@@ -49,5 +49,5 @@ dependencies {
 
     /** Test dependencies - External **/
     testImplementation(libs.io.mockk.jvm)
-    testImplementation(libs.assertj.core)
+    testImplementation(libs.kotest.assertions.core.jvm)
 }

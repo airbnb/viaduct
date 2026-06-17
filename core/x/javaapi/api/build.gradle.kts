@@ -26,5 +26,4 @@ dependencies {
     // BootstrapperFactory (file-based bootstrap entry point) lives in engine:wiring.
     testFixturesImplementation(libs.viaduct.engine.wiring)
 
-    testImplementation(libs.assertj.core)
 }

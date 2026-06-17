@@ -1,9 +1,9 @@
 package viaduct.remote.config
 
-import kotlin.test.assertFailsWith
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.spi.ProxyResolverFactory
 
 class RemoteResolverInitializerTest {
@@ -61,14 +61,14 @@ class RemoteResolverInitializerTest {
         val initializer = RemoteResolverInitializer(cfg(enabled = true))
         initializer.initialize()
         initializer.close()
-        assertFailsWith<IllegalStateException> { initializer.initialize() }
+        assertThrows<IllegalStateException> { initializer.initialize() }
     }
 
     @Test
     fun `close before initialize still terminates the instance`() {
         val initializer = RemoteResolverInitializer(cfg(enabled = true))
         initializer.close()
-        assertFailsWith<IllegalStateException> { initializer.initialize() }
+        assertThrows<IllegalStateException> { initializer.initialize() }
     }
 
     @Test
@@ -96,6 +96,6 @@ class RemoteResolverInitializerTest {
         val initializer = RemoteResolverInitializer(networkCfg())
         initializer.initialize()
         initializer.close()
-        assertFailsWith<IllegalStateException> { initializer.initialize() }
+        assertThrows<IllegalStateException> { initializer.initialize() }
     }
 }

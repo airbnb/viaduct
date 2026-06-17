@@ -1,9 +1,10 @@
 package viaduct.gradle.featureappcontract
 
 import java.io.File
-import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
@@ -190,15 +191,13 @@ class ContractSchemaPublisherPluginTest {
             .withPluginClasspath()
             .build()
 
-        assertThat(result.task(expectedCompileTask)?.outcome)
-            .isEqualTo(TaskOutcome.SUCCESS)
-        assertThat(result.task(":extractContractSchemas")?.outcome)
-            .isEqualTo(TaskOutcome.SUCCESS)
+        assertEquals(TaskOutcome.SUCCESS, result.task(expectedCompileTask)?.outcome)
+        assertEquals(TaskOutcome.SUCCESS, result.task(":extractContractSchemas")?.outcome)
 
         val schemaFile = projectDir.resolve(
             "build/extracted-contract-schemas/${fixture.contractPkgPath}/schema.graphql"
         )
-        assertThat(schemaFile).exists()
-        assertThat(schemaFile.readText()).isEqualTo(fixture.expectedSchema)
+        assertTrue(schemaFile.exists())
+        assertEquals(fixture.expectedSchema, schemaFile.readText())
     }
 }

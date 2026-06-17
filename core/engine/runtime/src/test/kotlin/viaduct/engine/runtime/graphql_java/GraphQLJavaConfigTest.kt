@@ -6,7 +6,7 @@ import graphql.introspection.Introspection
 import graphql.parser.ParserOptions
 import graphql.validation.QueryComplexityLimits
 import io.mockk.mockk
-import kotlin.test.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class GraphQLJavaConfigTest {

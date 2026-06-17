@@ -2,11 +2,11 @@
 
 package viaduct.remote.registry
 
-import kotlin.test.assertFalse
-import kotlin.test.assertNull
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.MockSchema
 

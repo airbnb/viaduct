@@ -1,8 +1,8 @@
 package viaduct.graphql.schema.test
 
+import io.kotest.matchers.types.shouldBeInstanceOf
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -165,7 +165,7 @@ interface ViaductSchemaContract {
         ).apply {
             withArg("Query", "foo", "a") {
                 assertTrue(it.hasEffectiveDefault, "Query.a")
-                assertInstanceOf(ViaductSchema.NullLiteral::class.java, it.effectiveDefaultValue, "Query.a")
+                it.effectiveDefaultValue.shouldBeInstanceOf<ViaductSchema.NullLiteral>()
             }
             withArg("Query", "foo", "b") {
                 assertTrue(it.hasEffectiveDefault, "Query.b")
@@ -173,7 +173,7 @@ interface ViaductSchemaContract {
             }
             withField("I", "a") {
                 assertTrue(it.hasEffectiveDefault, "I.a")
-                assertInstanceOf(ViaductSchema.NullLiteral::class.java, it.effectiveDefaultValue, "I.a")
+                it.effectiveDefaultValue.shouldBeInstanceOf<ViaductSchema.NullLiteral>()
             }
             withField("I", "b") {
                 assertTrue(it.hasEffectiveDefault, "I.b")
@@ -542,7 +542,7 @@ interface ViaductSchemaContract {
             val dir = extensionAppliedDirectives.first()
             assertEquals("d1", dir.name)
             val argValue = dir.arguments["a1"]
-            assertInstanceOf(ViaductSchema.StringLiteral::class.java, argValue)
+            argValue.shouldBeInstanceOf<ViaductSchema.StringLiteral>()
             assertEquals(a1Value, (argValue as ViaductSchema.StringLiteral).value)
         }
         this@ViaductSchemaContract.createSchema(
@@ -641,7 +641,7 @@ interface ViaductSchemaContract {
             )
             // Verify the argument value was decoded correctly
             val metaApp = minArg.appliedDirectives.first()
-            assertInstanceOf(ViaductSchema.StringLiteral::class.java, metaApp.arguments["info"])
+            metaApp.arguments["info"].shouldBeInstanceOf<ViaductSchema.StringLiteral>()
             assertEquals("test", (metaApp.arguments["info"] as ViaductSchema.StringLiteral).value)
         }
     }

@@ -8,12 +8,6 @@ import io.mockk.mockk
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertNotEquals
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.CancellationException
@@ -31,7 +25,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -519,10 +518,9 @@ class ObjectEngineResultImplTest {
 
             assertTrue(result.isFailure)
             val firstException = result.exceptionOrNull()
-            with(firstException) {
-                assertTrue(this is RuntimeException)
-                assertEquals("Computation failed", this.message)
-            }
+            assertNotNull(firstException)
+            assertTrue(firstException is RuntimeException)
+            assertEquals("Computation failed", firstException!!.message)
 
             // The second call should return an error
             val result2 = runCatching {
@@ -653,7 +651,7 @@ class ObjectEngineResultImplTest {
             job.join()
 
             // Verify the field is now in the error state
-            assertFailsWith<CancellationException> {
+            assertThrows<CancellationException> {
                 engine.fetch(key, RAW_VALUE_SLOT)
             }
         }
@@ -732,10 +730,10 @@ class ObjectEngineResultImplTest {
             val engine = ObjectEngineResultImpl.newPendingForType(graphQLObjectType)
             val deferred = testScope.async { engine.resolvedExceptionOrNull() }
             engine.resolveExceptionally(RuntimeException("bloop"))
-            with(deferred.await()) {
-                assertTrue(this is RuntimeException)
-                assertEquals("bloop", this.message)
-            }
+            val bloopException = deferred.await()
+            assertNotNull(bloopException)
+            assertTrue(bloopException is RuntimeException)
+            assertEquals("bloop", bloopException!!.message)
         }
     }
 
@@ -838,11 +836,11 @@ class ObjectEngineResultImplTest {
                 assertEquals("456", friend.fetch(ObjectEngineResult.Key("id"), RAW_VALUE_SLOT))
 
                 // Test error propagation
-                assertFailsWith<RuntimeException>("Name not available") {
+                assertThrows<RuntimeException> {
                     friend.fetch(ObjectEngineResult.Key("name"), RAW_VALUE_SLOT)
                 }
 
-                assertFailsWith<RuntimeException>("Posts not accessible") {
+                assertThrows<RuntimeException> {
                     result.fetch(
                         ObjectEngineResult.Key(
                             "posts"

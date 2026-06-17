@@ -4,9 +4,9 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.apiannotations.ExperimentalApi
 
@@ -14,8 +14,8 @@ import viaduct.apiannotations.ExperimentalApi
 class SchemaScopingTest {
     @Test
     fun `EMPTY has no universe, no scoped schemas, and current version`() {
-        assertEquals(emptySet(), SchemaScoping.EMPTY.scopeUniverse)
-        assertEquals(emptyMap(), SchemaScoping.EMPTY.scopedSchemas)
+        assertEquals(emptySet<String>(), SchemaScoping.EMPTY.scopeUniverse)
+        assertEquals(emptyMap<String, Set<String>>(), SchemaScoping.EMPTY.scopedSchemas)
         assertEquals(SchemaScoping.CURRENT_VERSION, SchemaScoping.EMPTY.version)
     }
 

@@ -7,11 +7,11 @@ import graphql.execution.preparsed.PreparsedDocumentEntry
 import graphql.execution.preparsed.PreparsedDocumentProvider
 import graphql.parser.Parser
 import java.util.concurrent.CompletableFuture
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class IntrospectionRestrictingPreparsedDocumentProviderTest {

@@ -2,7 +2,7 @@ package viaduct.engine.runtime.execution
 
 import graphql.execution.ResultPath
 import graphql.language.SourceLocation
-import kotlin.test.assertIs
+import io.kotest.matchers.types.shouldBeInstanceOf
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
@@ -29,6 +29,6 @@ class FieldFetchingExceptionTest {
             ResultPath.rootPath(),
             SourceLocation.EMPTY,
         )
-        assertIs<PassthroughException>(exception)
+        exception.shouldBeInstanceOf<PassthroughException>()
     }
 }

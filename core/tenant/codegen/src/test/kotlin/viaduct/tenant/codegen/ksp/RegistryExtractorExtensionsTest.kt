@@ -9,10 +9,11 @@ import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSTypeArgument
 import com.google.devtools.ksp.symbol.KSTypeReference
 import com.google.devtools.ksp.symbol.KSValueArgument
+import io.kotest.matchers.types.shouldBeInstanceOf
 import java.lang.reflect.Proxy
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.resolver.Variable
 
@@ -54,13 +55,13 @@ class RegistryExtractorExtensionsTest {
 
         val result = resolverDeclaration.toResolverParams(logger)
 
-        assertTrue(result is ResolverParams.Node)
-        assertEquals("com.example.feature.resolvers.ExampleNodeResolver", result.implFqn)
-        assertEquals("ExampleNode", result.typeName)
-        assertEquals("com.example.feature.resolverbases.NodeResolvers\$ExampleNode", result.resolverBaseClass)
-        assertEquals("ExampleNodeResolver", result.attribution)
-        assertEquals(false, result.isBatching)
-        assertEquals(false, result.isSelective)
+        val node = result.shouldBeInstanceOf<ResolverParams.Node>()
+        assertEquals("com.example.feature.resolvers.ExampleNodeResolver", node.implFqn)
+        assertEquals("ExampleNode", node.typeName)
+        assertEquals("com.example.feature.resolverbases.NodeResolvers\$ExampleNode", node.resolverBaseClass)
+        assertEquals("ExampleNodeResolver", node.attribution)
+        assertEquals(false, node.isBatching)
+        assertEquals(false, node.isSelective)
         assertTrue(logger.warns.isEmpty(), logger.warns.joinToString("\n"))
         assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
     }
@@ -97,16 +98,16 @@ class RegistryExtractorExtensionsTest {
 
         val result = resolverDeclaration.toResolverParams(logger)
 
-        assertTrue(result is ResolverParams.Field)
-        assertEquals("com.example.feature.resolvers.ExampleNameResolver", result.implFqn)
-        assertEquals("ExampleNode", result.typeName)
-        assertEquals("name", result.fieldName)
-        assertEquals("com.example.feature.resolverbases.ExampleName", result.resolverBaseClass)
-        assertEquals("ExampleNameResolver", result.attribution)
-        assertEquals(false, result.isBatching)
-        assertEquals(false, result.isSelective)
-        assertNull(result.objectSelections)
-        assertNull(result.querySelections)
+        val field = result.shouldBeInstanceOf<ResolverParams.Field>()
+        assertEquals("com.example.feature.resolvers.ExampleNameResolver", field.implFqn)
+        assertEquals("ExampleNode", field.typeName)
+        assertEquals("name", field.fieldName)
+        assertEquals("com.example.feature.resolverbases.ExampleName", field.resolverBaseClass)
+        assertEquals("ExampleNameResolver", field.attribution)
+        assertEquals(false, field.isBatching)
+        assertEquals(false, field.isSelective)
+        assertNull(field.objectSelections)
+        assertNull(field.querySelections)
         assertTrue(logger.warns.isEmpty(), logger.warns.joinToString("\n"))
         assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
     }
@@ -153,10 +154,10 @@ class RegistryExtractorExtensionsTest {
 
         val result = resolverDeclaration.toResolverParams(logger)
 
-        assertTrue(result is ResolverParams.Field)
-        assertEquals("fragment _ on ExampleNode { firstName lastName }", result.objectSelections?.selections)
-        assertTrue(result.objectSelections?.variablesProviders.isNullOrEmpty())
-        assertNull(result.querySelections)
+        val field = result.shouldBeInstanceOf<ResolverParams.Field>()
+        assertEquals("fragment _ on ExampleNode { firstName lastName }", field.objectSelections?.selections)
+        assertTrue(field.objectSelections?.variablesProviders.isNullOrEmpty())
+        assertNull(field.querySelections)
     }
 
     @Test
@@ -756,8 +757,8 @@ class RegistryExtractorExtensionsTest {
 
         val result = resolverDeclaration.toResolverParams(logger)
 
-        assertTrue(result is ResolverParams.Node)
-        assertEquals("ExampleNode", result.typeName)
+        val node = result.shouldBeInstanceOf<ResolverParams.Node>()
+        assertEquals("ExampleNode", node.typeName)
         assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
     }
 
@@ -794,8 +795,8 @@ class RegistryExtractorExtensionsTest {
 
         val result = resolverDeclaration.toResolverParams(logger)
 
-        assertTrue(result is ResolverParams.Node)
-        assertEquals("ExampleNode", result.typeName)
+        val node = result.shouldBeInstanceOf<ResolverParams.Node>()
+        assertEquals("ExampleNode", node.typeName)
         assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
     }
 
@@ -1126,9 +1127,9 @@ class RegistryExtractorExtensionsTest {
 
         val result = resolverDeclaration.toResolverParams(logger)
 
-        assertTrue(result is ResolverParams.Node)
-        assertEquals("ExampleNodeResolver", result.implFqn)
-        assertEquals("NodeResolvers\$ExampleNode", result.resolverBaseClass)
+        val node = result.shouldBeInstanceOf<ResolverParams.Node>()
+        assertEquals("ExampleNodeResolver", node.implFqn)
+        assertEquals("NodeResolvers\$ExampleNode", node.resolverBaseClass)
         assertTrue(logger.warns.isEmpty(), logger.warns.joinToString("\n"))
         assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
     }

@@ -1,8 +1,8 @@
 package viaduct.tenant.codegen.ksp
 
 import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class RegistryExtractorProcessorProviderTest {

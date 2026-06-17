@@ -3,7 +3,6 @@
 package viaduct.engine.runtime.execution
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import graphql.ErrorClassification
 import graphql.ExecutionInput
 import graphql.ExecutionResult
 import graphql.GraphQLContext
@@ -20,6 +19,7 @@ import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
 import graphql.schema.TypeResolver
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import kotlin.random.Random
@@ -29,9 +29,6 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
-import strikt.api.expectThat
-import strikt.assertions.hasSize
-import strikt.assertions.isEqualTo
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.failProperty
 import viaduct.arbitrary.common.withCheck
@@ -249,40 +246,26 @@ fun interface CheckResult : (CheckCtx, CheckCtx) -> Unit {
         }
 
         val ResultsEqual: CheckResult = CheckResult { (exp), (act) ->
-            // experimental strikt matcher
-            // perf note: these strikt checkers use a function reference syntax, rather than the more common lambda syntax
-            //   fun ref:    get(GraphQLError::getMessage).isEqualTo(expError.message)
-            //   lambda:     get { message } isEqualTo(expError.message)
-            // The perf difference is significant: the lambda syntax is 3-4x slower than the function ref style, which
-            // significantly slows down property tests
-            expectThat(act) {
-                with(ExecutionResult::getErrors) {
-                    hasSize(exp.errors.size)
+            act.errors.shouldHaveSize(exp.errors.size)
 
-                    // errors are recorded in the order that they were generated, which may be non-deterministic
-                    // when executing a selection set in parallel.
-                    // Normalize the error ordering before comparing
-                    subject
-                        .sortedWith(GraphQLErrorComparator)
-                        .zip(exp.errors.sortedWith(GraphQLErrorComparator))
-                        .forEach { (actError, expError) ->
-                            expectThat(actError) {
-                                get(GraphQLError::getMessage).isEqualTo(expError.message)
-                                get(GraphQLError::getPath).isEqualTo(expError.path)
-                                get(GraphQLError::getLocations).isEqualTo(expError.locations)
-                                get(GraphQLError::getExtensions).isEqualTo(expError.extensions)
-                                // errors can return an instance of the ErrorClassification interface, which is usually (but not always) a value
-                                // of the ErrorType enumeration.
-                                // This will cause aa naive check `errorType.isEqualTo(expError.errorType)` to fail
-                                // when dealing with non-ErrorType classifications.
-                                // To work around this, compare their string values instead of a direct isEqualTo check
-                                with(GraphQLError::getErrorType) {
-                                    get(ErrorClassification::toString).isEqualTo(expError.errorType.toString())
-                                }
-                            }
-                        }
+            // errors are recorded in the order that they were generated, which may be non-deterministic
+            // when executing a selection set in parallel.
+            // Normalize the error ordering before comparing
+            act.errors
+                .sortedWith(GraphQLErrorComparator)
+                .zip(exp.errors.sortedWith(GraphQLErrorComparator))
+                .forEach { (actError, expError) ->
+                    assertEquals(expError.message, actError.message)
+                    assertEquals(expError.path, actError.path)
+                    assertEquals(expError.locations, actError.locations)
+                    assertEquals(expError.extensions, actError.extensions)
+                    // errors can return an instance of the ErrorClassification interface, which is usually (but not always) a value
+                    // of the ErrorType enumeration.
+                    // This will cause a naive check `assertEquals(expError.errorType, actError.errorType)` to fail
+                    // when dealing with non-ErrorType classifications.
+                    // To work around this, compare their string values instead of a direct equality check
+                    assertEquals(expError.errorType.toString(), actError.errorType.toString())
                 }
-            }
 
             val expData = exp.getData<Map<String, Any?>>()
             val actData = act.getData<Map<String, Any?>>()

@@ -1,14 +1,13 @@
 package viaduct.utils.collections
 
-import com.google.common.testing.EqualsTester
 import java.lang.Math
 import java.lang.StringBuilder
 import java.util.Random
 import kotlin.math.min
-import kotlin.test.assertTrue
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.utils.collections.BitVector.Builder
 
@@ -457,7 +456,7 @@ internal class BitVectorBasicTests : BitVectorSetup() {
     fun equalsTesting() {
         for (i in EQUALS_CASES.indices) for (j in EQUALS_CASES[i].indices) (EQUALS_CASES[i][j] as BitVector).checkInvariants()
 
-        val tester = EqualsTester()
+        val tester = EqualsTesterHelper()
         for (group in EQUALS_CASES) tester.addEqualityGroup(*group)
         tester.testEquals()
     }

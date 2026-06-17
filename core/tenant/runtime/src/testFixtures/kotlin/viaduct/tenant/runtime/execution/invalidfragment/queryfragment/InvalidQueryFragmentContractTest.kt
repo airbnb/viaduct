@@ -1,6 +1,6 @@
 package viaduct.tenant.runtime.execution.invalidfragment.queryfragment
 
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
 import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase

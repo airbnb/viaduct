@@ -41,10 +41,10 @@ dependencies {
 
     testFixturesImplementation(libs.clikt.jvm)
     testFixturesImplementation(libs.guava)
+    testFixturesImplementation(libs.kotest.assertions.core.jvm)
     testFixturesImplementation(libs.kotlin.reflect)
     testFixturesImplementation(libs.viaduct.shared.graphql)
 
-    testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.io.mockk.dsl)

@@ -2,11 +2,11 @@
 
 package viaduct.dataloader
 
-import kotlin.test.assertEquals
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 @DelicateCoroutinesApi
@@ -21,7 +21,7 @@ class NextTickBatchQueueTest {
     @Test
     fun testEnqueueAndFlush(): Unit =
         runBlocking {
-            val queue = NextTickBatchQueue { flushedItems, dispatchingContext ->
+            val queue = NextTickBatchQueue<String> { flushedItems, dispatchingContext ->
                 assertEquals(listOf("Hello"), flushedItems)
                 assertEquals(debugInfo, dispatchingContext.metadata)
             }
@@ -33,7 +33,7 @@ class NextTickBatchQueueTest {
     @Test
     fun testEnqueueAndFlushAsync(): Unit =
         runBlocking {
-            val queue = NextTickBatchQueue { flushedItems, dispatchingContext ->
+            val queue = NextTickBatchQueue<String> { flushedItems, dispatchingContext ->
                 assertEquals(setOf("Here", "What"), flushedItems.toSet())
                 assertEquals(debugInfo, dispatchingContext.metadata)
             }
@@ -48,7 +48,7 @@ class NextTickBatchQueueTest {
     @Test
     fun testMultipleRounds(): Unit =
         runBlocking {
-            val queue = NextTickBatchQueue { flushedItems, context ->
+            val queue = NextTickBatchQueue<String> { flushedItems, context ->
                 if (context.tickIndex == 0) {
                     assertEquals(setOf("Here", "What"), flushedItems.toSet())
                 } else if (context.tickIndex == 1) {

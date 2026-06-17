@@ -1,7 +1,7 @@
 package viaduct.gradle.featureappcontract
 
+import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import java.io.File
-import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import viaduct.gradle.featureappcontract.AssembleTenantModuleConfigFilesTask.Companion.processChanges
@@ -26,8 +26,7 @@ class AssembleTenantModuleConfigFilesTaskTest {
             m.descriptorChanges,
             m.schemaChanges,
         )
-        assertThat(recorder.actions)
-            .containsExactlyInAnyOrderElementsOf(m.expectation.actions)
+        recorder.actions.shouldContainExactlyInAnyOrder(m.expectation.actions)
     }
 
     // ── No changes ──────────────────────────────────────────────────────────

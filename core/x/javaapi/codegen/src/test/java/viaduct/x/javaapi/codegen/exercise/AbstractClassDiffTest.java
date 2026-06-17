@@ -1,6 +1,6 @@
 package viaduct.x.javaapi.codegen.exercise;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -122,10 +122,9 @@ abstract class AbstractClassDiffTest {
       System.err.println(result);
     }
 
-    assertThat(diffs.isEmpty())
-        .withFailMessage(
-            "Expected no failures, but found:\n%s", String.join("\n", diffs.toListOfErrors()))
-        .isTrue();
+    assertTrue(
+        diffs.isEmpty(),
+        () -> "Expected no failures, but found:\n" + String.join("\n", diffs.toListOfErrors()));
   }
 
   private void assertNoDiffs(String typeName) {
@@ -135,11 +134,13 @@ abstract class AbstractClassDiffTest {
       System.err.println(result);
     }
 
-    assertThat(diffs.isEmpty())
-        .withFailMessage(
-            "Expected no failures for %s, but found:\n%s",
-            typeName, String.join("\n", diffs.toListOfErrors()))
-        .isTrue();
+    assertTrue(
+        diffs.isEmpty(),
+        () ->
+            "Expected no failures for "
+                + typeName
+                + ", but found:\n"
+                + String.join("\n", diffs.toListOfErrors()));
   }
 
   private File extractSchemaToTempFile() throws IOException {

@@ -35,7 +35,6 @@ dependencies {
     implementation(project(":viadapp"))
 
     testImplementation(enforcedPlatform(libs.junit.bom))
-    testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.junit.jupiter)
 
     testRuntimeOnly(libs.junit.platform.launcher)

@@ -3,9 +3,9 @@ package viaduct.engine.runtime
 import graphql.execution.instrumentation.SimplePerformantInstrumentation
 import io.mockk.every
 import io.mockk.mockk
-import kotlin.test.assertFalse
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.Engine

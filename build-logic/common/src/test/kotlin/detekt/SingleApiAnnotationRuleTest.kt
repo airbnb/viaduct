@@ -2,7 +2,9 @@ package detekt
 
 import io.gitlab.arturbosch.detekt.api.Config
 import io.gitlab.arturbosch.detekt.test.lint
-import org.assertj.core.api.Assertions.assertThat
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.string.shouldContain
 import org.junit.jupiter.api.Test
 
 class SingleApiAnnotationRuleTest {
@@ -19,8 +21,9 @@ class SingleApiAnnotationRuleTest {
             class Foo
             """.trimIndent()
         )
-        assertThat(findings).hasSize(1)
-        assertThat(findings.first().message).contains("StableApi").contains("InternalApi")
+        findings.shouldHaveSize(1)
+        findings.first().message shouldContain "StableApi"
+        findings.first().message shouldContain "InternalApi"
     }
 
     @Test
@@ -32,7 +35,7 @@ class SingleApiAnnotationRuleTest {
             fun bar() {}
             """.trimIndent()
         )
-        assertThat(findings).hasSize(1)
+        findings.shouldHaveSize(1)
     }
 
     @Test
@@ -44,7 +47,7 @@ class SingleApiAnnotationRuleTest {
             val x: Int = 0
             """.trimIndent()
         )
-        assertThat(findings).hasSize(1)
+        findings.shouldHaveSize(1)
     }
 
     @Test
@@ -57,8 +60,10 @@ class SingleApiAnnotationRuleTest {
             class Foo
             """.trimIndent()
         )
-        assertThat(findings).hasSize(1)
-        assertThat(findings.first().message).contains("StableApi").contains("InternalApi").contains("ExperimentalApi")
+        findings.shouldHaveSize(1)
+        findings.first().message shouldContain "StableApi"
+        findings.first().message shouldContain "InternalApi"
+        findings.first().message shouldContain "ExperimentalApi"
     }
 
     @Test
@@ -70,7 +75,7 @@ class SingleApiAnnotationRuleTest {
             class Foo
             """.trimIndent()
         )
-        assertThat(findings).hasSize(1)
+        findings.shouldHaveSize(1)
     }
 
     @Test
@@ -86,29 +91,29 @@ class SingleApiAnnotationRuleTest {
             }
             """.trimIndent()
         )
-        assertThat(findings).hasSize(2)
+        findings.shouldHaveSize(2)
     }
 
     // --- no violations ---
 
     @Test
     fun `single StableApi is fine`() {
-        assertThat(rule.lint("@StableApi class Foo".trimIndent())).isEmpty()
+        rule.lint("@StableApi class Foo".trimIndent()).shouldBeEmpty()
     }
 
     @Test
     fun `single InternalApi is fine`() {
-        assertThat(rule.lint("@InternalApi class Foo".trimIndent())).isEmpty()
+        rule.lint("@InternalApi class Foo".trimIndent()).shouldBeEmpty()
     }
 
     @Test
     fun `single ExperimentalApi is fine`() {
-        assertThat(rule.lint("@ExperimentalApi fun bar() {}".trimIndent())).isEmpty()
+        rule.lint("@ExperimentalApi fun bar() {}".trimIndent()).shouldBeEmpty()
     }
 
     @Test
     fun `no stability annotation is fine`() {
-        assertThat(rule.lint("class Foo".trimIndent())).isEmpty()
+        rule.lint("class Foo".trimIndent()).shouldBeEmpty()
     }
 
     @Test
@@ -120,6 +125,6 @@ class SingleApiAnnotationRuleTest {
             class Foo
             """.trimIndent()
         )
-        assertThat(findings).isEmpty()
+        findings.shouldBeEmpty()
     }
 }

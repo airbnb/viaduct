@@ -4,10 +4,8 @@ import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import strikt.api.expectThat
-import strikt.assertions.any
-import strikt.assertions.contains
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.context.getLocalContextForType
@@ -116,10 +114,9 @@ class LocalContextFeatureTest {
             )
             val resultSpec = result.toSpecification()
             assertEquals(mapOf("x" to null), resultSpec["data"], resultSpec.toString())
-            expectThat(result) {
-                get { errors } any {
-                    get { message } contains "Expected CompositeLocalContext but found"
-                }
-            }
+            assertTrue(
+                result.errors.any { it.message?.contains("Expected CompositeLocalContext but found") == true },
+                "Expected at least one error containing 'Expected CompositeLocalContext but found'"
+            )
         }
 }
