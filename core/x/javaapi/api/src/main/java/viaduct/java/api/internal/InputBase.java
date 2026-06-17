@@ -1,10 +1,10 @@
 package viaduct.java.api.internal;
 
+import graphql.schema.GraphQLInputObjectType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import viaduct.errors.FrameworkException;
 import viaduct.errors.HandleErrors;
@@ -22,10 +22,52 @@ import viaduct.java.api.types.GraphQLInput;
  */
 public abstract class InputBase implements GraphQLInput {
 
-  private final Map<String, Object> inputData;
+  @FunctionalInterface
+  protected interface InputConstructor<T extends InputBase> {
+    T create(InternalContext context, Map<String, Object> data, GraphQLInputObjectType type);
+  }
 
-  protected InputBase(Map<String, Object> inputData) {
+  @Nullable private final InternalContext __context;
+  private final Map<String, Object> inputData;
+  @Nullable private final GraphQLInputObjectType graphQLInputObjectType;
+
+  /**
+   * Constructs an input GRT with schema type information.
+   *
+   * <p>Mirrors Kotlin's {@code InputLikeBase(context, inputData, graphQLInputObjectType)}. The
+   * {@code graphQLInputObjectType} carries field definitions for schema-aware field access, default
+   * value resolution, and input validation.
+   *
+   * @param __context the per-request InternalContext, propagated to nested input GRTs; may be null
+   *     on the builder path
+   * @param inputData the backing map of field name to raw value
+   * @param graphQLInputObjectType the GraphQL input type definition; may be null on the builder
+   *     path (until builders become context-aware)
+   */
+  protected InputBase(
+      @Nullable InternalContext __context,
+      Map<String, Object> inputData,
+      @Nullable GraphQLInputObjectType graphQLInputObjectType) {
+    this.__context = __context;
     this.inputData = inputData;
+    this.graphQLInputObjectType = graphQLInputObjectType;
+  }
+
+  /**
+   * Returns the {@link InternalContext} this input GRT was constructed with, or null on the builder
+   * path. Uses double-underscore prefix to mirror Kotlin's naming and avoid generated getter
+   * collisions.
+   */
+  protected @Nullable InternalContext __context() {
+    return __context;
+  }
+
+  /**
+   * Returns the {@link GraphQLInputObjectType} this input GRT was constructed with. Mirrors
+   * Kotlin's {@code InputLikeBase.graphQLInputObjectType}. May be null on the builder path.
+   */
+  protected @Nullable GraphQLInputObjectType getGraphQLInputObjectType() {
+    return graphQLInputObjectType;
   }
 
   /** Returns the backing input data map. Used by the bridge layer to extract data. */
@@ -113,13 +155,13 @@ public abstract class InputBase implements GraphQLInput {
   }
 
   /**
-   * Gets a nested input field, wrapping the nested map using the provided constructor. Like Kotlin:
+   * Gets a nested input field, wrapping the nested map using the provided constructor and passing
+   * this GRT's {@link InternalContext} so it propagates to the nested input GRT. Like Kotlin:
    * {@code get(fieldName)} with grtConvFactory wrapping.
    */
   @Nullable
   @SuppressWarnings("unchecked")
-  protected <T extends InputBase> T getInput(
-      String fieldName, Function<Map<String, Object>, T> constructor) {
+  protected <T extends InputBase> T getInput(String fieldName, InputConstructor<T> constructor) {
     return HandleErrors.framework(
         "InputBase.getInput: " + fieldName,
         () -> {
@@ -131,7 +173,7 @@ public abstract class InputBase implements GraphQLInput {
             return (T) value;
           }
           if (value instanceof Map<?, ?> map) {
-            return constructor.apply((Map<String, Object>) map);
+            return constructor.create(__context, (Map<String, Object>) map, null);
           }
           return (T) value;
         });
@@ -143,7 +185,7 @@ public abstract class InputBase implements GraphQLInput {
   @Nullable
   @SuppressWarnings("unchecked")
   protected <T extends InputBase> List<T> getInputList(
-      String fieldName, Function<Map<String, Object>, T> constructor) {
+      String fieldName, InputConstructor<T> constructor) {
     return HandleErrors.framework(
         "InputBase.getInputList: " + fieldName,
         () -> {
@@ -159,7 +201,7 @@ public abstract class InputBase implements GraphQLInput {
               } else if (element instanceof InputBase) {
                 wrapped.add((T) element);
               } else if (element instanceof Map<?, ?> map) {
-                wrapped.add(constructor.apply((Map<String, Object>) map));
+                wrapped.add(constructor.create(__context, (Map<String, Object>) map, null));
               } else {
                 wrapped.add((T) element);
               }

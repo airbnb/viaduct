@@ -7,8 +7,16 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
+import viaduct.engine.api.ViaductSchema;
 import viaduct.engine.api.spi.FieldResolverExecutor;
 import viaduct.java.api.annotations.Resolver;
+import viaduct.java.api.context.ExecutionContext;
+import viaduct.java.api.globalid.GlobalID;
+import viaduct.java.api.internal.InternalContext;
+import viaduct.java.api.internal.ResolverClassFinder;
+import viaduct.java.api.reflect.Type;
+import viaduct.java.api.types.NodeCompositeOutput;
+import viaduct.service.api.spi.GlobalIDCodec;
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.FooResolvers;
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.NestedFooResolvers;
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.PersonResolvers;
@@ -22,7 +30,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
   public static class GreetingResolver extends QueryResolvers.Greeting {
     @Override
     public CompletableFuture<Foo> resolve(Context ctx) {
-      return CompletableFuture.completedFuture(Foo.builder().build());
+      return CompletableFuture.completedFuture(Foo.builder(ctx).build());
     }
   }
 
@@ -38,7 +46,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
   public static class NestedResolver extends FooResolvers.Nested {
     @Override
     public CompletableFuture<NestedFoo> resolve(Context ctx) {
-      return CompletableFuture.completedFuture(NestedFoo.builder().build());
+      return CompletableFuture.completedFuture(NestedFoo.builder(ctx).build());
     }
   }
 
@@ -82,7 +90,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
     @Override
     public CompletableFuture<List<Foo>> resolve(Context ctx) {
       return CompletableFuture.completedFuture(
-          List.of(Foo.builder().build(), Foo.builder().build(), Foo.builder().build()));
+          List.of(Foo.builder(ctx).build(), Foo.builder(ctx).build(), Foo.builder(ctx).build()));
     }
   }
 
@@ -91,7 +99,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
     @Override
     public CompletableFuture<List<NestedFoo>> resolve(Context ctx) {
       return CompletableFuture.completedFuture(
-          List.of(NestedFoo.builder().build(), NestedFoo.builder().build()));
+          List.of(NestedFoo.builder(ctx).build(), NestedFoo.builder(ctx).build()));
     }
   }
 
@@ -101,7 +109,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
     public CompletableFuture<Foo> resolve(Context ctx) {
       ctx.getArguments().getMessage();
       ctx.getArguments().getCount();
-      return CompletableFuture.completedFuture(Foo.builder().build());
+      return CompletableFuture.completedFuture(Foo.builder(ctx).build());
     }
   }
 
@@ -119,8 +127,8 @@ public class JavaObjectContractTest extends ObjectContractTest {
     public CompletableFuture<Person> resolve(Context ctx) {
       String name = ctx.getArguments().getName();
       Address address =
-          Address.builder().street("123 Main St").city("San Francisco").country("USA").build();
-      Person person = Person.builder().name(name).age(30).address(address).build();
+          Address.builder(ctx).street("123 Main St").city("San Francisco").country("USA").build();
+      Person person = Person.builder(ctx).name(name).age(30).address(address).build();
       return CompletableFuture.completedFuture(person);
     }
   }
@@ -150,9 +158,44 @@ public class JavaObjectContractTest extends ObjectContractTest {
 
   // --- Builder reuse tests ---
 
+  private interface StubContext extends ExecutionContext, InternalContext {}
+
+  private static final ExecutionContext STUB_CTX =
+      new StubContext() {
+        @Override
+        public <T extends NodeCompositeOutput> GlobalID<T> globalIDFor(Type<T> type, String id) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <T extends NodeCompositeOutput> String serialize(GlobalID<T> globalID) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Object getRequestContext() {
+          return null;
+        }
+
+        @Override
+        public ViaductSchema getSchema() {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public GlobalIDCodec getGlobalIDCodec() {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public ResolverClassFinder getClassFinder() {
+          throw new UnsupportedOperationException();
+        }
+      };
+
   @Test
   public void builderReuseDoesNotAliasObjects() {
-    Address.Builder builder = Address.builder().street("123 Main").city("SF").country("US");
+    Address.Builder builder = Address.builder(STUB_CTX).street("123 Main").city("SF").country("US");
     Address first = builder.build();
     builder.street("456 Oak").city("NYC");
     Address second = builder.build();

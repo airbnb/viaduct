@@ -10,7 +10,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 import org.jspecify.annotations.Nullable;
 import viaduct.engine.api.EngineObjectData;
 import viaduct.engine.api.NodeReference;
@@ -41,6 +41,7 @@ public abstract class ObjectBase implements GraphQLObject {
   // Mirrors Kotlin's OBJECTBASE_GRT_NULL sentinel.
   private static final Object NULL_VALUE = new Object();
 
+  @Nullable private final InternalContext __context;
   private final EngineObjectData.@Nullable Sync engineData;
   @Nullable private final Map<String, Object> mapData;
   @Nullable private final NodeReference nodeReference;
@@ -49,9 +50,13 @@ public abstract class ObjectBase implements GraphQLObject {
   /**
    * Engine path constructor: wraps pre-resolved EngineObjectData.Sync.
    *
-   * <p>Like Kotlin: {@code ObjectBase(context, engineObject)}
+   * <p>Like Kotlin: {@code ObjectBase(context, engineObject)}.
+   *
+   * <p>{@code context} is the per-request {@link InternalContext}, propagated to nested GRTs. It
+   * may be null on the builder path (Java builders have no execution context).
    */
-  protected ObjectBase(EngineObjectData.Sync engineData) {
+  protected ObjectBase(@Nullable InternalContext __context, EngineObjectData.Sync engineData) {
+    this.__context = __context;
     this.engineData = engineData;
     this.mapData = null;
     this.nodeReference = null;
@@ -60,9 +65,11 @@ public abstract class ObjectBase implements GraphQLObject {
   /**
    * Builder path constructor: wraps a builder-populated map.
    *
-   * <p>Like Kotlin: {@code build() -> buildEngineObjectData() -> constructor}
+   * <p>Like Kotlin: {@code build() -> buildEngineObjectData() -> constructor}. The builder path has
+   * no execution context, so {@code context} is typically null.
    */
-  protected ObjectBase(Map<String, Object> mapData) {
+  protected ObjectBase(@Nullable InternalContext __context, Map<String, Object> mapData) {
+    this.__context = __context;
     this.engineData = null;
     this.mapData = mapData;
     this.nodeReference = null;
@@ -73,10 +80,20 @@ public abstract class ObjectBase implements GraphQLObject {
    *
    * <p>Used by {@code ctx.nodeRef()} to create a lazy reference that the engine resolves later.
    */
-  protected ObjectBase(NodeReference nodeReference) {
+  protected ObjectBase(@Nullable InternalContext __context, NodeReference nodeReference) {
+    this.__context = __context;
     this.engineData = null;
     this.mapData = null;
     this.nodeReference = nodeReference;
+  }
+
+  /**
+   * Returns the {@link InternalContext} this GRT was constructed with, or null on the builder path.
+   * Uses double-underscore prefix to mirror Kotlin's {@code __context} and avoid generated getter
+   * collisions (a GraphQL field named "context" would produce {@code getContext()}).
+   */
+  protected @Nullable InternalContext __context() {
+    return __context;
   }
 
   /**
@@ -254,13 +271,14 @@ public abstract class ObjectBase implements GraphQLObject {
    * Fetches a composite object field. Like Kotlin: {@code fetch("fieldName", NestedType::class) ->
    * wrapObject()}.
    *
-   * <p>If the raw value is {@link EngineObjectData.Sync}, wraps it using the provided constructor.
-   * If already a {@link ObjectBase} (builder path), returns as-is.
+   * <p>If the raw value is {@link EngineObjectData.Sync}, wraps it using the provided constructor,
+   * passing this GRT's {@link InternalContext} so it propagates to the nested GRT. If already a
+   * {@link ObjectBase} (builder path), returns as-is.
    */
   @Nullable
   @SuppressWarnings("unchecked")
   protected <T extends ObjectBase> T fetchObject(
-      String fieldName, Function<EngineObjectData.Sync, T> constructor) {
+      String fieldName, BiFunction<InternalContext, EngineObjectData.Sync, T> constructor) {
     return HandleErrors.framework(
         "ObjectBase.fetchObject: " + fieldName,
         () -> {
@@ -273,7 +291,7 @@ public abstract class ObjectBase implements GraphQLObject {
           if (raw == null) {
             toCache = NULL_VALUE;
           } else if (raw instanceof EngineObjectData.Sync syncData) {
-            toCache = constructor.apply(syncData);
+            toCache = constructor.apply(__context, syncData);
           } else {
             // Builder path: value is already a ObjectBase instance
             toCache = raw;
@@ -291,7 +309,7 @@ public abstract class ObjectBase implements GraphQLObject {
   @Nullable
   @SuppressWarnings("unchecked")
   protected <T extends ObjectBase> List<T> fetchObjectList(
-      String fieldName, Function<EngineObjectData.Sync, T> constructor) {
+      String fieldName, BiFunction<InternalContext, EngineObjectData.Sync, T> constructor) {
     return HandleErrors.framework(
         "ObjectBase.fetchObjectList: " + fieldName,
         () -> {
@@ -309,7 +327,7 @@ public abstract class ObjectBase implements GraphQLObject {
               if (element == null) {
                 wrapped.add(null);
               } else if (element instanceof EngineObjectData.Sync syncData) {
-                wrapped.add(constructor.apply(syncData));
+                wrapped.add(constructor.apply(__context, syncData));
               } else {
                 // Builder path: elements are already ObjectBase instances
                 wrapped.add((T) element);
@@ -351,7 +369,7 @@ public abstract class ObjectBase implements GraphQLObject {
           if (raw == null) {
             toCache = NULL_VALUE;
           } else if (raw instanceof EngineObjectData.Sync syncData) {
-            toCache = instantiateConcrete(syncData, interfaceClass, fieldName);
+            toCache = instantiateConcrete(__context, syncData, interfaceClass, fieldName);
           } else {
             // Builder path: value is already a concrete instance implementing the interface
             toCache = raw;
@@ -386,7 +404,8 @@ public abstract class ObjectBase implements GraphQLObject {
               if (element == null) {
                 wrapped.add(null);
               } else if (element instanceof EngineObjectData.Sync syncData) {
-                wrapped.add((T) instantiateConcrete(syncData, interfaceClass, fieldName));
+                wrapped.add(
+                    (T) instantiateConcrete(__context, syncData, interfaceClass, fieldName));
               } else {
                 // Builder path: elements are already concrete instances
                 wrapped.add((T) element);
@@ -406,18 +425,22 @@ public abstract class ObjectBase implements GraphQLObject {
    * Instantiates the concrete Java class for an interface/union-typed field from engine data.
    *
    * <p>Uses the GraphQL type name from the engine data to find the concrete class in the same
-   * package as the interface class, then calls its {@link EngineObjectData.Sync} constructor.
+   * package as the interface class, then calls its {@code (InternalContext, EngineObjectData.Sync)}
+   * constructor, passing the context so it propagates to the nested GRT.
    */
   private static Object instantiateConcrete(
-      EngineObjectData.Sync syncData, Class<?> interfaceClass, String fieldName)
+      @Nullable InternalContext context,
+      EngineObjectData.Sync syncData,
+      Class<?> interfaceClass,
+      String fieldName)
       throws FrameworkException {
     String concreteTypeName = syncData.getType().getName();
     String fqcn = interfaceClass.getPackageName() + "." + concreteTypeName;
     try {
       Class<?> concreteClass = Class.forName(fqcn);
       return concreteClass
-          .getDeclaredConstructor(EngineObjectData.Sync.class)
-          .newInstance(syncData);
+          .getDeclaredConstructor(InternalContext.class, EngineObjectData.Sync.class)
+          .newInstance(context, syncData);
     } catch (ReflectiveOperationException e) {
       throw new FrameworkException(
           "Failed to instantiate concrete type '"

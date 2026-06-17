@@ -18,6 +18,7 @@ import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.errors.resultOfSuspend
 import viaduct.java.api.context.NodeExecutionContext
 import viaduct.java.api.internal.ObjectBase
+import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.resolvers.FieldValue
 
 /**
@@ -39,6 +40,7 @@ class NodeBatchResolverExecutorImpl(
     private val resolverName: String,
     override val isSelective: Boolean = false,
     private val graphqlSchema: graphql.schema.GraphQLSchema? = null,
+    private val classFinder: ResolverClassFinder? = null,
 ) : NodeResolverExecutor {
     override val metadata: ResolverMetadata = ResolverMetadata.forModern(resolverName, ResolverType.NODE)
     override val isBatching: Boolean = true
@@ -55,6 +57,7 @@ class NodeBatchResolverExecutorImpl(
                 requestContext = context.requestContext,
                 engineExecutionContext = context,
                 coroutineScope = scope,
+                classFinder = classFinder,
             )
         }
 

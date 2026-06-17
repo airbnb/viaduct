@@ -21,8 +21,8 @@ import viaduct.java.api.resolvers.FieldValue
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 private class TestNodeGRT : ObjectBase {
-    constructor(data: EngineObjectData.Sync) : super(data)
-    constructor(ref: NodeReference) : super(ref)
+    constructor(data: EngineObjectData.Sync) : super(null, data)
+    constructor(ref: NodeReference) : super(null, ref)
 }
 
 class JavaNodeResolverExecutorTest {

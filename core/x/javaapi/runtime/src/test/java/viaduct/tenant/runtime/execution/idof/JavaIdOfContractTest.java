@@ -53,9 +53,9 @@ public class JavaIdOfContractTest extends IdOfContractTest {
       String bobId = ctx.globalIDStringFor(Type.ofClass(User.class), "bob@hotmail.com");
       User result;
       if ("alice@yahoo.com".equals(internal)) {
-        result = User.builder().id(aliceId).name("Alice").cohostID(bobId).build();
+        result = User.builder(ctx).id(aliceId).name("Alice").cohostID(bobId).build();
       } else if ("bob@hotmail.com".equals(internal)) {
-        result = User.builder().id(bobId).name("Bob").cohostID(aliceId).build();
+        result = User.builder(ctx).id(bobId).name("Bob").cohostID(aliceId).build();
       } else {
         throw new IllegalArgumentException("No User with id=" + internal);
       }
@@ -93,7 +93,7 @@ public class JavaIdOfContractTest extends IdOfContractTest {
       String id = ctx.getArguments().getId();
       // Validate the encoding (engine does not, since the Java codegen treats @idOf as String).
       typeOfOrThrow(id);
-      return CompletableFuture.completedFuture(User.builder().id(id).name("Alice").build());
+      return CompletableFuture.completedFuture(User.builder(ctx).id(id).name("Alice").build());
     }
   }
 

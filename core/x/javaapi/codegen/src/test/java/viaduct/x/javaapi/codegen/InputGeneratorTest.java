@@ -25,13 +25,15 @@ class InputGeneratorTest {
         .contains("package com.example.types;")
         .contains("public class CreateUserInput extends InputBase")
         .doesNotContain("implements GraphQLInput")
-        .contains("public CreateUserInput(Map<String, Object> data)")
+        .contains(
+            "public CreateUserInput(InternalContext context, Map<String, Object> data,"
+                + " GraphQLInputObjectType graphQLInputObjectType)")
         .contains("private final Map<String, Object> data = new LinkedHashMap<>")
         .contains("public String getName()")
         .contains("return get(\"name\")")
         .doesNotContain("private String name;")
         .doesNotContain("public void setName(")
-        .contains("public static Builder builder()")
+        .contains("public static Builder builder(ExecutionContext context)")
         .contains("public static class Builder");
   }
 

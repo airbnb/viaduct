@@ -27,16 +27,20 @@ public final class JavaResolverGenerator {
           import java.util.List;
           import java.util.Map;
           import java.util.concurrent.CompletableFuture;
+          import viaduct.engine.api.ViaductSchema;
           import viaduct.java.api.annotations.ResolverFor;
           import viaduct.java.api.context.FieldExecutionContext;
           import viaduct.java.api.context.SelectiveFieldExecutionContext;
           import viaduct.java.api.globalid.GlobalID;
+          import viaduct.java.api.internal.InternalContext;
+          import viaduct.java.api.internal.ResolverClassFinder;
           import viaduct.java.api.reflect.Type;
           import viaduct.java.api.resolvers.FieldResolverBase;
           import viaduct.java.api.types.Arguments;
           import viaduct.java.api.types.CompositeOutput;
           import viaduct.java.api.types.NodeCompositeOutput;
           import viaduct.java.api.types.NodeObject;
+          import viaduct.service.api.spi.GlobalIDCodec;
           import <mdl.grtPackage>.*;
 
           /**
@@ -58,7 +62,7 @@ public final class JavaResolverGenerator {
                    * Provides type-safe access to object value, query value, arguments, and selections.
                    */
                   public static final class Context
-                      implements <r.contextBaseType><if(r.isSelective)>, <r.selectiveContextType><endif> {
+                      implements <r.contextBaseType><if(r.isSelective)>, <r.selectiveContextType><endif>, InternalContext {
 
                       private final <r.fieldExecutionContextType> inner;
 
@@ -139,6 +143,21 @@ public final class JavaResolverGenerator {
                           return inner.mutation(selections, variables, <r.mutationType>.class);
                       \\}
                       <endif>
+
+                      @Override
+                      public ViaductSchema getSchema() {
+                          return InternalContext.from(inner).getSchema();
+                      \\}
+
+                      @Override
+                      public GlobalIDCodec getGlobalIDCodec() {
+                          return InternalContext.from(inner).getGlobalIDCodec();
+                      \\}
+
+                      @Override
+                      public ResolverClassFinder getClassFinder() {
+                          return InternalContext.from(inner).getClassFinder();
+                      \\}
                   \\}
 
                   <if(!r.isBatching)>

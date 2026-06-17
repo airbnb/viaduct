@@ -21,13 +21,13 @@ import viaduct.engine.api.spi.TenantModuleException
 import viaduct.java.api.annotations.NodeResolverFor
 import viaduct.java.api.annotations.Resolver
 import viaduct.java.api.annotations.ResolverFor
+import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.resolvers.FieldResolverBase
 import viaduct.java.api.resolvers.NodeResolverBase
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.CompositeOutput
 import viaduct.java.api.types.NodeObject
 import viaduct.java.api.types.Query
-import viaduct.java.runtime.bootstrap.ResolverClassFinder
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 

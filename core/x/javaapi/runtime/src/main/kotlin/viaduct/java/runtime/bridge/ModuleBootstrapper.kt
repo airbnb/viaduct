@@ -18,9 +18,9 @@ import viaduct.java.api.annotations.Resolver
 import viaduct.java.api.annotations.ResolverFor
 import viaduct.java.api.context.FieldExecutionContext
 import viaduct.java.api.context.NodeExecutionContext
+import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.resolvers.FieldResolverBase
 import viaduct.java.api.resolvers.NodeResolverBase
-import viaduct.java.runtime.bootstrap.ResolverClassFinder
 import viaduct.service.api.spi.CodeInjector
 
 /**
@@ -180,6 +180,7 @@ class ModuleBootstrapper(
                 resolverClass = resolverClass,
                 injector = injector,
                 argumentsClass = argumentsClass,
+                classFinder = classFinder,
             )
 
             val executor = if (resolverForAnnotation.isBatching) {
@@ -205,6 +206,7 @@ class ModuleBootstrapper(
                     objectValueClass = objectValueClass,
                     queryValueClass = queryValueClass,
                     graphqlSchema = schema.schema,
+                    classFinder = classFinder,
                 )
             } else {
                 val resolveMethod = findResolveMethod(resolverClass)
@@ -229,6 +231,7 @@ class ModuleBootstrapper(
                     objectValueClass = objectValueClass,
                     queryValueClass = queryValueClass,
                     graphqlSchema = schema.schema,
+                    classFinder = classFinder,
                 )
             }
 
@@ -346,6 +349,7 @@ class ModuleBootstrapper(
                     resolverName = resolverName,
                     isSelective = nodeResolverForAnnotation.isSelective,
                     graphqlSchema = graphqlSchema,
+                    classFinder = classFinder,
                 )
             } else {
                 val resolveMethod = findResolveMethod(resolverClass)
@@ -359,6 +363,7 @@ class ModuleBootstrapper(
                     resolverName = resolverName,
                     isSelective = nodeResolverForAnnotation.isSelective,
                     graphqlSchema = graphqlSchema,
+                    classFinder = classFinder,
                 )
             }
 

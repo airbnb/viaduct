@@ -1,5 +1,6 @@
 package viaduct.java.runtime.bridge
 
+import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLSchema
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.CoroutineScope
@@ -16,6 +17,8 @@ import viaduct.errors.handleFrameworkErrorsSuspend
 import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.errors.resultOfSuspend
 import viaduct.java.api.context.FieldExecutionContext
+import viaduct.java.api.internal.InternalContext
+import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.Arguments
 
 /**
@@ -37,6 +40,7 @@ class FieldBatchResolverExecutorImpl(
     private val objectValueClass: Class<*>? = null,
     private val queryValueClass: Class<*>? = null,
     private val graphqlSchema: GraphQLSchema? = null,
+    private val classFinder: ResolverClassFinder? = null,
 ) : FieldResolverExecutor {
     override val metadata: ResolverMetadata = ResolverMetadata.forModern(resolverName, ResolverType.FIELD)
     override val isBatching: Boolean = true
@@ -47,16 +51,19 @@ class FieldBatchResolverExecutorImpl(
     ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
         val scope = CoroutineScope(currentCoroutineContext())
 
+        // Per-request InternalContext attached to GRTs and propagated to nested GRTs.
+        val internalContext = classFinder?.let { buildInternalContext(context, it) }
+
         // Build one typed context per selector
         val javaContexts: List<FieldExecutionContext<*, *, *, *>> = selectors.map { selector ->
             val arguments = handleFrameworkErrors("$resolverId: createArguments") {
-                createArguments(selector.arguments)
+                createArguments(selector.arguments, internalContext)
             }
             val objectValue = handleFrameworkErrorsSuspend("$resolverId: createObjectValue") {
-                createObjectValue(selector)
+                createObjectValue(selector, internalContext)
             }
             val queryValue = handleFrameworkErrorsSuspend("$resolverId: createQueryValue") {
-                createQueryValue(selector)
+                createQueryValue(selector, internalContext)
             }
             SimpleFieldExecutionContext(
                 requestContext = context.requestContext,
@@ -65,6 +72,7 @@ class FieldBatchResolverExecutorImpl(
                 queryValue = queryValue,
                 engineExecutionContext = context,
                 coroutineScope = scope,
+                classFinder = classFinder,
             )
         }
 
@@ -102,20 +110,38 @@ class FieldBatchResolverExecutorImpl(
         return out
     }
 
-    private fun createArguments(argumentMap: Map<String, Any?>): Arguments? {
+    private fun createArguments(
+        argumentMap: Map<String, Any?>,
+        internalContext: InternalContext?
+    ): Arguments? {
         if (argumentsClass == null || argumentsClass == Arguments.None::class.java) return null
+
+        val graphQLInputObjectType: GraphQLInputObjectType? = internalContext?.let { ctx ->
+            buildArgumentsInputType(argumentsClass, resolverId, ctx)
+        }
+
         @Suppress("UNCHECKED_CAST")
-        val constructor = argumentsClass.getDeclaredConstructor(Map::class.java)
-        return constructor.newInstance(argumentMap) as Arguments
+        val constructor = argumentsClass.getDeclaredConstructor(
+            InternalContext::class.java,
+            Map::class.java,
+            GraphQLInputObjectType::class.java
+        )
+        return constructor.newInstance(internalContext, argumentMap, graphQLInputObjectType) as Arguments
     }
 
-    private suspend fun createObjectValue(selector: FieldResolverExecutor.Selector): Any? {
+    private suspend fun createObjectValue(
+        selector: FieldResolverExecutor.Selector,
+        internalContext: InternalContext?
+    ): Any? {
         if (objectValueClass == null) return null
-        return convertSyncEngineDataToJavaObject(objectValueClass, selector.syncObjectValueGetter())
+        return convertSyncEngineDataToJavaObject(objectValueClass, selector.syncObjectValueGetter(), internalContext)
     }
 
-    private suspend fun createQueryValue(selector: FieldResolverExecutor.Selector): Any? {
+    private suspend fun createQueryValue(
+        selector: FieldResolverExecutor.Selector,
+        internalContext: InternalContext?
+    ): Any? {
         if (queryValueClass == null) return null
-        return convertSyncEngineDataToJavaObject(queryValueClass, selector.syncQueryValueGetter())
+        return convertSyncEngineDataToJavaObject(queryValueClass, selector.syncQueryValueGetter(), internalContext)
     }
 }

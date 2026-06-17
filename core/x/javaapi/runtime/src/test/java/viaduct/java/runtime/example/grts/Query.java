@@ -2,6 +2,7 @@ package viaduct.java.runtime.example.grts;
 
 import java.util.Map;
 import viaduct.engine.api.EngineObjectData;
+import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.ObjectBase;
 
 /**
@@ -12,11 +13,11 @@ import viaduct.java.api.internal.ObjectBase;
  */
 public class Query extends ObjectBase implements viaduct.java.api.types.Query {
 
-  public Query(EngineObjectData.Sync data) {
-    super(data);
+  public Query(InternalContext context, EngineObjectData.Sync data) {
+    super(context, data);
   }
 
-  private Query(Map<String, Object> data) {
-    super(data);
+  private Query(InternalContext context, Map<String, Object> data) {
+    super(context, data);
   }
 }

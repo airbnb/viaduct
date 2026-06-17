@@ -14,7 +14,7 @@ public class JavaIncludeDirectiveContractTest extends IncludeDirectiveContractTe
   public static class FooResolver extends QueryResolvers.Foo {
     @Override
     public CompletableFuture<Foo> resolve(Context ctx) {
-      return CompletableFuture.completedFuture(Foo.builder().build());
+      return CompletableFuture.completedFuture(Foo.builder(ctx).build());
     }
   }
 
@@ -22,7 +22,7 @@ public class JavaIncludeDirectiveContractTest extends IncludeDirectiveContractTe
   public static class ThrowerResolver extends QueryResolvers.Thrower {
     @Override
     public CompletableFuture<Thrower> resolve(Context ctx) {
-      return CompletableFuture.completedFuture(Thrower.builder().build());
+      return CompletableFuture.completedFuture(Thrower.builder(ctx).build());
     }
   }
 

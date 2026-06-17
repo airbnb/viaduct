@@ -5,16 +5,20 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.future
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ResolveSelectionSetOptions
+import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
 import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.handleFrameworkErrorsSuspend
 import viaduct.java.api.context.FieldExecutionContext
 import viaduct.java.api.context.SelectiveFieldExecutionContext
+import viaduct.java.api.internal.InternalContext
+import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.resolvers.FieldResolverBase
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.CompositeOutput
 import viaduct.java.api.types.GraphQLObject
 import viaduct.java.api.types.Query
+import viaduct.service.api.spi.GlobalIDCodec
 
 // Internal marker type for the selections type parameter
 object AnySelections : CompositeOutput
@@ -24,6 +28,11 @@ object AnySelections : CompositeOutput
  *
  * Bridges the engine's untyped data (argument maps) to the Java API's typed interfaces.
  * Arguments are populated from the engine's argument map using reflection on the Arguments class.
+ *
+ * Also implements [InternalContext] so that tenant code can pass `this` as an ExecutionContext
+ * to generated builders (`MyType.builder(ctx)`) and the `InternalContext.from(ctx)` cast succeeds.
+ * This mirrors Kotlin's `ExecutionContextImpl` which implements both `ExecutionContext` and
+ * `InternalContext`.
  *
  * Uses [Arguments] directly as the generic argument type so that any concrete Arguments
  * subtype (e.g., Query_person_Arguments) can be returned without a ClassCastException.
@@ -35,6 +44,9 @@ object AnySelections : CompositeOutput
  * @param queryValue The query root value (populated from the queryValueFragment result), or null
  * @param engineExecutionContext The engine execution context, required for ctx.query() and ctx.mutation()
  * @param coroutineScope The coroutine scope for launching subquery coroutines, required for ctx.query() and ctx.mutation()
+ * @param classFinder Resolves GRT classes by type name; used to build the [InternalContext] attached
+ *        to GRTs returned by ctx.query()/ctx.mutation() and ctx.nodeRef(). May be null outside a
+ *        live execution context.
  */
 @Suppress("UNCHECKED_CAST", "TooManyFunctions")
 class SimpleFieldExecutionContext(
@@ -44,9 +56,11 @@ class SimpleFieldExecutionContext(
     private val queryValue: Any? = null,
     private val engineExecutionContext: EngineExecutionContext? = null,
     private val coroutineScope: CoroutineScope? = null,
+    private val classFinder: ResolverClassFinder? = null,
 ) : FieldExecutionContext<GraphQLObject, Query, Arguments, AnySelections>,
     SelectiveFieldExecutionContext<AnySelections>,
-    FieldResolverBase.Context<GraphQLObject, Query, Arguments, AnySelections> {
+    FieldResolverBase.Context<GraphQLObject, Query, Arguments, AnySelections>,
+    InternalContext {
     override fun getObjectValue(): GraphQLObject =
         handleFrameworkErrors("getObjectValue") {
             objectValue as? GraphQLObject
@@ -70,6 +84,25 @@ class SimpleFieldExecutionContext(
     }
 
     override fun getRequestContext(): Any? = requestContext
+
+    // ── InternalContext implementation ──
+    // Delegates to the engine context's schema/codec/classFinder, mirroring Kotlin's
+    // ExecutionContextImpl which implements both ExecutionContext and InternalContext.
+
+    override fun getSchema(): ViaductSchema {
+        return engineExecutionContext?.fullSchema
+            ?: throw FrameworkException("getSchema() requires engineExecutionContext.")
+    }
+
+    override fun getGlobalIDCodec(): GlobalIDCodec {
+        return engineExecutionContext?.globalIDCodec
+            ?: throw FrameworkException("getGlobalIDCodec() requires engineExecutionContext.")
+    }
+
+    override fun getClassFinder(): ResolverClassFinder {
+        return classFinder
+            ?: throw FrameworkException("getClassFinder() requires classFinder.")
+    }
 
     override fun <T : viaduct.java.api.types.NodeCompositeOutput> globalIDFor(
         type: viaduct.java.api.reflect.Type<T>,
@@ -105,8 +138,10 @@ class SimpleFieldExecutionContext(
             ?: throw FrameworkException("GraphQL type '$typeName' not found in schema for nodeRef.")
         val nodeReference = engineCtx.createNodeReference(serializedId, graphqlType)
         val grtClass = id.getType().getJavaClass() as Class<T>
-        return grtClass.getDeclaredConstructor(viaduct.engine.api.NodeReference::class.java)
-            .newInstance(nodeReference) as T
+        val internalContext = classFinder?.let { buildInternalContext(engineCtx, it) }
+        return grtClass
+            .getDeclaredConstructor(InternalContext::class.java, viaduct.engine.api.NodeReference::class.java)
+            .newInstance(internalContext, nodeReference) as T
     }
 
     override fun <T : Any> query(
@@ -130,7 +165,11 @@ class SimpleFieldExecutionContext(
                 )
                 val result = engineCtx.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.DEFAULT)
                 @Suppress("UNCHECKED_CAST")
-                convertSyncEngineDataToJavaObject(targetClass, result) as T
+                convertSyncEngineDataToJavaObject(
+                    targetClass,
+                    result,
+                    classFinder?.let { buildInternalContext(engineCtx, it) }
+                ) as T
             }
         }
     }
@@ -157,7 +196,11 @@ class SimpleFieldExecutionContext(
                 )
                 val result = engineCtx.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.MUTATION)
                 @Suppress("UNCHECKED_CAST")
-                convertSyncEngineDataToJavaObject(targetClass, result) as T
+                convertSyncEngineDataToJavaObject(
+                    targetClass,
+                    result,
+                    classFinder?.let { buildInternalContext(engineCtx, it) }
+                ) as T
             }
         }
     }

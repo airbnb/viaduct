@@ -20,7 +20,7 @@ public class JavaFieldBatchResolverContractTest extends FieldBatchResolverContra
       int count = ctx.getArguments().getCount() != null ? ctx.getArguments().getCount() : 2;
       List<Item> items =
           IntStream.rangeClosed(1, count)
-              .mapToObj(i -> Item.builder().id("item-" + i).build())
+              .mapToObj(i -> Item.builder(ctx).id("item-" + i).build())
               .toList();
       return CompletableFuture.completedFuture(items);
     }
@@ -50,7 +50,7 @@ public class JavaFieldBatchResolverContractTest extends FieldBatchResolverContra
             IntStream.rangeClosed(1, contexts.size())
                 .mapToObj(
                     i ->
-                        Item.builder()
+                        Item.builder(ctx)
                             .id(itemId + "-list-" + i + "-size-" + contexts.size())
                             .build())
                 .toList();

@@ -14,7 +14,7 @@ public class JavaSubqueryVariablesContractTest extends SubqueryVariablesContract
   public static class ContainerResolver extends QueryResolvers.Container {
     @Override
     public CompletableFuture<Container> resolve(Context ctx) {
-      return CompletableFuture.completedFuture(Container.builder().build());
+      return CompletableFuture.completedFuture(Container.builder(ctx).build());
     }
   }
 

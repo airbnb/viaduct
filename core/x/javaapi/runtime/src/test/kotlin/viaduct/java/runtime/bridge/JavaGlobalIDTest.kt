@@ -64,7 +64,7 @@ class JavaGlobalIDTest {
     fun `NodeRefWrapper exposes the wrapped NodeReference via ObjectBase`() {
         val nodeReference = mockk<NodeReference>()
         every { nodeReference.id } returns "ref-id"
-        val wrapper = NodeRefWrapper(nodeReference)
+        val wrapper = NodeRefWrapper(null, nodeReference)
         assertThat(wrapper.javaNodeReference).isSameAs(nodeReference)
         assertThat(wrapper.javaEngineObjectData).isNull()
         assertThat(wrapper.javaMapData).isNull()

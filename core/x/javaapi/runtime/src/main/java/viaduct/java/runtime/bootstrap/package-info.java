@@ -7,8 +7,8 @@
  * <h2>Key Components</h2>
  *
  * <ul>
- *   <li>{@link viaduct.java.runtime.bootstrap.ResolverClassFinder} - Interface for discovering
- *       resolver classes via classpath scanning
+ *   <li>{@code viaduct.java.api.internal.ResolverClassFinder} - Interface for discovering resolver
+ *       classes via classpath scanning (lives in the API layer)
  *   <li>{@code viaduct.java.runtime.bridge.DefaultResolverClassFinder} - Default implementation
  *       using ClassGraphScanner (Kotlin)
  *   <li>{@code viaduct.java.runtime.bridge.ModuleBootstrapper} - Bootstrapper that implements

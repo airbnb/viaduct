@@ -20,6 +20,7 @@ import viaduct.graphql.utils.collectVariableReferences
 import viaduct.java.api.annotations.Resolver
 import viaduct.java.api.annotations.Variable
 import viaduct.java.api.annotations.Variables
+import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.variables.VariablesProvider
 import viaduct.service.api.spi.CodeInjector
@@ -64,6 +65,7 @@ class RequiredSelectionSetFactory {
         resolverClass: Class<*>,
         injector: CodeInjector,
         argumentsClass: Class<out Arguments>? = null,
+        classFinder: ResolverClassFinder? = null,
     ): RequiredSelectionSets {
         val objectSelections = entry.objectSelections?.selections
             ?.takeIf { it.isNotBlank() }
@@ -77,7 +79,7 @@ class RequiredSelectionSetFactory {
         }
 
         val variables = buildVariables(entry.objectSelections, entry.querySelections)
-        return build(objectSelections, querySelections, variables, resolverClass, injector, argumentsClass)
+        return build(objectSelections, querySelections, variables, resolverClass, injector, argumentsClass, classFinder)
     }
 
     /**
@@ -101,6 +103,7 @@ class RequiredSelectionSetFactory {
         resolverClass: Class<*>,
         injector: CodeInjector,
         argumentsClass: Class<out Arguments>? = null,
+        classFinder: ResolverClassFinder? = null,
     ): RequiredSelectionSets {
         val objectValueFragment = annotation.objectValueFragment
         val queryValueFragment = annotation.queryValueFragment
@@ -122,7 +125,7 @@ class RequiredSelectionSetFactory {
         }
 
         val variables = annotation.variables.map { v -> v.toSelectionSetVariable() }
-        return build(objectSelections, querySelections, variables, resolverClass, injector, argumentsClass)
+        return build(objectSelections, querySelections, variables, resolverClass, injector, argumentsClass, classFinder)
     }
 
     /**
@@ -137,8 +140,9 @@ class RequiredSelectionSetFactory {
         resolverClass: Class<*>,
         injector: CodeInjector,
         argumentsClass: Class<out Arguments>?,
+        classFinder: ResolverClassFinder?,
     ): RequiredSelectionSets {
-        val variablesProviderExecutor = mkVariablesProviderExecutor(resolverClass, injector, argumentsClass)
+        val variablesProviderExecutor = mkVariablesProviderExecutor(resolverClass, injector, argumentsClass, classFinder)
 
         val variableConsumers = buildSet<String> {
             objectSelections?.selections?.collectVariableReferences()?.let(::addAll)
@@ -224,6 +228,7 @@ class RequiredSelectionSetFactory {
         resolverClass: Class<*>,
         injector: CodeInjector,
         argumentsClass: Class<out Arguments>?,
+        classFinder: ResolverClassFinder?,
     ): VariablesProviderExecutorImpl? {
         val candidate = resolverClass.declaredClasses.firstOrNull { it.isAnnotationPresent(Variables::class.java) }
             ?: return null
@@ -237,6 +242,7 @@ class RequiredSelectionSetFactory {
             variableNames = variableNames,
             provider = provider,
             argumentsClass = argumentsClass,
+            classFinder = classFinder,
         )
     }
 }

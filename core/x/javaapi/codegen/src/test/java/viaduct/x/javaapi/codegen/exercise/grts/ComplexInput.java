@@ -1,15 +1,21 @@
 package viaduct.x.javaapi.codegen.exercise.grts;
 
+import graphql.schema.GraphQLInputObjectType;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import viaduct.java.api.context.ExecutionContext;
 import viaduct.java.api.internal.InputBase;
+import viaduct.java.api.internal.InternalContext;
 
 /** An input with enum and list fields. */
 public class ComplexInput extends InputBase {
 
-  public ComplexInput(Map<String, Object> data) {
-    super(data);
+  public ComplexInput(
+      InternalContext context,
+      Map<String, Object> data,
+      GraphQLInputObjectType graphQLInputObjectType) {
+    super(context, data, graphQLInputObjectType);
   }
 
   public StatusEnum getStatus() {
@@ -20,12 +26,17 @@ public class ComplexInput extends InputBase {
     return getScalarList("tags");
   }
 
-  public static Builder builder() {
-    return new Builder();
+  public static Builder builder(ExecutionContext context) {
+    return new Builder(InternalContext.from(context));
   }
 
   public static class Builder {
+    private final InternalContext __context;
     private final Map<String, Object> data = new LinkedHashMap<>();
+
+    private Builder(InternalContext __context) {
+      this.__context = __context;
+    }
 
     public Builder status(StatusEnum status) {
       data.put("status", status);
@@ -38,7 +49,7 @@ public class ComplexInput extends InputBase {
     }
 
     public ComplexInput build() {
-      return new ComplexInput(data);
+      return new ComplexInput(__context, new LinkedHashMap<>(data), null);
     }
   }
 }

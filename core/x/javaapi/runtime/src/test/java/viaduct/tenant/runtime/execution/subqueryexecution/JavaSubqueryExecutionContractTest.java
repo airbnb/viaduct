@@ -64,7 +64,7 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
   public static class ContainerResolver extends QueryResolvers.Container {
     @Override
     public CompletableFuture<Container> resolve(Context ctx) {
-      return CompletableFuture.completedFuture(Container.builder().build());
+      return CompletableFuture.completedFuture(Container.builder(ctx).build());
     }
   }
 
@@ -72,7 +72,7 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
   public static class UserResolver extends QueryResolvers.User {
     @Override
     public CompletableFuture<User> resolve(Context ctx) {
-      return CompletableFuture.completedFuture(User.builder().build());
+      return CompletableFuture.completedFuture(User.builder(ctx).build());
     }
   }
 
@@ -80,7 +80,7 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
   public static class CalculatorResolver extends QueryResolvers.Calculator {
     @Override
     public CompletableFuture<Calculator> resolve(Context ctx) {
-      return CompletableFuture.completedFuture(Calculator.builder().build());
+      return CompletableFuture.completedFuture(Calculator.builder(ctx).build());
     }
   }
 
@@ -88,7 +88,7 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
   public static class Level1Resolver extends QueryResolvers.Level1 {
     @Override
     public CompletableFuture<Level1> resolve(Context ctx) {
-      return CompletableFuture.completedFuture(Level1.builder().build());
+      return CompletableFuture.completedFuture(Level1.builder(ctx).build());
     }
   }
 
@@ -173,7 +173,7 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
     @Override
     public CompletableFuture<Profile> resolve(Context ctx) {
       return CompletableFuture.completedFuture(
-          Profile.builder().firstName("Jane").lastName("Doe").build());
+          Profile.builder(ctx).firstName("Jane").lastName("Doe").build());
     }
   }
 
@@ -268,7 +268,7 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
   public static class Level2Resolver extends Level1Resolvers.Level2 {
     @Override
     public CompletableFuture<Level2> resolve(Context ctx) {
-      return CompletableFuture.completedFuture(Level2.builder().build());
+      return CompletableFuture.completedFuture(Level2.builder(ctx).build());
     }
   }
 

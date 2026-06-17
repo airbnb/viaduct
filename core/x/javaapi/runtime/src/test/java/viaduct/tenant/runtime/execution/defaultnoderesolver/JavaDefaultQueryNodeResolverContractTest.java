@@ -14,7 +14,8 @@ public class JavaDefaultQueryNodeResolverContractTest extends DefaultQueryNodeRe
     @Override
     public CompletableFuture<TestUser> resolve(Context ctx) {
       String id = ctx.globalIDStringFor(Type.ofClass(TestUser.class), ctx.getId().getInternalID());
-      return CompletableFuture.completedFuture(TestUser.builder().id(id).name("user name").build());
+      return CompletableFuture.completedFuture(
+          TestUser.builder(ctx).id(id).name("user name").build());
     }
   }
 }

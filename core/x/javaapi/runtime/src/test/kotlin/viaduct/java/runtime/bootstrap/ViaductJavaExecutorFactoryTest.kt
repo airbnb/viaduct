@@ -151,7 +151,7 @@ class ViaductJavaExecutorFactoryTest {
     }
 
     /** GRT backed directly by engine data so node-result conversion needs no schema lookup. */
-    class TestNodeGRT(data: EngineObjectData.Sync) : ObjectBase(data), NodeObject
+    class TestNodeGRT(data: EngineObjectData.Sync) : ObjectBase(null, data), NodeObject
 
     /** Concrete node Context wrapping the engine-provided [NodeExecutionContext], as codegen emits. */
     class ConcreteNodeContext(
@@ -246,6 +246,8 @@ class ViaductJavaExecutorFactoryTest {
         mockk {
             every { requestContext } returns null
             every { globalIDCodec } returns GlobalIDCodecDefault
+            // Read when building the per-request InternalContext attached to GRTs.
+            every { fullSchema } returns mockk()
         }
 
     private fun fieldSelector(): FieldResolverExecutor.Selector {

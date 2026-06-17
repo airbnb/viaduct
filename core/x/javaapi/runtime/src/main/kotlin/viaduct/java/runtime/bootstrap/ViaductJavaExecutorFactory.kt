@@ -18,8 +18,10 @@ import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.TenantModuleException
 import viaduct.java.api.context.FieldExecutionContext
 import viaduct.java.api.context.NodeExecutionContext
+import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.GRT
+import viaduct.java.runtime.bridge.DefaultResolverClassFinder
 import viaduct.java.runtime.bridge.FieldBatchResolverExecutorImpl
 import viaduct.java.runtime.bridge.JavaFieldResolverExecutorImpl
 import viaduct.java.runtime.bridge.JavaNodeResolverExecutorImpl
@@ -54,6 +56,12 @@ class ViaductJavaExecutorFactory(
     @Suppress("UNUSED_PARAMETER") configUrl: URL,
 ) : ExecutorFactory {
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory()
+
+    // Resolves GRT/Arguments classes by name for the per-request InternalContext attached to GRTs.
+    // The tenant package is irrelevant here: this factory discovers resolvers from the file-based
+    // registry, so only the name-only lookups (grtClassForName/argumentClassForName) are used and
+    // the scanner is never triggered.
+    private val classFinder: ResolverClassFinder = DefaultResolverClassFinder(grtPackagePrefix, grtPackagePrefix)
 
     override fun createFieldResolverExecutor(
         configData: FieldEntryConfig,
@@ -95,6 +103,7 @@ class ViaductJavaExecutorFactory(
             resolverClass = resolverClass,
             injector = codeInjector,
             argumentsClass = argumentsClass,
+            classFinder = classFinder,
         )
 
         return if (configData.isBatching) {
@@ -114,6 +123,7 @@ class ViaductJavaExecutorFactory(
                 objectValueClass = objectValueClass,
                 queryValueClass = queryValueClass,
                 graphqlSchema = schema.schema,
+                classFinder = classFinder,
             )
         } else {
             val resolveMethod = findResolveMethod(resolverClass)
@@ -132,6 +142,7 @@ class ViaductJavaExecutorFactory(
                 objectValueClass = objectValueClass,
                 queryValueClass = queryValueClass,
                 graphqlSchema = schema.schema,
+                classFinder = classFinder,
             )
         }
     }
@@ -166,6 +177,7 @@ class ViaductJavaExecutorFactory(
                 resolverName = resolverName,
                 isSelective = configData.isSelective,
                 graphqlSchema = graphqlSchema,
+                classFinder = classFinder,
             )
         } else {
             val resolveMethod = findResolveMethod(resolverClass)
@@ -179,29 +191,14 @@ class ViaductJavaExecutorFactory(
                 resolverName = resolverName,
                 isSelective = configData.isSelective,
                 graphqlSchema = graphqlSchema,
+                classFinder = classFinder,
             )
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun grtClassForName(typeName: String): Class<out GRT> {
-        val fullClassName = "$grtPackagePrefix.$typeName"
-        val clazz = Class.forName(fullClassName)
-        require(GRT::class.java.isAssignableFrom(clazz)) {
-            "Class $fullClassName exists but does not implement GRT"
-        }
-        return clazz as Class<out GRT>
-    }
+    private fun grtClassForName(typeName: String): Class<out GRT> = classFinder.grtClassForName(typeName)
 
-    @Suppress("UNCHECKED_CAST")
-    private fun argumentClassForName(className: String): Class<out Arguments> {
-        val fullClassName = "$grtPackagePrefix.$className"
-        val clazz = Class.forName(fullClassName)
-        require(Arguments::class.java.isAssignableFrom(clazz)) {
-            "Class $fullClassName exists but does not implement Arguments"
-        }
-        return clazz as Class<out Arguments>
-    }
+    private fun argumentClassForName(className: String): Class<out Arguments> = classFinder.argumentClassForName(className)
 
     private fun loadClass(
         fqn: String,

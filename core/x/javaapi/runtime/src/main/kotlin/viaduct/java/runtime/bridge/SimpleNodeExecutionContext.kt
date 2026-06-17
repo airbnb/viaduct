@@ -6,16 +6,20 @@ import kotlinx.coroutines.future.future
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ResolveSelectionSetOptions
+import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
 import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.handleFrameworkErrorsSuspend
 import viaduct.java.api.context.NodeExecutionContext
 import viaduct.java.api.context.SelectiveNodeExecutionContext
 import viaduct.java.api.globalid.GlobalID
+import viaduct.java.api.internal.InternalContext
+import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.reflect.Type
 import viaduct.java.api.resolvers.NodeResolverBase
 import viaduct.java.api.types.NodeCompositeOutput
 import viaduct.java.api.types.NodeObject
+import viaduct.service.api.spi.GlobalIDCodec
 
 /**
  * Concrete [NodeExecutionContext] for Java node resolvers.
@@ -33,6 +37,8 @@ import viaduct.java.api.types.NodeObject
  * @param engineExecutionContext the engine execution context, required for ctx.query, ctx.mutation
  *     and ctx.nodeRef
  * @param coroutineScope the coroutine scope for launching subquery coroutines
+ * @param classFinder resolves GRT classes by type name; used to build the [InternalContext] attached
+ *     to GRTs returned by ctx.query()/ctx.mutation(). May be null outside a live execution context.
  */
 @Suppress("UNCHECKED_CAST")
 class SimpleNodeExecutionContext(
@@ -41,9 +47,11 @@ class SimpleNodeExecutionContext(
     private val requestContext: Any?,
     private val engineExecutionContext: EngineExecutionContext? = null,
     private val coroutineScope: CoroutineScope? = null,
+    private val classFinder: ResolverClassFinder? = null,
 ) : NodeExecutionContext<NodeObject>,
     SelectiveNodeExecutionContext<NodeObject>,
-    NodeResolverBase.Context<NodeObject> {
+    NodeResolverBase.Context<NodeObject>,
+    InternalContext {
     override fun getId(): GlobalID<NodeObject> {
         val codec = engineExecutionContext?.globalIDCodec
             ?: throw FrameworkException("getId requires engineExecutionContext.")
@@ -52,6 +60,23 @@ class SimpleNodeExecutionContext(
     }
 
     override fun getRequestContext(): Any? = requestContext
+
+    // ── InternalContext implementation ──
+
+    override fun getSchema(): ViaductSchema {
+        return engineExecutionContext?.fullSchema
+            ?: throw FrameworkException("getSchema() requires engineExecutionContext.")
+    }
+
+    override fun getGlobalIDCodec(): GlobalIDCodec {
+        return engineExecutionContext?.globalIDCodec
+            ?: throw FrameworkException("getGlobalIDCodec() requires engineExecutionContext.")
+    }
+
+    override fun getClassFinder(): ResolverClassFinder {
+        return classFinder
+            ?: throw FrameworkException("getClassFinder() requires classFinder.")
+    }
 
     override fun <T : NodeCompositeOutput> globalIDFor(
         type: Type<T>,
@@ -87,7 +112,10 @@ class SimpleNodeExecutionContext(
             ?: throw FrameworkException("GraphQL type '$refTypeName' not found in schema for nodeRef.")
         val nodeReference = engineCtx.createNodeReference(serializedId, graphqlType)
         val grtClass = id.getType().getJavaClass() as Class<T>
-        return grtClass.getDeclaredConstructor(NodeReference::class.java).newInstance(nodeReference) as T
+        val internalContext = classFinder?.let { buildInternalContext(engineCtx, it) }
+        return grtClass
+            .getDeclaredConstructor(InternalContext::class.java, NodeReference::class.java)
+            .newInstance(internalContext, nodeReference) as T
     }
 
     override fun <T : Any> query(
@@ -111,7 +139,11 @@ class SimpleNodeExecutionContext(
                 )
                 val result = engineCtx.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.DEFAULT)
                 @Suppress("UNCHECKED_CAST")
-                convertSyncEngineDataToJavaObject(targetClass, result) as T
+                convertSyncEngineDataToJavaObject(
+                    targetClass,
+                    result,
+                    classFinder?.let { buildInternalContext(engineCtx, it) }
+                ) as T
             }
         }
     }
@@ -138,7 +170,11 @@ class SimpleNodeExecutionContext(
                 )
                 val result = engineCtx.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.MUTATION)
                 @Suppress("UNCHECKED_CAST")
-                convertSyncEngineDataToJavaObject(targetClass, result) as T
+                convertSyncEngineDataToJavaObject(
+                    targetClass,
+                    result,
+                    classFinder?.let { buildInternalContext(engineCtx, it) }
+                ) as T
             }
         }
     }

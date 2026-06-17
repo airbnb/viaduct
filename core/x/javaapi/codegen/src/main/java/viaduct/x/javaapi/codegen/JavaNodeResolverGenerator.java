@@ -42,15 +42,19 @@ public final class JavaNodeResolverGenerator {
           import java.util.List;
           import java.util.Map;
           import java.util.concurrent.CompletableFuture;
+          import viaduct.engine.api.ViaductSchema;
           import viaduct.java.api.annotations.NodeResolverFor;
           import viaduct.java.api.context.NodeExecutionContext;
           import viaduct.java.api.context.SelectiveNodeExecutionContext;
           import viaduct.java.api.globalid.GlobalID;
+          import viaduct.java.api.internal.InternalContext;
+          import viaduct.java.api.internal.ResolverClassFinder;
           import viaduct.java.api.reflect.Type;
           import viaduct.java.api.resolvers.FieldValue;
           import viaduct.java.api.resolvers.NodeResolverBase;
           import viaduct.java.api.types.NodeCompositeOutput;
           import viaduct.java.api.types.NodeObject;
+          import viaduct.service.api.spi.GlobalIDCodec;
           import <mdl.grtPackage>.*;
 
           /**
@@ -67,7 +71,7 @@ public final class JavaNodeResolverGenerator {
                   /**
                    * Context for <nr.typeName> node resolver.
                    */
-                  public static final class Context implements <nr.ctxInterface>\\<<nr.grtType>\\>, NodeResolverBase.Context\\<<nr.grtType>\\> {
+                  public static final class Context implements <nr.ctxInterface>\\<<nr.grtType>\\>, NodeResolverBase.Context\\<<nr.grtType>\\>, InternalContext {
 
                       private final <nr.ctxInterface>\\<<nr.grtType>\\> inner;
 
@@ -114,6 +118,21 @@ public final class JavaNodeResolverGenerator {
                       @Override
                       public \\<T> CompletableFuture\\<T> mutation(String selections, Map\\<String, Object> variables, Class\\<T> targetClass) {
                           return inner.mutation(selections, variables, targetClass);
+                      \\}
+
+                      @Override
+                      public ViaductSchema getSchema() {
+                          return InternalContext.from(inner).getSchema();
+                      \\}
+
+                      @Override
+                      public GlobalIDCodec getGlobalIDCodec() {
+                          return InternalContext.from(inner).getGlobalIDCodec();
+                      \\}
+
+                      @Override
+                      public ResolverClassFinder getClassFinder() {
+                          return InternalContext.from(inner).getClassFinder();
                       \\}
                       <if(nr.isSelective)>
 

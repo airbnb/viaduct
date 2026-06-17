@@ -13,7 +13,7 @@ public class JavaInvalidObjectFragmentContractTest extends InvalidObjectFragment
   public static class GreetingResolver extends QueryResolvers.Greeting {
     @Override
     public CompletableFuture<Foo> resolve(Context ctx) {
-      return CompletableFuture.completedFuture(Foo.builder().build());
+      return CompletableFuture.completedFuture(Foo.builder(ctx).build());
     }
   }
 

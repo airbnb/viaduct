@@ -12,13 +12,16 @@ import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
 import viaduct.java.api.globalid.GlobalID
+import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ObjectBase
+import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.reflect.Type
 import viaduct.java.api.types.NodeObject
+import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 class TestNodeObject : ObjectBase, NodeObject {
-    constructor(ref: NodeReference) : super(ref)
+    constructor(context: InternalContext?, ref: NodeReference) : super(context, ref)
 }
 
 class SimpleNodeExecutionContextTest {
@@ -162,5 +165,64 @@ class SimpleNodeExecutionContextTest {
         // SelectionSet support for Java. Mirrors SimpleFieldExecutionContext.getSelections.
         val ctx = newContext()
         assertThrows<FrameworkException> { ctx.selections() }
+    }
+
+    // ── InternalContext tests ──
+
+    @Test
+    fun `getSchema returns schema from engineExecutionContext`() {
+        val schema = mockk<ViaductSchema>()
+        val engineCtx = mockk<EngineExecutionContext> {
+            every { requestContext } returns null
+            every { globalIDCodec } returns GlobalIDCodecDefault
+            every { fullSchema } returns schema
+        }
+        val ctx = newContext(engineCtx = engineCtx)
+        assertThat(ctx.getSchema()).isSameAs(schema)
+    }
+
+    @Test
+    fun `getSchema throws when engineExecutionContext is null`() {
+        val ctx = newContext(engineCtx = null)
+        val ex = assertThrows<FrameworkException> { ctx.getSchema() }
+        assertThat(ex.message).contains("engineExecutionContext")
+    }
+
+    @Test
+    fun `getGlobalIDCodec returns codec from engineExecutionContext`() {
+        val codec = mockk<GlobalIDCodec>()
+        val engineCtx = mockk<EngineExecutionContext> {
+            every { requestContext } returns null
+            every { globalIDCodec } returns codec
+        }
+        val ctx = newContext(engineCtx = engineCtx)
+        assertThat(ctx.getGlobalIDCodec()).isSameAs(codec)
+    }
+
+    @Test
+    fun `getGlobalIDCodec throws when engineExecutionContext is null`() {
+        val ctx = newContext(engineCtx = null)
+        val ex = assertThrows<FrameworkException> { ctx.getGlobalIDCodec() }
+        assertThat(ex.message).contains("engineExecutionContext")
+    }
+
+    @Test
+    fun `getClassFinder returns provided classFinder`() {
+        val finder = mockk<ResolverClassFinder>()
+        val ctx = SimpleNodeExecutionContext(
+            serializedId = GlobalIDCodecDefault.serialize("NodeObj", "tenant1"),
+            typeName = "NodeObj",
+            requestContext = null,
+            engineExecutionContext = mockEngineContext(),
+            classFinder = finder
+        )
+        assertThat(ctx.getClassFinder()).isSameAs(finder)
+    }
+
+    @Test
+    fun `getClassFinder throws when classFinder is null`() {
+        val ctx = newContext(engineCtx = null)
+        val ex = assertThrows<FrameworkException> { ctx.getClassFinder() }
+        assertThat(ex.message).contains("classFinder")
     }
 }

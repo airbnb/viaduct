@@ -22,6 +22,9 @@ dependencies {
     // Viaduct service API (for CodeInjector)
     api(libs.viaduct.service.api)
 
+    // Kotlin tenant API (for InputTypeFactory)
+    implementation(libs.viaduct.tenant.api)
+
     // Kotlin coroutines for async bridging
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.jdk8) // For CompletableFuture integration

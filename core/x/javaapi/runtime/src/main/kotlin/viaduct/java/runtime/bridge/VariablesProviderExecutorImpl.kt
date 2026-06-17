@@ -1,5 +1,6 @@
 package viaduct.java.runtime.bridge
 
+import graphql.schema.GraphQLInputObjectType
 import javax.inject.Provider
 import kotlinx.coroutines.future.await
 import viaduct.engine.api.EngineExecutionContext
@@ -7,6 +8,8 @@ import viaduct.engine.api.VariablesResolver
 import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.java.api.context.VariablesProviderContext
+import viaduct.java.api.internal.InternalContext
+import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.variables.VariablesProvider
 
@@ -24,13 +27,16 @@ class VariablesProviderExecutorImpl(
     override val variableNames: Set<String>,
     private val provider: Provider<out VariablesProvider<*>>,
     private val argumentsClass: Class<out Arguments>? = null,
+    private val classFinder: ResolverClassFinder? = null,
 ) : VariablesResolver {
     override suspend fun resolve(
         ctx: VariablesResolver.ResolveCtx,
         context: EngineExecutionContext
     ): Map<String, Any?> {
+        // Per-request InternalContext attached to the typed Arguments and its nested input GRTs.
+        val internalContext = classFinder?.let { buildInternalContext(context, it) }
         val arguments = handleFrameworkErrors("VariablesProvider: createArguments") {
-            createArguments(ctx.arguments)
+            createArguments(ctx.arguments, internalContext)
         }
         val variablesContext = SimpleVariablesProviderContext(
             requestContext = context.requestContext,
@@ -53,11 +59,23 @@ class VariablesProviderExecutorImpl(
         return (future.await() as Map<String, Any?>?) ?: emptyMap()
     }
 
-    private fun createArguments(argumentMap: Map<String, Any?>): Arguments? {
+    private fun createArguments(
+        argumentMap: Map<String, Any?>,
+        internalContext: InternalContext?
+    ): Arguments? {
         if (argumentsClass == null || argumentsClass == Arguments.None::class.java) {
             return null
         }
-        val constructor = argumentsClass.getDeclaredConstructor(Map::class.java)
-        return constructor.newInstance(argumentMap) as Arguments
+
+        val graphQLInputObjectType: GraphQLInputObjectType? = internalContext?.let { ctx ->
+            buildArgumentsInputType(argumentsClass, ctx)
+        }
+
+        val constructor = argumentsClass.getDeclaredConstructor(
+            InternalContext::class.java,
+            Map::class.java,
+            GraphQLInputObjectType::class.java
+        )
+        return constructor.newInstance(internalContext, argumentMap, graphQLInputObjectType) as Arguments
     }
 }

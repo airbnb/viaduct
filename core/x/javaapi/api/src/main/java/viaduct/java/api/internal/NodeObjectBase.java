@@ -1,6 +1,7 @@
 package viaduct.java.api.internal;
 
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import viaduct.engine.api.EngineObjectData;
 import viaduct.engine.api.NodeReference;
 import viaduct.java.api.types.NodeObject;
@@ -13,15 +14,15 @@ import viaduct.java.api.types.NodeObject;
  */
 public abstract class NodeObjectBase extends ObjectBase implements NodeObject {
 
-  protected NodeObjectBase(EngineObjectData.Sync data) {
-    super(data);
+  protected NodeObjectBase(@Nullable InternalContext __context, EngineObjectData.Sync data) {
+    super(__context, data);
   }
 
-  protected NodeObjectBase(Map<String, Object> data) {
-    super(data);
+  protected NodeObjectBase(@Nullable InternalContext __context, Map<String, Object> data) {
+    super(__context, data);
   }
 
-  protected NodeObjectBase(NodeReference nodeReference) {
-    super(nodeReference);
+  protected NodeObjectBase(@Nullable InternalContext __context, NodeReference nodeReference) {
+    super(__context, nodeReference);
   }
 }

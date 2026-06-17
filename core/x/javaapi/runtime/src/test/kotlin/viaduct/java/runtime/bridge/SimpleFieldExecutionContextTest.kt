@@ -1,10 +1,16 @@
 package viaduct.java.runtime.bridge
 
+import io.mockk.every
+import io.mockk.mockk
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
+import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.GraphQLObject
+import viaduct.service.api.spi.GlobalIDCodec
 
 class SimpleFieldExecutionContextTest {
     @Test
@@ -88,5 +94,73 @@ class SimpleFieldExecutionContextTest {
         assertThatThrownBy { context.getSelections() }
             .isInstanceOf(FrameworkException::class.java)
             .hasMessageContaining("Selections access not yet implemented")
+    }
+
+    // ── InternalContext tests ──
+
+    @Test
+    fun `getSchema returns schema from engineExecutionContext`() {
+        val schema = mockk<ViaductSchema>()
+        val engineCtx = mockk<EngineExecutionContext> {
+            every { fullSchema } returns schema
+        }
+        val context = SimpleFieldExecutionContext(
+            requestContext = null,
+            engineExecutionContext = engineCtx
+        )
+
+        assertThat(context.getSchema()).isSameAs(schema)
+    }
+
+    @Test
+    fun `getSchema throws when engineExecutionContext is null`() {
+        val context = SimpleFieldExecutionContext(requestContext = null)
+
+        assertThatThrownBy { context.getSchema() }
+            .isInstanceOf(FrameworkException::class.java)
+            .hasMessageContaining("engineExecutionContext")
+    }
+
+    @Test
+    fun `getGlobalIDCodec returns codec from engineExecutionContext`() {
+        val codec = mockk<GlobalIDCodec>()
+        val engineCtx = mockk<EngineExecutionContext> {
+            every { globalIDCodec } returns codec
+        }
+        val context = SimpleFieldExecutionContext(
+            requestContext = null,
+            engineExecutionContext = engineCtx
+        )
+
+        assertThat(context.getGlobalIDCodec()).isSameAs(codec)
+    }
+
+    @Test
+    fun `getGlobalIDCodec throws when engineExecutionContext is null`() {
+        val context = SimpleFieldExecutionContext(requestContext = null)
+
+        assertThatThrownBy { context.getGlobalIDCodec() }
+            .isInstanceOf(FrameworkException::class.java)
+            .hasMessageContaining("engineExecutionContext")
+    }
+
+    @Test
+    fun `getClassFinder returns provided classFinder`() {
+        val finder = mockk<ResolverClassFinder>()
+        val context = SimpleFieldExecutionContext(
+            requestContext = null,
+            classFinder = finder
+        )
+
+        assertThat(context.getClassFinder()).isSameAs(finder)
+    }
+
+    @Test
+    fun `getClassFinder throws when classFinder is null`() {
+        val context = SimpleFieldExecutionContext(requestContext = null)
+
+        assertThatThrownBy { context.getClassFinder() }
+            .isInstanceOf(FrameworkException::class.java)
+            .hasMessageContaining("classFinder")
     }
 }

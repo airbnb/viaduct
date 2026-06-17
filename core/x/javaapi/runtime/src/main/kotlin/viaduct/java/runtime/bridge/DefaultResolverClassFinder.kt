@@ -2,9 +2,9 @@ package viaduct.java.runtime.bridge
 
 import viaduct.java.api.annotations.NodeResolverFor
 import viaduct.java.api.annotations.ResolverFor
+import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.GRT
-import viaduct.java.runtime.bootstrap.ResolverClassFinder
 import viaduct.utils.classgraph.ClassGraphScanner
 
 /**
@@ -35,7 +35,10 @@ class DefaultResolverClassFinder(
     private val tenantPackage: String,
     private val grtPackagePrefix: String,
 ) : ResolverClassFinder {
-    private val scanner = ClassGraphScanner.optimizedForPackagePrefix(tenantPackage)
+    // Lazy so the name-only lookups (grtClassForName/argumentClassForName) can be used without
+    // paying for a classpath scan — e.g. by ViaductJavaExecutorFactory, which discovers resolvers
+    // from the file-based registry rather than by scanning.
+    private val scanner by lazy { ClassGraphScanner.optimizedForPackagePrefix(tenantPackage) }
 
     override fun resolverClassesInPackage(): Set<Class<*>> = scanner.getTypesAnnotatedWith(ResolverFor::class.java, listOf(tenantPackage))
 

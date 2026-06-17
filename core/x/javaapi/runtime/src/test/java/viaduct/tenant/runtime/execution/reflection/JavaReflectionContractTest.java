@@ -17,7 +17,7 @@ public class JavaReflectionContractTest extends ReflectionContractTest {
     @Override
     public CompletableFuture<Category> resolve(Context ctx) {
       return CompletableFuture.completedFuture(
-          Category.builder().id(ctx.getArguments().getId()).build());
+          Category.builder(ctx).id(ctx.getArguments().getId()).build());
     }
   }
 
@@ -25,7 +25,7 @@ public class JavaReflectionContractTest extends ReflectionContractTest {
   public static class ShelfResolver extends QueryResolvers.Shelf {
     @Override
     public CompletableFuture<Shelf> resolve(Context ctx) {
-      return CompletableFuture.completedFuture(Shelf.builder().build());
+      return CompletableFuture.completedFuture(Shelf.builder(ctx).build());
     }
   }
 
@@ -34,7 +34,7 @@ public class JavaReflectionContractTest extends ReflectionContractTest {
     @Override
     public CompletableFuture<Product> resolve(Context ctx) {
       return CompletableFuture.completedFuture(
-          Toy.builder().id(1).prodType("action_figure").build());
+          Toy.builder(ctx).id(1).prodType("action_figure").build());
     }
   }
 
@@ -66,8 +66,8 @@ public class JavaReflectionContractTest extends ReflectionContractTest {
     @Override
     public CompletableFuture<List<Product>> resolve(Context ctx) {
       List<Product> products = new ArrayList<>();
-      products.add(Toy.builder().id(123).prodType("Toy").build());
-      products.add(Fruit.builder().id(123).prodType("Fruit").build());
+      products.add(Toy.builder(ctx).id(123).prodType("Toy").build());
+      products.add(Fruit.builder(ctx).id(123).prodType("Fruit").build());
       return CompletableFuture.completedFuture(products);
     }
   }

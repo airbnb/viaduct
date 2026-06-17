@@ -35,6 +35,12 @@
         <property name="files" value="(CompositeOutput|Arguments)\.java$"/>
     </module>
 
+    <!-- Suppress naming checks for __context in GRT base classes (mirrors Kotlin's naming) -->
+    <module name="SuppressionSingleFilter">
+        <property name="checks" value="MemberName|ParameterName|MethodName"/>
+        <property name="files" value="(ObjectBase|InputBase|NodeObjectBase)\.java$"/>
+    </module>
+
     <module name="TreeWalker">
         <!-- Checks for Naming Conventions -->
         <module name="ConstantName"/>

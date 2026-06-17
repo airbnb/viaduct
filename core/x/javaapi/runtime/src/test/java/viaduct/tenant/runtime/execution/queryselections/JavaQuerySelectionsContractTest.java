@@ -16,7 +16,7 @@ public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest
     @Override
     public CompletableFuture<User> resolve(Context ctx) {
       return CompletableFuture.completedFuture(
-          User.builder().id("viewer-123").name("ViewerUser").build());
+          User.builder(ctx).id("viewer-123").name("ViewerUser").build());
     }
   }
 
@@ -34,7 +34,7 @@ public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest
     public CompletableFuture<User> resolve(Context ctx) {
       String userId = ctx.getArguments().getId();
       return CompletableFuture.completedFuture(
-          User.builder().id(userId).name("User-" + userId).build());
+          User.builder(ctx).id(userId).name("User-" + userId).build());
     }
   }
 
@@ -115,7 +115,7 @@ public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest
       }
 
       return CompletableFuture.completedFuture(
-          UpdateResult.builder().success(success).message(message).build());
+          UpdateResult.builder(ctx).success(success).message(message).build());
     }
   }
 }

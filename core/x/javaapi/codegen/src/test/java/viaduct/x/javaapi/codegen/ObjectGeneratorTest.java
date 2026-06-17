@@ -32,7 +32,7 @@ class ObjectGeneratorTest {
         .contains("return fetchScalar(\"id\")")
         .doesNotContain("private String id;")
         .doesNotContain("public void setId(")
-        .contains("public static Builder builder()")
+        .contains("public static Builder builder(ExecutionContext context)")
         .contains("public static class Builder");
   }
 
@@ -269,9 +269,9 @@ class ObjectGeneratorTest {
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
     assertThat(generated)
-        .contains("public User(EngineObjectData.Sync data)")
-        .contains("private User(Map<String, Object> data)")
+        .contains("public User(InternalContext context, EngineObjectData.Sync data)")
+        .contains("private User(InternalContext context, Map<String, Object> data)")
         .contains("private final Map<String, Object> data = new LinkedHashMap<>")
-        .contains("return new User(new LinkedHashMap<>(data))");
+        .contains("return new User(__context, new LinkedHashMap<>(data))");
   }
 }

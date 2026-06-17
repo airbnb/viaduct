@@ -105,6 +105,8 @@ public final class JavaGRTGenerator {
 
             import viaduct.engine.api.EngineObjectData;
             import viaduct.engine.api.NodeReference;
+            import viaduct.java.api.context.ExecutionContext;
+            import viaduct.java.api.internal.InternalContext;
             import viaduct.java.api.internal.NodeObjectBase;
             import viaduct.java.api.internal.ObjectBase;
             import java.time.Instant;
@@ -121,17 +123,17 @@ public final class JavaGRTGenerator {
             <endif>
             public class <mdl.className> extends <if(mdl.isNodeType)>NodeObjectBase<else>ObjectBase<endif><if(mdl.hasImplementsClause)> implements <mdl.implementsClause><endif> {
 
-                public <mdl.className>(EngineObjectData.Sync data) {
-                    super(data);
+                public <mdl.className>(InternalContext context, EngineObjectData.Sync data) {
+                    super(context, data);
                 }
 
-                private <mdl.className>(Map\\<String, Object> data) {
-                    super(data);
+                private <mdl.className>(InternalContext context, Map\\<String, Object> data) {
+                    super(context, data);
                 }
                 <if(mdl.isNodeType)>
 
-                public <mdl.className>(NodeReference nodeReference) {
-                    super(nodeReference);
+                public <mdl.className>(InternalContext context, NodeReference nodeReference) {
+                    super(context, nodeReference);
                 \\}
                 <endif>
 
@@ -142,12 +144,17 @@ public final class JavaGRTGenerator {
                 }; separator="
             ">
 
-                public static Builder builder() {
-                    return new Builder();
+                public static Builder builder(ExecutionContext context) {
+                    return new Builder(InternalContext.from(context));
                 }
 
                 public static class Builder {
+                    private final InternalContext __context;
                     private final Map\\<String, Object> data = new LinkedHashMap\\<>();
+
+                    private Builder(InternalContext __context) {
+                        this.__context = __context;
+                    }
 
                     <mdl.fields: {f |
                     public Builder <f.safeName>(<f.javaType> <f.safeName>) {
@@ -158,7 +165,7 @@ public final class JavaGRTGenerator {
             ">
 
                     public <mdl.className> build() {
-                        return new <mdl.className>(new LinkedHashMap\\<>(data));
+                        return new <mdl.className>(__context, new LinkedHashMap\\<>(data));
                     }
                 }
             }
@@ -198,7 +205,10 @@ public final class JavaGRTGenerator {
             """
             package <mdl.packageName>;
 
+            import graphql.schema.GraphQLInputObjectType;
+            import viaduct.java.api.context.ExecutionContext;
             import viaduct.java.api.internal.InputBase;
+            import viaduct.java.api.internal.InternalContext;
             import java.time.Instant;
             import java.time.LocalDate;
             import java.time.OffsetTime;
@@ -213,8 +223,8 @@ public final class JavaGRTGenerator {
             <endif>
             public class <mdl.className> extends InputBase {
 
-                public <mdl.className>(Map\\<String, Object> data) {
-                    super(data);
+                public <mdl.className>(InternalContext context, Map\\<String, Object> data, GraphQLInputObjectType graphQLInputObjectType) {
+                    super(context, data, graphQLInputObjectType);
                 }
 
                 <mdl.fields: {f |
@@ -223,12 +233,17 @@ public final class JavaGRTGenerator {
                 \\}
                 }; separator="\\n">
 
-                public static Builder builder() {
-                    return new Builder();
+                public static Builder builder(ExecutionContext context) {
+                    return new Builder(InternalContext.from(context));
                 }
 
                 public static class Builder {
+                    private final InternalContext __context;
                     private final Map\\<String, Object> data = new LinkedHashMap\\<>();
+
+                    private Builder(InternalContext __context) {
+                        this.__context = __context;
+                    }
 
                     <mdl.fields: {f |
                     public Builder <f.safeName>(<f.javaType> <f.safeName>) {
@@ -238,7 +253,7 @@ public final class JavaGRTGenerator {
                     }; separator="\\n">
 
                     public <mdl.className> build() {
-                        return new <mdl.className>(new LinkedHashMap\\<>(data));
+                        return new <mdl.className>(__context, new LinkedHashMap\\<>(data), null);
                     }
                 }
             }
@@ -331,6 +346,7 @@ public final class JavaGRTGenerator {
             """
             package <mdl.packageName>;
 
+            import graphql.schema.GraphQLInputObjectType;
             import java.time.Instant;
             import java.time.LocalDate;
             import java.time.OffsetTime;
@@ -338,12 +354,13 @@ public final class JavaGRTGenerator {
             import java.util.Map;
             import viaduct.java.api.types.Arguments;
             import viaduct.java.api.internal.InputBase;
+            import viaduct.java.api.internal.InternalContext;
 
             /** Generated arguments class for resolver field. */
             public class <mdl.className> extends InputBase implements Arguments {
 
-                public <mdl.className>(Map\\<String, Object> data) {
-                    super(data);
+                public <mdl.className>(InternalContext context, Map\\<String, Object> data, GraphQLInputObjectType graphQLInputObjectType) {
+                    super(context, data, graphQLInputObjectType);
                 }
 
                 <mdl.fields: {f |

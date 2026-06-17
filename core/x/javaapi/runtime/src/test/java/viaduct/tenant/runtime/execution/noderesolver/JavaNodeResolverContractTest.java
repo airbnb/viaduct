@@ -16,7 +16,8 @@ public class JavaNodeResolverContractTest extends NodeResolverContractTest {
     public CompletableFuture<NodeObj> resolve(Context ctx) {
       String internalId = ctx.getArguments().getId();
       String id = ctx.globalIDStringFor(Type.ofClass(NodeObj.class), internalId);
-      return CompletableFuture.completedFuture(NodeObj.builder().id(id).value(internalId).build());
+      return CompletableFuture.completedFuture(
+          NodeObj.builder(ctx).id(id).value(internalId).build());
     }
   }
 
@@ -35,7 +36,7 @@ public class JavaNodeResolverContractTest extends NodeResolverContractTest {
     @Override
     public CompletableFuture<ObjectWithNodeField> resolve(Context ctx) {
       NodeObj node = ctx.nodeRef(ctx.globalIDFor(Type.ofClass(NodeObj.class), "nestedNode"));
-      return CompletableFuture.completedFuture(ObjectWithNodeField.builder().node(node).build());
+      return CompletableFuture.completedFuture(ObjectWithNodeField.builder(ctx).node(node).build());
     }
   }
 
@@ -43,7 +44,7 @@ public class JavaNodeResolverContractTest extends NodeResolverContractTest {
   public static class NodeObjResolver extends NodeResolvers.NodeObj {
     @Override
     public CompletableFuture<NodeObj> resolve(Context ctx) {
-      return CompletableFuture.completedFuture(NodeObj.builder().value("foo").build());
+      return CompletableFuture.completedFuture(NodeObj.builder(ctx).value("foo").build());
     }
   }
 

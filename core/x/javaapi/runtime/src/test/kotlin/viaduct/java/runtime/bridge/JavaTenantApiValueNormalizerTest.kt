@@ -125,7 +125,7 @@ class JavaTenantApiValueNormalizerTest {
     @Suppress("UNCHECKED_CAST")
     private class TestJavaInput(
         inputData: Map<String, Any?>,
-    ) : InputBase(inputData as Map<String, Any>)
+    ) : InputBase(null, inputData as Map<String, Any>, null)
 
     private fun nodeType(name: String): Type<NodeObject> =
         object : Type<NodeObject> {

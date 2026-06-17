@@ -1,4 +1,4 @@
-package viaduct.java.runtime.bootstrap;
+package viaduct.java.api.internal;
 
 import java.util.Set;
 import viaduct.java.api.types.Arguments;
@@ -9,6 +9,10 @@ import viaduct.java.api.types.GRT;
  *
  * <p>This is the Java equivalent of Kotlin's {@code TenantResolverClassFinder}, using {@link Class}
  * instead of {@code KClass} to avoid Kotlin-specific types in the Java API.
+ *
+ * <p>It also serves as the Java analog of Kotlin's {@code viaduct.api.internal.ReflectionLoader}:
+ * {@link InternalContext} carries one so GRTs can resolve concrete GRT classes by GraphQL type
+ * name.
  *
  * <p>Implementations scan the classpath to find:
  *

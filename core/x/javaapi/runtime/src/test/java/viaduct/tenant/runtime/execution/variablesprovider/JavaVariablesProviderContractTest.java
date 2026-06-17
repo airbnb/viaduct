@@ -122,7 +122,7 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
       @Override
       public CompletableFuture<Map<String, Object>> provide(
           VariablesProviderContext<Arguments.None> ctx) {
-        return CompletableFuture.completedFuture(Map.of("x", MyInput.builder().x(456).build()));
+        return CompletableFuture.completedFuture(Map.of("x", MyInput.builder(ctx).x(456).build()));
       }
     }
   }
@@ -171,8 +171,9 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
       public CompletableFuture<Map<String, Object>> provide(
           VariablesProviderContext<Arguments.None> ctx) {
         ComplexInput complex =
-            ComplexInput.builder().color(Color.RED).intArray(List.of(1, 2, 3)).build();
-        InputWithNestedInput nested = InputWithNestedInput.builder().complexInput(complex).build();
+            ComplexInput.builder(ctx).color(Color.RED).intArray(List.of(1, 2, 3)).build();
+        InputWithNestedInput nested =
+            InputWithNestedInput.builder(ctx).complexInput(complex).build();
         return CompletableFuture.completedFuture(Map.of("x", nested));
       }
     }

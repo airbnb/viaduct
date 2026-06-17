@@ -2,6 +2,7 @@ package viaduct.java.runtime.bridge
 
 import viaduct.engine.api.NodeReference
 import viaduct.java.api.globalid.GlobalID
+import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.reflect.Type
 import viaduct.java.api.types.NodeCompositeOutput
@@ -63,4 +64,7 @@ internal fun <T : NodeCompositeOutput> GlobalIDCodec.serializeGlobalID(globalID:
  * passes the [NodeReference] directly to the engine instead of converting to
  * [viaduct.engine.api.EngineObjectData.Sync].
  */
-internal class NodeRefWrapper(nodeReference: NodeReference) : ObjectBase(nodeReference)
+internal class NodeRefWrapper(
+    context: InternalContext?,
+    nodeReference: NodeReference
+) : ObjectBase(context, nodeReference)

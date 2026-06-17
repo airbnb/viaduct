@@ -14,7 +14,7 @@ public class JavaInputTypeContractTest extends InputTypeContractTest {
     public CompletableFuture<User> resolve(Context ctx) {
       var args = ctx.getArguments();
       UserInput input = args.getInput();
-      User user = User.builder().name(input.getName()).age(input.getAge()).build();
+      User user = User.builder(ctx).name(input.getName()).age(input.getAge()).build();
       return CompletableFuture.completedFuture(user);
     }
   }
