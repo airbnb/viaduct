@@ -39,6 +39,104 @@ class SchemaDiffTest {
     }
 
     @Test
+    fun `should ignore sourceLocation disagreement when source locations are disabled`() {
+        val expectedSchema = ViaductSchema.fromTypeDefinitionRegistry(
+            SchemaParser().parse(
+                MultiSourceReader
+                    .newMultiSourceReader()
+                    .string("scalar Foo", "file1.graphql")
+                    .build()
+            )
+        )
+
+        val actualSchema = ViaductSchema.fromTypeDefinitionRegistry(
+            SchemaParser().parse(
+                MultiSourceReader
+                    .newMultiSourceReader()
+                    .string("scalar Foo", "file2.graphql")
+                    .build()
+            )
+        )
+
+        val checker = SchemaDiff(expectedSchema, actualSchema, compareSourceLocations = false).diff()
+
+        assertTrue(checker.toListOfErrors().isEmpty())
+    }
+
+    @Test
+    fun `should ignore extension structure and repeated Query scope directives when disabled`() {
+        val expectedSchema = ViaductSchema.fromTypeDefinitionRegistry(
+            SchemaParser().parse(
+                """
+                directive @scope(to: [String!]!) repeatable on OBJECT
+                type Query @scope(to: ["viaduct"]) { base: String }
+                extend type Query @scope(to: ["viaduct:private"]) { commonA: String }
+                extend type Query @scope(to: ["viaduct:private"]) { commonB: String }
+                """.trimIndent()
+            )
+        )
+
+        val actualSchema = ViaductSchema.fromTypeDefinitionRegistry(
+            SchemaParser().parse(
+                """
+                directive @scope(to: [String!]!) repeatable on OBJECT
+                type Query @scope(to: ["viaduct"]) { base: String }
+                extend type Query @scope(to: ["viaduct:private"]) {
+                  commonA: String
+                  commonB: String
+                }
+                """.trimIndent()
+            )
+        )
+
+        val strictChecker = SchemaDiff(expectedSchema, actualSchema).diff()
+        assertTrue(strictChecker.toListOfErrors().any { it.contains("SAME_EXTENSION_NAMES") })
+
+        val semanticChecker = SchemaDiff(
+            expectedSchema,
+            actualSchema,
+            compareExtensionStructure = false,
+            compareRepeatedQueryScopeDirectives = false,
+        ).diff()
+
+        assertTrue(semanticChecker.toListOfErrors().isEmpty())
+    }
+
+    @Test
+    fun `should still detect field disagreement when extension structure is disabled`() {
+        val expectedSchema = ViaductSchema.fromTypeDefinitionRegistry(
+            SchemaParser().parse(
+                """
+                directive @scope(to: [String!]!) repeatable on OBJECT
+                type Query @scope(to: ["viaduct"]) { base: String }
+                extend type Query @scope(to: ["viaduct:private"]) { commonA: String }
+                extend type Query @scope(to: ["viaduct:private"]) { commonB: String }
+                """.trimIndent()
+            )
+        )
+
+        val actualSchema = ViaductSchema.fromTypeDefinitionRegistry(
+            SchemaParser().parse(
+                """
+                directive @scope(to: [String!]!) repeatable on OBJECT
+                type Query @scope(to: ["viaduct"]) { base: String }
+                extend type Query @scope(to: ["viaduct:private"]) { commonA: String }
+                """.trimIndent()
+            )
+        )
+
+        val checker = SchemaDiff(
+            expectedSchema,
+            actualSchema,
+            compareExtensionStructure = false,
+            compareRepeatedQueryScopeDirectives = false,
+        ).diff()
+        val errors = checker.toListOfErrors()
+
+        assertTrue(errors.any { it.contains("SAME_FIELD_NAMES") })
+    }
+
+    @Test
     fun `should detect missing type`() {
         val expectedSchema = ViaductSchema.fromTypeDefinitionRegistry(
             SchemaParser().parse("scalar Foo\nscalar Bar")

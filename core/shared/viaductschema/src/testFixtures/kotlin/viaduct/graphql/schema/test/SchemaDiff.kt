@@ -7,7 +7,10 @@ class SchemaDiff(
     private val expected: ViaductSchema,
     private val actual: ViaductSchema,
     private val checker: FailureCollector = FailureCollector(),
-    private val includeIntrospectiveTypes: Boolean = false
+    private val includeIntrospectiveTypes: Boolean = false,
+    private val compareSourceLocations: Boolean = true,
+    private val compareExtensionStructure: Boolean = true,
+    private val compareRepeatedQueryScopeDirectives: Boolean = true,
 ) {
     private var done = false
 
@@ -97,15 +100,11 @@ class SchemaDiff(
                 return
             }
 
-            // Check sourceLocation agreement
-            checker.isEqualTo(expectedDef.sourceLocation, actualDef.sourceLocation, "SOURCE_LOCATION_AGREES")
+            if (compareSourceLocations) {
+                checker.isEqualTo(expectedDef.sourceLocation, actualDef.sourceLocation, "SOURCE_LOCATION_AGREES")
+            }
 
-            sameNames(
-                expectedDef.appliedDirectives,
-                actualDef.appliedDirectives,
-                "DIRECTIVE",
-                ViaductSchema.AppliedDirective<*>::name
-            ).forEach {
+            sameAppliedDirectiveNames(expectedDef, actualDef, "DIRECTIVE").forEach {
                 checker.withContext(it.first.name) { visitAppliedDirective(it.first, it.second) }
             }
 
@@ -147,22 +146,26 @@ class SchemaDiff(
             }
             if (expectedDef is ViaductSchema.TypeDef) {
                 cvt(expectedDef, actualDef) { exp, act ->
-                    fun ViaductSchema.Extension<*, *>.memberKeys() =
-                        this.members
-                            .map { it.name }
-                            .sorted()
-                            .joinToString("::")
-                    sameNames(exp.extensions, act.extensions, "EXTENSION", ViaductSchema.Extension<*, *>::memberKeys)
+                    if (compareExtensionStructure) {
+                        fun ViaductSchema.Extension<*, *>.memberKeys() =
+                            this.members
+                                .map { it.name }
+                                .sorted()
+                                .joinToString("::")
+                        sameNames(exp.extensions, act.extensions, "EXTENSION", ViaductSchema.Extension<*, *>::memberKeys)
+                    }
                 }
             }
             if (expectedDef is ViaductSchema.OutputRecord) {
                 cvt(expectedDef, actualDef) { exp, act ->
-                    fun ViaductSchema.ExtensionWithSupers<*, *>.supersKeys() =
-                        this.supers
-                            .map { it.name }
-                            .sorted()
-                            .joinToString("::")
-                    sameNames(exp.extensions, act.extensions, "EXTENSION_SUPERS", ViaductSchema.ExtensionWithSupers<*, *>::supersKeys)
+                    if (compareExtensionStructure) {
+                        fun ViaductSchema.ExtensionWithSupers<*, *>.supersKeys() =
+                            this.supers
+                                .map { it.name }
+                                .sorted()
+                                .joinToString("::")
+                        sameNames(exp.extensions, act.extensions, "EXTENSION_SUPERS", ViaductSchema.ExtensionWithSupers<*, *>::supersKeys)
+                    }
                 }
             }
             if (expectedDef is ViaductSchema.Record) {
@@ -198,12 +201,7 @@ class SchemaDiff(
                             act.containingDef.name,
                             "ENUM_VALUE_CONTAINERS_AGREE"
                         )
-                        sameNames(
-                            exp.containingDef.appliedDirectives,
-                            act.containingDef.appliedDirectives,
-                            "EXTENSION_APPLIED_DIRECTIVE",
-                            ViaductSchema.AppliedDirective<*>::name
-                        ).forEach {
+                        sameAppliedDirectiveNames(exp.containingDef, act.containingDef, "EXTENSION_APPLIED_DIRECTIVE").forEach {
                             checker.withContext(it.first.name) { visitAppliedDirective(it.first, it.second) }
                         }
                     }
@@ -212,12 +210,7 @@ class SchemaDiff(
                     cvt(expectedDef, actualDef) { exp, act ->
                         checker.isEqualTo(exp.isOverride, act.isOverride, "OVERRIDE_KIND_AGREE")
                         checker.isEqualTo(exp.hasArgs, act.hasArgs, "FIELD_HAS_ARGS_AGREE")
-                        sameNames(
-                            exp.containingDef.appliedDirectives,
-                            act.containingDef.appliedDirectives,
-                            "EXTENSION_APPLIED_DIRECTIVE",
-                            ViaductSchema.AppliedDirective<*>::name
-                        ).forEach {
+                        sameAppliedDirectiveNames(exp.containingDef, act.containingDef, "EXTENSION_APPLIED_DIRECTIVE").forEach {
                             checker.withContext(it.first.name) { visitAppliedDirective(it.first, it.second) }
                         }
 
@@ -235,6 +228,28 @@ class SchemaDiff(
             checker.popContext()
         }
     }
+
+    private fun sameAppliedDirectiveNames(
+        expectedDef: ViaductSchema.Def,
+        actualDef: ViaductSchema.Def,
+        kind: String
+    ): List<Pair<ViaductSchema.AppliedDirective<*>, ViaductSchema.AppliedDirective<*>>> {
+        val expectedDirectives = appliedDirectivesForComparison(expectedDef)
+        val actualDirectives = appliedDirectivesForComparison(actualDef)
+        return sameNames(
+            expectedDirectives,
+            actualDirectives,
+            kind,
+            ViaductSchema.AppliedDirective<*>::name
+        )
+    }
+
+    private fun appliedDirectivesForComparison(def: ViaductSchema.Def): List<ViaductSchema.AppliedDirective<*>> =
+        if (!compareRepeatedQueryScopeDirectives && def.name == "Query") {
+            def.appliedDirectives.distinctBy { it.name to it.arguments }
+        } else {
+            def.appliedDirectives.toList()
+        }
 
     fun areValuesEqual(
         expectedValue: ViaductSchema.Literal?,

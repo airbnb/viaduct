@@ -54,6 +54,7 @@ fun main(args: Array<String>) =
             MmAccessTimeCommand(),
             MmLoadNoGJCommand(),
             MmDiffCommand(),
+            BinaryDiffCommand(),
         )
         .main(args)
 
@@ -430,6 +431,51 @@ private class MmDiffCommand : CliktCommand(
             println(checker.joinToString("\n"))
             kotlin.system.exitProcess(1)
         }
+    }
+}
+
+private class BinaryDiffCommand : CliktCommand(
+    name = "binarydiff",
+    help = "Compare two binary Viaduct schemas structurally.",
+    printHelpOnEmptyArgs = true
+) {
+    private val expectedBinarySchemaFile by option("--expected")
+        .file(mustExist = true, canBeDir = false, mustBeReadable = true)
+        .required()
+    private val actualBinarySchemaFile by option("--actual")
+        .file(mustExist = true, canBeDir = false, mustBeReadable = true)
+        .required()
+    private val ignoreSourceLocations by option("--ignore-source-locations")
+        .help("Ignore schema source-location metadata while comparing structural schema contents.")
+        .flag()
+    private val ignoreExtensionStructure by option("--ignore-extension-structure")
+        .help("Ignore extension grouping while comparing merged schema fields and types.")
+        .flag()
+    private val ignoreRepeatedQueryScopeDirectives by option("--ignore-repeated-query-scope-directives")
+        .help("Ignore duplicate @scope directives on Query introduced by generated root-query extension boundaries.")
+        .flag()
+
+    override fun run() {
+        val expected = ViaductSchema.fromBinaryFile(FileInputStream(expectedBinarySchemaFile))
+        val actual = ViaductSchema.fromBinaryFile(FileInputStream(actualBinarySchemaFile))
+        val checker = FailureCollector()
+
+        checkViaductSchemaInvariants(actual, checker)
+        SchemaDiff(
+            expected,
+            actual,
+            checker,
+            compareSourceLocations = !ignoreSourceLocations,
+            compareExtensionStructure = !ignoreExtensionStructure,
+            compareRepeatedQueryScopeDirectives = !ignoreRepeatedQueryScopeDirectives,
+        ).diff()
+        checker.assertEmpty("\n")
+
+        println(
+            "Schemas match: " +
+                "${expected.types.size} types, " +
+                "${expected.directives.size} directives"
+        )
     }
 }
 
