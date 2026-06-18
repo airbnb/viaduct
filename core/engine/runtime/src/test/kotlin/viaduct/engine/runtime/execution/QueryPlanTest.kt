@@ -1032,9 +1032,9 @@ class QueryPlanTest {
 
             val xField = plan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "x" }
             val yField = plan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "y" }
-            // Each field's fieldTypeChildPlans has one entry for ObjectA with one type checker plan
-            val xPlans = xField.fieldTypeChildPlans[objectA]!!.value
-            val yPlans = yField.fieldTypeChildPlans[objectA]!!.value
+            // Each field can provide one type checker plan for ObjectA.
+            val xPlans = xField.fieldTypeChildPlans.plansFor(objectA)
+            val yPlans = yField.fieldTypeChildPlans.plansFor(objectA)
             xPlans.shouldHaveSize(1)
             yPlans.shouldHaveSize(1)
             // Both plans come from the same RSS singleton — must be the exact same QueryPlan instance
@@ -1160,21 +1160,15 @@ class QueryPlanTest {
             val plan = factory.build(params, "{x{z}}".asDocument)
             val xField = plan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "x" }
             val objectX = schema.schema.getObjectType("ObjectX")!!
-            // ObjectX has a type checker — x should have fieldTypeChildPlans for ObjectX
-            val typeCheckerPlans = xField.fieldTypeChildPlans[objectX]
-            assertNotNull(typeCheckerPlans)
-            // Forcing the lazy terminates — RSS plan is built once then cached
-            val typeCheckerPlanList = typeCheckerPlans!!.value
+            // ObjectX has a type checker, so x should provide child plans for ObjectX.
+            val typeCheckerPlanList = xField.fieldTypeChildPlans.plansFor(objectX)
             typeCheckerPlanList.shouldHaveSize(1)
             val checkerPlan = typeCheckerPlanList.first()
-            // The checker plan selects y (type ObjectX); y also has fieldTypeChildPlans for ObjectX
+            // The checker plan selects y (type ObjectX); y also provides child plans for ObjectX.
             val yField = checkerPlan.selectionSet.selections.filterIsInstance<Field>().first { it.resultKey == "y" }
-            val yTypeCheckerPlans = yField.fieldTypeChildPlans[objectX]
-            assertNotNull(yTypeCheckerPlans)
-            // Forcing y's lazy also terminates — returns the RSS plan already in the cache
-            val yTypeCheckerPlanList = yTypeCheckerPlans!!.value
+            val yTypeCheckerPlanList = yField.fieldTypeChildPlans.plansFor(objectX)
             yTypeCheckerPlanList.shouldHaveSize(1)
-            // Both lazies return the same cached RSS plan instance
+            // Both lookups return the same cached RSS plan instance.
             assertSame(yTypeCheckerPlanList.first(), typeCheckerPlanList.first())
         }
     }
@@ -1539,7 +1533,7 @@ class QueryPlanTest {
             null,
             mergedField,
             emptyList(),
-            emptyMap(),
+            FieldTypeChildPlans.empty,
         )
 
         assertEquals(SourceLocation.EMPTY, cf.sourceLocation)
@@ -1774,8 +1768,15 @@ private fun mkField(
     field = field ?: GJField(resultKey),
     selectionSet = selectionSet,
     childPlans = childPlans,
-    fieldTypeChildPlans = fieldTypeChildPlans.mapValues { (_, v) -> lazy { v } }
+    fieldTypeChildPlans = fieldTypeChildPlansFor(fieldTypeChildPlans)
 )
+
+private fun fieldTypeChildPlansFor(plansByType: Map<GraphQLObjectType, List<QueryPlan>>): FieldTypeChildPlans =
+    if (plansByType.isEmpty()) {
+        FieldTypeChildPlans.empty
+    } else {
+        FieldTypeChildPlans { objectType -> plansByType[objectType].orEmpty() }
+    }
 
 private fun conditionalDirectiveReference(name: String) = SelectionVariableReference(name, Kind.CONDITIONAL_DIRECTIVE)
 

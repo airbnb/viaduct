@@ -214,12 +214,10 @@ class IndexTest {
                         field = GJField("poly"),
                         selectionSet = null,
                         childPlans = emptyList(),
-                        fieldTypeChildPlans = mapOf(
-                            parentType to lazy {
-                                evaluatedFieldTypeChildPlans = true
-                                listOf(fieldTypeChildPlan)
-                            },
-                        ),
+                        fieldTypeChildPlans = FieldTypeChildPlans {
+                            evaluatedFieldTypeChildPlans = true
+                            listOf(fieldTypeChildPlan)
+                        },
                     ),
                 ),
             )
@@ -253,12 +251,10 @@ class IndexTest {
                                     field = GJField("poly"),
                                     selectionSet = null,
                                     childPlans = listOf(FieldChildPlan(fragmentChildPlan, "Query" to "poly")),
-                                    fieldTypeChildPlans = mapOf(
-                                        parentType to lazy {
-                                            evaluatedFieldTypeChildPlans = true
-                                            listOf(fieldTypeChildPlan)
-                                        },
-                                    ),
+                                    fieldTypeChildPlans = FieldTypeChildPlans {
+                                        evaluatedFieldTypeChildPlans = true
+                                        listOf(fieldTypeChildPlan)
+                                    },
                                 ),
                             ),
                             GJFragmentDefinition.newFragmentDefinition()
@@ -305,12 +301,10 @@ class IndexTest {
                         field = GJField("poly"),
                         selectionSet = null,
                         childPlans = listOf(FieldChildPlan(fieldMaterializedChildPlan, "Query" to "poly")),
-                        fieldTypeChildPlans = mapOf(
-                            parentType to lazy {
-                                evaluatedNestedFieldTypeChildPlans = true
-                                listOf(nestedFieldTypeChildPlan)
-                            },
-                        ),
+                        fieldTypeChildPlans = FieldTypeChildPlans {
+                            evaluatedNestedFieldTypeChildPlans = true
+                            listOf(nestedFieldTypeChildPlan)
+                        },
                     ),
                 ),
             )

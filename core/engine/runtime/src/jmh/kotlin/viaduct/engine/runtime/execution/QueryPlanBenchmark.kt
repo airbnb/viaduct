@@ -97,6 +97,29 @@ open class QueryPlanBenchmark {
         fun toQueryPlan(): QueryPlan = fixture.toQueryPlan()
     }
 
+    @State(Scope.Benchmark)
+    open class WideAbstractTypeFixture {
+        // Number of concrete object types implementing the selected interface.
+        @Param("64", "256")
+        var abstractTypeWidth: Int = 0
+
+        // Number of selected query fields returning the wide interface.
+        @Param("16", "64")
+        var selectedFieldCount: Int = 0
+
+        private lateinit var fixture: Fixture
+
+        @Setup
+        fun setup() {
+            fixture = createWideAbstractTypeFixture(
+                abstractTypeWidth = abstractTypeWidth,
+                selectedFieldCount = selectedFieldCount,
+            )
+        }
+
+        fun toQueryPlan(): QueryPlan = fixture.toQueryPlan()
+    }
+
     private lateinit var simple: Fixture
     private lateinit var manyFragments1: Fixture
     private lateinit var extraLarge1: Fixture
@@ -185,7 +208,17 @@ open class QueryPlanBenchmark {
         blackhole.consume(state.toQueryPlan())
     }
 
+    @Benchmark
+    fun wideAbstractTypeCheckerChildren(
+        state: WideAbstractTypeFixture,
+        blackhole: Blackhole
+    ) {
+        blackhole.consume(state.toQueryPlan())
+    }
+
     private companion object {
+        private const val WIDE_ABSTRACT_TYPE_NAME = "WideAbstractType"
+
         fun createWideRssFixture(logicalSelectionCount: Int): Fixture {
             require(logicalSelectionCount > 0) {
                 "logicalSelectionCount must be positive"
@@ -262,6 +295,53 @@ open class QueryPlanBenchmark {
             )
         }
 
+        fun createWideAbstractTypeFixture(
+            abstractTypeWidth: Int,
+            selectedFieldCount: Int,
+        ): Fixture {
+            require(abstractTypeWidth > 0) {
+                "abstractTypeWidth must be positive"
+            }
+            require(selectedFieldCount > 0) {
+                "selectedFieldCount must be positive"
+            }
+
+            val objectTypeNames = (0 until abstractTypeWidth).map { "WideObject$it" }
+            val fieldNames = (0 until selectedFieldCount).map { "abstractField$it" }
+            val sdl = buildString {
+                appendLine("interface $WIDE_ABSTRACT_TYPE_NAME {")
+                appendLine("  id: ID")
+                appendLine("}")
+                appendLine("type Query {")
+                fieldNames.forEach { appendLine("  $it: $WIDE_ABSTRACT_TYPE_NAME") }
+                appendLine("}")
+                objectTypeNames.forEach { objectTypeName ->
+                    appendLine("type $objectTypeName implements $WIDE_ABSTRACT_TYPE_NAME {")
+                    appendLine("  id: ID")
+                    appendLine("}")
+                }
+            }
+            val query = fieldNames.joinToString(
+                separator = "\n  ",
+                prefix = "query WideAbstractTypeCheckerChildren {\n  ",
+                postfix = "\n}",
+            ) { fieldName ->
+                "$fieldName { id }"
+            }
+            val typeCheckerEntries = objectTypeNames.associateWith { objectTypeName ->
+                listOf(requiredSelectionSet(objectTypeName, "id", forChecker = true))
+            }
+
+            return Fixture(
+                TestData(sdl, query),
+                StaticRequiredSelectionSetRegistry(
+                    fieldResolverEntries = emptyMap(),
+                    typeCheckerEntries = typeCheckerEntries,
+                    allocateTypeCheckerListsOnLookup = true,
+                )
+            )
+        }
+
         fun createChainedRssFixture(logicalSelectionCount: Int): Fixture {
             require(logicalSelectionCount >= 2) {
                 "logicalSelectionCount must be at least 2"
@@ -309,17 +389,20 @@ open class QueryPlanBenchmark {
 
         private fun requiredSelectionSet(
             typeName: String,
-            selections: String
+            selections: String,
+            forChecker: Boolean = false,
         ): RequiredSelectionSet =
             RequiredSelectionSet(
                 selections = SelectionsParser.parse(typeName, selections),
                 variablesResolvers = emptyList(),
-                forChecker = false
+                forChecker = forChecker
             )
     }
 
     private class StaticRequiredSelectionSetRegistry(
-        private val fieldResolverEntries: Map<Pair<String, String>, List<RequiredSelectionSet>>
+        private val fieldResolverEntries: Map<Pair<String, String>, List<RequiredSelectionSet>>,
+        private val typeCheckerEntries: Map<String, List<RequiredSelectionSet>> = emptyMap(),
+        private val allocateTypeCheckerListsOnLookup: Boolean = false,
     ) : RequiredSelectionSetRegistry {
         override fun getFieldResolverRequiredSelectionSets(
             typeName: String,
@@ -331,6 +414,14 @@ open class QueryPlanBenchmark {
             fieldName: String
         ): List<RequiredSelectionSet> = emptyList()
 
-        override fun getTypeCheckerRequiredSelectionSets(typeName: String): List<RequiredSelectionSet> = emptyList()
+        override fun getTypeCheckerRequiredSelectionSets(typeName: String): List<RequiredSelectionSet> {
+            val entries = typeCheckerEntries[typeName] ?: return emptyList()
+            if (!allocateTypeCheckerListsOnLookup) {
+                return entries
+            }
+            return buildList {
+                addAll(entries)
+            }
+        }
     }
 }

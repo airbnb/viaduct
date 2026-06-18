@@ -76,7 +76,7 @@ class FieldResolverExecutionConditionTest {
             selectionSet = null,
             mergedField = MergedField.newMergedField().addField(field).build(),
             childPlans = listOf(FieldChildPlan(childPlan, "OtherNode" to "id")),
-            fieldTypeChildPlans = emptyMap(),
+            fieldTypeChildPlans = FieldTypeChildPlans.empty,
         )
         val parameters = mockk<ExecutionParameters>()
         val executionStepInfo = mockk<ExecutionStepInfo>()

@@ -327,6 +327,7 @@ private class QueryPlanBuilder(
         .toMap()
 
     private val fragments: MutableMap<String, QueryPlan.FragmentDefinition> = mutableMapOf()
+    private val fieldTypeChildPlans = LazyFieldTypeChildPlans(parameters, rssBuildContext)
 
     private data class State(
         val selectionSet: QueryPlan.SelectionSet,
@@ -483,28 +484,11 @@ private class QueryPlanBuilder(
             }
         }
 
-    private fun buildFieldTypeChildPlans(fieldType: GraphQLNamedOutputType): Map<GraphQLObjectType, Lazy<List<QueryPlan>>> {
+    private fun buildFieldTypeChildPlans(fieldType: GraphQLNamedOutputType): FieldTypeChildPlans {
         if (fieldType !is GraphQLCompositeType) {
-            return emptyMap()
+            return FieldTypeChildPlans.empty
         }
-        val possibleFieldTypes = parameters.schema.rels.possibleObjectTypes(fieldType)
-
-        // Capture by local val so the lazy closure does not retain `this` (the QueryPlanBuilder).
-        // For interface fields with many concrete types, most per-type lazies may never be forced
-        // at runtime (only the resolved concrete type matters), so the builder would otherwise
-        // be pinned for the lifetime of the cached plan.
-        val capturedParameters = parameters
-        val capturedContext = rssBuildContext
-
-        val entries = possibleFieldTypes.mapNotNull { type ->
-            val requiredSelectionSets =
-                parameters.registry.getTypeCheckerRequiredSelectionSets(type.name)
-            if (requiredSelectionSets.isEmpty()) return@mapNotNull null
-            type to lazy {
-                requiredSelectionSets.mapNotNull { rss -> buildRssPlan(capturedParameters, capturedContext, rss) }
-            }
-        }
-        return if (entries.isEmpty()) emptyMap() else entries.toMap()
+        return fieldTypeChildPlans
     }
 
     private fun buildChildPlansFromRequiredSelectionSets(
@@ -817,11 +801,10 @@ private class QueryPlanBuilder(
 
 /**
  * Builds (or returns a cached) [QueryPlan] for a single [RequiredSelectionSet]. Extracted as a
- * file-level function (rather than a [QueryPlanBuilder] method) so that the
- * [QueryPlan.Field.fieldTypeChildPlans] lazy closures only need to capture [parameters] and
- * [rssBuildContext] — not the entire builder. For interface fields with many concrete types most
- * per-type lazies may never be forced at runtime, so keeping the builder reference alive would
- * pin [QueryPlanBuilder.fragmentsByName] and other per-build state indefinitely.
+ * file-level function (rather than a [QueryPlanBuilder] method) so that
+ * [QueryPlan.Field.fieldTypeChildPlans] can build the concrete type's plans on demand without
+ * retaining the entire builder. For interface fields with many concrete types, precomputing a
+ * lazy per possible type retains many closures that may never be used.
  *
  * Uses a two-level context model so that globally cached plans are never truncated by cycle
  * detection from another concurrent RSS build.
@@ -867,11 +850,26 @@ private fun buildRssPlan(
         localBuildContext.building.remove(rss.id)
     }
     rssBuildContext.cache.putIfAbsent(key, plan)
-    // Populates the local cache so that fieldTypeChildPlans lazies (which capture localBuildContext)
-    // find the plan immediately if the RSS is self-referential (i.e. selects a field whose return
+    // Populates the local cache so that fieldTypeChildPlans lookups find the plan immediately
+    // if the RSS is self-referential (i.e. selects a field whose return
     // type has the same type checker). No-op when localBuildContext === rssBuildContext.
     localBuildContext.cache.putIfAbsent(key, plan)
     return plan
+}
+
+private class LazyFieldTypeChildPlans(
+    private val parameters: QueryPlan.Parameters,
+    private val rssBuildContext: RssBuildContext,
+) : FieldTypeChildPlans {
+    override fun plansFor(objectType: GraphQLObjectType): List<QueryPlan> {
+        val requiredSelectionSets = parameters.registry.getTypeCheckerRequiredSelectionSets(objectType.name)
+        if (requiredSelectionSets.isEmpty()) {
+            return emptyList()
+        }
+        return requiredSelectionSets.mapNotNull { rss ->
+            buildRssPlan(parameters, rssBuildContext, rss)
+        }
+    }
 }
 
 /** A pointer into a QueryPlan-able element of a GraphQL document */

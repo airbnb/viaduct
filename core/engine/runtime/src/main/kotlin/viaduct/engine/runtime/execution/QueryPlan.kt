@@ -124,7 +124,7 @@ data class QueryPlan(
         val selectionSet: SelectionSet?,
         val mergedField: MergedField,
         val childPlans: List<FieldChildPlan>,
-        val fieldTypeChildPlans: Map<GraphQLObjectType, Lazy<List<QueryPlan>>>,
+        val fieldTypeChildPlans: FieldTypeChildPlans,
         val collectedFieldMetadata: FieldMetadata? = FieldMetadata.empty,
     ) : Selection {
         override val constraints: Constraints get() = Constraints.Unconstrained
@@ -142,9 +142,8 @@ data class QueryPlan(
      * These selections have not been collected yet and may be subject to [Constraints]
      * that determine if/how they get collected.
      *
-     * @param fieldTypeChildPlans Map from possible concrete field type to child plans. The value is lazily computed
-     *  because across executions of a single operation, polymorphic fields typically resolve to just one concrete
-     *  type and the other child plans will be unused.
+     * @param fieldTypeChildPlans Builds child plans for the resolved concrete field type on demand. Across executions
+     *  of a single operation, polymorphic fields typically resolve to a small subset of possible concrete types.
      */
     data class Field(
         val resultKey: String,
@@ -152,7 +151,7 @@ data class QueryPlan(
         val field: GJField,
         val selectionSet: SelectionSet?,
         val childPlans: List<FieldChildPlan>,
-        val fieldTypeChildPlans: Map<GraphQLObjectType, Lazy<List<QueryPlan>>>,
+        val fieldTypeChildPlans: FieldTypeChildPlans,
         val metadata: FieldMetadata? = FieldMetadata.empty,
         override val variableReferences: List<SelectionVariableReference> = emptyList(),
     ) : Selection {
@@ -249,5 +248,27 @@ data class QueryPlan(
         companion object {
             val empty: FieldMetadata = FieldMetadata(null)
         }
+    }
+}
+
+/**
+ * Provides type-checker child plans for the concrete object type a field resolved to.
+ *
+ * This is intentionally a lookup API rather than a map over every possible concrete field type:
+ * broad interface/union fields may have many implementers, but execution only needs the one
+ * concrete type that was actually produced.
+ */
+interface FieldTypeChildPlans {
+    fun plansFor(objectType: GraphQLObjectType): List<QueryPlan>
+
+    companion object {
+        val empty: FieldTypeChildPlans = object : FieldTypeChildPlans {
+            override fun plansFor(objectType: GraphQLObjectType): List<QueryPlan> = emptyList()
+        }
+
+        operator fun invoke(plansFor: (GraphQLObjectType) -> List<QueryPlan>): FieldTypeChildPlans =
+            object : FieldTypeChildPlans {
+                override fun plansFor(objectType: GraphQLObjectType): List<QueryPlan> = plansFor(objectType)
+            }
     }
 }

@@ -284,7 +284,7 @@ class AccessCheckRunnerTest {
                 every { mockChildPlan.index } returns overrideQueryPlanIndex
                 every { params.field } returns mockk {
                     every { fieldName } returns "testField"
-                    every { fieldTypeChildPlans } returns mapOf(fooObjectType to lazy { listOf(mockChildPlan) })
+                    every { fieldTypeChildPlans } returns fieldTypeChildPlansFor(fooObjectType to listOf(mockChildPlan))
                 }
                 every { params.queryPlanIndex } returns QueryPlanIndex.empty()
                 every { params.withQueryPlanIndex(overrideQueryPlanIndex) } returns typeCheckParameters
@@ -385,7 +385,7 @@ class AccessCheckRunnerTest {
             every { gjParameters } returns mockk()
             every { field } returns mockk {
                 every { fieldName } returns "testField"
-                every { fieldTypeChildPlans } returns mapOf(fooObjectType to lazy { listOf(mockChildPlan) })
+                every { fieldTypeChildPlans } returns fieldTypeChildPlansFor(fooObjectType to listOf(mockChildPlan))
             }
             every { launchOnRootScope(any()) } answers {
                 childPlanLaunched = true
@@ -469,7 +469,7 @@ class AccessCheckRunnerTest {
         every { params.field } returns mockk {
             every { fieldName } returns "bar"
             every { childPlans } returns emptyList()
-            every { fieldTypeChildPlans } returns emptyMap()
+            every { fieldTypeChildPlans } returns FieldTypeChildPlans.empty
         }
         every { params.parentEngineResult } returns objectEngineResult {
             type = fooObjectType
@@ -512,9 +512,14 @@ class AccessCheckRunnerTest {
             stubCopyWithAnyQueryPlanIndex(this@mockk, this@mockk)
             every { field } returns mockk {
                 every { childPlans } returns emptyList()
-                every { fieldTypeChildPlans } returns emptyMap()
+                every { fieldTypeChildPlans } returns FieldTypeChildPlans.empty
             }
         }
+    }
+
+    private fun fieldTypeChildPlansFor(vararg entries: Pair<GraphQLObjectType, List<QueryPlan>>): FieldTypeChildPlans {
+        val plansByType = entries.toMap()
+        return FieldTypeChildPlans { objectType -> plansByType[objectType].orEmpty() }
     }
 
     private fun createMockConstants(): ExecutionParameters.Constants {

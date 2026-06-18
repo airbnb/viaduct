@@ -83,13 +83,13 @@ class AccessCheckRunner(
             // No access check for this field, return immediately
             ?: return Value.nullValue
 
-        // fetch the selection sets of any child plans for this type
-        val fieldTypeChildPlans = field.fieldTypeChildPlans[objectEngineResult.type]?.value ?: emptyList()
+        // Fetch the child plans for this fields concrete type
+        val fieldTypeChildPlans = field.fieldTypeChildPlans.plansFor(objectEngineResult.type)
         val typeCheckParameters = if (fieldTypeChildPlans.isEmpty()) {
             parameters
         } else {
-            // Field-type child plans are lazy and are not part of the root plan index, so
-            // add the concrete plans that this type-check path will use to the index.
+            // Field-type child plans are built on demand and are not part of the root plan index,
+            // so add the concrete plans that this type-check path will use to the index.
             parameters.withQueryPlanIndex(
                 parameters.queryPlanIndex + fieldTypeChildPlans.flattenIndex()
             )

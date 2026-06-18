@@ -704,7 +704,7 @@ class ExecutionParametersTest {
             selectionSet = selectionSet,
             mergedField = mergedField,
             childPlans = emptyList(),
-            fieldTypeChildPlans = emptyMap()
+            fieldTypeChildPlans = FieldTypeChildPlans.empty
         )
 
     private fun collectedField(
@@ -717,6 +717,6 @@ class ExecutionParametersTest {
             selectionSet = selectionSet,
             mergedField = mergedField,
             childPlans = emptyList(),
-            fieldTypeChildPlans = emptyMap()
+            fieldTypeChildPlans = FieldTypeChildPlans.empty
         )
 }

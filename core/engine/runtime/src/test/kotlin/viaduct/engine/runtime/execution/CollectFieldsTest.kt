@@ -43,7 +43,7 @@ class CollectFieldsTest {
                         null,
                         MergedField.newMergedField().addField(xField.field).build(),
                         emptyList(),
-                        emptyMap()
+                        FieldTypeChildPlans.empty
                     )
                 )
             )
@@ -98,7 +98,7 @@ class CollectFieldsTest {
                             .addField(x1.field)
                             .build(),
                         emptyList(),
-                        emptyMap()
+                        FieldTypeChildPlans.empty
                     )
                 )
             )
@@ -130,7 +130,7 @@ class CollectFieldsTest {
                         null,
                         MergedField.newMergedField().addField(xField.field).build(),
                         emptyList(),
-                        emptyMap()
+                        FieldTypeChildPlans.empty
                     )
                 )
             )
@@ -167,7 +167,7 @@ class CollectFieldsTest {
                         null,
                         MergedField.newMergedField().addField(xField.field).build(),
                         emptyList(),
-                        emptyMap()
+                        FieldTypeChildPlans.empty
                     )
                 )
             )
@@ -229,7 +229,7 @@ class CollectFieldsTest {
         collectedRestrictedParentTypes shouldContain queryType
         collectedRestrictedParentTypes shouldNotContain adminType
 
-        assertEquals(0, collectedRestricted.fieldTypeChildPlans.size)
+        collectedRestricted.fieldTypeChildPlans.plansFor(queryType).shouldHaveSize(0)
     }
 
     /**
