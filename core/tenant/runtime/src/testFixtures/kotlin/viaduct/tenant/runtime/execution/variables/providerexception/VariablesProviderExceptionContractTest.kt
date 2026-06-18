@@ -53,7 +53,7 @@ abstract class VariablesProviderExceptionContractTest : KotlinFeatureAppTestCont
         // expect that result.errors is not empty and contains the expected error message
         assertTrue(result.errors.isNotEmpty(), "Expected errors but found none")
         assertTrue(
-            result.errors[0].message?.contains("Variables provider failed!") == true,
+            result.errors[0].message.contains("Variables provider failed!"),
             "Expected error message to contain 'Variables provider failed!'"
         )
     }

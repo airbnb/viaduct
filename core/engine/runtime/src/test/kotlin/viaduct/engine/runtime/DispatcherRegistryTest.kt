@@ -424,7 +424,7 @@ class DispatcherRegistryTest {
         val batchResolver = registry.getNodeResolverDispatcher("TestBatchNode")
 
         batchResolver.shouldBeInstanceOf<InstrumentedNodeResolverDispatcher>()
-        val instrumentedDispatcher = batchResolver as InstrumentedNodeResolverDispatcher
+        val instrumentedDispatcher = batchResolver
         instrumentedDispatcher.dispatcher.shouldBeInstanceOf<NodeResolverDispatcherImpl>()
     }
 
@@ -492,7 +492,7 @@ class DispatcherRegistryTest {
 
         val batchNodeDispatcher = registry.getNodeResolverDispatcher("BatchNodeType1")
         batchNodeDispatcher.shouldBeInstanceOf<InstrumentedNodeResolverDispatcher>()
-        val instrumentedDispatcher = batchNodeDispatcher as InstrumentedNodeResolverDispatcher
+        val instrumentedDispatcher = batchNodeDispatcher
         instrumentedDispatcher.dispatcher.shouldBeInstanceOf<NodeResolverDispatcherImpl>()
     }
 

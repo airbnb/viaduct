@@ -1650,7 +1650,7 @@ class SubqueryExecutionTest {
                 .tag("success", "true")
                 .counter()
             assertNotNull(counter, "Expected subquery execution counter with success=true to be present")
-            assertEquals(1.0, counter.count(), "Expected exactly one successful subquery execution")
+            assertEquals(1.0, counter!!.count(), "Expected exactly one successful subquery execution")
 
             val failureCounter = meterRegistry.find(EngineExecutionContextImpl.SUBQUERY_EXECUTION_METER_NAME)
                 .tag("success", "false")

@@ -543,7 +543,7 @@ interface ViaductSchemaContract {
             assertEquals("d1", dir.name)
             val argValue = dir.arguments["a1"]
             argValue.shouldBeInstanceOf<ViaductSchema.StringLiteral>()
-            assertEquals(a1Value, (argValue as ViaductSchema.StringLiteral).value)
+            assertEquals(a1Value, argValue.value)
         }
         this@ViaductSchemaContract.createSchema(
             """

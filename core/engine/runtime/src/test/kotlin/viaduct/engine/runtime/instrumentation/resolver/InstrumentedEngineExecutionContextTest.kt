@@ -39,7 +39,7 @@ internal class InstrumentedEngineExecutionContextTest {
 
             // Then — result is wrapped so get callbacks fire on subsequent field access
             result.shouldBeInstanceOf<InstrumentedEngineObjectData.Sync>()
-            assertSame(rawObjectData, (result as InstrumentedEngineObjectData.Sync).engineObjectData)
+            assertSame(rawObjectData, result.engineObjectData)
         }
 
     @Test

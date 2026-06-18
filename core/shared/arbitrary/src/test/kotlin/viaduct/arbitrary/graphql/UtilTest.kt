@@ -420,17 +420,14 @@ private fun assertTypesEqual(
     when (t1) {
         is TypeName -> {
             t2.shouldBeInstanceOf<TypeName>()
-            t2 as TypeName
             assertEquals(t1.name, t2.name)
         }
         is NonNullType -> {
             t2.shouldBeInstanceOf<NonNullType>()
-            t2 as NonNullType
             assertTypesEqual(t1.type, t2.type)
         }
         is ListType -> {
             t2.shouldBeInstanceOf<ListType>()
-            t2 as ListType
             assertTypesEqual(t1.type, t2.type)
         }
         else -> throw IllegalArgumentException("unknown Type: $t1")

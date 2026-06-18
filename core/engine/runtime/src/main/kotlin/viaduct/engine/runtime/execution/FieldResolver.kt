@@ -354,9 +354,9 @@ class FieldResolver(
 
         plan.childPlanIds.fold(
             requiredSelectionSetId?.let { seenRssIds + it } ?: seenRssIds
-        ) { seenRssIds, childPlanId ->
-            if (childPlanId in seenRssIds) {
-                return@fold seenRssIds
+        ) { accSeenRssIds, childPlanId ->
+            if (childPlanId in accSeenRssIds) {
+                return@fold accSeenRssIds
             }
             val childPlan = FieldExecutionHelpers.findRssQueryPlan(childPlanId, parameters)
             val childTarget = when (target) {
@@ -365,7 +365,7 @@ class FieldResolver(
                 else -> ExecutionParameters.ChildPlanTarget.FromContext
             }
             launchQueryPlan(parameters, childPlan, executionConditionEnv, childTarget, seenRssIds)
-            seenRssIds + childPlanId
+            accSeenRssIds + childPlanId
         }
 
         parameters.launchOnRootScope {

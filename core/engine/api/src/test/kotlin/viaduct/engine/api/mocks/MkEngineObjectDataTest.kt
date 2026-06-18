@@ -159,13 +159,12 @@ class MkEngineObjectDataTest {
         when (expected) {
             is List<*> -> {
                 actual.shouldBeInstanceOf<List<*>>()
-                assertEquals(expected.size, (actual as List<*>).size)
+                assertEquals(expected.size, actual.size)
                 expected.zip(actual) { e, a -> test(e, a) }
             }
             is EngineObjectData -> throw IllegalArgumentException("Expected values can't be EODs ($expected).")
             is Map<*, *> -> {
                 actual.shouldBeInstanceOf<ResolvedEngineObjectData>()
-                actual as ResolvedEngineObjectData
                 val actualKeys = runBlocking { actual.fetchSelections().toSet() }
                 assertEquals(expected.keys, actualKeys)
                 expected.forEach { (key, value) -> test(value, actual.get(key as String)) }

@@ -93,7 +93,7 @@ class MockTenantModuleDSLTest {
         val result = module.checkField(coord)
         result.shouldBeInstanceOf<MockCheckerErrorResult>()
         assertNotNull(myException)
-        assertSame(myException, (result as MockCheckerErrorResult).error)
+        assertSame(myException, result.error)
     }
 
     @Test

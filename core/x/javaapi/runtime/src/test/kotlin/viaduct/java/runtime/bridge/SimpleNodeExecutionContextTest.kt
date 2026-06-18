@@ -147,7 +147,7 @@ class SimpleNodeExecutionContextTest {
         val result: NodeObject = ctx.nodeRef(GlobalIDImpl(typedType, "abc"))
 
         result.shouldBeInstanceOf<TestNodeObject>()
-        assertSame(nodeRef, (result as TestNodeObject).javaNodeReference)
+        assertSame(nodeRef, result.javaNodeReference)
     }
 
     @Test

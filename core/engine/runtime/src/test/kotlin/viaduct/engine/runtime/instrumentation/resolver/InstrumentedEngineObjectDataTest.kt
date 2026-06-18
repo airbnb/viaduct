@@ -157,7 +157,7 @@ internal class InstrumentedEngineObjectDataTest {
 
                 // Then
                 result.shouldBeInstanceOf<InstrumentedEngineObjectData>()
-                assertSame(nestedEngineObjectData, (result as InstrumentedEngineObjectData).engineObjectData)
+                assertSame(nestedEngineObjectData, result.engineObjectData)
             }
 
         @Test

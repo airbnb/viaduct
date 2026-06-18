@@ -10,7 +10,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
-import java.net.URL
+import java.net.URI
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -74,7 +74,7 @@ class ViaductJavaExecutorFactoryTest {
         ViaductJavaExecutorFactory(
             codeInjector = CodeInjector.Naive,
             grtPackagePrefix = "viaduct.java.api.grts.nonexistent",
-            configUrl = URL("file:///dev/null"),
+            configUrl = URI.create("file:///dev/null").toURL(),
         )
 
     // ── Test fixtures ───────────────────────────────────────────────────────

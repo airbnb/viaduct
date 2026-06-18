@@ -107,7 +107,7 @@ internal class RequiredSelectionSetValidator(
         errors: MutableList<String>,
     ) {
         val document = DocumentParser.parse(expandedSelections)
-        validator.validateDocument(schema, document, { true }, Locale("en"), QueryComplexityLimits.NONE).filterNot { FILTERED_ERRORS.contains(it.validationErrorType as ValidationErrorType) }
+        validator.validateDocument(schema, document, { true }, Locale.ENGLISH, QueryComplexityLimits.NONE).filterNot { FILTERED_ERRORS.contains(it.validationErrorType as ValidationErrorType) }
             .forEach { error ->
                 val baseMessage = "Fragment validation failed for ${field.implFqn} (${field.typeName}.${field.fieldName}): ${error.message}"
                 errors.add(
