@@ -5,7 +5,7 @@ package viaduct.api.testing.featureapp
 
 import com.google.inject.Guice
 import com.google.inject.Injector
-import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import viaduct.api.internal.NodeResolverFor
 import viaduct.api.internal.ResolverFor
@@ -55,17 +55,22 @@ abstract class KotlinFeatureAppTestContractBase : AbstractFeatureAppTestContract
         grtPackagePrefix = derivedClassPackagePrefix
     )
 
+    private val overridesBootstrapper: Boolean = generateSequence<Class<*>>(this::class.java) { it.superclass }
+        .takeWhile { it != KotlinFeatureAppTestContractBase::class.java }
+        .any { cls -> cls.declaredMethods.any { it.name == "createBootstrapperBuilder" } }
+
     @BeforeEach
-    fun skipIfFileBasedRegistryAbsent() {
-        // A subclass that overrides createBootstrapperBuilder supplies its own bootstrapper
-        // and does not depend on the file-based registry being present. ( ie x:javaapi tests override file based bootstrapping )
-        val overridesBootstrapper = generateSequence<Class<*>>(this::class.java) { it.superclass }
-            .takeWhile { it != KotlinFeatureAppTestContractBase::class.java }
-            .any { cls -> cls.declaredMethods.any { it.name == "createBootstrapperBuilder" } }
-        if (overridesBootstrapper) return
+    fun failIfFileBasedRegistryAbsent() {
+        if (overridesBootstrapper || !validateResolverCompleteness) return
         val registryPath = "META-INF/viaduct/modules/$derivedClassPackagePrefix.json"
-        val isOnClasspath = Thread.currentThread().contextClassLoader.getResource(registryPath) != null
-        assumeTrue(isOnClasspath, "Skipping: registry not on classpath ($registryPath)")
+        val resource = Thread.currentThread().contextClassLoader.getResource(registryPath)
+        assertNotNull(resource) {
+            "Contract test registry not found on classpath: $registryPath. " +
+                "This means the KSP registry-extractor plugin did not run or its output was not wired " +
+                "as a runtime_dep. Ensure your BUILD.bazel has: (1) the viaduct_tenant_registry_extractor_ksp_plugin " +
+                "in kt_jvm_library plugins, (2) an assemble_tenant_module_config rule with the kt_jvm_library as a leaf, " +
+                "and (3) the assembled registry in java_test runtime_deps."
+        }
     }
 
     override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> =

@@ -6,6 +6,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -41,17 +42,20 @@ class AssembleTenantModuleConfigJarTest {
         jars: List<File>,
         tenantPkg: String = "com.example.feature",
         out: File = outputJar(),
+        requireNonEmpty: Boolean = false,
     ) {
-        AssembleTenantModuleConfigJar().main(
-            listOf(
-                "--descriptor-jars-list",
-                jarsListFile(jars).absolutePath,
-                "--tenant-package",
-                tenantPkg,
-                "--output-jar",
-                out.absolutePath,
-            ),
+        val args = mutableListOf(
+            "--descriptor-jars-list",
+            jarsListFile(jars).absolutePath,
+            "--tenant-package",
+            tenantPkg,
+            "--output-jar",
+            out.absolutePath,
         )
+        if (requireNonEmpty) {
+            args += "--require-non-empty"
+        }
+        AssembleTenantModuleConfigJar().main(args)
     }
 
     private fun readJarEntry(
@@ -162,6 +166,44 @@ class AssembleTenantModuleConfigJarTest {
         val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
         assertNotNull(json)
         assertFalse(json!!.contains("namedFragments"), json)
+    }
+
+    @Test
+    fun `throws when require-non-empty is set and no descriptors match tenant package`() {
+        val descriptorJar = descriptorJar(
+            name = "leaf.jar",
+            entries = mapOf(
+                "viaduct-registry/com/example/other/Resolvers.json" to
+                    """{"nodes":[{"attribution":"Ignored","implFqn":"com.example.IgnoredResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.NodeResolvers.Ignored","typeName":"Ignored"}],"fields":[],"grtPackagePrefix":"viaduct.api.grts"}""",
+            ),
+        )
+
+        val out = outputJar()
+        val error = assertThrows(IllegalStateException::class.java) {
+            runCli(jars = listOf(descriptorJar), out = out, requireNonEmpty = true)
+        }
+
+        assertTrue(error.message!!.contains("com.example.feature"), error.message)
+        assertTrue(error.message!!.contains("--require-non-empty"), error.message)
+        assertFalse(out.exists(), "output jar should not be written when require-non-empty fails")
+    }
+
+    @Test
+    fun `writes registry without throwing when require-non-empty is set and descriptors are present`() {
+        val descriptorJar = descriptorJar(
+            name = "leaf.jar",
+            entries = mapOf(
+                "viaduct-registry/com/example/feature/AResolvers.json" to
+                    """{"nodes":[{"attribution":"ANodeResolver","implFqn":"com.example.ANodeResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.NodeResolvers.A","typeName":"A"}],"fields":[],"grtPackagePrefix":"viaduct.api.grts"}""",
+            ),
+        )
+
+        val out = outputJar()
+        runCli(jars = listOf(descriptorJar), out = out, requireNonEmpty = true)
+
+        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        assertNotNull(json)
+        assertTrue(json!!.contains("ANodeResolver"), json)
     }
 
     @Test

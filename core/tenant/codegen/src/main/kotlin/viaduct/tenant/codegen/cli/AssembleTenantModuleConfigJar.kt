@@ -2,6 +2,7 @@ package viaduct.tenant.codegen.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.file
@@ -35,12 +36,28 @@ class AssembleTenantModuleConfigJar : CliktCommand(
     private val executorFactory: String by option("--executor-factory")
         .default(MODERN_KOTLIN_EXECUTOR_FACTORY)
 
+    private val requireNonEmpty: Boolean by option(
+        "--require-non-empty",
+        help = "Fail if no descriptors are found. Use for contract tests where an empty registry " +
+            "means the KSP/APT plugin silently produced nothing."
+    )
+        .flag(default = false)
+
     private val outputJar: File by option("--output-jar")
         .file(mustExist = false, canBeDir = false)
         .required()
 
     override fun run() {
         val descriptorJsons = readDescriptorJsons()
+
+        if (requireNonEmpty && descriptorJsons.isEmpty()) {
+            throw IllegalStateException(
+                "No descriptors found for tenant package '$tenantPackage' but --require-non-empty was set. " +
+                    "This typically means the KSP registry-extractor plugin did not emit any descriptors. " +
+                    "Check that the KSP plugin is applied and that resolver classes are annotated correctly."
+            )
+        }
+
         val outputDir = Files.createTempDirectory("tenant-module-config").toFile()
 
         try {
