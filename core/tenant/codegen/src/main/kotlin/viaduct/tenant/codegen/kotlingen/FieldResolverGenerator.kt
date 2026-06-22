@@ -216,6 +216,7 @@ private val resolverST = stTemplate(
             private val inner: <mdl.ctxInterface>
         ) : <mdl.ctxInterface> by inner<if(mdl.selective)>, <mdl.selectiveCtxInterface><endif>, InternalContext by (inner as InternalContext) {
             <if(mdl.selective)>
+            @Suppress("UNCHECKED_CAST")
             override fun selections(): viaduct.api.select.SelectionSet\<<mdl.ctxOutputType>\> =
                 (inner as <mdl.selectiveCtxInterface>).selections()
             <endif>
