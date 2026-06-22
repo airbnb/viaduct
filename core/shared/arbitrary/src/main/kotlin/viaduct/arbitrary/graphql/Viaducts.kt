@@ -114,6 +114,7 @@ private class ViaductGen(private val env: ViaductGenEnv) {
         val fieldCheckerExecutors = genFieldCheckerExecutors()
         val typeCheckerExecutors = genTypeCheckerExecutors()
 
+        @Suppress("DEPRECATION")
         val viaduct = StandardViaduct.Builder()
             .withSchemaConfiguration(SchemaConfiguration.fromSchema(env.schemas.viaductSchema))
             .withTenantAPIBootstrapperBuilders(genTenantModuleBootstrapperBuilders(fieldResolverExecutors, nodeResolverExecutors))
