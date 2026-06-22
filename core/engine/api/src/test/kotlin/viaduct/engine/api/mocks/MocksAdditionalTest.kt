@@ -6,8 +6,10 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.engine.ViaductSchemaLoadException
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.VariablesResolver
@@ -290,6 +292,58 @@ class MocksAdditionalTest {
         val schema = MockSchema.mk("extend type Query { testField: String }")
         assertNotNull(schema.schema.queryType)
         assertNotNull(schema.schema.queryType.getFieldDefinition("testField"))
+    }
+
+    @Test
+    fun `createSchemaWithWiring rejects existing default schema components by default`() {
+        assertThrows(ViaductSchemaLoadException::class.java) {
+            createSchemaWithWiring(
+                """
+                directive @resolver(isSelective: Boolean! = false, isBatching: Boolean! = false) on OBJECT | FIELD_DEFINITION
+
+                extend type Query {
+                    testField: String
+                }
+                """.trimIndent()
+            )
+        }
+    }
+
+    @Test
+    fun `createSchemaWithWiring supports generated schemas with existing default schema components`() {
+        val schema =
+            createSchemaWithWiring(
+                """
+                directive @resolver(isSelective: Boolean! = false, isBatching: Boolean! = false) on OBJECT | FIELD_DEFINITION
+
+                scalar Date
+
+                type PageInfo {
+                    hasNextPage: Boolean!
+                    hasPreviousPage: Boolean!
+                    startCursor: String
+                    endCursor: String
+                    VIADUCT_IGNORE: String
+                }
+
+                type Query {
+                    _: String
+                }
+
+                extend type Query {
+                    testField: TestType @resolver
+                }
+
+                type TestType {
+                    date: Date
+                }
+                """.trimIndent(),
+                allowExistingDefaultSchemaComponents = true,
+                airbnbModeEnabled = true,
+            )
+
+        assertNotNull(schema.schema.queryType.getFieldDefinition("testField"))
+        assertNotNull(schema.schema.getObjectType("PageInfo").getFieldDefinition("VIADUCT_IGNORE"))
     }
 
     @Test

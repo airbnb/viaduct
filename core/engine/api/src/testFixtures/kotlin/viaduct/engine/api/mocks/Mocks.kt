@@ -132,11 +132,22 @@ fun createSchema(sdl: String): ViaductSchema {
  * This is useful for testing the actual engine behaviors, e.g., engine feature test.
  *
  * @param sdl The SDL string to parse and create the schema.
+ * @param allowExistingDefaultSchemaComponents Whether to allow schemas that already contain
+ *   Viaduct default schema components, such as generated compilation schemas.
+ * @param airbnbModeEnabled Whether to allow Airbnb-specific compatibility in default schema validation.
  */
-fun createSchemaWithWiring(sdl: String): ViaductSchema {
+fun createSchemaWithWiring(
+    sdl: String,
+    allowExistingDefaultSchemaComponents: Boolean = false,
+    airbnbModeEnabled: Boolean = false,
+): ViaductSchema {
     val tdr = SchemaParser().parse(sdl)
     try {
-        DefaultSchemaFactory.addDefaults(tdr)
+        DefaultSchemaFactory.addDefaults(
+            registry = tdr,
+            allowExisting = allowExistingDefaultSchemaComponents,
+            airbnbModeEnabled = airbnbModeEnabled,
+        )
     } catch (e: Exception) {
         throw ViaductSchemaLoadException(
             "Failed to add default schema components.",
