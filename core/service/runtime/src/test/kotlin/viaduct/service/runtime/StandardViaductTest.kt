@@ -11,6 +11,7 @@ import graphql.schema.idl.UnExecutableSchemaGenerator
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
+import java.net.URL
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
@@ -22,12 +23,22 @@ import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.GraphQLBuildError
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
+import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
+import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
+import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
+import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.spi.ExecutorFactory
+import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
+import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 import viaduct.service.api.spi.TenantModuleInjectorFactory
 
 class StandardViaductTest {
@@ -282,6 +293,45 @@ class StandardViaductTest {
 
         assertEquals(true, recording.finalized, "finalize() must be called via the file-based bootstrap path")
     }
+
+    @Test
+    fun `builder supplied bootstrappers override generated registry resources for duplicate resolver coordinates`() {
+        val sdl = """
+            extend type Query {
+                generatedRegistryTestField: String @resolver
+            }
+        """.trimIndent()
+        val scannedModule = MockTenantModuleBootstrapper(sdl) {
+            field("Query" to "generatedRegistryTestField") {
+                resolver {
+                    fn { _, _, _, _, _ -> "class-scanned" }
+                }
+            }
+        }
+
+        val viaduct = StandardViaduct.Builder()
+            .withTenantModuleInjectorFactory(SharedTenantModuleInjectorFactory(CodeInjector.Naive))
+            .withTenantAPIBootstrapperBuilders(
+                listOf(
+                    MockTenantAPIBootstrapperBuilder(
+                        MockTenantAPIBootstrapper(listOf(scannedModule))
+                    )
+                )
+            )
+            .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
+            .build()
+
+        val result = viaduct.execute(
+            ExecutionInput.create(
+                operationText = "{ generatedRegistryTestField }",
+                requestContext = Any(),
+            ),
+            SchemaId.Full,
+        )
+
+        assertEquals(emptyList<GraphQLError>(), result.errors)
+        assertEquals(mapOf("generatedRegistryTestField" to "class-scanned"), result.getData())
+    }
 }
 
 private fun makeSchema(schema: String): ViaductSchema {
@@ -305,5 +355,25 @@ private class RecordingFinalizingTenantModuleInjectorFactory : TenantModuleInjec
 
     override suspend fun finalize() {
         finalized = true
+    }
+}
+
+class GeneratedRegistryTestExecutorFactory(
+    @Suppress("UNUSED_PARAMETER") injector: CodeInjector,
+    @Suppress("UNUSED_PARAMETER") configUrl: URL,
+) : ExecutorFactory {
+    override fun createFieldResolverExecutor(
+        configData: FieldEntryConfig,
+        schema: ViaductSchema
+    ): FieldResolverExecutor =
+        MockFieldUnbatchedResolverExecutor(
+            resolverId = "${configData.typeName}.${configData.fieldName}",
+        ) { _, _, _, _, _ -> configData.tenantAPIData["value"] as String }
+
+    override fun createNodeResolverExecutor(
+        configData: NodeEntryConfig,
+        schema: ViaductSchema
+    ): NodeResolverExecutor {
+        throw UnsupportedOperationException("Node resolvers are not used by this test")
     }
 }

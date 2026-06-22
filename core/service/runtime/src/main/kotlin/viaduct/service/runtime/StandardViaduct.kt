@@ -335,8 +335,10 @@ class StandardViaduct
 
                 // Build tenant bootstrapper from builders
                 val tenantBootstrappers = buildList {
-                    addAll(tenantAPIBootstrapperBuilders.map { it.create() })
+                    // Generated registry resources are a static baseline. Builder-supplied bootstrappers
+                    // may be hotswap-aware and should be able to override stale generated metadata.
                     tenantModuleInjectorFactory?.let { add(BootstrapperFactory.fromResources(it)) }
+                    addAll(tenantAPIBootstrapperBuilders.map { it.create() })
                     if (defaultQueryNodeResolversEnabled) {
                         add(ViaductBuiltInResolversBootstrapper.Builder().create())
                     }
