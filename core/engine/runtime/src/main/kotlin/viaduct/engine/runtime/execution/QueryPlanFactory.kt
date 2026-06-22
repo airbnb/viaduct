@@ -226,7 +226,7 @@ interface QueryPlanFactory {
         ) : this(underlying, QueryPlanFactoryStats(meterRegistry), maximumSize)
 
         companion object {
-            const val DEFAULT_MAXIMUM_SIZE = 10_000L
+            const val DEFAULT_MAXIMUM_SIZE = 5_000L
 
             /**
              * Shared executor for Caffeine async cache population. This is static (companion-scoped)
