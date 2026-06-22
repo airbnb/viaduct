@@ -8,7 +8,8 @@ public record InterfaceModel(
     String className,
     List<String> extendedInterfaces,
     List<FieldModel> fields,
-    String description) {
+    String description,
+    boolean nodeInterface) {
 
   // ST (StringTemplate) requires JavaBean-style getters
   public String getPackageName() {
@@ -39,12 +40,18 @@ public record InterfaceModel(
     return extendedInterfaces != null && !extendedInterfaces.isEmpty();
   }
 
+  public boolean getNodeInterface() {
+    return nodeInterface;
+  }
+
   /**
-   * Returns the extends clause for the interface declaration. Always includes GraphQLInterface,
-   * plus any extended interfaces.
+   * Returns the extends clause for the interface declaration. Uses NodeCompositeOutput for
+   * interfaces that are or extend Node (so they satisfy GlobalID's type bound), otherwise
+   * GraphQLInterface. Also includes any extended interfaces.
    */
   public String getExtendsClause() {
-    StringBuilder sb = new StringBuilder("GraphQLInterface");
+    StringBuilder sb =
+        new StringBuilder(nodeInterface ? "NodeCompositeOutput" : "GraphQLInterface");
     if (extendedInterfaces != null) {
       for (String iface : extendedInterfaces) {
         sb.append(", ").append(iface);

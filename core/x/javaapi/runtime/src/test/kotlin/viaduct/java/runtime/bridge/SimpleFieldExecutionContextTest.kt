@@ -1,5 +1,6 @@
 package viaduct.java.runtime.bridge
 
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -11,9 +12,13 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
+import viaduct.errors.TenantUsageException
+import viaduct.java.api.globalid.GlobalID
 import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.GraphQLObject
+import viaduct.java.api.types.NodeObject
 import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 class SimpleFieldExecutionContextTest {
     @Test
@@ -159,5 +164,50 @@ class SimpleFieldExecutionContextTest {
 
         val ex = assertThrows<FrameworkException> { context.getClassFinder() }
         assertTrue(ex.message!!.contains("classFinder"))
+    }
+
+    @Test
+    fun `deserializeGlobalID deserializes a serialized id into a typed GlobalID`() {
+        val engineCtx = mockk<EngineExecutionContext> {
+            every { globalIDCodec } returns GlobalIDCodecDefault
+        }
+        val context = SimpleFieldExecutionContext(
+            requestContext = null,
+            engineExecutionContext = engineCtx
+        )
+
+        val gid: GlobalID<NodeObject> =
+            context.deserializeGlobalID(GlobalIDCodecDefault.serialize("NodeObj", "tenant1"))
+
+        gid.shouldBeInstanceOf<GlobalIDImpl<*>>()
+        assertEquals("tenant1", gid.getInternalID())
+        assertEquals("NodeObj", gid.getType().name)
+    }
+
+    @Test
+    fun `deserializeGlobalID throws FrameworkException when engineExecutionContext is null`() {
+        val context = SimpleFieldExecutionContext(requestContext = null)
+
+        val ex = assertThrows<FrameworkException> {
+            context.deserializeGlobalID<NodeObject>(GlobalIDCodecDefault.serialize("NodeObj", "tenant1"))
+        }
+        assertTrue(ex.message!!.contains("deserializeGlobalID requires engineExecutionContext"))
+    }
+
+    @Test
+    fun `deserializeGlobalID wraps codec IllegalArgumentException in TenantUsageException`() {
+        val engineCtx = mockk<EngineExecutionContext> {
+            every { globalIDCodec } returns GlobalIDCodecDefault
+        }
+        val context = SimpleFieldExecutionContext(
+            requestContext = null,
+            engineExecutionContext = engineCtx
+        )
+
+        val ex = assertThrows<TenantUsageException> {
+            context.deserializeGlobalID<NodeObject>("not-valid-base64!!!")
+        }
+        assertTrue(ex.message!!.contains("Invalid GlobalID"))
+        ex.cause.shouldBeInstanceOf<IllegalArgumentException>()
     }
 }

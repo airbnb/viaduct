@@ -2,6 +2,7 @@ package viaduct.tenant.runtime.execution.noderesolver;
 
 import java.util.concurrent.CompletableFuture;
 import viaduct.java.api.annotations.Resolver;
+import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.reflect.Type;
 import viaduct.tenant.runtime.execution.noderesolver.resolverbases.NodeResolvers;
 import viaduct.tenant.runtime.execution.noderesolver.resolverbases.QueryResolvers;
@@ -15,7 +16,7 @@ public class JavaNodeResolverContractTest extends NodeResolverContractTest {
     @Override
     public CompletableFuture<NodeObj> resolve(Context ctx) {
       String internalId = ctx.getArguments().getId();
-      String id = ctx.globalIDStringFor(Type.ofClass(NodeObj.class), internalId);
+      GlobalID<NodeObj> id = ctx.globalIDFor(Type.ofClass(NodeObj.class), internalId);
       return CompletableFuture.completedFuture(
           NodeObj.builder(ctx).id(id).value(internalId).build());
     }

@@ -15,12 +15,13 @@ class InterfaceGeneratorTest {
             "Node",
             List.of(),
             List.of(FieldModel.simple("id", "String", false)),
-            null);
+            null,
+            true);
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
 
     assertTrue(generated.contains("package com.example.types;"));
-    assertTrue(generated.contains("public interface Node extends GraphQLInterface"));
+    assertTrue(generated.contains("public interface Node extends NodeCompositeOutput"));
     assertTrue(generated.contains("String getId();"));
   }
 
@@ -34,7 +35,8 @@ class InterfaceGeneratorTest {
             List.of(
                 FieldModel.simple("createdAt", "String", false),
                 FieldModel.simple("updatedAt", "String", true)),
-            "Interface for objects with timestamps.");
+            "Interface for objects with timestamps.",
+            false);
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
 
@@ -55,13 +57,14 @@ class InterfaceGeneratorTest {
                 FieldModel.simple("id", "String", false),
                 FieldModel.simple("createdAt", "String", false),
                 FieldModel.simple("createdBy", "String", false)),
-            null);
+            null,
+            true);
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
 
     assertTrue(
         generated.contains(
-            "public interface Auditable extends GraphQLInterface, Node, Timestamped"));
+            "public interface Auditable extends NodeCompositeOutput, Node, Timestamped"));
   }
 
   @Test
@@ -74,7 +77,8 @@ class InterfaceGeneratorTest {
             List.of(
                 FieldModel.simple("owner", "User", false),
                 FieldModel.simple("collaborators", "List<User>", true)),
-            null);
+            null,
+            false);
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
 
@@ -93,7 +97,8 @@ class InterfaceGeneratorTest {
                 FieldModel.simple("id", "String", false),
                 FieldModel.simple("name", "String", false),
                 FieldModel.simple("isActive", "boolean", false)),
-            null);
+            null,
+            false);
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
 

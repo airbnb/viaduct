@@ -16,7 +16,9 @@ import viaduct.engine.api.EngineObjectData;
 import viaduct.engine.api.NodeReference;
 import viaduct.errors.FrameworkException;
 import viaduct.errors.HandleErrors;
+import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.types.GraphQLObject;
+import viaduct.java.api.types.NodeCompositeOutput;
 
 /**
  * Base class for Java object type GRTs (Generated Runtime Types).
@@ -521,6 +523,70 @@ public abstract class ObjectBase implements GraphQLObject {
           Object prev = fieldCache.putIfAbsent(fieldName, toCache);
           Object result = (prev != null) ? prev : toCache;
           return result == NULL_VALUE ? null : (List<E>) result;
+        });
+  }
+
+  /**
+   * Fetches a GlobalID field. Deserializes the raw string value into a typed {@link GlobalID}.
+   *
+   * <p>Like Kotlin's {@code ObjectBase.wrapScalar()} path for GlobalID fields: decodes the
+   * serialized ID using the context's GlobalIDCodec.
+   */
+  @Nullable
+  @SuppressWarnings("unchecked")
+  protected <T extends NodeCompositeOutput> GlobalID<T> fetchGlobalID(String fieldName) {
+    return HandleErrors.framework(
+        "ObjectBase.fetchGlobalID: " + fieldName,
+        () -> {
+          Object cached = fieldCache.get(fieldName);
+          if (cached != null) {
+            return cached == NULL_VALUE ? null : (GlobalID<T>) cached;
+          }
+          Object raw = getRawValue(fieldName);
+          Object toCache;
+          if (raw == null) {
+            toCache = NULL_VALUE;
+          } else {
+            toCache = __context.deserializeGlobalID((String) raw);
+          }
+          Object prev = fieldCache.putIfAbsent(fieldName, toCache);
+          Object result = (prev != null) ? prev : toCache;
+          return result == NULL_VALUE ? null : (GlobalID<T>) result;
+        });
+  }
+
+  /**
+   * Fetches a list of GlobalID values. Each element is deserialized from its string representation
+   * into a typed {@link GlobalID}.
+   */
+  @Nullable
+  @SuppressWarnings("unchecked")
+  protected <T extends NodeCompositeOutput> List<GlobalID<T>> fetchGlobalIDList(String fieldName) {
+    return HandleErrors.framework(
+        "ObjectBase.fetchGlobalIDList: " + fieldName,
+        () -> {
+          Object cached = fieldCache.get(fieldName);
+          if (cached != null) {
+            return cached == NULL_VALUE ? null : (List<GlobalID<T>>) cached;
+          }
+          Object raw = getRawValue(fieldName);
+          Object toCache;
+          if (raw == null) {
+            toCache = NULL_VALUE;
+          } else if (raw instanceof List<?> list) {
+            List<GlobalID<T>> decoded = new ArrayList<>(list.size());
+            for (Object element : list) {
+              decoded.add(element == null ? null : __context.deserializeGlobalID((String) element));
+            }
+            toCache = decoded;
+          } else {
+            throw new FrameworkException(
+                "Expected List for field '" + fieldName + "', got " + raw.getClass().getName(),
+                null);
+          }
+          Object prev = fieldCache.putIfAbsent(fieldName, toCache);
+          Object result = (prev != null) ? prev : toCache;
+          return result == NULL_VALUE ? null : (List<GlobalID<T>>) result;
         });
   }
 

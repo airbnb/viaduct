@@ -257,7 +257,8 @@ class GraphQLSchemaParserTest {
 
     FieldModel idField =
         node.fields().stream().filter(f -> f.name().equals("id")).findFirst().orElseThrow();
-    assertThat(idField.javaType()).isEqualTo("String");
+    assertThat(idField.javaType()).isEqualTo("GlobalID<? extends Node>");
+    assertThat(idField.globalIDType()).isTrue();
 
     // Timestamped interface
     InterfaceModel timestamped =

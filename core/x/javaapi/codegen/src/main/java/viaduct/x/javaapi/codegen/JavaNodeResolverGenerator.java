@@ -134,6 +134,11 @@ public final class JavaNodeResolverGenerator {
                       public ResolverClassFinder getClassFinder() {
                           return InternalContext.from(inner).getClassFinder();
                       \\}
+
+                      @Override
+                      public \\<T extends NodeCompositeOutput> GlobalID\\<T> deserializeGlobalID(String serialized) {
+                          return InternalContext.from(inner).deserializeGlobalID(serialized);
+                      \\}
                       <if(nr.isSelective)>
 
                       @Override

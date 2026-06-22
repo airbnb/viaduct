@@ -83,7 +83,7 @@ class ObjectGeneratorTest {
             "Listing",
             List.of(),
             List.of(
-                new FieldModel("host", "User", false, true, false, false, false, "User"),
+                new FieldModel("host", "User", false, true, false, false, false, false, "User"),
                 FieldModel.simple("amenities", "List<String>", false),
                 FieldModel.simple("pricePerNight", "double", false)),
             null,
@@ -106,7 +106,9 @@ class ObjectGeneratorTest {
             "com.example.types",
             "Listing",
             List.of(),
-            List.of(new FieldModel("tags", "List<String>", true, false, true, false, false, null)),
+            List.of(
+                new FieldModel(
+                    "tags", "List<String>", true, false, true, false, false, false, null)),
             null,
             false,
             false);
@@ -125,8 +127,9 @@ class ObjectGeneratorTest {
             "Author",
             List.of(),
             List.of(
-                new FieldModel("books", "List<Book>", true, true, true, false, false, "Book"),
-                new FieldModel("tags", "List<Tag>", true, false, true, true, false, "Tag")),
+                new FieldModel(
+                    "books", "List<Book>", true, true, true, false, false, false, "Book"),
+                new FieldModel("tags", "List<Tag>", true, false, true, true, false, false, "Tag")),
             null,
             false,
             false);
@@ -147,9 +150,17 @@ class ObjectGeneratorTest {
             "SearchContainer",
             List.of(),
             List.of(
-                new FieldModel("topNode", "Node", true, false, false, false, true, "Node"),
+                new FieldModel("topNode", "Node", true, false, false, false, true, false, "Node"),
                 new FieldModel(
-                    "topResult", "SearchResult", true, false, false, false, true, "SearchResult"),
+                    "topResult",
+                    "SearchResult",
+                    true,
+                    false,
+                    false,
+                    false,
+                    true,
+                    false,
+                    "SearchResult"),
                 new FieldModel(
                     "allResults",
                     "List<SearchResult>",
@@ -158,6 +169,7 @@ class ObjectGeneratorTest {
                     true,
                     false,
                     true,
+                    false,
                     "SearchResult")),
             null,
             false,
@@ -232,8 +244,9 @@ class ObjectGeneratorTest {
             List.of(),
             List.of(
                 new FieldModel(
-                    "timestamps", "List<Instant>", true, false, true, false, false, null),
-                new FieldModel("dates", "List<LocalDate>", true, false, true, false, false, null)),
+                    "timestamps", "List<Instant>", true, false, true, false, false, false, null),
+                new FieldModel(
+                    "dates", "List<LocalDate>", true, false, true, false, false, false, null)),
             null,
             false,
             false);

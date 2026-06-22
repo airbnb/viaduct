@@ -3,6 +3,7 @@ package viaduct.java.runtime.bridge
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
+import viaduct.errors.TenantUsageException
 import viaduct.java.api.context.VariablesProviderContext
 import viaduct.java.api.globalid.GlobalID
 import viaduct.java.api.internal.InternalContext
@@ -66,5 +67,16 @@ class SimpleVariablesProviderContext(
     override fun getClassFinder(): ResolverClassFinder {
         return classFinder
             ?: throw FrameworkException("getClassFinder() requires classFinder.")
+    }
+
+    override fun <T : NodeCompositeOutput> deserializeGlobalID(serialized: String): GlobalID<T> {
+        val codec = engineExecutionContext?.globalIDCodec
+            ?: throw FrameworkException("deserializeGlobalID requires engineExecutionContext.")
+        val (typeName, internalId) = try {
+            codec.deserialize(serialized)
+        } catch (e: IllegalArgumentException) {
+            throw TenantUsageException("Invalid GlobalID: \"$serialized\"", e)
+        }
+        return GlobalIDImpl(type = typeFromName(typeName), internalId = internalId)
     }
 }

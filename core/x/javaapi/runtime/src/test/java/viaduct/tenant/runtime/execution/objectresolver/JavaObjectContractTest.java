@@ -191,6 +191,11 @@ public class JavaObjectContractTest extends ObjectContractTest {
         public ResolverClassFinder getClassFinder() {
           throw new UnsupportedOperationException();
         }
+
+        @Override
+        public <T extends NodeCompositeOutput> GlobalID<T> deserializeGlobalID(String serialized) {
+          throw new UnsupportedOperationException();
+        }
       };
 
   @Test

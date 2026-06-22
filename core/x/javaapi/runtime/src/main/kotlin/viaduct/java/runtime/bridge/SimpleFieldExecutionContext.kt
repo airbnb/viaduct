@@ -104,6 +104,17 @@ class SimpleFieldExecutionContext(
             ?: throw FrameworkException("getClassFinder() requires classFinder.")
     }
 
+    override fun <T : viaduct.java.api.types.NodeCompositeOutput> deserializeGlobalID(serialized: String): viaduct.java.api.globalid.GlobalID<T> {
+        val codec = engineExecutionContext?.globalIDCodec
+            ?: throw FrameworkException("deserializeGlobalID requires engineExecutionContext.")
+        val (typeName, internalId) = try {
+            codec.deserialize(serialized)
+        } catch (e: IllegalArgumentException) {
+            throw viaduct.errors.TenantUsageException("Invalid GlobalID: \"$serialized\"", e)
+        }
+        return GlobalIDImpl(type = typeFromName(typeName), internalId = internalId)
+    }
+
     override fun <T : viaduct.java.api.types.NodeCompositeOutput> globalIDFor(
         type: viaduct.java.api.reflect.Type<T>,
         internalID: String
@@ -137,8 +148,9 @@ class SimpleFieldExecutionContext(
         val graphqlType = engineCtx.activeSchema.schema.getObjectType(typeName)
             ?: throw FrameworkException("GraphQL type '$typeName' not found in schema for nodeRef.")
         val nodeReference = engineCtx.createNodeReference(serializedId, graphqlType)
-        val grtClass = id.getType().getJavaClass() as Class<T>
         val internalContext = classFinder?.let { buildInternalContext(engineCtx, it) }
+        val grtClass = classFinder?.grtClassForName(typeName) as? Class<T>
+            ?: id.getType().getJavaClass() as Class<T>
         return grtClass
             .getDeclaredConstructor(InternalContext::class.java, viaduct.engine.api.NodeReference::class.java)
             .newInstance(internalContext, nodeReference) as T

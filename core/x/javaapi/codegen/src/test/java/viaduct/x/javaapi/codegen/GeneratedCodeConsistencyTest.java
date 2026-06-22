@@ -14,7 +14,7 @@ class GeneratedCodeConsistencyTest {
   @Test
   void interfaceGenerator_usesGraphQLInterface() {
     InterfaceModel model =
-        new InterfaceModel("com.example", "TestInterface", List.of(), List.of(), null);
+        new InterfaceModel("com.example", "TestInterface", List.of(), List.of(), null, false);
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
 

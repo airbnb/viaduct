@@ -1,8 +1,11 @@
 package viaduct.java.runtime.bridge
 
 import viaduct.engine.api.ViaductSchema
+import viaduct.errors.TenantUsageException
+import viaduct.java.api.globalid.GlobalID
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ResolverClassFinder
+import viaduct.java.api.types.NodeCompositeOutput
 import viaduct.service.api.spi.GlobalIDCodec
 
 /**
@@ -24,4 +27,13 @@ internal class InternalContextImpl(
     override fun getGlobalIDCodec(): GlobalIDCodec = globalIDCodec
 
     override fun getClassFinder(): ResolverClassFinder = classFinder
+
+    override fun <T : NodeCompositeOutput> deserializeGlobalID(serialized: String): GlobalID<T> {
+        val (typeName, internalId) = try {
+            globalIDCodec.deserialize(serialized)
+        } catch (e: IllegalArgumentException) {
+            throw TenantUsageException("Invalid GlobalID: \"$serialized\"", e)
+        }
+        return GlobalIDImpl(type = typeFromName(typeName), internalId = internalId)
+    }
 }

@@ -8,6 +8,7 @@ import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
+import viaduct.errors.TenantUsageException
 import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.handleFrameworkErrorsSuspend
 import viaduct.java.api.context.NodeExecutionContext
@@ -76,6 +77,17 @@ class SimpleNodeExecutionContext(
     override fun getClassFinder(): ResolverClassFinder {
         return classFinder
             ?: throw FrameworkException("getClassFinder() requires classFinder.")
+    }
+
+    override fun <T : NodeCompositeOutput> deserializeGlobalID(serialized: String): GlobalID<T> {
+        val codec = engineExecutionContext?.globalIDCodec
+            ?: throw FrameworkException("deserializeGlobalID requires engineExecutionContext.")
+        val (typeName, internalId) = try {
+            codec.deserialize(serialized)
+        } catch (e: IllegalArgumentException) {
+            throw TenantUsageException("Invalid GlobalID: \"$serialized\"", e)
+        }
+        return GlobalIDImpl(type = typeFromName(typeName), internalId = internalId)
     }
 
     override fun <T : NodeCompositeOutput> globalIDFor(

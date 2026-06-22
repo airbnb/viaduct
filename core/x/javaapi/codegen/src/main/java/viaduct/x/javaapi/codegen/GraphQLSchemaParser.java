@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -137,11 +138,10 @@ public class GraphQLSchemaParser {
         List<FieldModel> fields = new ArrayList<>();
         for (ViaductSchema.Field field : objectDef.getFields()) {
           if (isBackingDataField(field)) continue;
-          fields.add(createFieldModel(field, typeMapper));
+          fields.add(createFieldModel(field, typeMapper, objectDef));
         }
 
-        boolean isNodeType =
-            objectDef.getSupers().stream().anyMatch(iface -> iface.getName().equals("Node"));
+        boolean isNodeType = isNodeType(objectDef);
 
         objects.add(
             new ObjectModel(
@@ -177,7 +177,7 @@ public class GraphQLSchemaParser {
         List<FieldModel> fields = new ArrayList<>();
         for (ViaductSchema.Field field : inputDef.getFields()) {
           if (isBackingDataField(field)) continue;
-          fields.add(createFieldModel(field, typeMapper));
+          fields.add(createFieldModel(field, typeMapper, inputDef));
         }
 
         inputs.add(new InputModel(packageName, name, fields, getDescription(inputDef)));
@@ -208,16 +208,24 @@ public class GraphQLSchemaParser {
                 .map(ViaductSchema.Interface::getName)
                 .collect(Collectors.toCollection(ArrayList::new));
 
+        // Detect if this interface is or extends Node (recursive)
+        boolean isNodeInterface = isNodeType(interfaceDef);
+
         // Collect all fields (extensions are already merged), excluding BackingData
         List<FieldModel> fields = new ArrayList<>();
         for (ViaductSchema.Field field : interfaceDef.getFields()) {
           if (isBackingDataField(field)) continue;
-          fields.add(createFieldModel(field, typeMapper));
+          fields.add(createFieldModel(field, typeMapper, interfaceDef));
         }
 
         interfaces.add(
             new InterfaceModel(
-                packageName, name, extendedInterfaces, fields, getDescription(interfaceDef)));
+                packageName,
+                name,
+                extendedInterfaces,
+                fields,
+                getDescription(interfaceDef),
+                isNodeInterface));
       }
     }
 
@@ -299,15 +307,30 @@ public class GraphQLSchemaParser {
                   (argCompositeType || argEnumType || argAbstractType)
                       ? argBaseTypeDef.getName()
                       : null;
+
+              // Detect @idOf on argument
+              String argIdOfTypeName = getIdOfTypeName(arg.getAppliedDirectives());
+              boolean argGlobalIDType = false;
+              String argJavaType = typeMapper.toJavaType(arg.getType());
+              if (argIdOfTypeName != null) {
+                argGlobalIDType = true;
+                argBaseTypeName = argIdOfTypeName;
+                argJavaType =
+                    argList
+                        ? "List<GlobalID<" + argIdOfTypeName + ">>"
+                        : "GlobalID<" + argIdOfTypeName + ">";
+              }
+
               fields.add(
                   new FieldModel(
                       arg.getName(),
-                      typeMapper.toJavaType(arg.getType()),
+                      argJavaType,
                       arg.getType().isNullable(),
                       argCompositeType,
                       argList,
                       argEnumType,
                       argAbstractType,
+                      argGlobalIDType,
                       argBaseTypeName));
             }
             arguments.add(new ArgumentModel(packageName, className, fields));
@@ -501,9 +524,7 @@ public class GraphQLSchemaParser {
       if (!(typeDef instanceof ViaductSchema.Object objectDef)) continue;
       if (!objectDef.hasAppliedDirective("resolver")) continue;
 
-      boolean implementsNode =
-          objectDef.getSupers().stream().anyMatch(iface -> iface.getName().equals("Node"));
-      if (!implementsNode) continue;
+      if (!isNodeType(objectDef)) continue;
 
       if (!ownershipFilter.test(objectDef)) continue;
 
@@ -548,6 +569,20 @@ public class GraphQLSchemaParser {
   }
 
   /**
+   * Returns true if the given type definition is or transitively implements the Node interface.
+   * Mirrors Kotlin's ViaductSchemaExtensions.isNode property.
+   */
+  private static boolean isNodeType(ViaductSchema.TypeDef typeDef) {
+    if (typeDef.getName().equals("Node") && typeDef instanceof ViaductSchema.Interface) {
+      return true;
+    }
+    if (typeDef instanceof ViaductSchema.OutputRecord outputRecord) {
+      return outputRecord.getSupers().stream().anyMatch(GraphQLSchemaParser::isNodeType);
+    }
+    return false;
+  }
+
+  /**
    * Returns true if the field's base type is the BackingData scalar. BackingData fields are
    * excluded from GRT codegen — they are opaque containers whose runtime type is specified
    * per-field via the @backingData directive. Mirrors Kotlin's codegenIncludedFields in
@@ -560,7 +595,8 @@ public class GraphQLSchemaParser {
   }
 
   /** Creates a FieldModel from a ViaductSchema.Field. */
-  private FieldModel createFieldModel(ViaductSchema.Field field, TypeMapper typeMapper) {
+  private FieldModel createFieldModel(
+      ViaductSchema.Field field, TypeMapper typeMapper, ViaductSchema.TypeDef containerType) {
     String javaType = typeMapper.toJavaType(field.getType());
     boolean nullable = field.getType().isNullable();
     ViaductSchema.TypeDef baseTypeDef = field.getType().getBaseTypeDef();
@@ -577,6 +613,27 @@ public class GraphQLSchemaParser {
             || (baseTypeDef instanceof ViaductSchema.Union);
     String baseTypeName =
         (compositeType || enumType || abstractType) ? baseTypeDef.getName() : null;
+
+    // Detect @idOf directive → field should be typed as GlobalID<T>
+    boolean globalIDType = false;
+    String idOfTypeName = getIdOfTypeName(field.getAppliedDirectives());
+    if (idOfTypeName != null) {
+      globalIDType = true;
+      baseTypeName = idOfTypeName;
+      javaType = list ? "List<GlobalID<" + idOfTypeName + ">>" : "GlobalID<" + idOfTypeName + ">";
+    }
+
+    // Detect Node.id → GlobalID<ContainerType> (mirrors Kotlin's isGlobalID check)
+    if (idOfTypeName == null && field.getName().equals("id") && isNodeType(containerType)) {
+      globalIDType = true;
+      baseTypeName = containerType.getName();
+      boolean isInterface = containerType instanceof ViaductSchema.Interface;
+      javaType =
+          isInterface
+              ? "GlobalID<? extends " + containerType.getName() + ">"
+              : "GlobalID<" + containerType.getName() + ">";
+    }
+
     return new FieldModel(
         field.getName(),
         javaType,
@@ -585,7 +642,25 @@ public class GraphQLSchemaParser {
         list,
         enumType,
         abstractType,
+        globalIDType,
         baseTypeName);
+  }
+
+  /**
+   * Extracts the type name from an @idOf directive if present on the given definition's directives.
+   * Returns null if no @idOf directive is found.
+   */
+  private String getIdOfTypeName(
+      Collection<? extends ViaductSchema.AppliedDirective<?>> directives) {
+    for (var directive : directives) {
+      if (directive.getName().equals("idOf")) {
+        ViaductSchema.Literal typeArg = directive.getArguments().get("type");
+        if (typeArg instanceof ViaductSchema.StringLiteral stringLiteral) {
+          return stringLiteral.getValue();
+        }
+      }
+    }
+    return null;
   }
 
   /** Extracts description from a type definition. Returns null for now. */

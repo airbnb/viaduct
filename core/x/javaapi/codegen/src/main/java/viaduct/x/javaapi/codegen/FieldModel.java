@@ -11,6 +11,7 @@ public record FieldModel(
     boolean list,
     boolean enumType,
     boolean abstractType,
+    boolean globalIDType,
     String baseTypeName) {
 
   /**
@@ -18,7 +19,7 @@ public record FieldModel(
    * tests and scalar fields.
    */
   public static FieldModel simple(String name, String javaType, boolean nullable) {
-    return new FieldModel(name, javaType, nullable, false, false, false, false, null);
+    return new FieldModel(name, javaType, nullable, false, false, false, false, false, null);
   }
 
   private static final Set<String> JAVA_KEYWORDS =
@@ -121,6 +122,16 @@ public record FieldModel(
     return abstractType;
   }
 
+  /** Returns whether this field is a GlobalID type (has @idOf directive or is Node.id). */
+  public boolean getGlobalIDType() {
+    return globalIDType;
+  }
+
+  /** Returns true if this is a list of GlobalID values. Used for ST template conditionals. */
+  public boolean getGlobalIDList() {
+    return globalIDType && list;
+  }
+
   /** Returns the simple class name of the base type (for composite and enum fields). */
   public String getBaseTypeName() {
     return baseTypeName;
@@ -145,11 +156,11 @@ public record FieldModel(
   }
 
   /**
-   * Returns true if this is a list of scalar values (not composites, not enums). Used for ST
-   * template conditionals.
+   * Returns true if this is a list of scalar values (not composites, not enums, not GlobalID). Used
+   * for ST template conditionals.
    */
   public boolean getScalarList() {
-    return !compositeType && !enumType && list;
+    return !compositeType && !enumType && !globalIDType && list;
   }
 
   /**
@@ -184,6 +195,24 @@ public record FieldModel(
   /** Returns true if this is a list of temporal scalar values needing coercion. */
   public boolean getTemporalScalarList() {
     return getHasScalarCoercionHint() && list;
+  }
+
+  /**
+   * Returns the type to use in builder setter methods. GlobalID fields accept typed GlobalID
+   * values; the builder serializes them to the wire format before storing in the data map.
+   */
+  public String getBuilderType() {
+    return javaType;
+  }
+
+  /** Returns true if this field needs GlobalID serialization in the builder (single value). */
+  public boolean getGlobalIDBuilderSerialize() {
+    return globalIDType && !list;
+  }
+
+  /** Returns true if this field needs GlobalID list serialization in the builder. */
+  public boolean getGlobalIDListBuilderSerialize() {
+    return globalIDType && list;
   }
 
   /** Returns the getter method name for this field. */

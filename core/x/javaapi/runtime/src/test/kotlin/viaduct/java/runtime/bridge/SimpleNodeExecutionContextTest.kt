@@ -15,6 +15,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
+import viaduct.errors.TenantUsageException
 import viaduct.java.api.globalid.GlobalID
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ObjectBase
@@ -93,6 +94,35 @@ class SimpleNodeExecutionContextTest {
     fun `globalIDStringFor returns serialized form using the provided Type`() {
         val ctx = newContext()
         assertEquals(GlobalIDCodecDefault.serialize("NodeObj", "abc"), ctx.globalIDStringFor(nodeType("NodeObj"), "abc"))
+    }
+
+    @Test
+    fun `deserializeGlobalID deserializes the serialized id into a typed GlobalID`() {
+        val ctx = newContext()
+        val gid: GlobalID<NodeObject> =
+            ctx.deserializeGlobalID(GlobalIDCodecDefault.serialize("NodeObj", "tenant1"))
+        gid.shouldBeInstanceOf<GlobalIDImpl<*>>()
+        assertEquals("tenant1", gid.getInternalID())
+        assertEquals("NodeObj", gid.getType().name)
+    }
+
+    @Test
+    fun `deserializeGlobalID throws FrameworkException when engineExecutionContext is null`() {
+        val ctx = newContext(engineCtx = null)
+        val ex = assertThrows<FrameworkException> {
+            ctx.deserializeGlobalID<NodeObject>(GlobalIDCodecDefault.serialize("NodeObj", "tenant1"))
+        }
+        assertTrue(ex.message!!.contains("deserializeGlobalID requires engineExecutionContext"))
+    }
+
+    @Test
+    fun `deserializeGlobalID wraps codec IllegalArgumentException in TenantUsageException`() {
+        val ctx = newContext()
+        val ex = assertThrows<TenantUsageException> {
+            ctx.deserializeGlobalID<NodeObject>("not-valid-base64!!!")
+        }
+        assertTrue(ex.message!!.contains("Invalid GlobalID"))
+        ex.cause.shouldBeInstanceOf<IllegalArgumentException>()
     }
 
     @Test

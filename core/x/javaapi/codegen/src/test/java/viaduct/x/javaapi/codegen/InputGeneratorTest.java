@@ -62,7 +62,15 @@ class InputGeneratorTest {
             "SearchFiltersInput",
             List.of(
                 new FieldModel(
-                    "listingType", "ListingType", true, false, false, true, false, "ListingType"),
+                    "listingType",
+                    "ListingType",
+                    true,
+                    false,
+                    false,
+                    true,
+                    false,
+                    false,
+                    "ListingType"),
                 FieldModel.simple("amenities", "List<String>", true),
                 FieldModel.simple("minPrice", "Double", true)),
             null);
@@ -82,8 +90,10 @@ class InputGeneratorTest {
             "com.example.types",
             "TagInput",
             List.of(
-                new FieldModel("tags", "List<String>", true, false, true, false, false, null),
-                new FieldModel("ids", "List<Integer>", true, false, true, false, false, null)),
+                new FieldModel(
+                    "tags", "List<String>", true, false, true, false, false, false, null),
+                new FieldModel(
+                    "ids", "List<Integer>", true, false, true, false, false, false, null)),
             null);
 
     String generated = JavaGRTGenerator.InputGenerator.generate(model);
@@ -102,9 +112,17 @@ class InputGeneratorTest {
             "FilterInput",
             List.of(
                 new FieldModel(
-                    "nestedItems", "List<ItemInput>", true, true, true, false, false, "ItemInput"),
+                    "nestedItems",
+                    "List<ItemInput>",
+                    true,
+                    true,
+                    true,
+                    false,
+                    false,
+                    false,
+                    "ItemInput"),
                 new FieldModel(
-                    "statuses", "List<Status>", true, false, true, true, false, "Status")),
+                    "statuses", "List<Status>", true, false, true, true, false, false, "Status")),
             null);
 
     String generated = JavaGRTGenerator.InputGenerator.generate(model);

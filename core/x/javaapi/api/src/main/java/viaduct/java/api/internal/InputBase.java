@@ -8,7 +8,9 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import viaduct.errors.FrameworkException;
 import viaduct.errors.HandleErrors;
+import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.types.GraphQLInput;
+import viaduct.java.api.types.NodeCompositeOutput;
 
 /**
  * Base class for Java input type GRTs (Generated Runtime Types).
@@ -258,6 +260,61 @@ public abstract class InputBase implements GraphQLInput {
             return wrapped;
           }
           return (List<E>) value;
+        });
+  }
+
+  /**
+   * Gets a GlobalID field from the input data, deserializing the raw string into a typed {@link
+   * GlobalID}. Like Kotlin's {@code get(fieldName)} for @idOf-annotated input fields.
+   */
+  @Nullable
+  @SuppressWarnings("unchecked")
+  protected <T extends NodeCompositeOutput> GlobalID<T> getGlobalID(String fieldName) {
+    Object raw = inputData.get(fieldName);
+    if (raw == null) {
+      return null;
+    }
+    try {
+      return __context().deserializeGlobalID((String) raw);
+    } catch (RuntimeException e) {
+      sneakyThrowTenantUsage("Invalid GlobalID for field '" + fieldName + "': " + raw, e);
+      throw new AssertionError("unreachable");
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
+    throw (E) e;
+  }
+
+  private static void sneakyThrowTenantUsage(String message, Throwable cause) {
+    sneakyThrow(new viaduct.errors.TenantUsageException(message, cause));
+  }
+
+  /**
+   * Gets a list of GlobalID values from the input data, deserializing each string element into a
+   * typed {@link GlobalID}.
+   */
+  @Nullable
+  @SuppressWarnings("unchecked")
+  protected <T extends NodeCompositeOutput> List<GlobalID<T>> getGlobalIDList(String fieldName) {
+    return HandleErrors.framework(
+        "InputBase.getGlobalIDList: " + fieldName,
+        () -> {
+          Object raw = inputData.get(fieldName);
+          if (raw == null) {
+            return null;
+          }
+          if (!(raw instanceof List<?> list)) {
+            throw new FrameworkException(
+                "Expected List for field '" + fieldName + "', got " + raw.getClass().getName(),
+                null);
+          }
+          List<GlobalID<T>> result = new ArrayList<>(list.size());
+          for (Object element : list) {
+            result.add(element == null ? null : __context().deserializeGlobalID((String) element));
+          }
+          return result;
         });
   }
 }

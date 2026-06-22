@@ -2,6 +2,8 @@ package viaduct.java.api.internal;
 
 import viaduct.engine.api.ViaductSchema;
 import viaduct.java.api.context.ExecutionContext;
+import viaduct.java.api.globalid.GlobalID;
+import viaduct.java.api.types.NodeCompositeOutput;
 import viaduct.service.api.spi.GlobalIDCodec;
 
 /**
@@ -53,4 +55,17 @@ public interface InternalContext {
    * ReflectionLoader}.
    */
   ResolverClassFinder getClassFinder();
+
+  /**
+   * Deserializes a GlobalID string into a typed {@link GlobalID} instance.
+   *
+   * <p>Mirrors Kotlin's {@code InternalContext.deserializeGlobalID()}. Decodes the serialized
+   * representation (typically Base64-encoded "typeName:localId") into a {@link GlobalID} carrying
+   * both the resolved type and the internal identifier.
+   *
+   * @param serialized the serialized GlobalID string from the GraphQL response
+   * @param <T> the node type the GlobalID refers to
+   * @return the deserialized typed GlobalID
+   */
+  <T extends NodeCompositeOutput> GlobalID<T> deserializeGlobalID(String serialized);
 }

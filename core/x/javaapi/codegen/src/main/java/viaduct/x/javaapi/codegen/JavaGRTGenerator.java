@@ -106,6 +106,7 @@ public final class JavaGRTGenerator {
             import viaduct.engine.api.EngineObjectData;
             import viaduct.engine.api.NodeReference;
             import viaduct.java.api.context.ExecutionContext;
+            import viaduct.java.api.globalid.GlobalID;
             import viaduct.java.api.internal.InternalContext;
             import viaduct.java.api.internal.NodeObjectBase;
             import viaduct.java.api.internal.ObjectBase;
@@ -139,7 +140,7 @@ public final class JavaGRTGenerator {
 
                 <mdl.fields: {f |
                 public <f.javaType> <f.getterName>() {
-                    <if(f.abstractList)>return fetchAbstractObjectList("<f.name>", <f.baseTypeName>.class);<elseif(f.abstractType)>return fetchAbstractObject("<f.name>", <f.baseTypeName>.class);<elseif(f.compositeList)>return fetchObjectList("<f.name>", <f.baseTypeName>::new);<elseif(f.compositeType)>return fetchObject("<f.name>", <f.baseTypeName>::new);<elseif(f.enumList)>return fetchEnumList("<f.name>", <f.baseTypeName>.class);<elseif(f.enumType)>return fetchEnum("<f.name>", <f.baseTypeName>.class);<elseif(f.temporalScalarList)>return fetchScalarList("<f.name>", "<f.scalarCoercionHint>");<elseif(f.temporalScalar)>return fetchScalar("<f.name>", "<f.scalarCoercionHint>");<elseif(f.scalarList)>return fetchScalarList("<f.name>");<else>return fetchScalar("<f.name>");<endif>
+                    <if(f.globalIDList)>return fetchGlobalIDList("<f.name>");<elseif(f.globalIDType)>return fetchGlobalID("<f.name>");<elseif(f.abstractList)>return fetchAbstractObjectList("<f.name>", <f.baseTypeName>.class);<elseif(f.abstractType)>return fetchAbstractObject("<f.name>", <f.baseTypeName>.class);<elseif(f.compositeList)>return fetchObjectList("<f.name>", <f.baseTypeName>::new);<elseif(f.compositeType)>return fetchObject("<f.name>", <f.baseTypeName>::new);<elseif(f.enumList)>return fetchEnumList("<f.name>", <f.baseTypeName>.class);<elseif(f.enumType)>return fetchEnum("<f.name>", <f.baseTypeName>.class);<elseif(f.temporalScalarList)>return fetchScalarList("<f.name>", "<f.scalarCoercionHint>");<elseif(f.temporalScalar)>return fetchScalar("<f.name>", "<f.scalarCoercionHint>");<elseif(f.scalarList)>return fetchScalarList("<f.name>");<else>return fetchScalar("<f.name>");<endif>
                 \\}
                 }; separator="
             ">
@@ -157,9 +158,11 @@ public final class JavaGRTGenerator {
                     }
 
                     <mdl.fields: {f |
-                    public Builder <f.safeName>(<f.javaType> <f.safeName>) {
-                        data.put("<f.name>", <f.safeName>);
-                        return this;
+                    public Builder <f.safeName>(<f.builderType> <f.safeName>) {
+                        <if(f.globalIDBuilderSerialize)>data.put("<f.name>", <f.safeName> == null ? null : __context.getGlobalIDCodec().serialize(<f.safeName>.getType().getName(), <f.safeName>.getInternalID()));
+                        <elseif(f.globalIDListBuilderSerialize)>data.put("<f.name>", <f.safeName> == null ? null : <f.safeName>.stream().map(__id -> __context.getGlobalIDCodec().serialize(__id.getType().getName(), __id.getInternalID())).collect(java.util.stream.Collectors.toList()));
+                        <else>data.put("<f.name>", <f.safeName>);
+                        <endif>return this;
                     \\}
                     }; separator="
             ">
@@ -207,6 +210,7 @@ public final class JavaGRTGenerator {
 
             import graphql.schema.GraphQLInputObjectType;
             import viaduct.java.api.context.ExecutionContext;
+            import viaduct.java.api.globalid.GlobalID;
             import viaduct.java.api.internal.InputBase;
             import viaduct.java.api.internal.InternalContext;
             import java.time.Instant;
@@ -229,7 +233,7 @@ public final class JavaGRTGenerator {
 
                 <mdl.fields: {f |
                 public <f.javaType> <f.getterName>() {
-                    <if(f.compositeList)>return getInputList("<f.name>", <f.baseTypeName>::new);<elseif(f.compositeType)>return getInput("<f.name>", <f.baseTypeName>::new);<elseif(f.enumList)>return getEnumList("<f.name>", <f.baseTypeName>.class);<elseif(f.enumType)>return getEnum("<f.name>", <f.baseTypeName>.class);<elseif(f.temporalScalarList)>return getScalarList("<f.name>", "<f.scalarCoercionHint>");<elseif(f.temporalScalar)>return get("<f.name>", "<f.scalarCoercionHint>");<elseif(f.scalarList)>return getScalarList("<f.name>");<else>return get("<f.name>");<endif>
+                    <if(f.globalIDList)>return getGlobalIDList("<f.name>");<elseif(f.globalIDType)>return getGlobalID("<f.name>");<elseif(f.compositeList)>return getInputList("<f.name>", <f.baseTypeName>::new);<elseif(f.compositeType)>return getInput("<f.name>", <f.baseTypeName>::new);<elseif(f.enumList)>return getEnumList("<f.name>", <f.baseTypeName>.class);<elseif(f.enumType)>return getEnum("<f.name>", <f.baseTypeName>.class);<elseif(f.temporalScalarList)>return getScalarList("<f.name>", "<f.scalarCoercionHint>");<elseif(f.temporalScalar)>return get("<f.name>", "<f.scalarCoercionHint>");<elseif(f.scalarList)>return getScalarList("<f.name>");<else>return get("<f.name>");<endif>
                 \\}
                 }; separator="\\n">
 
@@ -246,9 +250,11 @@ public final class JavaGRTGenerator {
                     }
 
                     <mdl.fields: {f |
-                    public Builder <f.safeName>(<f.javaType> <f.safeName>) {
-                        data.put("<f.name>", <f.safeName>);
-                        return this;
+                    public Builder <f.safeName>(<f.builderType> <f.safeName>) {
+                        <if(f.globalIDBuilderSerialize)>data.put("<f.name>", <f.safeName> == null ? null : __context.getGlobalIDCodec().serialize(<f.safeName>.getType().getName(), <f.safeName>.getInternalID()));
+                        <elseif(f.globalIDListBuilderSerialize)>data.put("<f.name>", <f.safeName> == null ? null : <f.safeName>.stream().map(__id -> __context.getGlobalIDCodec().serialize(__id.getType().getName(), __id.getInternalID())).collect(java.util.stream.Collectors.toList()));
+                        <else>data.put("<f.name>", <f.safeName>);
+                        <endif>return this;
                     \\}
                     }; separator="\\n">
 
@@ -293,7 +299,9 @@ public final class JavaGRTGenerator {
             """
             package <mdl.packageName>;
 
+            import viaduct.java.api.globalid.GlobalID;
             import viaduct.java.api.types.GraphQLInterface;
+            import viaduct.java.api.types.NodeCompositeOutput;
             import java.time.Instant;
             import java.time.LocalDate;
             import java.time.OffsetTime;
@@ -347,6 +355,7 @@ public final class JavaGRTGenerator {
             package <mdl.packageName>;
 
             import graphql.schema.GraphQLInputObjectType;
+            import viaduct.java.api.globalid.GlobalID;
             import java.time.Instant;
             import java.time.LocalDate;
             import java.time.OffsetTime;
@@ -365,7 +374,7 @@ public final class JavaGRTGenerator {
 
                 <mdl.fields: {f |
                 public <f.javaType> <f.getterName>() {
-                    <if(f.compositeList)>return getInputList("<f.name>", <f.baseTypeName>::new);<elseif(f.compositeType)>return getInput("<f.name>", <f.baseTypeName>::new);<elseif(f.enumList)>return getEnumList("<f.name>", <f.baseTypeName>.class);<elseif(f.enumType)>return getEnum("<f.name>", <f.baseTypeName>.class);<elseif(f.temporalScalarList)>return getScalarList("<f.name>", "<f.scalarCoercionHint>");<elseif(f.temporalScalar)>return get("<f.name>", "<f.scalarCoercionHint>");<elseif(f.scalarList)>return getScalarList("<f.name>");<else>return get("<f.name>");<endif>
+                    <if(f.globalIDList)>return getGlobalIDList("<f.name>");<elseif(f.globalIDType)>return getGlobalID("<f.name>");<elseif(f.compositeList)>return getInputList("<f.name>", <f.baseTypeName>::new);<elseif(f.compositeType)>return getInput("<f.name>", <f.baseTypeName>::new);<elseif(f.enumList)>return getEnumList("<f.name>", <f.baseTypeName>.class);<elseif(f.enumType)>return getEnum("<f.name>", <f.baseTypeName>.class);<elseif(f.temporalScalarList)>return getScalarList("<f.name>", "<f.scalarCoercionHint>");<elseif(f.temporalScalar)>return get("<f.name>", "<f.scalarCoercionHint>");<elseif(f.scalarList)>return getScalarList("<f.name>");<else>return get("<f.name>");<endif>
                 \\}
                 }; separator="\\n">
             }
