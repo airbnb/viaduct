@@ -38,7 +38,7 @@ class MockTenantModuleDSLTest {
     @Test
     fun `field with value without fieldWithValue`() {
         val coord = "Test" to "k"
-        val module = MockLegacyTenantModuleBootstrapper(SCHEMA_SDL) {
+        val module = MockTenantModuleBootstrapper(SCHEMA_SDL) {
             field(coord) { value(42) }
         }
         assertEquals(42, module.resolveField(coord))
@@ -47,7 +47,7 @@ class MockTenantModuleDSLTest {
     @Test
     fun `field with valueFromContext`() {
         val coord = "Query" to "t"
-        val module = MockLegacyTenantModuleBootstrapper(SCHEMA_SDL) {
+        val module = MockTenantModuleBootstrapper(SCHEMA_SDL) {
             field(coord) {
                 valueFromContext { ctx ->
                     ctx.createNodeReference("123", schema.schema.getObjectType("Test"))
@@ -61,7 +61,7 @@ class MockTenantModuleDSLTest {
     fun `field checker succeeds`() {
         var iRan = false
         val coord = "Query" to "t"
-        val module = MockLegacyTenantModuleBootstrapper(SCHEMA_SDL) {
+        val module = MockTenantModuleBootstrapper(SCHEMA_SDL) {
             field(coord) {
                 checkerExecutor {
                     MockCheckerExecutor { _, _ -> iRan = true }
@@ -76,7 +76,7 @@ class MockTenantModuleDSLTest {
     fun `field checker fails`() {
         var myException: Exception? = null
         val coord = "Query" to "t"
-        val module = MockLegacyTenantModuleBootstrapper(SCHEMA_SDL) {
+        val module = MockTenantModuleBootstrapper(SCHEMA_SDL) {
             field(coord) {
                 checkerExecutor {
                     MockCheckerExecutor { _, _ ->
@@ -98,7 +98,7 @@ class MockTenantModuleDSLTest {
 
     @Test
     fun `field checker with objectSelections adds to checkerExecutors map`() {
-        val module = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+        val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             field("TestType" to "aField") {
                 checker {
                     objectSelections("testObj", "fragment _ on TestType { bIntField cField }")
@@ -130,7 +130,7 @@ class MockTenantModuleDSLTest {
 
     @Test
     fun `field checker with multiple objectSelections`() {
-        val module = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+        val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             field("TestType" to "aField") {
                 checker {
                     objectSelections("obj1", "fragment _ on TestType { aField }")
@@ -149,7 +149,7 @@ class MockTenantModuleDSLTest {
 
     @Test
     fun `node checker with objectSelections adds to typeCheckerExecutors map`() {
-        val module = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+        val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             type("TestNode") {
                 checker {
                     objectSelections("nodeObj", "fragment _ on TestNode { id }")
@@ -165,7 +165,7 @@ class MockTenantModuleDSLTest {
 
     @Test
     fun `resolver with metadata configuration`() {
-        val module = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+        val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             field("TestType" to "aField") {
                 resolver {
                     resolverName("metadata-resolver-name")
@@ -197,7 +197,7 @@ class MockTenantModuleDSLTest {
 
     @Test
     fun `resolver with variables and metadata and objectSelections`() {
-        val module = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+        val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             field("TestType" to "aField") {
                 resolver {
                     objectSelections("fragment _ on TestType { aField bIntField }") {
@@ -234,7 +234,7 @@ class MockTenantModuleDSLTest {
     @Test
     fun `duplicate fieldWithValue calls throw IllegalArgumentException`() {
         assertThrows(IllegalArgumentException::class.java) {
-            MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+            MockTenantModuleBootstrapper(Samples.testSchema) {
                 fieldWithValue("TestType" to "aField", "value1")
                 fieldWithValue("TestType" to "aField", "value2")
             }
@@ -244,7 +244,7 @@ class MockTenantModuleDSLTest {
     @Test
     fun `duplicate field resolver calls throw IllegalArgumentException`() {
         assertThrows(IllegalArgumentException::class.java) {
-            MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+            MockTenantModuleBootstrapper(Samples.testSchema) {
                 field("TestType" to "aField") {
                     resolver { fn { _, _, _, _, _ -> "result1" } }
                 }
@@ -258,7 +258,7 @@ class MockTenantModuleDSLTest {
     @Test
     fun `duplicate node resolver calls throw IllegalArgumentException`() {
         assertThrows(IllegalArgumentException::class.java) {
-            MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+            MockTenantModuleBootstrapper(Samples.testSchema) {
                 type("TestNode") {
                     nodeUnbatchedExecutor { _, _, _ -> createEngineObjectData(objectType, emptyMap()) }
                 }
@@ -272,7 +272,7 @@ class MockTenantModuleDSLTest {
     @Test
     fun `duplicate node batchResolver calls throw IllegalArgumentException`() {
         assertThrows(IllegalArgumentException::class.java) {
-            MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+            MockTenantModuleBootstrapper(Samples.testSchema) {
                 type("TestNode") {
                     nodeBatchedExecutor { selectors, _ ->
                         selectors.associateWith { Result.success(createEngineObjectData(objectType, emptyMap())) }
@@ -290,7 +290,7 @@ class MockTenantModuleDSLTest {
     @Test
     fun `duplicate field checker calls throw IllegalArgumentException`() {
         assertThrows(IllegalArgumentException::class.java) {
-            MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+            MockTenantModuleBootstrapper(Samples.testSchema) {
                 field("TestType" to "aField") {
                     checker { fn { _, _ -> /* validation1 */ } }
                     checker { fn { _, _ -> /* validation2 */ } }
@@ -302,7 +302,7 @@ class MockTenantModuleDSLTest {
     @Test
     fun `duplicate node checker calls throw IllegalArgumentException`() {
         assertThrows(IllegalArgumentException::class.java) {
-            MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+            MockTenantModuleBootstrapper(Samples.testSchema) {
                 type("TestNode") {
                     checker { fn { _, _ -> /* validation1 */ } }
                     checker { fn { _, _ -> /* validation2 */ } }
@@ -318,7 +318,7 @@ class MockTenantModuleDSLTest {
         var capturedFieldType: Any? = null
         var capturedCoord: Any? = null
 
-        MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+        MockTenantModuleBootstrapper(Samples.testSchema) {
             field("TestType" to "aField") {
                 capturedSchema = schema
                 capturedType = objectType
@@ -337,7 +337,7 @@ class MockTenantModuleDSLTest {
 
     @Test
     fun `field with both resolver and checker`() {
-        val module = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+        val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             field("TestType" to "aField") {
                 resolver {
                     fn { _, _, _, _, _ -> "resolved-value" }
@@ -356,7 +356,7 @@ class MockTenantModuleDSLTest {
 
     @Test
     fun `node with both resolver and checker`() {
-        val module = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+        val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             type("TestNode") {
                 nodeUnbatchedExecutor { id, _, _ ->
                     createEngineObjectData(objectType, mapOf("id" to id))
@@ -386,7 +386,7 @@ class MockTenantModuleDSLTest {
 
     @Test
     fun `resolver without objectSelections has null selection set`() {
-        val module = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+        val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             field("TestType" to "aField") {
                 resolver {
                     fn { _, _, _, _, _ -> "simple-result" }
@@ -418,7 +418,7 @@ class MockTenantModuleDSLTest {
 
     @Test
     fun `complex DSL combination`() {
-        val module = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+        val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             // Simple field with value
             fieldWithValue("TestType" to "simpleField", "simple")
 
@@ -470,7 +470,7 @@ class MockTenantModuleDSLTest {
         val sdl = "extend type Query {x:Int}"
         val schema = createSchema(sdl)
 
-        MockLegacyTenantModuleBootstrapper(schema) {}
+        MockTenantModuleBootstrapper(schema) {}
             .contextMocks
             .let { mocks ->
                 assertSame(schema, mocks.fullSchema)

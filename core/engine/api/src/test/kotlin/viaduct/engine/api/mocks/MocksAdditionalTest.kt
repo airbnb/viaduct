@@ -85,7 +85,7 @@ class MocksAdditionalTest {
     @Test
     fun `MockTenantAPIBootstrapper with modules list`() {
         val module1 = Samples.mockTenantModule
-        val module2 = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+        val module2 = MockTenantModuleBootstrapper(Samples.testSchema) {
             field("OtherType" to "otherField") {
                 resolver {
                     fn { _, _, _, _, _ -> "other" }
@@ -100,8 +100,8 @@ class MocksAdditionalTest {
     }
 
     @Test
-    fun `MockLegacyTenantModuleBootstrapper Builder resolver function`() {
-        val module = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+    fun `MockTenantModuleBootstrapper Builder resolver function`() {
+        val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             field("TestType" to "testField") {
                 resolver {
                     objectSelections("aField bIntField")
@@ -121,8 +121,8 @@ class MocksAdditionalTest {
     }
 
     @Test
-    fun `MockLegacyTenantModuleBootstrapper Builder nodeResolver function`() {
-        val module = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+    fun `MockTenantModuleBootstrapper Builder nodeResolver function`() {
+        val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             type("TestNode") {
                 nodeUnbatchedExecutor { id, _, _ ->
                     createEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), mapOf("id" to id))
@@ -139,8 +139,8 @@ class MocksAdditionalTest {
     }
 
     @Test
-    fun `MockLegacyTenantModuleBootstrapper Builder nodeBatchResolver function`() {
-        val module = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+    fun `MockTenantModuleBootstrapper Builder nodeBatchResolver function`() {
+        val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             type("TestBatchNode") {
                 nodeBatchedExecutor { selectors, _ ->
                     selectors.associateWith { Result.success(createEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), emptyMap())) }
@@ -157,8 +157,8 @@ class MocksAdditionalTest {
     }
 
     @Test
-    fun `MockLegacyTenantModuleBootstrapper Builder mixed resolvers`() {
-        val module = MockLegacyTenantModuleBootstrapper(Samples.testSchema) {
+    fun `MockTenantModuleBootstrapper Builder mixed resolvers`() {
+        val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             field("TestType" to "field1") {
                 resolver {
                     fn { _, _, _, _, _ -> "field1" }
@@ -293,8 +293,8 @@ class MocksAdditionalTest {
     }
 
     @Test
-    fun `MockLegacyTenantModuleBootstrapper empty constructor`() {
-        val emptyModule = MockLegacyTenantModuleBootstrapper(MockSchema.minimal)
+    fun `MockTenantModuleBootstrapper empty constructor`() {
+        val emptyModule = MockTenantModuleBootstrapper(MockSchema.minimal)
 
         assertEquals(0, emptyModule.fieldResolverExecutors(Samples.testSchema).count())
         assertEquals(0, emptyModule.nodeResolverExecutors(Samples.testSchema).count())

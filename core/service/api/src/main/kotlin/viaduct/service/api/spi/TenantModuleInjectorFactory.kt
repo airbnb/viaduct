@@ -3,16 +3,16 @@ package viaduct.service.api.spi
 import viaduct.apiannotations.StableApi
 
 /**
- * SPI for service engineers to provide per-tenant bootstrapping.
+ * SPI for service engineers to provide per-tenant code injection.
  *
- * The framework calls [bootstrap] once per tenant during startup, sequentially and never
- * concurrently, passing the tenant's name and the bootstrap class declared in the tenant's config
- * file (or `null` if no bootstrap class is present). After all bootstrap calls complete
- * successfully, the framework calls [finalize] exactly once. The returned [CodeInjector]s are not
- * used until [finalize] has completed.
+ * The framework calls [bootstrap] once per tenant module during startup, sequentially and
+ * never concurrently, passing the tenant's name and the bootstrap class declared in the
+ * tenant's config file (or `null` if no bootstrap class is present). After all bootstrap calls
+ * complete successfully, the framework calls [finalize] exactly once. The returned
+ * [CodeInjector]s are not used until [finalize] has completed.
  */
 @StableApi
-interface TenantModuleBootstrapper {
+interface TenantModuleInjectorFactory {
     /**
      * Called once per tenant during bootstrapping.
      *
@@ -37,21 +37,21 @@ interface TenantModuleBootstrapper {
 }
 
 /**
- * Convenience [TenantModuleBootstrapper] that returns the same [CodeInjector] for every tenant.
+ * Convenience [TenantModuleInjectorFactory] that returns the same [CodeInjector] for every tenant.
  *
  * This is useful for service engineers who want a single shared injector across all tenant modules,
  * whether or not those modules declare a `@TenantBootstrapper` class.
  */
 @StableApi
-open class SharedTenantModuleBootstrapper(
+open class SharedTenantModuleInjectorFactory(
     private val codeInjector: CodeInjector,
-) : TenantModuleBootstrapper {
+) : TenantModuleInjectorFactory {
     override suspend fun bootstrap(
         tenantName: String,
         tenantBootstrapClass: Class<*>?,
     ): CodeInjector = codeInjector
 }
 
-/** Default [TenantModuleBootstrapper] that always returns [CodeInjector.Naive]. */
+/** Default [TenantModuleInjectorFactory] that always returns [CodeInjector.Naive]. */
 @StableApi
-object NaiveTenantModuleBootstrapper : SharedTenantModuleBootstrapper(CodeInjector.Naive)
+object NaiveTenantModuleInjectorFactory : SharedTenantModuleInjectorFactory(CodeInjector.Naive)

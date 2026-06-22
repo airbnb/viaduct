@@ -32,7 +32,7 @@ val meterRegistry: MeterRegistry = SimpleMeterRegistry()
 
 val viaduct = ViaductBuilder()
     .withMeterRegistry(meterRegistry)
-    .withTenantModuleBootstrapper(myBootstrapper)
+    .withTenantModuleInjectorFactory(myInjectorFactory)
     .build()
 ```
 

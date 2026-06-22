@@ -13,7 +13,7 @@ dependencies {
     api(libs.viaduct.api)
     implementation(project(":common"))
 
-    // Micronaut DI: make resolvers available as beans for injection via MicronautTenantModuleBootstrapper
+    // Micronaut DI: make resolvers available as beans for injection via MicronautTenantModuleInjectorFactory
     ksp(libs.micronaut.inject.kotlin)
     implementation(libs.micronaut.inject)
 }

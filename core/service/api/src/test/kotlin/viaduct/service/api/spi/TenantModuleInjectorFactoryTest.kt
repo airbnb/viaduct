@@ -7,11 +7,11 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 
-class TenantModuleBootstrapperTest {
+class TenantModuleInjectorFactoryTest {
     @Test
     fun `default finalize is a no-op`() =
         runBlocking {
-            val bootstrapper = object : TenantModuleBootstrapper {
+            val bootstrapper = object : TenantModuleInjectorFactory {
                 override suspend fun bootstrap(
                     tenantName: String,
                     tenantBootstrapClass: Class<*>?,
@@ -29,7 +29,7 @@ class TenantModuleBootstrapperTest {
                 override fun <T> getProvider(clazz: Class<T>) = throw UnsupportedOperationException("not needed for bootstrapper tests")
             }
 
-            val bootstrapper = SharedTenantModuleBootstrapper(sharedInjector)
+            val bootstrapper = SharedTenantModuleInjectorFactory(sharedInjector)
 
             assertSame(sharedInjector, bootstrapper.bootstrap("tenant-a", null))
             assertSame(sharedInjector, bootstrapper.bootstrap("tenant-b", String::class.java))
@@ -37,10 +37,10 @@ class TenantModuleBootstrapperTest {
         }
 
     @Test
-    fun `naive tenant module bootstrapper always returns the naive injector`() =
+    fun `naive tenant module injector factory always returns the naive injector`() =
         runBlocking {
-            assertSame(CodeInjector.Naive, NaiveTenantModuleBootstrapper.bootstrap("tenant-a", null))
-            assertSame(CodeInjector.Naive, NaiveTenantModuleBootstrapper.bootstrap("tenant-b", String::class.java))
-            assertEquals(Unit, NaiveTenantModuleBootstrapper.finalize())
+            assertSame(CodeInjector.Naive, NaiveTenantModuleInjectorFactory.bootstrap("tenant-a", null))
+            assertSame(CodeInjector.Naive, NaiveTenantModuleInjectorFactory.bootstrap("tenant-b", String::class.java))
+            assertEquals(Unit, NaiveTenantModuleInjectorFactory.finalize())
         }
 }

@@ -183,8 +183,8 @@ public final class viaduct/service/api/spi/NaiveCodeInjector : viaduct/service/a
 	public fun getProvider (Ljava/lang/Class;)Ljavax/inject/Provider;
 }
 
-public final class viaduct/service/api/spi/NaiveTenantModuleBootstrapper : viaduct/service/api/spi/SharedTenantModuleBootstrapper {
-	public static final field INSTANCE Lviaduct/service/api/spi/NaiveTenantModuleBootstrapper;
+public final class viaduct/service/api/spi/NaiveTenantModuleInjectorFactory : viaduct/service/api/spi/SharedTenantModuleInjectorFactory {
+	public static final field INSTANCE Lviaduct/service/api/spi/NaiveTenantModuleInjectorFactory;
 }
 
 public abstract interface class viaduct/service/api/spi/ResolverErrorBuilder {
@@ -196,35 +196,22 @@ public final class viaduct/service/api/spi/ResolverErrorBuilder$Companion {
 	public final fun getNOOP ()Lviaduct/service/api/spi/ResolverErrorBuilder;
 }
 
-public class viaduct/service/api/spi/SharedTenantModuleBootstrapper : viaduct/service/api/spi/TenantModuleBootstrapper {
+public class viaduct/service/api/spi/SharedTenantModuleInjectorFactory : viaduct/service/api/spi/TenantModuleInjectorFactory {
 	public fun <init> (Lviaduct/service/api/spi/CodeInjector;)V
 	public fun bootstrap (Ljava/lang/String;Ljava/lang/Class;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun finalize (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
-public abstract interface class viaduct/service/api/spi/TenantAPIBootstrapper {
-	public static final field Companion Lviaduct/service/api/spi/TenantAPIBootstrapper$Companion;
-	public abstract fun tenantModuleBootstrappers (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-}
-
-public final class viaduct/service/api/spi/TenantAPIBootstrapper$Companion {
-	public final fun flatten (Ljava/lang/Iterable;)Lviaduct/service/api/spi/TenantAPIBootstrapper;
-}
-
-public abstract interface class viaduct/service/api/spi/TenantAPIBootstrapperBuilder {
-	public abstract fun create ()Lviaduct/service/api/spi/TenantAPIBootstrapper;
-}
-
 public abstract interface annotation class viaduct/service/api/spi/TenantBootstrapper : java/lang/annotation/Annotation {
 }
 
-public abstract interface class viaduct/service/api/spi/TenantModuleBootstrapper {
+public abstract interface class viaduct/service/api/spi/TenantModuleInjectorFactory {
 	public abstract fun bootstrap (Ljava/lang/String;Ljava/lang/Class;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun finalize (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
-public final class viaduct/service/api/spi/TenantModuleBootstrapper$DefaultImpls {
-	public static fun finalize (Lviaduct/service/api/spi/TenantModuleBootstrapper;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+public final class viaduct/service/api/spi/TenantModuleInjectorFactory$DefaultImpls {
+	public static fun finalize (Lviaduct/service/api/spi/TenantModuleInjectorFactory;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class viaduct/service/api/spi/globalid/GlobalIDCodecDefault : viaduct/service/api/spi/GlobalIDCodec {

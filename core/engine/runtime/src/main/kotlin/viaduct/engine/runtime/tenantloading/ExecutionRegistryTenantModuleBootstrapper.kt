@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION") // legacy bootstrap shim
-
 package viaduct.engine.runtime.tenantloading
 
 import viaduct.engine.api.Coordinate
@@ -7,13 +5,13 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 
 class ExecutionRegistryTenantModuleBootstrapper(
     private val registry: ExecutionRegistryConfigFile,
     private val executorFactory: ExecutorFactory,
-) : LegacyTenantModuleBootstrapper {
+) : TenantModuleBootstrapper {
     override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> {
         val filtered = filterFieldsBySchema(registry.fields, schema)
         validateFields(filtered)

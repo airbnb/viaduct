@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport", "DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
+@file:Suppress("ForbiddenImport")
 
 package viaduct.api.bootstrap
 
@@ -26,9 +26,9 @@ import viaduct.api.bootstrap.test.TestNodeResolver
 import viaduct.api.bootstrap.test.TestTenantModule
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.TenantAPIBootstrapper
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.CodeInjector
 import viaduct.tenant.runtime.bootstrap.GuiceCodeInjector
 import viaduct.tenant.runtime.bootstrap.TenantPackageFinder
@@ -81,7 +81,7 @@ class ViaductTenantAPIBootstrapperTest {
     private lateinit var codeInjector: Injector
     private lateinit var tenantResolverClassFinder: TenantResolverClassFinder
     private lateinit var tenantAPIBootstrapper: TenantAPIBootstrapper
-    private lateinit var tenantModuleBootstrappers: Iterable<LegacyTenantModuleBootstrapper>
+    private lateinit var tenantModuleBootstrappers: Iterable<TenantModuleBootstrapper>
     private lateinit var fieldResolverExecutors: Map<Pair<String, String>, FieldResolverExecutor>
     private lateinit var nodeResolverExecutors: Map<String, NodeResolverExecutor>
 

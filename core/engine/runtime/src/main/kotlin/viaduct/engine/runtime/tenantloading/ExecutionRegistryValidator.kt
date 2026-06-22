@@ -11,7 +11,7 @@ internal fun validateSchemaFree(registry: ExecutionRegistryConfigFile) {
 }
 
 internal fun validateFields(fields: List<FieldEntryConfig>) =
-    // TenantModuleException is semantically correct here; ViaductLegacyTenantModuleBootstrapper
+    // TenantModuleException is semantically correct here; ViaductTenantModuleBootstrapper
     // throws RuntimeException for the same violation (historical inconsistency).
     checkDuplicates(fields, { it.typeName to it.fieldName }) { extant, entry ->
         "Duplicate resolver for type ${entry.typeName} and field ${entry.fieldName}: " +

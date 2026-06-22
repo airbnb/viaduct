@@ -1,12 +1,10 @@
-@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
-
 package viaduct.java.runtime.test
 
 import graphql.ExecutionResult
 import java.util.function.Consumer
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.runFeatureTest
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.graphql.test.assertJson
 
 /**
@@ -18,7 +16,7 @@ import viaduct.graphql.test.assertJson
  * Example usage from Java:
  * ```java
  * String schema = "extend type Query { greeting: String }";
- * LegacyTenantModuleBootstrapper bootstrapper = new SimpleJavaBootstrapper();
+ * TenantModuleBootstrapper bootstrapper = new SimpleJavaBootstrapper();
  *
  * JavaFeatureTestHelper.run(schema, bootstrapper, test -> {
  *     test.runQueryAndAssert("{ greeting }", "{data: {greeting: \"Hello, World!\"}}");
@@ -36,11 +34,11 @@ object JavaFeatureTestHelper {
     @JvmStatic
     fun run(
         schemaSDL: String,
-        bootstrapper: LegacyTenantModuleBootstrapper,
+        bootstrapper: TenantModuleBootstrapper,
         testBlock: Consumer<TestContext>
     ) {
-        // Create a MockLegacyTenantModuleBootstrapper using DSL
-        MockLegacyTenantModuleBootstrapper(schemaSDL) {
+        // Create a MockTenantModuleBootstrapper using DSL
+        MockTenantModuleBootstrapper(schemaSDL) {
             // Register field resolvers from the bootstrapper
             val fieldResolvers = bootstrapper.fieldResolverExecutors(schema)
             for (entry in fieldResolvers) {

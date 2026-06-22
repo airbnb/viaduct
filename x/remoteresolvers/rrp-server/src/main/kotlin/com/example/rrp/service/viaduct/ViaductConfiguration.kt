@@ -18,7 +18,7 @@ val EXTRAS_SCHEMA = SchemaScopeInfo("publicSchemaWithExtras", setOf(DEFAULT_SCOP
 
 @Factory
 class ViaductConfiguration(
-    val tenantModuleBootstrapper: MicronautTenantModuleBootstrapper,
+    val tenantModuleInjectorFactory: MicronautTenantModuleInjectorFactory,
 ) {
     // Singleton so preDestroy targets the same instance the factory binds to.
     @Singleton
@@ -36,7 +36,7 @@ class ViaductConfiguration(
     fun providesViaduct(proxyResolverFactory: ProxyResolverFactory): Viaduct =
         ViaductBuilder()
             .withScopedSchemas(listOf(DEFAULT_SCHEMA, EXTRAS_SCHEMA))
-            .withTenantModuleBootstrapper(tenantModuleBootstrapper)
+            .withTenantModuleInjectorFactory(tenantModuleInjectorFactory)
             .withProxyResolverFactory(proxyResolverFactory)
             .build()
 }

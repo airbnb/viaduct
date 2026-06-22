@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport")
+@file:Suppress("DEPRECATION", "ForbiddenImport")
 
 package viaduct.service.runtime
 
@@ -28,9 +28,8 @@ import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.TenantModuleBootstrapper
+import viaduct.service.api.spi.TenantModuleInjectorFactory
 
-@Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // intentional use of legacy bootstrap shim
 class StandardViaductTest {
     private lateinit var subject: StandardViaduct
     private lateinit var dataFetcherExceptionHandler: DataFetcherExceptionHandler
@@ -264,10 +263,10 @@ class StandardViaductTest {
         }
     }
 
-    /** Ensures [TenantModuleBootstrapper.finalize] is called when bootstrapping via the file-based path. */
+    /** Ensures [TenantModuleInjectorFactory.finalize] is called when bootstrapping via the file-based path. */
     @Test
-    fun `withTenantModuleBootstrapper routes through file-based path and calls finalize`() {
-        val recording = RecordingFinalizingTenantModuleBootstrapper()
+    fun `withTenantModuleInjectorFactory routes through file-based path and calls finalize`() {
+        val recording = RecordingFinalizingTenantModuleInjectorFactory()
 
         val sdl = """
             extend type Query {
@@ -277,7 +276,7 @@ class StandardViaductTest {
 
         StandardViaduct.Builder()
             .withNoTenantAPIBootstrapper()
-            .withTenantModuleBootstrapper(recording)
+            .withTenantModuleInjectorFactory(recording)
             .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
             .build()
 
@@ -296,7 +295,7 @@ private fun makeSchema(schema: String): ViaductSchema {
 }
 
 /** Records whether [finalize] was invoked; used to verify the file-based bootstrap path fires. */
-private class RecordingFinalizingTenantModuleBootstrapper : TenantModuleBootstrapper {
+private class RecordingFinalizingTenantModuleInjectorFactory : TenantModuleInjectorFactory {
     var finalized: Boolean = false
 
     override suspend fun bootstrap(

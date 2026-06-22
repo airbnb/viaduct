@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION") // for imports of legacy bootstrap shim
-
 package viaduct.service.runtime.builtinresolvers
 
 import graphql.schema.GraphQLObjectType
@@ -12,8 +10,8 @@ import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.graphql.utils.DefaultSchemaFactory
 
 /**
@@ -23,8 +21,7 @@ import viaduct.graphql.utils.DefaultSchemaFactory
  * resolvers (or return other namespace types). Thus, these resolvers simply create an empty
  * [ResolvedEngineObjectData].
  */
-// @Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // intentional use of legacy bootstrap shim
-class NamespaceTypeResolverModuleBootstrapper : LegacyTenantModuleBootstrapper {
+class NamespaceTypeResolverModuleBootstrapper : TenantModuleBootstrapper {
     override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> =
         buildList {
             val graphQLSchema = schema.schema

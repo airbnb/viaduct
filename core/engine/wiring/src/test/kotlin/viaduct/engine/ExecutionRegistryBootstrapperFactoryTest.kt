@@ -12,7 +12,7 @@ import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.service.api.spi.CodeInjector
-import viaduct.service.api.spi.SharedTenantModuleBootstrapper
+import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 
 class ExecutionRegistryBootstrapperFactoryTest {
     private val injector = CodeInjector.Naive
@@ -20,7 +20,7 @@ class ExecutionRegistryBootstrapperFactoryTest {
     @Test
     fun `no prefix loads all registry files`() =
         runTest {
-            val bootstrapper = BootstrapperFactory.fromResources(SharedTenantModuleBootstrapper(injector))
+            val bootstrapper = BootstrapperFactory.fromResources(SharedTenantModuleInjectorFactory(injector))
             val count = bootstrapper.tenantModuleBootstrappers().toList().size
             assert(count >= 3) { "Expected at least 3 bootstrappers (alpha, beta, gamma), got $count" }
         }
@@ -29,7 +29,7 @@ class ExecutionRegistryBootstrapperFactoryTest {
     fun `prefix com-example loads only matching files`() =
         runTest {
             val bootstrapper = BootstrapperFactory.fromResources(
-                tenantModuleBootstrapper = SharedTenantModuleBootstrapper(injector),
+                tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
                 packagePrefix = "com.example",
             )
             assertEquals(2, bootstrapper.tenantModuleBootstrappers().toList().size)
@@ -39,7 +39,7 @@ class ExecutionRegistryBootstrapperFactoryTest {
     fun `prefix com-example-alpha loads only the exact matching file`() =
         runTest {
             val bootstrapper = BootstrapperFactory.fromResources(
-                tenantModuleBootstrapper = SharedTenantModuleBootstrapper(injector),
+                tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
                 packagePrefix = "com.example.alpha",
             )
             assertEquals(1, bootstrapper.tenantModuleBootstrappers().toList().size)
@@ -49,14 +49,14 @@ class ExecutionRegistryBootstrapperFactoryTest {
     fun `non-matching prefix returns empty bootstrapper`() =
         runTest {
             val bootstrapper = BootstrapperFactory.fromResources(
-                tenantModuleBootstrapper = SharedTenantModuleBootstrapper(injector),
+                tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
                 packagePrefix = "com.nomatch",
             )
             assertEquals(0, bootstrapper.tenantModuleBootstrappers().toList().size)
         }
 
     @Test
-    fun `custom injector is used through the shared tenant module bootstrapper`() =
+    fun `custom injector is used through the shared tenant module injector factory`() =
         runTest {
             val customInjector = object : CodeInjector {
                 override fun <T> getProvider(clazz: Class<T>) = throw UnsupportedOperationException("not needed for bootstrapper factory tests")
@@ -65,7 +65,7 @@ class ExecutionRegistryBootstrapperFactoryTest {
             WiringTestExecutorFactory.lastInjector = null
 
             val bootstrapper = BootstrapperFactory.fromResources(
-                tenantModuleBootstrapper = SharedTenantModuleBootstrapper(customInjector),
+                tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(customInjector),
                 packagePrefix = "com.example.alpha",
             )
 

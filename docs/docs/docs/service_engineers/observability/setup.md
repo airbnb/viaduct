@@ -61,7 +61,7 @@ import viaduct.service.ViaductBuilder
 
 val viaduct = ViaductBuilder()
     .withMeterRegistry(meterRegistry)
-    .withTenantModuleBootstrapper(myBootstrapper)
+    .withTenantModuleInjectorFactory(myInjectorFactory)
     .build()
 ```
 
@@ -171,7 +171,7 @@ compositeMeterRegistry.add(datadogMeterRegistry)
 // Use composite registry with Viaduct
 val viaduct = ViaductBuilder()
     .withMeterRegistry(compositeMeterRegistry)
-    .withTenantModuleBootstrapper(myBootstrapper)
+    .withTenantModuleInjectorFactory(myInjectorFactory)
     .build()
 ```
 

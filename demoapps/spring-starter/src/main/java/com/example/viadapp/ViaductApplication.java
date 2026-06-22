@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Collections;
 import java.util.List;
 import org.slf4j.LoggerFactory;
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper;
+import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.java.runtime.bridge.DefaultResolverClassFinder;
 import viaduct.java.runtime.bridge.JavaTenantAPIBootstrapper;
 import viaduct.java.runtime.bridge.ModuleBootstrapper;
@@ -15,7 +15,6 @@ import viaduct.service.api.ExecutionResult;
 import viaduct.service.api.SchemaId;
 import viaduct.service.api.Viaduct;
 import viaduct.service.api.spi.CodeInjector;
-import viaduct.service.api.spi.TenantAPIBootstrapperBuilder;
 import viaduct.service.runtime.SchemaConfiguration;
 import viaduct.service.runtime.StandardViaduct;
 
@@ -32,7 +31,7 @@ public class ViaductApplication {
     ModuleBootstrapper bootstrapper =
         new ModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
 
-    TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> bootstrapperBuilder =
+    TenantAPIBootstrapperBuilder bootstrapperBuilder =
         () -> new JavaTenantAPIBootstrapper(List.of(bootstrapper));
 
     Viaduct viaduct =

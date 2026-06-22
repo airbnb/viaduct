@@ -125,7 +125,7 @@ val viaduct = ViaductBuilder()
     .withMeterRegistry(meterRegistry)
     .withDataFetcherErrorBuilder(MyResolverErrorBuilder())
     .withResolverErrorReporter(MyErrorReporter())
-    .withTenantModuleBootstrapper(myBootstrapper)
+    .withTenantModuleInjectorFactory(myInjectorFactory)
     .build()
 ```
 

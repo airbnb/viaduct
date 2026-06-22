@@ -1,10 +1,9 @@
-@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
+@file:Suppress("DEPRECATION") // CoroutineInterop retained for Airbnb
 
 package viaduct.service.runtime
 
 import com.google.inject.AbstractModule
 import com.google.inject.Provides
-import com.google.inject.TypeLiteral
 import com.google.inject.name.Names
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.instrumentation.Instrumentation
@@ -16,7 +15,6 @@ import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentatio
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.CheckerExecutorFactoryCreator
 import viaduct.engine.api.spi.CoroutineInterop
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NoOpCheckerExecutorFactoryImpl
 import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.engine.api.spi.TenantAPIBootstrapper
@@ -26,7 +24,6 @@ import viaduct.engine.runtime.fragment.ViaductExecutableFragmentParser
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.ResolverErrorBuilder
-import viaduct.service.api.spi.TenantAPIBootstrapper as BaseTenantAPIBootstrapper
 
 class StandardViaductModule(
     private val tenantBootstrapper: TenantAPIBootstrapper,
@@ -52,7 +49,7 @@ class StandardViaductModule(
         bind(DataFetcherExceptionHandler::class.java).toInstance(engineConfiguration.dataFetcherExceptionHandler)
         bind(ErrorReporter::class.java).toInstance(engineConfiguration.resolverErrorReporter)
         bind(ResolverErrorBuilder::class.java).toInstance(engineConfiguration.resolverErrorBuilder)
-        bind(object : TypeLiteral<BaseTenantAPIBootstrapper<LegacyTenantModuleBootstrapper>>() {}).toInstance(tenantBootstrapper)
+        bind(TenantAPIBootstrapper::class.java).toInstance(tenantBootstrapper)
         bind(TenantNameResolver::class.java).toInstance(tenantNameResolver)
         bind(ViaductResolverInstrumentation::class.java).toInstance(engineConfiguration.resolverInstrumentation)
 

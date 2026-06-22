@@ -12,8 +12,8 @@ import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.service.api.spi.CodeInjector
-import viaduct.service.api.spi.SharedTenantModuleBootstrapper
-import viaduct.service.api.spi.TenantModuleBootstrapper
+import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
+import viaduct.service.api.spi.TenantModuleInjectorFactory
 
 class ExecutionRegistryTenantAPIBootstrapperTest {
     private val injector = CodeInjector.Naive
@@ -23,7 +23,7 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
         runTest {
             val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
                 registryUrls = emptyList(),
-                tenantModuleBootstrapper = RecordingTenantModuleBootstrapper(),
+                tenantModuleInjectorFactory = RecordingTenantModuleInjectorFactory(),
             )
             assertEquals(0, bootstrapper.tenantModuleBootstrappers().count())
         }
@@ -38,23 +38,23 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
 
             val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
                 registryUrls = listOf(url),
-                tenantModuleBootstrapper = SharedTenantModuleBootstrapper(injector),
+                tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
             )
             assertEquals(1, bootstrapper.tenantModuleBootstrappers().toList().size)
         }
 
     @Test
-    fun `tenantModuleBootstrapper is called with tenant name and null bootstrap class when no bootstrapClass in registry`() =
+    fun `tenantModuleInjectorFactory is called with tenant name and null bootstrap class when no bootstrapClass in registry`() =
         runTest {
             val url = requireNotNull(
                 Thread.currentThread().contextClassLoader
                     .getResource("META-INF/viaduct/modules/com.example.test.json")
             ) { "Test resource not found on classpath" }
 
-            val recordingBootstrapper = RecordingTenantModuleBootstrapper()
+            val recordingBootstrapper = RecordingTenantModuleInjectorFactory()
             val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
                 registryUrls = listOf(url),
-                tenantModuleBootstrapper = recordingBootstrapper,
+                tenantModuleInjectorFactory = recordingBootstrapper,
             )
             bootstrapper.tenantModuleBootstrappers()
 
@@ -62,17 +62,17 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
         }
 
     @Test
-    fun `tenantModuleBootstrapper is called with tenant name and loaded bootstrap class when bootstrapClass present in registry`() =
+    fun `tenantModuleInjectorFactory is called with tenant name and loaded bootstrap class when bootstrapClass present in registry`() =
         runTest {
             val url = requireNotNull(
                 Thread.currentThread().contextClassLoader
                     .getResource("META-INF/viaduct/modules/com.example.bootstrapped.json")
             ) { "Test resource not found on classpath" }
 
-            val recordingBootstrapper = RecordingTenantModuleBootstrapper()
+            val recordingBootstrapper = RecordingTenantModuleInjectorFactory()
             val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
                 registryUrls = listOf(url),
-                tenantModuleBootstrapper = recordingBootstrapper,
+                tenantModuleInjectorFactory = recordingBootstrapper,
             )
             bootstrapper.tenantModuleBootstrappers()
 
@@ -101,7 +101,7 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
         val url = tempFile.toURI().toURL()
         val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
             registryUrls = listOf(url),
-            tenantModuleBootstrapper = SharedTenantModuleBootstrapper(injector),
+            tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
         )
 
         assertThrows<ClassNotFoundException> {
@@ -121,12 +121,12 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
                     .getResource("META-INF/viaduct/modules/com.example.bootstrapped.json")
             ) { "Test resource not found on classpath" }
 
-            val recordingBootstrapper = FinalizingTenantModuleBootstrapper()
+            val recordingBootstrapper = FinalizingTenantModuleInjectorFactory()
             TestExecutorFactory.constructorEvents.clear()
 
             val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
                 registryUrls = listOf(urlWithoutBootstrapClass, urlWithBootstrapClass),
-                tenantModuleBootstrapper = recordingBootstrapper,
+                tenantModuleInjectorFactory = recordingBootstrapper,
             )
 
             bootstrapper.tenantModuleBootstrappers()
@@ -155,10 +155,10 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
                 .getResource("META-INF/viaduct/modules/com.example.test.json")
         ) { "Test resource not found on classpath" }
 
-        val throwingBootstrapper = ThrowingTenantModuleBootstrapper()
+        val throwingBootstrapper = ThrowingTenantModuleInjectorFactory()
         val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
             registryUrls = listOf(url),
-            tenantModuleBootstrapper = throwingBootstrapper,
+            tenantModuleInjectorFactory = throwingBootstrapper,
         )
 
         assertThrows<IllegalStateException> {
@@ -203,7 +203,7 @@ class TestExecutorFactory(
     }
 }
 
-class RecordingTenantModuleBootstrapper : TenantModuleBootstrapper {
+class RecordingTenantModuleInjectorFactory : TenantModuleInjectorFactory {
     val calls = mutableListOf<Pair<String, Class<*>?>>()
 
     override suspend fun bootstrap(
@@ -221,7 +221,7 @@ private class FinalizingCodeInjector : CodeInjector {
     override fun <T> getProvider(clazz: Class<T>) = throw UnsupportedOperationException("not needed for bootstrapper tests")
 }
 
-private class FinalizingTenantModuleBootstrapper : TenantModuleBootstrapper {
+private class FinalizingTenantModuleInjectorFactory : TenantModuleInjectorFactory {
     val events = mutableListOf<String>()
     private val injectors = mutableListOf<FinalizingCodeInjector>()
 
@@ -239,7 +239,7 @@ private class FinalizingTenantModuleBootstrapper : TenantModuleBootstrapper {
     }
 }
 
-private class ThrowingTenantModuleBootstrapper : TenantModuleBootstrapper {
+private class ThrowingTenantModuleInjectorFactory : TenantModuleInjectorFactory {
     var bootstrapCalls: Int = 0
     var finalizeCalls: Int = 0
 

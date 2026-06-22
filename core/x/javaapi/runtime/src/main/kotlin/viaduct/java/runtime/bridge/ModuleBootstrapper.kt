@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
-
 package viaduct.java.runtime.bridge
 
 import java.lang.reflect.Method
@@ -10,8 +8,8 @@ import javax.inject.Provider
 import org.slf4j.LoggerFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantModuleException
 import viaduct.java.api.annotations.NodeResolverFor
 import viaduct.java.api.annotations.Resolver
@@ -24,10 +22,10 @@ import viaduct.java.api.resolvers.NodeResolverBase
 import viaduct.service.api.spi.CodeInjector
 
 /**
- * Bootstrapper for Java resolvers that implements the Viaduct [LegacyTenantModuleBootstrapper] interface.
+ * Bootstrapper for Java resolvers that implements the Viaduct [TenantModuleBootstrapper] interface.
  *
  * This class automatically discovers and registers Java resolvers using classpath scanning.
- * It mirrors the functionality of Kotlin's `ViaductLegacyTenantModuleBootstrapper` but for Java resolvers.
+ * It mirrors the functionality of Kotlin's `ViaductTenantModuleBootstrapper` but for Java resolvers.
  *
  * ## Discovery Process
  *
@@ -66,7 +64,7 @@ import viaduct.service.api.spi.CodeInjector
 class ModuleBootstrapper(
     private val classFinder: ResolverClassFinder,
     private val injector: CodeInjector,
-) : LegacyTenantModuleBootstrapper {
+) : TenantModuleBootstrapper {
     companion object {
         private val log = LoggerFactory.getLogger(ModuleBootstrapper::class.java)
     }

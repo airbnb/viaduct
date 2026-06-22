@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION") // for imports of legacy bootstrap shim
-
 package viaduct.service.runtime
 
 import com.google.inject.AbstractModule
@@ -15,8 +13,8 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.CheckerExecutorFactoryCreator
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.ProxyResolverFactory
+import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.execution.QueryPlanFactory
@@ -27,7 +25,6 @@ import viaduct.engine.runtime.tenantloading.MissingResolverValidationCtx
 import viaduct.engine.runtime.tenantloading.MissingResolverValidator
 import viaduct.engine.runtime.validation.Validator
 import viaduct.service.api.SchemaId
-import viaduct.service.api.spi.TenantAPIBootstrapper as BaseTenantAPIBootstrapper
 import viaduct.utils.slf4j.logger
 
 internal class SchemaScopedModule(
@@ -107,12 +104,11 @@ internal class SchemaScopedModule(
 
     @Provides
     @Singleton
-    @Suppress("DEPRECATION")
     fun providesDispatcherRegistry(
         validator: ExecutorValidator,
         checkerExecutorFactory: CheckerExecutorFactory,
         schema: ViaductSchema,
-        tenantBootstrapper: BaseTenantAPIBootstrapper<LegacyTenantModuleBootstrapper>,
+        tenantBootstrapper: TenantAPIBootstrapper,
         proxyResolverFactory: ProxyResolverFactory,
         resolverInstrumentation: ViaductResolverInstrumentation,
         @Named("lenientResolverValidation") lenientResolverValidation: Boolean,

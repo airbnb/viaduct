@@ -4,15 +4,13 @@ import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ViaductSchema
 
 /**
- * Interface for the data that a tenant API provides to the engine to bootstrap
- * the tenant's execution environment.
+ * Engine-facing contract for one tenant module's executable resolver contributions.
  *
- * @deprecated Replaced by [viaduct.service.api.spi.TenantModuleBootstrapper]. Retained as a
- * compatibility shim while the reflection-based bootstrap path ([viaduct.api.bootstrap.ViaductTenantAPIBootstrapper])
- * is still in use. Will be removed once the file-based bootstrap is fully rolled out.
+ * Tenant API implementations use this interface to expose field and node resolver executors to
+ * the engine during startup. The engine calls each method once while building the dispatcher
+ * registry for a schema.
  */
-@Deprecated("Use viaduct.service.api.spi.TenantModuleBootstrapper instead")
-interface LegacyTenantModuleBootstrapper {
+interface TenantModuleBootstrapper {
     /**
      * Will be called by the engine once when the tenant module is bootstrapped,
      * and the resulting iterator will be used just once.  This iterator is
@@ -48,7 +46,7 @@ interface LegacyTenantModuleBootstrapper {
 }
 
 /**
- * Thrown by member of [LegacyTenantModuleBootstrapper] to indicate an error in loading a
+ * Thrown by member of [TenantModuleBootstrapper] to indicate an error in loading a
  * module that should terminate the attempt to load this module but that isn't
  * fatal in the sense that it should necessarily terminate the loading of other modules.
  */

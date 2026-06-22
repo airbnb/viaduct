@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport", "DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION")
+@file:Suppress("ForbiddenImport")
 
 package viaduct.engine.api.mocks
 
@@ -30,7 +30,7 @@ import viaduct.service.runtime.builtinresolvers.ViaductBuiltInResolversBootstrap
  *
  * Usage:
  * ```kotlin
- *    MockLegacyTenantModuleBootstrapper("""
+ *    MockTenantModuleBootstrapper("""
  *       type Query {
  *           foo: String
  *           bar(answer: Int): Int
@@ -49,7 +49,7 @@ import viaduct.service.runtime.builtinresolvers.ViaductBuiltInResolversBootstrap
  *
  * ```
  *
- * See [MockLegacyTenantModuleBootstrapper.toEngineFactory] to understand how the
+ * See [MockTenantModuleBootstrapper.toEngineFactory] to understand how the
  * Viaduct engine is initialized for the feature test.
  *
  * Inside the FeatureTest block are the following:
@@ -63,7 +63,7 @@ import viaduct.service.runtime.builtinresolvers.ViaductBuiltInResolversBootstrap
  *
  * @param engineConfig The [EngineConfigruation] to use for this test. If null, EngineConfiguration.featureTestDefault will be used
  */
-fun MockLegacyTenantModuleBootstrapper.runFeatureTest(
+fun MockTenantModuleBootstrapper.runFeatureTest(
     withoutDefaultQueryNodeResolvers: Boolean = false,
     schema: ViaductSchema? = null,
     engineConfig: EngineConfiguration? = null,
@@ -123,7 +123,7 @@ val EngineConfiguration.Companion.featureTestDefault: EngineConfiguration
     )
 
 /**
- * Convert a MockLegacyTenantModuleBootstrapper into an EngineFactory
+ * Convert a MockTenantModuleBootstrapper into an EngineFactory
  * that has been initialized with a dispatcher registry constructed from:
  *
  * - the full schema
@@ -133,7 +133,7 @@ val EngineConfiguration.Companion.featureTestDefault: EngineConfiguration
  * and an [EngineConfiguration] constructed with MockFlagManager.Enabled.
  */
 @Suppress("OPT_IN_USAGE") // DispatcherRegistryFactory is experimental
-private fun MockLegacyTenantModuleBootstrapper.toEngineFactory(
+private fun MockTenantModuleBootstrapper.toEngineFactory(
     withoutDefaultQueryNodeResolvers: Boolean,
     engineConfig: EngineConfiguration?
 ): EngineFactory {

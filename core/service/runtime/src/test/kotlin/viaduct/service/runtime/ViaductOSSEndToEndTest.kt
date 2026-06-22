@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport")
+@file:Suppress("DEPRECATION", "ForbiddenImport")
 
 package viaduct.service.runtime
 
@@ -28,7 +28,6 @@ import viaduct.service.api.spi.FlagManager.Flag
  * As we expand the OSS interface to include more of the Viaduct Modern surface area, these test will expand to cover
  * the end-to-end constract of the Viaduct OSS framework.
  */
-@Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // intentional use of legacy bootstrap shim
 @ExperimentalCoroutinesApi
 class ViaductOSSEndToEndTest {
     private lateinit var subject: StandardViaduct

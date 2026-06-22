@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.mocks.EngineTestModule
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
+import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.createSchemaWithWiring
@@ -1029,7 +1029,7 @@ class AccessCheckExecutionTest {
 
     @Test
     fun `type checker RSS variable resolver can fetch from current object`() {
-        MockLegacyTenantModuleBootstrapper(
+        MockTenantModuleBootstrapper(
             """
             extend type Query { obj: Obj! }
             type Obj { x: Boolean! }

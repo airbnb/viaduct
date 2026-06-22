@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // legacy bootstrap shim
-
 package viaduct.engine.runtime.tenantloading
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -10,36 +8,36 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.spi.ExecutorFactory
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantAPIBootstrapper
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.CodeInjector
-import viaduct.service.api.spi.TenantModuleBootstrapper
+import viaduct.service.api.spi.TenantModuleInjectorFactory
 import viaduct.utils.slf4j.logger
 
 /**
- * Engine-owned bootstrapper that creates [LegacyTenantModuleBootstrapper]s from a pre-collected list
+ * Engine-owned bootstrapper that creates [TenantModuleBootstrapper]s from a pre-collected list
  * of registry JSON [URL]s.
  *
  * For each URL, deserializes the [ExecutionRegistryConfigFile], instantiates the [ExecutorFactory] FQN
  * via the 2-arg constructor (CodeInjector, configUrl), and creates executors
  * for each entry in the registry.
  *
- * The framework calls [tenantModuleBootstrapper] once per tenant with the tenant name and the
+ * The framework calls [tenantModuleInjectorFactory] once per tenant with the tenant name and the
  * bootstrap class from the registry (or null) to obtain a per-tenant [CodeInjector]. Once all
- * tenants have been bootstrapped, the framework calls [TenantModuleBootstrapper.finalize] before
+ * tenants have been bootstrapped, the framework calls [TenantModuleInjectorFactory.finalize] before
  * constructing executor factories so stateful implementations can complete cross-tenant setup.
  * Registry reads and executor factory construction are concurrent; bootstrapping is
- * intentionally sequential to keep the [TenantModuleBootstrapper] contract simple.
+ * intentionally sequential to keep the [TenantModuleInjectorFactory] contract simple.
  *
  * Classpath scanning and URL filtering are the responsibility of the caller — see
  * [viaduct.engine.BootstrapperFactory] in engine/wiring.
  */
 class ExecutionRegistryTenantAPIBootstrapper(
     private val registryUrls: List<URL>,
-    private val tenantModuleBootstrapper: TenantModuleBootstrapper,
+    private val tenantModuleInjectorFactory: TenantModuleInjectorFactory,
     private val grtPackagePrefix: String? = null,
 ) : TenantAPIBootstrapper {
-    override suspend fun tenantModuleBootstrappers(): Iterable<LegacyTenantModuleBootstrapper> {
+    override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> {
         if (registryUrls.isEmpty()) {
             log.warn("No registry files provided to ExecutionRegistryTenantAPIBootstrapper")
         }
@@ -60,16 +58,16 @@ class ExecutionRegistryTenantAPIBootstrapper(
             }.awaitAll()
         }
 
-        // Keep bootstrap calls sequential so service-owned TenantModuleBootstrapper implementations
+        // Keep bootstrap calls sequential so service-owned TenantModuleInjectorFactory implementations
         // do not need to be thread-safe when accumulating cross-tenant state prior to finalize().
         val bootstrappedRegistries = parsedRegistries.map { parsedRegistry ->
-            parsedRegistry to tenantModuleBootstrapper.bootstrap(
+            parsedRegistry to tenantModuleInjectorFactory.bootstrap(
                 tenantName = parsedRegistry.tenantName,
                 tenantBootstrapClass = parsedRegistry.bootstrapClass,
             )
         }
 
-        tenantModuleBootstrapper.finalize()
+        tenantModuleInjectorFactory.finalize()
 
         return coroutineScope {
             bootstrappedRegistries.map { (parsedRegistry, codeInjector) ->

@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
-
 package viaduct.tenant.runtime.bootstrap
 
 import graphql.language.FragmentDefinition
@@ -20,8 +18,8 @@ import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantModuleException
 import viaduct.service.api.spi.CodeInjector
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
@@ -34,7 +32,7 @@ import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
 import viaduct.utils.slf4j.logger
 
 /**
- * ViaductLegacyTenantModuleBootstrapper is responsible for bootstrapping the Viaduct tenant module
+ * ViaductTenantModuleBootstrapper is responsible for bootstrapping the Viaduct tenant module
  * using classpath scanning. It discovers all the resolvers in the tenant module and creates the
  * resolver executors. We use the package name of the tenant module as a prefix to find all resolvers
  * (including the codegen base resolvers).
@@ -42,11 +40,11 @@ import viaduct.utils.slf4j.logger
  * @param codeInjector Injector to be used in all resolvers for [tenantModule].
  * @param tenantResolverClassFinder Finder for resolver classes in this tenant's package.
  */
-class ViaductLegacyTenantModuleBootstrapper(
+class ViaductTenantModuleBootstrapper(
     private val codeInjector: CodeInjector,
     private val tenantResolverClassFinder: TenantResolverClassFinder,
     private val grtConvFactory: GRTConvFactory = DefaultGRTConvFactory,
-) : LegacyTenantModuleBootstrapper {
+) : TenantModuleBootstrapper {
     private val reflectionLoader = ReflectionLoaderImpl { name -> tenantResolverClassFinder.grtClassForName(name) }
 
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory(reflectionLoader)

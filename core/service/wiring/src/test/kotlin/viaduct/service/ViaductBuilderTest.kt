@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
-
 package viaduct.service
 
 import graphql.schema.idl.RuntimeWiring
@@ -17,18 +15,18 @@ import viaduct.engine.api.GraphQLBuildError
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.ProxyResolverFactory
+import viaduct.engine.api.spi.TenantAPIBootstrapper
+import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.FlagManager.Flag
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.ResolverErrorBuilder
-import viaduct.service.api.spi.TenantAPIBootstrapper
-import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
-import viaduct.service.api.spi.TenantModuleBootstrapper
+import viaduct.service.api.spi.TenantModuleInjectorFactory
 import viaduct.service.runtime.SchemaConfiguration
 
 class ViaductBuilderTest {
@@ -235,8 +233,8 @@ class ViaductBuilderTest {
     }
 
     @Test
-    fun testWithTenantModuleBootstrapper() {
-        val bootstrapper = object : TenantModuleBootstrapper {
+    fun testWithTenantModuleInjectorFactory() {
+        val injectorFactory = object : TenantModuleInjectorFactory {
             override suspend fun bootstrap(
                 tenantName: String,
                 tenantBootstrapClass: Class<*>?
@@ -248,7 +246,7 @@ class ViaductBuilderTest {
         )
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
-            .withTenantModuleBootstrapper(bootstrapper)
+            .withTenantModuleInjectorFactory(injectorFactory)
             .withLenientResolverValidation()
             .withSchemaConfiguration(schemaConfiguration)
             .build()
@@ -285,6 +283,7 @@ class ViaductBuilderTest {
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun testWithCheckerExecutorFactoryCreator() {
         val factory = object : CheckerExecutorFactory {
             override fun checkerExecutorForField(
@@ -315,15 +314,15 @@ class ViaductBuilderTest {
 
     @Test
     fun testWithTenantAPIBootstrapperBuilder() {
-        val noOpBootstrapper = object : LegacyTenantModuleBootstrapper {
+        val noOpBootstrapper = object : TenantModuleBootstrapper {
             override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> = emptyList()
 
             override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> = emptyList()
         }
-        val bootstrapperBuilder = object : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
-            override fun create(): TenantAPIBootstrapper<LegacyTenantModuleBootstrapper> =
-                object : TenantAPIBootstrapper<LegacyTenantModuleBootstrapper> {
-                    override suspend fun tenantModuleBootstrappers(): Iterable<LegacyTenantModuleBootstrapper> = listOf(noOpBootstrapper)
+        val bootstrapperBuilder = object : TenantAPIBootstrapperBuilder {
+            override fun create(): TenantAPIBootstrapper =
+                object : TenantAPIBootstrapper {
+                    override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> = listOf(noOpBootstrapper)
                 }
         }
         val schemaConfiguration = SchemaConfiguration.fromSchema(

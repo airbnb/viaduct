@@ -50,7 +50,7 @@ annotation class TenantModuleBootstrapperDsl
  *
  * Usage:
  * ```kotlin
- *    MockLegacyTenantModuleBootstrapper("""
+ *    MockTenantModuleBootstrapper("""
  *       type Query {
  *           hello: String
  *           world: String
@@ -94,9 +94,9 @@ annotation class TenantModuleBootstrapperDsl
  * ```
  *
  * Identifiers
- * in all scopes, `schema` is the schema passed to MockLegacyTenantModuleBootstrapper
+ * in all scopes, `schema` is the schema passed to MockTenantModuleBootstrapper
  *
- * in MockLegacyTenantModuleBootstrapper scope:
+ * in MockTenantModuleBootstrapper scope:
  * * `fieldWithValue` creates a simple resolver returning a constant value
  * * `field` creates nested scope for configuring field-relate executors
  * * `node` creates a nested scope for configurating node-related executors
@@ -119,7 +119,7 @@ class MockTenantModuleDSL<F : Any>(
     val fac: F,
 ) {
     fun create() =
-        MockLegacyTenantModuleBootstrapper(
+        MockTenantModuleBootstrapper(
             schema,
             fieldResolverExecutors,
             nodeResolverExecutors,

@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport", "DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
+@file:Suppress("DEPRECATION", "ForbiddenImport") // CoroutineInterop retained for Airbnb
 
 package viaduct.engine.api.mocks
 
@@ -43,9 +43,9 @@ import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.TenantAPIBootstrapper
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
@@ -312,18 +312,18 @@ class MockNodeBatchResolverExecutor(
 }
 
 class MockTenantAPIBootstrapper(
-    val tenantModuleBootstrappers: List<LegacyTenantModuleBootstrapper> = emptyList()
+    val tenantModuleBootstrappers: List<TenantModuleBootstrapper> = emptyList()
 ) : TenantAPIBootstrapper {
-    override suspend fun tenantModuleBootstrappers(): Iterable<LegacyTenantModuleBootstrapper> = tenantModuleBootstrappers
+    override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> = tenantModuleBootstrappers
 }
 
-class MockLegacyTenantModuleBootstrapper(
+class MockTenantModuleBootstrapper(
     val fullSchema: ViaductSchema,
     val fieldResolverExecutors: Iterable<Pair<Coordinate, FieldResolverExecutor>> = emptyList(),
     val nodeResolverExecutors: Iterable<Pair<String, NodeResolverExecutor>> = emptyList(),
     val checkerExecutors: Map<Coordinate, CheckerExecutor> = emptyMap(),
     val typeCheckerExecutors: Map<String, CheckerExecutor> = emptyMap(),
-) : LegacyTenantModuleBootstrapper {
+) : TenantModuleBootstrapper {
     override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> = fieldResolverExecutors
 
     override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> = nodeResolverExecutors
@@ -334,7 +334,7 @@ class MockLegacyTenantModuleBootstrapper(
 
     companion object {
         /**
-         * Create a [MockLegacyTenantModuleBootstrapper] with the provided schema SDL.
+         * Create a [MockTenantModuleBootstrapper] with the provided schema SDL.
          * This will parse the SDL and create a [ViaductSchema] with actual wiring.
          */
         operator fun invoke(
@@ -343,7 +343,7 @@ class MockLegacyTenantModuleBootstrapper(
         ) = invoke(createSchemaWithWiring(schemaSDL), block)
 
         /**
-         * Create a [MockLegacyTenantModuleBootstrapper] with the provided [ViaductSchema].
+         * Create a [MockTenantModuleBootstrapper] with the provided [ViaductSchema].
          * The provided schema should already be built with actual wiring via `mkSchemaWithWiring`,
          * not `mkSchema` with mock wiring.
          */
@@ -462,7 +462,7 @@ object Samples {
         """.trimIndent()
     )
 
-    val mockTenantModule = MockLegacyTenantModuleBootstrapper(testSchema) {
+    val mockTenantModule = MockTenantModuleBootstrapper(testSchema) {
         // Add resolver for aField
         field("TestType" to "aField") {
             resolver {

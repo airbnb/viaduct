@@ -64,7 +64,7 @@ class CreateCharacterMutation @Inject constructor(
 - Integrates naturally with other DI-managed beans (repositories, service clients, etc.)
 - Works with any DI framework that has a request scope (Micronaut, Spring, Guice, etc.)
 
-This approach requires a `TenantModuleBootstrapper` that wires your DI container into Viaduct. See [Dependency Injection](../../service_engineers/dependency_injection/index.md).
+This approach requires a `TenantModuleInjectorFactory` that wires your DI container into Viaduct. See [Dependency Injection](../../service_engineers/dependency_injection/index.md).
 
 ## Approach 2: ExecutionInput.requestContext
 

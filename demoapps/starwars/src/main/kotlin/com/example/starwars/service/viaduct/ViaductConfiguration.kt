@@ -14,13 +14,13 @@ val EXTRAS_SCHEMA = SchemaScopeInfo("publicSchemaWithExtras", setOf(DEFAULT_SCOP
 // tag::viaduct_configuration[13]
 @Factory
 class ViaductConfiguration(
-    val tenantModuleBootstrapper: MicronautTenantModuleBootstrapper,
+    val tenantModuleInjectorFactory: MicronautTenantModuleInjectorFactory,
 ) {
     @Bean
     fun providesViaduct(): Viaduct =
         // tag::schema_registration[4]
         BasicViaductFactory.create(
-            tenantModuleBootstrapper = tenantModuleBootstrapper,
+            tenantModuleInjectorFactory = tenantModuleInjectorFactory,
             scopedSchemas = listOf(DEFAULT_SCHEMA, EXTRAS_SCHEMA),
         )
     // end::schema_registration

@@ -31,14 +31,14 @@ import viaduct.service.api.spi.FlagManager
 
 @Factory
 class ViaductConfiguration(
-    private val tenantModuleBootstrapper: MicronautTenantModuleBootstrapper,
+    private val tenantModuleInjectorFactory: MicronautTenantModuleInjectorFactory,
     private val meterRegistry: MeterRegistry,
     private val flagManager: StarWarsFlagManager,
 ) {
     @Bean
     fun providesViaduct(): Viaduct =
         ViaductBuilder()
-            .withTenantModuleBootstrapper(tenantModuleBootstrapper)
+            .withTenantModuleInjectorFactory(tenantModuleInjectorFactory)
             .withMeterRegistry(meterRegistry)
             .withFlagManager(flagManager)
             .build()

@@ -17,10 +17,10 @@ interface CodeInjector {
 
 Viaduct calls `getProvider(resolverClass).get()` before each resolver invocation. Implementations must be thread-safe.
 
-### `TenantModuleBootstrapper`
+### `TenantModuleInjectorFactory`
 
 ```kotlin
-interface TenantModuleBootstrapper {
+interface TenantModuleInjectorFactory {
     suspend fun bootstrap(tenantName: String, tenantBootstrapClass: Class<*>?): CodeInjector
     suspend fun finalize() = Unit
 }
@@ -32,12 +32,12 @@ Called once per tenant module at startup. The returned `CodeInjector` is used fo
 
 ## Shared injector (most applications)
 
-When all tenants share the same DI container, extend `SharedTenantModuleBootstrapper`:
+When all tenants share the same DI container, extend `SharedTenantModuleInjectorFactory`:
 
 ```kotlin
-class MicronautTenantModuleBootstrapper(
+class MicronautTenantModuleInjectorFactory(
     beanContext: BeanContext,
-) : SharedTenantModuleBootstrapper(MicronautCodeInjector(beanContext)) {
+) : SharedTenantModuleInjectorFactory(MicronautCodeInjector(beanContext)) {
 
     private class MicronautCodeInjector(
         private val beanContext: BeanContext,
@@ -54,7 +54,7 @@ Pass it to `BasicViaductFactory.create` or `ViaductBuilder`:
 
     ```kotlin
     val viaduct: Viaduct = BasicViaductFactory.create(
-        tenantModuleBootstrapper = tenantModuleBootstrapper,
+        tenantModuleInjectorFactory = tenantModuleInjectorFactory,
     )
     ```
 
@@ -62,7 +62,7 @@ Pass it to `BasicViaductFactory.create` or `ViaductBuilder`:
 
     ```kotlin
     val viaduct: Viaduct = ViaductBuilder()
-        .withTenantModuleBootstrapper(tenantModuleBootstrapper)
+        .withTenantModuleInjectorFactory(tenantModuleInjectorFactory)
         .withMeterRegistry(meterRegistry)
         .build()
     ```
@@ -71,17 +71,17 @@ Pass it to `BasicViaductFactory.create` or `ViaductBuilder`:
 
 ### 1. Bootstrapper
 
-```kotlin title="production/MicronautTenantModuleBootstrapper.kt"
+```kotlin title="production/MicronautTenantModuleInjectorFactory.kt"
 import io.micronaut.context.BeanContext
 import jakarta.inject.Singleton
 import javax.inject.Provider
 import viaduct.service.api.spi.CodeInjector
-import viaduct.service.api.spi.SharedTenantModuleBootstrapper
+import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 
 @Singleton
-class MicronautTenantModuleBootstrapper(
+class MicronautTenantModuleInjectorFactory(
     beanContext: BeanContext,
-) : SharedTenantModuleBootstrapper(MicronautCodeInjector(beanContext)) {
+) : SharedTenantModuleInjectorFactory(MicronautCodeInjector(beanContext)) {
 
     private class MicronautCodeInjector(
         private val beanContext: BeanContext,
@@ -102,12 +102,12 @@ import viaduct.service.api.Viaduct
 
 @Factory
 class ViaductConfiguration(
-    private val tenantModuleBootstrapper: MicronautTenantModuleBootstrapper,
+    private val tenantModuleInjectorFactory: MicronautTenantModuleInjectorFactory,
 ) {
     @Bean
     fun providesViaduct(): Viaduct =
         BasicViaductFactory.create(
-            tenantModuleBootstrapper = tenantModuleBootstrapper,
+            tenantModuleInjectorFactory = tenantModuleInjectorFactory,
         )
 }
 ```
@@ -126,10 +126,10 @@ class CharacterResolver(
 
 ## Per-tenant injectors
 
-To give each tenant its own injector configuration, implement `TenantModuleBootstrapper` directly. Tenant developers annotate a class with `@TenantBootstrapper`; that class is passed to `bootstrap` so you can use it to configure the injector:
+To give each tenant its own injector configuration, implement `TenantModuleInjectorFactory` directly. Tenant developers annotate a class with `@TenantBootstrapper`; that class is passed to `bootstrap` so you can use it to configure the injector:
 
 ```kotlin
-class GuiceTenantModuleBootstrapper : TenantModuleBootstrapper {
+class GuiceTenantModuleInjectorFactory : TenantModuleInjectorFactory {
     override suspend fun bootstrap(
         tenantName: String,
         tenantBootstrapClass: Class<*>?,
@@ -185,9 +185,9 @@ class MicronautViaductFactory : ViaductFactory {
 
 | Scenario | Approach |
 |---|---|
-| All tenants share the same DI container | `SharedTenantModuleBootstrapper` |
-| Each tenant needs distinct bindings | `TenantModuleBootstrapper` + `@TenantBootstrapper` |
-| No dependencies (tests, simple apps) | `NaiveTenantModuleBootstrapper` (default) |
+| All tenants share the same DI container | `SharedTenantModuleInjectorFactory` |
+| Each tenant needs distinct bindings | `TenantModuleInjectorFactory` + `@TenantBootstrapper` |
+| No dependencies (tests, simple apps) | `NaiveTenantModuleInjectorFactory` (default) |
 
 ## See also
 

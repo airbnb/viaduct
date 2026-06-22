@@ -18,7 +18,7 @@ import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.TenantModuleException
 import viaduct.service.api.spi.CodeInjector
 
-class ViaductLegacyTenantModuleBootstrapperNodeResolverTest {
+class ViaductTenantModuleBootstrapperNodeResolverTest {
     private val schema = MockSchema.mk(
         """
         type TestNode implements Node @resolver {
@@ -79,7 +79,7 @@ class ViaductLegacyTenantModuleBootstrapperNodeResolverTest {
     private fun bootstrapper(
         nodeResolverForClasses: Set<Class<*>>,
         subTypesOf: Set<Class<out NodeResolverBase<*>>>,
-    ): ViaductLegacyTenantModuleBootstrapper {
+    ): ViaductTenantModuleBootstrapper {
         val classFinder = mockk<TenantResolverClassFinder> {
             every { nodeResolverForClassesInPackage() } returns nodeResolverForClasses
             every { getSubTypesOf(any<Class<NodeResolverBase<*>>>()) } returns subTypesOf
@@ -95,7 +95,7 @@ class ViaductLegacyTenantModuleBootstrapperNodeResolverTest {
             every { tenantModuleMetadata() } returns TenantModuleMetadata.EMPTY
             every { resolverClassesInPackage() } returns emptySet()
         }
-        return ViaductLegacyTenantModuleBootstrapper(
+        return ViaductTenantModuleBootstrapper(
             codeInjector = CodeInjector.Naive,
             tenantResolverClassFinder = classFinder,
             grtConvFactory = DefaultGRTConvFactory,

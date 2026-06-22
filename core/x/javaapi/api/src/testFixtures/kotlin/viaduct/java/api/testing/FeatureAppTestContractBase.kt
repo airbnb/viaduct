@@ -1,13 +1,12 @@
-@file:Suppress("ForbiddenImport", "DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
+@file:Suppress("ForbiddenImport")
 
 package viaduct.java.api.testing
 
 import viaduct.api.testing.featureapp.AbstractFeatureAppTestContractBase
 import viaduct.engine.BootstrapperFactory
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
+import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.CodeInjector
-import viaduct.service.api.spi.SharedTenantModuleBootstrapper
-import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
+import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 
 /**
  * Contract test base class for Java tenant resolvers.
@@ -32,11 +31,11 @@ abstract class FeatureAppTestContractBase : AbstractFeatureAppTestContractBase()
 
     protected open fun featureAppPackagePrefix(): String = derivedClassPackage().substringBeforeLast('.')
 
-    override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> =
-        object : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
+    override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder =
+        object : TenantAPIBootstrapperBuilder {
             override fun create() =
                 BootstrapperFactory.fromResources(
-                    tenantModuleBootstrapper = SharedTenantModuleBootstrapper(CodeInjector.Naive),
+                    tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(CodeInjector.Naive),
                     packagePrefix = featureAppPackagePrefix(),
                 )
         }

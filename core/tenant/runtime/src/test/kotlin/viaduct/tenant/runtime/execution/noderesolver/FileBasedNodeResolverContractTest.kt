@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
-
 package viaduct.tenant.runtime.execution.noderesolver
 
 import com.google.inject.AbstractModule
@@ -9,22 +7,20 @@ import javax.inject.Singleton
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
+import viaduct.engine.api.spi.TenantAPIBootstrapper
+import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryTenantModuleBootstrapper
-import viaduct.service.api.spi.TenantAPIBootstrapper as BaseTenantAPIBootstrapper
-import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.tenant.runtime.bootstrap.GuiceCodeInjector
 import viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory
 
 class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
     override val validateResolverCompleteness = false
 
-    override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
+    override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder {
         // Reuse KotlinNodeResolverContractTest's resolver impls — no new classes needed.
         // This simulates what KSP will emit: FQNs pointing at the real resolver implementations.
         val base = "viaduct.tenant.runtime.execution.noderesolver.KotlinNodeResolverContractTest"
         val resolverBases = "viaduct.tenant.runtime.execution.noderesolver.resolverbases"
-
         val registry = ExecutionRegistryConfigFile(
             version = "1",
             executorFactory = "viaduct.api.internal.DefaultGRTConvFactory",
@@ -97,12 +93,10 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                 ),
             ),
         )
-
         val resolverClass = { name: String ->
             @Suppress("UNCHECKED_CAST")
             Class.forName("$base\$$name") as Class<Any>
         }
-
         val injector = Guice.createInjector(
             object : AbstractModule() {
                 override fun configure() {
@@ -114,7 +108,6 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                 }
             }
         )
-
         val factory = ViaductModernExecutorFactory(
             codeInjector = GuiceCodeInjector(injector),
             grtPackagePrefix = "viaduct.tenant.runtime.execution.noderesolver",
@@ -124,10 +117,9 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
             registry = registry,
             executorFactory = factory,
         )
-
-        return object : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
+        return object : TenantAPIBootstrapperBuilder {
             override fun create() =
-                object : BaseTenantAPIBootstrapper<LegacyTenantModuleBootstrapper> {
+                object : TenantAPIBootstrapper {
                     override suspend fun tenantModuleBootstrappers() = listOf(bootstrapper)
                 }
         }

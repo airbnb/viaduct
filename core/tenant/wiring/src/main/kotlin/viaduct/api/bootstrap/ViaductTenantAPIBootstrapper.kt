@@ -1,20 +1,18 @@
-@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
-
 package viaduct.api.bootstrap
 
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import viaduct.api.internal.GRTConvFactory
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantAPIBootstrapper
+import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.CodeInjector
-import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.tenant.runtime.bootstrap.TenantPackageFinder
 import viaduct.tenant.runtime.bootstrap.TenantPackageInfo
 import viaduct.tenant.runtime.bootstrap.TenantResolverClassFinder
 import viaduct.tenant.runtime.bootstrap.TenantResolverClassFinderFactory
-import viaduct.tenant.runtime.bootstrap.ViaductLegacyTenantModuleBootstrapper
+import viaduct.tenant.runtime.bootstrap.ViaductTenantModuleBootstrapper
 import viaduct.tenant.runtime.bootstrap.ViaductTenantPackageFinder
 import viaduct.tenant.runtime.bootstrap.ViaductTenantResolverClassFinderFactory
 import viaduct.tenant.runtime.internal.CachingGRTConvFactory
@@ -22,7 +20,7 @@ import viaduct.utils.slf4j.logger
 
 /**
  * ViaductTenantAPIBootstrapper is responsible for discovering all Viaduct tenant modules and creating
- * LegacyTenantModuleBootstrapper(s), one for each Viaduct TenantModule.
+ * TenantModuleBootstrapper(s), one for each Viaduct TenantModule.
  *
  * Subclasses can override [createResolverClassFinder] to control how the class finder is created
  * for each tenant package (e.g., to support hotswap scenarios with a fresh scanner).
@@ -35,11 +33,12 @@ open class ViaductTenantAPIBootstrapper
         private val grtConvFactory: GRTConvFactory,
     ) : TenantAPIBootstrapper {
         /**
-         * Discovers all Viaduct TenantModule(s) and creates ViaductLegacyTenantModuleBootstrapper for each tenant.
+         * Discovers all Viaduct TenantModule(s) and creates ViaductTenantModuleBootstrapper for each tenant.
          *
-         * @return List of all LegacyTenantModuleBootstrapper(s), one for each Viaduct TenantModule.
+         * @return List of all TenantModuleBootstrapper(s), one for each Viaduct TenantModule.
          */
-        override suspend fun tenantModuleBootstrappers(): Iterable<LegacyTenantModuleBootstrapper> {
+        @Suppress("DEPRECATION")
+        override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> {
             log.info("Viaduct Modern Tenant API Bootstrapper: Creating bootstrappers for tenant modules")
             val tenantPackageInfos = tenantPackageFinder.tenantPackages()
 
@@ -48,7 +47,7 @@ open class ViaductTenantAPIBootstrapper
                 tenantPackageInfos.map { packageInfo ->
                     async {
                         log.info("Creating bootstrapper for tenant module: {}", packageInfo.packageName)
-                        ViaductLegacyTenantModuleBootstrapper(
+                        ViaductTenantModuleBootstrapper(
                             codeInjector,
                             createResolverClassFinder(packageInfo),
                             grtConvFactory,
@@ -73,7 +72,7 @@ open class ViaductTenantAPIBootstrapper
         /**
          * Builder for creating a ViaductTenantAPIBootstrapper instance.
          */
-        open class Builder : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
+        open class Builder : TenantAPIBootstrapperBuilder {
             protected var codeInjector: CodeInjector = CodeInjector.Naive
             protected var tenantPackagePrefix: String? = null
             protected var tenantPackageFinder: TenantPackageFinder? = null

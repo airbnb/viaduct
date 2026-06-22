@@ -4,7 +4,7 @@ import io.micronaut.context.BeanContext
 import jakarta.inject.Singleton
 import javax.inject.Provider
 import viaduct.service.api.spi.CodeInjector
-import viaduct.service.api.spi.SharedTenantModuleBootstrapper
+import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 
 /**
  * Shared Micronaut-backed bootstrapper for the Starwars demo.
@@ -14,9 +14,9 @@ import viaduct.service.api.spi.SharedTenantModuleBootstrapper
  * distinct per-tenant injectors.
  */
 @Singleton
-class MicronautTenantModuleBootstrapper(
+class MicronautTenantModuleInjectorFactory(
     beanContext: BeanContext,
-) : SharedTenantModuleBootstrapper(MicronautCodeInjector(beanContext)) {
+) : SharedTenantModuleInjectorFactory(MicronautCodeInjector(beanContext)) {
     private class MicronautCodeInjector(private val beanContext: BeanContext) : CodeInjector {
         override fun <T> getProvider(clazz: Class<T>): Provider<T> =
             Provider {

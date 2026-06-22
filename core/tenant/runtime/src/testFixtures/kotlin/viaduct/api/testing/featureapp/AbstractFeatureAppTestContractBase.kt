@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport", "DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
+@file:Suppress("ForbiddenImport")
 
 package viaduct.api.testing.featureapp
 
@@ -10,13 +10,12 @@ import org.junit.jupiter.api.Tag
 import viaduct.api.testing.TestSchema
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
+import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.SchemaScopeInfo
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.ExecutionResult
 import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
-import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
@@ -49,7 +48,7 @@ abstract class AbstractFeatureAppTestContractBase {
      * Kotlin subclasses return a `ViaductTenantAPIBootstrapper.Builder`;
      * Java subclasses return a `MockTenantAPIBootstrapperBuilder` wrapper.
      */
-    protected abstract fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>
+    protected abstract fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder
 
     /**
      * Hook called just before build. Override to add pre-build
@@ -96,6 +95,7 @@ abstract class AbstractFeatureAppTestContractBase {
     }
 
     @BeforeEach
+    @Suppress("DEPRECATION")
     open fun initViaductBuilder() {
         if (!::viaductBuilder.isInitialized) {
             viaductBuilder = StandardViaduct.Builder()

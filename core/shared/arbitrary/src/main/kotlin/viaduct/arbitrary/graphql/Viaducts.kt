@@ -1,5 +1,4 @@
 @file:OptIn(InternalApi::class)
-@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION")
 
 package viaduct.arbitrary.graphql
 
@@ -14,12 +13,12 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CheckerExecutorFactory as EngineCheckerExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.TenantAPIBootstrapper
+import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 
@@ -145,10 +144,10 @@ private class ViaductGen(private val env: ViaductGenEnv) {
     private fun genTenantModuleBootstrapperBuilders(
         fieldResolverExecutors: List<Pair<Coordinate, FieldResolverExecutor>>,
         nodeResolverExecutors: List<Pair<String, NodeResolverExecutor>>,
-    ): List<TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>> {
+    ): List<TenantAPIBootstrapperBuilder> {
         val bootstrapper = genTenantApiBootstrapper(fieldResolverExecutors, nodeResolverExecutors)
         return listOf(
-            object : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
+            object : TenantAPIBootstrapperBuilder {
                 override fun create() = bootstrapper
             }
         )
@@ -161,15 +160,15 @@ private class ViaductGen(private val env: ViaductGenEnv) {
         val tenantModuleBootstrappers = listOf(genTenantModuleBootstrapper(fieldResolverExecutors, nodeResolverExecutors))
 
         return object : TenantAPIBootstrapper {
-            override suspend fun tenantModuleBootstrappers(): Iterable<LegacyTenantModuleBootstrapper> = tenantModuleBootstrappers
+            override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> = tenantModuleBootstrappers
         }
     }
 
     private fun genTenantModuleBootstrapper(
         fieldResolverExecutors: List<Pair<Coordinate, FieldResolverExecutor>>,
         nodeResolverExecutors: List<Pair<String, NodeResolverExecutor>>,
-    ): LegacyTenantModuleBootstrapper =
-        object : LegacyTenantModuleBootstrapper {
+    ): TenantModuleBootstrapper =
+        object : TenantModuleBootstrapper {
             override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> = fieldResolverExecutors
 
             override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> = nodeResolverExecutors

@@ -11,7 +11,7 @@ import viaduct.remote.registry.SchemaRegistry
 import viaduct.service.SchemaScopeInfo
 import viaduct.service.ViaductBuilder
 import viaduct.service.api.spi.CodeInjector
-import viaduct.service.api.spi.SharedTenantModuleBootstrapper
+import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 
 /**
  * Bootstraps tenant modules locally and registers every discovered node-resolver executor
@@ -43,7 +43,7 @@ class TenantBootstrapper(private val tenantCodeInjector: CodeInjector) {
         // register the node resolvers. The built instance itself isn't needed here.
         ViaductBuilder()
             .withScopedSchemas(listOf(DEFAULT_SCHEMA, EXTRAS_SCHEMA))
-            .withTenantModuleBootstrapper(SharedTenantModuleBootstrapper(tenantCodeInjector))
+            .withTenantModuleInjectorFactory(SharedTenantModuleInjectorFactory(tenantCodeInjector))
             .withProxyResolverFactory(RegistrationProxyFactory())
             .build()
 

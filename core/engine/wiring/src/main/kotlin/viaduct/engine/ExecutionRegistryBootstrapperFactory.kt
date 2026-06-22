@@ -1,12 +1,10 @@
-@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // legacy bootstrap shim
-
 package viaduct.engine
 
 import io.github.classgraph.ClassGraph
 import java.net.URL
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryTenantAPIBootstrapper
-import viaduct.service.api.spi.TenantModuleBootstrapper
+import viaduct.service.api.spi.TenantModuleInjectorFactory
 
 private const val REGISTRY_RESOURCE_PATH = "META-INF/viaduct/modules"
 
@@ -17,10 +15,10 @@ object BootstrapperFactory {
     /**
      * Returns a bootstrapper that loads all tenant module registry files from the classpath.
      */
-    fun fromResources(tenantModuleBootstrapper: TenantModuleBootstrapper): TenantAPIBootstrapper =
+    fun fromResources(tenantModuleInjectorFactory: TenantModuleInjectorFactory): TenantAPIBootstrapper =
         ExecutionRegistryTenantAPIBootstrapper(
             registryUrls = collectRegistryUrls(packagePrefix = null),
-            tenantModuleBootstrapper = tenantModuleBootstrapper,
+            tenantModuleInjectorFactory = tenantModuleInjectorFactory,
         )
 
     /**
@@ -34,12 +32,12 @@ object BootstrapperFactory {
      * GRTs into the tenant package rather than the production constant).
      */
     fun fromResources(
-        tenantModuleBootstrapper: TenantModuleBootstrapper,
+        tenantModuleInjectorFactory: TenantModuleInjectorFactory,
         packagePrefix: String,
         grtPackagePrefix: String? = null,
     ): TenantAPIBootstrapper =
         ExecutionRegistryTenantAPIBootstrapper(
-            tenantModuleBootstrapper = tenantModuleBootstrapper,
+            tenantModuleInjectorFactory = tenantModuleInjectorFactory,
             registryUrls = collectRegistryUrls(packagePrefix = packagePrefix),
             grtPackagePrefix = grtPackagePrefix,
         )

@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport")
+@file:Suppress("DEPRECATION", "ForbiddenImport")
 
 package viaduct.service.runtime
 
@@ -8,14 +8,13 @@ import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
+import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.graphql.test.assertJson
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder
 
-@Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // intentional use of legacy bootstrap shim
 class CoroutineContextPropagationTest {
     data class TestContext(val bar: Int?) : CoroutineContext.Element {
         companion object Key : CoroutineContext.Key<TestContext>
@@ -26,7 +25,7 @@ class CoroutineContextPropagationTest {
     @Test
     fun `coroutine context is propagated to resolver functions`() {
         val sdl = "extend type Query { result: Int }"
-        val module = MockLegacyTenantModuleBootstrapper(sdl) {
+        val module = MockTenantModuleBootstrapper(sdl) {
             field("Query" to "result") {
                 resolver {
                     fn { _, _, _, _, _ ->

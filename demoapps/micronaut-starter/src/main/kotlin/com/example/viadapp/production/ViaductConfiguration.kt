@@ -11,17 +11,17 @@ val SCHEMA_ID = "default"
 /**
  * Micronaut factory that provides the Viaduct instance.
  *
- * Uses [MicronautTenantModuleBootstrapper] so Viaduct resolves tenant classes through the
+ * Uses [MicronautTenantModuleInjectorFactory] so Viaduct resolves tenant classes through the
  * application's shared Micronaut [io.micronaut.context.BeanContext].
  */
 @Factory
 class ViaductConfiguration(
-    private val tenantModuleBootstrapper: MicronautTenantModuleBootstrapper,
+    private val tenantModuleInjectorFactory: MicronautTenantModuleInjectorFactory,
 ) {
     @Bean
     fun providesViaduct(): Viaduct {
         return BasicViaductFactory.create(
-            tenantModuleBootstrapper = tenantModuleBootstrapper,
+            tenantModuleInjectorFactory = tenantModuleInjectorFactory,
             scopedSchemas = listOf(SchemaScopeInfo(SCHEMA_ID)),
         )
     }

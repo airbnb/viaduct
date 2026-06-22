@@ -1,9 +1,9 @@
 public final class viaduct/service/BasicViaductFactory {
 	public static final field INSTANCE Lviaduct/service/BasicViaductFactory;
 	public final fun create ()Lviaduct/service/api/Viaduct;
-	public final fun create (Lviaduct/service/api/spi/TenantModuleBootstrapper;)Lviaduct/service/api/Viaduct;
-	public final fun create (Lviaduct/service/api/spi/TenantModuleBootstrapper;Ljava/util/List;)Lviaduct/service/api/Viaduct;
-	public static synthetic fun create$default (Lviaduct/service/BasicViaductFactory;Lviaduct/service/api/spi/TenantModuleBootstrapper;Ljava/util/List;ILjava/lang/Object;)Lviaduct/service/api/Viaduct;
+	public final fun create (Lviaduct/service/api/spi/TenantModuleInjectorFactory;)Lviaduct/service/api/Viaduct;
+	public final fun create (Lviaduct/service/api/spi/TenantModuleInjectorFactory;Ljava/util/List;)Lviaduct/service/api/Viaduct;
+	public static synthetic fun create$default (Lviaduct/service/BasicViaductFactory;Lviaduct/service/api/spi/TenantModuleInjectorFactory;Ljava/util/List;ILjava/lang/Object;)Lviaduct/service/api/Viaduct;
 }
 
 public final class viaduct/service/SchemaScopeInfo {
@@ -26,7 +26,7 @@ public final class viaduct/service/ViaductBuilder {
 	public final fun withResolverErrorReporter (Lviaduct/service/api/spi/ErrorReporter;)Lviaduct/service/ViaductBuilder;
 	public final fun withSchemaConfiguration (Lviaduct/service/runtime/SchemaConfiguration;)Lviaduct/service/ViaductBuilder;
 	public final fun withScopedSchemas (Ljava/util/List;)Lviaduct/service/ViaductBuilder;
-	public final fun withTenantModuleBootstrapper (Lviaduct/service/api/spi/TenantModuleBootstrapper;)Lviaduct/service/ViaductBuilder;
+	public final fun withTenantModuleInjectorFactory (Lviaduct/service/api/spi/TenantModuleInjectorFactory;)Lviaduct/service/ViaductBuilder;
 }
 
 public final class viaduct/service/wiring/graphiql/GraphiQLHtmlConfig {

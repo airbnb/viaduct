@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport", "DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
+@file:Suppress("ForbiddenImport")
 @file:OptIn(VisibleForTest::class, InternalApi::class)
 
 package viaduct.api.testing.featureapp
@@ -15,9 +15,8 @@ import viaduct.api.types.NodeObject
 import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.BootstrapperFactory
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
-import viaduct.service.api.spi.SharedTenantModuleBootstrapper
-import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
+import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
+import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.bootstrap.GuiceCodeInjector
 import viaduct.tenant.runtime.bootstrap.TenantPackageInfo
@@ -73,11 +72,11 @@ abstract class KotlinFeatureAppTestContractBase : AbstractFeatureAppTestContract
         }
     }
 
-    override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> =
-        object : TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper> {
+    override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder =
+        object : TenantAPIBootstrapperBuilder {
             override fun create() =
                 BootstrapperFactory.fromResources(
-                    tenantModuleBootstrapper = SharedTenantModuleBootstrapper(guiceCodeInjector),
+                    tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(guiceCodeInjector),
                     packagePrefix = derivedClassPackagePrefix,
                     grtPackagePrefix = derivedClassPackagePrefix,
                 )

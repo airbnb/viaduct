@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport", "DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // legacy bootstrap shim
+@file:Suppress("ForbiddenImport")
 
 package viaduct.engine.runtime.tenantloading
 
@@ -88,7 +88,7 @@ class DispatcherRegistryFactory(
             }
             if (!tenantContributesExecutors) {
                 log().warn("Bootstrapping $tenant (a ${tenant.javaClass.name}) did not contribute any executors")
-                if (tenant.javaClass.simpleName == "ViaductLegacyTenantModuleBootstrapper") {
+                if (tenant.javaClass.simpleName == "ViaductTenantModuleBootstrapper") {
                     nonContributingModernBootstrappersPresent = true
                 }
             }

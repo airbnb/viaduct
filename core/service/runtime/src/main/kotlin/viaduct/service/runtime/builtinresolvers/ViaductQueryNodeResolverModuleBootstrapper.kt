@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION") // for imports of legacy bootstrap shim
-
 package viaduct.service.runtime.builtinresolvers
 
 import viaduct.engine.api.Coordinate
@@ -10,13 +8,13 @@ import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 
 /**
  * ViaductNodeResolverModuleBootstrapper is responsible for defining and bootstrapping system level Query.node/s field resolvers.
  */
-class ViaductQueryNodeResolverModuleBootstrapper : LegacyTenantModuleBootstrapper {
+class ViaductQueryNodeResolverModuleBootstrapper : TenantModuleBootstrapper {
     override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> =
         buildList {
             if (schema.schema.queryType.getFieldDefinition("node") != null) {

@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
-
 package viaduct.service
 
 import io.micrometer.core.instrument.MeterRegistry
@@ -8,16 +6,15 @@ import viaduct.apiannotations.StableApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.CheckerExecutorFactory
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
 import viaduct.engine.api.spi.ProxyResolverFactory
+import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.ResolverErrorBuilder
-import viaduct.service.api.spi.TenantAPIBootstrapperBuilder
-import viaduct.service.api.spi.TenantModuleBootstrapper
+import viaduct.service.api.spi.TenantModuleInjectorFactory
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 
@@ -31,7 +28,7 @@ import viaduct.service.runtime.StandardViaduct
  * Typical usage:
  * ```kotlin
  * val viaduct = ViaductBuilder()
- *     .withTenantModuleBootstrapper(myBootstrapper)
+ *     .withTenantModuleInjectorFactory(myInjectorFactory)
  *     .withMeterRegistry(meterRegistry)
  *     .withResolverErrorReporter(errorReporter)
  *     .build()
@@ -45,15 +42,15 @@ class ViaductBuilder {
     private val builder = StandardViaduct.Builder()
 
     /**
-     * Configures the [TenantModuleBootstrapper] used to provide per-tenant bootstrapping.
-     * The bootstrapper is called once per tenant during startup with the tenant name and the
+     * Configures the [TenantModuleInjectorFactory] used to provide per-tenant code injectors.
+     * The factory is called once per tenant during startup with the tenant name and the
      * `@TenantBootstrapper`-annotated class from the tenant's config file (or `null` if absent).
-     * After all bootstrap calls complete successfully, [TenantModuleBootstrapper.finalize]
+     * After all bootstrap calls complete successfully, [TenantModuleInjectorFactory.finalize]
      * is called before any returned [viaduct.service.api.spi.CodeInjector] is used.
      */
-    fun withTenantModuleBootstrapper(tenantModuleBootstrapper: TenantModuleBootstrapper) =
+    fun withTenantModuleInjectorFactory(tenantModuleInjectorFactory: TenantModuleInjectorFactory) =
         apply {
-            builder.withTenantModuleBootstrapper(tenantModuleBootstrapper)
+            builder.withTenantModuleInjectorFactory(tenantModuleInjectorFactory)
         }
 
     /** Configures the [FlagManager] for controlling framework feature flags. */
@@ -150,13 +147,15 @@ class ViaductBuilder {
 
     // internal for testing
     @VisibleForTest
-    internal fun withTenantAPIBootstrapperBuilder(bootstrapperBuilder: TenantAPIBootstrapperBuilder<LegacyTenantModuleBootstrapper>) =
+    @Suppress("DEPRECATION")
+    internal fun withTenantAPIBootstrapperBuilder(bootstrapperBuilder: TenantAPIBootstrapperBuilder) =
         apply {
             builder.withTenantAPIBootstrapperBuilder(bootstrapperBuilder)
         }
 
     // internal for testing
     @VisibleForTest
+    @Suppress("DEPRECATION")
     internal fun withNoTenantAPIBootstrapper() =
         apply {
             builder.withNoTenantAPIBootstrapper()

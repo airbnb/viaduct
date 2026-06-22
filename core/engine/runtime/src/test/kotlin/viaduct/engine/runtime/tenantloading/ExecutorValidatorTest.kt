@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION") // for imports of legacy bootstrap shim
-
 package viaduct.engine.runtime.tenantloading
 
 import org.junit.jupiter.api.Test
@@ -9,17 +7,17 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.mocks.MockCheckerExecutor
 import viaduct.engine.api.mocks.MockCheckerExecutorFactory
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
-import viaduct.engine.api.mocks.MockLegacyTenantModuleBootstrapper
 import viaduct.engine.api.mocks.MockNodeBatchResolverExecutor
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
+import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.CheckerExecutorFactory
-import viaduct.engine.api.spi.LegacyTenantModuleBootstrapper
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.runtime.validation.Validator
 
 class ExecutorValidatorTest {
-    private val moduleBootstrap = MockLegacyTenantModuleBootstrapper(
+    private val moduleBootstrap = MockTenantModuleBootstrapper(
         fieldResolverExecutors = listOf(
             "Foo" to "field" to MockFieldUnbatchedResolverExecutor(
                 RequiredSelectionSet(SelectionsParser.parse("Foo", "y"), emptyList(), false),
@@ -33,7 +31,7 @@ class ExecutorValidatorTest {
     )
 
     private fun test(
-        bootstrappers: List<LegacyTenantModuleBootstrapper> = listOf(moduleBootstrap),
+        bootstrappers: List<TenantModuleBootstrapper> = listOf(moduleBootstrap),
         checkerExecutorFactory: CheckerExecutorFactory = MockCheckerExecutorFactory(),
         nodeResolverValidator: Validator<NodeResolverExecutorValidationCtx> = Validator.Unvalidated,
         resolverExecutorValidator: Validator<FieldResolverExecutorValidationCtx> = Validator.Unvalidated,

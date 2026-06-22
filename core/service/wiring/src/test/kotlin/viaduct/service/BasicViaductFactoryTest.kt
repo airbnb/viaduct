@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.service.api.SchemaId
-import viaduct.service.api.spi.NaiveTenantModuleBootstrapper
+import viaduct.service.api.spi.NaiveTenantModuleInjectorFactory
 
 internal class BasicViaductFactoryTest {
     @Test
@@ -75,10 +75,10 @@ internal class BasicViaductFactoryTest {
     @Nested
     inner class CreateTests {
         @Test
-        fun `create should accept a custom tenant module bootstrapper`() {
+        fun `create should accept a custom tenant module injector factory`() {
             assertThrows<Exception> {
                 BasicViaductFactory.create(
-                    tenantModuleBootstrapper = NaiveTenantModuleBootstrapper,
+                    tenantModuleInjectorFactory = NaiveTenantModuleInjectorFactory,
                 )
             }
         }

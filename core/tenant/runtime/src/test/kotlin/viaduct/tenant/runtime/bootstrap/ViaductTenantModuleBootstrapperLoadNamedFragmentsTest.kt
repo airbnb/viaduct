@@ -10,7 +10,7 @@ import viaduct.api.documents.GraphQLFragment
 import viaduct.engine.api.TenantModuleMetadata
 import viaduct.service.api.spi.CodeInjector
 
-class ViaductLegacyTenantModuleBootstrapperLoadNamedFragmentsTest {
+class ViaductTenantModuleBootstrapperLoadNamedFragmentsTest {
     @GraphQLFragment("fragment FooFields on Foo { id name }")
     object FooFieldsFragment
 
@@ -23,14 +23,14 @@ class ViaductLegacyTenantModuleBootstrapperLoadNamedFragmentsTest {
     @GraphQLFragment("fragment DupeFragment on Foo { name }")
     object DupeFragment2
 
-    private fun bootstrapper(fragmentClasses: Set<Class<*>>): ViaductLegacyTenantModuleBootstrapper {
+    private fun bootstrapper(fragmentClasses: Set<Class<*>>): ViaductTenantModuleBootstrapper {
         val classFinder = mockk<TenantResolverClassFinder> {
             every { namedFragmentClassesInPackage() } returns fragmentClasses
             every { tenantModuleMetadata() } returns TenantModuleMetadata.EMPTY
             every { resolverClassesInPackage() } returns emptySet()
             every { nodeResolverForClassesInPackage() } returns emptySet()
         }
-        return ViaductLegacyTenantModuleBootstrapper(
+        return ViaductTenantModuleBootstrapper(
             codeInjector = CodeInjector.Naive,
             tenantResolverClassFinder = classFinder,
         )

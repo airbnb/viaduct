@@ -1,21 +1,35 @@
 package viaduct.engine.api.spi
 
-import viaduct.service.api.spi.TenantAPIBootstrapper as BaseTenantAPIBootstrapper
+import viaduct.apiannotations.StableApi
 
 /**
- * TenantAPIBootstrapper is a service that provides a list of all LegacyTenantModuleBootstrappers
- * that are needed to bootstrap all tenant modules for one flavor of the Tenant API.
- *
- * This is a type alias for the generic TenantAPIBootstrapper from service/api/spi,
- * specialized for LegacyTenantModuleBootstrapper.
+ * Provides the tenant module bootstrappers for one flavor of the Viaduct Tenant API.
  */
-// LegacyTenantModuleBootstrapper is deprecated but retained as a shim until file-based bootstrap is fully rolled out
-@Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION")
-typealias TenantAPIBootstrapper = BaseTenantAPIBootstrapper<LegacyTenantModuleBootstrapper>
+@StableApi
+interface TenantAPIBootstrapper {
+    /**
+     * Provides the tenant module bootstrappers used to contribute resolver executors.
+     *
+     * The engine calls this once per Tenant API during startup and iterates over the returned
+     * iterable once.
+     */
+    suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper>
+}
 
-/** flatten an Iterable of TenantAPIBootstrapper into a single instance */
-@Suppress("DEPRECATION", "TYPEALIAS_EXPANSION_DEPRECATION")
-fun Iterable<TenantAPIBootstrapper>.flatten(): TenantAPIBootstrapper =
-    with(BaseTenantAPIBootstrapper) {
-        this@flatten.flatten()
-    }
+/**
+ * Builder for [TenantAPIBootstrapper] implementations.
+ */
+@StableApi
+interface TenantAPIBootstrapperBuilder {
+    /** Creates a new [TenantAPIBootstrapper] instance. */
+    fun create(): TenantAPIBootstrapper
+}
+
+/** Flattens an iterable of [TenantAPIBootstrapper] into a single instance. */
+fun Iterable<TenantAPIBootstrapper>.flatten(): TenantAPIBootstrapper = FlattenTenantAPIBootstrapper(this)
+
+private class FlattenTenantAPIBootstrapper(
+    private val items: Iterable<TenantAPIBootstrapper>,
+) : TenantAPIBootstrapper {
+    override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> = items.flatMap { it.tenantModuleBootstrappers() }
+}
