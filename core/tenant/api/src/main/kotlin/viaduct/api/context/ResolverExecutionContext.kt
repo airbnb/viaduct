@@ -1,10 +1,10 @@
 package viaduct.api.context
 
+import viaduct.api.documents.Selections
 import viaduct.api.globalid.GlobalID
 import viaduct.api.reflect.RootObjectField
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
-import viaduct.api.select.Selections
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject

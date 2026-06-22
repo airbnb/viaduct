@@ -1,4 +1,4 @@
-package viaduct.api.select
+package viaduct.api.documents
 
 import viaduct.apiannotations.StableApi
 

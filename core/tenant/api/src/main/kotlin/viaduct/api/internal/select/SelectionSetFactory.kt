@@ -1,8 +1,8 @@
 package viaduct.api.internal.select
 
+import viaduct.api.documents.Selections
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
-import viaduct.api.select.Selections
 import viaduct.api.types.CompositeOutput
 import viaduct.apiannotations.InternalApi
 

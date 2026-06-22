@@ -64,6 +64,9 @@ public abstract interface class viaduct/api/context/VariablesProviderContext : v
 	public abstract fun getArguments ()Lviaduct/api/types/Arguments;
 }
 
+public abstract interface annotation class viaduct/api/documents/Selections : java/lang/annotation/Annotation {
+}
+
 public final class viaduct/api/exception/ValueMapperException : java/lang/Exception {
 	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -157,9 +160,6 @@ public final class viaduct/api/select/SelectionSet$NoSelections : viaduct/api/se
 	public fun requestsType (Lviaduct/api/reflect/Type;)Z
 	public fun selectionSetFor (Lviaduct/api/reflect/CompositeField;)Lviaduct/api/select/SelectionSet;
 	public fun selectionSetFor (Lviaduct/api/reflect/Type;)Lviaduct/api/select/SelectionSet;
-}
-
-public abstract interface annotation class viaduct/api/select/Selections : java/lang/annotation/Annotation {
 }
 
 public abstract interface class viaduct/api/types/Arguments : viaduct/api/types/InputLike {

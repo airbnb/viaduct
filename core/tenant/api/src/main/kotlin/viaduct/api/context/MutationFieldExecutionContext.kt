@@ -1,6 +1,6 @@
 package viaduct.api.context
 
-import viaduct.api.select.Selections
+import viaduct.api.documents.Selections
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Mutation
