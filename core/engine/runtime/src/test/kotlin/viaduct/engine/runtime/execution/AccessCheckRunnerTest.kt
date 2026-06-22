@@ -14,6 +14,7 @@ import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import java.util.Locale
 import java.util.function.Supplier
@@ -280,14 +281,16 @@ class AccessCheckRunnerTest {
                 }
                 val params = createMockExecutionParameters(engineExecutionContext)
                 val typeCheckParameters = createMockExecutionParameters(engineExecutionContext)
-                val overrideQueryPlanIndex = QueryPlanIndex.single(createRSS("Foo", "id").id, mockChildPlan)
+                val childPlanRss = createRSS("Foo", "id")
+                val overrideQueryPlanIndex = QueryPlanIndex.single(childPlanRss.id, mockChildPlan)
+                val augmentedQueryPlanIndex = slot<QueryPlanIndex>()
                 every { mockChildPlan.index } returns overrideQueryPlanIndex
                 every { params.field } returns mockk {
                     every { fieldName } returns "testField"
                     every { fieldTypeChildPlans } returns fieldTypeChildPlansFor(fooObjectType to listOf(mockChildPlan))
                 }
                 every { params.queryPlanIndex } returns QueryPlanIndex.empty()
-                every { params.withQueryPlanIndex(overrideQueryPlanIndex) } returns typeCheckParameters
+                every { params.withQueryPlanIndex(capture(augmentedQueryPlanIndex)) } returns typeCheckParameters
                 val fieldResolver = mockk<FieldResolver> {
                     every { launchQueryPlan(any(), any(), any(), any(), any()) } just Runs
                 }
@@ -312,6 +315,7 @@ class AccessCheckRunnerTest {
                 )
 
                 assertSame(CheckerResult.Success, result.await())
+                assertSame(mockChildPlan, augmentedQueryPlanIndex.captured.find(childPlanRss.id))
                 verify {
                     fieldResolver.launchQueryPlan(
                         typeCheckParameters,

@@ -13,7 +13,7 @@ import viaduct.engine.runtime.execution.QueryPlanFactory
 class EngineFactory(
     private val config: EngineConfiguration = EngineConfiguration.default,
     private val dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
-    private val queryPlanFactory: QueryPlanFactory = QueryPlanFactory.Cached(),
+    private val queryPlanFactory: QueryPlanFactory = QueryPlanFactory.Cached(config.meterRegistry),
 ) {
     /**
      * Creates a new Engine instance.

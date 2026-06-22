@@ -1,6 +1,10 @@
 package viaduct.engine.runtime.execution
 
 import com.github.benmanes.caffeine.cache.Caffeine
+import com.github.benmanes.caffeine.cache.RemovalCause
+import com.github.benmanes.caffeine.cache.stats.CacheStats
+import com.github.benmanes.caffeine.cache.stats.ConcurrentStatsCounter
+import com.github.benmanes.caffeine.cache.stats.StatsCounter
 import graphql.language.Argument as GJArgument
 import graphql.language.AstPrinter
 import graphql.language.Directive as GJDirective
@@ -16,13 +20,18 @@ import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLNamedOutputType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLTypeUtil
+import io.micrometer.core.instrument.Gauge
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Timer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.jvm.optionals.getOrNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.future.future
+import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
@@ -205,8 +214,20 @@ interface QueryPlanFactory {
     }
 
     /** Wraps a [QueryPlanFactory] with an instance-scoped async cache. */
-    class Cached(private val underlying: QueryPlanFactory = Default) : QueryPlanFactory {
+    class Cached(
+        private val underlying: QueryPlanFactory = Default,
+        private val stats: QueryPlanFactoryStats = QueryPlanFactoryStats(),
+        maximumSize: Long = DEFAULT_MAXIMUM_SIZE,
+    ) : QueryPlanFactory {
+        constructor(
+            meterRegistry: MeterRegistry?,
+            underlying: QueryPlanFactory = Default,
+            maximumSize: Long = DEFAULT_MAXIMUM_SIZE,
+        ) : this(underlying, QueryPlanFactoryStats(meterRegistry), maximumSize)
+
         companion object {
+            const val DEFAULT_MAXIMUM_SIZE = 10_000L
+
             /**
              * Shared executor for Caffeine async cache population. This is static (companion-scoped)
              * rather than per-[Cached] instance because live threads are GC roots -- a per-instance
@@ -230,9 +251,26 @@ interface QueryPlanFactory {
         )
 
         private val cache = Caffeine.newBuilder()
-            .maximumSize(10_000)
+            .maximumSize(maximumSize)
+            .recordStats { stats }
             .executor(queryPlanBuilderExecutor)
             .buildAsync<CacheKey, QueryPlan>()
+        private val synchronousCache = cache.synchronous()
+
+        init {
+            stats.meterRegistry?.let {
+                Gauge.builder(QueryPlanFactoryStats.CACHE_SIZE_METRIC_NAME, synchronousCache) { cache ->
+                    cache.estimatedSize().toDouble()
+                }.register(it)
+            }
+        }
+
+        @VisibleForTest
+        internal val cacheStats: CacheStats
+            get() {
+                synchronousCache.cleanUp()
+                return synchronousCache.stats()
+            }
 
         /**
          * Global cache for RSS child plans, shared across all top-level plan build passes.
@@ -307,6 +345,103 @@ interface QueryPlanFactory {
                 "RequiredSelectionSet plan build was skipped due to a cycle"
             }
     }
+}
+
+class QueryPlanFactoryStats(
+    internal val meterRegistry: MeterRegistry? = null,
+) : StatsCounter {
+    companion object {
+        const val RESULT_TAG_NAME = "result"
+        private const val CACHE_METRIC_NAME_PREFIX = "viaduct.query_plan.cache"
+        const val CACHE_REQUESTS_METRIC_NAME = "$CACHE_METRIC_NAME_PREFIX.requests"
+        const val CACHE_LOADS_METRIC_NAME = "$CACHE_METRIC_NAME_PREFIX.loads"
+        const val CACHE_LOAD_DURATION_METRIC_NAME = "$CACHE_METRIC_NAME_PREFIX.load_duration"
+        const val CACHE_EVICTIONS_METRIC_NAME = "$CACHE_METRIC_NAME_PREFIX.evictions"
+        const val CACHE_EVICTION_WEIGHT_METRIC_NAME = "$CACHE_METRIC_NAME_PREFIX.eviction_weight"
+        const val CACHE_SIZE_METRIC_NAME = "$CACHE_METRIC_NAME_PREFIX.size"
+    }
+
+    private val delegate = ConcurrentStatsCounter()
+    private val hitCounter = meterRegistry?.counter(
+        CACHE_REQUESTS_METRIC_NAME,
+        RESULT_TAG_NAME,
+        "hit",
+    )
+    private val missCounter = meterRegistry?.counter(
+        CACHE_REQUESTS_METRIC_NAME,
+        RESULT_TAG_NAME,
+        "miss",
+    )
+    private val loadSuccessCounter = meterRegistry?.counter(
+        CACHE_LOADS_METRIC_NAME,
+        RESULT_TAG_NAME,
+        "success",
+    )
+    private val loadFailureCounter = meterRegistry?.counter(
+        CACHE_LOADS_METRIC_NAME,
+        RESULT_TAG_NAME,
+        "failure",
+    )
+    private val loadSuccessTimer = meterRegistry?.let {
+        Timer.builder(CACHE_LOAD_DURATION_METRIC_NAME)
+            .tag(RESULT_TAG_NAME, "success")
+            .register(it)
+    }
+    private val loadFailureTimer = meterRegistry?.let {
+        Timer.builder(CACHE_LOAD_DURATION_METRIC_NAME)
+            .tag(RESULT_TAG_NAME, "failure")
+            .register(it)
+    }
+    private val evictionCounter = meterRegistry?.counter(
+        CACHE_EVICTIONS_METRIC_NAME,
+    )
+    private val evictionWeightCounter = meterRegistry?.counter(
+        CACHE_EVICTION_WEIGHT_METRIC_NAME,
+    )
+
+    override fun recordHits(count: Int) {
+        delegate.recordHits(count)
+        hitCounter?.increment(count.toDouble())
+    }
+
+    override fun recordMisses(count: Int) {
+        delegate.recordMisses(count)
+        missCounter?.increment(count.toDouble())
+    }
+
+    override fun recordLoadSuccess(loadTime: Long) {
+        delegate.recordLoadSuccess(loadTime)
+        loadSuccessCounter?.increment()
+        loadSuccessTimer?.record(loadTime, TimeUnit.NANOSECONDS)
+    }
+
+    override fun recordLoadFailure(loadTime: Long) {
+        delegate.recordLoadFailure(loadTime)
+        loadFailureCounter?.increment()
+        loadFailureTimer?.record(loadTime, TimeUnit.NANOSECONDS)
+    }
+
+    override fun recordEviction() {
+        delegate.recordEviction(1, RemovalCause.SIZE)
+        evictionCounter?.increment()
+    }
+
+    override fun recordEviction(weight: Int) {
+        delegate.recordEviction(weight, RemovalCause.SIZE)
+        evictionCounter?.increment()
+        evictionWeightCounter?.increment(weight.toDouble())
+    }
+
+    override fun recordEviction(
+        weight: Int,
+        cause: RemovalCause,
+    ) {
+        delegate.recordEviction(weight, cause)
+        evictionCounter?.increment()
+        evictionWeightCounter?.increment(weight.toDouble())
+    }
+
+    override fun snapshot(): CacheStats = delegate.snapshot()
 }
 
 /**

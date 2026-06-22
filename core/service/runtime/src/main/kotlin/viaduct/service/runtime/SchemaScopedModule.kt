@@ -138,8 +138,8 @@ internal class SchemaScopedModule(
 
     @Provides
     @Singleton
-    fun providesQueryPlanFactory(): QueryPlanFactory {
-        return QueryPlanFactory.Cached()
+    fun providesQueryPlanFactory(config: EngineConfiguration): QueryPlanFactory {
+        return QueryPlanFactory.Cached(config.meterRegistry)
     }
 
     @Provides

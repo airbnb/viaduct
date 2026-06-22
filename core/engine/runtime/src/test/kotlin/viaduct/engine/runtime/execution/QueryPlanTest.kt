@@ -19,6 +19,7 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -973,6 +974,137 @@ class QueryPlanTest {
     }
 
     @Test
+    fun `QueryPlanFactory_Cached -- maximumSize bounds document plan cache`() {
+        val factory = QueryPlanFactory.Cached(maximumSize = 1)
+        val schema = ViaductSchema("type Query {x:Int}".asSchema)
+        val firstQuery = "{a:x}"
+        val secondQuery = "{b:x}"
+        val firstParams = mkQPParameters(firstQuery, schema)
+        val secondParams = mkQPParameters(secondQuery, schema)
+
+        runExecutionTest {
+            factory.build(firstParams, firstQuery.asDocument)
+            factory.build(secondParams, secondQuery.asDocument)
+            val cacheStats = factory.cacheStats
+
+            assertEquals(1L, cacheStats.evictionCount())
+        }
+    }
+
+    @Test
+    fun `QueryPlanFactory_Cached -- emits cache metrics for document plans`() {
+        val meterRegistry = SimpleMeterRegistry()
+        val factory = QueryPlanFactory.Cached(meterRegistry)
+        val schema = ViaductSchema("type Query {x:Int}".asSchema)
+        val query = "{x}"
+        val params = mkQPParameters(query, schema)
+        val document = query.asDocument
+
+        runExecutionTest {
+            factory.build(params, document)
+            factory.build(params, document)
+
+            assertEquals(
+                1.0,
+                meterRegistry.counterCount(
+                    QueryPlanFactoryStats.CACHE_REQUESTS_METRIC_NAME,
+                    QueryPlanFactoryStats.RESULT_TAG_NAME,
+                    "miss",
+                ),
+            )
+            assertEquals(
+                1.0,
+                meterRegistry.counterCount(
+                    QueryPlanFactoryStats.CACHE_REQUESTS_METRIC_NAME,
+                    QueryPlanFactoryStats.RESULT_TAG_NAME,
+                    "hit",
+                ),
+            )
+            assertEquals(
+                1.0,
+                meterRegistry.counterCount(
+                    QueryPlanFactoryStats.CACHE_LOADS_METRIC_NAME,
+                    QueryPlanFactoryStats.RESULT_TAG_NAME,
+                    "success",
+                ),
+            )
+            assertEquals(
+                0.0,
+                meterRegistry.counterCount(
+                    QueryPlanFactoryStats.CACHE_LOADS_METRIC_NAME,
+                    QueryPlanFactoryStats.RESULT_TAG_NAME,
+                    "failure",
+                ),
+            )
+            assertEquals(
+                1L,
+                meterRegistry.timerCount(
+                    QueryPlanFactoryStats.CACHE_LOAD_DURATION_METRIC_NAME,
+                    QueryPlanFactoryStats.RESULT_TAG_NAME,
+                    "success",
+                ),
+            )
+            assertEquals(1.0, meterRegistry.gaugeValue(QueryPlanFactoryStats.CACHE_SIZE_METRIC_NAME))
+        }
+    }
+
+    @Test
+    fun `QueryPlanFactory_Cached -- emits cache metrics for parsed selection plans`() {
+        val meterRegistry = SimpleMeterRegistry()
+        val factory = QueryPlanFactory.Cached(meterRegistry)
+        val schema = ViaductSchema("type Query {x:Int}".asSchema)
+        val params = mkQPParameters("{x}", schema)
+        val parsedSelections = SelectionsParser.parse("Query", "x")
+
+        runExecutionTest {
+            factory.buildFromParsedSelections(params, parsedSelections)
+            factory.buildFromParsedSelections(params, parsedSelections)
+
+            assertEquals(
+                1.0,
+                meterRegistry.counterCount(
+                    QueryPlanFactoryStats.CACHE_REQUESTS_METRIC_NAME,
+                    QueryPlanFactoryStats.RESULT_TAG_NAME,
+                    "miss",
+                ),
+            )
+            assertEquals(
+                1.0,
+                meterRegistry.counterCount(
+                    QueryPlanFactoryStats.CACHE_REQUESTS_METRIC_NAME,
+                    QueryPlanFactoryStats.RESULT_TAG_NAME,
+                    "hit",
+                ),
+            )
+            assertEquals(
+                1.0,
+                meterRegistry.counterCount(
+                    QueryPlanFactoryStats.CACHE_LOADS_METRIC_NAME,
+                    QueryPlanFactoryStats.RESULT_TAG_NAME,
+                    "success",
+                ),
+            )
+            assertEquals(
+                0.0,
+                meterRegistry.counterCount(
+                    QueryPlanFactoryStats.CACHE_LOADS_METRIC_NAME,
+                    QueryPlanFactoryStats.RESULT_TAG_NAME,
+                    "failure",
+                ),
+            )
+            assertEquals(
+                1L,
+                meterRegistry.timerCount(
+                    QueryPlanFactoryStats.CACHE_LOAD_DURATION_METRIC_NAME,
+                    QueryPlanFactoryStats.RESULT_TAG_NAME,
+                    "success",
+                ),
+            )
+            assertEquals(1.0, meterRegistry.gaugeValue(QueryPlanFactoryStats.CACHE_SIZE_METRIC_NAME))
+        }
+    }
+
+    @Test
     fun `QueryPlanFactory_Default -- does not cache`() {
         val schema = ViaductSchema("type Query {x:Int}".asSchema)
         val params = mkQPParameters("{__typename}", schema)
@@ -1806,6 +1938,40 @@ private fun QueryPlan.planFor(requiredSelectionSetId: RequiredSelectionSet.Id): 
     checkNotNull(index.find(requiredSelectionSetId)) {
         "Missing QueryPlan for RequiredSelectionSet $requiredSelectionSetId"
     }
+
+internal fun SimpleMeterRegistry.counterCount(
+    metricName: String,
+    tagName: String,
+    tagValue: String,
+): Double =
+    checkNotNull(
+        find(metricName)
+            .tag(tagName, tagValue)
+            .counter()
+    ) {
+        "Missing counter $metricName for $tagName=$tagValue"
+    }.count()
+
+internal fun SimpleMeterRegistry.timerCount(
+    metricName: String,
+    tagName: String,
+    tagValue: String,
+): Long =
+    checkNotNull(
+        find(metricName)
+            .tag(tagName, tagValue)
+            .timer()
+    ) {
+        "Missing timer $metricName for $tagName=$tagValue"
+    }.count()
+
+internal fun SimpleMeterRegistry.gaugeValue(metricName: String): Double =
+    checkNotNull(
+        find(metricName)
+            .gauge()
+    ) {
+        "Missing gauge $metricName"
+    }.value()
 
 private fun QueryPlan.eagerChildPlans(): List<QueryPlan> = childPlanIds.map(::planFor)
 
