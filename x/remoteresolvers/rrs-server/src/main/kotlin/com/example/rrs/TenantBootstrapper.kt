@@ -1,63 +1,53 @@
+// runBlocking is suppressed (ForbiddenImport): this is a one-time startup bridge to the engine's
+// suspend bootstrap API, mirroring the engine's own DispatcherRegistryFactory — not request-path use.
+@file:Suppress("ForbiddenImport")
+
 package com.example.rrs
 
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
-import viaduct.apiannotations.ExperimentalApi
+import viaduct.engine.BootstrapperFactory
 import viaduct.engine.SchemaFactory
-import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.NodeResolverExecutor
-import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.remote.registry.ExecutorRegistry
 import viaduct.remote.registry.SchemaRegistry
-import viaduct.service.SchemaScopeInfo
-import viaduct.service.ViaductBuilder
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 
 /**
- * Bootstraps tenant modules locally and registers every discovered node-resolver executor
- * in [ExecutorRegistry] so the RRS gRPC service can dispatch by type name.
+ * Builds node-resolver executors from the tenant-module manifests on the classpath
+ * (`META-INF/viaduct/modules/<pkg>.json`) and registers them in [ExecutorRegistry], so the RRS
+ * gRPC service can dispatch resolves by type name. This is the RFC-249 file-based bootstrap pattern:
+ * executor wiring comes from the manifest entries, not from parsing SDL — so no full `Viaduct`
+ * engine instance is needed just to enumerate resolvers.
+ *
+ * The schema is loaded from `.graphqls` ([SchemaFactory.fromResources]) and published to
+ * [SchemaRegistry] for NETWORK-mode contexts; it also filters which manifest entries are realized.
  */
 class TenantBootstrapper(private val tenantCodeInjector: CodeInjector) {
     private val log = LoggerFactory.getLogger(TenantBootstrapper::class.java)
-    private var registeredCount = 0
-
-    private inner class RegistrationProxyFactory : ProxyResolverFactory {
-        override fun proxyNode(executor: NodeResolverExecutor): NodeResolverExecutor? {
-            ExecutorRegistry.register(executor)
-            log.info("Registered node resolver for type: {}", executor.typeName)
-            registeredCount++
-            return null
-        }
-
-        override fun proxyField(executor: FieldResolverExecutor): FieldResolverExecutor? = null
-    }
 
     /** Returns the number of node resolvers registered. */
-    @OptIn(ExperimentalApi::class)
     fun bootstrap(): Int {
         log.info("Bootstrapping tenant modules")
-        registeredCount = 0
 
-        // Building Viaduct wraps every tenant resolver through the proxy factory at
-        // bootstrap time; RegistrationProxyFactory uses that pass to enumerate and
-        // register the node resolvers. The built instance itself isn't needed here.
-        ViaductBuilder()
-            .withScopedSchemas(listOf(DEFAULT_SCHEMA, EXTRAS_SCHEMA))
-            .withTenantModuleInjectorFactory(SharedTenantModuleInjectorFactory(tenantCodeInjector))
-            .withProxyResolverFactory(RegistrationProxyFactory())
-            .build()
+        // Schema backs NETWORK-mode remote contexts (via SchemaRegistry) and filters which manifest
+        // entries are realized below.
+        val schema = SchemaFactory().fromResources()
+        SchemaRegistry.register(schema)
 
-        // Network-mode contexts have no delegate; publish the schema for them to read.
-        SchemaRegistry.register(SchemaFactory().fromResources())
+        // Build node executors straight from the tenant manifests — no Viaduct engine instance needed.
+        val nodeExecutors = runBlocking {
+            BootstrapperFactory.fromResources(SharedTenantModuleInjectorFactory(tenantCodeInjector))
+                .tenantModuleBootstrappers()
+                .flatMap { it.nodeResolverExecutors(schema) }
+        }
 
-        log.info("Tenant bootstrap complete; registered {} node resolver(s)", registeredCount)
-        return registeredCount
-    }
+        nodeExecutors.forEach { (typeName, executor) ->
+            ExecutorRegistry.register(executor)
+            log.info("Registered node resolver for type: {}", typeName)
+        }
 
-    private companion object {
-        const val DEFAULT_SCOPE_ID = "default"
-        const val EXTRAS_SCOPE_ID = "extras"
-        val DEFAULT_SCHEMA = SchemaScopeInfo("publicSchema", setOf(DEFAULT_SCOPE_ID))
-        val EXTRAS_SCHEMA = SchemaScopeInfo("publicSchemaWithExtras", setOf(DEFAULT_SCOPE_ID, EXTRAS_SCOPE_ID))
+        log.info("Tenant bootstrap complete; registered {} node resolver(s)", nodeExecutors.size)
+        return nodeExecutors.size
     }
 }

@@ -57,7 +57,7 @@ serves the StarWars schema and routes node resolution through the in-process
 proxy by default — no env var needed:
 
 ```bash
-./gradlew :rrp-server:run
+./gradlew :remoteresolvers:rrp-server:run
 ```
 
 When the proxy comes up you'll see these lines in the log:
@@ -92,11 +92,23 @@ Run the RRS in one terminal and rrp-server in another:
 ./gradlew :remoteresolvers:rrs-server:run
 
 # Terminal B
-VIADUCT_REMOTE_RESOLVER_MODE=network ./gradlew :rrp-server:run
+VIADUCT_REMOTE_RESOLVER_MODE=network ./gradlew :remoteresolvers:rrp-server:run
 ```
 
 The same `curl` from the in-process walkthrough returns the same JSON — the
 resolver ran in the RRS process and the result was serialized back over gRPC.
+
+The RRS builds its node resolvers from the tenant-module manifests on its classpath
+(`META-INF/viaduct/modules/<pkg>.json`) via Viaduct's file-based bootstrapper — the
+manifest entries carry the resolver wiring, so no SDL parsing is needed to construct
+the executors (the schema, loaded from `.graphqls`, is used only to validate them).
+Those manifests are generated at build time and bundled in each module jar; inspect
+one with:
+
+```bash
+unzip -p demoapps/starwars/modules/filmography/build/libs/filmography.jar \
+  META-INF/viaduct/modules/com.example.starwars.filmography.json | jq .
+```
 
 ## Limitations
 
