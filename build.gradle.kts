@@ -17,6 +17,15 @@ tasks.named("publishToMavenLocal") {
     dependsOn(gradle.includedBuild("remoteresolvers").task(":publishToMavenLocal"))
 }
 
+// remoteresolvers is a single-module included build, so the orchestration's subproject-fanout
+// aggregates don't reach it. Wire its verification lifecycle into the root so CI's `check`
+// compiles and tests it, enforcing the Kotlin -Werror flip matching the Bazel build's -Werror
+listOf("check", "build", "test").forEach { lifecycle ->
+    tasks.named(lifecycle) {
+        dependsOn(gradle.includedBuild("remoteresolvers").task(":$lifecycle"))
+    }
+}
+
 val sharedFilePairs = listOf(
     "gradle.properties" to "core/gradle.properties",
     "gradle.properties" to "gradle-plugins/gradle.properties",
