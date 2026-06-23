@@ -10,6 +10,7 @@ class ViaductKtlintRuleSetProvider : RuleSetProviderV3(
     override fun getRuleProviders(): Set<RuleProvider> =
         setOf(
             RuleProvider { CoroutinesDependencyUsageRule() },
+            RuleProvider { InvalidDependencyRule() },
             RuleProvider { NoPrintlnInGradleRule() },
             RuleProvider { NoStringDependenciesInGradleRule() },
         )

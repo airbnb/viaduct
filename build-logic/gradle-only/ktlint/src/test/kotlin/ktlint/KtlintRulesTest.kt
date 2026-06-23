@@ -430,4 +430,121 @@ class KtlintRulesTest {
         )
         violations.shouldBeEmpty()
     }
+
+    // --- InvalidDependencyRule ---
+
+    @Test
+    fun `InvalidDependency - flags strikt-core`() {
+        lint(
+            "build.gradle.kts",
+            """
+            dependencies {
+                testImplementation(libs.strikt.core)
+            }
+            """.trimIndent(),
+            InvalidDependencyRule(),
+        )
+        violations.shouldHaveSize(1)
+        violations.first().second.shouldContain("libs.strikt.core")
+    }
+
+    @Test
+    fun `InvalidDependency - flags kotlin-test`() {
+        lint(
+            "build.gradle.kts",
+            """
+            dependencies {
+                testImplementation(libs.kotlin.test)
+            }
+            """.trimIndent(),
+            InvalidDependencyRule(),
+        )
+        violations.shouldHaveSize(1)
+        violations.first().second.shouldContain("libs.kotlin.test")
+    }
+
+    @Test
+    fun `InvalidDependency - flags guava-testlib`() {
+        lint(
+            "build.gradle.kts",
+            """
+            dependencies {
+                testImplementation(libs.guava.testlib)
+            }
+            """.trimIndent(),
+            InvalidDependencyRule(),
+        )
+        violations.shouldHaveSize(1)
+        violations.first().second.shouldContain("libs.guava.testlib")
+    }
+
+    @Test
+    fun `InvalidDependency - error message references testing-guidance`() {
+        lint(
+            "build.gradle.kts",
+            """
+            dependencies {
+                testImplementation(libs.strikt.core)
+            }
+            """.trimIndent(),
+            InvalidDependencyRule(),
+        )
+        violations.first().second.shouldContain("testing-guidance.md")
+    }
+
+    @Test
+    fun `InvalidDependency - allows kotest`() {
+        lint(
+            "build.gradle.kts",
+            """
+            dependencies {
+                testImplementation(libs.kotest.assertions.core.jvm)
+            }
+            """.trimIndent(),
+            InvalidDependencyRule(),
+        )
+        violations.shouldBeEmpty()
+    }
+
+    @Test
+    fun `InvalidDependency - allows junit`() {
+        lint(
+            "build.gradle.kts",
+            """
+            dependencies {
+                testImplementation(libs.junit)
+            }
+            """.trimIndent(),
+            InvalidDependencyRule(),
+        )
+        violations.shouldBeEmpty()
+    }
+
+    @Test
+    fun `InvalidDependency - ignores regular kt files`() {
+        lint(
+            "Build.kt",
+            """
+            dependencies {
+                testImplementation(libs.strikt.core)
+            }
+            """.trimIndent(),
+            InvalidDependencyRule(),
+        )
+        violations.shouldBeEmpty()
+    }
+
+    @Test
+    fun `InvalidDependency - flags forbidden lib in implementation scope`() {
+        lint(
+            "build.gradle.kts",
+            """
+            dependencies {
+                implementation(libs.kotlin.test)
+            }
+            """.trimIndent(),
+            InvalidDependencyRule(),
+        )
+        violations.shouldHaveSize(1)
+    }
 }
