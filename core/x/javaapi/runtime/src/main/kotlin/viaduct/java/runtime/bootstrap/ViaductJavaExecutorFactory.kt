@@ -2,7 +2,6 @@ package viaduct.java.runtime.bootstrap
 
 import java.lang.reflect.Method
 import java.lang.reflect.ParameterizedType
-import java.net.URL
 import java.util.IdentityHashMap
 import java.util.concurrent.CompletableFuture
 import javax.inject.Provider
@@ -26,6 +25,7 @@ import viaduct.java.runtime.bridge.JavaNodeResolverExecutorImpl
 import viaduct.java.runtime.bridge.NodeBatchResolverExecutorImpl
 import viaduct.java.runtime.bridge.RequiredSelectionSetFactory
 import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.InputStreamSource
 
 /**
  * [ExecutorFactory] for Java resolvers, built from a file-based [ExecutionRegistry].
@@ -33,7 +33,7 @@ import viaduct.service.api.spi.CodeInjector
  * This is the Java twin of [viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory]. The
  * engine (via [viaduct.engine.runtime.tenantloading.ExecutionRegistryTenantAPIBootstrapper])
  * instantiates this class reflectively using the 3-arg constructor
- * `(CodeInjector, String grtPackagePrefix, URL configUrl)` named in each
+ * `(CodeInjector, String grtPackagePrefix, InputStreamSource configSource)` named in each
  * `META-INF/viaduct/modules/<pkg>.json` registry file, then calls
  * [createFieldResolverExecutor] / [createNodeResolverExecutor] once per entry.
  *
@@ -51,7 +51,7 @@ import viaduct.service.api.spi.CodeInjector
 class ViaductJavaExecutorFactory(
     private val codeInjector: CodeInjector,
     private val grtPackagePrefix: String,
-    @Suppress("UNUSED_PARAMETER") configUrl: URL,
+    @Suppress("UNUSED_PARAMETER") configSource: InputStreamSource,
 ) : ExecutorFactory {
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory()
 

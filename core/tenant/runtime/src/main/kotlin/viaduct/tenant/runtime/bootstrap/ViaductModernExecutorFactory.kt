@@ -1,6 +1,5 @@
 package viaduct.tenant.runtime.bootstrap
 
-import java.net.URL
 import kotlin.reflect.KClass
 import kotlin.reflect.full.declaredMemberFunctions
 import viaduct.api.NodeResolverBase
@@ -25,6 +24,7 @@ import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.InputStreamSource
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 import viaduct.tenant.runtime.execution.FieldBatchResolverExecutorImpl
@@ -37,10 +37,10 @@ import viaduct.utils.slf4j.logger
 class ViaductModernExecutorFactory(
     private val codeInjector: CodeInjector,
     private val grtPackagePrefix: String,
-    @Suppress("UNUSED_PARAMETER") configUrl: URL,
+    @Suppress("UNUSED_PARAMETER") configSource: InputStreamSource,
 ) : ExecutorFactory {
     /** Production constructor — GRT package sourced from the compile-time constant. */
-    constructor(codeInjector: CodeInjector, configUrl: URL) : this(codeInjector, GRT_PACKAGE_PREFIX, configUrl)
+    constructor(codeInjector: CodeInjector, configSource: InputStreamSource) : this(codeInjector, GRT_PACKAGE_PREFIX, configSource)
 
     private val grtConvFactory = DefaultGRTConvFactory
     private val reflectionLoader = ReflectionLoaderImpl { name ->

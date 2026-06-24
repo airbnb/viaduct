@@ -2,7 +2,6 @@ package viaduct.engine.runtime.tenantloading
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import java.net.URL
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -11,15 +10,16 @@ import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.InputStreamSource
 import viaduct.service.api.spi.TenantModuleInjectorFactory
 import viaduct.utils.slf4j.logger
 
 /**
  * Engine-owned bootstrapper that creates [TenantModuleBootstrapper]s from a pre-collected list
- * of registry JSON [URL]s.
+ * of registry JSON [InputStreamSource]s.
  *
- * For each URL, deserializes the [ExecutionRegistryConfigFile], instantiates the [ExecutorFactory] FQN
- * via the 2-arg constructor (CodeInjector, configUrl), and creates executors
+ * For each source, deserializes the [ExecutionRegistryConfigFile], instantiates the [ExecutorFactory] FQN
+ * via the 2-arg constructor (CodeInjector, configSource), and creates executors
  * for each entry in the registry.
  *
  * The framework calls [tenantModuleInjectorFactory] once per tenant with the tenant name and the
@@ -29,29 +29,32 @@ import viaduct.utils.slf4j.logger
  * Registry reads and executor factory construction are concurrent; bootstrapping is
  * intentionally sequential to keep the [TenantModuleInjectorFactory] contract simple.
  *
- * Classpath scanning and URL filtering are the responsibility of the caller — see
- * [viaduct.engine.BootstrapperFactory] in engine/wiring.
+ * If [executorRegistryConfigSources] is null, registry resources are discovered from
+ * `META-INF/viaduct/modules` on the current classpath for compatibility with the original
+ * file-based bootstrap path.
  */
 class ExecutionRegistryTenantAPIBootstrapper(
-    private val registryUrls: List<URL>,
     private val tenantModuleInjectorFactory: TenantModuleInjectorFactory,
+    private val executorRegistryConfigSources: List<InputStreamSource>? = null,
     private val grtPackagePrefix: String? = null,
 ) : TenantAPIBootstrapper {
     override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> {
-        if (registryUrls.isEmpty()) {
+        val configSources = executorRegistryConfigSources
+            ?: ExecutionRegistryConfigSourceCollector.fromResources()
+
+        if (configSources.isEmpty()) {
             log.warn("No registry files provided to ExecutionRegistryTenantAPIBootstrapper")
         }
 
         val parsedRegistries = coroutineScope {
-            registryUrls.map { url ->
+            configSources.map { source ->
                 async {
-                    val registry = url.openStream().use { objectMapper.readValue<ExecutionRegistryConfigFile>(it) }
-                    // TODO: add tenantName to ExecutionRegistryConfigFile itself so we do not recover it from the file name.
-                    // https://app.asana.com/1/150975571430/project/1207604899751448/task/1214588083266279?focus=true
+                    val registry = source.openStream().use { objectMapper.readValue<ExecutionRegistryConfigFile>(it) }
                     ParsedRegistry(
                         registry = registry,
-                        configUrl = url,
-                        tenantName = url.file.substringAfterLast('/').removeSuffix(".json"),
+                        configSource = source,
+                        tenantName = registry.tenantName
+                            ?: throw IllegalArgumentException("Execution registry config source must include tenantName: $source"),
                         bootstrapClass = registry.bootstrapClass?.let { Class.forName(it) },
                     )
                 }
@@ -74,7 +77,7 @@ class ExecutionRegistryTenantAPIBootstrapper(
                 async {
                     val executorFactory = instantiateExecutorFactory(
                         fqn = parsedRegistry.registry.executorFactory,
-                        configUrl = parsedRegistry.configUrl,
+                        configSource = parsedRegistry.configSource,
                         codeInjector = codeInjector,
                     )
                     ExecutionRegistryTenantModuleBootstrapper(parsedRegistry.registry, executorFactory)
@@ -85,7 +88,7 @@ class ExecutionRegistryTenantAPIBootstrapper(
 
     private fun instantiateExecutorFactory(
         fqn: String,
-        configUrl: URL,
+        configSource: InputStreamSource,
         codeInjector: CodeInjector,
     ): ExecutorFactory {
         val clazz = Class.forName(fqn)
@@ -97,15 +100,15 @@ class ExecutionRegistryTenantAPIBootstrapper(
             val ctor = clazz.getDeclaredConstructor(
                 CodeInjector::class.java,
                 String::class.java,
-                URL::class.java,
+                InputStreamSource::class.java,
             )
-            ctor.newInstance(codeInjector, grtPackagePrefix, configUrl) as ExecutorFactory
+            ctor.newInstance(codeInjector, grtPackagePrefix, configSource) as ExecutorFactory
         } else {
             val ctor = clazz.getDeclaredConstructor(
                 CodeInjector::class.java,
-                URL::class.java,
+                InputStreamSource::class.java,
             )
-            ctor.newInstance(codeInjector, configUrl) as ExecutorFactory
+            ctor.newInstance(codeInjector, configSource) as ExecutorFactory
         }
     }
 
@@ -117,7 +120,7 @@ class ExecutionRegistryTenantAPIBootstrapper(
 
 private data class ParsedRegistry(
     val registry: ExecutionRegistryConfigFile,
-    val configUrl: URL,
+    val configSource: InputStreamSource,
     val tenantName: String,
     val bootstrapClass: Class<*>?,
 )

@@ -6,7 +6,7 @@ import viaduct.apiannotations.StableApi
  * SPI for service engineers to provide per-tenant code injection.
  *
  * The framework calls [bootstrap] once per tenant module during startup, sequentially and
- * never concurrently, passing the tenant's name and the bootstrap class declared in the
+ * never concurrently, passing the tenant module name and the bootstrap class declared in the
  * tenant's config file (or `null` if no bootstrap class is present). After all bootstrap calls
  * complete successfully, the framework calls [finalize] exactly once. The returned
  * [CodeInjector]s are not used until [finalize] has completed.
@@ -16,7 +16,7 @@ interface TenantModuleInjectorFactory {
     /**
      * Called once per tenant during bootstrapping.
      *
-     * @param tenantName The name (package) of the tenant being bootstrapped.
+     * @param tenantName The slash-separated module name of the tenant being bootstrapped.
      * @param tenantBootstrapClass The class declared via `@TenantBootstrapper` in the tenant's
      *   config file, already loaded by the framework. `null` if the tenant has no bootstrap class.
      *   The returned [CodeInjector] will not be used until after [finalize] completes successfully.

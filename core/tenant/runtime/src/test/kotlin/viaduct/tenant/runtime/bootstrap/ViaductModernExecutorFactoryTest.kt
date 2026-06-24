@@ -1,6 +1,5 @@
 package viaduct.tenant.runtime.bootstrap
 
-import java.net.URI
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.FieldValue
@@ -25,6 +24,7 @@ import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.InputStreamSource
 
 @Suppress("USELESS_IS_CHECK", "UNCHECKED_CAST")
 class ViaductModernExecutorFactoryTest {
@@ -90,7 +90,7 @@ class ViaductModernExecutorFactoryTest {
         ViaductModernExecutorFactory(
             codeInjector = CodeInjector.Naive,
             grtPackagePrefix = "viaduct.api.bootstrap.test.grts",
-            configUrl = URI("file:///dev/null").toURL(),
+            configSource = InputStreamSource.fromString("{}", name = "test"),
         )
 
     private fun fieldEntry(

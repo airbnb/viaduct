@@ -41,6 +41,7 @@ class AssembleTenantModuleConfigJarTest {
     private fun runCli(
         jars: List<File>,
         tenantPkg: String = "com.example.feature",
+        tenantPackagePrefix: String? = "com.example",
         out: File = outputJar(),
         requireNonEmpty: Boolean = false,
     ) {
@@ -52,6 +53,9 @@ class AssembleTenantModuleConfigJarTest {
             "--output-jar",
             out.absolutePath,
         )
+        if (tenantPackagePrefix != null) {
+            args += listOf("--tenant-package-prefix", tenantPackagePrefix)
+        }
         if (requireNonEmpty) {
             args += "--require-non-empty"
         }
@@ -115,8 +119,25 @@ class AssembleTenantModuleConfigJarTest {
         assertNotNull(json)
         assertTrue(json!!.contains("\"version\""), json)
         assertTrue(json.contains("\"executorFactory\""), json)
+        assertTrue(json.contains("\"tenantName\""), json)
+        assertTrue(json.contains("feature"), json)
         assertTrue(json.contains("\"nodes\""), json)
         assertTrue(json.contains("\"fields\""), json)
+    }
+
+    @Test
+    fun `writes slash separated tenant module name derived from package prefix`() {
+        val out = outputJar()
+        runCli(
+            jars = emptyList(),
+            tenantPkg = "com.example.presentation.pdp.stays",
+            tenantPackagePrefix = "com.example",
+            out = out,
+        )
+
+        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.presentation.pdp.stays.json")
+        assertNotNull(json)
+        assertTrue(json!!.contains("\"tenantName\" : \"presentation/pdp/stays\""), json)
     }
 
     @Test

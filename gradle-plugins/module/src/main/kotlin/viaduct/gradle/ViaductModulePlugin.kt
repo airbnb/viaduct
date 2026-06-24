@@ -149,7 +149,10 @@ class ViaductModulePlugin : Plugin<Project> {
                     ?.findByType(ViaductApplicationExtension::class.java)
                 if (appExt != null) {
                     val pkg = computeTenantPackage(moduleExt, appExt)
-                    assembleTask.configure { tenantPackage.set(pkg) }
+                    assembleTask.configure {
+                        tenantPackage.set(pkg)
+                        tenantPackagePrefix.set(appExt.modulePackagePrefix)
+                    }
                 }
                 validateKspConfiguration()
             }

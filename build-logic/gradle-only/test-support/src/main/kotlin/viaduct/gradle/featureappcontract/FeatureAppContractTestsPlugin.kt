@@ -234,7 +234,7 @@ class FeatureAppContractTestsPlugin : Plugin<Project> {
             // Wire generated resolver base sources to the test source set
             java.srcDir(codegenTask.flatMap { it.tenantOutputDir })
             // Wire the assembled registry config into test resources so it lands on the test
-            // classpath, where BootstrapperFactory.fromResources discovers it.
+            // classpath, where ExecutionRegistryConfigSourceCollector discovers it.
             resources.srcDir(assembleTask.flatMap { it.outputDir })
         }
     }

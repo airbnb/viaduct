@@ -11,7 +11,6 @@ import graphql.schema.idl.UnExecutableSchemaGenerator
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
-import java.net.URL
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
@@ -38,6 +37,7 @@ import viaduct.service.api.SchemaId
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.InputStreamSource
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 import viaduct.service.api.spi.TenantModuleInjectorFactory
 
@@ -360,7 +360,7 @@ private class RecordingFinalizingTenantModuleInjectorFactory : TenantModuleInjec
 
 class GeneratedRegistryTestExecutorFactory(
     @Suppress("UNUSED_PARAMETER") injector: CodeInjector,
-    @Suppress("UNUSED_PARAMETER") configUrl: URL,
+    @Suppress("UNUSED_PARAMETER") configSource: InputStreamSource,
 ) : ExecutorFactory {
     override fun createFieldResolverExecutor(
         configData: FieldEntryConfig,

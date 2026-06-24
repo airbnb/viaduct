@@ -10,7 +10,6 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
-import java.net.URI
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -39,6 +38,7 @@ import viaduct.java.api.types.CompositeOutput
 import viaduct.java.api.types.NodeObject
 import viaduct.java.api.types.Query
 import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.InputStreamSource
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 /**
@@ -74,7 +74,7 @@ class ViaductJavaExecutorFactoryTest {
         ViaductJavaExecutorFactory(
             codeInjector = CodeInjector.Naive,
             grtPackagePrefix = "viaduct.java.api.grts.nonexistent",
-            configUrl = URI.create("file:///dev/null").toURL(),
+            configSource = InputStreamSource.fromString("{}", name = "test"),
         )
 
     // ── Test fixtures ───────────────────────────────────────────────────────

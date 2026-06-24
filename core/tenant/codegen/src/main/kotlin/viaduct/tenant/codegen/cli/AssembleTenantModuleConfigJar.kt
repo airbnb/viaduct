@@ -25,6 +25,8 @@ class AssembleTenantModuleConfigJar : CliktCommand(
     private val tenantPackage: String by option("--tenant-package")
         .required()
 
+    private val tenantPackagePrefix: String? by option("--tenant-package-prefix")
+
     private val schemaSdl: File? by option("--schema-sdl")
         .file(mustExist = true, canBeDir = false)
 
@@ -65,6 +67,7 @@ class AssembleTenantModuleConfigJar : CliktCommand(
                 descriptorJsons = descriptorJsons,
                 executorFactory = executorFactory,
                 tenantPackage = tenantPackage,
+                tenantPackagePrefix = tenantPackagePrefix,
                 schemaSdl = schemaSdl?.readText(),
                 outputDir = outputDir,
             )

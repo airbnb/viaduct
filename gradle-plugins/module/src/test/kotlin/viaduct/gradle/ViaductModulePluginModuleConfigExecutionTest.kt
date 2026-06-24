@@ -45,6 +45,7 @@ class ViaductModulePluginModuleConfigExecutionTest {
         assertFalse(authorDescriptor.exists(), "Did not expect author descriptor before its source file exists")
         assertTrue(moduleConfigFile.exists(), "Expected module config JSON to exist after initial build")
         moduleConfigFile.readText() shouldContain "GreetingResolver"
+        moduleConfigFile.readText() shouldContain "\"tenantName\" : \"resolvers\""
         assertFalse(
             moduleConfigFile.readText().contains("AuthorResolver"),
             "Did not expect author resolver in module config before its source file exists",

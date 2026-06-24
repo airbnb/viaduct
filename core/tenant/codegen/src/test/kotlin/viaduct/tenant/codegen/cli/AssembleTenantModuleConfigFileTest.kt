@@ -18,6 +18,7 @@ class AssembleTenantModuleConfigFileTest {
     private fun runCli(
         descriptors: File = descriptorDir(),
         tenantPkg: String = "com.example.feature",
+        tenantPackagePrefix: String? = "com.example",
         executorFactory: String = "com.example.feature.ExampleExecutorFactory",
         out: File = outputDir(),
         schemaSdl: File? = null,
@@ -32,6 +33,9 @@ class AssembleTenantModuleConfigFileTest {
             "--output-dir",
             out.absolutePath,
         )
+        if (tenantPackagePrefix != null) {
+            args += listOf("--tenant-package-prefix", tenantPackagePrefix)
+        }
         if (schemaSdl != null) {
             args += listOf("--schema-sdl", schemaSdl.absolutePath)
         }
@@ -76,6 +80,21 @@ class AssembleTenantModuleConfigFileTest {
         val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
         assertTrue(json.contains("\"version\""), json)
         assertTrue(json.contains("\"executorFactory\""), json)
+        assertTrue(json.contains("\"tenantName\""), json)
+        assertTrue(json.contains("feature"), json)
+    }
+
+    @Test
+    fun `output JSON contains slash separated tenant module name derived from package prefix`() {
+        val out = outputDir()
+        runCli(
+            tenantPkg = "com.example.presentation.pdp.stays",
+            tenantPackagePrefix = "com.example",
+            out = out,
+        )
+
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.presentation.pdp.stays.json").readText()
+        assertTrue(json.contains("\"tenantName\" : \"presentation/pdp/stays\""), json)
     }
 
     @Test

@@ -34,6 +34,7 @@ import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
 import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
+import viaduct.engine.runtime.tenantloading.ExecutionRegistryConfigSourceCollector
 import viaduct.engine.runtime.tenantloading.MissingResolversException
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
 import viaduct.service.api.ExecutionInput
@@ -337,7 +338,14 @@ class StandardViaduct
                 val tenantBootstrappers = buildList {
                     // Generated registry resources are a static baseline. Builder-supplied bootstrappers
                     // may be hotswap-aware and should be able to override stale generated metadata.
-                    tenantModuleInjectorFactory?.let { add(BootstrapperFactory.fromResources(it)) }
+                    tenantModuleInjectorFactory?.let { injectorFactory ->
+                        add(
+                            BootstrapperFactory.fromConfigSources(
+                                injectorFactory,
+                                ExecutionRegistryConfigSourceCollector.fromResources(),
+                            )
+                        )
+                    }
                     addAll(tenantAPIBootstrapperBuilders.map { it.create() })
                     if (defaultQueryNodeResolversEnabled) {
                         add(ViaductBuiltInResolversBootstrapper.Builder().create())

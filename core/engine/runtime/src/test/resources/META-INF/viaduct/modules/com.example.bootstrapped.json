@@ -1,5 +1,6 @@
 {
   "version" : "1",
+  "tenantName" : "bootstrapped",
   "executorFactory" : "viaduct.engine.runtime.tenantloading.TestExecutorFactory",
   "bootstrapClass" : "viaduct.engine.runtime.tenantloading.TestBootstrapClass",
   "nodes" : [ ],

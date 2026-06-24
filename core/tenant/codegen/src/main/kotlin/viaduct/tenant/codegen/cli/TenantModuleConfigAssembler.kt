@@ -39,6 +39,7 @@ internal object TenantModuleConfigAssembler {
         descriptorJsons: List<String>,
         executorFactory: String,
         tenantPackage: String,
+        tenantPackagePrefix: String? = null,
         outputDir: File,
         schemaSdl: String? = null,
     ) {
@@ -46,6 +47,7 @@ internal object TenantModuleConfigAssembler {
             descriptors = descriptorJsons.map(codec::decode),
             executorFactory = executorFactory,
             tenantPackage = tenantPackage,
+            tenantPackagePrefix = tenantPackagePrefix,
             outputDir = outputDir,
             schemaSdl = schemaSdl,
         )
@@ -55,6 +57,7 @@ internal object TenantModuleConfigAssembler {
         descriptors: List<ResolverDescriptorFile>,
         executorFactory: String,
         tenantPackage: String,
+        tenantPackagePrefix: String?,
         outputDir: File,
         schemaSdl: String? = null,
     ) {
@@ -81,6 +84,8 @@ internal object TenantModuleConfigAssembler {
             outputFile,
             buildExecutionRegistry(
                 executorFactory = executorFactory,
+                tenantPackage = tenantPackage,
+                tenantPackagePrefix = tenantPackagePrefix,
                 descriptors = descriptors,
                 fragmentsByName = fragmentsByName,
                 bootstrapClass = bootstrapClasses.singleOrNull(),
@@ -182,6 +187,8 @@ internal object TenantModuleConfigAssembler {
 
     private fun buildExecutionRegistry(
         executorFactory: String,
+        tenantPackage: String,
+        tenantPackagePrefix: String?,
         descriptors: List<ResolverDescriptorFile>,
         fragmentsByName: Map<String, String>,
         bootstrapClass: String?,
@@ -220,11 +227,27 @@ internal object TenantModuleConfigAssembler {
 
         return ExecutionRegistryConfigFile(
             version = REGISTRY_VERSION,
+            tenantName = tenantModuleNameFromPackage(tenantPackage, tenantPackagePrefix),
             executorFactory = executorFactory,
             nodes = nodes,
             fields = fields,
             bootstrapClass = bootstrapClass,
         )
+    }
+
+    internal fun tenantModuleNameFromPackage(
+        tenantPackage: String,
+        tenantPackagePrefix: String?,
+    ): String {
+        val packageName = tenantPackage.trim('.')
+        val prefix = tenantPackagePrefix?.trim('.')?.takeIf(String::isNotBlank)
+            ?: return packageName.replace('.', '/')
+
+        if (packageName != prefix && !packageName.startsWith("$prefix.")) {
+            return packageName.replace('.', '/')
+        }
+
+        return packageName.removePrefix(prefix).removePrefix(".").replace('.', '/')
     }
 
     /**

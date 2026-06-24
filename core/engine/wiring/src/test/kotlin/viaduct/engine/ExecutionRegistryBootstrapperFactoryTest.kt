@@ -1,6 +1,5 @@
 package viaduct.engine
 
-import java.net.URL
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
@@ -11,7 +10,9 @@ import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.runtime.tenantloading.ExecutionRegistryConfigSourceCollector
 import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.InputStreamSource
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 
 class ExecutionRegistryBootstrapperFactoryTest {
@@ -20,7 +21,10 @@ class ExecutionRegistryBootstrapperFactoryTest {
     @Test
     fun `no prefix loads all registry files`() =
         runTest {
-            val bootstrapper = BootstrapperFactory.fromResources(SharedTenantModuleInjectorFactory(injector))
+            val bootstrapper = BootstrapperFactory.fromConfigSources(
+                tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
+                executorRegistryConfigSources = ExecutionRegistryConfigSourceCollector.fromResources(),
+            )
             val count = bootstrapper.tenantModuleBootstrappers().toList().size
             assert(count >= 3) { "Expected at least 3 bootstrappers (alpha, beta, gamma), got $count" }
         }
@@ -28,9 +32,9 @@ class ExecutionRegistryBootstrapperFactoryTest {
     @Test
     fun `prefix com-example loads only matching files`() =
         runTest {
-            val bootstrapper = BootstrapperFactory.fromResources(
+            val bootstrapper = BootstrapperFactory.fromConfigSources(
                 tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
-                packagePrefix = "com.example",
+                executorRegistryConfigSources = ExecutionRegistryConfigSourceCollector.fromResources("com.example"),
             )
             assertEquals(2, bootstrapper.tenantModuleBootstrappers().toList().size)
         }
@@ -38,9 +42,9 @@ class ExecutionRegistryBootstrapperFactoryTest {
     @Test
     fun `prefix com-example-alpha loads only the exact matching file`() =
         runTest {
-            val bootstrapper = BootstrapperFactory.fromResources(
+            val bootstrapper = BootstrapperFactory.fromConfigSources(
                 tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
-                packagePrefix = "com.example.alpha",
+                executorRegistryConfigSources = ExecutionRegistryConfigSourceCollector.fromResources("com.example.alpha"),
             )
             assertEquals(1, bootstrapper.tenantModuleBootstrappers().toList().size)
         }
@@ -48,11 +52,35 @@ class ExecutionRegistryBootstrapperFactoryTest {
     @Test
     fun `non-matching prefix returns empty bootstrapper`() =
         runTest {
-            val bootstrapper = BootstrapperFactory.fromResources(
+            val bootstrapper = BootstrapperFactory.fromConfigSources(
                 tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
-                packagePrefix = "com.nomatch",
+                executorRegistryConfigSources = ExecutionRegistryConfigSourceCollector.fromResources("com.nomatch"),
             )
             assertEquals(0, bootstrapper.tenantModuleBootstrappers().toList().size)
+        }
+
+    @Test
+    fun `explicit config sources are used instead of resource discovery`() =
+        runTest {
+            val bootstrapper = BootstrapperFactory.fromConfigSources(
+                tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
+                executorRegistryConfigSources = listOf(
+                    InputStreamSource.fromString(
+                        """
+                            {
+                              "version": "1",
+                              "tenantName": "inline",
+                              "executorFactory": "viaduct.engine.WiringTestExecutorFactory",
+                              "nodes": [],
+                              "fields": []
+                            }
+                        """.trimIndent(),
+                        name = "com.example.inline",
+                    ),
+                ),
+            )
+
+            assertEquals(1, bootstrapper.tenantModuleBootstrappers().toList().size)
         }
 
     @Test
@@ -64,9 +92,9 @@ class ExecutionRegistryBootstrapperFactoryTest {
 
             WiringTestExecutorFactory.lastInjector = null
 
-            val bootstrapper = BootstrapperFactory.fromResources(
+            val bootstrapper = BootstrapperFactory.fromConfigSources(
                 tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(customInjector),
-                packagePrefix = "com.example.alpha",
+                executorRegistryConfigSources = ExecutionRegistryConfigSourceCollector.fromResources("com.example.alpha"),
             )
 
             bootstrapper.tenantModuleBootstrappers()
@@ -77,7 +105,7 @@ class ExecutionRegistryBootstrapperFactoryTest {
 
 class WiringTestExecutorFactory(
     injector: CodeInjector,
-    @Suppress("UNUSED_PARAMETER") configUrl: URL,
+    @Suppress("UNUSED_PARAMETER") configSource: InputStreamSource,
 ) : ExecutorFactory {
     init {
         lastInjector = injector

@@ -178,6 +178,15 @@ public abstract interface class viaduct/service/api/spi/GlobalIDCodec {
 	public abstract fun serialize (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
 }
 
+public abstract interface class viaduct/service/api/spi/InputStreamSource {
+	public static final field Companion Lviaduct/service/api/spi/InputStreamSource$Companion;
+	public static fun fromFile (Ljava/io/File;)Lviaduct/service/api/spi/InputStreamSource;
+	public static fun fromString (Ljava/lang/String;Ljava/lang/String;)Lviaduct/service/api/spi/InputStreamSource;
+	public static fun fromString (Ljava/lang/String;Ljava/lang/String;Ljava/nio/charset/Charset;)Lviaduct/service/api/spi/InputStreamSource;
+	public static fun fromUrl (Ljava/net/URL;)Lviaduct/service/api/spi/InputStreamSource;
+	public abstract fun openStream ()Ljava/io/InputStream;
+}
+
 public final class viaduct/service/api/spi/NaiveCodeInjector : viaduct/service/api/spi/CodeInjector {
 	public fun <init> ()V
 	public fun getProvider (Ljava/lang/Class;)Ljavax/inject/Provider;

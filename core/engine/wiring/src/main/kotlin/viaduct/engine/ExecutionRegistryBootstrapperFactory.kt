@@ -1,57 +1,29 @@
+@file:Suppress("MatchingDeclarationName")
+
 package viaduct.engine
 
-import io.github.classgraph.ClassGraph
-import java.net.URL
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryTenantAPIBootstrapper
+import viaduct.service.api.spi.InputStreamSource
 import viaduct.service.api.spi.TenantModuleInjectorFactory
 
-private const val REGISTRY_RESOURCE_PATH = "META-INF/viaduct/modules"
-
 /**
- * Contains factory methods to create [TenantAPIBootstrapper] instances by various strategies.
+ * Contains factory methods to create [TenantAPIBootstrapper] instances from execution registry config sources.
  */
 object BootstrapperFactory {
     /**
-     * Returns a bootstrapper that loads all tenant module registry files from the classpath.
-     */
-    fun fromResources(tenantModuleInjectorFactory: TenantModuleInjectorFactory): TenantAPIBootstrapper =
-        ExecutionRegistryTenantAPIBootstrapper(
-            registryUrls = collectRegistryUrls(packagePrefix = null),
-            tenantModuleInjectorFactory = tenantModuleInjectorFactory,
-        )
-
-    /**
-     * Test-only variant that scopes discovery to JSON files whose name starts with [packagePrefix].
-     *
-     * Use this in tests where multiple unrelated module JSONs share the same classpath — loading
-     * all of them would fail because their resolvers reference types not present in the test schema.
-     *
      * Pass [grtPackagePrefix] to override the GRT package used by the executor factory, allowing
      * tenant implementations to decouple from the production default (e.g. contract tests generate
      * GRTs into the tenant package rather than the production constant).
      */
-    fun fromResources(
+    fun fromConfigSources(
         tenantModuleInjectorFactory: TenantModuleInjectorFactory,
-        packagePrefix: String,
+        executorRegistryConfigSources: List<InputStreamSource>,
         grtPackagePrefix: String? = null,
     ): TenantAPIBootstrapper =
         ExecutionRegistryTenantAPIBootstrapper(
             tenantModuleInjectorFactory = tenantModuleInjectorFactory,
-            registryUrls = collectRegistryUrls(packagePrefix = packagePrefix),
+            executorRegistryConfigSources = executorRegistryConfigSources,
             grtPackagePrefix = grtPackagePrefix,
         )
-
-    private fun collectRegistryUrls(packagePrefix: String?): List<URL> {
-        val pattern = if (packagePrefix != null) {
-            Regex("$REGISTRY_RESOURCE_PATH/${Regex.escape(packagePrefix)}.*\\.json").toPattern()
-        } else {
-            Regex("$REGISTRY_RESOURCE_PATH/.*\\.json").toPattern()
-        }
-
-        return ClassGraph()
-            .acceptPaths(REGISTRY_RESOURCE_PATH)
-            .scan()
-            .use { result -> result.getResourcesMatchingPattern(pattern).map { it.url } }
-    }
 }

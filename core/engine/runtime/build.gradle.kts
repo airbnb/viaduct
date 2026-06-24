@@ -20,6 +20,7 @@ dependencies {
     implementation(libs.jackson.module)
     implementation(libs.javax.inject)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.classgraph)
 
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.shared.apiannotations)

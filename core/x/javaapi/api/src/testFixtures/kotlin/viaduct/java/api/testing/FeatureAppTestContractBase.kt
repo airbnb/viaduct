@@ -5,6 +5,7 @@ package viaduct.java.api.testing
 import viaduct.api.testing.featureapp.AbstractFeatureAppTestContractBase
 import viaduct.engine.BootstrapperFactory
 import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
+import viaduct.engine.runtime.tenantloading.ExecutionRegistryConfigSourceCollector
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 
@@ -13,9 +14,9 @@ import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
  *
  * Provides the Java-specific bootstrapper wiring using the file-based execution registry: the Java
  * registry-extractor annotation processor emits `META-INF/viaduct/modules/<pkg>.json` at build
- * time, and [BootstrapperFactory.fromResources] discovers it on the test classpath and instantiates
- * the [viaduct.java.runtime.bootstrap.ViaductJavaExecutorFactory] recorded in it. This mirrors the
- * Kotlin `KotlinFeatureAppTestContractBase`.
+ * time, and [ExecutionRegistryConfigSourceCollector] discovers it on the test classpath. The
+ * resulting bootstrapper instantiates the [viaduct.java.runtime.bootstrap.ViaductJavaExecutorFactory]
+ * recorded in it. This mirrors the Kotlin `KotlinFeatureAppTestContractBase`.
  *
  * Extend this class in contract tests that define `@TestSchema` and `@Test` methods.
  * Subclasses provide Java resolver implementations.
@@ -34,9 +35,9 @@ abstract class FeatureAppTestContractBase : AbstractFeatureAppTestContractBase()
     override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder =
         object : TenantAPIBootstrapperBuilder {
             override fun create() =
-                BootstrapperFactory.fromResources(
+                BootstrapperFactory.fromConfigSources(
                     tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(CodeInjector.Naive),
-                    packagePrefix = featureAppPackagePrefix(),
+                    executorRegistryConfigSources = ExecutionRegistryConfigSourceCollector.fromResources(featureAppPackagePrefix()),
                 )
         }
 }

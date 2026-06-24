@@ -53,6 +53,10 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
     abstract val tenantPackage: Property<String>
 
     @get:Input
+    @get:Optional
+    abstract val tenantPackagePrefix: Property<String>
+
+    @get:Input
     abstract val executorFactory: Property<String>
 
     @get:Classpath
@@ -109,7 +113,7 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
     // ── IncrementalActions implementation ────────────────────────────────────
 
     override fun assembleConfig(descriptorRoot: File) {
-        val args = listOf(
+        val args = mutableListOf(
             "--descriptor-dir",
             descriptorRoot.absolutePath,
             "--tenant-package",
@@ -119,6 +123,10 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
             "--output-dir",
             outputDir.get().asFile.absolutePath,
         )
+        tenantPackagePrefix.orNull?.let { prefix ->
+            args.add("--tenant-package-prefix")
+            args.add(prefix)
+        }
 
         workerExecutor.runCodegen(
             codegenClasspath,

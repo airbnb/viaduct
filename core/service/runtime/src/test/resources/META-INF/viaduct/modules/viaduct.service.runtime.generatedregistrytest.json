@@ -1,5 +1,6 @@
 {
   "version": "1",
+  "tenantName": "generatedregistrytest",
   "executorFactory": "viaduct.service.runtime.GeneratedRegistryTestExecutorFactory",
   "nodes": [],
   "fields": [

@@ -1,6 +1,5 @@
 package viaduct.engine.runtime.tenantloading
 
-import java.net.URL
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -12,6 +11,7 @@ import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.InputStreamSource
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 import viaduct.service.api.spi.TenantModuleInjectorFactory
 
@@ -19,17 +19,17 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
     private val injector = CodeInjector.Naive
 
     @Test
-    fun `empty URL list returns empty iterable`() =
+    fun `empty config source list returns empty iterable`() =
         runTest {
             val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
-                registryUrls = emptyList(),
                 tenantModuleInjectorFactory = RecordingTenantModuleInjectorFactory(),
+                executorRegistryConfigSources = emptyList(),
             )
             assertEquals(0, bootstrapper.tenantModuleBootstrappers().count())
         }
 
     @Test
-    fun `valid registry URL creates one module bootstrapper`() =
+    fun `valid registry source creates one module bootstrapper`() =
         runTest {
             val url = requireNotNull(
                 Thread.currentThread().contextClassLoader
@@ -37,9 +37,33 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
             ) { "Test resource not found on classpath" }
 
             val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
-                registryUrls = listOf(url),
                 tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
+                executorRegistryConfigSources = listOf(InputStreamSource.fromUrl(url)),
             )
+            assertEquals(1, bootstrapper.tenantModuleBootstrappers().toList().size)
+        }
+
+    @Test
+    fun `string registry source creates one module bootstrapper`() =
+        runTest {
+            val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
+                tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
+                executorRegistryConfigSources = listOf(
+                    InputStreamSource.fromString(
+                        """
+                            {
+                              "version": "1",
+                              "tenantName": "inline",
+                              "executorFactory": "viaduct.engine.runtime.tenantloading.TestExecutorFactory",
+                              "nodes": [],
+                              "fields": []
+                            }
+                        """.trimIndent(),
+                        name = "com.example.inline",
+                    )
+                ),
+            )
+
             assertEquals(1, bootstrapper.tenantModuleBootstrappers().toList().size)
         }
 
@@ -53,12 +77,12 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
 
             val recordingBootstrapper = RecordingTenantModuleInjectorFactory()
             val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
-                registryUrls = listOf(url),
                 tenantModuleInjectorFactory = recordingBootstrapper,
+                executorRegistryConfigSources = listOf(InputStreamSource.fromUrl(url)),
             )
             bootstrapper.tenantModuleBootstrappers()
 
-            assertEquals(listOf("com.example.test" to null), recordingBootstrapper.calls)
+            assertEquals(listOf("test" to null), recordingBootstrapper.calls)
         }
 
     @Test
@@ -71,13 +95,13 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
 
             val recordingBootstrapper = RecordingTenantModuleInjectorFactory()
             val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
-                registryUrls = listOf(url),
                 tenantModuleInjectorFactory = recordingBootstrapper,
+                executorRegistryConfigSources = listOf(InputStreamSource.fromUrl(url)),
             )
             bootstrapper.tenantModuleBootstrappers()
 
             assertEquals(
-                listOf("com.example.bootstrapped" to TestBootstrapClass::class.java),
+                listOf("bootstrapped" to TestBootstrapClass::class.java),
                 recordingBootstrapper.calls,
             )
         }
@@ -87,6 +111,7 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
         val json = """
             {
               "version": "1",
+              "tenantName": "unknown",
               "executorFactory": "com.nonexistent.DoesNotExist",
               "nodes": [],
               "fields": []
@@ -98,10 +123,9 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
             it.deleteOnExit()
         }
 
-        val url = tempFile.toURI().toURL()
         val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
-            registryUrls = listOf(url),
             tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
+            executorRegistryConfigSources = listOf(InputStreamSource.fromFile(tempFile)),
         )
 
         assertThrows<ClassNotFoundException> {
@@ -125,16 +149,19 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
             TestExecutorFactory.constructorEvents.clear()
 
             val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
-                registryUrls = listOf(urlWithoutBootstrapClass, urlWithBootstrapClass),
                 tenantModuleInjectorFactory = recordingBootstrapper,
+                executorRegistryConfigSources = listOf(
+                    InputStreamSource.fromUrl(urlWithoutBootstrapClass),
+                    InputStreamSource.fromUrl(urlWithBootstrapClass),
+                ),
             )
 
             bootstrapper.tenantModuleBootstrappers()
 
             assertEquals(
                 listOf(
-                    "bootstrap:com.example.test",
-                    "bootstrap:com.example.bootstrapped",
+                    "bootstrap:test",
+                    "bootstrap:bootstrapped",
                     "finalize",
                 ),
                 recordingBootstrapper.events,
@@ -157,8 +184,8 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
 
         val throwingBootstrapper = ThrowingTenantModuleInjectorFactory()
         val bootstrapper = ExecutionRegistryTenantAPIBootstrapper(
-            registryUrls = listOf(url),
             tenantModuleInjectorFactory = throwingBootstrapper,
+            executorRegistryConfigSources = listOf(InputStreamSource.fromUrl(url)),
         )
 
         assertThrows<IllegalStateException> {
@@ -175,7 +202,7 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
  */
 class TestExecutorFactory(
     injector: CodeInjector,
-    @Suppress("UNUSED_PARAMETER") configUrl: URL,
+    @Suppress("UNUSED_PARAMETER") configSource: InputStreamSource,
 ) : ExecutorFactory {
     init {
         val finalizingInjector = injector as? FinalizingCodeInjector

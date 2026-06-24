@@ -16,6 +16,7 @@ import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.BootstrapperFactory
 import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
+import viaduct.engine.runtime.tenantloading.ExecutionRegistryConfigSourceCollector
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.bootstrap.GuiceCodeInjector
@@ -75,9 +76,9 @@ abstract class KotlinFeatureAppTestContractBase : AbstractFeatureAppTestContract
     override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder =
         object : TenantAPIBootstrapperBuilder {
             override fun create() =
-                BootstrapperFactory.fromResources(
+                BootstrapperFactory.fromConfigSources(
                     tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(guiceCodeInjector),
-                    packagePrefix = derivedClassPackagePrefix,
+                    executorRegistryConfigSources = ExecutionRegistryConfigSourceCollector.fromResources(derivedClassPackagePrefix),
                     grtPackagePrefix = derivedClassPackagePrefix,
                 )
         }

@@ -19,6 +19,8 @@ data class ExecutionRegistryConfigFile(
     val version: String,
     /** FQN of the ExecutorFactory implementation. */
     val executorFactory: String,
+    /** Slash-separated tenant module name associated with this registry file. */
+    val tenantName: String? = null,
     val nodes: List<NodeEntryConfig> = emptyList(),
     val fields: List<FieldEntryConfig> = emptyList(),
     /** FQN of the class annotated with @TenantBootstrapper, or null if none was declared. */
