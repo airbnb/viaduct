@@ -17,6 +17,7 @@ import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.runBlocking
+import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.BootstrapperFactory
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineImpl
@@ -44,6 +45,7 @@ import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.service.api.spi.InputStreamSource
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.TenantModuleInjectorFactory
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
@@ -122,6 +124,8 @@ class StandardViaduct
             private var tenantNameResolver: TenantNameResolver = TenantNameResolver()
             private var tenantAPIBootstrapperBuilders: List<TenantAPIBootstrapperBuilder> = emptyList()
             private var tenantModuleInjectorFactory: TenantModuleInjectorFactory? = null
+            private var executorRegistryConfigSources: List<InputStreamSource>? = null
+            private var executorRegistryGrtPackagePrefix: String? = null
             private var chainInstrumentationWithDefaults: Boolean = false
             private var defaultQueryNodeResolversEnabled: Boolean = true
             private var meterRegistry: MeterRegistry? = null
@@ -173,6 +177,16 @@ class StandardViaduct
             fun withTenantModuleInjectorFactory(tenantModuleInjectorFactory: TenantModuleInjectorFactory): Builder =
                 apply {
                     this.tenantModuleInjectorFactory = tenantModuleInjectorFactory
+                }
+
+            @VisibleForTest
+            fun withExecutorRegistryConfigSources(
+                executorRegistryConfigSources: List<InputStreamSource>,
+                grtPackagePrefix: String? = null,
+            ): Builder =
+                apply {
+                    this.executorRegistryConfigSources = executorRegistryConfigSources
+                    this.executorRegistryGrtPackagePrefix = grtPackagePrefix
                 }
 
             /**
@@ -342,7 +356,9 @@ class StandardViaduct
                         add(
                             BootstrapperFactory.fromConfigSources(
                                 injectorFactory,
-                                ExecutionRegistryConfigSourceCollector.fromResources(),
+                                executorRegistryConfigSources
+                                    ?: ExecutionRegistryConfigSourceCollector.fromResources(),
+                                executorRegistryGrtPackagePrefix,
                             )
                         )
                     }
