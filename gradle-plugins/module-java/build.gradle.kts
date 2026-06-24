@@ -4,6 +4,7 @@ plugins {
     id("conventions.kotlin-static-analysis")
     id("com.gradle.plugin-publish") version "2.0.0"
     id("conventions.viaduct-publishing")
+    id("conventions.viaduct-fat-plugin")
 }
 
 java {
@@ -16,8 +17,9 @@ dependencies {
     // Reuse AssembleSchemaPartitionTask + ViaductModuleExtension from the Kotlin module plugin
     implementation(project(":module"))
 
-    implementation(libs.viaduct.shared.graphql)
-    implementation(libs.viaduct.shared.viaductschema)
+    // Classes bundled directly into this plugin JAR via conventions.viaduct-fat-plugin.
+    bundled(libs.viaduct.shared.graphql)
+    bundled(libs.viaduct.shared.viaductschema)
 
     testImplementation(gradleTestKit())
     testImplementation(project(":application"))

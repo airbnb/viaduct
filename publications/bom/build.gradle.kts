@@ -25,15 +25,11 @@ dependencies {
         api("com.airbnb.viaduct.tenant:api:${version}")
         api("com.airbnb.viaduct.tenant:runtime:${version}")
 
-        // Shared modules
-        api("com.airbnb.viaduct.shared:apiannotations:${version}")
+        // Shared modules (graphql, viaductschema, apiannotations, invariants, utils are bundled
+        // inside the plugin JARs and the fat JARs — no separate Maven artifact)
         api("com.airbnb.viaduct.shared:arbitrary:${version}")
         api("com.airbnb.viaduct.shared:dataloader:${version}")
-        api("com.airbnb.viaduct.shared:utils:${version}")
         api("com.airbnb.viaduct.shared:deferred:${version}")
-        api("com.airbnb.viaduct.shared:graphql:${version}")
-        api("com.airbnb.viaduct.shared:viaductschema:${version}")
-        api("com.airbnb.viaduct.shared:invariants:${version}")
         api("com.airbnb.viaduct.shared:codegen:${version}")
         api("com.airbnb.viaduct.shared:mapping:${version}")
         api("com.airbnb.viaduct.shared:errors:${version}")
