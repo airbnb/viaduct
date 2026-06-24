@@ -24,7 +24,7 @@ abstract class GenerateJavaGRTSourcesTask
         private val workerExecutor: WorkerExecutor
     ) : DefaultTask() {
         init {
-            description = "Generate Java GRT source files from the central schema."
+            description = "Generate Java source files for GraphQL Runtime Types (GRTs) from the merged schema. (this task is useful for debugging but is NOT part of our stable API so don't use it in your CI scripts)."
         }
 
         @get:Classpath

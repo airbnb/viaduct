@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.jvm")
     id("conventions.gradle-plugin-kotlin")
     id("conventions.kotlin-static-analysis")
+    id("conventions.bcv-api")
     id("conventions.viaduct-publishing")
 }
 

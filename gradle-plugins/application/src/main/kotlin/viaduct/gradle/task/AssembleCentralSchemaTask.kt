@@ -33,7 +33,7 @@ abstract class AssembleCentralSchemaTask
     ) : DefaultTask() {
         init {
             group = "viaduct"
-            description = "Collect schema files from all modules into a single directory."
+            description = "Merge and validate GraphQL schema files from all modules into a single central schema. Run this in CI to verify the complete schema is valid."
         }
 
         /** Schema partition files from individual viaduct-module projects. */

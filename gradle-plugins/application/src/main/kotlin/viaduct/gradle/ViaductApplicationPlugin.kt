@@ -102,8 +102,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         }
 
         val generateGRTsTask = tasks.register<Jar>("generateViaductGRTs") {
-            group = "viaduct"
-            description = "Package GRT class files with the central schema."
+            description = "Package compiled GraphQL Runtime Type (GRT) classes and the merged schema into a jar. This jar is added to your compile classpath automatically."
 
             archiveBaseName.set("viaduct-grt")
             includeEmptyDirs = false
@@ -146,8 +145,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         }
 
         val generateGRTsTask = tasks.register<Jar>("generateViaductJavaGRTs") {
-            group = "viaduct"
-            description = "Package Java GRT class files (without central schema — already bundled in Kotlin GRT jar)."
+            description = "Package compiled Java GraphQL Runtime Type (GRT) classes into a jar. The schema is already bundled in the Kotlin GRT jar."
 
             archiveBaseName.set("viaduct-java-grt")
             includeEmptyDirs = false

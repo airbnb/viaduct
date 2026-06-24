@@ -29,8 +29,7 @@ abstract class GenerateGRTClassFilesTask
         private val workerExecutor: WorkerExecutor
     ) : DefaultTask() {
         init {
-            // No group: don't want this to appear in task list
-            description = "Generate compiled GRT class files from the central schema."
+            description = "Compile GraphQL Runtime Type (GRT) bytecode from the merged schema. Output is packaged into the GRT jar. (this task is useful for debugging but is NOT part of our stable API so don't use it in your CI scripts)."
         }
 
         @get:Input

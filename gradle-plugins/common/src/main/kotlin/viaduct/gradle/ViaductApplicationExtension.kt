@@ -6,9 +6,11 @@ import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.InternalApi
+import viaduct.apiannotations.StableApi
 import viaduct.service.api.scoping.SchemaScoping
 
-@OptIn(ExperimentalApi::class)
+@StableApi
 open class ViaductApplicationExtension(objects: ObjectFactory) {
     /** Kotlin package name prefix for all modules. */
     val modulePackagePrefix = objects.property(String::class.java)
@@ -27,6 +29,8 @@ open class ViaductApplicationExtension(objects: ObjectFactory) {
      * `declaredSchemaScopes` and `declaredScopedSchemas` DSL methods. Re-evaluated on each `get()`,
      * so successive snapshots reflect the state at the moment of resolution.
      */
+    @InternalApi
+    @OptIn(ExperimentalApi::class)
     val schemaScoping: Provider<SchemaScoping> =
         scopeUniverseProperty.zip(scopedSchemasProperty) { universe, schemas ->
             SchemaScoping(
@@ -42,6 +46,7 @@ open class ViaductApplicationExtension(objects: ObjectFactory) {
      * compose at the call site rather than via repeated mutation. An empty set or a second call
      * is rejected with a [GradleException].
      */
+    @ExperimentalApi
     fun declaredSchemaScopes(scopes: Set<String>) {
         if (scopeUniverseDeclared) {
             throw GradleException(
@@ -67,6 +72,7 @@ open class ViaductApplicationExtension(objects: ObjectFactory) {
      * varargs list, or duplicate schema IDs within the single call are rejected with a
      * [GradleException].
      */
+    @ExperimentalApi
     fun declaredScopedSchemas(vararg entries: Pair<String, Set<String>>) {
         if (scopedSchemasDeclared) {
             throw GradleException(

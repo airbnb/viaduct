@@ -34,8 +34,7 @@ abstract class GenerateResolverBasesTask
         private val workerExecutor: WorkerExecutor
     ) : DefaultTask() {
         init {
-            group = "viaduct"
-            description = "Generate resolver base Kotlin sources from central schema and module partition."
+            description = "Generate abstract Kotlin resolver base classes from the merged schema. Implement these classes to write your GraphQL field resolvers."
         }
 
         @get:Input

@@ -23,8 +23,7 @@ abstract class AssembleSchemaPartitionTask
         private var fileSystemOperations: FileSystemOperations
     ) : DefaultTask() {
         init {
-            // No group: don't want this to appear in task list
-            description = "Prepare this module's schema partition."
+            description = "Copies this module's .graphqls files into a structured partition to be merged into the application's central schema. (this task is useful for debugging but is NOT part of our stable API so don't use it in your CI scripts)."
         }
 
         @get:Input

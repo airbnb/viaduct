@@ -1,0 +1,5 @@
+public class viaduct/gradle/ViaductApplicationExtension {
+	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
+	public final fun getModulePackagePrefix ()Lorg/gradle/api/provider/Property;
+}
+

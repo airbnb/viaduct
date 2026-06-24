@@ -15,6 +15,7 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.register
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import schemaPartitionDirectory
+import viaduct.apiannotations.StableApi
 import viaduct.gradle.ViaductPluginCommon.APPLICATION_PLUGIN_IDS
 import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
@@ -26,6 +27,7 @@ import viaduct.gradle.task.AssembleSchemaPartitionTask
 import viaduct.gradle.task.AssembleTenantModuleConfigFileTask
 import viaduct.gradle.task.GenerateResolverBasesTask
 
+@StableApi
 open class ViaductModuleExtension(objects: org.gradle.api.model.ObjectFactory) {
     /** Kotlin package name suffix for this module (can be empty). */
     val modulePackageSuffix = objects.property(String::class.java)
@@ -82,8 +84,7 @@ class ViaductModulePlugin : Plugin<Project> {
 
             // Convenience task for module-level codegen
             tasks.register("viaductCodegen") {
-                group = "viaduct"
-                description = "Run Viaduct code generation for this module (GRTs + resolver bases)"
+                description = "Run all Viaduct code generation for this module: compiles GRT classes and generates abstract resolver base classes."
 
                 dependsOn(generateResolverBasesTask)
             }
@@ -120,8 +121,7 @@ class ViaductModulePlugin : Plugin<Project> {
             val assembleTask = tasks.register<AssembleTenantModuleConfigFileTask>(
                 "assembleViaductModuleConfigFile"
             ) {
-                group = "viaduct"
-                description = "Assembles tenant module config from KSP descriptors"
+                description = "Assembles the module's runtime resolver configuration from KSP-generated descriptors. Re-run after adding or modifying @Resolver-annotated classes."
 
                 descriptorDir.set(layout.buildDirectory.dir("intermediates/viaduct-registry-descriptors"))
                 executorFactory.set(AssembleTenantModuleConfigFileTask.EXECUTOR_FACTORY)

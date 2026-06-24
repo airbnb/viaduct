@@ -60,8 +60,7 @@ class ViaductJavaModulePlugin : Plugin<Project> {
 
             // Convenience task for module-level codegen
             tasks.register("viaductCodegen") {
-                group = "viaduct"
-                description = "Run Viaduct code generation for this module (Java resolver bases)"
+                description = "Run all Viaduct code generation for this module: generates abstract Java resolver base classes."
 
                 dependsOn(generateResolverBasesTask)
             }
