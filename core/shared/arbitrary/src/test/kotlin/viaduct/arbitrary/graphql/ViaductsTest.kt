@@ -191,7 +191,6 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                         schema,
                         cfg +
                             (FieldResolverFactory to instr) +
-                            (UndeclaredFieldResolverWeight to 1e-12) +
                             (SelectiveResolverWeight to selectiveResolverWeight)
                     ).bind()
                     viaduct.execute(ExecutionInput.create("{ obj { x } }"))
@@ -207,6 +206,41 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                         resolvedSelections == setOf("x", "y")
                     } else {
                         resolvedSelections == setOf("x")
+                    }
+                }
+            }
+
+        @Test
+        fun `DeterministicResolveWeight`(): Unit =
+            runBlocking {
+                val schema = "extend type Query { x: Int @resolver }".asViaductSchema
+
+                val arb = arbitrary {
+                    val instr = FieldResolver.Factory.Instrumented()
+                    val deterministicResolveWeight = Arb.of(0.0, 1.0).bind()
+                    val viaduct = Arb.viaduct(
+                        schema,
+                        cfg +
+                            (FieldResolverFactory to instr) +
+                            (DeterministicResolveWeight to deterministicResolveWeight)
+                    ).bind()
+
+                    repeat(50) {
+                        viaduct.execute(ExecutionInput.create("{ x }"))
+                    }
+
+                    deterministicResolveWeight to instr
+                }
+
+                arb.forAll(iterations / 50) { (deterministicResolveWeight, instr) ->
+                    val results = instr.resolver("Query" to "x").recorder.log
+                        .map { it.result.getOrNull() as Int? }
+                        .distinct()
+
+                    if (deterministicResolveWeight == 0.0) {
+                        results.size > 1
+                    } else {
+                        results.size == 1
                     }
                 }
             }
@@ -423,6 +457,47 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                     }
                 }
             }
+
+        @Test
+        fun `DeterministicResolveWeight`(): Unit =
+            runBlocking {
+                val schema = "type Foo implements Node @resolver { id:ID!, x:Int }".asViaductSchema
+
+                val arb = arbitrary {
+                    val instr = NodeResolver.Factory.Instrumented()
+                    val deterministicResolveWeight = Arb.of(0.0, 1.0).bind()
+                    val viaduct = Arb.viaduct(
+                        schema,
+                        cfg +
+                            (NodeResolverFactory to instr) +
+                            (DeterministicResolveWeight to deterministicResolveWeight)
+                    ).bind()
+
+                    repeat(50) {
+                        viaduct.execute(
+                            ExecutionInput.create(
+                                "query (\$id:ID!) { node(id:\$id) { ... on Foo { x } } }",
+                                variables = mapOf("id" to arbId().bind())
+                            )
+                        )
+                    }
+                    deterministicResolveWeight to instr
+                }
+
+                arb.forAll(iterations / 50) { (deterministicResolveWeight, instr) ->
+                    val results = instr.resolver("Foo").recorder.log
+                        .map {
+                            val data = it.result.getOrThrow() as ResolvedEngineObjectData
+                            data.get("x") as Int
+                        }.distinct()
+
+                    if (deterministicResolveWeight == 0.0) {
+                        results.size > 1
+                    } else {
+                        results.size == 1
+                    }
+                }
+            }
     }
 
     @Nested
@@ -534,6 +609,44 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
 
                 arb.forAll { result ->
                     result.errors.isEmpty()
+                }
+            }
+
+        @Test
+        fun `DeterministicResolveWeight`(): Unit =
+            runBlocking {
+                val arb = arbitrary {
+                    val deterministicResolveWeight = Arb.of(0.0, 1.0).bind()
+                    val instr = VariablesResolver.Factory.Instrumented()
+                    val viaduct = Arb.viaduct(
+                        "extend type Query { x:Int @resolver, y(a:Int):Int @resolver }".asViaductSchema,
+                        cfg +
+                            (RequiredSelectionSetWeight to CompoundingWeight(1.0, 1)) +
+                            (DeterministicResolveWeight to deterministicResolveWeight) +
+                            (VariablesResolverFactory to instr) +
+                            (VariableWeight to 1.0)
+                    ).bind()
+
+                    repeat(50) {
+                        viaduct.execute(
+                            ExecutionInput.create("{x}")
+                        )
+                    }
+                    deterministicResolveWeight to instr
+                }
+
+                arb.forAll(iterations / 50) { (deterministicResolveWeight, instr) ->
+                    instr.resolvers.all { (_, resolver) ->
+                        val results = resolver.recorder.log
+                            .map { it.result.getOrThrow() }
+                            .distinct()
+
+                        if (deterministicResolveWeight == 0.0) {
+                            results.size > 1
+                        } else {
+                            results.size == 1
+                        }
+                    }
                 }
             }
     }
@@ -712,6 +825,44 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                                     entry.arg.objectDataMap[rssKey] != null
                                 }
                             }
+                    }
+                }
+            }
+
+        @Test
+        fun DeterministicResolveWeight(): Unit =
+            runBlocking {
+                val schema = "extend type Query { x:Int @resolver }".asViaductSchema
+
+                val arb = arbitrary {
+                    val instr = CheckerExecutor.Factory.Instrumented()
+                    val deterministicResolveWeight = Arb.of(0.0, 1.0).bind()
+                    val viaduct = Arb.viaduct(
+                        schema,
+                        cfg +
+                            (FieldCheckerWeight to 1.0) +
+                            (CheckerExceptionWeight to .5) +
+                            (CheckerErrorWeight to .5) +
+                            (CheckerExecutorFactory to instr) +
+                            (DeterministicResolveWeight to deterministicResolveWeight)
+                    ).bind()
+
+                    repeat(50) {
+                        viaduct.execute(ExecutionInput.create("{ x }"))
+                    }
+                    deterministicResolveWeight to instr
+                }
+
+                arb.forAll(iterations / 50) { (deterministicResolveWeight, instr) ->
+                    val checker = instr.fieldChecker("Query" to "x")
+                    val results = checker.recorder.log
+                        .map { it.result.isSuccess }
+                        .distinct()
+
+                    if (deterministicResolveWeight == 0.0) {
+                        results.size > 1
+                    } else {
+                        results.size == 1
                     }
                 }
             }

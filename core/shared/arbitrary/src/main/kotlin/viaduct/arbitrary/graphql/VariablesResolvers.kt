@@ -5,7 +5,6 @@ package viaduct.arbitrary.graphql
 import graphql.language.VariableDefinition
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
-import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import kotlin.time.ExperimentalTime
@@ -47,9 +46,8 @@ internal fun interface VariablesResolverGen {
                             exerciseRequiredSelections = env.rs.sampleWeight(env.cfg[ExerciseRequiredSelectionsWeight]),
                             schema = env.schemas.viaductSchema,
                             cfg = env.cfg,
-                            // variables resolvers can be called in a non-deterministic order by the engine.
-                            // Using a forked environment ensures that the order of their invocation doesn't
-                            // impact what the current rng produces
+                            // Variables resolvers can be called in a nondeterministic order by the engine.
+                            // Give each resolver an isolated RNG so invocation order does not affect values.
                             rs = env.rs.fork()
                         )
                     )
@@ -87,23 +85,23 @@ object VariablesResolver {
                         null
                     )
 
+                    private val localSeed = params.rs.random.nextLong()
+
                     override suspend fun resolve(
                         ctx: EngineVariablesResolver.ResolveCtx,
                         context: EngineExecutionContext
                     ): Map<String, Any?> {
-                        params.rs.maybeDelay(params.cfg[ResolverLatencyMillis])
-                        maybeThrowResolverException(params.cfg, VariablesResolverExceptionWeight, params.rs)
+                        val localRandom = if (params.rs.sampleWeight(params.cfg[DeterministicResolveWeight])) {
+                            RandomSource.seeded(localSeed)
+                        } else {
+                            params.rs
+                        }
+
+                        localRandom.maybeDelay(params.cfg[ResolverLatencyMillis])
+                        maybeThrowResolverException(params.cfg, VariablesResolverExceptionWeight, localRandom)
 
                         val irValue = Arb.ir(params.schema, params.def.type.asSchemaType(params.schema), params.cfg)
-                            // Using the same seed on every call allows this VariablesResolver to return the same
-                            // value on every invocation. This is not ideal, but is a workaround for an engine
-                            // issue where VariablesResolvers are invoked multiple times during execution:
-                            //   https://app.asana.com/1/150975571430/project/1211295233988904/task/1213752457115685
-                            //
-                            // When the above ticket is resolved, replace the `next` call below with this commented-out
-                            // call. This will allow this VR to return different values on each invocation.
-                            // .next(env.rs)
-                            .next(RandomSource.seeded(params.rs.seed))
+                            .next(localRandom)
 
                         if (params.exerciseRequiredSelections && params.requiredSelectionSet != null) {
                             EngineDataExerciser.exercise(ctx.objectData, context, params.requiredSelectionSet)

@@ -338,6 +338,15 @@ object UndeclaredFieldResolverWeight : ConfigKey<Double>(0.0, WeightValidator)
 object UndeclaredNodeResolverWeight : ConfigKey<Double>(0.0, WeightValidator)
 
 /**
+ * The probability that a field resolver, node resolver, variables resolver, or checker will behave deterministically
+ * when invoked multiple times in the same context in the same request.
+ * Deterministic behavior means that it will return the same data and/or throw the same exception.
+ *
+ * This is sampled on every call to a resolver.
+ */
+object DeterministicResolveWeight : ConfigKey<Double>(1.0, WeightValidator)
+
+/**
  * The [NodeResolver.Factory] to use when constructing [viaduct.engine.api.NodeResolverExecutor] instances
  *
  * The default value of [NodeResolver.Factory.Arbitrary] is suitable for most use-cases,
@@ -389,6 +398,13 @@ object VariablesResolverExceptionWeight : ConfigKey<Double>(0.05, WeightValidato
  * This key is sampled once when a resolver is created and applies for the lifetime of the resolver.
  */
 object SelectiveResolverWeight : ConfigKey<Double>(0.0, WeightValidator)
+
+/**
+ * The probability that a generated field or node resolver will be configured for batching.
+ *
+ * This key is sampled once when a resolver is created and applies for the lifetime of the resolver.
+ */
+object BatchingResolverWeight : ConfigKey<Double>(.25, WeightValidator)
 
 /**
  * The probability that a field resolver, variables resolver, or checker executor will have a required selection set.

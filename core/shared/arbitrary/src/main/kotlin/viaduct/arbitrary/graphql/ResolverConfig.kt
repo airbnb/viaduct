@@ -29,6 +29,12 @@ interface ResolverConfig {
      */
     fun isSelective(coord: TypeOrFieldCoordinate): Boolean
 
+    /**
+     * Returns true if the provided coordinate supports batching.
+     * Throws IllegalArgumentException if there is no resolver configured for [coord]
+     */
+    fun isBatching(coord: TypeOrFieldCoordinate): Boolean
+
     /** Returns true if every configured resolver is inhabited */
     fun isInhabited(): Boolean
 
@@ -63,12 +69,14 @@ interface ResolverConfig {
          * 1. Make the `Foo.bar` selective
          * 1. Convert `Bar` to an implementation of `Node` and annotate with `@resolver`
          *
-         * This factory, when modifying a ResolverConfig to be inhabited, will always inject non-selective field resolvers.
+         * This factory, when modifying a ResolverConfig to be inhabited, will always inject non-selective
+         * non-batching field resolvers.
          *
          * @see IncludeRequiredResolvers
          * @see UndeclaredFieldResolverWeight
          * @see UndeclaredNodeResolverWeight
          * @see SelectiveResolverWeight
+         * @see BatchingResolverWeight
          */
         operator fun invoke(
             schema: ViaductSchema,
@@ -80,7 +88,7 @@ interface ResolverConfig {
 
 class ResolverConfigImpl private constructor(
     private val schema: ViaductSchema,
-    private val resolvers: Map<TypeOrFieldCoordinate, Boolean>,
+    private val resolvers: Map<TypeOrFieldCoordinate, ResolverProperties>,
 ) : ResolverConfig {
     constructor(
         schema: ViaductSchema,
@@ -89,18 +97,23 @@ class ResolverConfigImpl private constructor(
     ) : this(
         schema,
         buildMap {
-            fieldResolvers.forEach { put(it, false) }
-            nodeResolvers.forEach { put(it to null, false) }
+            fieldResolvers.forEach { put(it, ResolverProperties(selective = false, batching = false)) }
+            nodeResolvers.forEach { put(it to null, ResolverProperties(selective = false, batching = false)) }
         }
     )
 
     override fun resolvers(): Set<TypeOrFieldCoordinate> = resolvers.keys
 
-    override fun isSelective(coord: TypeOrFieldCoordinate): Boolean =
-        resolvers[coord]
-            ?: throw IllegalArgumentException("No resolver configured for $coord")
+    override fun isSelective(coord: TypeOrFieldCoordinate): Boolean = get(coord).selective
+
+    override fun isBatching(coord: TypeOrFieldCoordinate): Boolean = get(coord).batching
 
     override fun isInhabited(): Boolean = firstResolverInsertionPoint() == null
+
+    private fun get(coord: TypeOrFieldCoordinate): ResolverProperties =
+        requireNotNull(resolvers[coord]) {
+            "No resolver configured for $coord"
+        }
 
     fun plus(other: ResolverConfigImpl): ResolverConfigImpl {
         require(schema === other.schema)
@@ -140,7 +153,8 @@ class ResolverConfigImpl private constructor(
             return loop(
                 ResolverConfigImpl(
                     schema = acc.schema,
-                    resolvers = acc.resolvers + (insertionPoint to false),
+                    resolvers = acc.resolvers +
+                        (insertionPoint to ResolverProperties(selective = false, batching = false))
                 )
             )
         }
@@ -250,8 +264,8 @@ class ResolverConfigImpl private constructor(
             schema: ViaductSchema,
             cfg: Config,
             rs: RandomSource
-        ): Map<TypeOrFieldCoordinate, Boolean> {
-            val resolvers = mutableMapOf<TypeOrFieldCoordinate, Boolean>()
+        ): Map<TypeOrFieldCoordinate, ResolverProperties> {
+            val resolvers = mutableMapOf<TypeOrFieldCoordinate, ResolverProperties>()
 
             schema.objectCoordinates
                 .sortedWith(compareBy({ it.first }, { it.second }))
@@ -264,7 +278,11 @@ class ResolverConfigImpl private constructor(
                             rs.sampleWeight(cfg[UndeclaredFieldResolverWeight])
 
                     if (shouldGenerate) {
-                        resolvers[coord] = declaredResolver?.selective ?: rs.sampleWeight(cfg[SelectiveResolverWeight])
+                        resolvers[coord] = declaredResolver
+                            ?: ResolverProperties(
+                                selective = rs.sampleWeight(cfg[SelectiveResolverWeight]),
+                                batching = rs.sampleWeight(cfg[BatchingResolverWeight])
+                            )
                     }
                 }
 
@@ -278,7 +296,11 @@ class ResolverConfigImpl private constructor(
                             rs.sampleWeight(cfg[UndeclaredNodeResolverWeight])
 
                     if (shouldGenerate) {
-                        resolvers[typeName to null] = declaredResolver?.selective ?: rs.sampleWeight(cfg[SelectiveResolverWeight])
+                        resolvers[typeName to null] = declaredResolver
+                            ?: ResolverProperties(
+                                selective = rs.sampleWeight(cfg[SelectiveResolverWeight]),
+                                batching = rs.sampleWeight(cfg[BatchingResolverWeight])
+                            )
                     }
                 }
 
@@ -287,21 +309,28 @@ class ResolverConfigImpl private constructor(
     }
 }
 
-private data class DeclaredResolver(val selective: Boolean)
+private data class ResolverProperties(val selective: Boolean, val batching: Boolean)
 
-private fun GraphQLDirectiveContainer.declaredResolver(): DeclaredResolver? {
+private fun GraphQLDirectiveContainer.declaredResolver(): ResolverProperties? {
     val dir = appliedDirectives.firstOrNull { it.name == "resolver" } ?: return null
-    val value = dir.getArgument("isSelective")
-        ?.argumentValue
-        ?.value
 
-    val selective = when (value) {
-        null -> false
-        is BooleanValue -> value.isValue
-        is Boolean -> value
-        else -> throw IllegalArgumentException("Expected @resolver(selective:) to decode as a boolean")
+    fun booleanArgument(name: String): Boolean {
+        val value = dir.getArgument(name)
+            ?.argumentValue
+            ?.value
+
+        return when (value) {
+            null -> false
+            is BooleanValue -> value.isValue
+            is Boolean -> value
+            else -> throw IllegalArgumentException("Expected @resolver($name:) to decode as a boolean")
+        }
     }
-    return DeclaredResolver(selective)
+
+    return ResolverProperties(
+        selective = booleanArgument("isSelective"),
+        batching = booleanArgument("isBatching")
+    )
 }
 
 private fun ViaductSchema.isRootField(coord: Coordinate): Boolean =

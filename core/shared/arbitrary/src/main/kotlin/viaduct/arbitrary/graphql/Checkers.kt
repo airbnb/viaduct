@@ -101,6 +101,7 @@ object CheckerExecutor {
 
             private class Impl(private val params: Params) : EngineCheckerExecutor {
                 override val requiredSelectionSets = params.requiredSelectionSets
+                private val localSeed = params.rs.random.nextLong()
 
                 override suspend fun execute(
                     arguments: Map<String, Any?>,
@@ -108,6 +109,12 @@ object CheckerExecutor {
                     context: EngineExecutionContext,
                     checkerType: EngineCheckerExecutor.CheckerType
                 ): CheckerResult {
+                    val localRandom = if (params.rs.sampleWeight(params.cfg[DeterministicResolveWeight])) {
+                        RandomSource.seeded(localSeed)
+                    } else {
+                        params.rs
+                    }
+
                     if (params.exerciseRequiredSelections) {
                         for ((name, rss) in params.requiredSelectionSets) {
                             val eod = requireNotNull(objectDataMap[name])
@@ -115,17 +122,17 @@ object CheckerExecutor {
                         }
                     }
 
-                    maybeThrowResolverException(params.cfg, CheckerExceptionWeight, params.rs)
-                    params.rs.maybeDelay(params.cfg[ResolverLatencyMillis])
+                    maybeThrowResolverException(params.cfg, CheckerExceptionWeight, localRandom)
+                    localRandom.maybeDelay(params.cfg[ResolverLatencyMillis])
 
-                    return if (params.rs.sampleWeight(params.cfg[CheckerErrorWeight])) {
-                        mkError()
+                    return if (localRandom.sampleWeight(params.cfg[CheckerErrorWeight])) {
+                        mkError(localRandom)
                     } else {
                         CheckerResult.Success
                     }
                 }
 
-                private fun mkError(): ErrorImpl = ErrorImpl(Arb.boolean().next(params.rs))
+                private fun mkError(rs: RandomSource): ErrorImpl = ErrorImpl(Arb.boolean().next(rs))
             }
 
             private class ErrorImpl(val isErrorForResolver: Boolean) : CheckerResult.Error {

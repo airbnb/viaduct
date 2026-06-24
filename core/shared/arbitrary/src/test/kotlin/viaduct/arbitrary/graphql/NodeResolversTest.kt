@@ -88,4 +88,34 @@ class NodeResolversTest : KotestPropertyBase() {
                     instr.recorder.arg.selective == expectedSelective
                 }
         }
+
+    @Test
+    fun `Arb_nodeResolverExecutor -- declared resolver batching`(): Unit =
+        runBlocking {
+            val gen = Exhaustive.of(
+                "type Foo implements Node @resolver { id:ID! x:Int }".asViaductSchema to false,
+                "type Foo implements Node @resolver(isBatching: false) { id:ID! x:Int }".asViaductSchema to false,
+                "type Foo implements Node @resolver(isBatching: true) { id:ID! x:Int }".asViaductSchema to true
+            )
+            gen.forAll { (schema, expectedBatching) ->
+                Arb.nodeResolverExecutor(schema).bind().isBatching == expectedBatching
+            }
+        }
+
+    @Test
+    fun `Arb_nodeResolverExecutor -- BatchingResolverWeight`(): Unit =
+        runBlocking {
+            val schema = "type Foo implements Node { id:ID! x:Int }".asViaductSchema
+            Exhaustive.of(0.0, 1.0).forAll { weight ->
+                val resolver = Arb.nodeResolverExecutor(
+                    schema,
+                    "Foo",
+                    Config.default +
+                        (UndeclaredNodeResolverWeight to 1.0) +
+                        (BatchingResolverWeight to weight)
+                ).bind()
+
+                resolver.isBatching == (weight == 1.0)
+            }
+        }
 }

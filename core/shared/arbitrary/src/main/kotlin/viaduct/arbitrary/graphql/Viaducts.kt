@@ -38,6 +38,8 @@ import viaduct.service.runtime.StandardViaduct
  * This generator supports these configurations:
  * - [UndeclaredFieldResolverWeight]
  * - [UndeclaredNodeResolverWeight]
+ * - [SelectiveResolverWeight]
+ * - [BatchingResolverWeight]
  * - [IncludeRequiredResolvers]
  * - [FieldCheckerWeight]
  * - [TypeCheckerWeight]

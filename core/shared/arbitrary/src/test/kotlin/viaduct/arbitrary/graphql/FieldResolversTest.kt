@@ -88,6 +88,19 @@ class FieldResolversTest : KotestPropertyBase() {
         }
 
     @Test
+    fun `Arb_fieldResolverExecutor -- declared resolver batching`(): Unit =
+        runBlocking {
+            val gen = Exhaustive.of(
+                "extend type Query { x:Int @resolver }".asViaductSchema to false,
+                "extend type Query { x:Int @resolver(isBatching: false) }".asViaductSchema to false,
+                "extend type Query { x:Int @resolver(isBatching: true) }".asViaductSchema to true
+            )
+            gen.forAll { (schema, expectedBatching) ->
+                Arb.fieldResolverExecutor(schema).bind().isBatching == expectedBatching
+            }
+        }
+
+    @Test
     fun `Arb_fieldResolverExecutor -- ExerciseRequiredSelectionsWeight`(): Unit =
         runBlocking {
             Exhaustive.of(0.0, 1.0)
@@ -121,6 +134,21 @@ class FieldResolversTest : KotestPropertyBase() {
                     instr.recorder.arg.objectSelectionSet
                 )
                 rsses.isEmpty() == (weight.max == 0)
+            }
+        }
+
+    @Test
+    fun `Arb_fieldResolverExecutor -- BatchingResolverWeight`(): Unit =
+        runBlocking {
+            val schema = "extend type Query { x:Int }".asViaductSchema
+            Exhaustive.of(0.0, 1.0).forAll { weight ->
+                val resolver = Arb.fieldResolverExecutor(
+                    schema,
+                    "Query" to "x",
+                    Config.default + (BatchingResolverWeight to weight)
+                ).bind()
+
+                resolver.isBatching == (weight == 1.0)
             }
         }
 }

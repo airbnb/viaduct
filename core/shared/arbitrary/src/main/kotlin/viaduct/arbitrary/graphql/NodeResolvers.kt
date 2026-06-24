@@ -63,6 +63,7 @@ internal fun interface NodeResolverExecutorGen {
             NodeResolverExecutorGen { typeName ->
                 val coord = typeName to null
                 val isSelective = env.resolverConfig.isSelective(coord)
+                val isBatching = env.resolverConfig.isBatching(coord)
                 val nodeResolver = env.fork().let { env ->
                     env.cfg[NodeResolverFactory]
                         .createNodeResolver(
@@ -80,6 +81,7 @@ internal fun interface NodeResolverExecutorGen {
                 NodeResolverExecutorImpl(
                     typeName,
                     isSelective,
+                    isBatching,
                     nodeResolver,
                 )
             }
@@ -89,10 +91,10 @@ internal fun interface NodeResolverExecutorGen {
 private class NodeResolverExecutorImpl(
     override val typeName: String,
     override val isSelective: Boolean,
+    override val isBatching: Boolean,
     private val nodeResolver: NodeResolver,
 ) : NodeResolverExecutor {
     override val metadata = ResolverMetadata.forModern(typeName)
-    override val isBatching: Boolean = false
 
     override suspend fun resolve(
         selectors: List<NodeResolverExecutor.Selector>,
@@ -147,14 +149,27 @@ fun interface NodeResolver {
             override fun createNodeResolver(params: Params): NodeResolver = Resolver(params)
 
             internal class Resolver(val params: Params) : NodeResolver {
+                private val localSeed = params.random.random.nextLong()
+
                 override suspend fun invoke(
                     selector: NodeResolverExecutor.Selector,
                     ctx: EngineExecutionContext
                 ): EngineObjectData {
-                    params.random.maybeDelay(params.cfg[ResolverLatencyMillis])
-                    maybeThrowResolverException(params.cfg, NodeResolverExceptionWeight, params.random)
+                    val localRandom = if (params.random.sampleWeight(params.cfg[DeterministicResolveWeight])) {
+                        RandomSource.seeded(localSeed)
+                    } else {
+                        params.random
+                    }
 
-                    return params.nodeResolverValueGen.gen(
+                    localRandom.maybeDelay(params.cfg[ResolverLatencyMillis])
+                    maybeThrowResolverException(params.cfg, NodeResolverExceptionWeight, localRandom)
+
+                    return ResolverValueGen(
+                        params.schema,
+                        params.resolverConfig,
+                        params.cfg,
+                        localRandom
+                    ).gen(
                         params.typeName,
                         params.selective,
                         selector.selections,

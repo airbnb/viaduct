@@ -423,6 +423,39 @@ class ResolverConfigTest : KotestPropertyBase() {
     }
 
     @Test
+    fun `factory -- declared resolver directives own batching`() {
+        val schema = ViaductSchema(
+            """
+            directive @resolver(isSelective: Boolean! = false, isBatching: Boolean! = false) on FIELD_DEFINITION | OBJECT
+            interface Node { id: ID! }
+            type Query {
+              batchingField: Int @resolver(isBatching: true)
+              plainField: Int @resolver
+              undeclaredField: Int
+            }
+            type BatchingNode implements Node @resolver(isBatching: true) { id: ID! }
+            type PlainNode implements Node @resolver { id: ID! }
+            """.asSchema
+        )
+        val rc = ResolverConfigImpl(
+            schema,
+            Config.default +
+                (IncludeRequiredResolvers to false) +
+                (UndeclaredFieldResolverWeight to 0.0) +
+                (UndeclaredNodeResolverWeight to 0.0),
+            randomSource
+        )
+
+        assertTrue(rc.isBatching("Query" to "batchingField"))
+        assertFalse(rc.isBatching("Query" to "plainField"))
+        assertTrue(rc.isBatching("BatchingNode" to null))
+        assertFalse(rc.isBatching("PlainNode" to null))
+        assertThrows<IllegalArgumentException> {
+            rc.isBatching("Query" to "undeclaredField")
+        }
+    }
+
+    @Test
     fun `factory -- generated resolvers sample SelectiveResolverWeight`() {
         val schema = """
             extend type Query { obj: Obj }
@@ -439,6 +472,26 @@ class ResolverConfigTest : KotestPropertyBase() {
         )
 
         assertTrue(rc.isSelective("Obj" to "generatedField"))
+    }
+
+    @Test
+    fun `factory -- generated resolvers sample BatchingResolverWeight`() {
+        val schema = """
+            extend type Query { obj: Obj }
+            type Obj implements Node { id: ID!, generatedField: Int }
+        """.asViaductSchema
+        val rc = ResolverConfigImpl(
+            schema,
+            Config.default +
+                (IncludeRequiredResolvers to false) +
+                (UndeclaredFieldResolverWeight to 1.0) +
+                (UndeclaredNodeResolverWeight to 1.0) +
+                (BatchingResolverWeight to 1.0),
+            randomSource
+        )
+
+        assertTrue(rc.isBatching("Obj" to "generatedField"))
+        assertTrue(rc.isBatching("Obj" to null))
     }
 
     @Test
@@ -602,9 +655,7 @@ class ResolverConfigTest : KotestPropertyBase() {
 
         val rc = ResolverConfigImpl(
             schema,
-            Config.default +
-                (UndeclaredFieldResolverWeight to 1e-12) +
-                (SelectiveResolverWeight to 0.0),
+            Config.default + (SelectiveResolverWeight to 0.0),
             RandomSource.seeded(1)
         )
 

@@ -76,6 +76,7 @@ internal fun interface FieldResolverExecutorGen {
                 val objectSelectionSet = env.requiredSelectionSetGen.gen(coord, coord.first, forChecker = false, 0)
                 val querySelectionSet = env.requiredSelectionSetGen.gen(coord, env.schemas.schema.queryType.name, forChecker = false, 0)
                 val isSelective = env.resolverConfig.isSelective(coord)
+                val isBatching = env.resolverConfig.isBatching(coord)
 
                 val fieldResolver = env.fork().let { env ->
                     env.cfg[FieldResolverFactory]
@@ -98,6 +99,7 @@ internal fun interface FieldResolverExecutorGen {
                 FieldResolverExecutorImpl(
                     coord,
                     isSelective,
+                    isBatching,
                     objectSelectionSet,
                     querySelectionSet,
                     fieldResolver
@@ -109,13 +111,13 @@ internal fun interface FieldResolverExecutorGen {
 private class FieldResolverExecutorImpl(
     coord: Coordinate,
     override val isSelective: Boolean,
+    override val isBatching: Boolean,
     override val objectSelectionSet: RequiredSelectionSet? = null,
     override val querySelectionSet: RequiredSelectionSet? = null,
     private val fieldResolver: FieldResolver
 ) : FieldResolverExecutor {
     override val resolverId: String = "${coord.first}.${coord.second}"
     override val metadata: ResolverMetadata = ResolverMetadata.forModern(resolverId)
-    override val isBatching: Boolean = false
 
     override suspend fun batchResolve(
         selectors: List<FieldResolverExecutor.Selector>,
@@ -189,10 +191,18 @@ fun interface FieldResolver {
             override fun createFieldResolver(params: Params): FieldResolver = Resolver(params)
 
             private class Resolver(val params: Params) : FieldResolver {
+                private val localSeed = params.rs.random.nextLong()
+
                 override suspend fun invoke(
                     selector: FieldResolverExecutor.Selector,
                     ctx: EngineExecutionContext
                 ): Any? {
+                    val localRandom = if (params.rs.sampleWeight(params.cfg[DeterministicResolveWeight])) {
+                        RandomSource.seeded(localSeed)
+                    } else {
+                        params.rs
+                    }
+
                     if (params.exerciseRequiredSelections) {
                         params.objectSelectionSet?.also { rss ->
                             EngineDataExerciser.exercise(selector.syncObjectValueGetter(), ctx, rss)
@@ -202,15 +212,23 @@ fun interface FieldResolver {
                         }
                     }
 
-                    params.rs.maybeDelay(params.cfg[ResolverLatencyMillis])
-                    maybeThrowResolverException(params.cfg, FieldResolverExceptionWeight, params.rs)
+                    localRandom.maybeDelay(params.cfg[ResolverLatencyMillis])
+                    maybeThrowResolverException(params.cfg, FieldResolverExceptionWeight, localRandom)
 
-                    return params.fieldResolverValueGen.gen(
+                    val gen = ResolverValueGen(
+                        params.schema,
+                        params.resolverConfig,
+                        params.cfg,
+                        localRandom
+                    )
+                    val result = gen.gen(
                         params.coordinate,
                         params.selective,
                         selector.selections,
                         EngineCtx(ctx)
                     )
+
+                    return result
                 }
             }
         }
