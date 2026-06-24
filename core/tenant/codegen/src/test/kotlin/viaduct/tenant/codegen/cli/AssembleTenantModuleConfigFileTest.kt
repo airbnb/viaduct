@@ -98,6 +98,18 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
+    fun `fails with clear error when tenant package matches package prefix`() {
+        val exception = assertThrows<IllegalArgumentException> {
+            runCli(
+                tenantPkg = "com.example",
+                tenantPackagePrefix = "com.example",
+            )
+        }
+
+        assertTrue(exception.message!!.contains("Tenant module name must not be empty"), exception.message)
+    }
+
+    @Test
     fun `output JSON includes node entry assembled from descriptor`() {
         val descriptors = descriptorDir()
         File(descriptors, "ExampleResolvers.json").writeText(

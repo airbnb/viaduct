@@ -241,13 +241,17 @@ internal object TenantModuleConfigAssembler {
     ): String {
         val packageName = tenantPackage.trim('.')
         val prefix = tenantPackagePrefix?.trim('.')?.takeIf(String::isNotBlank)
-            ?: return packageName.replace('.', '/')
 
-        if (packageName != prefix && !packageName.startsWith("$prefix.")) {
-            return packageName.replace('.', '/')
+        val tenantModuleName = when {
+            prefix == null -> packageName.replace('.', '/')
+            packageName != prefix && !packageName.startsWith("$prefix.") -> packageName.replace('.', '/')
+            else -> packageName.removePrefix(prefix).removePrefix(".").replace('.', '/')
         }
 
-        return packageName.removePrefix(prefix).removePrefix(".").replace('.', '/')
+        require(tenantModuleName.isNotEmpty()) {
+            "Tenant module name must not be empty: tenant package '$tenantPackage' must be a subpackage of tenant package prefix '$tenantPackagePrefix'."
+        }
+        return tenantModuleName
     }
 
     /**
