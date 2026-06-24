@@ -88,6 +88,21 @@ class ProjectedEngineSelectionSetTest {
     }
 
     @Test
+    fun `ProjectedEngineSelectionSet -- fieldDirectivesOfSelection`() {
+        val sdl = defaultSdl + "\ndirective @testDirective(flag: Boolean!) on FIELD"
+        val projected = mk(
+            "Node",
+            "... on Foo { aliased: int @testDirective(flag: true) }",
+            sdl
+        ).selectionSetForType("Foo")
+
+        val directives = projected.fieldDirectivesOfSelection("Foo", "aliased")!!
+
+        assertTrue(directives.hasDirective("testDirective") { args -> args["flag"] == true })
+        assertFalse(directives.hasDirective("missingDirective"))
+    }
+
+    @Test
     fun `ProjectedEngineSelectionSet -- selections`() {
         val projected = mk("Node", "id ... on Foo { int }").selectionSetForType("Foo")
         val selectedFields = projected.selections().map { it.fieldName }.toSet()
@@ -203,6 +218,19 @@ class ProjectedEngineSelectionSetTest {
         assertTrue(projected is ProjectedEngineSelectionSet)
 
         assertEquals(EngineSelection("Node", "id", "id"), projected.resolveSelection("Node", "id"))
+    }
+
+    @Test
+    fun `ProjectedEngineSelectionSet -- fieldDirectivesOfSelection falls back to sourceImpl for non-concrete type`() {
+        val sdl = defaultSdl + "\ndirective @testDirective on FIELD"
+        val projected = mk("Node", "id @testDirective ... on Foo { int }", sdl)
+            .selectionSetForType("Foo")
+        assertTrue(projected is ProjectedEngineSelectionSet)
+
+        val directives = projected.fieldDirectivesOfSelection("Node", "id")!!
+
+        assertTrue(directives.hasDirective("testDirective"))
+        assertFalse(directives.hasDirective("missingDirective"))
     }
 
     @Test

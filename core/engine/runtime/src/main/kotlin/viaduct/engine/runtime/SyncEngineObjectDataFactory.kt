@@ -6,6 +6,7 @@ import kotlin.coroutines.coroutineContext
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.FieldDirectives
 import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
@@ -97,6 +98,7 @@ object SyncEngineObjectDataFactory {
             val selectionPath: ResultPath?,
             val cell: Any?,
             val subselections: EngineSelectionSet?,
+            val fieldDirectives: FieldDirectives?,
         )
 
         val selectionStates = ArrayList<SelectionState>(engineSelections.size)
@@ -114,6 +116,8 @@ object SyncEngineObjectDataFactory {
                 engineSelection.fieldName,
                 selectionName
             )
+            val fieldDirectives =
+                selectionSet.fieldDirectivesOfSelection(objectEngineResult.type.name, selectionName)
 
             val cell = objectEngineResult.getCellOptimistically(
                 oerKey(
@@ -125,7 +129,7 @@ object SyncEngineObjectDataFactory {
                     selections = selections,
                 )
             )
-            selectionStates += SelectionState(selectionName, selectionPath, cell, subselections)
+            selectionStates += SelectionState(selectionName, selectionPath, cell, subselections, fieldDirectives)
 
             if (cell is Cell) {
                 @Suppress("UNCHECKED_CAST")
@@ -161,6 +165,7 @@ object SyncEngineObjectDataFactory {
                             isResolverSelective,
                             fieldChildSelections,
                             skipAccessCheck,
+                            state.fieldDirectives,
                         )
                     },
                     params,
@@ -175,6 +180,7 @@ object SyncEngineObjectDataFactory {
                     isResolverSelective,
                     fieldChildSelections,
                     skipAccessCheck,
+                    state.fieldDirectives,
                 )
             }
         }
@@ -199,6 +205,8 @@ object SyncEngineObjectDataFactory {
      * - [FieldResolutionResult]: Unwraps and recurses on engineResult
      * - [Cell]: Extracts raw value and access check, then recurses
      *
+     * @param fieldDirectives directives from the original field selection, propagated through
+     *   nested list items so checker errors can evaluate resolver-read directive context.
      * @return The unwrapped value, or an [Exception] if an error was encountered
      */
     private suspend fun unwrap(
@@ -209,6 +217,7 @@ object SyncEngineObjectDataFactory {
         isResolverSelective: IsResolverSelective,
         childSelections: ObjectEngineResult.Selections? = null,
         skipAccessCheck: Boolean = false,
+        fieldDirectives: FieldDirectives? = null,
     ): Any? {
         return when (value) {
             null -> null
@@ -217,7 +226,16 @@ object SyncEngineObjectDataFactory {
             // to the `Cell` case. If any element has an error, return that error
             // as the value for the whole list.
             is List<*> -> value.mapIndexed { index, it ->
-                val v = unwrap(it, subselections, errorMessage, parentPath?.segment(index), isResolverSelective, childSelections, skipAccessCheck)
+                val v = unwrap(
+                    it,
+                    subselections,
+                    errorMessage,
+                    parentPath?.segment(index),
+                    isResolverSelective,
+                    childSelections,
+                    skipAccessCheck,
+                    fieldDirectives
+                )
                 if (v is Exception) return v // non-local return from unwrap
                 v
             }
@@ -237,7 +255,16 @@ object SyncEngineObjectDataFactory {
                 if (value.errors.isNotEmpty()) {
                     return FieldErrorsException(value.errors) // Store exception, don't throw
                 }
-                unwrap(value.engineResult, subselections, errorMessage, parentPath, isResolverSelective, childSelections, skipAccessCheck)
+                unwrap(
+                    value.engineResult,
+                    subselections,
+                    errorMessage,
+                    parentPath,
+                    isResolverSelective,
+                    childSelections,
+                    skipAccessCheck,
+                    fieldDirectives
+                )
             }
 
             is Cell -> {
@@ -253,12 +280,21 @@ object SyncEngineObjectDataFactory {
                 if (cellRaw is Exception) return cellRaw
                 if (!skipAccessCheck) {
                     val cellChecker = value.fetch(ACCESS_CHECK_SLOT)
-                    val checkerException = extractCheckerException(cellChecker)
+                    val checkerException = extractCheckerException(cellChecker, fieldDirectives)
                     if (checkerException != null) {
                         return checkerException // Store extracted exception, don't throw
                     }
                 }
-                unwrap(cellRaw, subselections, errorMessage, parentPath, isResolverSelective, childSelections, skipAccessCheck)
+                unwrap(
+                    cellRaw,
+                    subselections,
+                    errorMessage,
+                    parentPath,
+                    isResolverSelective,
+                    childSelections,
+                    skipAccessCheck,
+                    fieldDirectives
+                )
             }
 
             // The `else` case is for non-null simple types (scalars
@@ -285,9 +321,13 @@ object SyncEngineObjectDataFactory {
      * should be thrown for resolvers.
      *
      * @param checkerResult The checker result to examine
+     * @param fieldDirectives directives from the field selection being read, if available
      * @return The exception to store, or null if no error
      */
-    private fun extractCheckerException(checkerResult: Any?): Exception? {
+    private fun extractCheckerException(
+        checkerResult: Any?,
+        fieldDirectives: FieldDirectives?,
+    ): Exception? {
         checkerResult ?: return null
         if (checkerResult !is CheckerResult) {
             return IllegalStateException(
@@ -295,7 +335,7 @@ object SyncEngineObjectDataFactory {
             )
         }
         return checkerResult.asError?.let { error ->
-            if (error.isErrorForResolver(CheckerResultContext())) {
+            if (error.isErrorForResolver(CheckerResultContext(fieldDirectives = fieldDirectives))) {
                 error.error
             } else {
                 null

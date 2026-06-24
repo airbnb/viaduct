@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
@@ -60,6 +61,12 @@ class SyncEngineObjectDataFactoryTest {
             parentType: GraphQLObjectType,
             responseKey: String
         ): TestSelections? = children[responseKey]
+    }
+
+    private class BypassAwareCheckerErrorResult(override val error: Exception) : CheckerResult.Error {
+        override fun isErrorForResolver(ctx: CheckerResultContext): Boolean = ctx.fieldDirectives?.hasDirective("bypassPolicyCheck") != true
+
+        override fun combine(fieldResult: CheckerResult.Error): CheckerResult.Error = fieldResult
     }
 
     private suspend fun resolveSyncData(
@@ -637,6 +644,88 @@ class SyncEngineObjectDataFactoryTest {
                 syncData.get("stringField")
             }
             assertSame(accessError, thrown)
+        }
+    }
+
+    @Test
+    fun `resolve with bypassPolicyCheck directive suppresses access check failure`() {
+        Fixture(
+            """
+                directive @bypassPolicyCheck on FIELD
+                type Query { stringField: String }
+            """.trimIndent()
+        ) {
+            val oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Query"))
+
+            oer.computeIfAbsent(ObjectEngineResult.Key("stringField")) { slotSetter ->
+                slotSetter.setRawValue(
+                    Value.fromValue(
+                        FieldResolutionResult(
+                            "allowed",
+                            emptyList(),
+                            CompositeLocalContext.empty,
+                            emptyMap(),
+                            "stringField"
+                        )
+                    )
+                )
+                slotSetter.setCheckerValue(
+                    Value.fromValue(BypassAwareCheckerErrorResult(IllegalAccessException("no access")))
+                )
+            }
+
+            val selectionSet = mkSelectionSet("Query", "stringField @bypassPolicyCheck")
+            val syncData = resolveSyncData(oer, "error", selectionSet)
+
+            assertEquals("allowed", syncData.get("stringField"))
+        }
+    }
+
+    @Test
+    fun `resolve list uses field directive context for element access check failures`() {
+        Fixture(
+            """
+                directive @bypassPolicyCheck on FIELD
+                type Query { listField: [String] }
+            """.trimIndent()
+        ) {
+            val oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Query"))
+            val itemCell = newCell { slotSetter ->
+                slotSetter.setRawValue(
+                    Value.fromValue(
+                        FieldResolutionResult(
+                            "allowed",
+                            emptyList(),
+                            CompositeLocalContext.empty,
+                            emptyMap(),
+                            "listField"
+                        )
+                    )
+                )
+                slotSetter.setCheckerValue(
+                    Value.fromValue(BypassAwareCheckerErrorResult(IllegalAccessException("no access")))
+                )
+            }
+
+            oer.computeIfAbsent(ObjectEngineResult.Key("listField")) { slotSetter ->
+                slotSetter.setRawValue(
+                    Value.fromValue(
+                        FieldResolutionResult(
+                            listOf(itemCell),
+                            emptyList(),
+                            CompositeLocalContext.empty,
+                            emptyMap(),
+                            "listField"
+                        )
+                    )
+                )
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+
+            val selectionSet = mkSelectionSet("Query", "listField @bypassPolicyCheck")
+            val syncData = resolveSyncData(oer, "error", selectionSet)
+
+            assertEquals(listOf("allowed"), syncData.get("listField"))
         }
     }
 

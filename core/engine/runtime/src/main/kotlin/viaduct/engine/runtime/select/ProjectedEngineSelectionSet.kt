@@ -8,6 +8,7 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLTypeUtil
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.FieldDirectives
 import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.gj
 
@@ -175,6 +176,16 @@ internal class ProjectedEngineSelectionSet(
         type: String,
         selectionName: String
     ): Map<String, Any?>? = sourceImpl.argumentsOfSelection(type, selectionName)
+
+    override fun fieldDirectivesOfSelection(
+        type: String,
+        selectionName: String
+    ): FieldDirectives? {
+        if (type == concreteType.name) {
+            return selectionsByResultKey[selectionName]?.let { FieldSelectionDirectives(it.field, ctx) }
+        }
+        return sourceImpl.fieldDirectivesOfSelection(type, selectionName)
+    }
 
     private fun fieldDef(sel: FieldSelection): GraphQLFieldDefinition {
         val coord = (sel.typeCondition.name to sel.field.name).gj

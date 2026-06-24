@@ -476,6 +476,30 @@ class EngineSelectionSetImplTest {
     }
 
     @Test
+    fun `fieldDirectivesOfSelection -- detects directive and coerces arguments`() {
+        val sdl = """
+            extend type Query { x: Int }
+            directive @testDirective(flag: Boolean!, label: String) on FIELD
+        """.trimIndent()
+        val ss = mk(
+            "Query",
+            "alias: x @testDirective(flag: ${'$'}flag, label: \"ok\")",
+            sdl,
+            vars = mapOf("flag" to true)
+        )
+
+        val directives = ss.fieldDirectivesOfSelection("Query", "alias")!!
+
+        assertTrue(directives.hasDirective("testDirective"))
+        assertTrue(
+            directives.hasDirective("testDirective") { args ->
+                args["flag"] == true && args["label"] == "ok"
+            }
+        )
+        assertFalse(directives.hasDirective("missingDirective"))
+    }
+
+    @Test
     fun `plus SelectionSet -- empty`() {
         val ss = mk("Node", "__typename @skip(if:true)")
         assertEquals(ss, ss + GJSelectionSet(listOf()))

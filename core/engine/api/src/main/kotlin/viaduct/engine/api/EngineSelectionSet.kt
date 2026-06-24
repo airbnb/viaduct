@@ -299,6 +299,25 @@ interface EngineSelectionSet {
         selectionName: String
     ): Map<String, Any?>?
 
+    /**
+     * Return directives applied to a provided selection.
+     *
+     * The returned [FieldDirectives] can be used to check directive presence and,
+     * when needed, directive argument values.
+     *
+     * @param type a type projection that should be applied to this selection set
+     *   before checking for a selection on [selectionName]. The provided [type] may be any
+     *   type that is considered a valid fragment spread on this [EngineSelectionSet]'s current type.
+     *   The rules of spreadability are defined at:
+     *   https://spec.graphql.org/draft/#sec-Fragment-Spread-Is-Possible
+     * @param selectionName a field or alias name
+     * @return null if no selection for the provided [type] and [selectionName] exists.
+     */
+    fun fieldDirectivesOfSelection(
+        type: String,
+        selectionName: String
+    ): FieldDirectives? = null
+
     interface Factory {
         /** Create an EngineSelectionSet */
         fun engineSelectionSet(

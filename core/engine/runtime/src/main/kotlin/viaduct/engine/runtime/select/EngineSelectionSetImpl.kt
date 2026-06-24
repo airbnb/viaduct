@@ -22,6 +22,7 @@ import graphql.schema.GraphQLTypeUtil
 import java.util.Locale
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.FieldDirectives
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.fragment.FragmentSource
@@ -529,6 +530,13 @@ data class EngineSelectionSetImpl(
                     Locale.getDefault()
                 )
             }
+
+    override fun fieldDirectivesOfSelection(
+        type: String,
+        selectionName: String
+    ): FieldDirectives? =
+        findSelection(type) { it.resultKey == selectionName }
+            ?.let { FieldSelectionDirectives(it.field, ctx) }
 
     private fun compositeType(name: String): GraphQLCompositeType =
         (ctx.schema.schema.getType(name) ?: throw IllegalArgumentException("type $name is not defined"))

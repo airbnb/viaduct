@@ -1,13 +1,11 @@
 package viaduct.engine.api
 
-import graphql.execution.directives.QueryDirectives
-
 /**
- * Context for CheckerResult.
+ * Context for evaluating a [CheckerResult].
  */
 data class CheckerResultContext(
     /**
-     * Query directives applied to the field in the resolver query.
+     * Directives applied to the field currently being read by resolver code, if available.
      */
-    val fieldQueryDirectives: QueryDirectives? = null,
+    val fieldDirectives: FieldDirectives? = null,
 )
