@@ -16,7 +16,6 @@ tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileTestFixture
 dependencies {
     implementation(libs.graphql.java)
     implementation(libs.jackson.annotations)
-    implementation(libs.jackson.databind)
     implementation(libs.jackson.module)
     implementation(libs.javax.inject)
     implementation(libs.kotlinx.coroutines.core)
@@ -56,7 +55,6 @@ dependencies {
 
     testImplementation(libs.io.mockk.dsl)
     testImplementation(libs.io.mockk.jvm)
-    testImplementation(libs.jackson.databind)
     testImplementation(libs.jspecify)
     testImplementation(libs.kotest.property.jvm)
     testImplementation(libs.kotlinx.coroutines.test)

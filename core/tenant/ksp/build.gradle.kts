@@ -10,8 +10,8 @@ dependencies {
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.tenant.validation)
     implementation(libs.graphql.java)
-    implementation(libs.jackson.module)
     implementation(libs.jackson.annotations)
+    implementation(libs.jackson.module)
 
     testImplementation(libs.ksp.symbol.processing.api)
     testImplementation(libs.graphql.java)

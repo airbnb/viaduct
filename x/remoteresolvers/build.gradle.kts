@@ -63,7 +63,6 @@ dependencies {
     implementation(libs.grpc.netty.shaded)
 
     // Jackson for JSON serialization
-    implementation(libs.jackson.databind)
     implementation(libs.jackson.module)
 
     // Guice for dependency injection

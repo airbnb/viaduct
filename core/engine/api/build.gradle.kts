@@ -20,9 +20,8 @@ dependencies {
     /** External dependencies **/
     implementation(libs.graphql.java)
     implementation(libs.guice)
-    implementation(libs.jackson.annotations)
     implementation(libs.caffeine)
-    implementation(libs.jackson.databind)
+    implementation(libs.jackson.annotations)
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlinx.coroutines.core)
 

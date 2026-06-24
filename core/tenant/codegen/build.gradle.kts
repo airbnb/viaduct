@@ -28,7 +28,6 @@ dependencies {
     implementation(libs.viaduct.tenant.api)
     implementation(libs.viaduct.engine.api)
 
-    implementation(libs.jackson.annotations)
     implementation(libs.jackson.databind)
     implementation(libs.jackson.module)
 
@@ -45,7 +44,6 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.kotlin.reflect)
     testImplementation(libs.guava)
-    testImplementation(libs.jackson.annotations)
     testImplementation(libs.slf4j.api)
     testImplementation(libs.kotest.property.jvm)
     testImplementation(libs.ksp.symbol.processing.api)

@@ -16,8 +16,6 @@ dependencies {
     api(libs.viaduct.shared.invariants)
     api(libs.viaduct.shared.viaductschema)
 
-    implementation(libs.jackson.core)
-    implementation(libs.jackson.databind)
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.shared.utils)
     implementation(libs.kotest.common.jvm)
