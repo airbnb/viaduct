@@ -72,6 +72,9 @@ class DispatcherRegistryFactory(
             var tenantContributesExecutors = false
             for ((fieldCoord, executor) in tenantFieldResolverExecutors) {
                 val finalExecutor = proxyResolverFactory.proxyField(executor) ?: executor
+                // Resolver coordinates are globally keyed. Duplicate registrations are deduped
+                // silently here with the later registration winning, which preserves the existing
+                // bootstrap behavior for fallback classic field registration.
                 fieldResolverDispatchers[fieldCoord] = FieldResolverDispatcherImpl(finalExecutor)
                 // The proxy executor is validated because the engine uses the proxy's RSS and type
                 // contract at runtime. Validating the original would check RSS that is no longer
