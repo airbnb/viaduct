@@ -19,22 +19,23 @@ The module ships with two transports:
 
 - **`IN_PROCESS`** (default) — both ends in one JVM over gRPC's in-memory channel.
   Useful for development and testing the wiring without a separate process.
-- **`NETWORK`** — RRP dials a separate RRS process over a (shaded) Netty gRPC
-  channel; RRS calls back to RRP through a plaintext server bound on the host.
+- **`NETWORK`** — the main server dials a separate remote server process over a
+  (shaded) Netty gRPC channel; the remote server calls back to the main server
+  through a plaintext server bound on the host.
 
 ## Configuration
 
 | Env var | Default | Side | Description |
 | --- | --- | --- | --- |
-| `VIADUCT_REMOTE_RESOLVER_MODE` | `in_process` | proxy | `in_process` or `network` (case-insensitive). |
-| `VIADUCT_REMOTE_RESOLVER_TYPES` | _empty_ | proxy | Comma-separated GraphQL type names to proxy. Empty means all node types. |
-| `VIADUCT_RRS_HOST` | `localhost` | proxy | Hostname the proxy dials when `mode=network`. |
-| `VIADUCT_RRS_PORT` | `50051` | both | RRS gRPC port — proxy dials it, RRS binds it. |
-| `VIADUCT_RRS_CALLBACK_HOST` | `localhost` | rrs | Hostname the RRS reaches the proxy callback at. |
-| `VIADUCT_RRS_CALLBACK_PORT` | `50052` | both | Callback port — proxy binds it, RRS dials it. |
+| `VIADUCT_REMOTE_RESOLVER_MODE` | `in_process` | main | `in_process` or `network` (case-insensitive). |
+| `VIADUCT_REMOTE_RESOLVER_TYPES` | _empty_ | main | Comma-separated GraphQL type names to proxy. Empty means all node types. |
+| `VIADUCT_RRS_HOST` | `localhost` | main | Hostname the main server dials when `mode=network`. |
+| `VIADUCT_RRS_PORT` | `50051` | both | Remote server gRPC port — the main server dials it, the remote server binds it. |
+| `VIADUCT_RRS_CALLBACK_HOST` | `localhost` | remote | Hostname the remote server reaches the main server callback at. |
+| `VIADUCT_RRS_CALLBACK_PORT` | `50052` | both | Callback port — the main server binds it, the remote server dials it. |
 
 The same `VIADUCT_RRS_PORT` / `VIADUCT_RRS_CALLBACK_PORT` values must be configured on
-both the proxy and the RRS process so they meet on the wire.
+both the main server and the remote server process so they meet on the wire.
 
 ## Wiring it in
 
@@ -44,20 +45,20 @@ factory to `BasicViaductFactory.create`, and call `close()` on the initializer
 at shutdown.
 
 For a worked example with Micronaut beans, see
-[`rrp-server/.../ViaductConfiguration.kt`](rrp-server/src/main/kotlin/com/example/rrp/service/viaduct/ViaductConfiguration.kt).
+[`main-server/.../ViaductConfiguration.kt`](starwars/main-server/src/main/kotlin/com/example/main/service/viaduct/ViaductConfiguration.kt).
 
 If you route config through your own layer instead of process env vars, pass
 an `EnvLookup` to `RemoteResolverConfig.fromEnvironment(env)` — the default is
 `EnvLookup.SYSTEM`.
 
-## Running rrp-server (in-process)
+## Running main-server (in-process)
 
-`rrp-server` is a Micronaut + Viaduct application with the proxy wired in. It
+`main-server` is a Micronaut + Viaduct application with the proxy wired in. It
 serves the StarWars schema and routes node resolution through the in-process
 proxy by default — no env var needed:
 
 ```bash
-./gradlew :remoteresolvers:rrp-server:run
+./gradlew :remoteresolvers:main-server:run
 ```
 
 When the proxy comes up you'll see these lines in the log:
@@ -83,22 +84,22 @@ You'll get back:
 {"data":{"node":{"id":"RmlsbTox","title":"A New Hope","director":"George Lucas"}}}
 ```
 
-## Running rrp-server + rrs-server (network)
+## Running main-server + remote-server (network)
 
-Run the RRS in one terminal and rrp-server in another:
+Run the remote server in one terminal and the main server in another:
 
 ```bash
 # Terminal A
-./gradlew :remoteresolvers:rrs-server:run
+./gradlew :remoteresolvers:remote-server:run
 
 # Terminal B
-VIADUCT_REMOTE_RESOLVER_MODE=network ./gradlew :remoteresolvers:rrp-server:run
+VIADUCT_REMOTE_RESOLVER_MODE=network ./gradlew :remoteresolvers:main-server:run
 ```
 
 The same `curl` from the in-process walkthrough returns the same JSON — the
-resolver ran in the RRS process and the result was serialized back over gRPC.
+resolver ran in the remote server process and the result was serialized back over gRPC.
 
-The RRS builds its node resolvers from the tenant-module manifests on its classpath
+The remote server builds its node resolvers from the tenant-module manifests on its classpath
 (`META-INF/viaduct/modules/<pkg>.json`) via Viaduct's file-based bootstrapper — the
 manifest entries carry the resolver wiring, so no SDL parsing is needed to construct
 the executors (the schema, loaded from `.graphqls`, is used only to validate them).

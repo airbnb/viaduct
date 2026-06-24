@@ -17,7 +17,7 @@ tasks.withType<KotlinCompile>().configureEach {
 
 // Uses plain maven-publish rather than conventions.viaduct-publishing to avoid
 // a Dokka version conflict when this module is consumed as an included build.
-// Local-only publication — rrp-server (the only consumer) finds the artifact in ~/.m2/.
+// Local-only publication — main-server (the only consumer) finds the artifact in ~/.m2/.
 publishing {
     publications {
         create<MavenPublication>("maven") {

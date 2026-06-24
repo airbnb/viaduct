@@ -43,19 +43,19 @@ includeBuild("gradle-plugins/gradletestapps")
 
 // The publish step (publishToMavenLocal) only needs the published builds: core,
 // publications, gradle-plugins (above) and the remoteresolvers proxy library (below).
-// The experimental rrp/rrs servers and the demo apps are passive composite participants;
+// The experimental main/remote servers and the demo apps are passive composite participants;
 // configuring them resolves their third-party Gradle plugins from Maven Central, which gets
-// rate-limited (429) during CI's parallel publish. -PexcludeDemoApps skips them. (rrp/rrs
-// depend on com.example.starwars, so they are skipped together with the demo apps.)
+// rate-limited (429) during CI's parallel publish. -PexcludeDemoApps skips them. (the main and
+// remote servers depend on com.example.starwars, so they are skipped together with the demo apps.)
 val excludeDemoApps = providers.gradleProperty("excludeDemoApps").isPresent
 
-// experimental — remoteresolvers proxy library (published; consumed by the rrp/rrs servers)
+// experimental — remoteresolvers proxy library (published; consumed by the main/remote servers)
 includeBuild("x/remoteresolvers")
 
 if (!excludeDemoApps) {
-    // rrp-server (engine side) and rrs-server (resolver side, for NETWORK transport)
-    includeBuild("x/remoteresolvers/rrp-server")
-    includeBuild("x/remoteresolvers/rrs-server")
+    // main-server (engine side) and remote-server (resolver side, for NETWORK transport)
+    includeBuild("x/remoteresolvers/starwars/main-server")
+    includeBuild("x/remoteresolvers/starwars/remote-server")
 
     // demo apps
     includeBuild("demoapps/cli-starter")
@@ -66,7 +66,7 @@ if (!excludeDemoApps) {
     includeBuild("demoapps/starwars") {
         dependencySubstitution {
             // Expose StarWars module outputs via Maven coordinates so other included
-            // builds in the composite (e.g. rrp-server) can resolve them.
+            // builds in the composite (e.g. main-server) can resolve them.
             substitute(module("com.example.starwars:common")).using(project(":common"))
             substitute(module("com.example.starwars:filmography")).using(project(":modules:filmography"))
             substitute(module("com.example.starwars:universe")).using(project(":modules:universe"))
