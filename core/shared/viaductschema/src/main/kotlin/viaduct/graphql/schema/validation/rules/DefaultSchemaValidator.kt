@@ -15,6 +15,7 @@ import viaduct.graphql.schema.validation.SchemaValidator
  * - [BackingDataFieldsRule]: BackingData type and @backingData directive must be used together
  * - [IdOfTypeValidationRule]: @idOf type parameter must reference an existing Node type
  * - [NamespaceTypeConstraintsRule]: @namespaceType types must have no-arg, non-list fields and a single parent
+ * - [FieldArgumentsRequireResolverRule]: Object fields with arguments must have @resolver
  * - [ConnectionTypeStructureRule]: @connection types must have a valid 'edges' field and a non-null 'pageInfo' field
  * - [ConnectionEdgeStructureRule]: @edge types must have a 'node' field
  * - [ConnectionPageInfoRule]: PageInfo types must have hasNextPage/hasPreviousPage as Boolean! and nullable cursors
@@ -36,6 +37,7 @@ object DefaultSchemaValidator {
                 BackingDataFieldsRule(),
                 IdOfTypeValidationRule(),
                 NamespaceTypeConstraintsRule(),
+                FieldArgumentsRequireResolverRule(),
                 ConnectionTypeStructureRule(),
                 ConnectionEdgeStructureRule(),
                 ConnectionPageInfoRule(),

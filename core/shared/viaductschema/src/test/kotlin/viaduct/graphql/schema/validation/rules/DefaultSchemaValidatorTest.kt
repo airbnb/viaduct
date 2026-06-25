@@ -13,12 +13,13 @@ class DefaultSchemaValidatorTest {
     fun `should produce no errors for valid schema`() {
         val schema = ViaductSchema.fromTypeDefinitionRegistry(
             """
+            directive @resolver(isSelective: Boolean! = false, isBatching: Boolean! = false) on OBJECT | FIELD_DEFINITION
             type Query {
                 hello: String
                 count: Int
             }
             type Mutation {
-                setMessage(msg: String): String
+                setMessage(msg: String): String @resolver
             }
             """.trimIndent()
         )
@@ -136,6 +137,21 @@ class DefaultSchemaValidatorTest {
 
         errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
             ValidationErrorCodes.NAMESPACE_TYPE_FIELD_HAS_ARGS
+        )
+    }
+
+    @Test
+    fun `should detect object field with arguments missing resolver`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            type Query { search(query: String!): String }
+            """.trimIndent()
+        )
+
+        val errors = DefaultSchemaValidator.validate(schema)
+
+        errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
+            ValidationErrorCodes.FIELD_WITH_ARGS_MISSING_RESOLVER
         )
     }
 
