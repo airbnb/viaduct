@@ -39,6 +39,8 @@ dependencies {
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.javassist)
     testImplementation(libs.kotest.assertions.core.jvm)
+    // Classpath resource scanning for golden snapshots (works under both Gradle and Bazel).
+    testImplementation(libs.classgraph)
     testImplementation(testFixtures(libs.viaduct.shared.viaductschema))
     testImplementation(testFixtures(libs.viaduct.tenant.api))
     testImplementation(libs.kotlinx.coroutines.test)
@@ -64,4 +66,10 @@ dependencies {
 
 tasks.test {
     jvmArgs("--add-opens", "java.base/java.lang=ALL-UNNAMED")
+    // Forward the golden-snapshot regenerate flag to the test JVM so that running with
+    // -Dviaduct.codegen.golden.regenerate=true rewrites the checked-in golden files (see
+    // KotlinCodegenGoldenTest). Without this, Gradle does not propagate the system property.
+    System.getProperty("viaduct.codegen.golden.regenerate")?.let {
+        systemProperty("viaduct.codegen.golden.regenerate", it)
+    }
 }

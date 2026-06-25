@@ -1,0 +1,149 @@
+# Golden-output characterization fixture for the Kotlin GRT / resolver code generators
+# (the "kotlingen" path that produces .kt source files).
+#
+# This schema is intentionally broad: it exercises every construct that the codegen
+# branches on so the generated source acts as a behavioral snapshot. The companion
+# test (KotlinCodegenGoldenTest) regenerates from this schema and asserts the output
+# is byte-for-byte identical to the checked-in golden files under golden/expected/.
+#
+# NOTE: the framework-provided directives (@resolver, @idOf, @backingData, @connection,
+# @edge), the BackingData scalar, the Node interface, the PageInfo type, and the
+# Query/Mutation root types are all injected by DefaultSchemaFactory at parse time (see
+# KotlinCodegenGoldenTest). They must NOT be declared here or the parser rejects the
+# schema as redefining core types.
+#
+# Keep this fixture and the golden files in sync: if a deliberate codegen change alters
+# the output, regenerate the golden files (see KotlinCodegenGoldenTest for how) and
+# review the diff. An unexpected diff means a behavior change in the generator.
+
+# ---------------------------------------------------------------------------
+# Enums (with and without descriptions)
+# ---------------------------------------------------------------------------
+
+"""
+Lifecycle status of an order.
+"""
+enum OrderStatus {
+  "Order placed but not yet paid"
+  PENDING
+  "Order paid and confirmed"
+  CONFIRMED
+  "Order delivered"
+  COMPLETED
+  CANCELLED
+}
+
+enum Color {
+  RED
+  GREEN
+  BLUE
+}
+
+# ---------------------------------------------------------------------------
+# Interfaces (including interface-extends-Node)
+# ---------------------------------------------------------------------------
+
+interface Timestamped {
+  createdAt: String!
+  updatedAt: String
+}
+
+# Interface that extends Node (and another interface).
+interface Auditable implements Node & Timestamped {
+  id: ID!
+  createdAt: String!
+  updatedAt: String
+  auditTrail: [String!]
+}
+
+# ---------------------------------------------------------------------------
+# Plain objects, Node types, @idOf, BackingData
+# ---------------------------------------------------------------------------
+
+# Plain object that is NOT a Node.
+type Money {
+  amount: Float!
+  currency: String!
+}
+
+# Node type: its id becomes a GlobalID<User>.
+type User implements Node {
+  id: ID!
+  name: String!
+  nickname: String
+  age: Int
+  active: Boolean!
+  favoriteColor: Color
+  scores: [Int!]!
+  # @idOf references another Node type -> GlobalID<Order>.
+  lastOrder: ID @idOf(type: "Order")
+  # BackingData fields are opaque and excluded from GRT generation.
+  internalState: BackingData @backingData(class: "com.example.internal.UserState")
+}
+
+# Node type implementing a Node-extending interface.
+type Order implements Node & Auditable & Timestamped {
+  id: ID!
+  status: OrderStatus!
+  total: Money!
+  createdAt: String!
+  updatedAt: String
+  auditTrail: [String!]
+  buyer: User!
+}
+
+# ---------------------------------------------------------------------------
+# Connections / edges (@connection / @edge)
+# ---------------------------------------------------------------------------
+
+type OrderEdge @edge {
+  cursor: String!
+  node: Order
+}
+
+type OrderConnection @connection {
+  edges: [OrderEdge!]!
+  pageInfo: PageInfo
+}
+
+# ---------------------------------------------------------------------------
+# Unions
+# ---------------------------------------------------------------------------
+
+union SearchHit = User | Order | Money
+
+# ---------------------------------------------------------------------------
+# Input types
+# ---------------------------------------------------------------------------
+
+input CreateOrderInput {
+  buyerId: ID!
+  color: Color
+  amounts: [Float!]
+  note: String
+}
+
+# ---------------------------------------------------------------------------
+# Root types and resolvers in every variant
+# ---------------------------------------------------------------------------
+
+extend type Query {
+  # Plain (non-batching, non-selective) field resolver with arguments.
+  order(id: ID!): Order @resolver
+  # Selective field resolver.
+  topUser: User @resolver(isSelective: true)
+  # Batching field resolver.
+  popularOrders: [Order!]! @resolver(isBatching: true)
+  # Selective + batching field resolver.
+  trendingUsers: [User!]! @resolver(isSelective: true, isBatching: true)
+  # Connection field resolver.
+  ordersConnection(first: Int!, after: String): OrderConnection @resolver
+}
+
+extend type Mutation {
+  # Mutation resolver (must never batch).
+  createOrder(input: CreateOrderInput!): Order @resolver
+}
+
+# Node resolver: @resolver applied to a Node-implementing object type.
+extend type User @resolver

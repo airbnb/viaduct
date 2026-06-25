@@ -28,9 +28,20 @@ dependencies {
 
     // Testing
     testImplementation(libs.assertj.core)
+    // Classpath resource scanning for golden snapshots (works under both Gradle and Bazel).
+    testImplementation(libs.classgraph)
 
     // For GraphQLInput interface in exercise tests
     testImplementation(project(":x:javaapi:api"))
+}
+
+// Forward the golden-snapshot regenerate flag to the test JVM so that running with
+// -Dviaduct.codegen.golden.regenerate=true rewrites the checked-in golden files (see
+// JavaCodegenGoldenTest). Without this, Gradle does not propagate the system property.
+tasks.withType<Test>().configureEach {
+    System.getProperty("viaduct.codegen.golden.regenerate")?.let {
+        systemProperty("viaduct.codegen.golden.regenerate", it)
+    }
 }
 
 // Create fat jar with all dependencies for CLI usage
