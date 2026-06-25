@@ -63,4 +63,7 @@ object ValidationErrorCodes {
 
     // CrossModuleExtensionFieldsResolverRule
     const val CROSS_MODULE_EXTENSION_FIELD_MISSING_RESOLVER = "CROSS_MODULE_EXTENSION_FIELD_MISSING_RESOLVER"
+
+    // NoResolverOnInterfaceFieldsRule
+    const val RESOLVER_ON_INTERFACE_FIELD = "RESOLVER_ON_INTERFACE_FIELD"
 }

@@ -23,6 +23,7 @@ import viaduct.graphql.schema.validation.SchemaValidator
  * - [NoCrossModuleInputExtensionsRule]: Input types (enum, input) may not be extended across module partitions
  * - [StructuralDirectivesOnBaseTypeRule]: @connection, @edge, @namespaceType must be on the base type definition
  * - [CrossModuleExtensionFieldsResolverRule]: Fields added by cross-module extend type must have @resolver
+ * - [NoResolverOnInterfaceFieldsRule]: Interface fields cannot declare @resolver
  */
 object DefaultSchemaValidator {
     private val allowedScalarNames = GraphQLBuiltIns.SCALARS + GraphQLBuiltIns.VIADUCT_SCALARS
@@ -45,6 +46,7 @@ object DefaultSchemaValidator {
                 NoCrossModuleInputExtensionsRule(modulePartitionPathPrefix),
                 StructuralDirectivesOnBaseTypeRule(),
                 CrossModuleExtensionFieldsResolverRule(modulePartitionPathPrefix),
+                NoResolverOnInterfaceFieldsRule(),
             )
         )
     )

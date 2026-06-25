@@ -178,4 +178,28 @@ class DefaultSchemaValidatorTest {
             ValidationErrorCodes.CONNECTION_MISSING_EDGES_FIELD
         )
     }
+
+    @Test
+    fun `should detect resolver on interface field`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            directive @resolver on FIELD_DEFINITION
+            type Query { entity: Entity }
+            interface Entity {
+                id: ID!
+                displayName: String @resolver
+            }
+            type User implements Entity {
+                id: ID!
+                displayName: String
+            }
+            """.trimIndent()
+        )
+
+        val errors = DefaultSchemaValidator.validate(schema)
+
+        errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
+            ValidationErrorCodes.RESOLVER_ON_INTERFACE_FIELD
+        )
+    }
 }
