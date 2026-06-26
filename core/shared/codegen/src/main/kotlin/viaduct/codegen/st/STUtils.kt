@@ -8,6 +8,7 @@ import java.io.FileOutputStream
 import java.io.OutputStreamWriter
 import java.io.StringWriter
 import java.io.Writer
+import java.nio.charset.StandardCharsets
 import org.stringtemplate.v4.AutoIndentWriter
 import org.stringtemplate.v4.STGroupString
 import org.stringtemplate.v4.STWriter
@@ -27,7 +28,7 @@ class STContents(
      */
     fun write(dst: File) {
         FileOutputStream(dst).use { fileOut ->
-            BufferedWriter(OutputStreamWriter(fileOut)).use { flushableOut ->
+            BufferedWriter(OutputStreamWriter(fileOut, StandardCharsets.UTF_8)).use { flushableOut ->
                 write(flushableOut)
             }
         }
@@ -41,7 +42,10 @@ class STContents(
     private fun write(writer: Writer) {
         val template = STGroupString(stGroupString).getInstanceOf("main")
         template.add("mdl", model)
-        val out = AutoIndentWriter(writer)
+        // Force LF regardless of platform: AutoIndentWriter's no-arg constructor defaults its
+        // newline to System.lineSeparator(), which emits CRLF on Windows and breaks byte-for-byte
+        // golden comparisons of generated source.
+        val out = AutoIndentWriter(writer, "\n")
         out.setLineWidth(STWriter.NO_WRAP)
         val errs = ErrorBuffer()
         template.write(out, errs)
