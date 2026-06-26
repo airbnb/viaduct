@@ -2,7 +2,6 @@ plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
     id("me.champeau.jmh").version("0.7.3")
-    id("conventions.viaduct-publishing")
 }
 
 dependencies {

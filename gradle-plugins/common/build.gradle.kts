@@ -10,11 +10,19 @@ plugins {
 dependencies {
     api(gradleApi())
 
-    // ViaductApplicationExtension exposes Provider<SchemaScoping> from service-api as the
-    // canonical scope-state surface, so the type must be on the api classpath.
-    api(libs.viaduct.service.api)
+    // SchemaScoping is used internally by plugin tasks for manifest serialization and is not
+    // part of the public Gradle plugin API, so service-api is an implementation detail only.
+    implementation(libs.viaduct.service.api)
 
     implementation(libs.idea.gradle.plugin)
+
+    testImplementation(gradleTestKit())
+}
+
+// ProjectBuilder requires this open on Java 17+ (kotlin-dsl adds it automatically for plugin
+// projects, but common uses org.jetbrains.kotlin.jvm instead).
+tasks.named<Test>("test") {
+    jvmArgs("--add-opens=java.base/java.lang=ALL-UNNAMED")
 }
 
 viaductPublishing {

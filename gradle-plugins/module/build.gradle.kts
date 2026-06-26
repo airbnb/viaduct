@@ -5,6 +5,7 @@ plugins {
     id("conventions.bcv-api")
     id("com.gradle.plugin-publish") version "2.0.0"
     id("conventions.viaduct-publishing")
+    id("conventions.viaduct-fat-plugin")
 }
 
 java {
@@ -18,8 +19,9 @@ dependencies {
     // Libraries the plugin source imports directly (binary schema generation).
     // tenant-codegen is NOT here — it is an external tool artifact resolved at
     // build time via the viaductCodegenClasspath Configuration.
-    implementation(libs.viaduct.shared.graphql)
-    implementation(libs.viaduct.shared.viaductschema)
+    // Classes bundled directly into this plugin JAR via conventions.viaduct-fat-plugin.
+    bundled(libs.viaduct.shared.graphql)
+    bundled(libs.viaduct.shared.viaductschema)
 
     // Do NOT leak the Kotlin Gradle Plugin at runtime
     compileOnly(libs.kotlin.gradle.plugin)

@@ -6,7 +6,6 @@ import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
 import viaduct.apiannotations.ExperimentalApi
-import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.StableApi
 import viaduct.service.api.scoping.SchemaScoping
 
@@ -15,23 +14,21 @@ open class ViaductApplicationExtension(objects: ObjectFactory) {
     /** Kotlin package name prefix for all modules. */
     val modulePackagePrefix = objects.property(String::class.java)
 
-    private val scopeUniverseProperty: SetProperty<String> =
+    internal val scopeUniverseProperty: SetProperty<String> =
         objects.setProperty(String::class.java)
 
-    private val scopedSchemasProperty: MapProperty<String, ScopedSchemaDefinition> =
+    internal val scopedSchemasProperty: MapProperty<String, ScopedSchemaDefinition> =
         objects.mapProperty(String::class.java, ScopedSchemaDefinition::class.java)
 
     private var scopeUniverseDeclared = false
     private var scopedSchemasDeclared = false
 
     /**
-     * Canonical view of the application's schema-scoping declarations, derived from the
-     * `declaredSchemaScopes` and `declaredScopedSchemas` DSL methods. Re-evaluated on each `get()`,
-     * so successive snapshots reflect the state at the moment of resolution.
+     * Builds a [SchemaScoping] snapshot from the current DSL state. Intended for internal plugin
+     * use (e.g. manifest serialization tasks) — not part of the public Gradle plugin API.
      */
-    @InternalApi
     @OptIn(ExperimentalApi::class)
-    val schemaScoping: Provider<SchemaScoping> =
+    internal val schemaScoping: Provider<SchemaScoping> =
         scopeUniverseProperty.zip(scopedSchemasProperty) { universe, schemas ->
             SchemaScoping(
                 scopeUniverse = universe,

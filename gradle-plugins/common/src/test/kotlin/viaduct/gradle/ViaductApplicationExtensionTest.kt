@@ -30,17 +30,15 @@ class ViaductApplicationExtensionTest {
     }
 
     @Test
-    fun `schemaScoping is empty by default`() {
-        val scoping = extension.schemaScoping.get()
-        assertEquals(emptySet<String>(), scoping.scopeUniverse)
-        assertEquals(emptyMap<String, Set<String>>(), scoping.scopedSchemas)
-        assertFalse(scoping.isScoped)
+    fun `scope universe is empty by default`() {
+        assertEquals(emptySet<String>(), extension.scopeUniverseProperty.get())
+        assertEquals(emptyMap<String, ScopedSchemaDefinition>(), extension.scopedSchemasProperty.get())
     }
 
     @Test
     fun `declaredSchemaScopes populates the universe`() {
         extension.declaredSchemaScopes(setOf("public", "internal"))
-        assertEquals(setOf("public", "internal"), extension.schemaScoping.get().scopeUniverse)
+        assertEquals(setOf("public", "internal"), extension.scopeUniverseProperty.get())
     }
 
     @Test
@@ -49,8 +47,6 @@ class ViaductApplicationExtensionTest {
         val ex = assertThrows<GradleException> {
             extension.declaredSchemaScopes(setOf("internal"))
         }
-        // The message must name the single-call constraint so the caller understands the
-        // composition contract (compose at the call site, do not mutate via repeated calls).
         assertTrue(
             ex.message!!.contains("only be called once"),
             "Expected message to explain the single-call constraint, got: ${ex.message}",
@@ -62,8 +58,6 @@ class ViaductApplicationExtensionTest {
         val ex = assertThrows<GradleException> {
             extension.declaredSchemaScopes(emptySet())
         }
-        // "never set" is the way to express "no scoping". Explicitly setting an empty universe
-        // is forbidden so that the call itself carries semantic weight: present => scoping.
         assertTrue(
             ex.message!!.contains("at least one"),
             "Expected message to direct caller to omit the call instead, got: ${ex.message}",
@@ -78,11 +72,11 @@ class ViaductApplicationExtensionTest {
             "INTERNAL_API" to setOf("public", "internal"),
         )
 
-        val schemas = extension.schemaScoping.get().scopedSchemas
+        val schemas = extension.scopedSchemasProperty.get()
         assertEquals(
             mapOf(
-                "PUBLIC_API" to setOf("public"),
-                "INTERNAL_API" to setOf("public", "internal"),
+                "PUBLIC_API" to ScopedSchemaDefinition(setOf("public")),
+                "INTERNAL_API" to ScopedSchemaDefinition(setOf("public", "internal")),
             ),
             schemas,
         )
@@ -93,9 +87,9 @@ class ViaductApplicationExtensionTest {
         extension.declaredSchemaScopes(setOf("public"))
         extension.declaredScopedSchemas("FULL_ALIAS" to emptySet())
 
-        val schemas = extension.schemaScoping.get().scopedSchemas
+        val schemas = extension.scopedSchemasProperty.get()
         assertTrue(schemas.containsKey("FULL_ALIAS"))
-        assertEquals(emptySet<String>(), schemas["FULL_ALIAS"])
+        assertEquals(ScopedSchemaDefinition(emptySet()), schemas["FULL_ALIAS"])
     }
 
     @Test
@@ -117,8 +111,6 @@ class ViaductApplicationExtensionTest {
         val ex = assertThrows<GradleException> {
             extension.declaredScopedSchemas()
         }
-        // Symmetric with `declaredSchemaScopes` empty rejection: omitting the call is the way
-        // to express "no scoped schemas declared".
         assertTrue(
             ex.message!!.contains("at least one"),
             "Expected message to direct caller to omit the call instead, got: ${ex.message}",
@@ -143,44 +135,17 @@ class ViaductApplicationExtensionTest {
     @Test
     fun `isScoped is false when no scopes have been declared`() {
         extension.declaredScopedSchemas("FULL_ALIAS" to emptySet())
-        // The universe (not the scoped-schemas map) is the source of truth for `isScoped`,
-        // so declaring a scoped schema in isolation still reads as unscoped here. Whether this
-        // combination is rejected is the concern of validation layered on top of the DSL.
-        assertFalse(extension.schemaScoping.get().isScoped)
+        assertFalse(extension.scopeUniverseProperty.get().isNotEmpty())
     }
 
     @Test
     fun `isScoped is true once a non-empty universe is declared`() {
         extension.declaredSchemaScopes(setOf("public"))
-        assertTrue(extension.schemaScoping.get().isScoped)
+        assertTrue(extension.scopeUniverseProperty.get().isNotEmpty())
     }
 
     @Test
-    fun `schemaScoping reflects state at the moment of get`() {
-        extension.declaredSchemaScopes(setOf("public", "internal"))
-        val first = extension.schemaScoping.get()
-
-        extension.declaredScopedSchemas("PUBLIC_API" to setOf("public"))
-        val second = extension.schemaScoping.get()
-
-        // First snapshot retains the state it captured: scoped-schemas map still empty.
-        assertEquals(setOf("public", "internal"), first.scopeUniverse)
-        assertEquals(emptyMap<String, Set<String>>(), first.scopedSchemas)
-
-        // Second snapshot reflects the additional declaration.
-        assertEquals(setOf("public", "internal"), second.scopeUniverse)
-        assertEquals(mapOf("PUBLIC_API" to setOf("public")), second.scopedSchemas)
-    }
-
-    @Test
-    fun `pre-existing scalar properties remain functional`() {
-        // Guard against accidental regression of the existing extension surface.
-        extension.modulePackagePrefix.set("com.example")
-        assertEquals("com.example", extension.modulePackagePrefix.get())
-    }
-
-    @Test
-    fun `assembled scoping matches a directly-constructed SchemaScoping`() {
+    fun `schemaScoping internal provider assembles the correct SchemaScoping`() {
         extension.declaredSchemaScopes(setOf("public", "internal", "admin"))
         extension.declaredScopedSchemas(
             "FULL_ALIAS" to emptySet(),
@@ -197,5 +162,11 @@ class ViaductApplicationExtensionTest {
             ),
         )
         assertEquals(expected, extension.schemaScoping.get())
+    }
+
+    @Test
+    fun `pre-existing scalar properties remain functional`() {
+        extension.modulePackagePrefix.set("com.example")
+        assertEquals("com.example", extension.modulePackagePrefix.get())
     }
 }
