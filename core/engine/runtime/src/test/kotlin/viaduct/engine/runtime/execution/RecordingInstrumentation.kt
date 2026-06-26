@@ -23,7 +23,7 @@ class RecordingInstrumentation :
     ViaductModernInstrumentation.WithBeginFieldListCompletion,
     ViaductModernInstrumentation.WithInstrumentDataFetcher {
     // Base class for recording contexts
-    open class RecordingInstrumentationContext<T>(
+    open class RecordingInstrumentationContext<T : Any>(
         val parameters: Any
     ) : InstrumentationContext<T> {
         val onDispatchedCalled = AtomicBoolean(false)

@@ -298,7 +298,7 @@ open class ChainedInstrumentation(
         }
     }
 
-    protected class ChainedInstrumentationContext<T : Any?>(
+    protected class ChainedInstrumentationContext<T : Any>(
         private val contexts: List<InstrumentationContext<T>?>
     ) : InstrumentationContext<T> {
         override fun onDispatched() {

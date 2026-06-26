@@ -525,7 +525,7 @@ internal fun assertInstrumentationEventsEqual(
     }
 }
 
-internal fun <T> assertInstrumentationContextsEqual(
+internal fun <T : Any> assertInstrumentationContextsEqual(
     exp: RecordingInstrumentationContext<T>,
     act: RecordingInstrumentationContext<T>,
     relaxed: Boolean = false,

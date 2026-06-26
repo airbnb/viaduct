@@ -157,14 +157,14 @@ class FieldResolver(
             // Wait for all values to be completed.
             return overall
                 .map {
-                    resolveObjectCtx.onCompleted(Unit, null)
+                    resolveObjectCtx.onCompletedNullable(Unit, null)
                     it
                 }.recover { t ->
-                    resolveObjectCtx.onCompleted(null, t)
+                    resolveObjectCtx.onCompletedNullable(null, t)
                     Value.fromThrowable(t)
                 }
         } catch (e: Exception) {
-            resolveObjectCtx.onCompleted(null, e)
+            resolveObjectCtx.onCompletedNullable(null, e)
             throw e
         }
     }
@@ -220,10 +220,10 @@ class FieldResolver(
                     fd.overall
                 }
             }.map {
-                resolveObjectCtx.onCompleted(Unit, null)
+                resolveObjectCtx.onCompletedNullable(Unit, null)
                 it
             }.recover { t ->
-                resolveObjectCtx.onCompleted(null, t)
+                resolveObjectCtx.onCompletedNullable(null, t)
                 Value.fromThrowable(t)
             }
             Value.waitAll(immediateResults).thenApply { _, _ ->
@@ -231,7 +231,7 @@ class FieldResolver(
             }
             return overall
         } catch (e: Exception) {
-            resolveObjectCtx.onCompleted(null, e)
+            resolveObjectCtx.onCompletedNullable(null, e)
             throw e
         }
     }
@@ -411,10 +411,12 @@ class FieldResolver(
         val parentOER = parameters.parentEngineResult
         val executionStepInfoForField = parameters.executionStepInfo
 
-        val fieldInstrumentationCtx = parameters.instrumentation.beginFieldExecution(
-            InstrumentationFieldParameters(parameters.executionContextWithLocalContext) { executionStepInfoForField },
-            parameters.executionContext.instrumentationState
-        ) ?: FieldFetchingInstrumentationContext.NOOP
+        val fieldInstrumentationCtx = nonNullCtx(
+            parameters.instrumentation.beginFieldExecution(
+                InstrumentationFieldParameters(parameters.executionContextWithLocalContext) { executionStepInfoForField },
+                parameters.executionContext.instrumentationState
+            )
+        )
 
         val dataFetchingEnvironmentProvider =
             FpKit.intraThreadMemoize { buildDataFetchingEnvironment(parameters, field, parentOER) }
@@ -434,7 +436,7 @@ class FieldResolver(
         } as Value<FieldResolutionResult>
 
         val overall = fieldResolutionResultValue.thenCompose { v, e ->
-            fieldInstrumentationCtx.onCompleted(v, e)
+            fieldInstrumentationCtx.onCompletedNullable(v, e)
             if (e != null) {
                 // if the field resolution failed, don't attempt to fetch lazy data or nested objects
                 // and mark this field as completed
@@ -612,11 +614,11 @@ class FieldResolver(
                 } else {
                     engineResult.resolveToNull()
                 }
-                nodeInstrCtx?.onCompleted(null, null)
+                nodeInstrCtx.onCompletedNullable(null, null)
             } catch (e: Exception) {
                 if (e is CancellationException) currentCoroutineContext().ensureActive()
                 engineResult.resolveExceptionally(e)
-                nodeInstrCtx?.onCompleted(null, e)
+                nodeInstrCtx.onCompletedNullable(null, e)
             }
         }
         return engineResult
@@ -807,11 +809,11 @@ class FieldResolver(
                 dataFetcherResult.thenApply { dfValue, dataFetcherError ->
                     if (dataFetcherError != null) {
                         // Data fetcher failed - complete instrumentation immediately
-                        fieldFetchingInstCtx.onCompleted(null, dataFetcherError)
+                        fieldFetchingInstCtx.onCompletedNullable(null, dataFetcherError)
                     } else {
                         // Data fetcher succeeded - wait for combined checker result
                         combinedCheckerResult.thenApply { res, throwable ->
-                            fieldFetchingInstCtx.onCompleted(dfValue, res?.asError?.error ?: throwable)
+                            fieldFetchingInstCtx.onCompletedNullable(dfValue, res?.asError?.error ?: throwable)
                         }
                     }
                 }
@@ -821,7 +823,7 @@ class FieldResolver(
                 fieldCheckerResultValue.thenApply { fieldCheckerRes, fieldCheckerError ->
                     if (fieldCheckerRes is CheckerResult.Error || fieldCheckerError != null) {
                         // Field checker failed - complete instrumentation immediately (no DF executed, no type check)
-                        fieldFetchingInstCtx.onCompleted(null, fieldCheckerRes?.asError?.error ?: fieldCheckerError)
+                        fieldFetchingInstCtx.onCompletedNullable(null, fieldCheckerRes?.asError?.error ?: fieldCheckerError)
                     } else {
                         // Field checker passed - now check data fetcher result
                         completeFieldFetching()

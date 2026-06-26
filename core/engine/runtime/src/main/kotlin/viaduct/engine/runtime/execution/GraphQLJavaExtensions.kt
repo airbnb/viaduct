@@ -3,6 +3,7 @@ package viaduct.engine.runtime.execution
 import graphql.execution.DataFetcherResult
 import graphql.execution.ExecutionContext
 import graphql.execution.FetchedValue
+import graphql.execution.instrumentation.InstrumentationContext
 import kotlinx.coroutines.withContext
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.context.DispatcherLocalContext
@@ -28,3 +29,18 @@ val DataFetcherResult<*>.compositeLocalContext: CompositeLocalContext get() = lo
 
 /** returns `localContext` as a CompositeLocalContext */
 val FetchedValue.compositeLocalContext: CompositeLocalContext get() = localContext.asCompositeLocalContext
+
+/**
+ * Completes a GraphQL Java [InstrumentationContext] with a nullable result.
+ *
+ * GraphQL Java declares the `onCompleted` result parameter as `@Nullable T`, but Kotlin and
+ * IntelliJ still enforce the non-null generic bound on direct calls. Keep that interop in one
+ * place so callers can pass the nullable results produced by field resolution and completion.
+ */
+fun InstrumentationContext<*>?.onCompletedNullable(
+    result: Any?,
+    throwable: Throwable?,
+) {
+    @Suppress("UNCHECKED_CAST")
+    (this as? InstrumentationContext<Any?>)?.onCompleted(result, throwable)
+}

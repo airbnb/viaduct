@@ -16,7 +16,6 @@ import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLEnumType
 import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLTypeUtil
-import kotlin.getValue
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import viaduct.deferred.asDeferred
@@ -129,7 +128,7 @@ class FieldCompleter(
             .thenCompose { _, throwable ->
                 ctxCompleteObject.onDispatched()
                 if (throwable != null) {
-                    ctxCompleteObject.onCompleted(null, throwable)
+                    ctxCompleteObject.onCompletedNullable(null, throwable)
                     val field = checkNotNull(parameters.field)
                     val dataFetchingEnvironmentProvider = { buildDataFetchingEnvironment(parameters, field, parentOER) }
                     handleFetchingException(dataFetchingEnvironmentProvider, throwable)
@@ -139,7 +138,7 @@ class FieldCompleter(
                             Value.fromThrowable(err)
                         }
                 } else if (parentOER.isResolvedToNull()) {
-                    ctxCompleteObject.onCompleted(null, null)
+                    ctxCompleteObject.onCompletedNullable(null, null)
                     completeValueForNull(parameters)
                 } else {
                     objectFieldMap(parameters).map { resolvedData ->
@@ -339,7 +338,7 @@ class FieldCompleter(
             completeValue(field, newParams, Value.fromValue(handled), fieldCompleteInstCtx)
                 .thenCompose { completeResult, err ->
                     try {
-                        fieldCompleteInstCtx.onCompleted(completeResult?.value, fetchThrowable ?: err)
+                        fieldCompleteInstCtx.onCompletedNullable(completeResult?.value, fetchThrowable ?: err)
                         if (completeResult != null) {
                             Value.fromValue(completeResult)
                         } else {
@@ -366,7 +365,7 @@ class FieldCompleter(
         field: QueryPlan.CollectedField,
         parameters: ExecutionParameters,
         fieldResultValue: Value<FieldResolutionResult>,
-        fieldCompleteInstCtx: InstrumentationContext<Any>?,
+        fieldCompleteInstCtx: InstrumentationContext<*>?,
     ): Value<FieldCompletionResult> =
         // A Value<FieldResolutionResult> can have a couple of different states:
         //   Throw - an exception was thrown somewhere during execution, perhaps
@@ -496,7 +495,7 @@ class FieldCompleter(
         return Value.waitAll(completedValues)
             .thenCompose { _, throwable ->
                 if (throwable != null) {
-                    completeListCtx.onCompleted(null, throwable)
+                    completeListCtx.onCompletedNullable(null, throwable)
                     getFieldCompletionResultForException(throwable)
                 } else {
                     val fieldValues = completedValues.map { it.getCompleted() }
