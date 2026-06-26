@@ -1,9 +1,22 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     `kotlin-dsl`
     alias(libs.plugins.detekt)
 }
 
 description = "Provides PROJECT level convention plugins for the build"
+
+// Treat Kotlin compiler warnings as errors across build-logic (the convention plugins themselves),
+// matching the Bazel -Werror. `allprojects` because the root project holds Kotlin, not just the subprojects.
+// Match KotlinCompile directly: root + :build-test-support are kotlin-dsl, :build-common / :build-ktlint are kotlin("jvm")
+allprojects {
+    tasks.withType<KotlinCompile>().configureEach {
+        compilerOptions {
+            allWarningsAsErrors = true
+        }
+    }
+}
 
 detekt {
     source.setFrom("src/main/kotlin")
