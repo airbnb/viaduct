@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -30,8 +31,11 @@ import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.InputStreamSource
+import viaduct.service.api.spi.TenantModuleInjectorFactory
 import viaduct.tenant.runtime.bootstrap.GuiceCodeInjector
 import viaduct.tenant.runtime.bootstrap.TenantPackageFinder
+import viaduct.tenant.runtime.bootstrap.TenantPackageInfo
 import viaduct.tenant.runtime.bootstrap.TenantResolverClassFinder
 import viaduct.tenant.runtime.bootstrap.TestTenantPackageFinder
 import viaduct.tenant.runtime.bootstrap.ViaductTenantResolverClassFinder
@@ -92,16 +96,7 @@ class ViaductTenantAPIBootstrapperTest {
 
     @BeforeEach
     fun setUp() {
-        codeInjector =
-            Guice.createInjector(
-                object : AbstractModule() {
-                    override fun configure() {
-                        bind(AFieldResolver::class.java).`in`(Singleton::class.java)
-                        bind(TestBatchNodeResolver::class.java).`in`(Singleton::class.java)
-                        bind(TestNodeResolver::class.java).`in`(Singleton::class.java)
-                    }
-                }
-            )
+        codeInjector = resolverInjector()
 
         injector =
             Guice.createInjector(
@@ -128,6 +123,15 @@ class ViaductTenantAPIBootstrapperTest {
                 .tenantCodeInjector(GuiceCodeInjector(codeInjector))
                 .tenantPackageFinder(injector.getInstance(TenantPackageFinder::class.java))
                 .tenantResolverClassFinderFactory { tenantResolverClassFinder }
+                .executorRegistryConfigSources(
+                    listOf(
+                        registryConfigSource(
+                            tenantName = "viaduct/api/bootstrap/test",
+                            bootstrapClassName = TestTenantBootstrapper::class.java.name,
+                        )
+                    )
+                )
+                .tenantModuleInjectorFactory(RecordingTenantModuleInjectorFactory(GuiceCodeInjector(codeInjector)))
                 .create()
 
             tenantModuleBootstrappers = tenantAPIBootstrapper.tenantModuleBootstrappers()
@@ -212,4 +216,209 @@ class ViaductTenantAPIBootstrapperTest {
                 .resolver.get()
         )
     }
+
+    @Test
+    @Suppress("DEPRECATION")
+    fun `scanner bootstrapper without registry configs keeps configured code injector`() {
+        val bootstrapper = ViaductTenantAPIBootstrapper.Builder()
+            .tenantCodeInjector(GuiceCodeInjector(codeInjector))
+            .tenantPackageFinder(injector.getInstance(TenantPackageFinder::class.java))
+            .tenantResolverClassFinderFactory { tenantResolverClassFinder }
+            .create()
+
+        val fieldResolvers = runBlocking {
+            bootstrapper
+                .tenantModuleBootstrappers()
+                .flatMap { it.fieldResolverExecutors(schema) }
+                .toMap()
+        }
+
+        assertSame(
+            codeInjector.getInstance(AFieldResolver::class.java),
+            (fieldResolvers[Pair("TestType", "aField")] as FieldUnbatchedResolverExecutorImpl).resolver.get(),
+        )
+    }
+
+    @Test
+    fun `matching registry config uses child tenant injector for modern tenant bootstrapper`() {
+        val childInjector = resolverInjector()
+        val tenantModuleInjectorFactory = RecordingTenantModuleInjectorFactory(GuiceCodeInjector(childInjector))
+        val tenantPackageFinder = TenantPackageFinder {
+            setOf(TenantPackageInfo("com.airbnb.viaduct.data.contextualuser"))
+        }
+        val bootstrapper = createBootstrapper(
+            tenantPackageFinder = tenantPackageFinder,
+            executorRegistryConfigSources = listOf(
+                registryConfigSource(
+                    tenantName = "data/contextualuser",
+                    bootstrapClassName = TestTenantBootstrapper::class.java.name,
+                )
+            ),
+            tenantModuleInjectorFactory = tenantModuleInjectorFactory,
+        )
+
+        val fieldResolvers = runBlocking {
+            bootstrapper
+                .tenantModuleBootstrappers()
+                .flatMap { it.fieldResolverExecutors(schema) }
+                .toMap()
+        }
+
+        assertEquals(
+            listOf("data/contextualuser" to TestTenantBootstrapper::class.java),
+            tenantModuleInjectorFactory.bootstrappedTenants,
+        )
+        assertTrue(tenantModuleInjectorFactory.finalized)
+        assertSame(
+            childInjector.getInstance(AFieldResolver::class.java),
+            (fieldResolvers[Pair("TestType", "aField")] as FieldUnbatchedResolverExecutorImpl).resolver.get(),
+        )
+        assertNotSame(
+            codeInjector.getInstance(AFieldResolver::class.java),
+            (fieldResolvers[Pair("TestType", "aField")] as FieldUnbatchedResolverExecutorImpl).resolver.get(),
+        )
+    }
+
+    @Test
+    @Suppress("DEPRECATION")
+    fun `missing tenant injector factory fails modern tenant bootstrapper when registry configs are provided`() {
+        val bootstrapper = ViaductTenantAPIBootstrapper.Builder()
+            .tenantCodeInjector(GuiceCodeInjector(codeInjector))
+            .tenantPackageFinder(injector.getInstance(TenantPackageFinder::class.java))
+            .tenantResolverClassFinderFactory { tenantResolverClassFinder }
+            .executorRegistryConfigSources(
+                listOf(
+                    registryConfigSource(
+                        tenantName = "viaduct/api/bootstrap/test",
+                        bootstrapClassName = TestTenantBootstrapper::class.java.name,
+                    )
+                )
+            )
+            .create()
+
+        val exception = assertThrows(IllegalStateException::class.java) {
+            runBlocking { bootstrapper.tenantModuleBootstrappers() }
+        }
+
+        assertTrue(exception.message!!.contains("tenantModuleInjectorFactory is required"))
+    }
+
+    @Test
+    fun `missing registry config fails modern tenant bootstrapper when tenant injector factory is configured`() {
+        val childInjector = resolverInjector()
+        val tenantModuleInjectorFactory = RecordingTenantModuleInjectorFactory(GuiceCodeInjector(childInjector))
+        val bootstrapper = createBootstrapper(
+            executorRegistryConfigSources = listOf(
+                registryConfigSource(
+                    tenantName = "data/other",
+                    bootstrapClassName = TestTenantBootstrapper::class.java.name,
+                )
+            ),
+            tenantModuleInjectorFactory = tenantModuleInjectorFactory,
+        )
+
+        val exception = assertThrows(IllegalStateException::class.java) {
+            runBlocking { bootstrapper.tenantModuleBootstrappers() }
+        }
+
+        assertTrue(exception.message!!.contains("Missing execution registry config"))
+        assertTrue(tenantModuleInjectorFactory.bootstrappedTenants.isEmpty())
+        assertEquals(false, tenantModuleInjectorFactory.finalized)
+    }
+
+    @Test
+    fun `missing bootstrap class fails modern tenant bootstrapper when tenant injector factory is configured`() {
+        val childInjector = resolverInjector()
+        val tenantModuleInjectorFactory = RecordingTenantModuleInjectorFactory(GuiceCodeInjector(childInjector))
+        val bootstrapper = createBootstrapper(
+            tenantPackageFinder = TenantPackageFinder {
+                setOf(TenantPackageInfo("com.airbnb.viaduct.data.contextualuser"))
+            },
+            executorRegistryConfigSources = listOf(
+                registryConfigSourceWithoutBootstrapClass(tenantName = "data/contextualuser")
+            ),
+            tenantModuleInjectorFactory = tenantModuleInjectorFactory,
+        )
+
+        val exception = assertThrows(IllegalStateException::class.java) {
+            runBlocking { bootstrapper.tenantModuleBootstrappers() }
+        }
+
+        assertTrue(exception.message!!.contains("Missing bootstrapClass"))
+        assertTrue(tenantModuleInjectorFactory.bootstrappedTenants.isEmpty())
+        assertEquals(false, tenantModuleInjectorFactory.finalized)
+    }
+
+    private fun resolverInjector(): Injector =
+        Guice.createInjector(
+            object : AbstractModule() {
+                override fun configure() {
+                    bind(AFieldResolver::class.java).`in`(Singleton::class.java)
+                    bind(TestBatchNodeResolver::class.java).`in`(Singleton::class.java)
+                    bind(TestNodeResolver::class.java).`in`(Singleton::class.java)
+                }
+            }
+        )
+
+    @Suppress("DEPRECATION")
+    private fun createBootstrapper(
+        tenantPackageFinder: TenantPackageFinder = injector.getInstance(TenantPackageFinder::class.java),
+        executorRegistryConfigSources: List<InputStreamSource>,
+        tenantModuleInjectorFactory: TenantModuleInjectorFactory,
+    ): TenantAPIBootstrapper =
+        ViaductTenantAPIBootstrapper.Builder()
+            .tenantCodeInjector(GuiceCodeInjector(codeInjector))
+            .tenantPackageFinder(tenantPackageFinder)
+            .tenantResolverClassFinderFactory { tenantResolverClassFinder }
+            .executorRegistryConfigSources(executorRegistryConfigSources)
+            .tenantModuleInjectorFactory(tenantModuleInjectorFactory)
+            .create()
+
+    private fun registryConfigSource(
+        tenantName: String,
+        bootstrapClassName: String,
+    ) = InputStreamSource.fromString(
+        """
+        {
+          "version": "1",
+          "tenantName": "$tenantName",
+          "executorFactory": "unused",
+          "bootstrapClass": "$bootstrapClassName"
+        }
+        """.trimIndent(),
+        name = tenantName,
+    )
+
+    private fun registryConfigSourceWithoutBootstrapClass(tenantName: String) =
+        InputStreamSource.fromString(
+            """
+            {
+              "version": "1",
+              "tenantName": "$tenantName",
+              "executorFactory": "unused"
+            }
+            """.trimIndent(),
+            name = tenantName,
+        )
+
+    private class RecordingTenantModuleInjectorFactory(
+        private val codeInjector: CodeInjector,
+    ) : TenantModuleInjectorFactory {
+        val bootstrappedTenants = mutableListOf<Pair<String, Class<*>?>>()
+        var finalized = false
+
+        override suspend fun bootstrap(
+            tenantName: String,
+            tenantBootstrapClass: Class<*>?,
+        ): CodeInjector {
+            bootstrappedTenants += tenantName to tenantBootstrapClass
+            return codeInjector
+        }
+
+        override suspend fun finalize() {
+            finalized = true
+        }
+    }
+
+    private class TestTenantBootstrapper
 }

@@ -14,6 +14,7 @@ tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
 
 dependencies {
     implementation(libs.graphql.java)
+    implementation(libs.jackson.module)
     implementation(libs.viaduct.tenant.api)
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.shared.utils)
