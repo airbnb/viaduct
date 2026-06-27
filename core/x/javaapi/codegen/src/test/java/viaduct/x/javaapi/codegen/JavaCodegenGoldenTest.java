@@ -111,7 +111,11 @@ class JavaCodegenGoldenTest {
               p -> {
                 try {
                   String rel = outputDir.relativize(p).toString().replace('\\', '/');
-                  return new GeneratedFile(rel, Files.readString(p, StandardCharsets.UTF_8));
+                  // The generators emit platform-native line endings (CRLF on Windows), so
+                  // normalize to LF here to keep the golden comparison line-ending tolerant.
+                  final var content =
+                      Files.readString(p, StandardCharsets.UTF_8).replace("\r\n", "\n");
+                  return new GeneratedFile(rel, content);
                 } catch (IOException e) {
                   throw new RuntimeException("Failed to read generated file " + p, e);
                 }
@@ -180,7 +184,10 @@ class JavaCodegenGoldenTest {
       if (in == null) {
         throw new IllegalStateException("Golden not found on classpath: " + resourcePath);
       }
-      return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+      // Normalize the golden's line endings to LF so the comparison tolerates the platform-native
+      // (CRLF on Windows) endings the generators emit. Mirrors KotlinCodegenGoldenTest.kt's
+      // readGolden (line 199).
+      return new String(in.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
     }
   }
 

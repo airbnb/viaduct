@@ -42,10 +42,7 @@ class STContents(
     private fun write(writer: Writer) {
         val template = STGroupString(stGroupString).getInstanceOf("main")
         template.add("mdl", model)
-        // Force LF regardless of platform: AutoIndentWriter's no-arg constructor defaults its
-        // newline to System.lineSeparator(), which emits CRLF on Windows and breaks byte-for-byte
-        // golden comparisons of generated source.
-        val out = AutoIndentWriter(writer, "\n")
+        val out = AutoIndentWriter(writer)
         out.setLineWidth(STWriter.NO_WRAP)
         val errs = ErrorBuffer()
         template.write(out, errs)

@@ -1,4 +1,0 @@
-# Golden codegen snapshots are compared byte-for-byte against generator output, which emits LF.
-# Pin them to LF on commit and checkout so they never drift to CRLF (e.g. a Windows checkout with
-# core.autocrlf=true), independent of any per-job git config.
-**/src/test/resources/golden/** text eol=lf
