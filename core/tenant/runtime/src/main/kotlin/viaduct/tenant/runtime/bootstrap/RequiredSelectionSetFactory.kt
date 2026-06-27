@@ -20,6 +20,7 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.bootstrap.executionregistry.RequiredSelectionSetSupport
 import viaduct.engine.api.checkDisjoint
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.graphql.utils.ParsedSelections
@@ -217,23 +218,4 @@ internal fun KClass<out ResolverBase<*>>.variablesProvider(injector: CodeInjecto
  * Parse a [Variables] into a map of types.
  * For example, `@Variables("a:A", "b:B")` will be parsed as `mapOf("a" to "A", "b" to "B")`
  */
-internal fun Variables.asTypeMap(): Map<String, String> =
-    types
-        .filter { it.isNotBlank() }
-        .associate {
-            val parts = it.trim().split(":")
-            require(parts.size == 2) {
-                "Invalid @Variables entry '${it.trim()}' — expected format 'name: Type'"
-            }
-            val first = parts[0].trim().also { name ->
-                require(name.isNotEmpty()) {
-                    "Invalid @Variables entry '${it.trim()}' — variable name is empty"
-                }
-            }
-            val second = parts[1].trim().also { type ->
-                require(type.isNotEmpty()) {
-                    "Invalid @Variables entry '${it.trim()}' — variable type is empty"
-                }
-            }
-            first to second
-        }
+internal fun Variables.asTypeMap(): Map<String, String> = RequiredSelectionSetSupport.parseVariableTypeEntries(types.toList())

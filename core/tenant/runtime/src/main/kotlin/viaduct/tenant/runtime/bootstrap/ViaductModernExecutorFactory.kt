@@ -9,15 +9,12 @@ import viaduct.api.internal.GRT_PACKAGE_PREFIX
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.ExecutionAttribution
-import viaduct.engine.api.FromArgumentVariable
-import viaduct.engine.api.FromObjectFieldVariable
-import viaduct.engine.api.FromQueryFieldVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
-import viaduct.engine.api.bootstrap.executionregistry.ProviderVariablesAPIData
+import viaduct.engine.api.bootstrap.executionregistry.RequiredSelectionSetSupport
 import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.ExecutorFactory
@@ -196,16 +193,7 @@ class ViaductModernExecutorFactory(
     private fun buildVariables(
         objectSelections: SelectionsBlockConfig?,
         querySelections: SelectionsBlockConfig?,
-    ): List<SelectionSetVariable> =
-        (
-            (objectSelections?.variablesProviders ?: emptyList()) +
-                (querySelections?.variablesProviders ?: emptyList())
-        )
-            .flatMap { providerEntry ->
-                providerEntry.providedVariables.keys.map { varName ->
-                    providerEntry.providerVariablesAPIData.toSelectionSetVariable(varName)
-                }
-            }
+    ): List<SelectionSetVariable> = RequiredSelectionSetSupport.buildSelectionSetVariables(objectSelections, querySelections)
 
     @Suppress("UNCHECKED_CAST")
     private fun <T> loadClass(
@@ -223,11 +211,3 @@ class ViaductModernExecutorFactory(
         private val log by logger()
     }
 }
-
-private fun ProviderVariablesAPIData.toSelectionSetVariable(varName: String): SelectionSetVariable =
-    when (type) {
-        "fromArgument" -> FromArgumentVariable(varName, path)
-        "fromObjectField" -> FromObjectFieldVariable(varName, path)
-        "fromQueryField" -> FromQueryFieldVariable(varName, path)
-        else -> error("Unknown variable provider type '$type' for variable '$varName'")
-    }
