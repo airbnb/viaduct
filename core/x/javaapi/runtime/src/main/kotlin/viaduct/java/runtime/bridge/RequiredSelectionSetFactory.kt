@@ -11,7 +11,7 @@ import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
-import viaduct.engine.api.bootstrap.executionregistry.ProviderVariablesAPIData
+import viaduct.engine.api.bootstrap.executionregistry.RequiredSelectionSetSupport
 import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
 import viaduct.engine.api.checkDisjoint
 import viaduct.engine.api.select.SelectionsParser
@@ -195,15 +195,7 @@ class RequiredSelectionSetFactory {
     private fun buildVariables(
         objectSelections: SelectionsBlockConfig?,
         querySelections: SelectionsBlockConfig?,
-    ): List<SelectionSetVariable> =
-        (
-            (objectSelections?.variablesProviders ?: emptyList()) +
-                (querySelections?.variablesProviders ?: emptyList())
-        ).flatMap { providerEntry ->
-            providerEntry.providedVariables.keys.map { varName ->
-                providerEntry.providerVariablesAPIData.toSelectionSetVariable(varName)
-            }
-        }
+    ): List<SelectionSetVariable> = RequiredSelectionSetSupport.buildSelectionSetVariables(objectSelections, querySelections)
 
     private fun mkFromAnnotationVariablesResolvers(
         objectSelections: ParsedSelections?,
@@ -273,36 +265,7 @@ private fun Variable.toSelectionSetVariable(): SelectionSetVariable {
 }
 
 /**
- * Convert a registry [ProviderVariablesAPIData] entry to a [SelectionSetVariable].
- *
- * Mirrors the same conversion in [viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory].
- */
-private fun ProviderVariablesAPIData.toSelectionSetVariable(varName: String): SelectionSetVariable =
-    when (type) {
-        "fromArgument" -> FromArgumentVariable(varName, path)
-        "fromObjectField" -> FromObjectFieldVariable(varName, path)
-        "fromQueryField" -> FromQueryFieldVariable(varName, path)
-        else -> error("Unknown variable provider type '$type' for variable '$varName'")
-    }
-
-/**
  * Parse a [Variables] annotation into the set of declared variable names.
  * Each entry has the form "name: Type"; whitespace is ignored.
  */
-private fun Variables.asNameSet(): Set<String> =
-    types
-        .filter { it.isNotBlank() }
-        .map { entry ->
-            val parts = entry.trim().split(":")
-            require(parts.size == 2) {
-                "Invalid @Variables entry '${entry.trim()}' — expected format 'name: Type'"
-            }
-            val name = parts[0].trim()
-            require(name.isNotEmpty()) {
-                "Invalid @Variables entry '${entry.trim()}' — variable name is empty"
-            }
-            require(parts[1].trim().isNotEmpty()) {
-                "Invalid @Variables entry '${entry.trim()}' — variable type is empty"
-            }
-            name
-        }.toSet()
+private fun Variables.asNameSet(): Set<String> = RequiredSelectionSetSupport.parseVariableTypeEntries(types.toList()).keys
