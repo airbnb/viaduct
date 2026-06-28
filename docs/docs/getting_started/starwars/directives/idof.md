@@ -13,7 +13,7 @@ In GraphQL, all `ID` values are strings. Without additional metadata, there’s 
 This allows Viaduct to:
 
 - **Validate** incoming IDs before they reach resolver logic.
-- **Decode** base64-encoded Global IDs automatically.
+- **Decode** Global IDs on behalf of application code, keeping their serialization format encapsulated.
 - **Reject** mismatched IDs (for example, passing a `Planet` ID to a `Character` resolver).
 - **Generate type-safe schemas** that tools can reason about statically.
 
@@ -34,7 +34,7 @@ When a client calls a query such as:
 
 ```graphql
 query {
-  character(id: "Q2hhcmFjdGVyOjE=") {
+  searchCharacter(search: "Q2hhcmFjdGVyOjE=") {
     id
     name
   }
@@ -43,39 +43,36 @@ query {
 
 Viaduct will:
 
-1. Decode the base64 string `"Q2hhcmFjdGVyOjE="` → `"Character:1"`.
-2. Validate that the declared type (`Character`) matches the type in the encoded ID.
-3. Populate `ctx.id.internalID` with `"1"`.
-4. Pass control to `CharacterNodeResolver`, where you can safely use the internal ID.
-
+1. Decode the (intentionally opaque) string `"Q2hhcmFjdGVyOjE="` into its global ID components, which happens to be  type `Character` and internal id `1`.
+2. Validate that the type for the argument to `Query.character`'s argument (which `Character`) matches the type in the encoded ID (which it does).
+3. Pass the decoded `GlobalID` value to `CharacterNodeResolver`, where you can access the `id` field type-safely as a Kotlin `GlobalID`.
 
 {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.kt", "node_resolver_example", lang="kotlin") }}
 
 
-This pattern ensures that only valid, correctly-typed IDs reach your business logic.
+This pattern helps ensure that only valid, correctly-typed IDs reach your business logic.
+
+> Viaduct has no way to prevent malicious clients from manufacturing global ID strings that conform to its serialization format but contain arbitrary internal id values. Be sure to code defensively.
+
 
 ## Advantages
 
-- Eliminates manual parsing of base64 Global IDs.
+- Encapsulates the decoding of serialized global IDs.
 - Prevents runtime errors caused by type mismatches.
 - Simplifies schema introspection and static analysis.
 - Makes field-level validation explicit and discoverable in the schema.
 
 ## Common mistakes
 
-### 1. Using `@idOf` on non-ID fields
-
-The directive should only decorate `ID` fields or arguments. Applying it to `String` or `Int` fields has no effect and may produce schema validation warnings.
-
-### 2. Forgetting `@idOf` on inputs that expect Global IDs
+### 1. Forgetting `@idOf` on inputs that expect Global IDs
 
 If an argument or input field represents a Global ID but lacks `@idOf`, Viaduct treats it as a plain string, skipping type validation and decoding. Always add `@idOf` when your resolvers depend on typed IDs.
 
-### 3. Mixing raw IDs with Global IDs
+### 2. Mixing raw IDs with Global IDs
 
 All `ID` arguments using `@idOf` are expected to be **encoded Global IDs**, not raw database identifiers. Passing unencoded values will fail decoding or validation.
 
-### 4. Misdeclaring the target type
+### 3. Misdeclaring the target type
 
 Ensure the type name in `@idOf(type: "X")` matches the GraphQL type exactly, including case. `"character"` and `"Character"` are not equivalent.
 
@@ -86,4 +83,4 @@ Ensure the type name in `@idOf(type: "X")` matches the GraphQL type exactly, inc
 - **Don’t** attempt to parse or decode IDs manually.
 - **Don’t** use `@idOf` on non-ID fields.
 
-> For the full Global ID format, encoding details, and the complete `@idOf` reference, see the [Global IDs developer reference](../../../docs/developers/globalids/index.md).
+> For more on Global IDs and `@idOf`, see the [Global IDs developer reference](../../../docs/developers/globalids/index.md).

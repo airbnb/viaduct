@@ -64,7 +64,7 @@ type PageInfo {
 }
 ```
 
-Viaduct automatically provides the `PageInfo` type — you do not need to define it. For details on how `PageInfo` is managed and validated, see [Schema Extensions: PageInfo](https://viaduct.airbnb.tech/docs/service_engineers/schema_extensions/#pageinfo).
+Viaduct automatically provides the `PageInfo` type — you do not need to define it. For details on how `PageInfo` is managed and validated, see [Schema Extensions: PageInfo](../../service_engineers/schema_extensions/index.md#pageinfo).
 
 ### Connection Field Arguments
 
@@ -315,7 +315,7 @@ value class OffsetCursor(val value: String) {
 }
 ```
 
-Cursors are encoded as Base64 strings. The format is opaque to clients.
+Cursors are serialized in a format intentionally opaque to clients.
 
 ### Cursor Stability
 

@@ -77,7 +77,7 @@ ktor-starter/
             └── HelloWorldResolvers.kt
 ```
 
-The root project hosts the web server. The `resolvers` project contains our tenant module, which contains the actual application code: the GraphQL schema and the Kotlin code that implements it.  We'll look more deeply at the tenant module in this section, and at the web server in the next.
+The root project hosts the web server. The `resolvers` project contains our tenant module, which contains the actual application code: the GraphQL schema and the Kotlin code that implements it. We'll look more deeply at the tenant module in this section, and at the web server in the next.
 
 ### The schema
 
@@ -94,7 +94,7 @@ The `@resolver` directive tells Viaduct that each of these fields is implemented
 
 ### The resolvers
 
-The starter resolvers live in `resolvers/src/main/kotlin/com/example/viadapp/resolvers/`:
+The starter resolvers live in `resolvers/src/main/kotlin/com/example/viadapp/resolvers/HelloWorldResolvers.kt`:
 
 ```kotlin
 @Resolver
@@ -145,7 +145,7 @@ class AttributedGreetingResolver : QueryResolvers.AttributedGreeting() {
 
 The parameter provided to the `@Resolver` annotation is a central Viaduct feature. It declares that this resolver depends on the existing `greeting` and `author` fields. Given this annotation, Viaduct will make those values available through `ctx.getObjectValue()` before your resolver runs.
 
-After changing the schema, stop the running server and then rebuild and run:
+After making these changes, stop the running server and then rebuild and run:
 
 ```shell
 ./gradlew run
@@ -171,7 +171,7 @@ If you are evaluating Viaduct for real adoption, the next question is usually no
 
 ### The Ktor host
 
-The `ktor-starter` project illustrates how Viaduct might fit into a Ktor-based serving stack.  While toher Viaduct demo apps illustrate Viaduct integrating into other serving stacks, the pattern across all stacks is similar to what we see here with Ktor.
+The `ktor-starter` project illustrates how Viaduct might fit into a Ktor-based serving stack. Other Viaduct demo apps illustrate Viaduct integrating into other serving stacks, but the pattern across all stacks is similar to what we see here with Ktor.
 
 `src/main/kotlin/com/example/viadapp/ViaductService.kt` is the Ktor entry point: it contains the server's `main` function and configures `io.ktor.server.application.Application`.
 
@@ -219,13 +219,18 @@ fun Application.configureRouting() {
 }
 ```
 
-This is the main service-engineering seam in the starter. The Ktor app is ordinary application code; the Viaduct instance is a dependency you create and hand requests to.
+The `Viaduct` instance is the web server's entry point into the Viaduct GraphQL engine: the web server translates its HTTP inputs into a Viaduct `ExecutionInput`, executes that operation, and returns the result (`result.toSpecification` translates the more structured execution result returned by the Viaduct engine into GraphQL-spec-compliant JSON).
 
+<a name=plugins-intro>
 ### The Gradle wiring
 
-The root `build.gradle.kts` applies the `viaduct.application` plugin and hosts the Ktor app. The `resolvers/build.gradle.kts` file applies `viaduct.module`, which tells Viaduct that this module contributes schema and resolver code.
+Viaduct has two Gradle plugins that orchestrate schema validation, code generation, and application packaging:
 
-Here is the root application build:
+* `com.airbnb.viaduct.application-gradle-plugin` - this plugin is applied to the project that will build the `Viaduct` instance using the `BasicViaductFactory` (or the more full-featured `ViaductBuilder`). This is typically the project that contains the host web server, although it need not be.
+
+* `com.airbnb.viaduct.module-gradle-plugin` - this plugin is applied to the projects that contain schema fragments and the corresponding resolvers. Projects applying this plugin must be either the same as the project that applied the application plugin, or an ancestor of that project.
+
+In our Ktor application, the root Gradle project applies the application plugin and contains the Ktor server:
 
 ```kotlin
 plugins {
@@ -255,7 +260,7 @@ dependencies {
 }
 ```
 
-And here is the tenant module build:
+The `resolvers` subproject applies the module plugin:
 
 ```kotlin
 plugins {
@@ -275,7 +280,7 @@ dependencies {
 }
 ```
 
-This particular example has just one tenant module, but your Viaduct application can have multiple tenant modules, allowing different teams to own different parts of the overall Viaduct schema.  The host service, in the meantime, handles the concerns that usually matter to platform-minded teams: web framework integration, runtime configuration, dependency injection, observability, and deployment.
+This example has just one tenant module, but your Viaduct application can have multiple tenant modules, allowing different teams to own different parts of the overall Viaduct schema. The host service, in the meantime, handles the concerns that usually matter to platform-minded teams: web framework integration, runtime configuration, dependency injection, observability, and deployment.
 
 ## What's Next
 

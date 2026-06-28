@@ -64,4 +64,4 @@ Multiple resolvers can share the same backing data, each declares it in their fr
 ## Related
 
 - [Field resolvers](../core/field_resolvers.md) — `@backingData` fields always also carry `@resolver`; see field resolvers for the general resolver pattern
-- [Field Classification developer reference](../../../docs/developers/field_classification/index.md) — covers private fields, backing data, and field visibility in depth
+- [Schema Reference: BackingData](../../../docs/developers/schema_reference/index.md#backingdata) — covers the `BackingData` scalar and `@backingData` directive

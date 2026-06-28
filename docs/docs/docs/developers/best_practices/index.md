@@ -7,7 +7,7 @@ This page collects the recurring "do" and "don't" guidance from across the tutor
 
 ## Resolver responsibility
 
-- **Do** keep node resolvers tiny: _lookup → build → return_. Load a single entity by its internal ID and attach a Global ID via `ctx.globalIDFor(<Type>.Reflection, internalId)`. See [Node Resolvers](../../../getting_started/starwars/core/node_resolvers.md).
+- **Do** keep node resolvers small: _lookup → build → return_. Load a single entity by its internal ID and attach a Global ID via `ctx.globalIDFor(<Type>.Reflection, internalId)`. See [Node Resolvers](../../../getting_started/starwars/core/node_resolvers.md).
 - **Do** put computation, formatting, and lightweight relationship dereferencing in field resolvers. See [Field Resolvers](../../../getting_started/starwars/core/field_resolvers.md).
 - **Do** isolate concerns: nodes fetch, fields compute, batch resolvers aggregate. Don't mix loading logic inside field resolvers.
 - **Don't** perform per-request joins or heavy business logic inside a node resolver — you'll lose batching opportunities elsewhere.
@@ -37,8 +37,8 @@ This page collects the recurring "do" and "don't" guidance from across the tutor
 
 - **Do** treat Global IDs as opaque at the network boundary. Clients should pass them around without parsing.
 - **Do** generate IDs in resolvers via `ctx.globalIDFor(<Type>.Reflection, internalId)` — this keeps them opaque and stable across module or storage backends.
-- **Do** annotate `ID` fields and arguments with `@idOf(...)` to bind them to a concrete GraphQL type so resolvers and tooling can handle them type-safely. See [Global IDs](../../../getting_started/starwars/core/global_id.md).
-- **Don't** ask clients to base64-decode Global IDs or rely on their internal layout.
+- **Do** annotate `ID` field arguments and input fields with `@idOf(...)` to bind them to a concrete GraphQL type so resolvers and tooling can handle them type-safely. See [Global IDs](../../../getting_started/starwars/core/global_id.md).
+- **Don't** ask clients to decode Global IDs or otherwise rely on their internal format.
 - **Don't** embed business logic or access-control information into IDs.
 
 ## Scopes

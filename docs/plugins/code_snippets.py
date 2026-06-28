@@ -41,6 +41,14 @@ def infer_language(path):
     return LANG_MAP.get(ext, 'text')
 
 
+def _strip_comments(text):
+    """Remove block comments (/* ... */) and single-line comments (// ...)."""
+    text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
+    text = re.sub(r'//[^\n]*', '', text)
+    text = re.sub(r'\n\s*\n', '\n', text)
+    return text.strip()
+
+
 def define_env(env):
     """
     Define custom macros for code snippet embedding.
@@ -48,7 +56,7 @@ def define_env(env):
     """
 
     @env.macro
-    def codetag(path, tag, lang=None, count=None):
+    def codetag(path, tag, lang=None, count=None, strip_comments=False):
         """
         Extract code snippet by tag from a file.
 
@@ -57,10 +65,11 @@ def define_env(env):
             tag: Tag name to search for (e.g., "VIADUCT_CONFIG_1")
             lang: Language for syntax highlighting (inferred from file extension if not specified)
             count: Number of lines to include (overrides tag definition)
+            strip_comments: If True, remove block comments (/** ... */ and /* ... */)
 
         Example in markdown:
             {{ codetag('demoapps/starwars/config.kt', 'CONFIG_EXAMPLE') }}
-            {{ codetag('demoapps/starwars/schema.graphqls', 'SCHEMA_TAG', lang='graphql') }}
+            {{ codetag('demoapps/starwars/config.kt', 'CONFIG_EXAMPLE', strip_comments=True) }}
         """
         # Infer language from file extension if not specified
         if lang is None:
@@ -91,18 +100,35 @@ def define_env(env):
             if not match:
                 raise ValueError(f"codetag: Tag '{tag}' not found in {path}")
 
-            # Get the number of lines to extract
-            lines_to_extract = count
-            if lines_to_extract is None and match.group(1):
-                lines_to_extract = int(match.group(1))
-            if lines_to_extract is None:
-                lines_to_extract = 10  # Default
-
             # Extract lines after the tag
             tag_end = match.end()
             remaining_content = content[tag_end:]
-            lines = remaining_content.split('\n')[:lines_to_extract]
+
+            # Determine how many lines to extract
+            lines_to_extract = count
+            if lines_to_extract is None and match.group(1):
+                lines_to_extract = int(match.group(1))
+
+            if lines_to_extract is not None:
+                lines = remaining_content.split('\n')[:lines_to_extract]
+            else:
+                end_pattern = rf'(?:#|//)?\s*end::{re.escape(tag)}.*'
+                end_match = re.search(end_pattern, remaining_content)
+                if not end_match:
+                    raise ValueError(
+                        f"codetag: Tag '{tag}' in {path} has no line count and no matching end tag"
+                    )
+                region = remaining_content[:end_match.start()].rstrip('\n')
+                nested_pattern = rf'(?:#|//)?\s*tag::{re.escape(tag)}(?:\[|\s|$)'
+                if re.search(nested_pattern, region):
+                    raise ValueError(
+                        f"codetag: Tag '{tag}' in {path} is nested inside itself"
+                    )
+                lines = region.split('\n')
             snippet = textwrap.dedent('\n'.join(lines))
+
+            if strip_comments:
+                snippet = _strip_comments(snippet)
 
             return f"""
 ```{lang}
@@ -243,13 +269,19 @@ def define_env(env):
         package = ".".join(parts[:first_class_idx])
         class_parts = parts[first_class_idx:]
 
-        # Convert each class name to a Dokka URL slug (CamelCase -> kebab-case)
-        # e.g., ErrorReporter -> -error-reporter, Metadata -> -metadata
-        class_slugs = "/".join(
-            re.sub(r'([A-Z])', r'-\1', c).lower() for c in class_parts
-        )
+        def to_dokka_slug(name):
+            return re.sub(r'([A-Z])', r'-\1', name).lower()
 
-        # Build the documentation URL
-        doc_url = f"/apis/{module}/{package}/{class_slugs}/"
+        # Convert class and member names to Dokka URL slugs.
+        # Classes and nested classes are directories; member functions are
+        # generated as .html files under the containing class directory.
+        is_member = class_parts and class_parts[-1][0].islower()
+        if is_member:
+            class_slugs = "/".join(to_dokka_slug(c) for c in class_parts[:-1])
+            member_slug = to_dokka_slug(class_parts[-1])
+            doc_url = f"/apis/{module}/{package}/{class_slugs}/{member_slug}.html"
+        else:
+            class_slugs = "/".join(to_dokka_slug(c) for c in class_parts)
+            doc_url = f"/apis/{module}/{package}/{class_slugs}/"
 
         return f"[`{display_text}`]({doc_url})"

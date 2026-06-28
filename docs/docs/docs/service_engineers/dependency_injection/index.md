@@ -3,11 +3,9 @@ title: Dependency Injection
 description: Wiring a DI framework into Viaduct so resolver classes can declare constructor dependencies.
 ---
 
-Viaduct instantiates a new resolver class instance for each field invocation. The component responsible for creating those instances is [`CodeInjector`][CodeInjector]. The default implementation, `CodeInjector.Naive`, uses zero-argument constructors. To enable constructor injection, provide a `CodeInjector` backed by your DI container.
+[Resolvers](../../developers/index.md) in Viaduct are methods on _resolver container classes._ An instance of a resolver's container class is created _each time the resolver is invoked._ By default, Viaduct uses reflection to instantiate these classes, but Viaduct supports and encourages the use of a Dependency Injection (DI) framework to provide dependencies to resolvers in a type-safe, traceable manner.
 
-## Key interfaces
-
-### `CodeInjector`
+To incorporate your preferred DI framework into Viaduct, you need to provide implementations of {{ kdoc("viaduct.service.api.spi.CodeInjector") }}:
 
 ```kotlin
 interface CodeInjector {
@@ -26,168 +24,72 @@ interface TenantModuleInjectorFactory {
 }
 ```
 
-Called once per tenant module at startup. The returned `CodeInjector` is used for all resolver classes in that tenant. `finalize` is called once after all `bootstrap` calls complete, before the service starts handling requests.
-
-`tenantBootstrapClass` is the class annotated with `@TenantBootstrapper` in that tenant's config file, or `null` if the tenant has none.
-
-## Shared injector (most applications)
-
-When all tenants share the same DI container, extend `SharedTenantModuleInjectorFactory`:
+Your implementations of this interface are given to {{ kdoc("viaduct.service.ViaductBuilder") }} (see [Server Integration](../server_integration/index.md)) by giving it an instance of {{ kdoc("viaduct.service.ViaductBuilder.withTenantModuleInjectorFactory") }}:
 
 ```kotlin
-class MicronautTenantModuleInjectorFactory(
-    beanContext: BeanContext,
-) : SharedTenantModuleInjectorFactory(MicronautCodeInjector(beanContext)) {
-
-    private class MicronautCodeInjector(
-        private val beanContext: BeanContext,
-    ) : CodeInjector {
-        override fun <T> getProvider(clazz: Class<T>): Provider<T> =
-            Provider { beanContext.getBean(clazz) }
-    }
-}
+val viaduct: Viaduct = ViaductBuilder()
+    .withTenantModuleInjectorFactory(tenantModuleInjectorFactory)
+    ...
+    .build()
 ```
 
-Pass it to `BasicViaductFactory.create` or `ViaductBuilder`:
+({{ kdoc("viaduct.service.BasicViaductFactory.create") }} also lets you set an injector factory).
 
-=== "BasicViaductFactory"
+## SharedTenantModuleInjectorFactory
 
-    ```kotlin
-    val viaduct: Viaduct = BasicViaductFactory.create(
-        tenantModuleInjectorFactory = tenantModuleInjectorFactory,
-    )
-    ```
+{{ kdoc("viaduct.service.api.spi.SharedTenantModuleInjectorFactory") }} is a pre-defined implementation of `TenantModuleInjectorFactory` that is adequate for most Viaduct applications.  (It's "shared" because it lets you define a single injector that's shared across all tenant modules.)  Its constructor takes an instance of {{ kdoc("viaduct.service.api.spi.CodeInjector") }}
 
-=== "ViaductBuilder"
+{{ codetag("core/service/api/src/main/kotlin/viaduct/service/api/spi/TenantModuleInjectorFactory.kt", "shared_bootstrapper_def", lang="kotlin") }}
 
-    ```kotlin
-    val viaduct: Viaduct = ViaductBuilder()
-        .withTenantModuleInjectorFactory(tenantModuleInjectorFactory)
-        .withMeterRegistry(meterRegistry)
-        .build()
-    ```
-
-## Complete Micronaut example
-
-### 1. Bootstrapper
-
-```kotlin title="production/MicronautTenantModuleInjectorFactory.kt"
-import io.micronaut.context.BeanContext
-import jakarta.inject.Singleton
-import javax.inject.Provider
-import viaduct.service.api.spi.CodeInjector
-import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
-
-@Singleton
-class MicronautTenantModuleInjectorFactory(
-    beanContext: BeanContext,
-) : SharedTenantModuleInjectorFactory(MicronautCodeInjector(beanContext)) {
-
-    private class MicronautCodeInjector(
-        private val beanContext: BeanContext,
-    ) : CodeInjector {
-        override fun <T> getProvider(clazz: Class<T>): Provider<T> =
-            Provider { beanContext.getBean(clazz) }
-    }
-}
-```
-
-### 2. Viaduct factory
-
-```kotlin title="production/ViaductConfiguration.kt"
-import io.micronaut.context.annotation.Bean
-import io.micronaut.context.annotation.Factory
-import viaduct.service.BasicViaductFactory
-import viaduct.service.api.Viaduct
-
-@Factory
-class ViaductConfiguration(
-    private val tenantModuleInjectorFactory: MicronautTenantModuleInjectorFactory,
-) {
-    @Bean
-    fun providesViaduct(): Viaduct =
-        BasicViaductFactory.create(
-            tenantModuleInjectorFactory = tenantModuleInjectorFactory,
-        )
-}
-```
-
-### 3. Resolver with injected dependencies
+This class can be used to configure Viaduct to use an injector as follows:
 
 ```kotlin
-@Resolver
-class CharacterResolver(
-    private val characterService: CharacterService,
-) : CharacterQueryResolverBase() {
-    override suspend fun resolve(ctx: QueryExecutionContext): Character? =
-        characterService.findById(ctx.arguments.id)
+val theInjector = ...configure the shared injector
+val codeInjector = object : CodeInjector {
+    override fun <T> getProvider(clazz: Class<T>): Provider<T> =
+        theInjector.getProvider(clazz)
 }
+val viaduct: Viaduct = ViaductBuilder()
+    .withTenantModuleInjectorFactory(SharedTenantModuleInjectorFactory(codeInjector))
+    ...
+    .build()
 ```
 
-## Per-tenant injectors
+At startup time, Viaduct will call `getProvider(resolverClass)` once per resolver-containing class to obtain a provider for that class. When executing operations, it will use that provider to instantiate resolver-containing classes each time a resolver needs to be invoked.
 
-To give each tenant its own injector configuration, implement `TenantModuleInjectorFactory` directly. Tenant developers annotate a class with `@TenantBootstrapper`; that class is passed to `bootstrap` so you can use it to configure the injector:
+Request-scoped framework beans work naturally with this model: the transport entry point populates request-scoped data, and resolvers declare those beans as constructor dependencies. See [Server Integration](../server_integration/index.md#request-scoped-data) for how request data enters Viaduct execution.
 
-```kotlin
-class GuiceTenantModuleInjectorFactory : TenantModuleInjectorFactory {
-    override suspend fun bootstrap(
-        tenantName: String,
-        tenantBootstrapClass: Class<*>?,
-    ): CodeInjector {
-        val modules = buildList {
-            add(CoreModule())
-            if (tenantBootstrapClass != null) {
-                add(tenantBootstrapClass.getDeclaredConstructor().newInstance() as Module)
-            }
-        }
-        val injector = Guice.createInjector(modules)
-        return CodeInjector { clazz -> Provider { injector.getInstance(clazz) } }
-    }
-}
-```
+### Best Practices with SharedTenantModuleInjectorFactory
 
-A tenant opts in by annotating its module class with `@TenantBootstrapper`:
+Viaduct encourages organizations to decompose their overall application into [multiple tenant modules](../multi_tenancy/index.md). A shared injector is practical for multi-tenant applications, but it does require some management to avoid conflicts. A simple and effective form of management is code review: place the DI configuration in a source location where the Viaduct Service Engineering team is a mandatory reviewer of changes. The SE team can establish broad guidelines regarding how to introduce new bindings, including guidance for avoiding conflicts, and then any specific changes can be reviewed against these guidelines.
 
-```kotlin
-@TenantBootstrapper
-class MyTenantModule : AbstractModule() {
-    override fun configure() {
-        bind(MyRepository::class.java).to(MyRepositoryImpl::class.java)
-    }
-}
-```
+For applications with many tenants, mechanisms in the DI framework can be used to help enforce modular configuration of the injector. First, most DI frameworks have mechanisms for decomposing the full set of bindings used to configure an injector in some modular fashion, rather than placing them all in one monolithic configuration. Guice, for example, has `AbstractModule`s; Spring has `@Configuration` classes; Dagger has `@Module`s. Each team can own its own such module, and the Service Engineering team can establish an idiom that allows teams to inject their module into the overall injection configuration. Even where each team defines bindings in its own module, combining them into a single injector can still result in conflicts. To address this problem, Service Engineers can establish conventions for using "qualified" bindings to provide isolation (e.g., `@Named` in Guice and Dagger, `@Qualifier` in Guice).
 
-## Development server
+Over time, the bindings of even a medium-sized application can become a source of technical debt. Service Engineers should periodically audit the full set of bindings in their application, consolidating duplicative, qualified bindings that appear in multiple tenants, and eliminating dead bindings.
 
-The `serve` task requires a `@ViaductServerConfiguration` class to enable injection during development. Start a lightweight instance of your DI container there:
+## Per-Tenant Injectors
 
-```kotlin title="dev/MicronautViaductFactory.kt"
-import io.micronaut.context.ApplicationContext
-import viaduct.serve.ViaductFactory
-import viaduct.serve.ViaductServerConfiguration
-import viaduct.service.api.Viaduct
+To achieve a higher level of encapsulation than can be achieved with `SharedTenantModuleInjectorFactory`, Viaduct supports the use of a different {{ kdoc("viaduct.service.api.spi.CodeInjector") }} per tenant. Custom implementations of {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory") }} are the mechanism for creating per-module injectors:
 
-@ViaductServerConfiguration
-class MicronautViaductFactory : ViaductFactory {
-    override fun mkViaduct(): Viaduct {
-        val context = ApplicationContext.builder()
-            .packages(
-                "com.example.app.production",
-                "com.example.app",
-            )
-            .start()
-        return context.getBean(Viaduct::class.java)
-    }
-}
-```
+{{ codetag("core/service/api/src/main/kotlin/viaduct/service/api/spi/TenantModuleInjectorFactory.kt", "module_bootstrapper_def", lang="kotlin", strip_comments=True) }}
+
+At startup time Viaduct will call the {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.bootstrap") }} method once for every tenant module in the application. `tenantName` will be set to the name of the tenant module, and `tenantBootstrapClass` will be set to the class in that module (if there is one) that is annotated with {{ kdoc("service.api.spi.TenantBootstrapper") }}.
+
+It is up to the Service Engineer to define the expectation for this bootstrap class. Typically this class is a factory that will return a set of injector bindings for the tenant. When using Guice, for example, this class might return an `AbstractModule` that can be used to create an injector for the tenant. {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.bootstrap") }} would use this module to create an injector, which it would return.
+
+Most DI frameworks have a mechanism for creating child injectors. A common design would be to create a parent injector for bindings that are shared across all tenants, and use the bindings from {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.bootstrap") }} to create per-module child injectors.
+
+Service Engineers might want to collect bindings from across all tenant modules before creating any injectors. The {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.finalize") }} function supports this pattern. After {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.bootstrap") }} is called for all tenant modules, Viaduct will call {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.finalize") }}. The {{ kdoc("viaduct.service.api.spi.CodeInjector") }} instances returned by {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.bootstrap") }} will _not_ be used until after {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.finalize") }} is called. The intended pattern is for the results of {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.bootstrap") }} to be lazily initialized objects, and for {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.finalize") }} to initialize them.
+
+See [`starwars`](https://github.com/viaduct-dev/starwars) for an example of using {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory") }} to configure per-tenant injectors.
 
 ## Summary
 
 | Scenario | Approach |
 |---|---|
-| All tenants share the same DI container | `SharedTenantModuleInjectorFactory` |
-| Each tenant needs distinct bindings | `TenantModuleInjectorFactory` + `@TenantBootstrapper` |
-| No dependencies (tests, simple apps) | `NaiveTenantModuleInjectorFactory` (default) |
+| All tenants share the same DI container | {{ kdoc("viaduct.service.api.spi.SharedTenantModuleInjectorFactory") }} |
+| Each tenant needs distinct bindings | {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory") }} |
+| No DI (tests, simple apps) |  {{ kdoc("viaduct.service.api.spi.NaiveTenantModuleInjectorFactory") }} |
 
 ## See also
 

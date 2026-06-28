@@ -32,6 +32,25 @@ mkdocs serve
 
 Then open `http://localhost:8000` in your browser. MkDocs will automatically reload when you make changes.
 
+### View Entire Site Locally
+
+`mkdocs serve` does not show the KDoc/Dokka API documentation under `/apis/`. Those pages are generated separately into `docs/site/apis/`, while `mkdocs serve` serves its own rebuilt output.
+
+To view the entire site, including KDocs, build MkDocs first, then generate KDocs, then serve the final static `site/` directory. From the Viaduct OSS root directory:
+
+```bash
+cd docs
+mkdocs build --strict
+
+(cd ..; ./gradlew -p core dokkaGenerate)
+
+python3 -m http.server 8000 --directory site
+```
+
+Then open `http://localhost:8000` in your browser.
+
+Do not run `mkdocs serve` while using this mode. `mkdocs serve` rebuilds the site after source-file changes, and that rebuild wipes out the KDoc output in `site/apis/`. The live-reload MkDocs mode and the full static-site-with-KDocs mode are not compatible.
+
 ### Deployment
 
 This site is deployed via AWS S3 and Cloudfront from a CI job internal to Airbnb. Manual deploy steps:
@@ -90,7 +109,7 @@ mkdocs build
 
 # Run the link checker
 PYTHONPATH=.:$PYTHONPATH djlint site/ --lint \
-  --ignore "H005,H006,H013,H014,H021,H023,H025,H030,H031" \
+  --ignore "H005,H006,H013,H014,H015,H020,H021,H022,H023,H025,H026,H030,H031" \
   --include "LINK001"
 ```
 

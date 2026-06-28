@@ -11,6 +11,7 @@ import viaduct.apiannotations.StableApi
  * complete successfully, the framework calls [finalize] exactly once. The returned
  * [CodeInjector]s are not used until [finalize] has completed.
  */
+// tag::module_bootstrapper_def
 @StableApi
 interface TenantModuleInjectorFactory {
     /**
@@ -35,6 +36,7 @@ interface TenantModuleInjectorFactory {
      */
     suspend fun finalize() = Unit
 }
+// end::module_bootstrapper_def
 
 /**
  * Convenience [TenantModuleInjectorFactory] that returns the same [CodeInjector] for every tenant.
@@ -43,6 +45,7 @@ interface TenantModuleInjectorFactory {
  * whether or not those modules declare a `@TenantBootstrapper` class.
  */
 @StableApi
+// tag::shared_bootstrapper_def[3]
 open class SharedTenantModuleInjectorFactory(
     private val codeInjector: CodeInjector,
 ) : TenantModuleInjectorFactory {

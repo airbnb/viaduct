@@ -9,8 +9,8 @@ Node resolvers provide **typed lookups by Global ID**. Any entity that must be f
 ## Request lifecycle (node)
 
 1. Client calls `node(id: ID!)`.
-2. Viaduct decodes the Global ID (base64 of `"<Type>:<InternalID>"`).
-3. The matching `NodeResolvers.<Type>` implementation receives a typed `Context` with `ctx.id.internalID`.
+2. Viaduct decodes the Global ID into its type and internal ID components.
+3. Viaduct uses the type component to find the corresponding node resolver and call it passing the decoded Global ID as `Context.id`.
 4. Your resolver loads the record and builds the response using `Character.of(ctx) { ... }` or a dedicated builder class (for example, `CharacterBuilder(ctx).build(entity)`).
 
 ## Implementation

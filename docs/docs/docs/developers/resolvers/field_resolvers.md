@@ -123,6 +123,6 @@ Since {{ kdoc("viaduct.api.context.FieldExecutionContext") }} implements {{ kdoc
 * Construct [node references](node_references.md)
 * Construct [GlobalIDs](../globalids/index.md)
 
-## Responsibility set
+## Output selection set
 
-For scalar and enum fields like `displayName`, the field resolver is just responsible for resolving the single field. If the field has a node type, the field resolver constructs a node reference using just the node's GlobalID, which tells the engine to run the node resolver. For fields with non-node object types, the field resolver is responsible for all nested fields without its own resolver.
+For scalar and enum fields like `displayName`, the field resolver is just responsible for resolving the single field. If the field has a node type, the field resolver is responsible for returning a node reference containing just the node's GlobalID (which tells the engine to run the node resolver). For fields with non-node object types, the field resolver is responsible for all direct and nested fields that do not have their own resolver.

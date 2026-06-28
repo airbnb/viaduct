@@ -71,6 +71,5 @@ To add a new entity:
 - **Do** register schema IDs with clear scope sets (public vs. public + extras).
 - **Do** keep SDL modular and use directives for visibility and type-safety.
 - **Don’t** rely on a single “mega schema” and conditional logic inside resolvers to hide fields.
-- **Don’t** mix raw IDs with Global IDs; declare `@idOf` where applicable.
 
 > For multi-tenant schema management at the service layer, see the [Multi-tenancy service engineer docs](../../../docs/service_engineers/multi_tenancy/index.md). For the full `@scope` directive reference, see the [Scopes developer reference](../../../docs/developers/scopes/index.md).

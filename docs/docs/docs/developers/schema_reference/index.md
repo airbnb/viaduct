@@ -123,7 +123,7 @@ See [Scopes](../scopes/index.md) for detailed documentation on using scopes.
 
 ### @idOf
 
-Declares that a field represents a Global ID for a specific GraphQL type. When a field has `@idOf`, Viaduct generates code using `GlobalID<T>` instead of `String` in the resolver signature. This enables type-safe ID handling.
+Declares that an `ID` field or argument represents a Global ID for a specific GraphQL type. When a field or argument has `@idOf`, Viaduct generates code using `GlobalID<T>` instead of `String` in the resolver signature. This enables type-safe ID handling.
 
 **Locations:** `FIELD_DEFINITION`, `INPUT_FIELD_DEFINITION`, `ARGUMENT_DEFINITION`
 
@@ -318,7 +318,6 @@ extend type Mutation {
 - **Don't redefine standard scalars** — They're automatically available
 - **Don't manually add the Node interface** — It's added automatically when used
 - **Don't forget to extend root types** — Always use `extend type Query`, not `type Query`
-- **Don't use `@scope` as the only authorization mechanism** — Complement with application-level checks
 
 ## See Also
 

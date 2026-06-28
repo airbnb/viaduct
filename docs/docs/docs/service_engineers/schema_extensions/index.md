@@ -3,84 +3,54 @@ title: Schema Extensions
 description: Defining application-wide custom directives and common types using the schemabase directory
 ---
 
+Viaduct provides a set of directives and built-in types that go beyond what's defined in the GraphQL specification (see the [Developers: Schema Reference](../../developers/schema_reference/index.md)). You can define **custom directives** and **common types** that are shared across all modules by placing GraphQL schema files in a centralized location. (Viaduct does not yet support custom scalars.)
 
-Viaduct applications can define **custom directives** and **common types** that are shared across all modules by placing GraphQL schema files in a special directory. This provides a centralized location for schema definitions that extend Viaduct's built-in schema components.
 
 ## The schemabase directory
 
-The Viaduct Gradle plugin automatically discovers and includes schema files from:
+The Viaduct [application plugin](../../../getting_started/index.md) automatically discovers and includes schema files from:
 
 ```
 src/main/viaduct/schemabase/
 ```
 
-Any `.graphqls` files in this directory (including subdirectories) are automatically added to your application's schema during the build process. You do **not** need to manually configure or register these files.
+Any `.graphqls` files in this directory (including subdirectories) are automatically added to your application's schema during the build process.
 
-**Note:** Viaduct does not yet support custom scalars.
+## Validation
 
-## Build integration
-
-The `assembleViaductCentralSchema` Gradle task automatically:
-
-1. Scans `src/main/viaduct/schemabase/` for `*.graphqls` files
-2. Copies them to the build output under `schemabase/`
-3. Includes them when assembling the complete application schema
-4. Validates that the combined schema is valid GraphQL
-
-You can verify the assembled schema in `build/viaduct/schema/` after running:
+To validate your extensions without doing an entire build of your application, use the `assembleViaductCentralSchema` Gradle task:
 
 ```bash
 ./gradlew assembleViaductCentralSchema
 ```
 
-## Relation to Viaduct's built-in schema
-
-Viaduct automatically provides several built-in schema components that you don't need to define:
-
-- **Directives:** `@resolver`, `@scope`, `@idOf`, `@backingData`
-- **Interfaces:** `Node` (when used)
-- **Scalars:** `DateTime`, `Date`, `Long`, `BigDecimal`, `BigInteger`, `Object`, `Upload`
-- **Types:** `PageInfo` (for [pagination](#pageinfo))
-- **Root types:** `Query` (always), `Mutation` (when extended)
-
-For details about these built-in components, see the [Developers: Schema Reference](../../developers/schema_reference/index.md) section.
-
-Your `schemabase/` files extend and complement these built-in components with application-specific definitions.
-
 ## PageInfo
 
-Viaduct automatically manages a `PageInfo` type for [Relay Connection](https://relay.dev/graphql/connections.htm){:target="_blank"} pagination:
+Viaduct automatically defines a `PageInfo` type for [Relay Connection](https://relay.dev/graphql/connections.htm){:target="_blank"} pagination:
 
-- **If `PageInfo` is not defined** in any schema file, Viaduct creates it with the standard Relay fields:
-
-    ```graphqls
-    type PageInfo {
-      hasNextPage: Boolean!
-      hasPreviousPage: Boolean!
-      startCursor: String
-      endCursor: String
-    }
-    ```
-
-- **If `PageInfo` is already defined** (e.g. in `schemabase/`), Viaduct validates that it conforms to the Relay specification.
-
-### PageInfo validation rules
-
-A custom `PageInfo` definition must match the specification exactly:
-
-- **Required fields only**: Only the four standard fields (`hasNextPage`, `hasPreviousPage`, `startCursor`, `endCursor`) are allowed
-- **No custom fields**: Additional fields such as `totalCount` are not permitted
-
-Non-conforming definitions produce a validation error:
-
-```
-PageInfo type does not conform to Relay Connection specification:
-  - Missing required field 'hasPreviousPage'
-  - Field 'hasNextPage' must be non-nullable (Boolean!)
-  - PageInfo type cannot have custom fields. Found extra fields: 'totalCount'.
+```graphqls
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
 ```
 
 For how `PageInfo` is used in connection types, see [Pagination](../../developers/pagination/index.md).
+
+You can replace this definition with your own, where you can add directives that make sense for your application. However, your definition of `PageInfo` is required to conform to the following restrictions:
+
+- **Required fields**: The four standard fields (`hasNextPage`, `hasPreviousPage`, `startCursor`, `endCursor`) must be defined with the standard types.
+- **No custom fields**: Additional fields such as `totalCount` are not permitted.
+- **No interfaces (or unions)**: `PageInfo` can't implement an interface. (Separately we validate that it's never a member of a union.)
+- **No arguments**: Custom `PageInfo` definitions can't add arguments to its fields.
+
+These restrictions are based on the spec itself and on best practices established by the Relay community.
+
+What you can do with a custom definition is add directives to the type itself and to its fields. (In the future, when Viaduct supports custom scalars, it will support custom cursor types as well.)
+
+<!-- References: All of the above restrictions came from having a couple of agents "deep search" the web. People don't like restrictions, but the goal of Viaduct is to be opinionated, and in picking opinions, where there's doubt we pick opinions that can be undone without breaking compatibility. The no-custom-fields restriction might be controversial, so some more details. First, the spec is deliberately asymmetric: it explicitly allows for custom fields on `Connection` but, while it doesn't explicitly disallow them on `PageInfo`, it doesn't allow for them either. Second, the reference impl and all major additional implementations have no custom fields. Third, every time a PR is posted to the reference impl to add `totalCount` specifically, it is rejected with instruction to put it on `Connection` instead. This comment is the only natural place to put our rationale, so do not delete it. -->
 
 ## See also
 

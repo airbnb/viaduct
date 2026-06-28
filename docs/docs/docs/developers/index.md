@@ -5,17 +5,15 @@ description: Developing tenant modules in Viaduct.
 
 The Developers section covers the core concepts and tools you'll need when building your first Viaduct tenant. Here's what you need to know:
 
-**Resolvers** are the heart of your Viaduct application—they're where you write the business logic that fetches and transforms data. You define fields in your GraphQL schema with the `@resolver` directive, and Viaduct generates abstract base classes that you implement. There are two types: node resolvers (for fetching objects by ID) and field resolvers (for computing field values). Understanding *responsibility sets*—the fields each resolver is responsible for, including nested fields—is key to structuring your code efficiently.
+**Resolvers** are the heart of your Viaduct application—they're where you write the business logic that fetches and transforms data. You define fields in your GraphQL schema with the `@resolver` directive, and Viaduct generates abstract base classes that you implement. There are two types: node resolvers (for fetching objects by ID) and field resolvers (for computing field values).
 
 **Generated Code** is your primary API for working with Viaduct. The framework generates GraphQL Representational Types (GRTs) for every type in your schema—these are Kotlin classes with type-safe getters and builders that let you read query results and construct response objects. The generated code uses a "compilation schema" approach, meaning each tenant module only generates types for the schema elements it actually uses, keeping builds fast and scalable.
 
-**Global IDs** provide type-safe identification for Node objects. Instead of plain strings, Viaduct uses `GlobalID<T>` types that embed both the object type and its internal ID. Use the `@idOf` directive to declare when an ID field references a specific type, and Viaduct will generate the appropriate `GlobalID` types in your resolver signatures.
+**Global IDs** provide type-safe identification for Node objects. Instead of plain strings, Viaduct uses `GlobalID<T>` types that embed both the object type and its internal ID. Use the `@idOf` directive to declare when an `ID` field or argument references a specific type, and Viaduct will generate the appropriate `GlobalID` types in your resolver signatures.
 
 **Pagination** uses the Relay Connection specification for cursor-based pagination. Define connection and edge types with `@connection` and `@edge` directives, then use builder utilities like `fromEdges()`, `fromSlice()`, or `fromList()` to construct paginated responses. Viaduct handles cursor encoding, pagination arguments, and `PageInfo` automatically.
 
 **API Stability** Viaduct exposes public APIs that application code compiles against. To help adopters understand what is safe to depend on (and what is not), Viaduct classifies APIs into explicit stability levels using annotations.
-
-**Request Context** is how per-request data — caller identity, auth tokens, locale — flows into resolvers. Viaduct supports two patterns: framework-scoped DI beans (recommended, fully type-safe) and `ExecutionInput.requestContext` (simpler, no DI required).
 
 **Scopes** let you expose different schema variants from the same codebase—think public vs. internal APIs, or feature-flagged schemas. Use the `@scope` directive to control which fields and types are visible in each variant. Either everything has a scope or nothing does; there's no default scope, ensuring explicit visibility control.
 

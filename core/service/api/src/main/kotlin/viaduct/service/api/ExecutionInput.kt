@@ -64,6 +64,7 @@ interface ExecutionInput {
 
         /**
          * Convenience factory method for simple cases.
+         * See [Builder] for defaults.
          */
         fun create(
             operationText: String,
@@ -102,16 +103,22 @@ interface ExecutionInput {
         private var executionId: String? = null
         private var requestContext: Any? = null
 
+        /** No default - errors if not provided. */
         fun operationText(operationText: String) = apply { this.operationText = operationText }
 
+        /** Defaults to null. */
         fun operationName(operationName: String?) = apply { this.operationName = operationName }
 
+        /** Defaults to hash of operation text plus the operation name if one was provided. */
         fun operationId(operationId: String) = apply { this.operationId = operationId }
 
+        /** Defaults to the empty map. */
         fun variables(variables: Map<String, Any?>) = apply { this.variables = variables }
 
+        /** Defaults to a UUID. */
         fun executionId(executionId: String) = apply { this.executionId = executionId }
 
+        /** Defaults to null. */
         fun requestContext(requestContext: Any?) = apply { this.requestContext = requestContext }
 
         fun build(): ExecutionInput {

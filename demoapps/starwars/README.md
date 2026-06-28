@@ -113,21 +113,11 @@ query {
 
 ## Nodes and global IDs
 
-A central concept in Viaduct is the `Node`: any object retrievable by a globally unique `ID`. Every `Node` has an `id` field.
+A central concept in Viaduct is the `Node`: any object retrievable by a globally unique `ID`. Every `Node` has an `id` field, which we call its _global ID_.
 
-Internally, a Viaduct `ID` consists of as base64-encoded string :
+Externally, global IDs are serialized as strings in an intentionally opaque format: neither tenant code nor external clients should attempt to decode these strings. See the [Global IDs developer reference](https://viaduct.airbnb.tech/docs/developers/globalids/) for more details.
 
-```
-TypeName:LocalId
-```
-
-For example:
-
-```
-Character:5 → "Q2hhcmFjdGVyOjU="
-```
-
-In GraphiQL you can use the key icon in the toolbar (🔑) to encode or decode these IDs.
+When issuing queries manually via GraphiQL, you will need to encode these IDs to provide input and decode them to inspect output. You can do this using the key button (🔑) in the toolbar.
 
 #### Example: look up a character by ID
 
@@ -171,8 +161,6 @@ query {
 }
 ```
 
-> If you decode the id from base64, you can notice that the id `UGxhbmV0OjQ=` is decoded to `"Planet:4"`.
-
 Which returns:
 
 ```json
@@ -184,7 +172,3 @@ Which returns:
   }
 }
 ```
-
-## Technical deep dive
-
-For a deeper technical explanation of how the system works, see the [Getting Started Guide](https://viaduct.airbnb.tech/docs/getting_started/).

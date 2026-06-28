@@ -70,7 +70,7 @@ class UserNodeResolver @Inject constructor(
 Points illustrated by this example:
 
 * Dependency injection can be used to provide access to values beyond what’s in the execution context.
-* You should not provide values for fields outside the resolver's responsibility set. In the example above, we do not set `displayName` when building the `User` [GRT](../generated_code/index.md).
+* You should not provide values for fields outside the resolver's output selection set. In the example above, we do not set `displayName` when building the `User` [GRT](../generated_code/index.md).
 
 Alternatively, if the user service provides a batch endpoint, you should implement a batch node resolver. Node resolvers typically implement `batchResolve` to avoid the N+1 problem. Learn more about batch resolution [here](batch_resolution.md).
 
@@ -133,10 +133,10 @@ class SelectiveUserNodeResolver @Inject constructor(
 
 Non-selective node resolvers should not use `ctx.selections()`, and their generated `Context` does not expose that API. Field-level `@resolver(isSelective: true)` directives inside a node type do not change node resolver generation or make the node resolver selective.
 
-## Responsibility set
+## Output selection set
 
-The node resolver is responsible for resolving all fields, including nested fields, without its own resolver. These are typically core fields that are stored together and can be efficiently retrieved together.
+The node resolver is responsible for resolving all fields, including nested fields, that do not have their own resolver. These are typically core fields that are stored together and can be efficiently retrieved together.
 
 In the example above, the node resolver for `User` is responsible for returning the `firstName` and `lastName` fields, but not the `displayName` field, which has its own resolver. Note that node resolvers are *not* responsible for the `id` field, since the ID is an input to the node resolver.
 
-Node resolvers are also responsible for determining whether the node exists. If a node resolver returns an error value, the entire node in the GraphQL response will be null, not just the fields in the node resolver's responsibility set.
+Node resolvers are also responsible for determining whether the node exists. When a requested node does not exist, the node resolver should throw an exception, indicating that there's been an error.

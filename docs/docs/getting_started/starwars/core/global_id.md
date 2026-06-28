@@ -53,7 +53,7 @@ query ($id: ID!) {
 
 ## Schema hinting with `@idOf`
 
-Annotate `ID` fields and arguments with `@idOf` to bind them to a concrete GraphQL type, enabling type-safe handling in resolvers and tooling:
+Annotate `ID` field arguments and input fields with `@idOf` to bind them to a concrete GraphQL type, enabling type-safe handling in resolvers and tooling:
 
 
 {{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "id_example", lang="kotlin") }}
@@ -66,7 +66,7 @@ Annotate `ID` fields and arguments with `@idOf` to bind them to a concrete Graph
 
 - **Do** treat Global IDs as opaque and stable across the API surface.
 - **Do** generate them in resolvers using `ctx.globalIDFor` or `<Type>.Reflection.globalId(...)`.
-- **Do** use `@idOf` on schema fields/arguments carrying Global IDs.
+- **Do** use `@idOf` on schema field arguments and input fields carrying Global IDs.
 - **Don’t** expose internal IDs at the network boundary or ask clients to decode Global IDs. Encoding and decoding happen inside Viaduct on both ends; clients treat them as opaque tokens.
 - **Don’t** embed business logic or access control information in IDs.
 
