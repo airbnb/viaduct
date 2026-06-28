@@ -12,7 +12,6 @@ import graphql.schema.DataFetchingEnvironment
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import java.util.function.Supplier
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -201,8 +200,8 @@ class ViaductInstrumentationAdapterTest {
         assert(instrumentationBase.instrumentAccessCheckCalled)
 
         val nodeFetchingParams = InstrumentNodeFetchingParameters(
-            Supplier { mockk<DataFetchingEnvironment>() },
-            null,
+            requiredBy = null,
+            resolverMetadata = null,
         )
         instrumentation.beginNodeFetching(nodeFetchingParams, null)
         assert(instrumentationBase.beginNodeFetchingCalled)
@@ -220,8 +219,8 @@ class ViaductInstrumentationAdapterTest {
     fun `beginNodeFetching returns noOp when WithBeginNodeFetching is not implemented`() {
         val instrumentation = standardInstrumentationBase.asStandardInstrumentation
         val nodeFetchingParams = InstrumentNodeFetchingParameters(
-            Supplier { mockk<DataFetchingEnvironment>() },
-            null,
+            requiredBy = null,
+            resolverMetadata = null,
         )
         val result = instrumentation.beginNodeFetching(nodeFetchingParams, null)
         assertNotNull(result)

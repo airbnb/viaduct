@@ -602,7 +602,10 @@ class FieldResolver(
         val nodeResolverMetadata = (parameters.engineExecutionContext as? EngineExecutionContextImpl)
             ?.dispatcherRegistry?.getNodeResolverDispatcher(engineResult.type.name)?.resolverMetadata
         val nodeInstrCtx = parameters.instrumentation.beginNodeFetching(
-            InstrumentNodeFetchingParameters(dataFetchingEnvironmentProvider, nodeResolverMetadata),
+            InstrumentNodeFetchingParameters(
+                requiredBy = parameters.queryPlan.attribution,
+                resolverMetadata = nodeResolverMetadata,
+            ),
             parameters.executionContext.instrumentationState
         )
         nodeInstrCtx?.onDispatched()
