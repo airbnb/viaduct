@@ -41,6 +41,14 @@
         <property name="files" value="(ObjectBase|InputBase|NodeObjectBase)\.java$"/>
     </module>
 
+    <!-- Suppress ParameterName in the ObjectBase test double: FakeSync implements the Kotlin
+         suspend interface EngineObjectData.Sync, whose continuation parameter is named `$completion`
+         by the Kotlin ABI and cannot be renamed. -->
+    <module name="SuppressionSingleFilter">
+        <property name="checks" value="ParameterName"/>
+        <property name="files" value="ObjectBaseTest\.java$"/>
+    </module>
+
     <module name="TreeWalker">
         <!-- Checks for Naming Conventions -->
         <module name="ConstantName"/>
