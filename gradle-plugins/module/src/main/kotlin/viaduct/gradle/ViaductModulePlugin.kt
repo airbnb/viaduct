@@ -15,6 +15,7 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.register
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import schemaPartitionDirectory
+import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.StableApi
 import viaduct.gradle.ViaductPluginCommon.APPLICATION_PLUGIN_IDS
 import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
@@ -33,6 +34,7 @@ open class ViaductModuleExtension(objects: org.gradle.api.model.ObjectFactory) {
     val modulePackageSuffix = objects.property(String::class.java)
 }
 
+@InternalApi
 class ViaductModulePlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
@@ -255,6 +257,7 @@ class ViaductModulePlugin : Plugin<Project> {
     }
 }
 
+@InternalApi
 object ViaductModulePluginSupport {
     private val MODULE_PLUGIN_IDS = listOf(
         "com.airbnb.viaduct.module-gradle-plugin",

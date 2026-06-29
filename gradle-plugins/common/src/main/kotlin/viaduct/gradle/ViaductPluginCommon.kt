@@ -9,8 +9,10 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.plugins.ide.idea.model.IdeaModel
 import org.jetbrains.gradle.ext.settings
 import org.jetbrains.gradle.ext.taskTriggers
+import viaduct.apiannotations.InternalApi
 import viaduct.gradle.shared.BuildFlags
 
+@InternalApi
 object ViaductPluginCommon {
     val APPLICATION_PLUGIN_IDS = listOf(
         "com.airbnb.viaduct.application-gradle-plugin",

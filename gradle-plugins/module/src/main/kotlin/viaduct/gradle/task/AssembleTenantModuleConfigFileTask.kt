@@ -20,6 +20,7 @@ import org.gradle.work.FileChange
 import org.gradle.work.Incremental
 import org.gradle.work.InputChanges
 import org.gradle.workers.WorkerExecutor
+import viaduct.apiannotations.InternalApi
 import viaduct.gradle.CodegenWorkAction
 import viaduct.gradle.runCodegen
 
@@ -33,6 +34,7 @@ import viaduct.gradle.runCodegen
  * changed. When the task does execute, it always reconciles outputs from the
  * full descriptor set (no task-internal delta logic).
  */
+@InternalApi
 @CacheableTask
 abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalActions {
     /**

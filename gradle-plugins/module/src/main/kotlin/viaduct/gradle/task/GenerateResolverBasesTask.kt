@@ -19,6 +19,7 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.workers.WorkerExecutor
 import resolverBasesDirectory
+import viaduct.apiannotations.InternalApi
 import viaduct.gradle.ViaductApplicationExtension
 import viaduct.gradle.ViaductModuleExtension
 import viaduct.gradle.ViaductPluginCommon
@@ -27,6 +28,7 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.binary.extensions.toBinaryFile
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 
+@InternalApi
 @CacheableTask
 abstract class GenerateResolverBasesTask
     @Inject

@@ -3,3 +3,7 @@
 viaduct-detekt-rules:
   ApiStabilityAnnotationRequired:
     active: true
+    # BuildFlags.kt is a copy kept byte-identical with build-logic/common (enforced by
+    # checkSharedFileSync in the root build.gradle.kts). build-logic has no access to
+    # viaduct.apiannotations, so the shared source cannot carry a stability annotation; exempt it.
+    excludes: ['**/viaduct/gradle/shared/BuildFlags.kt']

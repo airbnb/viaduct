@@ -5,7 +5,11 @@
  * the Treehouse-constrained settings that `conventions.kotlin` applies:
  *   - No apiVersion / languageVersion pinning to 1.8
  *   - No `idea` plugin
- *   - No Viaduct internal opt-in annotations
+ *
+ * It DOES opt in to `viaduct.apiannotations.InternalApi`: the gradle-plugins sources mark their
+ * own cross-subproject internals `@InternalApi` (a `@RequiresOptIn` marker), so consuming them
+ * within these plugin modules must opt in — otherwise the opt-in warnings would become errors
+ * once the gradle-plugins build enforces `-Werror`.
  *
  * IMPORTANT: a Kotlin plugin must be applied BEFORE this convention. For `kotlin-dsl`
  * plugin projects, apply `kotlin-dsl` first. For plain Kotlin libraries (e.g. `common`),
@@ -21,6 +25,8 @@
  * does not affect build correctness.
  */
 package conventions
+
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     java // idempotent — both kotlin-dsl and kotlin-jvm already apply this
@@ -45,4 +51,12 @@ dependencies {
 
 tasks.named<Test>("test") {
     useJUnitPlatform()
+}
+
+// Opt in to the Viaduct stability markers used by gradle-plugins' own sources (see header).
+// A Kotlin plugin is applied before this convention, so the KotlinCompile tasks exist.
+tasks.withType<KotlinCompile>().configureEach {
+    compilerOptions {
+        optIn.add("viaduct.apiannotations.InternalApi")
+    }
 }

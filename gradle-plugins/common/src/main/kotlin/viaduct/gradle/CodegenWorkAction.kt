@@ -6,6 +6,7 @@ import org.gradle.api.provider.Property
 import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkerExecutor
+import viaduct.apiannotations.InternalApi
 
 /**
  * A generic [WorkAction] that invokes a main class in a process-isolated worker.
@@ -14,6 +15,7 @@ import org.gradle.workers.WorkerExecutor
  * (e.g. `viaductCodegenClasspath`). Process isolation keeps them out of the Gradle
  * daemon's metaspace and avoids classloader/memory issues.
  */
+@InternalApi
 abstract class CodegenWorkAction : WorkAction<CodegenWorkAction.Params> {
     interface Params : WorkParameters {
         val mainClass: Property<String>
@@ -38,6 +40,7 @@ abstract class CodegenWorkAction : WorkAction<CodegenWorkAction.Params> {
 /**
  * Submits a codegen main class to a process-isolated worker and waits for completion.
  */
+@InternalApi
 fun WorkerExecutor.runCodegen(
     classpath: ConfigurableFileCollection,
     mainClass: String,

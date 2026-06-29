@@ -25,7 +25,7 @@ val libs = extensions.getByType(VersionCatalogsExtension::class.java).named("lib
 detekt {
     source.setFrom(handWrittenKotlinSourceDirs.values)
     config.setFrom(detektConfigFile, detektViaductConfigFile)
-    ignoreFailures = true
+    ignoreFailures = false
 }
 
 ktlint {
