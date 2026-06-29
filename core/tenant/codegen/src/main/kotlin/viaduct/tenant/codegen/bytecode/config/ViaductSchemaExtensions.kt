@@ -6,6 +6,7 @@ import kotlinx.metadata.KmTypeProjection
 import kotlinx.metadata.KmVariance
 import kotlinx.metadata.isNullable
 import viaduct.apiannotations.VisibleForTest
+import viaduct.codegen.SchemaAnalysis
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.codegen.utils.name
@@ -208,11 +209,11 @@ fun ViaductSchema.Interface.noArgsAnywhere(fieldName: String): Boolean {
 }
 
 /**
- * True if this type implements the Node interface
+ * True if this type implements the Node interface.
+ * Delegates to the shared language-neutral [SchemaAnalysis.isNode].
  */
 val ViaductSchema.TypeDef.isNode: Boolean
-    get() = (name == "Node" && this is ViaductSchema.Interface) ||
-        (this is ViaductSchema.OutputRecord && supers.any { it.isNode })
+    get() = SchemaAnalysis.isNode(this)
 
 /**
  * True is this type implements the PagedConnection interface,
@@ -274,67 +275,38 @@ val ViaductSchema.SourceLocation.tenantModule: String?
 
 /**
  * True if this type has the @edge directive applied.
+ * Delegates to the shared language-neutral [SchemaAnalysis.hasEdgeDirective].
  */
 val ViaductSchema.TypeDef.hasEdgeDirective: Boolean
-    get() = this is ViaductSchema.Object && hasAppliedDirective("edge")
+    get() = SchemaAnalysis.hasEdgeDirective(this)
 
 /**
  * For an Edge type, returns the type of the node field.
+ * Delegates to the shared language-neutral [SchemaAnalysis.edgeNodeTypeName].
  * @return The name of the Node type or will throw error if it doesn't exist.
  */
 val ViaductSchema.Object.typeOfNodeField: String
-    get() {
-        val field: ViaductSchema.Field? = field("node")
-        val typeDef: ViaductSchema.TypeDef? = field?.type?.baseTypeDef
-        return checkNotNull(typeDef?.name) {
-            "@edge type ${this.name} has no `node` field."
-        }
-    }
+    get() = SchemaAnalysis.edgeNodeTypeName(this)
 
 /**
  * True if this type has the @connection directive applied.
+ * Delegates to the shared language-neutral [SchemaAnalysis.hasConnectionDirective].
  */
 val ViaductSchema.TypeDef.hasConnectionDirective: Boolean
-    get() = this is ViaductSchema.Object && hasAppliedDirective("connection")
-
-data class ResolverDirectiveConfig(
-    val isSelective: Boolean,
-    val isBatching: Boolean,
-)
-
-fun ViaductSchema.Def.resolverDirectiveConfigOrNull(): ResolverDirectiveConfig? {
-    val resolverDirective = appliedDirectives.firstOrNull { it.name == "resolver" } ?: return null
-    // TODO: remove legacy `selective` support after tenants finish migrating to `isSelective`.
-    val isSelective = when (
-        val isSelectiveArg = resolverDirective.arguments["isSelective"] ?: resolverDirective.arguments["selective"]
-    ) {
-        null -> false
-        is ViaductSchema.BooleanLiteral -> isSelectiveArg.value
-        else -> error("Expected @resolver(isSelective:/selective:) to decode as a boolean on ${describe()}")
-    }
-    val isBatching = when (val isBatchingArg = resolverDirective.arguments["isBatching"]) {
-        null -> false
-        is ViaductSchema.BooleanLiteral -> isBatchingArg.value
-        else -> error("Expected @resolver(isBatching:) to decode as a boolean on ${describe()}")
-    }
-    return ResolverDirectiveConfig(isSelective = isSelective, isBatching = isBatching)
-}
+    get() = SchemaAnalysis.hasConnectionDirective(this)
 
 val ViaductSchema.Def.isSelectiveResolver: Boolean
-    get() = resolverDirectiveConfigOrNull()?.isSelective ?: false
+    get() = SchemaAnalysis.isSelectiveResolver(this)
 
 val ViaductSchema.Def.isBatchingResolver: Boolean
-    get() = resolverDirectiveConfigOrNull()?.isBatching ?: false
+    get() = SchemaAnalysis.isBatchingResolver(this)
 
 /**
  * For a Connection type, extracts the Edge type name from the edges field.
+ * Delegates to the shared language-neutral [SchemaAnalysis.connectionEdgeTypeName].
  *
  * @return The name of the Edge type, or null if this is not a Connection type
  *         or the edges field is not found
  */
 val ViaductSchema.Object.connectionEdgeTypeName: String?
-    get() {
-        if (!hasConnectionDirective) return null
-        val edgesField = field("edges") ?: return null
-        return edgesField.type.baseTypeDef.name
-    }
+    get() = SchemaAnalysis.connectionEdgeTypeName(this)

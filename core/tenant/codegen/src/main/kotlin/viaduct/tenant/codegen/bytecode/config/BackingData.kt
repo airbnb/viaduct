@@ -2,16 +2,17 @@ package viaduct.tenant.codegen.bytecode.config
 
 import kotlinx.metadata.KmType
 import kotlinx.metadata.isNullable
+import viaduct.codegen.SchemaAnalysis
 import viaduct.codegen.utils.Km
 import viaduct.graphql.schema.ViaductSchema
 
-/** is this TypeDef the BackingData scalar? */
+/** is this TypeDef the BackingData scalar? Delegates to the shared [SchemaAnalysis.isBackingDataType]. */
 val ViaductSchema.TypeDef.isBackingDataType: Boolean get() =
-    kind == ViaductSchema.TypeDefKind.SCALAR && name == "BackingData"
+    SchemaAnalysis.isBackingDataType(this)
 
-/** is this Field a customized BackingData scalar */
+/** is this Field a customized BackingData scalar. Delegates to the shared [SchemaAnalysis.isBackingDataField]. */
 val ViaductSchema.Field.isBackingDataType: Boolean get() =
-    this.type.baseTypeDef.isBackingDataType
+    SchemaAnalysis.isBackingDataField(this)
 
 /**
  * Only check for BackingData scalar type in codegen. No need to check for @backingData directive.
