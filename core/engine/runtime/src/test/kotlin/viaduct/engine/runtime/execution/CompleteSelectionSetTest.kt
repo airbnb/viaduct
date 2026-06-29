@@ -224,7 +224,7 @@ class CompleteSelectionSetTest {
                                     "includeValue",
                                     requiredSelectionSet = variableRss,
                                 ) { resolveCtx, _ ->
-                                    mapOf("includeValue" to resolveCtx.objectData.fetch("gate"))
+                                    mapOf("includeValue" to resolveCtx.objectData.get("gate"))
                                 }
                             )
                         )

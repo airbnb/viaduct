@@ -1366,7 +1366,7 @@ class RequiredSelectionsTest {
         val sharedVariablesResolver = MockVariablesResolver(
             "vara",
             requiredSelectionSet = sharedNestedRss,
-        ) { ctx, _ -> mapOf("vara" to ctx.objectData.fetchAs<Int>("z")) }
+        ) { ctx, _ -> mapOf("vara" to ctx.objectData.getAs<Int>("z")) }
         val sharedResolvers = listOf(sharedVariablesResolver)
 
         EngineTestModule(
@@ -1499,7 +1499,7 @@ class RequiredSelectionsTest {
                     objectSelections("includeSelectedValue selectedValue @include(if: ${'$'}includeSelectedValue)") {
                         variables("includeSelectedValue", rss = createRSS("Item", "includeSelectedValue")) { resolveCtx, _ ->
                             mapOf(
-                                "includeSelectedValue" to resolveCtx.objectData.fetchAs<Boolean>("includeSelectedValue")
+                                "includeSelectedValue" to resolveCtx.objectData.getAs<Boolean>("includeSelectedValue")
                             )
                         }
                     }

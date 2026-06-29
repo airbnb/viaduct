@@ -388,7 +388,7 @@ object FieldExecutionHelpers {
     ): CoercedVariables =
         variablesResolvers.fold(emptyMap<String, Any?>()) { acc, vr ->
             val isResolverSelective = engineExecutionContext.isResolverSelective
-            val variablesData: EngineObjectData = vr.requiredSelectionSet?.let { vrss ->
+            val variablesData: EngineObjectData.Sync = vr.requiredSelectionSet?.let { vrss ->
                 val childPlan = findRssQueryPlan(vrss, engineExecutionContext)
                 // VariablesResolvers may have required selection sets which have their own variables resolvers.
                 // Recursively resolve them

@@ -58,7 +58,7 @@ class VariablesResolverTest {
     private val c = VariablesResolver.const(mapOf("c" to 3))
 
     private fun mkResolverCtx(
-        objData: EngineObjectData = objectData,
+        objData: EngineObjectData.Sync = objectData,
         arguments: Map<String, Any?> = emptyMap(),
     ): VariablesResolver.ResolveCtx = VariablesResolver.ResolveCtx(objData, arguments)
 

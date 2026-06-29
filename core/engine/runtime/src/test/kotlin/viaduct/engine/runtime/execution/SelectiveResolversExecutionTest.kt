@@ -35,6 +35,7 @@ import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.fetchAs
+import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.ExecutionResult
@@ -378,8 +379,8 @@ class SelectiveResolversExecutionTest : KotestPropertyBase(iterations = 100) {
                             "includeFoo",
                             rss = createRSS("Query", "foo { z y }")
                         ) { ctx, _ ->
-                            val foo = ctx.objectData.fetchAs<EngineObjectData>("foo")
-                            foo.fetchAs<Int>("z")
+                            val foo = ctx.objectData.getAs<EngineObjectData.Sync>("foo")
+                            foo.getAs<Int>("z")
                             mapOf("includeFoo" to false)
                         }
                     }

@@ -27,7 +27,7 @@ interface VariablesResolver {
      * @param arguments The argument values provided to the field whose resolver depends on these values.
      */
     data class ResolveCtx(
-        val objectData: EngineObjectData,
+        val objectData: EngineObjectData.Sync,
         val arguments: Map<String, Any?>
     )
 
@@ -255,10 +255,10 @@ data class FromArgument(val name: String, val path: List<String>) : VariablesRes
 
 /**
  * A [VariablesResolver] that reads a single variable's value from a resolved field in the
- * parent object's [EngineObjectData].
+ * parent object's [EngineObjectData.Sync].
  *
  * The engine pre-fetches the fields described by [requiredSelectionSet] so that [resolve] can
- * simply traverse [path] through the already-resolved [EngineObjectData] via [EngineDataReader].
+ * simply traverse [path] through the already-resolved [EngineObjectData.Sync] via [EngineDataReader].
  *
  * @property name The GraphQL variable name this resolver produces.
  * @property path Non-empty list of field-key segments that form the traversal path through the

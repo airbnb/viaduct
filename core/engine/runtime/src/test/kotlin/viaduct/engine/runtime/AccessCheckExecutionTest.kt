@@ -16,7 +16,7 @@ import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.mocks.featureTestDefault
-import viaduct.engine.api.mocks.fetchAs
+import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
 import viaduct.service.api.spi.ErrorBuilder
@@ -321,7 +321,7 @@ class AccessCheckExecutionTest {
                 checker {
                     objectSelections("key", "fragment _ on Query { plusOne(value: \$var) }") {
                         variables("var", rss = createRSS("Query", "string2", forChecker = true)) { ctx, _ ->
-                            val string2 = ctx.objectData.fetch("string2") as String
+                            val string2 = ctx.objectData.get("string2") as String
                             mapOf("var" to string2.toInt())
                         }
                     }
@@ -1055,7 +1055,7 @@ class AccessCheckExecutionTest {
                             "var",
                             rss = createRSS("Obj", "x", forChecker = true)
                         ) { ctx, _ ->
-                            mapOf("var" to ctx.objectData.fetchAs<Boolean>("x"))
+                            mapOf("var" to ctx.objectData.getAs<Boolean>("x"))
                         }
                     }
                     fn { _, _ -> }

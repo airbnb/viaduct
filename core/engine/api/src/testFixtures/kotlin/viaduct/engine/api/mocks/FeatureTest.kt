@@ -197,4 +197,6 @@ class FeatureTest(
 
 suspend inline fun <reified T : Any?> EngineObjectData.fetchAs(selection: String) = this.fetch(selection) as T
 
+inline fun <reified T : Any?> EngineObjectData.Sync.getAs(selection: String) = this.get(selection) as T
+
 inline fun <reified T : Any?> Map<String, Any?>.getAs(key: String) = this[key] as T
