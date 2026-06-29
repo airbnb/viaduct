@@ -1,6 +1,6 @@
-import viaduct.gradle.internal.repoRoot
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
+import viaduct.gradle.internal.repoRoot
 
 plugins {
     `java-library`
@@ -59,8 +59,10 @@ pluginManager.withPlugin("maven-publish") {
                         val toRemove = (depsContainer.children() as groovy.util.NodeList)
                             .filterIsInstance<groovy.util.Node>()
                             .filter { dep ->
-                                val groupId = ((dep.get("groupId") as groovy.util.NodeList)
-                                    .firstOrNull() as? groovy.util.Node)?.text() ?: ""
+                                val groupId = (
+                                    (dep.get("groupId") as groovy.util.NodeList)
+                                        .firstOrNull() as? groovy.util.Node
+                                )?.text() ?: ""
                                 groupId.startsWith("com.airbnb.viaduct.shared")
                             }
                         toRemove.forEach { depsContainer.remove(it) }

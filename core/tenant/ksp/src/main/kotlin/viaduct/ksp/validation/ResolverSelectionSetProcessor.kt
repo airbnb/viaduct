@@ -179,7 +179,7 @@ class ResolverSelectionSetProcessor(
      * Validates resolver @Variable declarations and references. This is schema-free; GraphQL
      * schema validation of the fragments themselves happens at assembly time.
      */
-    private fun validateResolvers(annotationSpecs: List<ResolverAnnotationSpec>,) {
+    private fun validateResolvers(annotationSpecs: List<ResolverAnnotationSpec>) {
         val errors = mutableListOf<String>()
 
         ValidateResolverVariables(annotationSpecs)

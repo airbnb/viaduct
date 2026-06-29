@@ -40,7 +40,6 @@ tasks.named("check").configure {
     dependsOn(testFileBasedBootstrap)
 }
 
-
 dependencies {
     /** Viaduct dependencies **/
     implementation(libs.viaduct.engine.api)

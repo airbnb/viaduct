@@ -32,7 +32,7 @@ ktlint {
     version.set(libs.findVersion("ktlintVersion").get().requiredVersion)
     enableExperimentalRules.set(true)
     outputToConsole.set(true)
-    ignoreFailures.set(true)
+    ignoreFailures.set(false)
 
     filter {
         exclude("**/build/**")
