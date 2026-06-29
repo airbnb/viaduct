@@ -23,7 +23,7 @@ dependencies {
     // ViaductSchema - abstraction layer for GraphQL schema
     implementation(libs.viaduct.shared.viaductschema)
 
-    // Template engine
+    // Template engine + shared language-neutral schema analysis (SchemaAnalysis)
     implementation(libs.viaduct.shared.codegen)
 
     // Testing

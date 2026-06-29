@@ -13,6 +13,8 @@ dependencies {
     api(libs.viaduct.shared.invariants)
     api(libs.viaduct.shared.utils)
     api(libs.viaduct.shared.apiannotations)
+    // SchemaAnalysis exposes ViaductSchema types in its public API.
+    api(libs.viaduct.shared.viaductschema)
 
     implementation(libs.antlr.st4)
     implementation(libs.kotlinx.coroutines.core)

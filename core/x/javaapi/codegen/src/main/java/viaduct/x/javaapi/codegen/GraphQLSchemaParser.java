@@ -5,14 +5,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import viaduct.codegen.SchemaAnalysis;
 import viaduct.graphql.schema.ViaductSchema;
 import viaduct.graphql.schema.graphqljava.extensions.ViaductSchemaFactory;
 
@@ -309,7 +307,7 @@ public class GraphQLSchemaParser {
                       : null;
 
               // Detect @idOf on argument
-              String argIdOfTypeName = getIdOfTypeName(arg.getAppliedDirectives());
+              String argIdOfTypeName = SchemaAnalysis.INSTANCE.idOfTypeName(arg);
               boolean argGlobalIDType = false;
               String argJavaType = typeMapper.toJavaType(arg.getType());
               if (argIdOfTypeName != null) {
@@ -454,51 +452,12 @@ public class GraphQLSchemaParser {
   private boolean isBatchingResolver(
       ViaductSchema.Def def, String typeName, String mutationTypeName) {
     if (typeName.equals(mutationTypeName)) return false;
-    return def.getAppliedDirectives().stream()
-        .filter(directive -> directive.getName().equals("resolver"))
-        .findFirst()
-        .map(
-            directive -> {
-              ViaductSchema.Literal isBatchingArg = directive.getArguments().get("isBatching");
-              if (isBatchingArg == null) return false;
-              if (isBatchingArg instanceof ViaductSchema.BooleanLiteral booleanLiteral) {
-                return booleanLiteral.getValue();
-              }
-              throw new IllegalArgumentException(
-                  "Expected @resolver(isBatching:) to decode as a boolean on " + def.describe());
-            })
-        .orElse(false);
+    return SchemaAnalysis.INSTANCE.isBatchingResolver(def);
   }
 
   private boolean isSelectiveResolver(ViaductSchema.Def def) {
-    return def.getAppliedDirectives().stream()
-        .filter(directive -> directive.getName().equals("resolver"))
-        .findFirst()
-        .map(
-            directive -> {
-              ViaductSchema.Literal isSelectiveArg = directive.getArguments().get("isSelective");
-              if (isSelectiveArg == null) {
-                isSelectiveArg = directive.getArguments().get("selective");
-              }
-              if (isSelectiveArg == null) {
-                return false;
-              }
-              if (isSelectiveArg instanceof ViaductSchema.BooleanLiteral booleanLiteral) {
-                return booleanLiteral.getValue();
-              }
-              throw new IllegalArgumentException(
-                  "Expected @resolver(isSelective:/selective:) to decode as a boolean on "
-                      + def.describe());
-            })
-        .orElse(false);
+    return SchemaAnalysis.INSTANCE.isSelectiveResolver(def);
   }
-
-  /**
-   * Regex used to extract a tenant module path from a schema source name (e.g.
-   * "modules/foo/schema/...").
-   */
-  private static final Pattern BUILD_TIME_MODULE_EXTRACTOR =
-      Pattern.compile("modules/(.*?)/schema/");
 
   /**
    * Extracts node resolver models from a ViaductSchema by finding Object types that implement the
@@ -544,12 +503,7 @@ public class GraphQLSchemaParser {
     return def -> {
       var loc = def.getSourceLocation();
       if (loc == null) return false;
-      String sourceName = loc.getSourceName();
-      Matcher m = BUILD_TIME_MODULE_EXTRACTOR.matcher(sourceName);
-      if (!m.find()) return false;
-      String module = m.group(1);
-      int idx = module.indexOf("/src/");
-      if (idx >= 0) module = module.substring(0, idx);
+      String module = SchemaAnalysis.INSTANCE.buildTimeTenantModule(loc.getSourceName());
       return tenantModule.equals(module);
     };
   }
@@ -570,28 +524,20 @@ public class GraphQLSchemaParser {
 
   /**
    * Returns true if the given type definition is or transitively implements the Node interface.
-   * Mirrors Kotlin's ViaductSchemaExtensions.isNode property.
+   * Delegates to the shared language-neutral {@link SchemaAnalysis}.
    */
   private static boolean isNodeType(ViaductSchema.TypeDef typeDef) {
-    if (typeDef.getName().equals("Node") && typeDef instanceof ViaductSchema.Interface) {
-      return true;
-    }
-    if (typeDef instanceof ViaductSchema.OutputRecord outputRecord) {
-      return outputRecord.getSupers().stream().anyMatch(GraphQLSchemaParser::isNodeType);
-    }
-    return false;
+    return SchemaAnalysis.INSTANCE.isNode(typeDef);
   }
 
   /**
    * Returns true if the field's base type is the BackingData scalar. BackingData fields are
-   * excluded from GRT codegen — they are opaque containers whose runtime type is specified
-   * per-field via the @backingData directive. Mirrors Kotlin's codegenIncludedFields in
-   * BackingData.kt.
+   * excluded from Java GRT codegen — they are opaque containers whose runtime type is specified
+   * per-field via the @backingData directive. (This exclusion is a Java-side policy; the shared
+   * analysis only answers whether the field is BackingData-typed.)
    */
   private boolean isBackingDataField(ViaductSchema.Field field) {
-    ViaductSchema.TypeDef baseDef = field.getType().getBaseTypeDef();
-    return baseDef.getKind() == ViaductSchema.TypeDefKind.SCALAR
-        && baseDef.getName().equals("BackingData");
+    return SchemaAnalysis.INSTANCE.isBackingDataField(field);
   }
 
   /** Creates a FieldModel from a ViaductSchema.Field. */
@@ -616,7 +562,7 @@ public class GraphQLSchemaParser {
 
     // Detect @idOf directive → field should be typed as GlobalID<T>
     boolean globalIDType = false;
-    String idOfTypeName = getIdOfTypeName(field.getAppliedDirectives());
+    String idOfTypeName = SchemaAnalysis.INSTANCE.idOfTypeName(field);
     if (idOfTypeName != null) {
       globalIDType = true;
       baseTypeName = idOfTypeName;
@@ -644,23 +590,6 @@ public class GraphQLSchemaParser {
         abstractType,
         globalIDType,
         baseTypeName);
-  }
-
-  /**
-   * Extracts the type name from an @idOf directive if present on the given definition's directives.
-   * Returns null if no @idOf directive is found.
-   */
-  private String getIdOfTypeName(
-      Collection<? extends ViaductSchema.AppliedDirective<?>> directives) {
-    for (var directive : directives) {
-      if (directive.getName().equals("idOf")) {
-        ViaductSchema.Literal typeArg = directive.getArguments().get("type");
-        if (typeArg instanceof ViaductSchema.StringLiteral stringLiteral) {
-          return stringLiteral.getValue();
-        }
-      }
-    }
-    return null;
   }
 
   /** Extracts description from a type definition. Returns null for now. */
