@@ -1,6 +1,7 @@
 package viaduct.tenant.codegen.kotlingen
 
 import java.io.File
+import viaduct.codegen.SchemaAnalysis
 import viaduct.codegen.km.kotlinTypeString
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
@@ -11,7 +12,6 @@ import viaduct.tenant.codegen.bytecode.config.isBatchingResolver
 import viaduct.tenant.codegen.bytecode.config.isSelectiveResolver
 import viaduct.tenant.codegen.bytecode.config.kmType
 import viaduct.tenant.codegen.bytecode.config.tenantModule
-import viaduct.utils.string.capitalize
 
 private const val RESOLVER_DIRECTIVE = "resolver"
 
@@ -126,7 +126,7 @@ private class ResolverModelImpl(
 ) : ResolverModel {
     override val gqlTypeName: String = this.field.containingDef.name
     override val gqlFieldName: String = this.field.name
-    override val resolverName: String = gqlFieldName.capitalize()
+    override val resolverName: String = SchemaAnalysis.resolverClassName(gqlFieldName)
     override val selective: Boolean = field.isSelectiveResolver
     override val selectiveLiteral: String = selective.toString()
     override val batching: Boolean = if (field.containingDef.name == (mutationTypeName ?: "Mutation")) {
@@ -144,7 +144,7 @@ private class ResolverModelImpl(
     private val grtTypeName: String = "$grtPackage.$gqlTypeName"
     private val grtArgsName: String =
         if (field.hasArgs) {
-            "$grtPackage.${gqlTypeName}_${gqlFieldName.capitalize()}_Arguments"
+            "$grtPackage.${SchemaAnalysis.argumentsTypeName(gqlTypeName, gqlFieldName)}"
         } else {
             "viaduct.api.types.Arguments.NoArguments"
         }

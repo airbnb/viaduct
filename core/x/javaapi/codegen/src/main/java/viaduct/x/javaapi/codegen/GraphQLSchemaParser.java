@@ -402,7 +402,7 @@ public class GraphQLSchemaParser {
       TypeMapper typeMapper,
       String mutationTypeName) {
     String fieldName = field.getName();
-    String resolverClassName = capitalize(fieldName);
+    String resolverClassName = SchemaAnalysis.INSTANCE.resolverClassName(fieldName);
 
     // Determine return type (always boxed since it appears inside CompletableFuture<> and
     // FieldResolverBase<> generic parameters)
@@ -421,7 +421,7 @@ public class GraphQLSchemaParser {
     boolean hasArguments = field.getHasArgs();
     String argumentsType =
         hasArguments
-            ? grtPackage + "." + typeName + "_" + resolverClassName + "_Arguments"
+            ? grtPackage + "." + SchemaAnalysis.INSTANCE.argumentsTypeName(typeName, fieldName)
             : "Arguments.None";
 
     // Selections type - use CompositeOutput.None if output is not a composite type
@@ -597,13 +597,5 @@ public class GraphQLSchemaParser {
     // ViaductSchema doesn't expose description directly in the interface.
     // Description could be accessed through the underlying data if needed.
     return null;
-  }
-
-  /** Capitalizes the first character of a string. */
-  private static String capitalize(String s) {
-    if (s == null || s.isEmpty()) {
-      return s;
-    }
-    return Character.toUpperCase(s.charAt(0)) + s.substring(1);
   }
 }

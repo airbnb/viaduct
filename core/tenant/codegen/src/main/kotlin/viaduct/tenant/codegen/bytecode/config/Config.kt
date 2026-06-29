@@ -6,12 +6,12 @@ import kotlinx.metadata.KmClass
 import kotlinx.metadata.Visibility
 import kotlinx.metadata.jvm.KotlinClassMetadata
 import kotlinx.metadata.visibility
+import viaduct.codegen.SchemaAnalysis
 import viaduct.codegen.utils.JavaBinaryName
 import viaduct.codegen.utils.JavaName
 import viaduct.codegen.utils.KmName
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.baseGraphqlScalarTypeMapping
-import viaduct.utils.string.capitalize
 
 // Utilities expressed as extension functions go in GRTUtils.kt.  Constants and
 // other utility functions are found in this file.
@@ -30,12 +30,12 @@ object cfg {
     val JSON_PROPERTY_ANNOTATION = "com/fasterxml/jackson/annotation/JsonProperty"
     val JSON_PROPERTY_ORDER_ANNNOTATION = "com/fasterxml/jackson/annotation/JsonPropertyOrder"
 
-    fun argumentTypeName(field: ViaductSchema.Field): String = argumentTypeName(field.containingDef.name, field.name)
+    fun argumentTypeName(field: ViaductSchema.Field): String = SchemaAnalysis.argumentsTypeName(field)
 
     fun argumentTypeName(
         typeName: String,
         fieldName: String
-    ): String = "${typeName}_${fieldName.capitalize()}_Arguments"
+    ): String = SchemaAnalysis.argumentsTypeName(typeName, fieldName)
 
     fun needsQuerySelections(field: ViaductSchema.Field) = field.hasAppliedDirective("component")
 

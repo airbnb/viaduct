@@ -1,6 +1,7 @@
 package viaduct.codegen
 
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.utils.string.capitalize
 
 /**
  * Language-neutral schema analysis shared by the Java and Kotlin GRT/resolver generators.
@@ -161,6 +162,31 @@ object SchemaAnalysis {
         val edgesField = obj.field("edges") ?: return null
         return edgesField.type.baseTypeDef.name
     }
+
+    // ---- resolver naming conventions -------------------------------------------------------
+
+    /**
+     * The generated resolver class name for a `@resolver` field: the field name with its first
+     * character upper-cased (e.g. `profile` -> `Profile`). Both the Java and Kotlin resolver
+     * generators name their per-field resolver classes this way.
+     */
+    fun resolverClassName(fieldName: String): String = fieldName.capitalize()
+
+    /**
+     * The simple name of the generated arguments-wrapper type for a resolver field that takes
+     * arguments: `${typeName}_${Capitalized field name}_Arguments` (e.g. `User_Profile_Arguments`).
+     *
+     * This single convention must agree across three places or generated code fails to compile: the
+     * Java resolver generator, the Kotlin resolver generator, and the Kotlin GRT generator that
+     * actually emits the `_Arguments` class. Centralizing it here keeps them in lockstep.
+     */
+    fun argumentsTypeName(
+        containingTypeName: String,
+        fieldName: String,
+    ): String = "${containingTypeName}_${resolverClassName(fieldName)}_Arguments"
+
+    /** [argumentsTypeName] for a resolver [field], using its containing type. */
+    fun argumentsTypeName(field: ViaductSchema.Field): String = argumentsTypeName(field.containingDef.name, field.name)
 
     // ---- tenant-module ownership -----------------------------------------------------------
 

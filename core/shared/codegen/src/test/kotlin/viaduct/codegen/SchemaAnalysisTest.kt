@@ -320,4 +320,34 @@ class SchemaAnalysisTest {
     fun `buildTimeTenantModule is null for a non-matching source name`() {
         assertNull(SchemaAnalysis.buildTimeTenantModule("some/other/path/schema.graphqls"))
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // 10. resolverClassName / argumentsTypeName
+    // ---------------------------------------------------------------------------------------------
+
+    @Test
+    fun `resolverClassName upper-cases the first character of a lowercase field name`() {
+        assertEquals("Profile", SchemaAnalysis.resolverClassName("profile"))
+        assertEquals("Orders", SchemaAnalysis.resolverClassName("orders"))
+    }
+
+    @Test
+    fun `resolverClassName leaves an already-capitalized field name unchanged`() {
+        assertEquals("Profile", SchemaAnalysis.resolverClassName("Profile"))
+    }
+
+    @Test
+    fun `resolverClassName capitalizes a single-character field name`() {
+        assertEquals("X", SchemaAnalysis.resolverClassName("x"))
+    }
+
+    @Test
+    fun `argumentsTypeName joins the containing type and capitalized field name`() {
+        assertEquals("User_Profile_Arguments", SchemaAnalysis.argumentsTypeName("User", "profile"))
+    }
+
+    @Test
+    fun `argumentsTypeName derives the containing type and field name from a field`() {
+        assertEquals("Selective_X_Arguments", SchemaAnalysis.argumentsTypeName(schema.field("Selective", "x")))
+    }
 }
