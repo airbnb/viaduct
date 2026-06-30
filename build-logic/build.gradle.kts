@@ -24,7 +24,7 @@ detekt {
         layout.projectDirectory.dir("..").file("detekt.yml"),
         layout.projectDirectory.dir("..").file("detekt-viaduct.yml"),
     )
-    ignoreFailures = true
+    ignoreFailures = false
 }
 
 dependencies {
