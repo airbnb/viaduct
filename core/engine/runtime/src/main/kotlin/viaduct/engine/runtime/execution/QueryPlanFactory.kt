@@ -31,7 +31,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.future.future
-import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
@@ -265,7 +264,6 @@ interface QueryPlanFactory {
             }
         }
 
-        @VisibleForTest
         internal val cacheStats: CacheStats
             get() {
                 synchronousCache.cleanUp()

@@ -1,6 +1,5 @@
 package viaduct.tenant.codegen.kotlingen.bytecode
 
-import viaduct.apiannotations.VisibleForTest
 import viaduct.graphql.schema.ViaductReverseSchema
 import viaduct.graphql.schema.ViaductSchema
 
@@ -20,7 +19,6 @@ import viaduct.graphql.schema.ViaductSchema
  *  [com.airbnb.viaduct.cli.bytecode.kotlingrts.classic.KotlinGRTFilesBuilderImp]
  *  for a sample implementation.
  */
-@VisibleForTest
 abstract class KotlinGRTFilesBuilder protected constructor(
     protected val args: KotlinCodeGenArgs,
 ) {

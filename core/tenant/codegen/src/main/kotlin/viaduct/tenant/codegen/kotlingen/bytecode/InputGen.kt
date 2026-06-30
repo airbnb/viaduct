@@ -1,7 +1,6 @@
 package viaduct.tenant.codegen.kotlingen.bytecode
 
 import getEscapedFieldName
-import viaduct.apiannotations.VisibleForTest
 import viaduct.codegen.km.kotlinTypeString
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
@@ -18,7 +17,6 @@ import viaduct.tenant.codegen.util.ConnectionArgumentsInfo
  *   Used to detect whether the field returns a Connection type and add the appropriate
  *   ConnectionArguments interface.
  */
-@VisibleForTest
 fun KotlinGRTFilesBuilder.inputKotlinGen(
     desc: InputTypeDescriptor,
     taggingInterface: String,

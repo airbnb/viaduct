@@ -1,11 +1,8 @@
 package viaduct.engine.api.spi
 
-import viaduct.apiannotations.StableApi
-
 /**
  * Provides the tenant module bootstrappers for one flavor of the Viaduct Tenant API.
  */
-@StableApi
 interface TenantAPIBootstrapper {
     /**
      * Provides the tenant module bootstrappers used to contribute resolver executors.
@@ -19,7 +16,6 @@ interface TenantAPIBootstrapper {
 /**
  * Builder for [TenantAPIBootstrapper] implementations.
  */
-@StableApi
 interface TenantAPIBootstrapperBuilder {
     /** Creates a new [TenantAPIBootstrapper] instance. */
     fun create(): TenantAPIBootstrapper

@@ -12,7 +12,6 @@ import io.kotest.property.checkAll
 import kotlin.random.Random
 import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
-import viaduct.apiannotations.VisibleForTest
 import viaduct.invariants.FailureCollector
 
 /**
@@ -51,7 +50,6 @@ import viaduct.invariants.FailureCollector
  * @param iterations a default number of iterations to apply to [forAll], [checkAll],
  * [forNone], etc
  */
-@VisibleForTest
 @Execution(ExecutionMode.CONCURRENT)
 abstract class KotestPropertyBase(
     val seed: Long = Random.nextLong(),

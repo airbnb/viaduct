@@ -5,7 +5,6 @@ import kotlinx.metadata.KmType
 import kotlinx.metadata.KmTypeProjection
 import kotlinx.metadata.KmVariance
 import kotlinx.metadata.isNullable
-import viaduct.apiannotations.VisibleForTest
 import viaduct.codegen.SchemaAnalysis
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
@@ -131,7 +130,6 @@ fun ViaductSchema.TypeExpr<*>.baseTypeKmType(
  * Returns true iff [ViaductSchema.HasDefaultValue.viaductDefaultValue]
  * would _not_ throw an exception. (Public for test generator.)
  */
-@VisibleForTest
 val ViaductSchema.HasDefaultValue.hasViaductDefaultValue get() = type.isNullable
 
 /**
@@ -162,7 +160,6 @@ fun ViaductSchema.TypeDef.hashForSharding(): Int {
     return if (0 <= h) h else -h
 }
 
-@VisibleForTest
 fun ViaductSchema.Object.isEligible(baseTypeMapper: BaseTypeMapper): Boolean = isEligible(baseTypeMapper, schema = null)
 
 fun ViaductSchema.Object.isEligible(
@@ -198,7 +195,6 @@ val ViaductSchema.TypeDef.isPagedConnection
  * arguments to fields where the parent has none.  This is a feature
  * we can't support in Kotlin, so here we're scanning for this use case.
  */
-@VisibleForTest
 fun ViaductSchema.Interface.noArgsAnywhere(fieldName: String): Boolean {
     if (this.field(fieldName)!!.hasArgs) return false
 

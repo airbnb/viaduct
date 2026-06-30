@@ -6,7 +6,6 @@ import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.arbitrary
 import viaduct.apiannotations.InternalApi
-import viaduct.apiannotations.VisibleForTest
 import viaduct.arbitrary.common.Config
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ViaductSchema
@@ -49,7 +48,6 @@ import viaduct.service.runtime.StandardViaduct
  * - [VariablesResolverFactory]
  * - [CheckerExecutorFactory]
  */
-@VisibleForTest
 fun Arb.Companion.viaduct(
     schema: ViaductSchema,
     cfg: Config = Config.default

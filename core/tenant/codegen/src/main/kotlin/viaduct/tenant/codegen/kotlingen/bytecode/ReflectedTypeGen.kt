@@ -3,7 +3,6 @@
 package viaduct.tenant.codegen.kotlingen.bytecode
 
 import getEscapedFieldName
-import viaduct.apiannotations.VisibleForTest
 import viaduct.codegen.km.kotlinTypeString
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
@@ -15,10 +14,8 @@ import viaduct.tenant.codegen.bytecode.config.isRootObjectFieldEligible
 import viaduct.tenant.codegen.bytecode.config.kmType
 import viaduct.tenant.codegen.bytecode.config.pathFromQueryRoot
 
-@VisibleForTest
 fun KotlinGRTFilesBuilder.reflectedTypeGen(def: ViaductSchema.TypeDef): STContents = STContents(stGroup, ReflectedTypeModelImpl(pkg, def, baseTypeMapper))
 
-@VisibleForTest
 fun KotlinGRTFilesBuilder.fieldsObjectGen(def: ViaductSchema.TypeDef): STContents {
     val pathToParentObject = def.pathFromQueryRoot(reverseSchema, schema.queryTypeDef)
     return STContents(fieldsSTGroup, ReflectedTypeModelImpl(pkg, def, baseTypeMapper, pathToParentObject))

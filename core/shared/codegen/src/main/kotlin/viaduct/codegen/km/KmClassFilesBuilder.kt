@@ -7,7 +7,6 @@ import kotlinx.metadata.ClassKind
 import kotlinx.metadata.KmAnnotation
 import kotlinx.metadata.KmType
 import kotlinx.metadata.kind
-import viaduct.apiannotations.VisibleForTest
 import viaduct.codegen.ct.ExternalClassWrapper
 import viaduct.codegen.ct.KmClassTree
 import viaduct.codegen.ct.buildCtClasses
@@ -150,7 +149,6 @@ class KmClassFilesBuilder(
         }
     }
 
-    @VisibleForTest
     fun checkInvariants(
         check: FailureCollector = FailureCollector(),
         allowedSuperTypes: Set<KmName> = setOf(Km.ANY)

@@ -8,7 +8,6 @@ import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLTypeUtil
 import graphql.schema.GraphQLUnionType
-import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
@@ -24,7 +23,6 @@ internal interface RequiredSelectionSetGen {
         depth: Int
     ): RequiredSelectionSet?
 
-    @VisibleForTest
     val graph: RequiredSelectionSetGraph
 
     companion object {

@@ -1,11 +1,9 @@
 package viaduct.tenant.codegen.kotlingen.bytecode
 
 import java.io.File
-import viaduct.apiannotations.VisibleForTest
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
 
-@VisibleForTest
 internal class KotlinGRTFilesBuilderImpl(
     args: KotlinCodeGenArgs,
 ) : KotlinGRTFilesBuilder(args) {

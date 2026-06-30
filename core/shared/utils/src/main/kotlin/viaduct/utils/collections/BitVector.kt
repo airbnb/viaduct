@@ -1,7 +1,6 @@
 package viaduct.utils.collections
 
 import kotlin.math.min
-import viaduct.apiannotations.VisibleForTest
 
 class BitVector private constructor(
     val size: Int,
@@ -241,7 +240,6 @@ class BitVector private constructor(
         }
     }
 
-    @VisibleForTest
     internal fun checkInvariants() {
         check(size >= 0) { "Negative size=$size" }
         if (size <= 64) {

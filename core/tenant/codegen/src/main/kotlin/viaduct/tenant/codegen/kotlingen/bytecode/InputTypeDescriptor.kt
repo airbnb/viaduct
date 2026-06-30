@@ -2,10 +2,8 @@ package viaduct.tenant.codegen.kotlingen.bytecode
 
 // See README.md for the patterns that guided this file
 
-import viaduct.apiannotations.VisibleForTest
 import viaduct.graphql.schema.ViaductSchema
 
-@VisibleForTest
 class InputTypeDescriptor(
     val className: String,
     /** We use this for _Arguments types as well as input types, in which
