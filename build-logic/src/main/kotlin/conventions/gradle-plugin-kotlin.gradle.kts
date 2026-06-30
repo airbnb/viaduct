@@ -53,10 +53,12 @@ tasks.named<Test>("test") {
     useJUnitPlatform()
 }
 
-// Opt in to the Viaduct stability markers used by gradle-plugins' own sources (see header).
-// A Kotlin plugin is applied before this convention, so the KotlinCompile tasks exist.
+// A Kotlin plugin is applied before this convention, so the KotlinCompile tasks exist. This block:
+//  - opts in to the Viaduct stability markers used by gradle-plugins' own sources (see header);
+//  - treats Kotlin compiler warnings as errors, matching the Bazel -Werror.
 tasks.withType<KotlinCompile>().configureEach {
     compilerOptions {
         optIn.add("viaduct.apiannotations.InternalApi")
+        allWarningsAsErrors = true
     }
 }

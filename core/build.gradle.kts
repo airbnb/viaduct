@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
     id("buildroot.orchestration")
     id("buildroot.versioning")
@@ -48,21 +46,6 @@ subprojects {
     pluginManager.withPlugin("base") {
         extensions.configure<BasePluginExtension> {
             archivesName.convention(path.removePrefix(":").replace(":", "-"))
-        }
-    }
-}
-
-// Treat Kotlin compiler warnings as errors across core modules, matching the Bazel build's -Werror.
-// :tenant:tutorials is excluded so tutorial/example code stays free of -Werror brittleness.
-// Non-core builds (gradle-plugins, gradletestapps, x/remoteresolvers, demoapps)
-// consume the same build-logic but are not affected — they are separate included builds.
-subprojects {
-    if (path == ":tenant:tutorials") return@subprojects
-    plugins.withId("org.jetbrains.kotlin.jvm") {
-        tasks.withType<KotlinCompile>().configureEach {
-            compilerOptions {
-                allWarningsAsErrors = true
-            }
         }
     }
 }
