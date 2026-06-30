@@ -13,7 +13,13 @@ class MicronautTenantModuleInjectorFactory(
     private class MicronautCodeInjector(private val beanContext: BeanContext) : CodeInjector {
         override fun <T> getProvider(clazz: Class<T>): Provider<T> =
             Provider {
-                beanContext.getBean(clazz)
+                // Mirror the canonical demoapp injector: prefer a managed bean (resolvers with
+                // injected dependencies), falling back to reflective no-arg construction for plain
+                // resolvers — e.g. computed field resolvers like Character.isAdult — that are not
+                // registered as Micronaut beans.
+                beanContext.findBean(clazz).orElseGet {
+                    clazz.getDeclaredConstructor().newInstance()
+                }
             }
     }
 }
