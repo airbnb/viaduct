@@ -182,8 +182,8 @@ val viaduct = ViaductBuilder()
 For SimpleMeterRegistry or testing:
 
 ```kotlin
-// Execute a query
-viaduct.execute(executionInput)
+// Execute a query (executeAsync returns a future, callable from non-coroutine code)
+viaduct.executeAsync(executionInput).join()
 
 // Check metrics
 meterRegistry.meters.forEach { meter ->

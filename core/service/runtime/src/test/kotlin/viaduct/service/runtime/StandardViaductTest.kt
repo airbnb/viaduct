@@ -321,13 +321,15 @@ class StandardViaductTest {
             .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
             .build()
 
-        val result = viaduct.execute(
-            ExecutionInput.create(
-                operationText = "{ generatedRegistryTestField }",
-                requestContext = Any(),
-            ),
-            SchemaId.Full,
-        )
+        val result = runBlocking {
+            viaduct.execute(
+                ExecutionInput.create(
+                    operationText = "{ generatedRegistryTestField }",
+                    requestContext = Any(),
+                ),
+                SchemaId.Full,
+            )
+        }
 
         assertEquals(emptyList<GraphQLError>(), result.errors)
         assertEquals(mapOf("generatedRegistryTestField" to "class-scanned"), result.getData())

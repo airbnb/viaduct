@@ -14,9 +14,10 @@ import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.instrumentation.Instrumentation
 import io.micrometer.core.instrument.MeterRegistry
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executor
 import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.future.await
 import viaduct.engine.BootstrapperFactory
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineImpl
@@ -454,55 +455,71 @@ class StandardViaduct
             }
         }
 
-        private fun createSchemaNotFoundError(schemaId: SchemaId): CompletableFuture<ExecutionResult> {
+        private fun schemaNotFoundResult(schemaId: SchemaId): ExecutionResult {
             val error: GJGraphQLError = GraphqlErrorBuilder.newError()
                 .message("Schema not found for schemaId=$schemaId")
                 .build()
-            return CompletableFuture.completedFuture(
-                GJExecutionResultImpl.newExecutionResult()
-                    .addError(error)
-                    .build()
-                    .toExecutionResult()
-            )
+            return GJExecutionResultImpl.newExecutionResult()
+                .addError(error)
+                .build()
+                .toExecutionResult()
         }
 
         /**
-         * This function asynchronously executes an operation (found in ExecutionInput),
-         * returning a completable future that will contain the sorted ExecutionResult
+         * Looks up the engine for [schemaId] and executes [executionInput] against it, returning the
+         * sorted [ExecutionResult].
          *
-         * @param executionInput the [ExecutionInput] to execute
-         * @param schemaId the id of the schema for which we want to execute the operation. Defaults to the full schema.
-         * @return [CompletableFuture] of sorted [ExecutionResult]
+         * Must be invoked within a coroutine context established by
+         * [CoroutineInterop.enterThreadLocalCoroutineContext], which installs the [NextTickDispatcher]
+         * (driving dataloader batching) and the thread-local coroutine context the engine relies on.
          */
-        override suspend fun executeAsync(
+        private suspend fun executeOnEngine(
             executionInput: ExecutionInput,
             schemaId: SchemaId
-        ): CompletableFuture<ExecutionResult> {
+        ): ExecutionResult {
             val engine = try {
                 engineRegistry.getEngine(schemaId)
             } catch (_: EngineRegistry.SchemaNotFoundException) {
-                return createSchemaNotFoundError(schemaId)
+                return schemaNotFoundResult(schemaId)
             }
-            return coroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
-                val executionResult = engine.execute(executionInput.toEngineExecutionInput())
-                sortExecutionResult(executionResult).toExecutionResult()
-            }
+            val executionResult = engine.execute(executionInput.toEngineExecutionInput())
+            return sortExecutionResult(executionResult).toExecutionResult()
         }
 
         /**
-         * This is a blocking(!!) function that executes an operation (found in ExecutionInput) and returns
-         * a sorted ExecutionResult
+         * Suspends until the operation (found in ExecutionInput) completes, returning the sorted
+         * ExecutionResult. This is the idiomatic entry point for Kotlin callers; execution inherits
+         * the caller's coroutine context.
          *
          * @param executionInput the [ExecutionInput] to execute
          * @param schemaId the id of the schema for which we want to execute the operation. Defaults to the full schema.
          * @return sorted [ExecutionResult]
          */
-        override fun execute(
+        override suspend fun execute(
             executionInput: ExecutionInput,
             schemaId: SchemaId
         ): ExecutionResult =
-            runBlocking {
-                executeAsync(executionInput, schemaId).join()
+            coroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
+                executeOnEngine(executionInput, schemaId)
+            }.await()
+
+        /**
+         * Asynchronously executes an operation (found in ExecutionInput) on the given [executor],
+         * returning a completable future that will contain the sorted ExecutionResult. This is the
+         * idiomatic entry point for Java callers.
+         *
+         * @param executionInput the [ExecutionInput] to execute
+         * @param schemaId the id of the schema for which we want to execute the operation.
+         * @param executor the executor on which to run the operation.
+         * @return [CompletableFuture] of sorted [ExecutionResult]
+         */
+        override fun executeAsync(
+            executionInput: ExecutionInput,
+            schemaId: SchemaId,
+            executor: Executor
+        ): CompletableFuture<ExecutionResult> =
+            coroutineInterop.enterThreadLocalCoroutineContext(executor) {
+                executeOnEngine(executionInput, schemaId)
             }
 
         /**

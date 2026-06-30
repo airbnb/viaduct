@@ -13,7 +13,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import kotlinx.coroutines.future.await
 import viaduct.service.BasicViaductFactory
 import viaduct.service.SchemaScopeInfo
 import viaduct.service.api.ExecutionInput
@@ -61,7 +60,7 @@ fun Application.configureRouting() {
                     variables = (request["variables"] as? Map<String, Any>) ?: emptyMap(),
                 )
 
-                val result = viaduct.executeAsync(executionInput).await()
+                val result = viaduct.execute(executionInput)
                 call.respond(result.toSpecification())
             }
         }

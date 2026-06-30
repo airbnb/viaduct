@@ -65,14 +65,17 @@ public final class viaduct/service/api/SchemaId$None : viaduct/service/api/Schem
 }
 
 public abstract interface class viaduct/service/api/Viaduct {
-	public abstract fun execute (Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;)Lviaduct/service/api/ExecutionResult;
-	public abstract fun executeAsync (Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun execute (Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun executeAsync (Lviaduct/service/api/ExecutionInput;)Ljava/util/concurrent/CompletableFuture;
+	public abstract fun executeAsync (Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;)Ljava/util/concurrent/CompletableFuture;
+	public abstract fun executeAsync (Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;Ljava/util/concurrent/Executor;)Ljava/util/concurrent/CompletableFuture;
 	public abstract fun getAppliedScopes (Lviaduct/service/api/SchemaId;)Ljava/util/Set;
 }
 
 public final class viaduct/service/api/Viaduct$DefaultImpls {
-	public static synthetic fun execute$default (Lviaduct/service/api/Viaduct;Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;ILjava/lang/Object;)Lviaduct/service/api/ExecutionResult;
-	public static synthetic fun executeAsync$default (Lviaduct/service/api/Viaduct;Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static synthetic fun execute$default (Lviaduct/service/api/Viaduct;Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static fun executeAsync (Lviaduct/service/api/Viaduct;Lviaduct/service/api/ExecutionInput;)Ljava/util/concurrent/CompletableFuture;
+	public static fun executeAsync (Lviaduct/service/api/Viaduct;Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;)Ljava/util/concurrent/CompletableFuture;
 }
 
 public abstract interface class viaduct/service/api/spi/CodeInjector {

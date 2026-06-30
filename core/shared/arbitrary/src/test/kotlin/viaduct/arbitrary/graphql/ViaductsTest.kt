@@ -106,7 +106,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (FieldResolverFactory to instr) +
                             (RequiredSelectionSetWeight to weight)
                     ).bind()
-                    viaduct.execute(ExecutionInput.create("{ x }"))
+                    viaduct.executeAsync(ExecutionInput.create("{ x }")).join()
 
                     weight to instr
                 }
@@ -147,7 +147,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (ResolverLatencyMillis to 100.asLongRange()) +
                             (FieldResolverFactory to instr)
                     ).bind()
-                    viaduct.execute(ExecutionInput.create("{x}"))
+                    viaduct.executeAsync(ExecutionInput.create("{x}")).join()
 
                     instr.resolver("Query" to "x")
                 }
@@ -193,7 +193,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (FieldResolverFactory to instr) +
                             (SelectiveResolverWeight to selectiveResolverWeight)
                     ).bind()
-                    viaduct.execute(ExecutionInput.create("{ obj { x } }"))
+                    viaduct.executeAsync(ExecutionInput.create("{ obj { x } }")).join()
 
                     selectiveResolverWeight to instr
                 }
@@ -226,7 +226,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                     ).bind()
 
                     repeat(50) {
-                        viaduct.execute(ExecutionInput.create("{ x }"))
+                        viaduct.executeAsync(ExecutionInput.create("{ x }")).join()
                     }
 
                     deterministicResolveWeight to instr
@@ -297,7 +297,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                                 (ListValueSize to 1.asIntRange())
                         ).next(RandomSource.seeded(rs.seed))
 
-                        val result = viaduct.execute(ExecutionInput.create("{ a b }"))
+                        val result = viaduct.executeAsync(ExecutionInput.create("{ a b }")).join()
                         assertTrue(result.errors.isEmpty())
                         return requireNotNull(result.getData())
                     }
@@ -345,12 +345,12 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 val cfg = cfg + (NodeResolverExceptionWeight to exceptionWeight)
                 return arbitrary {
                     val viaduct = Arb.viaduct(schema, cfg).bind()
-                    viaduct.execute(
+                    viaduct.executeAsync(
                         ExecutionInput.create(
                             "query (\$id:ID!) { node(id:\$id) { __typename } }",
                             variables = mapOf("id" to arbId().bind())
                         )
-                    )
+                    ).join()
                 }
             }
 
@@ -381,12 +381,12 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (NodeResolverFactory to instr)
                     ).bind()
 
-                    viaduct.execute(
+                    viaduct.executeAsync(
                         ExecutionInput.create(
                             "query (\$id:ID!) { node(id:\$id) { __typename } }",
                             variables = mapOf("id" to arbId().bind())
                         )
-                    )
+                    ).join()
 
                     instr.resolver("Foo")
                 }
@@ -437,12 +437,12 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (UndeclaredNodeResolverWeight to 1.0) +
                             (SelectiveResolverWeight to selectiveResolverWeight)
                     ).bind()
-                    viaduct.execute(
+                    viaduct.executeAsync(
                         ExecutionInput.create(
                             "query (\$id:ID!) { node(id:\$id) { ... on Foo { x } } }",
                             variables = mapOf("id" to arbId().bind())
                         )
-                    )
+                    ).join()
                     selectiveResolverWeight to instr
                 }
 
@@ -474,12 +474,12 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                     ).bind()
 
                     repeat(50) {
-                        viaduct.execute(
+                        viaduct.executeAsync(
                             ExecutionInput.create(
                                 "query (\$id:ID!) { node(id:\$id) { ... on Foo { x } } }",
                                 variables = mapOf("id" to arbId().bind())
                             )
-                        )
+                        ).join()
                     }
                     deterministicResolveWeight to instr
                 }
@@ -525,7 +525,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 // that it was executed at least once.
                 val wasExecuted = arb.asSequence(randomSource)
                     .map { (instr, viaduct) ->
-                        viaduct.execute(ExecutionInput.create("{ x }"))
+                        viaduct.executeAsync(ExecutionInput.create("{ x }")).join()
                         instr
                     }
                     .take(iterations)
@@ -556,7 +556,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
 
                 arb
                     .mapNotNull { (instr, viaduct) ->
-                        viaduct.execute(ExecutionInput.create("{ x }"))
+                        viaduct.executeAsync(ExecutionInput.create("{ x }")).join()
                         instr.takeIf {
                             it.allResolvers.any { it.recorder.log.isNotEmpty() }
                         }
@@ -604,7 +604,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (VariableWeight to 1.0)
                     ).bind()
                 }.map { viaduct ->
-                    viaduct.execute(ExecutionInput.create("{x}"))
+                    viaduct.executeAsync(ExecutionInput.create("{x}")).join()
                 }
 
                 arb.forAll { result ->
@@ -628,9 +628,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                     ).bind()
 
                     repeat(50) {
-                        viaduct.execute(
+                        viaduct.executeAsync(
                             ExecutionInput.create("{x}")
-                        )
+                        ).join()
                     }
                     deterministicResolveWeight to instr
                 }
@@ -666,7 +666,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (CheckerExecutorFactory to instr)
                     ).bind()
 
-                    viaduct.execute(ExecutionInput.create("{ x }"))
+                    viaduct.executeAsync(ExecutionInput.create("{ x }")).join()
                     instr
                 }
 
@@ -692,7 +692,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (CheckerExecutorFactory to instr)
                     ).bind()
 
-                    viaduct.execute(ExecutionInput.create("{obj { x } }"))
+                    viaduct.executeAsync(ExecutionInput.create("{obj { x } }")).join()
                     instr
                 }
 
@@ -715,7 +715,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (FieldCheckerWeight to 1.0) +
                             (CheckerErrorWeight to weight)
                     ).bind()
-                    val result = viaduct.execute(input)
+                    val result = viaduct.executeAsync(input).join()
                     weight to result
                 }
 
@@ -748,7 +748,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (CheckerExceptionWeight to weight) +
                             (CheckerExecutorFactory to instr)
                     ).bind()
-                    val result = viaduct.execute(input)
+                    val result = viaduct.executeAsync(input).join()
                     Triple(weight, instr, result)
                 }
 
@@ -788,7 +788,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (ExerciseRequiredSelectionsWeight to exerciseWeight)
                     ).bind()
 
-                    viaduct.execute(ExecutionInput.create("{obj { x }}"))
+                    viaduct.executeAsync(ExecutionInput.create("{obj { x }}")).join()
                 }
 
                 arb.forAll { result -> result.errors.isEmpty() }
@@ -813,7 +813,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (RequiredSelectionSetWeight to Once)
                     ).bind()
 
-                    viaduct.execute(ExecutionInput.create("{ obj { x } }"))
+                    viaduct.executeAsync(ExecutionInput.create("{ obj { x } }")).join()
                     instr
                 }
 
@@ -848,7 +848,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                     ).bind()
 
                     repeat(50) {
-                        viaduct.execute(ExecutionInput.create("{ x }"))
+                        viaduct.executeAsync(ExecutionInput.create("{ x }")).join()
                     }
                     deterministicResolveWeight to instr
                 }
@@ -911,7 +911,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (ResolverLatencyMillis to 100.asLongRange())
                     ).bind()
 
-                    viaduct.execute(ExecutionInput.create("{ obj { x } }"))
+                    viaduct.executeAsync(ExecutionInput.create("{ obj { x } }")).join()
 
                     instr
                 }

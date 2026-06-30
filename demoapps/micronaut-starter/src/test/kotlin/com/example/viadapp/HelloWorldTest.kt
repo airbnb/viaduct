@@ -27,7 +27,7 @@ class HelloWorldTest {
         context.close()
     }
 
-    private fun execute(query: String) = viaduct.execute(ExecutionInput.create(operationText = query))
+    private fun execute(query: String) = viaduct.executeAsync(ExecutionInput.create(operationText = query)).join()
 
     @Test
     fun `greeting resolver returns Hello World`() {

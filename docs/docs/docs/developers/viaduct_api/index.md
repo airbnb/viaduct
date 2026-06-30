@@ -142,58 +142,68 @@ val input =
 
 ## Executing Operations
 
-`Viaduct` exposes three methods:
+`Viaduct` exposes these methods:
 
 ```kotlin
 interface Viaduct {
-  suspend fun executeAsync(input: ExecutionInput, schemaId: SchemaId = SchemaId.Full): CompletableFuture<ExecutionResult>
-  fun execute(input: ExecutionInput, schemaId: SchemaId = SchemaId.Full): ExecutionResult
+  // Kotlin / coroutine entry point: suspends until the operation completes.
+  suspend fun execute(input: ExecutionInput, schemaId: SchemaId = SchemaId.Full): ExecutionResult
+
+  // Java-friendly entry point: returns a future and runs on the given Executor
+  // (defaults to ForkJoinPool.commonPool()).
+  fun executeAsync(
+    input: ExecutionInput,
+    schemaId: SchemaId = SchemaId.Full,
+    executor: Executor = ForkJoinPool.commonPool(),
+  ): CompletableFuture<ExecutionResult>
+
   fun getAppliedScopes(schemaId: SchemaId): Set<String>?
 }
 ```
 
-### `executeAsync(...)`
+In both cases the returned `ExecutionResult.errors` are **sorted** by GraphQL path and then message.
 
-Use `executeAsync` in **coroutine-based servers** or anywhere you want a **non-blocking API**.
+### `execute(...)`
 
-- The function is `suspend` so it can capture the current coroutine context.
-- It returns a `CompletableFuture<ExecutionResult>` to interoperate with GraphQL Java and Java-based instrumentation stacks.
-- The returned `ExecutionResult.errors` are **sorted** by GraphQL path and then message.
-
-Typical usage:
+`execute` is a `suspend` function that returns the `ExecutionResult` directly. It is the
+idiomatic entry point for Kotlin and coroutine-based servers, and it runs in the caller's
+coroutine context.
 
 ```kotlin
 import viaduct.service.api.SchemaId
 
 suspend fun handleRequest(viaduct: Viaduct, input: ExecutionInput): Map<String, Any?> {
-  val result = viaduct.executeAsync(input, SchemaId.Full).await()
+  val result = viaduct.execute(input, SchemaId.Full)
   return result.toSpecification()
 }
-
-// Small helper to await a CompletableFuture from coroutines
-suspend fun <T> java.util.concurrent.CompletableFuture<T>.await(): T =
-  kotlinx.coroutines.future.await()
 ```
 
 **When to use**
 
-- You’re already in a coroutine (`suspend`) context.
-- You want to avoid blocking request threads while the engine executes.
+- You’re already in a coroutine (`suspend`) context, or can launch one (`runBlocking`, etc.).
+- You want execution to inherit the caller’s coroutine context.
 
-### `execute(...)`
+### `executeAsync(...)`
 
-`execute` is a **blocking wrapper** around `executeAsync(...).join()`.
-
-Use it when you are in a fully synchronous entry point (rare in modern Kotlin services), or in small tooling.
+`executeAsync` is a **non-suspending** function that returns a `CompletableFuture<ExecutionResult>`.
+Following the standard Java idiom, it accepts an `Executor` that controls the threads execution
+runs on (defaulting to `ForkJoinPool.commonPool()`). It is the idiomatic entry point for Java
+callers and other non-coroutine contexts.
 
 ```kotlin
-val result = viaduct.execute(input, SchemaId.Full)
+val result = viaduct.executeAsync(input, SchemaId.Full).join()
 val response = result.toSpecification()
 ```
 
-**Caution**
+```java
+// From Java
+ExecutionResult result = viaduct.executeAsync(input, SchemaId.Full.INSTANCE).join();
+```
 
-- In a server, avoid calling `execute` on event-loop threads or limited thread pools.
+**When to use**
+
+- You are in a non-coroutine context (a Java caller, a servlet thread, a CLI `main`).
+- You want to control the `Executor` that runs the operation.
 
 #### Interpreting `ExecutionResult`
 

@@ -4,7 +4,6 @@ package viaduct.service.runtime
 
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
-import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
@@ -41,7 +40,7 @@ class CoroutineContextPropagationTest {
         runBlocking {
             withContext(TestContext(42)) {
                 val input = ExecutionInput.create("{result}")
-                val result = subject.executeAsync(input, SchemaId.Full).await()
+                val result = subject.execute(input, SchemaId.Full)
                 result.assertJson("{data: {result: 42}}")
             }
         }

@@ -3,7 +3,7 @@ title: Server Integration
 description: Embedding Viaduct into a web framework, message consumer, or any other entry point.
 ---
 
-{{ kdoc("viaduct.service.api.Viaduct") }} is a pure GraphQL execution engine. It does not include an HTTP server, a message broker client, or any other transport layer. Its contract is simple: call {{ kdoc("viaduct.service.api.Viaduct.executeAsync") }} with an instance of {{ kdoc("viaduct.service.api.ExecutionInput") }} and get back a deferred {{ kdoc("viaduct.service.api.ExecutionResult") }}.
+{{ kdoc("viaduct.service.api.Viaduct") }} is a pure GraphQL execution engine. It does not include an HTTP server, a message broker client, or any other transport layer. Its contract is simple: call {{ kdoc("viaduct.service.api.Viaduct.execute") }} with an instance of {{ kdoc("viaduct.service.api.ExecutionInput") }} and get back an {{ kdoc("viaduct.service.api.ExecutionResult") }}.
 
 ```kotlin
 // Build the input
@@ -14,13 +14,13 @@ val input = ExecutionInput.create(
 )
 
 // Execute
-val result = viaduct.executeAsync(input).await()
+val result = viaduct.execute(input)
 
 // Format result as a GraphQL-spec-compliant JSON object
 val responseBody = result.toSpecification()
 ```
 
-`executeAsync` is a Kotlin suspending function — it runs in a coroutine and does not block a thread while resolvers are executing. Use {{ kdoc("viaduct.service.api.Viaduct.execute") }} if you're not using a coroutine-based server.
+`execute` is a Kotlin suspending function — it runs in a coroutine and does not block a thread while resolvers are executing. Use {{ kdoc("viaduct.service.api.Viaduct.executeAsync") }} if you're not using a coroutine-based server.
 
 ## Constructing a Viaduct Instance
 
@@ -55,7 +55,7 @@ class ViaductRestController(
             operationText = request["query"] as String,
             variables = (request["variables"] as? Map<String, Any>) ?: emptyMap(),
         )
-        val result = viaduct.executeAsync(input, determineSchemaId(scopesHeader)).await()
+        val result = viaduct.execute(input, determineSchemaId(scopesHeader))
         return HttpResponse.ok(result.toSpecification())
     }
 }
@@ -77,7 +77,7 @@ class GraphQLMessageConsumer(
             variables = message.variables,
             requestContext = message.headers,
         )
-        val result = viaduct.executeAsync(input).await()
+        val result = viaduct.execute(input)
         message.reply(result.toSpecification())
     }
 }

@@ -16,7 +16,7 @@ import viaduct.service.api.Viaduct
 fun main() {
     ApplicationContext.run().use { context ->
         val viaduct = context.getBean(Viaduct::class.java)
-        val result = viaduct.execute(ExecutionInput.create(operationText = "query { greeting }"))
+        val result = viaduct.executeAsync(ExecutionInput.create(operationText = "query { greeting }")).join()
         check(result.errors.isEmpty()) { "Smoke query returned errors: ${result.errors}" }
         println(result.getData())
     }

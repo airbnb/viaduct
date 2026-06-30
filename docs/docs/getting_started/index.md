@@ -205,7 +205,7 @@ fun Application.configureRouting() {
                     variables = (request["variables"] as? Map<String, Any>) ?: emptyMap(),
                 )
 
-                val result = viaduct.executeAsync(executionInput).await()
+                val result = viaduct.execute(executionInput)
                 call.respond(result.toSpecification())
             }
         }

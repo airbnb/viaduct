@@ -13,7 +13,7 @@ This page explains **how the Viaduct runtime is built** in the Star Wars demo, r
 1. **Schema registration** (IDs, SDL discovery, and scope sets).
 2. **Module registration** (generated types, resolvers, and package conventions).
 3. **Runtime construction** via `ViaductBuilder`.
-4. **Execution**: the controller creates an `ExecutionInput` (with `schemaId`, `query`, `variables`, etc.) and calls `viaduct.executeAsync(...)`.
+4. **Execution**: the controller creates an `ExecutionInput` (with `schemaId`, `query`, `variables`, etc.) and calls `viaduct.execute(...)`.
 
 ## Builder configuration
 

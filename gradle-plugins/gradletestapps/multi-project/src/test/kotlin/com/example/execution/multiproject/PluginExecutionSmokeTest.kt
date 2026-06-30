@@ -70,9 +70,9 @@ class PluginExecutionSmokeTest {
     fun queriesAndMutationsExecuteThroughViaduct() {
         val viaduct = BasicViaductFactory.create()
 
-        val queryResult = viaduct.execute(
+        val queryResult = viaduct.executeAsync(
             ExecutionInput.create("query { greeting author }")
-        )
+        ).join()
         assertTrue(queryResult.errors.isEmpty(), "Expected query execution without errors: ${queryResult.errors}")
         assertEquals(
             mapOf(
@@ -82,9 +82,9 @@ class PluginExecutionSmokeTest {
             queryResult.getData(),
         )
 
-        val mutationResult = viaduct.execute(
+        val mutationResult = viaduct.executeAsync(
             ExecutionInput.create("""mutation { echo(message: "plugin e2e") }""")
-        )
+        ).join()
         assertTrue(mutationResult.errors.isEmpty(), "Expected mutation execution without errors: ${mutationResult.errors}")
         assertEquals(mapOf("echo" to "plugin e2e"), mutationResult.getData())
     }

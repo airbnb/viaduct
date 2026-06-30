@@ -6,7 +6,6 @@ import io.micronaut.http.annotation.Body
 import io.micronaut.http.annotation.Controller
 import io.micronaut.http.annotation.Header
 import io.micronaut.http.annotation.Post
-import kotlinx.coroutines.future.await
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
@@ -53,7 +52,7 @@ class ViaductRestController(
         // tag::run_query[6] Runs the query example
         val scopes = parseScopes(scopesHeader)
         val schemaId = determineSchemaId(scopes)
-        val result = viaduct.executeAsync(executionInput, schemaId).await()
+        val result = viaduct.execute(executionInput, schemaId)
         return HttpResponse.ok(result.toSpecification())
     }
 

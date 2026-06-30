@@ -1,6 +1,7 @@
 package viaduct.engine.api.spi
 
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executor
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineScope
@@ -18,8 +19,18 @@ interface CoroutineInterop {
     /**
      * Enters a threadlocal coroutine context for a top-level request.
      */
-
     fun <T> enterThreadLocalCoroutineContext(
+        callerContext: CoroutineContext = EmptyCoroutineContext,
+        block: suspend CoroutineScope.() -> T,
+    ): CompletableFuture<T>
+
+    /**
+     * Enters a threadlocal coroutine context for a top-level request, running [block] on the supplied
+     * [executor] and returning its result as a [CompletableFuture]. The optional [callerContext] is
+     * layered into the coroutine scope, defaulting to [EmptyCoroutineContext].
+     */
+    fun <T> enterThreadLocalCoroutineContext(
+        executor: Executor,
         callerContext: CoroutineContext = EmptyCoroutineContext,
         block: suspend CoroutineScope.() -> T,
     ): CompletableFuture<T>
