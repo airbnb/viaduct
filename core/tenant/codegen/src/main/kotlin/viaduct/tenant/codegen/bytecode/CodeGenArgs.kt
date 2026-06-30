@@ -13,4 +13,5 @@ data class CodeGenArgs(
     val workerCount: Int,
     val timer: Timer,
     val baseTypeMapper: BaseTypeMapper,
+    val generatedTypeNamesAllowlist: Set<String>? = null,
 )

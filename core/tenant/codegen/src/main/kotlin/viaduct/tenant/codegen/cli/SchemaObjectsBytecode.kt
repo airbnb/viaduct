@@ -16,6 +16,7 @@ import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.tenant.codegen.bytecode.CodeGenArgs
 import viaduct.tenant.codegen.bytecode.GRTClassFilesBuilderBase
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
+import viaduct.tenant.codegen.bytecode.config.tenantModule
 import viaduct.tenant.codegen.graphql.schema.ScopedSchemaFilter
 import viaduct.tenant.codegen.util.ZipUtil.zipAndWriteChildrenAsRoot
 import viaduct.tenant.codegen.util.hasBinarySchemaFlag
@@ -69,6 +70,9 @@ class SchemaObjectsBytecode : CliktCommand() {
     val compilationSchemaBinary: File? by option("--compilation_schema_binary").file(mustExist = false, canBeDir = false)
     val flagFile: File? by option("--flag_file").file(mustExist = true, canBeDir = false)
 
+    // When present, generate GRTs only for types owned by these tenant modules.
+    private val generatedTenantModules: List<String>? by option("--generated_tenant_modules").split(",")
+
     override fun run() {
         // Validation:
         // - If flag file has enable_binary_schema (True or False): --binary_schema_file required
@@ -120,6 +124,7 @@ class SchemaObjectsBytecode : CliktCommand() {
             workerCount = workerCount,
             timer = timer,
             baseTypeMapper = ViaductBaseTypeMapper(schema),
+            generatedTypeNamesAllowlist = generatedTypeNamesAllowlistForTenantModules(schema),
         )
 
         val grtBuilder = GRTClassFilesBuilderBase.builderFrom(codegenArgs)
@@ -144,6 +149,30 @@ class SchemaObjectsBytecode : CliktCommand() {
         if (moduleName == "replace with module name (e.g. 'presentation') to report timing via exception") {
             timer.reportViaException()
         }
+    }
+
+    private fun generatedTypeNamesAllowlistForTenantModules(schema: ViaductSchema): Set<String>? {
+        val tenantModules = generatedTenantModules.orEmpty()
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .toSet()
+        // No tenant-module filter means generate GRTs for the full schema.
+        if (tenantModules.isEmpty()) return null
+        val typeNames = schema.types.values
+            .filter { it.isInTenantModules(tenantModules) }
+            .map(ViaductSchema.TypeDef::name)
+            .toSet()
+        return typeNames
+    }
+
+    private fun ViaductSchema.TypeDef.isInTenantModules(tenantModules: Set<String>): Boolean {
+        return sourceLocation?.tenantModule in tenantModules ||
+            when (this) {
+                is ViaductSchema.Enum -> values.any { it.sourceLocation?.tenantModule in tenantModules }
+                is ViaductSchema.Record -> fields.any { it.sourceLocation?.tenantModule in tenantModules }
+                is ViaductSchema.Union -> extensions.any { it.sourceLocation?.tenantModule in tenantModules }
+                else -> false
+            }
     }
 
     object Main {
