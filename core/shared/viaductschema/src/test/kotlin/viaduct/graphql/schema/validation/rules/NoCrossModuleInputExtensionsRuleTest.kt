@@ -95,4 +95,28 @@ class NoCrossModuleInputExtensionsRuleTest {
         inputErrors[0].message shouldContain "modulea"
         inputErrors[0].message shouldContain "moduleb"
     }
+
+    @Test
+    fun `should fail when module extends schemabase-defined enum and input types`() {
+        val errors = validate(
+            "/validation/application/query.graphql",
+            "/validation/application/schemabase_types.graphql",
+            "/validation/partition/modulea/graphql/extends_schemabase_types.graphql",
+        )
+
+        val appbaseErrors = errors.filter { it.code == ValidationErrorCodes.APPBASE_INPUT_EXTENSION }
+        appbaseErrors shouldHaveSize 2
+
+        val enumErrors = appbaseErrors.filter { "enum" in it.message }
+        enumErrors shouldHaveSize 1
+        enumErrors[0].message shouldContain "AppStatus"
+        enumErrors[0].message shouldContain "modulea"
+        enumErrors[0].message shouldContain "schemabase"
+
+        val inputErrors = appbaseErrors.filter { "input" in it.message }
+        inputErrors shouldHaveSize 1
+        inputErrors[0].message shouldContain "AppInput"
+        inputErrors[0].message shouldContain "modulea"
+        inputErrors[0].message shouldContain "schemabase"
+    }
 }

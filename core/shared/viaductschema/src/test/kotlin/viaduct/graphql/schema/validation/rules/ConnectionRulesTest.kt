@@ -386,6 +386,61 @@ class ConnectionRulesTest {
             )
             errors.shouldBeEmpty()
         }
+
+        @Test
+        fun `invalid - pageInfo has extra custom field`() {
+            val errors = validatePageInfo(
+                """
+                type PageInfo {
+                    hasNextPage: Boolean!
+                    hasPreviousPage: Boolean!
+                    startCursor: String
+                    endCursor: String
+                    totalCount: Int
+                }
+                """.trimIndent()
+            )
+            errors shouldHaveSize 1
+            errors[0].code shouldBe ValidationErrorCodes.PAGE_INFO_EXTRA_FIELDS
+            errors[0].message shouldContain "totalCount"
+        }
+
+        @Test
+        fun `invalid - pageInfo has multiple extra custom fields`() {
+            val errors = validatePageInfo(
+                """
+                type PageInfo {
+                    hasNextPage: Boolean!
+                    hasPreviousPage: Boolean!
+                    startCursor: String
+                    endCursor: String
+                    totalCount: Int
+                    pageSize: Int
+                }
+                """.trimIndent()
+            )
+            errors shouldHaveSize 1
+            errors[0].code shouldBe ValidationErrorCodes.PAGE_INFO_EXTRA_FIELDS
+            errors[0].message shouldContain "totalCount"
+            errors[0].message shouldContain "pageSize"
+        }
+
+        @Test
+        fun `invalid - pageInfo field has arguments`() {
+            val errors = validatePageInfo(
+                """
+                type PageInfo {
+                    hasNextPage(format: String): Boolean!
+                    hasPreviousPage: Boolean!
+                    startCursor: String
+                    endCursor: String
+                }
+                """.trimIndent()
+            )
+            errors shouldHaveSize 1
+            errors[0].code shouldBe ValidationErrorCodes.PAGE_INFO_FIELD_HAS_ARGS
+            errors[0].message shouldContain "hasNextPage"
+        }
     }
 
     @Nested

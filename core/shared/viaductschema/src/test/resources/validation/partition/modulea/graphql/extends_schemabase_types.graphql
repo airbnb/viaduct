@@ -1,0 +1,6 @@
+extend enum AppStatus {
+  INACTIVE
+}
+extend input AppInput {
+  age: Int
+}

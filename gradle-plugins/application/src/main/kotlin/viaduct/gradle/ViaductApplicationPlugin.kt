@@ -24,6 +24,7 @@ import viaduct.gradle.ViaductPluginCommon.validateApplicationProjectPlacement
 import viaduct.gradle.task.AssembleCentralSchemaTask
 import viaduct.gradle.task.GenerateGRTClassFilesTask
 import viaduct.gradle.task.GenerateJavaGRTSourcesTask
+import viaduct.gradle.task.ValidateSchemaExtensionsTask
 
 abstract class ViaductApplicationPlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
@@ -37,6 +38,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             )
 
             val assembleCentralSchemaTask = setupAssembleCentralSchemaTask()
+            setupValidateSchemaExtensionsTask()
             setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
 
             val kotlinGRTJar = setupKotlinGenerateGRTsTask(assembleCentralSchemaTask)
@@ -60,6 +62,21 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             // depend on generateViaductJavaGRTs explicitly.
             this.dependencies.add("api", files(kotlinGRTJar.flatMap { it.archiveFile }))
         }
+
+    private fun Project.setupValidateSchemaExtensionsTask() {
+        tasks.register<ValidateSchemaExtensionsTask>("validateViaductSchemaExtensions") {
+            baseSchemaFiles.setFrom(
+                project.fileTree("src/main/viaduct/schemabase") {
+                    include("**/*.graphqls")
+                }
+            )
+            commonSchemaFiles.setFrom(
+                project.fileTree("src/viaduct/schema") {
+                    include("**/*.graphqls")
+                }
+            )
+        }
+    }
 
     private fun Project.setupAssembleCentralSchemaTask(): TaskProvider<AssembleCentralSchemaTask> {
         val allPartitions = configurations.create(ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING).apply {

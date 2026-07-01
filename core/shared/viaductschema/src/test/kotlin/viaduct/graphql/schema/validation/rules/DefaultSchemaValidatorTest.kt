@@ -24,7 +24,7 @@ class DefaultSchemaValidatorTest {
             """.trimIndent()
         )
 
-        val errors = DefaultSchemaValidator.validate(schema)
+        val errors = DefaultSchemaValidator().validate(schema)
 
         errors.shouldBeEmpty()
     }
@@ -43,7 +43,7 @@ class DefaultSchemaValidatorTest {
             """.trimIndent()
         )
 
-        val errors = DefaultSchemaValidator.validate(schema)
+        val errors = DefaultSchemaValidator().validate(schema)
 
         errors shouldHaveSize 2
         errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
@@ -68,7 +68,7 @@ class DefaultSchemaValidatorTest {
             """.trimIndent()
         )
 
-        val errors = DefaultSchemaValidator.validate(schema)
+        val errors = DefaultSchemaValidator().validate(schema)
 
         errors.shouldBeEmpty()
     }
@@ -79,7 +79,7 @@ class DefaultSchemaValidatorTest {
         val moduleScalarUrl = javaClass.getResource("/validation/partition/testmodule/graphql/scalars.graphql")!!
         val schema = ViaductSchema.fromTypeDefinitionRegistry(listOf(moduleDirectiveUrl, moduleScalarUrl))
 
-        val errors = DefaultSchemaValidator.validate(schema)
+        val errors = DefaultSchemaValidator().validate(schema)
 
         errors shouldHaveSize 3
         errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
@@ -99,7 +99,7 @@ class DefaultSchemaValidatorTest {
             """.trimIndent()
         )
 
-        val errors = DefaultSchemaValidator.validate(schema)
+        val errors = DefaultSchemaValidator().validate(schema)
 
         errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
             ValidationErrorCodes.BACKING_DATA_MISSING_DIRECTIVE
@@ -116,7 +116,7 @@ class DefaultSchemaValidatorTest {
             """.trimIndent()
         )
 
-        val errors = DefaultSchemaValidator.validate(schema)
+        val errors = DefaultSchemaValidator().validate(schema)
 
         errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
             ValidationErrorCodes.ID_OF_TYPE_NOT_FOUND
@@ -133,7 +133,7 @@ class DefaultSchemaValidatorTest {
             """.trimIndent()
         )
 
-        val errors = DefaultSchemaValidator.validate(schema)
+        val errors = DefaultSchemaValidator().validate(schema)
 
         errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
             ValidationErrorCodes.NAMESPACE_TYPE_FIELD_HAS_ARGS
@@ -148,7 +148,7 @@ class DefaultSchemaValidatorTest {
             """.trimIndent()
         )
 
-        val errors = DefaultSchemaValidator.validate(schema)
+        val errors = DefaultSchemaValidator().validate(schema)
 
         errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
             ValidationErrorCodes.FIELD_WITH_ARGS_MISSING_RESOLVER
@@ -172,7 +172,7 @@ class DefaultSchemaValidatorTest {
             """.trimIndent()
         )
 
-        val errors = DefaultSchemaValidator.validate(schema)
+        val errors = DefaultSchemaValidator().validate(schema)
 
         errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
             ValidationErrorCodes.CONNECTION_MISSING_EDGES_FIELD
@@ -196,7 +196,7 @@ class DefaultSchemaValidatorTest {
             """.trimIndent()
         )
 
-        val errors = DefaultSchemaValidator.validate(schema)
+        val errors = DefaultSchemaValidator().validate(schema)
 
         errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
             ValidationErrorCodes.RESOLVER_ON_INTERFACE_FIELD

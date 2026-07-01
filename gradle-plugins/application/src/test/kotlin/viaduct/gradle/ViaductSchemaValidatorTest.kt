@@ -167,6 +167,24 @@ class ViaductSchemaValidatorTest {
     }
 
     @Test
+    fun `empty output type produces user-friendly error with placeholder suggestion`() {
+        val schemaFile = tempDir.resolve("schema.graphqls").toFile().apply {
+            writeText(
+                """
+                type Query { data: String }
+                type Empty {}
+                """.trimIndent()
+            )
+        }
+
+        val errors = validator.validateSchema(listOf(schemaFile))
+
+        errors shouldHaveSize 1
+        errors[0].message shouldContain "must define one or more fields"
+        errors[0].message shouldContain "_placeholder"
+    }
+
+    @Test
     fun `tenant errors are reported normally when no framework errors exist`() {
         val builtinFile = tempDir.resolve("BUILTIN_SCHEMA.graphqls").toFile().apply {
             writeText("type Query { data: String }\n")

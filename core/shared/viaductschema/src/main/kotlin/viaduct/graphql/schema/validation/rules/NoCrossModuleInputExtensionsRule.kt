@@ -8,7 +8,7 @@ import viaduct.graphql.schema.validation.ValidationRule
 
 /**
  * Validates that no tenant module uses `extend enum` or `extend input` to extend an input type
- * defined in a different module partition.
+ * defined in a different module partition or in the application schemabase.
  *
  * Input types (enumerations and input-object types) are closed — they should be owned and extended
  * only by the module that defines them. Cross-module extension breaks modularity and complicates
@@ -17,9 +17,8 @@ import viaduct.graphql.schema.validation.ValidationRule
  * Same-module extensions (e.g., splitting a large enum across multiple files in one partition) are
  * allowed; only cross-module violations are reported.
  *
- * Types defined at application level (outside any partition, e.g. in the schema base or common
- * layer) are intentionally exempt: they have no owning tenant, so module extensions of them do not
- * violate tenant boundaries.
+ * Schemabase-defined types (outside any partition) are also closed: a module may not extend an
+ * input type defined at the application level.
  *
  * @param modulePathPrefix The path segment that identifies module partition locations
  *   (e.g., `"partition/"`). Used to extract the tenant name from source file paths.
@@ -51,12 +50,21 @@ class NoCrossModuleInputExtensionsRule(
         typeKeyword: String
     ) {
         val baseExtension = extensions.firstOrNull { it.isBase } ?: return
-        val baseTenant = tenantFromLocation(baseExtension.sourceLocation, modulePathPrefix) ?: return
+        val baseTenant = tenantFromLocation(baseExtension.sourceLocation, modulePathPrefix)
 
         for (ext in extensions) {
             if (ext.isBase) continue
             val extTenant = tenantFromLocation(ext.sourceLocation, modulePathPrefix) ?: continue
-            if (extTenant != baseTenant) {
+
+            if (baseTenant == null) {
+                ctx.reportError(
+                    code = ValidationErrorCodes.APPBASE_INPUT_EXTENSION,
+                    message = "Module '$extTenant' cannot use `extend $typeKeyword $typeName` to extend a type " +
+                        "defined in the application schemabase. " +
+                        "Input types defined in schemabase are closed and may not be extended by tenant modules.",
+                    location = SchemaLocation.ofType(typeName).withSourceLocation(ext.sourceLocation)
+                )
+            } else if (extTenant != baseTenant) {
                 ctx.reportError(
                     code = ValidationErrorCodes.CROSS_MODULE_INPUT_EXTENSION,
                     message = "Module '$extTenant' cannot use `extend $typeKeyword $typeName` to extend a type " +

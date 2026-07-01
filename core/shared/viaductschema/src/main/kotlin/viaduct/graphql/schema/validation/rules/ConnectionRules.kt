@@ -133,6 +133,8 @@ class ConnectionPageInfoRule : ValidationRule(
         validateNonNullBooleanField(ctx, pageInfoType, "hasPreviousPage", connectionTypeName, pageInfoTypeName)
         validateNullableCursorField(ctx, pageInfoType, "startCursor", connectionTypeName, pageInfoTypeName)
         validateNullableCursorField(ctx, pageInfoType, "endCursor", connectionTypeName, pageInfoTypeName)
+        validateNoExtraFields(ctx, pageInfoType, connectionTypeName, pageInfoTypeName)
+        validateNoFieldArguments(ctx, pageInfoType, connectionTypeName, pageInfoTypeName)
     }
 
     private fun validateNonNullBooleanField(
@@ -186,6 +188,98 @@ class ConnectionPageInfoRule : ValidationRule(
                     "(e.g., String instead of String!). An empty connection has no edges, so " +
                     "startCursor and endCursor must be null per the Relay Connection spec.",
                 location = SchemaLocation.ofField(pageInfoTypeName, fieldName).withSourceLocation(field.sourceLocation)
+            )
+        }
+    }
+
+    private fun validateNoExtraFields(
+        ctx: ValidationContext,
+        pageInfoType: ViaductSchema.Object,
+        connectionTypeName: String,
+        pageInfoTypeName: String,
+    ) {
+        val extraFields = pageInfoType.fields
+            .map { it.name }
+            .filter { it !in STANDARD_PAGE_INFO_FIELDS }
+        if (extraFields.isNotEmpty()) {
+            ctx.reportError(
+                code = ValidationErrorCodes.PAGE_INFO_EXTRA_FIELDS,
+                message = "PageInfo type '$pageInfoTypeName' (referenced by @connection type '$connectionTypeName') " +
+                    "must not have custom fields. " +
+                    "Found extra fields: ${extraFields.joinToString(", ") { "'$it'" }}. " +
+                    "Only the four standard Relay fields are allowed: " +
+                    "${STANDARD_PAGE_INFO_FIELDS.joinToString(", ") { "'$it'" }}.",
+                location = SchemaLocation.ofType(pageInfoTypeName)
+            )
+        }
+    }
+
+    private fun validateNoFieldArguments(
+        ctx: ValidationContext,
+        pageInfoType: ViaductSchema.Object,
+        connectionTypeName: String,
+        pageInfoTypeName: String,
+    ) {
+        pageInfoType.fields.filter { it.hasArgs }.forEach { field ->
+            ctx.reportError(
+                code = ValidationErrorCodes.PAGE_INFO_FIELD_HAS_ARGS,
+                message = "PageInfo type '$pageInfoTypeName'.'${field.name}' " +
+                    "(referenced by @connection type '$connectionTypeName') " +
+                    "must not have arguments. PageInfo fields must be plain scalar fields.",
+                location = SchemaLocation.ofField(pageInfoTypeName, field.name).withSourceLocation(field.sourceLocation)
+            )
+        }
+    }
+
+    companion object {
+        private val STANDARD_PAGE_INFO_FIELDS = setOf("hasNextPage", "hasPreviousPage", "startCursor", "endCursor")
+    }
+}
+
+/**
+ * Extends [ConnectionPageInfoRule] with additional structural checks:
+ * - PageInfo must not implement any interfaces
+ * - PageInfo must not be a member of any union
+ *
+ * These checks are intentionally separate because implementing interfaces is valid GraphQL and
+ * existing Viaduct deployments may use patterns like `type PageInfo implements IPageInfo`.
+ * Enable this rule when a stricter schema contract is desired (e.g., Gradle-based validation for OSS users).
+ */
+class StrictConnectionPageInfoRule : ValidationRule(
+    id = "StrictConnectionPageInfo",
+    description = "PageInfo types must not implement interfaces or be union members"
+) {
+    override fun visitObject(
+        ctx: ValidationContext,
+        obj: ViaductSchema.Object
+    ) {
+        if (!obj.hasConnectionDirective) return
+
+        val pageInfoField = obj.field("pageInfo") ?: return
+        val pageInfoType = pageInfoField.type.baseTypeDef as? ViaductSchema.Object ?: return
+
+        val connectionTypeName = obj.name
+        val pageInfoTypeName = pageInfoType.name
+
+        if (pageInfoType.supers.isNotEmpty()) {
+            val ifaceNames = pageInfoType.supers.joinToString(", ") { "'${it.name}'" }
+            ctx.reportError(
+                code = ValidationErrorCodes.PAGE_INFO_IMPLEMENTS_INTERFACE,
+                message = "PageInfo type '$pageInfoTypeName' " +
+                    "(referenced by @connection type '$connectionTypeName') " +
+                    "must not implement any interfaces, but implements: $ifaceNames.",
+                location = SchemaLocation.ofType(pageInfoTypeName)
+            )
+        }
+
+        if (pageInfoType.unions.isNotEmpty()) {
+            val unionNames = pageInfoType.unions.joinToString(", ") { "'${it.name}'" }
+            ctx.reportError(
+                code = ValidationErrorCodes.PAGE_INFO_IN_UNION,
+                message = "PageInfo type '$pageInfoTypeName' " +
+                    "(referenced by @connection type '$connectionTypeName') " +
+                    "must not be a member of any union, but is a member of: $unionNames.",
+                location = SchemaLocation.ofType(pageInfoTypeName)
             )
         }
     }

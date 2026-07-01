@@ -5,6 +5,7 @@ import graphql.parser.MultiSourceReader
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
 import graphql.schema.idl.errors.SchemaProblem
+import graphql.schema.validation.InvalidSchemaException
 import graphql.validation.ValidationError
 import java.io.File
 import java.io.StringReader
@@ -14,8 +15,9 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.graphql.schema.validation.SchemaValidationError
 import viaduct.graphql.schema.validation.rules.DefaultSchemaValidator
+import viaduct.graphql.schema.validation.rules.SchemaExtensionsValidator
 
-class ViaductSchemaValidator(private val logger: Logger) {
+class ViaductSchemaValidator(private val logger: Logger, private val extensionsOnly: Boolean = false) {
     /**
      * Validates a schema using both GraphQL-Java syntax validation and Viaduct-specific rules.
      * If syntax validation fails, Viaduct validation is skipped.
@@ -72,6 +74,24 @@ class ViaductSchemaValidator(private val logger: Logger) {
             emptyList()
         } catch (e: SchemaProblem) {
             e.errors
+        } catch (e: InvalidSchemaException) {
+            // InvalidSchemaException is @Internal and its errors field is package-private;
+            // the combined message string is the only public API surface.
+            val lines = (e.message ?: e.toString())
+                .lines()
+                .map { it.trim() }
+                .filter { it.isNotBlank() && it != "invalid schema:" }
+            lines.map { line ->
+                val enriched = if (EMPTY_TYPE_PATTERN in line) {
+                    "$line Use a placeholder field (e.g., `_placeholder: Boolean`) as a workaround " +
+                        "until a future GraphQL spec version permits empty output types."
+                } else {
+                    line
+                }
+                ValidationError.newValidationError().description(enriched).build()
+            }.ifEmpty {
+                listOf(ValidationError.newValidationError().description(e.message ?: e.toString()).build())
+            }
         }
     }
 
@@ -82,7 +102,11 @@ class ViaductSchemaValidator(private val logger: Logger) {
         logger.debug("Running Viaduct-specific validation rules...")
 
         val schema = ViaductSchema.fromTypeDefinitionRegistry(schemaFiles.toList())
-        val allErrors = DefaultSchemaValidator.validate(schema)
+        val allErrors = if (extensionsOnly) {
+            SchemaExtensionsValidator.validate(schema)
+        } else {
+            DefaultSchemaValidator(strictMode = true).validate(schema)
+        }
 
         if (allErrors.isEmpty()) {
             logger.debug("Viaduct schema validation passed. Found {} types defined.", schema.types.size)
@@ -155,4 +179,8 @@ class ViaductSchemaValidator(private val logger: Logger) {
     }
 
     private fun normalizePath(path: String): String? = runCatching { Path.of(path).toAbsolutePath().normalize().toString() }.getOrNull()
+
+    companion object {
+        private const val EMPTY_TYPE_PATTERN = "must define one or more fields"
+    }
 }

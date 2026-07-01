@@ -1,0 +1,6 @@
+enum AppStatus {
+  ACTIVE
+}
+input AppInput {
+  name: String
+}

@@ -24,30 +24,36 @@ import viaduct.graphql.schema.validation.SchemaValidator
  * - [StructuralDirectivesOnBaseTypeRule]: @connection, @edge, @namespaceType must be on the base type definition
  * - [CrossModuleExtensionFieldsResolverRule]: Fields added by cross-module extend type must have @resolver
  * - [NoResolverOnInterfaceFieldsRule]: Interface fields cannot declare @resolver
+ * - [PageInfoLocationRule]: PageInfo must not be defined inside a module partition
+ *
+ * When [strictMode] is true, also enforces [StrictConnectionPageInfoRule]: PageInfo must not implement
+ * interfaces or be a union member.
  */
-object DefaultSchemaValidator {
+class DefaultSchemaValidator(strictMode: Boolean = false) {
     private val allowedScalarNames = GraphQLBuiltIns.SCALARS + GraphQLBuiltIns.VIADUCT_SCALARS
     private val modulePartitionPathPrefix = "partition/"
 
     private val validator = SchemaValidator(
         phases = listOf(
-            listOf(
-                NoSubscriptionsRule(),
-                NoCustomScalarsRule(allowedScalarNames),
-                ApplicationOnlyDefinitionsRule(modulePartitionPathPrefix),
-                BackingDataFieldsRule(),
-                IdOfTypeValidationRule(),
-                NamespaceTypeConstraintsRule(),
-                FieldArgumentsRequireResolverRule(),
-                ConnectionTypeStructureRule(),
-                ConnectionEdgeStructureRule(),
-                ConnectionPageInfoRule(),
-                ConnectionArgumentsNullabilityRule(),
-                NoCrossModuleInputExtensionsRule(modulePartitionPathPrefix),
-                StructuralDirectivesOnBaseTypeRule(),
-                CrossModuleExtensionFieldsResolverRule(modulePartitionPathPrefix),
-                NoResolverOnInterfaceFieldsRule(),
-            )
+            buildList {
+                add(NoSubscriptionsRule())
+                add(NoCustomScalarsRule(allowedScalarNames))
+                add(ApplicationOnlyDefinitionsRule(modulePartitionPathPrefix))
+                add(BackingDataFieldsRule())
+                add(IdOfTypeValidationRule())
+                add(NamespaceTypeConstraintsRule())
+                add(FieldArgumentsRequireResolverRule())
+                add(ConnectionTypeStructureRule())
+                add(ConnectionEdgeStructureRule())
+                add(ConnectionPageInfoRule())
+                if (strictMode) add(StrictConnectionPageInfoRule())
+                add(ConnectionArgumentsNullabilityRule())
+                add(NoCrossModuleInputExtensionsRule(modulePartitionPathPrefix))
+                add(StructuralDirectivesOnBaseTypeRule())
+                add(CrossModuleExtensionFieldsResolverRule(modulePartitionPathPrefix))
+                add(NoResolverOnInterfaceFieldsRule())
+                add(PageInfoLocationRule(modulePartitionPathPrefix))
+            }
         )
     )
 
@@ -61,7 +67,5 @@ object DefaultSchemaValidator {
      *
      * @return list of validation errors (empty if valid)
      */
-    fun validate(schema: ViaductSchema): List<SchemaValidationError> {
-        return validator.validate(schema)
-    }
+    fun validate(schema: ViaductSchema): List<SchemaValidationError> = validator.validate(schema)
 }
