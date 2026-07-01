@@ -2,9 +2,12 @@ package viaduct.arbitrary.graphql
 
 import io.kotest.common.runBlocking
 import io.kotest.property.Arb
+import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.boolean
 import io.kotest.property.arbitrary.int
+import io.kotest.property.arbitrary.long
+import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -69,6 +72,58 @@ class ResolverValueGenTest : KotestPropertyBase() {
             arb.forAll { (selective, value) ->
                 val expKeys = if (selective) setOf("x") else setOf("x", "y")
                 value is EngineObjectData && value.fetchSelections().toSet() == expKeys
+            }
+        }
+
+    @Test
+    fun `fieldResolverValue -- selective -- subset stability`(): Unit =
+        runBlocking {
+            // ensure that for a fixed seed, selective values are always a subset of non-selective values
+            // This ensures that the value that is generated for any individual selection does
+            // not depend on values generated for previous selections
+
+            val schema = """
+                extend type Query { obj:Obj! @resolver }
+                type Obj { a:Int, b:Int, foo:Foo }
+                type Foo { x:Int, y:Int }
+            """.trimIndent().asViaductSchema
+
+            val arb = arbitrary {
+                val seed = Arb.long().bind()
+
+                val nonSelective = Arb.fieldResolverValue(
+                    schema = schema,
+                    coord = "Query" to "obj",
+                    selections = schema.mkEngineSelectionSet(
+                        "Obj",
+                        "a, b, foo { x, y }"
+                    ),
+                    ctx = MockEngineCtx(),
+                    selective = false
+                ).next(RandomSource.seeded(seed))
+
+                val selective = Arb.fieldResolverValue(
+                    schema = schema,
+                    coord = "Query" to "obj",
+                    selections = schema.mkEngineSelectionSet(
+                        "Obj",
+                        "a, foo { y }"
+                    ),
+                    ctx = MockEngineCtx(),
+                    selective = true
+                ).next(RandomSource.seeded(seed))
+
+                nonSelective to selective
+            }
+
+            arb.checkAll { (nonSelective, selective) ->
+                assertTrue(isSubset(nonSelective, selective)) {
+                    """
+                        Selective value is not a subset of the non-selective value
+                        selective value: $selective
+                        non-selective value: $nonSelective
+                    """.trimIndent()
+                }
             }
         }
 
@@ -518,5 +573,91 @@ class ResolverValueGenTest : KotestPropertyBase() {
                 value as EngineObjectData
                 value.type.name in setOf("Foo", "Bar")
             }
+        }
+
+    @Test
+    fun `SelectedTypeBias -- subset stability`(): Unit =
+        runBlocking {
+            // ensure that for a fixed seed, selective values are always a subset of non-selective values
+            // This ensures that the value that is generated for any individual selection does
+            // not depend on values generated for previous selections
+
+            val schema = """
+                extend type Query { entry:Union! }
+                union Union = Foo | Bar
+                type Foo { id:ID!, bar:Bar, x:Int }
+                type Bar { id:ID!, x:Int }
+            """.asViaductSchema
+            val cfg = Config.default + (SelectedTypeBias to 1.0)
+
+            val arb = arbitrary {
+                val seed = Arb.long().bind()
+
+                val nonSelective = Arb.fieldResolverValue(
+                    schema = schema,
+                    coord = "Query" to "entry",
+                    selections = schema.mkEngineSelectionSet(
+                        "Union",
+                        """
+                            ... on Foo { id, bar { id, x }, x }
+                            ... on Bar { id, x }
+                        """.trimIndent(),
+                    ),
+                    ctx = MockEngineCtx(),
+                    selective = false,
+                    cfg = cfg
+                ).next(RandomSource.seeded(seed))
+
+                val selective = Arb.fieldResolverValue(
+                    schema = schema,
+                    coord = "Query" to "entry",
+                    selections = schema.mkEngineSelectionSet(
+                        "Union",
+                        """
+                          ... on Bar { x },
+                          ... on Foo { bar { x }, x }
+                        """.trimIndent()
+                    ),
+                    ctx = MockEngineCtx(),
+                    selective = true,
+                    cfg = cfg
+                ).next(RandomSource.seeded(seed))
+
+                nonSelective to selective
+            }
+
+            arb.checkAll { (nonSelective, selective) ->
+                assertTrue(isSubset(nonSelective, selective)) {
+                    """
+                        Selective value is not a subset of the non-selective value
+                        selective value: $selective
+                        non-selective value: $nonSelective
+                    """.trimIndent()
+                }
+            }
+        }
+
+    private fun isSubset(
+        superset: Any?,
+        subset: Any?
+    ): Boolean =
+        when (subset) {
+            null -> superset == null
+            is List<*> ->
+                superset is List<*> &&
+                    subset.size == superset.size &&
+                    superset.zip(subset).all { isSubset(it.first, it.second) }
+            is EngineObjectData -> {
+                runBlocking {
+                    superset is EngineObjectData &&
+                        superset.type == subset.type &&
+                        subset.fetchSelections().all { key ->
+                            val subValue = subset.fetch(key)
+                            val superValue = superset.fetch(key)
+                            isSubset(superValue, subValue)
+                        }
+                }
+            }
+            else -> superset == subset
         }
 }

@@ -245,19 +245,13 @@ internal class ResolverValueGen(
                 // build the set of fields for which we need to generate a value.
                 // start by considering all fields in the current object, minus the fields with resolvers
                 var coords = type.objectCoordinates - resolverConfig.fieldResolvers
-                if (selective) {
-                    // if this resolver is selective, then filter the coords down to just the ones
-                    // that are selected
-                    coords = coords
-                        .filter { (type, field) -> selections.containsField(type, field) }
-                        .toSet()
-                }
+
                 // if we're in a node resolver, don't generate a value for the id field -- they are
                 // defined to be outside a node resolvers output selection set.
                 if (valueCtx.genForNodeResolver) {
                     coords -= type.name to "id"
                 }
-                val data = coords.associate { coord ->
+                var data = coords.associate { coord ->
                     val subSelections = if (coord.supportsSubselections(schema)) {
                         selections.selectionSetForField(coord.first, coord.second)
                     } else {
@@ -274,26 +268,59 @@ internal class ResolverValueGen(
 
                     coord.second to value
                 }
+
+                if (selective) {
+                    // For selective resolvers, it's important to always generate the full output selection set
+                    // before applying selective filtering.
+                    //
+                    // This ensures that generated values are stable and don't vary by selection set.
+                    // For example, if we generate a value for `{ a, foo { x } }` and then
+                    // subsequently generate a value for `{ b, foo { y } }`,
+                    // then the value of foo can change between invocations, because each access to the
+                    // `rs` will mutate the internal state of the random source
+                    //
+                    // This is not an issue if we generate a value for `{a, b, foo { x, y }}` twice, and then filter
+                    // each result to the requested selection set.
+                    data = data.filterKeys { k ->
+                        selections.containsField(type.name, k)
+                    }
+                }
+
                 ResolvedEngineObjectData(type, data)
             }
             is GraphQLUnionType, is GraphQLInterfaceType -> {
                 require(selections != null)
                 var objs = schema.rels.possibleObjectTypes(type as GraphQLCompositeType).toList()
 
+                // Selective resolvers may be executed multiple times, and may require that, for the same seed,
+                // a selective value is always a subset of the non-selective value for the same seed.
+                //
+                // In order to ensure this property, this code needs to generate values for all possible
+                // concrete types before it touches the RandomSource to determine which value to return.
+                //
+                // This is not efficient but also not terribly expensive, since this generator only generates
+                // for an output selection set
+
+                val objValues = objs.associateWith { obj ->
+                    genValue(
+                        valueCtx = valueCtx.traverse(obj),
+                        selective,
+                        selections = selections.selectionSetForType(obj.name),
+                        ctx
+                    )
+                }
+
+                // Note that SelectedTypeBias uses the selection set to steer the generated value, which breaks
+                // the property that generated results are independent of selected shape. While the value for a
+                // concrete type will be stable, the choice of which type will be generated inherently depends
+                // on which types are selected.
                 if (rs.sampleWeight(cfg[SelectedTypeBias])) {
                     val selectedTypes = objs.filter { selections.requestsType(it.name) }
                     // if selectedTypes is empty, then a future call to Arb.element will throw.
                     // In this case, fallback to the list of concrete types
                     objs = selectedTypes.ifEmpty { objs }
                 }
-
-                val obj = Arb.element(objs).next(rs)
-                genValue(
-                    valueCtx = valueCtx.traverse(obj),
-                    selective,
-                    selections = selections.selectionSetForType(obj.name),
-                    ctx
-                )
+                objValues.getValue(Arb.element(objs).next(rs))
             }
 
             is GraphQLEnumType ->
