@@ -44,6 +44,7 @@ object SyncEngineObjectDataFactory {
         isResolverSelective: IsResolverSelective,
         selections: ObjectEngineResult.Selections? = null,
         skipAccessCheck: Boolean = false,
+        instrumentationContext: ResolverInstrumentationContext? = null,
     ): SyncProxyEngineObjectData {
         if (selectionSet == null) {
             return SyncProxyEngineObjectData(
@@ -57,7 +58,7 @@ object SyncEngineObjectDataFactory {
             "Expected ObjectEngineResultImpl, got ${objectEngineResult::class.qualifiedName}"
         }
 
-        return resolveImpl(objectEngineResult, errorMessage, selectionSet, parentPath, isResolverSelective, selections, skipAccessCheck)
+        return resolveImpl(objectEngineResult, errorMessage, selectionSet, parentPath, isResolverSelective, selections, skipAccessCheck, instrumentationContext)
     }
 
     /**
@@ -84,9 +85,10 @@ object SyncEngineObjectDataFactory {
         isResolverSelective: IsResolverSelective,
         selections: ObjectEngineResult.Selections? = null,
         skipAccessCheck: Boolean = false,
+        instrumentationContext: ResolverInstrumentationContext? = null,
     ): SyncProxyEngineObjectData {
         val data = mutableMapOf<String, Any?>()
-        val instrumentationCtx = coroutineContext[ResolverInstrumentationContext]
+        val instrumentationCtx = instrumentationContext ?: coroutineContext[ResolverInstrumentationContext]
 
         val projectedSelectionSet = selectionSet.selectionSetForType(objectEngineResult.type.name)
         val engineSelections = projectedSelectionSet.selections()

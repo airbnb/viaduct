@@ -1,7 +1,6 @@
 package viaduct.engine.runtime
 
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
@@ -26,8 +25,8 @@ interface FieldResolverDispatcher {
 
     suspend fun resolve(
         arguments: Map<String, Any?>,
-        syncObjectValueGetter: suspend () -> EngineObjectData.Sync,
-        syncQueryValueGetter: suspend () -> EngineObjectData.Sync,
+        objectValueFactory: EngineObjectDataFactory,
+        queryValueFactory: EngineObjectDataFactory,
         selections: EngineSelectionSet?,
         context: EngineExecutionContext,
     ): Any?
