@@ -165,22 +165,6 @@ type CharacterEdge @edge @scope(to: ["default"]) {
   cursor: String!
 }
 
-# tag::pageinfo_example[12] PageInfo type for pagination
-"""
-Information about pagination in a connection.
-Part of the Relay Connection specification.
-"""
-type PageInfo @scope(to: ["default"]) {
-  "When paginating forwards, are there more items?"
-  hasNextPage: Boolean!
-  "When paginating backwards, are there more items?"
-  hasPreviousPage: Boolean!
-  "Cursor to continue backwards pagination"
-  startCursor: String
-  "Cursor to continue forwards pagination"
-  endCursor: String
-}
-
 # tag::one_of_example[16] ID search sample
 input CharacterSearchInput @oneOf @scope(to: ["default"]) {
   """
