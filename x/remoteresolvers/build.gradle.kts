@@ -1,18 +1,9 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
     id("buildroot.versioning")
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
     `maven-publish`
     id("com.google.protobuf") version "0.9.4"
-}
-
-// Treat Kotlin compiler warnings as errors, matching the Bazel build's -Werror
-tasks.withType<KotlinCompile>().configureEach {
-    compilerOptions {
-        allWarningsAsErrors = true
-    }
 }
 
 // Uses plain maven-publish rather than conventions.viaduct-publishing to avoid

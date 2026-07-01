@@ -25,14 +25,12 @@ val libs = extensions.getByType(VersionCatalogsExtension::class.java).named("lib
 detekt {
     source.setFrom(handWrittenKotlinSourceDirs.values)
     config.setFrom(detektConfigFile, detektViaductConfigFile)
-    ignoreFailures = false
 }
 
 ktlint {
     version.set(libs.findVersion("ktlintVersion").get().requiredVersion)
     enableExperimentalRules.set(true)
     outputToConsole.set(true)
-    ignoreFailures.set(false)
 
     filter {
         exclude("**/build/**")
@@ -59,7 +57,6 @@ tasks.register<Detekt>("findWarningsForCleanup") {
     )
     jvmTarget = "17"
 
-    ignoreFailures = false
     baseline.set(repoRoot().file("detekt-cleanup-baseline.xml"))
 
     reports {

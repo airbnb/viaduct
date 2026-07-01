@@ -9,7 +9,6 @@ group = "com.airbnb.viaduct"
 detekt {
     source.setFrom("src/main/kotlin", "src/test/kotlin")
     config.setFrom(layout.projectDirectory.dir("../../..").file("detekt.yml"))
-    ignoreFailures = false
 }
 
 dependencies {
