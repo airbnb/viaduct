@@ -12,7 +12,7 @@ class ResolverParamsJsonCodecTest {
         val codec = ResolverParamsJsonCodec()
 
         val json = codec.encode(
-            ResolverDescriptorFile(
+            PerSourceDescriptorFile(
                 nodes = listOf(
                     ResolverParams.Node(
                         implFqn = "com.example.feature.resolvers.ExampleNodeResolver",
@@ -32,6 +32,7 @@ class ResolverParamsJsonCodecTest {
                   "fields" : [ ],
                   "grtPackagePrefix" : "viaduct.api.grts",
                   "namedFragments" : [ ],
+                  "namedOperations" : [ ],
                   "nodes" : [ {
                     "attribution" : "ExampleNodeResolver",
                     "implFqn" : "com.example.feature.resolvers.ExampleNodeResolver",
@@ -81,7 +82,7 @@ class ResolverParamsJsonCodecTest {
     fun `encode and decode round trip preserves descriptor file`() {
         val codec = ResolverParamsJsonCodec()
 
-        val original = ResolverDescriptorFile(
+        val original = PerSourceDescriptorFile(
             nodes = listOf(
                 ResolverParams.Node(
                     implFqn = "com.example.feature.resolvers.ExampleNodeResolver",
@@ -104,7 +105,7 @@ class ResolverParamsJsonCodecTest {
         val codec = ResolverParamsJsonCodec()
 
         val json = codec.encode(
-            ResolverDescriptorFile(
+            PerSourceDescriptorFile(
                 nodes = emptyList(),
                 fields = listOf(
                     ResolverParams.Field(
@@ -137,6 +138,7 @@ class ResolverParamsJsonCodecTest {
                   } ],
                   "grtPackagePrefix" : "viaduct.api.grts",
                   "namedFragments" : [ ],
+                  "namedOperations" : [ ],
                   "nodes" : [ ]
                 }
 
@@ -148,7 +150,7 @@ class ResolverParamsJsonCodecTest {
         val codec = ResolverParamsJsonCodec()
 
         val json = codec.encode(
-            ResolverDescriptorFile(
+            PerSourceDescriptorFile(
                 nodes = emptyList(),
                 fields = listOf(
                     ResolverParams.Field(
@@ -199,6 +201,7 @@ class ResolverParamsJsonCodecTest {
                   } ],
                   "grtPackagePrefix" : "viaduct.api.grts",
                   "namedFragments" : [ ],
+                  "namedOperations" : [ ],
                   "nodes" : [ ]
                 }
 
@@ -210,7 +213,7 @@ class ResolverParamsJsonCodecTest {
         val codec = ResolverParamsJsonCodec()
 
         val json = codec.encode(
-            ResolverDescriptorFile(
+            PerSourceDescriptorFile(
                 nodes = emptyList(),
                 fields = listOf(
                     ResolverParams.Field(
@@ -255,6 +258,7 @@ class ResolverParamsJsonCodecTest {
                   } ],
                   "grtPackagePrefix" : "viaduct.api.grts",
                   "namedFragments" : [ ],
+                  "namedOperations" : [ ],
                   "nodes" : [ ]
                 }
 
@@ -315,7 +319,7 @@ class ResolverParamsJsonCodecTest {
     fun `encode and decode round trip preserves field descriptor`() {
         val codec = ResolverParamsJsonCodec()
 
-        val original = ResolverDescriptorFile(
+        val original = PerSourceDescriptorFile(
             nodes = emptyList(),
             fields = listOf(
                 ResolverParams.Field(
@@ -342,10 +346,26 @@ class ResolverParamsJsonCodecTest {
     }
 
     @Test
+    fun `encode and decode round trip preserves named operations`() {
+        val codec = ResolverParamsJsonCodec()
+
+        val original = PerSourceDescriptorFile(
+            namedOperations = listOf(
+                OperationDescriptor("{ echo }", OperationKind.QUERY, "com.example.feature.EchoQuery"),
+                OperationDescriptor("mutation { record }", OperationKind.MUTATION, "com.example.feature.RecordMutation"),
+            ),
+        )
+
+        val decoded = codec.decode(codec.encode(original))
+
+        assertEquals(original, decoded)
+    }
+
+    @Test
     fun `encode and decode round trip preserves providedVariables`() {
         val codec = ResolverParamsJsonCodec()
 
-        val original = ResolverDescriptorFile(
+        val original = PerSourceDescriptorFile(
             nodes = emptyList(),
             fields = listOf(
                 ResolverParams.Field(

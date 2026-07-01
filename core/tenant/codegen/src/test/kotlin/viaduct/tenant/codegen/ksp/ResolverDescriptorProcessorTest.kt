@@ -21,7 +21,7 @@ class ResolverDescriptorProcessorTest {
                 packageName = "com.example.feature.resolvers",
                 fileName = "ExampleNodeResolver.kt",
             ),
-            descriptorFile = ResolverDescriptorFile(
+            descriptorFile = PerSourceDescriptorFile(
                 nodes = listOf(
                     ResolverParams.Node(
                         implFqn = "com.example.feature.resolvers.ExampleNodeResolver",
@@ -65,7 +65,7 @@ class ResolverDescriptorProcessorTest {
                 packageName = "",
                 fileName = "RootResolver.kt",
             ),
-            descriptorFile = ResolverDescriptorFile(
+            descriptorFile = PerSourceDescriptorFile(
                 nodes = listOf(
                     ResolverParams.Node(
                         implFqn = "RootResolver",
@@ -99,7 +99,7 @@ class ResolverDescriptorProcessorTest {
                 packageName = "com.example.feature.resolvers",
                 fileName = "ExampleNodeResolver.kt",
             ),
-            descriptorFile = ResolverDescriptorFile(
+            descriptorFile = PerSourceDescriptorFile(
                 nodes = emptyList(),
                 fields = emptyList(),
             ),

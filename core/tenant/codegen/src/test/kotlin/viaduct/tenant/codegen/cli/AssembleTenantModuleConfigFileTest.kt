@@ -274,16 +274,22 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `output JSON does not contain namedFragments key at registry level`() {
+    fun `named fragments are carried to the registry for runtime operation resolution`() {
         val descriptors = descriptorDir()
-        File(descriptors, "ExampleResolvers.json").writeText(
-            """{"nodes":[],"fields":[{"attribution":"ExampleNameResolver","implFqn":"com.example.feature.resolvers.ExampleNameResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.feature.resolverbases.ExampleName","typeName":"ExampleNode","fieldName":"name"}],"grtPackagePrefix":"viaduct.api.grts"}""",
+        File(descriptors, "FieldResolvers.json").writeText(
+            """{"nodes":[],"fields":[{"attribution":"AResolver","implFqn":"com.example.AResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.A","typeName":"A","fieldName":"f"}],"grtPackagePrefix":"viaduct.api.grts"}""",
+        )
+        File(descriptors, "FragmentDefs.json").writeText(
+            """{"nodes":[],"fields":[],"namedFragments":["fragment AFields on A { id }"]}""",
         )
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
 
         val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
-        assertFalse(json.contains("namedFragments"), json)
+        // The registry carries named fragments so ctx.query/ctx.mutation operation strings can
+        // resolve their spreads at the tenant boundary.
+        assertTrue(json.contains("\"namedFragments\""), json)
+        assertTrue(json.contains("fragment AFields on A { id }"), json)
     }
 
     @Test
@@ -316,7 +322,6 @@ class AssembleTenantModuleConfigFileTest {
 
         val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
         assertTrue(json.contains("fragment UserFields on User { id name }"), json)
-        assertFalse(json.contains("namedFragments"), json)
     }
 
     @Test
@@ -349,7 +354,6 @@ class AssembleTenantModuleConfigFileTest {
 
         val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
         assertTrue(json.contains("fragment ViewerFields on Query { viewer { name } }"), json)
-        assertFalse(json.contains("namedFragments"), json)
     }
 
     @Test
@@ -366,7 +370,6 @@ class AssembleTenantModuleConfigFileTest {
 
         val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
         assertTrue(json.contains("fragment AFields on A { id }"), json)
-        assertFalse(json.contains("namedFragments"), json)
     }
 
     @Test
@@ -398,7 +401,11 @@ class AssembleTenantModuleConfigFileTest {
         runCli(descriptors = descriptors, out = out)
 
         val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
-        assertFalse(json.contains("UnusedFrag"), json)
+        // Not appended into the resolver's objectSelections (no matching spread): the fragment is
+        // only ever spread, never inlined into a selections block.
+        assertFalse(json.contains("...UnusedFrag"), json)
+        // ...but still carried in the registry's namedFragments for runtime operation resolution.
+        assertTrue(json.contains("fragment UnusedFrag on User { email }"), json)
     }
 
     @Test

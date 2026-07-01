@@ -173,12 +173,12 @@ class AssembleTenantModuleConfigJarTest {
     }
 
     @Test
-    fun `output jar JSON does not contain namedFragments key at registry level`() {
+    fun `named fragments from descriptor jars are carried to the registry`() {
         val fieldJar = descriptorJar(
             name = "leaf.jar",
             entries = mapOf(
                 "viaduct-registry/com/example/feature/Resolvers.json" to
-                    """{"nodes":[],"fields":[{"attribution":"AResolver","implFqn":"com.example.AResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.A","typeName":"A","fieldName":"f"}],"grtPackagePrefix":"viaduct.api.grts"}""",
+                    """{"nodes":[],"fields":[{"attribution":"AResolver","implFqn":"com.example.AResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.A","typeName":"A","fieldName":"f"}],"grtPackagePrefix":"viaduct.api.grts","namedFragments":["fragment AFields on A { id }"]}""",
             ),
         )
         val out = outputJar()
@@ -186,7 +186,8 @@ class AssembleTenantModuleConfigJarTest {
 
         val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
         assertNotNull(json)
-        assertFalse(json!!.contains("namedFragments"), json)
+        assertTrue(json!!.contains("\"namedFragments\""), json)
+        assertTrue(json.contains("fragment AFields on A { id }"), json)
     }
 
     @Test
@@ -242,6 +243,5 @@ class AssembleTenantModuleConfigJarTest {
         val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
         assertNotNull(json)
         assertTrue(json!!.contains("fragment UserFields on User { id name }"), json)
-        assertFalse(json.contains("namedFragments"), json)
     }
 }

@@ -20,7 +20,7 @@ import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
 import viaduct.engine.api.bootstrap.executionregistry.VariableProviderEntryConfig
 import viaduct.engine.api.parse.DocumentParser
 import viaduct.graphql.utils.SelectionsParserUtils
-import viaduct.tenant.codegen.ksp.ResolverDescriptorFile
+import viaduct.tenant.codegen.ksp.PerSourceDescriptorFile
 import viaduct.tenant.codegen.ksp.ResolverParams
 import viaduct.tenant.codegen.ksp.ResolverParamsJsonCodec
 import viaduct.tenant.codegen.ksp.SelectionsBlock
@@ -54,7 +54,7 @@ internal object TenantModuleConfigAssembler {
     }
 
     private fun writeRegistryFromDescriptors(
-        descriptors: List<ResolverDescriptorFile>,
+        descriptors: List<PerSourceDescriptorFile>,
         executorFactory: String,
         tenantPackage: String,
         tenantPackagePrefix: String?,
@@ -98,7 +98,7 @@ internal object TenantModuleConfigAssembler {
      * Two @GraphQLFragment objects with the same fragment name are always an error regardless of
      * which leaf they come from.
      */
-    private fun buildFragmentsByName(descriptors: List<ResolverDescriptorFile>): Map<String, String> {
+    private fun buildFragmentsByName(descriptors: List<PerSourceDescriptorFile>): Map<String, String> {
         val byName = mutableMapOf<String, String>()
         val errors = mutableListOf<String>()
         descriptors.flatMap { it.namedFragments }.forEach { fragmentText ->
@@ -119,7 +119,7 @@ internal object TenantModuleConfigAssembler {
      * if any local name matches a @GraphQLFragment name the intent is ambiguous.
      */
     private fun validateNameConflicts(
-        descriptors: List<ResolverDescriptorFile>,
+        descriptors: List<PerSourceDescriptorFile>,
         fragmentsByName: Map<String, String>,
     ) {
         if (fragmentsByName.isEmpty()) return
@@ -144,7 +144,7 @@ internal object TenantModuleConfigAssembler {
      * selection block to [RequiredSelectionSetValidator] (which owns the rules).
      */
     private fun validateAssembledRss(
-        descriptors: List<ResolverDescriptorFile>,
+        descriptors: List<PerSourceDescriptorFile>,
         fragmentsByName: Map<String, String>,
         schemaSdl: String,
     ) {
@@ -189,7 +189,7 @@ internal object TenantModuleConfigAssembler {
         executorFactory: String,
         tenantPackage: String,
         tenantPackagePrefix: String?,
-        descriptors: List<ResolverDescriptorFile>,
+        descriptors: List<PerSourceDescriptorFile>,
         fragmentsByName: Map<String, String>,
         bootstrapClass: String?,
     ): ExecutionRegistryConfigFile {
@@ -232,6 +232,8 @@ internal object TenantModuleConfigAssembler {
             nodes = nodes,
             fields = fields,
             bootstrapClass = bootstrapClass,
+            // Carried to runtime so ctx.query/ctx.mutation strings can resolve their fragment spreads.
+            namedFragments = fragmentsByName.values.sorted(),
         )
     }
 

@@ -6,6 +6,9 @@ import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFile
 import viaduct.api.documents.GraphQLFragment
+import viaduct.api.documents.GraphQLOperation
+import viaduct.api.documents.MutationFromAnnotation
+import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.resolver.Resolver as ResolverAnnotation
 import viaduct.service.api.spi.TenantBootstrapper
 
@@ -24,10 +27,11 @@ internal class ResolverParamsExtractor(
     private val resolver: Resolver,
     private val logger: KSPLogger,
 ) {
-    fun extractByFile(): Map<KSFile, ResolverDescriptorFile> {
+    fun extractByFile(): Map<KSFile, PerSourceDescriptorFile> {
         val groupedNodesByFile = mutableMapOf<KSFile, MutableList<ResolverParams.Node>>()
         val groupedFieldsByFile = mutableMapOf<KSFile, MutableList<ResolverParams.Field>>()
         val groupedFragmentsByFile = mutableMapOf<KSFile, MutableList<String>>()
+        val groupedOperationsByFile = mutableMapOf<KSFile, MutableList<OperationDescriptor>>()
 
         resolver
             .getSymbolsWithAnnotation(RESOLVER_ANNOTATION)
@@ -48,14 +52,25 @@ internal class ResolverParamsExtractor(
                 collectNamedFragment(declaration, groupedFragmentsByFile)
             }
 
+        val graphqlOperationAnnotation = requireNotNull(GraphQLOperation::class.qualifiedName)
+        resolver
+            .getSymbolsWithAnnotation(graphqlOperationAnnotation)
+            .filterIsInstance<KSClassDeclaration>()
+            .forEach { declaration ->
+                collectNamedOperation(declaration, groupedOperationsByFile)
+            }
+
         val bootstrapClassByFile = extractBootstrapClassByFile()
 
-        val allFiles = (groupedNodesByFile.keys + groupedFieldsByFile.keys + bootstrapClassByFile.keys + groupedFragmentsByFile.keys)
+        val allFiles = (
+            groupedNodesByFile.keys + groupedFieldsByFile.keys + bootstrapClassByFile.keys +
+                groupedFragmentsByFile.keys + groupedOperationsByFile.keys
+        )
             .toSortedSet(compareBy { it.filePath })
 
         val descriptorsByFile = allFiles.associateWith { file ->
             val classesInFile = file.declarations.filterIsInstance<KSClassDeclaration>().toList()
-            ResolverDescriptorFile(
+            PerSourceDescriptorFile(
                 nodes = groupedNodesByFile[file]
                     .orEmpty()
                     .sortedWith(compareBy({ it.typeName }, { it.implFqn })),
@@ -65,6 +80,7 @@ internal class ResolverParamsExtractor(
                 grtPackagePrefix = extractGrtPackagePrefix(classesInFile),
                 bootstrapClass = bootstrapClassByFile[file],
                 namedFragments = groupedFragmentsByFile[file].orEmpty().sorted(),
+                namedOperations = groupedOperationsByFile[file].orEmpty().sortedBy { it.implFqn },
             )
         }.toSortedMap(compareBy { file -> file.filePath })
 
@@ -167,5 +183,70 @@ internal class ResolverParamsExtractor(
         }
 
         groupedFragmentsByFile.getOrPut(containingFile) { mutableListOf() }.add(fragmentText.trim())
+    }
+
+    private fun collectNamedOperation(
+        declaration: KSClassDeclaration,
+        groupedOperationsByFile: MutableMap<KSFile, MutableList<OperationDescriptor>>,
+    ) {
+        if (declaration.classKind != ClassKind.OBJECT) {
+            logger.errorRegistryExtractor(
+                "@GraphQLOperation must be applied to a Kotlin object declaration, but {} is not an object.",
+                declaration.simpleName.asString(),
+            )
+            return
+        }
+
+        val containingFile = declaration.containingFile ?: run {
+            logger.warnRegistryExtractor(
+                "Skipping @GraphQLOperation without containing file: {}",
+                declaration.simpleName.asString(),
+            )
+            return
+        }
+
+        val kind = declaration.operationKind() ?: run {
+            logger.errorRegistryExtractor(
+                "@GraphQLOperation object {} must extend QueryFromAnnotation or MutationFromAnnotation.",
+                declaration.simpleName.asString(),
+            )
+            return
+        }
+
+        val operationText = declaration.annotations
+            .first { it.shortName.asString() == "GraphQLOperation" }
+            .arguments
+            // KSP may expose the argument as positional (name == null) when written as
+            // @GraphQLOperation("..."), or as named when written as @GraphQLOperation(value = "...").
+            .firstOrNull { it.name?.asString() == "value" || it.name == null }
+            ?.value as? String
+
+        if (operationText.isNullOrBlank()) {
+            logger.errorRegistryExtractor(
+                "@GraphQLOperation value must not be blank on {}",
+                declaration.simpleName.asString(),
+            )
+            return
+        }
+
+        groupedOperationsByFile.getOrPut(containingFile) { mutableListOf() }.add(
+            OperationDescriptor(
+                text = operationText.trim(),
+                kind = kind,
+                implFqn = declaration.qualifiedName?.asString() ?: declaration.simpleName.asString(),
+            ),
+        )
+    }
+
+    /** Determines the operation kind from the @GraphQLOperation object's base class, or null if neither. */
+    private fun KSClassDeclaration.operationKind(): OperationKind? {
+        val baseNames = superTypes
+            .mapNotNull { it.resolve().declaration.qualifiedName?.asString() }
+            .toSet()
+        return when {
+            QueryFromAnnotation::class.qualifiedName in baseNames -> OperationKind.QUERY
+            MutationFromAnnotation::class.qualifiedName in baseNames -> OperationKind.MUTATION
+            else -> null
+        }
     }
 }

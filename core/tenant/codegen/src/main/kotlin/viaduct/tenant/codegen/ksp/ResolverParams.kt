@@ -55,15 +55,35 @@ data class VariableProviderDescriptor(
     val providedVariables: Map<String, String> = emptyMap(),
 )
 
+/** The kind of operation declared by a [@GraphQLOperation][viaduct.api.documents.GraphQLOperation]. */
+enum class OperationKind {
+    QUERY,
+    MUTATION,
+}
+
+/** An operation extracted from a @GraphQLOperation object. [kind] reflects its base class. */
+data class OperationDescriptor(
+    val text: String,
+    val kind: OperationKind,
+    /** FQN of the @GraphQLOperation object, used in assembly-time error messages. */
+    val implFqn: String,
+)
+
 @JsonInclude(JsonInclude.Include.NON_NULL)
-data class ResolverDescriptorFile(
+data class PerSourceDescriptorFile(
     val nodes: List<ResolverParams.Node> = emptyList(),
     val fields: List<ResolverParams.Field> = emptyList(),
     val grtPackagePrefix: String? = null,
     val bootstrapClass: String? = null,
     /** Fragment definition strings extracted from @GraphQLFragment objects in this source file. */
     val namedFragments: List<String> = emptyList(),
+    /**
+     * Operations extracted from @GraphQLOperation objects in this source file. We extract these so
+     * we can validate them against the collected named fragments; they do not need to go into the
+     * final registry.
+     */
+    val namedOperations: List<OperationDescriptor> = emptyList(),
 ) {
     @JsonIgnore
-    fun isEmpty(): Boolean = nodes.isEmpty() && fields.isEmpty() && bootstrapClass == null && namedFragments.isEmpty()
+    fun isEmpty(): Boolean = nodes.isEmpty() && fields.isEmpty() && bootstrapClass == null && namedFragments.isEmpty() && namedOperations.isEmpty()
 }

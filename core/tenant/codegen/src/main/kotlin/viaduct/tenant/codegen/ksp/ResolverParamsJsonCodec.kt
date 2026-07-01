@@ -32,12 +32,12 @@ class ResolverParamsJsonCodec {
             .configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true)
     }
 
-    fun encode(descriptorFile: ResolverDescriptorFile): String {
+    fun encode(descriptorFile: PerSourceDescriptorFile): String {
         return encoderWriter.writeValueAsString(descriptorFile) + TRAILING_NEWLINE
     }
 
-    fun decode(json: String): ResolverDescriptorFile {
-        return decoder.readValue(json, ResolverDescriptorFile::class.java)
+    fun decode(json: String): PerSourceDescriptorFile {
+        return decoder.readValue(json, PerSourceDescriptorFile::class.java)
     }
 
     private companion object {

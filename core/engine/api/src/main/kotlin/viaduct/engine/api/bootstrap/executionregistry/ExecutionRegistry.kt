@@ -25,6 +25,8 @@ data class ExecutionRegistryConfigFile(
     val fields: List<FieldEntryConfig> = emptyList(),
     /** FQN of the class annotated with @TenantBootstrapper, or null if none was declared. */
     val bootstrapClass: String? = null,
+    /** @GraphQLFragment definitions, carried to runtime to resolve spreads in ctx.query/ctx.mutation strings. */
+    val namedFragments: List<String> = emptyList(),
 )
 
 data class NodeEntryConfig(

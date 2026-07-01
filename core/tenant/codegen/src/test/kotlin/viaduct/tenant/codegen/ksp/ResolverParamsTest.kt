@@ -180,7 +180,7 @@ class ResolverParamsTest {
     }
 
     @Test
-    fun `ResolverDescriptorFile holds nodes and fields lists`() {
+    fun `PerSourceDescriptorFile holds nodes and fields lists`() {
         val node = ResolverParams.Node(
             implFqn = "com.example.resolvers.ExampleNodeResolver",
             typeName = "ExampleNode",
@@ -199,7 +199,7 @@ class ResolverParamsTest {
             querySelections = null,
         )
 
-        val descriptorFile = ResolverDescriptorFile(
+        val descriptorFile = PerSourceDescriptorFile(
             nodes = listOf(node),
             fields = listOf(field),
         )
@@ -209,9 +209,9 @@ class ResolverParamsTest {
     }
 
     @Test
-    fun `ResolverDescriptorFile data class equality works`() {
-        val a = ResolverDescriptorFile(nodes = emptyList(), fields = emptyList())
-        val b = ResolverDescriptorFile(nodes = emptyList(), fields = emptyList())
+    fun `PerSourceDescriptorFile data class equality works`() {
+        val a = PerSourceDescriptorFile(nodes = emptyList(), fields = emptyList())
+        val b = PerSourceDescriptorFile(nodes = emptyList(), fields = emptyList())
 
         assertEquals(a, b)
     }

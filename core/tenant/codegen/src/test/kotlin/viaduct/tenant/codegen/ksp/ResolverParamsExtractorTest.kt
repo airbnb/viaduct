@@ -18,6 +18,9 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.documents.GraphQLFragment
+import viaduct.api.documents.GraphQLOperation
+import viaduct.api.documents.MutationFromAnnotation
+import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.resolver.Resolver as ResolverAnnotation
 import viaduct.service.api.spi.TenantBootstrapper
 
@@ -432,6 +435,138 @@ class ResolverParamsExtractorTest {
     }
 
     @Test
+    fun `extractByFile extracts named operations with kind from base class`() {
+        val logger = RecordingKspLogger()
+
+        val queryBase = ksClassDeclaration(
+            qualifiedName = requireNotNull(QueryFromAnnotation::class.qualifiedName),
+            simpleName = "QueryFromAnnotation",
+            packageName = "viaduct.api.documents",
+            containingFile = null,
+        )
+        val mutationBase = ksClassDeclaration(
+            qualifiedName = requireNotNull(MutationFromAnnotation::class.qualifiedName),
+            simpleName = "MutationFromAnnotation",
+            packageName = "viaduct.api.documents",
+            containingFile = null,
+        )
+
+        val opFile = ksFile(packageName = "com.example.feature.ops", fileName = "Operations.kt")
+        val queryOp = ksClassDeclaration(
+            qualifiedName = "com.example.feature.ops.EchoQuery",
+            simpleName = "EchoQuery",
+            packageName = "com.example.feature.ops",
+            annotations = listOf(
+                ksAnnotation(simpleName = "GraphQLOperation", args = mapOf("value" to "{ echo }")),
+            ),
+            superDeclarations = listOf(queryBase),
+            containingFile = opFile,
+            classKind = ClassKind.OBJECT,
+        )
+        val mutationOp = ksClassDeclaration(
+            qualifiedName = "com.example.feature.ops.RecordMutation",
+            simpleName = "RecordMutation",
+            packageName = "com.example.feature.ops",
+            annotations = listOf(
+                ksAnnotation(simpleName = "GraphQLOperation", args = mapOf("value" to "mutation { record }")),
+            ),
+            superDeclarations = listOf(mutationBase),
+            containingFile = opFile,
+            classKind = ClassKind.OBJECT,
+        )
+        val fileWithOps = ksFile(
+            packageName = "com.example.feature.ops",
+            fileName = "Operations.kt",
+            declarations = listOf(queryOp, mutationOp),
+        )
+
+        val resolver = ksResolver(
+            files = listOf(fileWithOps),
+            operationAnnotated = listOf(queryOp, mutationOp),
+        )
+
+        val result = ResolverParamsExtractor(resolver = resolver, logger = logger).extractByFile()
+
+        val operations = result.values.single().namedOperations
+        assertEquals(2, operations.size)
+        // sorted by implFqn: EchoQuery before RecordMutation
+        assertEquals(
+            OperationDescriptor("{ echo }", OperationKind.QUERY, "com.example.feature.ops.EchoQuery"),
+            operations[0],
+        )
+        assertEquals(
+            OperationDescriptor("mutation { record }", OperationKind.MUTATION, "com.example.feature.ops.RecordMutation"),
+            operations[1],
+        )
+        assertTrue(logger.errors.isEmpty(), "Expected no errors: ${logger.errors}")
+    }
+
+    @Test
+    fun `extractByFile logs error and skips GraphQLOperation without a recognized base class`() {
+        val logger = RecordingKspLogger()
+
+        val opFile = ksFile(packageName = "com.example.feature.ops", fileName = "Operations.kt")
+        val badOp = ksClassDeclaration(
+            qualifiedName = "com.example.feature.ops.OrphanQuery",
+            simpleName = "OrphanQuery",
+            packageName = "com.example.feature.ops",
+            annotations = listOf(
+                ksAnnotation(simpleName = "GraphQLOperation", args = mapOf("value" to "{ echo }")),
+            ),
+            superDeclarations = emptyList(),
+            containingFile = opFile,
+            classKind = ClassKind.OBJECT,
+        )
+        val fileWithOp = ksFile(
+            packageName = "com.example.feature.ops",
+            fileName = "Operations.kt",
+            declarations = listOf(badOp),
+        )
+
+        val resolver = ksResolver(files = listOf(fileWithOp), operationAnnotated = listOf(badOp))
+
+        val result = ResolverParamsExtractor(resolver = resolver, logger = logger).extractByFile()
+
+        assertTrue(result.isEmpty(), "Expected no descriptors for @GraphQLOperation without base class")
+        assertTrue(
+            logger.errors.any { it.contains("QueryFromAnnotation or MutationFromAnnotation") },
+            "Expected error about base class: ${logger.errors}",
+        )
+    }
+
+    @Test
+    fun `extractByFile logs error and skips non-object GraphQLOperation declaration`() {
+        val logger = RecordingKspLogger()
+
+        val opFile = ksFile(packageName = "com.example.feature.ops", fileName = "Operations.kt")
+        val nonObject = ksClassDeclaration(
+            qualifiedName = "com.example.feature.ops.NotAnObject",
+            simpleName = "NotAnObject",
+            packageName = "com.example.feature.ops",
+            annotations = listOf(
+                ksAnnotation(simpleName = "GraphQLOperation", args = mapOf("value" to "{ echo }")),
+            ),
+            containingFile = opFile,
+            classKind = ClassKind.CLASS,
+        )
+        val fileWithOp = ksFile(
+            packageName = "com.example.feature.ops",
+            fileName = "Operations.kt",
+            declarations = listOf(nonObject),
+        )
+
+        val resolver = ksResolver(files = listOf(fileWithOp), operationAnnotated = listOf(nonObject))
+
+        val result = ResolverParamsExtractor(resolver = resolver, logger = logger).extractByFile()
+
+        assertTrue(result.isEmpty(), "Expected no descriptors for non-object @GraphQLOperation")
+        assertTrue(
+            logger.errors.any { it.contains("must be applied to a Kotlin object") },
+            "Expected error about object requirement: ${logger.errors}",
+        )
+    }
+
+    @Test
     fun `extractByFile logs error and skips non-object GraphQLFragment declaration`() {
         val logger = RecordingKspLogger()
 
@@ -653,10 +788,12 @@ private fun ksResolver(
     bootstrapperAnnotated: List<KSAnnotated> = emptyList(),
     resolverAnnotated: List<KSAnnotated> = emptyList(),
     fragmentAnnotated: List<KSAnnotated> = emptyList(),
+    operationAnnotated: List<KSAnnotated> = emptyList(),
 ): Resolver {
     val tenantBootstrapperFqn = requireNotNull(TenantBootstrapper::class.qualifiedName)
     val resolverAnnotationFqn = requireNotNull(ResolverAnnotation::class.qualifiedName)
     val graphqlFragmentFqn = requireNotNull(GraphQLFragment::class.qualifiedName)
+    val graphqlOperationFqn = requireNotNull(GraphQLOperation::class.qualifiedName)
     return proxy(Resolver::class.java) { method, args ->
         when (method.name) {
             "getAllFiles" -> files.asSequence()
@@ -665,6 +802,7 @@ private fun ksResolver(
                     tenantBootstrapperFqn -> bootstrapperAnnotated.asSequence()
                     resolverAnnotationFqn -> resolverAnnotated.asSequence()
                     graphqlFragmentFqn -> fragmentAnnotated.asSequence()
+                    graphqlOperationFqn -> operationAnnotated.asSequence()
                     else -> emptySequence()
                 }
             }

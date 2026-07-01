@@ -13,7 +13,7 @@ import java.io.File
  * Aggregation CLI that combines per-file KSP descriptors into a single tenant module
  * config file at `META-INF/viaduct/modules/<tenantpkg>.json`.
  *
- * Deserializes each per-file [ResolverDescriptorFile], maps them to a typed [ExecutionRegistry],
+ * Deserializes each per-file [PerSourceDescriptorFile], maps them to a typed [ExecutionRegistry],
  * then serializes that — so the JSON shape is always governed by the real data model and a
  * schema change in [ExecutionRegistry] becomes a build error here, not a runtime surprise.
  *

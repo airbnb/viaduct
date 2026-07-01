@@ -12,7 +12,7 @@ internal class ResolverDescriptorProcessor(
 ) {
     fun write(
         sourceFile: KSFile,
-        descriptorFile: ResolverDescriptorFile,
+        descriptorFile: PerSourceDescriptorFile,
     ): Boolean {
         if (descriptorFile.isEmpty()) {
             return false

@@ -11,7 +11,7 @@ import javax.lang.model.element.ElementKind
 import javax.lang.model.element.TypeElement
 import javax.tools.Diagnostic
 import javax.tools.StandardLocation
-import viaduct.tenant.codegen.ksp.ResolverDescriptorFile
+import viaduct.tenant.codegen.ksp.PerSourceDescriptorFile
 import viaduct.tenant.codegen.ksp.ResolverParams
 import viaduct.tenant.codegen.ksp.ResolverParamsJsonCodec
 
@@ -20,7 +20,7 @@ import viaduct.tenant.codegen.ksp.ResolverParamsJsonCodec
  * at least one `@Resolver`-annotated Java class.
  *
  * This is the Java twin of the Kotlin KSP `RegistryExtractorProcessor`. It produces the exact same
- * [ResolverDescriptorFile] JSON shape (reusing the shared model + codec from `:tenant:codegen`),
+ * [PerSourceDescriptorFile] JSON shape (reusing the shared model + codec from `:tenant:codegen`),
  * written to `viaduct-registry/<package-path>/<TopLevelClass>.json` in the annotation processor's
  * resource output. The aggregation CLI (`AssembleTenantModuleConfigFile`) then consolidates these
  * into `META-INF/viaduct/modules/<pkg>.json`, identical to the Kotlin pipeline — only the
@@ -88,7 +88,7 @@ class JavaRegistryExtractorProcessor : AbstractProcessor() {
 
         val grtPackagePrefix = extractedList.firstNotNullOfOrNull { it.grtPackagePrefix }
 
-        val descriptor = ResolverDescriptorFile(
+        val descriptor = PerSourceDescriptorFile(
             nodes = nodes,
             fields = fields,
             grtPackagePrefix = grtPackagePrefix,
