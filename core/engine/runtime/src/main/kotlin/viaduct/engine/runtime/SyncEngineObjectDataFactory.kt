@@ -2,7 +2,6 @@ package viaduct.engine.runtime
 
 import graphql.execution.ResultPath
 import graphql.schema.GraphQLObjectType
-import kotlin.coroutines.coroutineContext
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineSelectionSet
@@ -65,10 +64,8 @@ object SyncEngineObjectDataFactory {
      * Internal implementation that resolves selections from a non-null selection set.
      * Called from [resolve] for the top-level case and from [unwrap] for nested objects.
      *
-     * If a [ResolverInstrumentationContext] is present in the coroutine context, each selection
-     * is wrapped with [ViaductResolverInstrumentation.instrumentFetchSelection] for observability.
-     * This context is set by [viaduct.engine.runtime.instrumentation.resolver.InstrumentedFieldResolverDispatcher]
-     * when invoking sync value getters. Without it, selections resolve without instrumentation.
+     * If [instrumentationContext] is provided, each selection is wrapped with
+     * [ViaductResolverInstrumentation.instrumentFetchSelection] for observability.
      *
      * Batched awaitAll: cell slot [Value]s are collected non-suspendingly in a first pass, then
      * awaited together in a single [Value.waitAll] call. This collapses 2×N serial suspend-resume
@@ -88,7 +85,6 @@ object SyncEngineObjectDataFactory {
         instrumentationContext: ResolverInstrumentationContext? = null,
     ): SyncProxyEngineObjectData {
         val data = mutableMapOf<String, Any?>()
-        val instrumentationCtx = instrumentationContext ?: coroutineContext[ResolverInstrumentationContext]
 
         val projectedSelectionSet = selectionSet.selectionSetForType(objectEngineResult.type.name)
         val engineSelections = projectedSelectionSet.selections()
@@ -151,13 +147,13 @@ object SyncEngineObjectDataFactory {
         // for the Cell case.
         for (state in selectionStates) {
             val fieldChildSelections = selections?.selectionSetForSelection(objectEngineResult.type, state.selectionName)
-            data[state.selectionName] = if (instrumentationCtx != null) {
+            data[state.selectionName] = if (instrumentationContext != null) {
                 val params = ViaductResolverInstrumentation.InstrumentFetchSelectionParameters(
                     selection = state.selectionName,
                     parentTypeName = objectEngineResult.type.name,
                     resultPath = state.selectionPath
                 )
-                instrumentationCtx.instrumentation.instrumentFetchSelection(
+                instrumentationContext.instrumentation.instrumentFetchSelection(
                     FetchFunction {
                         unwrap(
                             state.cell,
@@ -168,10 +164,11 @@ object SyncEngineObjectDataFactory {
                             fieldChildSelections,
                             skipAccessCheck,
                             state.fieldDirectives,
+                            instrumentationContext,
                         )
                     },
                     params,
-                    instrumentationCtx.state
+                    instrumentationContext.state
                 ).fetch()
             } else {
                 unwrap(
@@ -183,6 +180,7 @@ object SyncEngineObjectDataFactory {
                     fieldChildSelections,
                     skipAccessCheck,
                     state.fieldDirectives,
+                    instrumentationContext,
                 )
             }
         }
@@ -220,6 +218,7 @@ object SyncEngineObjectDataFactory {
         childSelections: ObjectEngineResult.Selections? = null,
         skipAccessCheck: Boolean = false,
         fieldDirectives: FieldDirectives? = null,
+        instrumentationContext: ResolverInstrumentationContext? = null,
     ): Any? {
         return when (value) {
             null -> null
@@ -236,7 +235,8 @@ object SyncEngineObjectDataFactory {
                     isResolverSelective,
                     childSelections,
                     skipAccessCheck,
-                    fieldDirectives
+                    fieldDirectives,
+                    instrumentationContext,
                 )
                 if (v is Exception) return v // non-local return from unwrap
                 v
@@ -250,7 +250,7 @@ object SyncEngineObjectDataFactory {
                 val nestedSelections = requireNotNull(subselections) {
                     "Expected subselections for nested ObjectEngineResultImpl"
                 }
-                resolveImpl(value, errorMessage, nestedSelections, parentPath, isResolverSelective, childSelections, skipAccessCheck)
+                resolveImpl(value, errorMessage, nestedSelections, parentPath, isResolverSelective, childSelections, skipAccessCheck, instrumentationContext)
             }
 
             is FieldResolutionResult -> {
@@ -265,7 +265,8 @@ object SyncEngineObjectDataFactory {
                     isResolverSelective,
                     childSelections,
                     skipAccessCheck,
-                    fieldDirectives
+                    fieldDirectives,
+                    instrumentationContext,
                 )
             }
 
@@ -295,7 +296,8 @@ object SyncEngineObjectDataFactory {
                     isResolverSelective,
                     childSelections,
                     skipAccessCheck,
-                    fieldDirectives
+                    fieldDirectives,
+                    instrumentationContext,
                 )
             }
 

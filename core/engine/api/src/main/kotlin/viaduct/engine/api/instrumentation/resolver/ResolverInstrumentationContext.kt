@@ -1,17 +1,13 @@
 package viaduct.engine.api.instrumentation.resolver
 
-import kotlin.coroutines.AbstractCoroutineContextElement
-import kotlin.coroutines.CoroutineContext
-
 /**
- * Coroutine context element that carries resolver instrumentation through the suspend chain.
+ * Carries resolver instrumentation through fetch-selection materialization.
  *
- * This allows [viaduct.engine.runtime.SyncEngineObjectDataFactory] to access instrumentation
- * without requiring signature changes to the sync getter lambdas.
+ * Passed explicitly into [viaduct.engine.runtime.EngineObjectDataMaterializer.materialize] (and the
+ * runtime's selection-set materialization) so [viaduct.engine.runtime.SyncEngineObjectDataFactory]
+ * can fire per-selection instrumentation without smuggling state through the coroutine context.
  */
 class ResolverInstrumentationContext(
     val instrumentation: ViaductResolverInstrumentation,
     val state: ViaductResolverInstrumentation.InstrumentationState
-) : AbstractCoroutineContextElement(Key) {
-    companion object Key : CoroutineContext.Key<ResolverInstrumentationContext>
-}
+)

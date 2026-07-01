@@ -15,7 +15,6 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -76,6 +75,7 @@ class SyncEngineObjectDataFactoryTest {
         parentPath: ResultPath? = null,
         isResolverSelective: IsResolverSelective = IsResolverSelective.Never,
         selections: ObjectEngineResult.Selections? = null,
+        instrumentationContext: ResolverInstrumentationContext? = null,
     ): SyncProxyEngineObjectData {
         return SyncEngineObjectDataFactory.resolve(
             objectEngineResult = objectEngineResult,
@@ -84,6 +84,7 @@ class SyncEngineObjectDataFactoryTest {
             parentPath = parentPath,
             isResolverSelective = isResolverSelective,
             selections = selections,
+            instrumentationContext = instrumentationContext,
         )
     }
 
@@ -1041,9 +1042,7 @@ class SyncEngineObjectDataFactoryTest {
             }
 
             val ctx = ResolverInstrumentationContext(instrumentation, state)
-            val syncData = withContext(ctx) {
-                resolveSyncData(oer, "error", selectionSet)
-            }
+            val syncData = resolveSyncData(oer, "error", selectionSet, instrumentationContext = ctx)
 
             assertEquals(42, syncData.get("x"))
             assertEquals("hello", syncData.get("y"))
@@ -1097,9 +1096,7 @@ class SyncEngineObjectDataFactoryTest {
             }
 
             val ctx = ResolverInstrumentationContext(instrumentation, state)
-            val syncData = withContext(ctx) {
-                resolveSyncData(oer, "error", selectionSet)
-            }
+            val syncData = resolveSyncData(oer, "error", selectionSet, instrumentationContext = ctx)
 
             assertEquals("hello", syncData.get("stringField"))
             val nested = syncData.get("object2") as EngineObjectData.Sync
@@ -1132,9 +1129,7 @@ class SyncEngineObjectDataFactoryTest {
 
             val parentPath = ResultPath.parse("/query/user")
             val ctx = ResolverInstrumentationContext(instrumentation, state)
-            val syncData = withContext(ctx) {
-                resolveSyncData(oer, "error", selectionSet, parentPath = parentPath)
-            }
+            val syncData = resolveSyncData(oer, "error", selectionSet, parentPath = parentPath, instrumentationContext = ctx)
 
             assertEquals(42, syncData.get("x"))
             assertEquals("hello", syncData.get("y"))
@@ -1167,9 +1162,7 @@ class SyncEngineObjectDataFactoryTest {
             }
 
             val ctx = ResolverInstrumentationContext(instrumentation, state)
-            val syncData = withContext(ctx) {
-                resolveSyncData(oer, "error", selectionSet)
-            }
+            val syncData = resolveSyncData(oer, "error", selectionSet, instrumentationContext = ctx)
 
             assertEquals(42, syncData.get("x"))
             assertEquals(null, recordedPaths["x"], "resultPath should be null when no parentPath provided")
@@ -1210,9 +1203,7 @@ class SyncEngineObjectDataFactoryTest {
 
             val parentPath = ResultPath.parse("/query/user")
             val ctx = ResolverInstrumentationContext(instrumentation, state)
-            val syncData = withContext(ctx) {
-                resolveSyncData(oer, "error", selectionSet, parentPath = parentPath)
-            }
+            val syncData = resolveSyncData(oer, "error", selectionSet, parentPath = parentPath, instrumentationContext = ctx)
 
             assertEquals("hello", syncData.get("stringField"))
             val nested = syncData.get("object2") as EngineObjectData.Sync
@@ -1274,9 +1265,7 @@ class SyncEngineObjectDataFactoryTest {
 
             val parentPath = ResultPath.parse("/query/parent")
             val ctx = ResolverInstrumentationContext(instrumentation, state)
-            val syncData = withContext(ctx) {
-                resolveSyncData(outerOer, "error", selectionSet, parentPath = parentPath)
-            }
+            val syncData = resolveSyncData(outerOer, "error", selectionSet, parentPath = parentPath, instrumentationContext = ctx)
 
             val nested = syncData.get("object2") as EngineObjectData.Sync
             assertEquals("deep", nested.get("value"))
@@ -1385,9 +1374,7 @@ class SyncEngineObjectDataFactoryTest {
 
             val parentPath = ResultPath.parse("/query/root")
             val ctx = ResolverInstrumentationContext(instrumentation, state)
-            val syncData = withContext(ctx) {
-                resolveSyncData(o1Oer, "error", selectionSet, parentPath = parentPath)
-            }
+            val syncData = resolveSyncData(o1Oer, "error", selectionSet, parentPath = parentPath, instrumentationContext = ctx)
 
             // Verify values resolved correctly through the chain
             assertEquals("top", syncData.get("name"))
@@ -1569,9 +1556,7 @@ class SyncEngineObjectDataFactoryTest {
 
             val parentPath = ResultPath.parse("/query/root")
             val ctx = ResolverInstrumentationContext(instrumentation, state)
-            val syncData = withContext(ctx) {
-                resolveSyncData(oer, "error", selectionSet, parentPath = parentPath)
-            }
+            val syncData = resolveSyncData(oer, "error", selectionSet, parentPath = parentPath, instrumentationContext = ctx)
 
             // Verify data resolved correctly
             @Suppress("UNCHECKED_CAST")
