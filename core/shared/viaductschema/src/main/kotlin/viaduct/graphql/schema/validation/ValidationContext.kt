@@ -40,6 +40,10 @@ open class ValidationContext(val schema: ViaductSchema) {
      * Per-context memoization for rules that need to derive intermediate state from the schema once
      * per (rule, key) pair. Cache lifetime equals this context, so rules need not own a long-lived
      * cache nor worry about cross-schema reuse semantics.
+     *
+     * Not thread-safe. Assumes the sequential, single-threaded rule walk the framework performs
+     * today ([walkSchema]); if the walker is ever parallelized, callers must synchronize or the
+     * backing map must be replaced with a concurrent one.
      */
     @Suppress("UNCHECKED_CAST")
     fun <K : Any, V : Any> computeIfAbsent(

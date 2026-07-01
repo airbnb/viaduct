@@ -3,6 +3,7 @@ package viaduct.graphql.schema.validation.rules
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -596,5 +597,101 @@ class ScopeUsageRuleTest {
         val nonString = errors.first { it.code == ValidationErrorCodes.SCOPE_NAME_NOT_VALID_STRING }
         nonString.message shouldContain "Query"
         nonString.message shouldContain "non-string"
+    }
+
+    @Test
+    fun `A_6 framework star extension does not broaden the reference-sharing view`() {
+        // Regression for review feedback on #394: DefaultSchemaFactory injects
+        // `extend type Query @scope(to: ["*"])`. Without the .union carve-out, `"*"` bled into
+        // Query's aggregate scope view and `sharesScope` short-circuited true on any reference —
+        // so a narrowed `type Query @scope(to: ["public"])` silently passed A.6 on a reference
+        // into a differently-scoped type. With the carve-out, the star-only framework extension
+        // contributes nothing to the union and A.6 fires as intended.
+        val errors = validate(
+            """
+            type Query @scope(to: ["public"]) {
+                secret: Secret
+            }
+            extend type Query @scope(to: ["*"])
+            type Secret @scope(to: ["internal"]) { id: ID! }
+            """.trimIndent()
+        )
+        val codes = errors.map { it.code }
+        codes shouldContain ValidationErrorCodes.SCOPE_REFERENCE_NO_SHARED_SCOPE
+        val ref = errors.first { it.code == ValidationErrorCodes.SCOPE_REFERENCE_NO_SHARED_SCOPE }
+        ref.message shouldContain "Query"
+        ref.message shouldContain "Secret"
+    }
+
+    @Test
+    fun `A_6 base literal star with a narrowed extension is treated as sharing every scope`() {
+        // Case-B asymmetry pin: base `@scope(to: ["*"])` is the user's literal "all scopes" claim,
+        // so the carve-out (which is extensions-only) does not apply to the base entry. `"*"`
+        // stays in the union, and `sharesScope` short-circuits true on any reference — so an
+        // edge from Query into a `["internal"]`-scoped type is treated as sharing a scope and
+        // A.6 does not fire. A.7 also does not fire because the base already allows all.
+        val errors = validate(
+            """
+            type Query @scope(to: ["*"]) {
+                secret: Secret
+            }
+            extend type Query @scope(to: ["public"])
+            type Secret @scope(to: ["internal"]) { id: ID! }
+            """.trimIndent()
+        )
+        errors.map { it.code } shouldNotContain ValidationErrorCodes.SCOPE_REFERENCE_NO_SHARED_SCOPE
+        errors.map { it.code } shouldNotContain ValidationErrorCodes.SCOPE_EXTENSION_EXCEEDS_BASE
+    }
+
+    @Test
+    fun `A_6 star-only extension on a user type inherits the base, does not broaden`() {
+        // Same carve-out applied to a non-framework, user-authored type: a star-only extension
+        // on Widget contributes nothing to Widget's union, so a reference from a
+        // `["public"]`-scoped container to a `["internal"]`-scoped Widget still fires A.6.
+        val errors = validate(
+            """
+            type Query @scope(to: ["public"]) {
+                widget: Widget
+            }
+            type Widget @scope(to: ["internal"]) { id: ID! }
+            extend type Widget @scope(to: ["*"])
+            """.trimIndent()
+        )
+        errors.map { it.code } shouldContain ValidationErrorCodes.SCOPE_REFERENCE_NO_SHARED_SCOPE
+    }
+
+    @Test
+    fun `A_5 type with only a star-only extension is treated as having no @scope`() {
+        // Corner pin: base has no `@scope`; only star-only extensions carry the directive. With
+        // the extension-carve-out those extensions contribute nothing, so `.union` stays null
+        // and the type is treated as unscoped. A reference into it then fires A.5 rather than
+        // silently sharing every scope through the framework-injected `"*"`.
+        val errors = validate(
+            """
+            type Query @scope(to: ["public"]) {
+                widget: Widget
+            }
+            type Widget { id: ID! }
+            extend type Widget @scope(to: ["*"])
+            """.trimIndent()
+        )
+        errors.map { it.code } shouldContain ValidationErrorCodes.SCOPE_MISSING_ON_REFERENCED_TYPE
+    }
+
+    @Test
+    fun `A_6 framework Node base with narrowed Query still shares scope via wildcard`() {
+        // Sanity check on the extensions-only scope of the carve-out: framework injection of
+        // `interface Node @scope(to: ["*"])` puts `"*"` on the Node BASE, not on an extension —
+        // so it survives the carve-out. A narrowed `["public"]` Query can therefore reference
+        // Node without firing A.6.
+        val errors = validate(
+            """
+            type Query @scope(to: ["public"]) {
+                node(id: ID!): Node
+            }
+            interface Node @scope(to: ["*"]) { id: ID! }
+            """.trimIndent()
+        )
+        errors.map { it.code } shouldNotContain ValidationErrorCodes.SCOPE_REFERENCE_NO_SHARED_SCOPE
     }
 }

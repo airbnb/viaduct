@@ -375,6 +375,13 @@ class ScopeUsageRule(
             val all = mutableSetOf<String>()
             for (pe in perExtension) {
                 if (!pe.hasScopeDirective) continue
+                // Extension carrying only `@scope(to: ["*"])` inherits the base rather than
+                // declaring "all scopes." This mirrors the framework-injection contract used by
+                // A.7 (see `checkExtensionsSubsetOfBase`): star-only extensions do not broaden.
+                // The carve-out is extensions-only — a base with a literal `["*"]` is the user's
+                // universal claim and must still contribute `"*"` to the aggregate view so that
+                // `sharesScope` treats the type as sharing every scope.
+                if (!pe.ext.isBase && pe.rawScopes == STAR_ONLY) continue
                 anyDirective = true
                 for (s in pe.rawScopes) {
                     if (s == WILDCARD || s in validScopes) all.add(s)
