@@ -30,7 +30,8 @@ class ViaductSchemaValidator(private val logger: Logger, private val extensionsO
      */
     fun validateSchema(
         schemaFiles: Collection<File>,
-        excludeFromViaductValidation: Collection<File> = emptyList()
+        excludeFromViaductValidation: Collection<File> = emptyList(),
+        validScopes: Set<String>? = null
     ): List<GraphQLError> {
         logger.debug("Validating schema from: {}", schemaFiles.joinToString(",") { it.absolutePath })
 
@@ -40,7 +41,7 @@ class ViaductSchemaValidator(private val logger: Logger, private val extensionsO
             return syntaxErrors
         }
 
-        return performViaductValidation(schemaFiles, excludeFromViaductValidation)
+        return performViaductValidation(schemaFiles, excludeFromViaductValidation, validScopes)
     }
 
     private fun performSyntaxValidation(schemaFiles: Collection<File>): List<GraphQLError> {
@@ -97,7 +98,8 @@ class ViaductSchemaValidator(private val logger: Logger, private val extensionsO
 
     private fun performViaductValidation(
         schemaFiles: Collection<File>,
-        excludeFromViaductValidation: Collection<File> = emptyList()
+        excludeFromViaductValidation: Collection<File> = emptyList(),
+        validScopes: Set<String>? = null
     ): List<GraphQLError> {
         logger.debug("Running Viaduct-specific validation rules...")
 
@@ -105,7 +107,7 @@ class ViaductSchemaValidator(private val logger: Logger, private val extensionsO
         val allErrors = if (extensionsOnly) {
             SchemaExtensionsValidator.validate(schema)
         } else {
-            DefaultSchemaValidator(strictMode = true).validate(schema)
+            DefaultSchemaValidator(strictMode = true).create(validScopes).validate(schema)
         }
 
         if (allErrors.isEmpty()) {

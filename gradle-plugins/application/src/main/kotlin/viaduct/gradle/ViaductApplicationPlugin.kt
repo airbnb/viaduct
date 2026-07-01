@@ -16,6 +16,7 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.kotlin.dsl.register
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.createOrGetJavaCodegenClasspath
@@ -33,14 +34,14 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         with(project) {
             val topology = validateApplicationProjectPlacement()
 
-            extensions.create(
+            val appExt = extensions.create(
                 "viaductApplication",
                 ViaductApplicationExtension::class.java,
                 objects,
             )
 
             val viaductModules = setupViaductModulesConfiguration()
-            val assembleCentralSchemaTask = setupAssembleCentralSchemaTask(viaductModules)
+            val assembleCentralSchemaTask = setupAssembleCentralSchemaTask(viaductModules, appExt)
             setupValidateSchemaExtensionsTask()
             setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
             setupIncomingDependenciesFromTopology(topology, viaductModules)
@@ -133,7 +134,11 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         }
     }
 
-    private fun Project.setupAssembleCentralSchemaTask(viaductModules: Configuration): TaskProvider<AssembleCentralSchemaTask> {
+    @OptIn(ExperimentalApi::class)
+    private fun Project.setupAssembleCentralSchemaTask(
+        viaductModules: Configuration,
+        appExt: ViaductApplicationExtension,
+    ): TaskProvider<AssembleCentralSchemaTask> {
         val allPartitions = configurations.create(ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING).apply {
             description = "Resolvable configuration where all viaduct-module plugins send their schema partitions."
             isCanBeConsumed = false
@@ -160,6 +165,13 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             )
 
             outputDirectory.set(centralSchemaDirectory())
+
+            // Pipe the full SchemaScoping through the task input. Slice 3 only reads
+            // `schemaScoping.get().scopeUniverse` here, but the full shape is what downstream
+            // slices need on the same task surface (slice 5 reads `scopedSchemas` for
+            // materialization; slice 8 serializes both fields to the JSON manifest). Binding the
+            // full shape now avoids an in-flight task-input migration in a follow-up PR.
+            schemaScoping.set(appExt.schemaScoping)
         }
 
         return assembleCentralSchemaTask

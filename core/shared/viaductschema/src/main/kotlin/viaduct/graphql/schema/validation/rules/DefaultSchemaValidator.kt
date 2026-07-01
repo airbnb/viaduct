@@ -4,6 +4,7 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.validation.GraphQLBuiltIns
 import viaduct.graphql.schema.validation.SchemaValidationError
 import viaduct.graphql.schema.validation.SchemaValidator
+import viaduct.graphql.schema.validation.ValidationRule
 
 /**
  * Default schema validator with all standard Viaduct rules.
@@ -35,36 +36,51 @@ class DefaultSchemaValidator(strictMode: Boolean = false) {
     private val allowedScalarNames = GraphQLBuiltIns.SCALARS + GraphQLBuiltIns.VIADUCT_SCALARS
     private val modulePartitionPathPrefix = "partition/"
 
-    private val validator = SchemaValidator(
-        phases = listOf(
-            buildList {
-                add(NoSubscriptionsRule())
-                add(NoCustomScalarsRule(allowedScalarNames))
-                add(ApplicationOnlyDefinitionsRule(modulePartitionPathPrefix))
-                add(BackingDataFieldsRule())
-                add(IdOfTypeValidationRule())
-                add(NamespaceTypeConstraintsRule())
-                add(ParentFieldConstraintsRule())
-                add(FieldArgumentsRequireResolverRule())
-                add(ConnectionTypeStructureRule())
-                add(ConnectionEdgeStructureRule())
-                add(ConnectionPageInfoRule())
-                if (strictMode) add(StrictConnectionPageInfoRule())
-                add(ConnectionArgumentsNullabilityRule())
-                add(NoCrossModuleInputExtensionsRule(modulePartitionPathPrefix))
-                add(StructuralDirectivesOnBaseTypeRule())
-                add(CrossModuleExtensionFieldsResolverRule(modulePartitionPathPrefix))
-                add(NoResolverOnInterfaceFieldsRule())
-                add(PageInfoLocationRule(modulePartitionPathPrefix))
-                add(NodeInterfaceIdConsistencyRule())
-            }
-        )
-    )
+    private val standardRules: List<ValidationRule> = buildList {
+        add(NoSubscriptionsRule())
+        add(NoCustomScalarsRule(allowedScalarNames))
+        add(ApplicationOnlyDefinitionsRule(modulePartitionPathPrefix))
+        add(BackingDataFieldsRule())
+        add(IdOfTypeValidationRule())
+        add(NamespaceTypeConstraintsRule())
+        add(ParentFieldConstraintsRule())
+        add(FieldArgumentsRequireResolverRule())
+        add(ConnectionTypeStructureRule())
+        add(ConnectionEdgeStructureRule())
+        add(ConnectionPageInfoRule())
+        if (strictMode) add(StrictConnectionPageInfoRule())
+        add(ConnectionArgumentsNullabilityRule())
+        add(NoCrossModuleInputExtensionsRule(modulePartitionPathPrefix))
+        add(StructuralDirectivesOnBaseTypeRule())
+        add(CrossModuleExtensionFieldsResolverRule(modulePartitionPathPrefix))
+        add(NoResolverOnInterfaceFieldsRule())
+        add(PageInfoLocationRule(modulePartitionPathPrefix))
+        add(NodeInterfaceIdConsistencyRule())
+    }
+
+    private val validator = SchemaValidator(phases = listOf(standardRules))
 
     /**
      * Returns a [SchemaValidator] with all standard Viaduct validation rules.
      */
     fun create(): SchemaValidator = validator
+
+    /**
+     * Returns a [SchemaValidator] with all standard Viaduct validation rules and, when
+     * [validScopes] is non-empty, an additional [ScopeUsageRule] appended to the same phase that
+     * enforces schema-scoping directive correctness against the supplied scope universe.
+     *
+     * Callers should pass the universe configured via `viaductApplication { declareScoping { scopes(...) } }`
+     * (forwarded through `ViaductApplicationExtension.schemaScoping.scopeUniverse`). Passing `null`
+     * or an empty set yields the unscoped validator — the same instance returned by [create] —
+     * which preserves behavior for projects that have not opted into schema scoping.
+     */
+    fun create(validScopes: Set<String>?): SchemaValidator =
+        if (validScopes.isNullOrEmpty()) {
+            validator
+        } else {
+            SchemaValidator(phases = listOf(standardRules + ScopeUsageRule(validScopes)))
+        }
 
     /**
      * Validates a schema using all standard rules.

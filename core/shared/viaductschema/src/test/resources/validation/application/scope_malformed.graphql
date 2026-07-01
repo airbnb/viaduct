@@ -1,0 +1,3 @@
+directive @scope(to: [String!]!) repeatable on OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT | SCALAR
+
+type Query @scope(to: "public") { id: ID }

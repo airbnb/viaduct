@@ -34,6 +34,27 @@ open class ValidationContext(val schema: ViaductSchema) {
         _errors.add(SchemaValidationError(code, message, location, severity))
     }
 
+    private val ruleCaches = mutableMapOf<Pair<ValidationRule, Any>, Any?>()
+
+    /**
+     * Per-context memoization for rules that need to derive intermediate state from the schema once
+     * per (rule, key) pair. Cache lifetime equals this context, so rules need not own a long-lived
+     * cache nor worry about cross-schema reuse semantics.
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun <K : Any, V : Any> computeIfAbsent(
+        rule: ValidationRule,
+        key: K,
+        compute: (K) -> V
+    ): V {
+        val cacheKey = rule to key
+        val cached = ruleCaches[cacheKey]
+        if (cached != null) return cached as V
+        val v = compute(key)
+        ruleCaches[cacheKey] = v
+        return v
+    }
+
     /**
      * Walks the schema and invokes all rules at each node.
      */
