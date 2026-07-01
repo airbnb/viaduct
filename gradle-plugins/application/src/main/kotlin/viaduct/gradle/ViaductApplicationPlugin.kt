@@ -30,7 +30,11 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         with(project) {
             validateApplicationProjectPlacement()
 
-            extensions.create("viaductApplication", ViaductApplicationExtension::class.java, objects)
+            extensions.create(
+                "viaductApplication",
+                ViaductApplicationExtension::class.java,
+                objects,
+            )
 
             val assembleCentralSchemaTask = setupAssembleCentralSchemaTask()
             setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
