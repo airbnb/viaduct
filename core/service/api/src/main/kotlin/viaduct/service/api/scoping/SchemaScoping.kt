@@ -6,9 +6,9 @@ import viaduct.apiannotations.ExperimentalApi
 /**
  * Build-to-runtime contract describing the schema-scoping declarations of a Viaduct application.
  *
- * Emitted by the `viaduct-application` Gradle plugin from the application's `declaredSchemaScopes` /
- * `declaredScopedSchemas` DSL, and consumed at runtime when a Viaduct instance resolves which scoped
- * schemas to register. The canonical cross-process exchange format is the JSON manifest written
+ * Emitted by the `viaduct-application` Gradle plugin from the application's `declareScoping { ... }`
+ * DSL block, and consumed at runtime when a Viaduct instance resolves which scoped schemas to
+ * register. The canonical cross-process exchange format is the JSON manifest written
  * into the application JAR; the [Serializable] implementation supports in-process Gradle plumbing
  * (e.g. configuration-cache state) and is not the wire format for runtime consumption.
  *

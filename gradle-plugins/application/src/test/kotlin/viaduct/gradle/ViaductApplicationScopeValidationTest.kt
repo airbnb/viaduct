@@ -9,18 +9,16 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
 /**
- * End-to-end coverage of the schema-scoping configuration diagnostics, exercised through Gradle
- * TestKit so the user-facing failure surface (the text the developer sees in `gradle build` output)
- * is what the test asserts on. Pure unit coverage lives in `SchemaScopingValidatorTest`.
+ * Smoke coverage of the schema-scoping DSL integration through Gradle TestKit. The purpose here
+ * is to prove that the DSL wires end-to-end into a real Gradle build, not to re-cover every error
+ * code — per-code coverage lives in `ViaductApplicationExtensionTest` (extension DSL) and
+ * `SchemaScopingValidatorTest` (structural validator).
  *
- * The cases here intentionally stay narrow:
- * - one happy path under `--configuration-cache` (with `--configuration-cache-problems=fail`) to
- *   lock the `afterEvaluate` hook into being cache-safe without coupling the assertion to Gradle's
- *   internal log strings;
- * - one per-ID failure to confirm the setter-time path renders the offending id and code;
- * - one cross-property failure (also under `--configuration-cache`) that aggregates multiple
- *   findings into a single failure message — the failing-path counterpart to the happy-path
- *   cache check.
+ * The three cases below are the deliberately minimal set:
+ *   1. Happy path under `--configuration-cache` — proves the DSL state writer is cache-safe.
+ *   2. A representative per-call DSL failure — proves the error surfaces at the user's build
+ *      script line, with the error code visible in build output.
+ *   3. Cross-property aggregation — proves the multi-error message shape the developer will read.
  */
 class ViaductApplicationScopeValidationTest {
     @TempDir
@@ -57,11 +55,11 @@ class ViaductApplicationScopeValidationTest {
         File(projectDir, "build.gradle.kts").writeText(
             buildScript(
                 """
-                declaredSchemaScopes(setOf("public", "internal"))
-                declaredScopedSchemas(
-                    "PUBLIC_API" to setOf("public"),
-                    "INTERNAL_API" to setOf("public", "internal"),
-                )
+                declareScoping {
+                    scopes("public", "internal")
+                    scopedSchema("PUBLIC_API", "public")
+                    scopedSchema("INTERNAL_API", "public", "internal")
+                }
                 """.trimIndent()
             )
         )
@@ -79,7 +77,13 @@ class ViaductApplicationScopeValidationTest {
     fun `malformed scope id surfaces with code and offending id at the DSL line`() {
         writeSettings()
         File(projectDir, "build.gradle.kts").writeText(
-            buildScript("""declaredSchemaScopes(setOf("BAD-ID"))""")
+            buildScript(
+                """
+                declareScoping {
+                    scopes("BAD-ID")
+                }
+                """.trimIndent()
+            )
         )
 
         val result = GradleRunner.create()
@@ -100,11 +104,11 @@ class ViaductApplicationScopeValidationTest {
         File(projectDir, "build.gradle.kts").writeText(
             buildScript(
                 """
-                declaredSchemaScopes(setOf("public"))
-                declaredScopedSchemas(
-                    "Alpha" to setOf("missing_a"),
-                    "Beta" to setOf("missing_b"),
-                )
+                declareScoping {
+                    scopes("public")
+                    scopedSchema("Alpha", "missing_a")
+                    scopedSchema("Beta", "missing_b")
+                }
                 """.trimIndent()
             )
         )
@@ -112,10 +116,10 @@ class ViaductApplicationScopeValidationTest {
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
             .withPluginClasspath()
-            .withArguments("help", "--configuration-cache", "--configuration-cache-problems=fail")
+            .withArguments("help")
             .buildAndFail()
 
-        result.output shouldContain "viaductApplication scope configuration is invalid"
+        result.output shouldContain "viaductApplication declareScoping configuration is invalid"
         // Both findings appear in the same failure message.
         result.output shouldContain "[SCOPED_SCHEMA_UNKNOWN_SCOPE]"
         result.output shouldContain "'Alpha'"

@@ -21,6 +21,7 @@ dependencies {
     implementation(libs.idea.gradle.plugin)
 
     testImplementation(gradleTestKit())
+    testImplementation(libs.kotest.assertions.core.jvm)
 }
 
 // ProjectBuilder requires this open on Java 17+ (kotlin-dsl adds it automatically for plugin

@@ -17,12 +17,14 @@ data class SchemaScopingValidationError(
  * [SchemaScoping] so configuration-time and runtime consumers share the same rules. Has no
  * dependency on the Gradle API — callers are responsible for throwing the build-tool exception.
  *
- * The validator splits checks into two buckets that match the DSL's hybrid timing:
+ * The validator splits checks into two buckets:
  *
  * - **Per-ID syntax** ([validateScopeId], [validateSchemaId]) fires synchronously inside DSL
- *   setters. A failure points at the offending line in `build.gradle.kts`.
- * - **Cross-property invariants** ([validate]) fires in `afterEvaluate` after both DSL properties
- *   have settled, so the rules do not depend on the order of DSL calls.
+ *   methods (`scopes`, `scopedSchema`). A failure points at the offending line in
+ *   `build.gradle.kts`.
+ * - **Cross-property invariants** ([validate]) fires at the end of `declareScoping { ... }` from
+ *   `SchemaScopingBuilder.build()`, once both `scopes(...)` and `scopedSchema(...)` calls have
+ *   settled inside the single block.
  */
 @ExperimentalApi
 object SchemaScopingValidator {
@@ -78,8 +80,8 @@ object SchemaScopingValidator {
 
     /**
      * Returns the list of cross-property violations in [scoping] (empty when valid). Intended to
-     * run once at the end of configuration; the caller batches all findings into a single
-     * `GradleException`.
+     * run once at the end of the `declareScoping { ... }` block; the caller batches all findings
+     * into a single `GradleException`.
      */
     fun validate(scoping: SchemaScoping): List<SchemaScopingValidationError> {
         val errors = mutableListOf<SchemaScopingValidationError>()
@@ -87,9 +89,9 @@ object SchemaScopingValidator {
         if (!scoping.isScoped && scoping.scopedSchemas.isNotEmpty()) {
             errors += SchemaScopingValidationError(
                 code = ScopingErrorCodes.SCOPED_SCHEMAS_WITHOUT_UNIVERSE,
-                message = "declaredScopedSchemas declares ${scoping.scopedSchemas.size} entry/entries but " +
-                    "declaredSchemaScopes was not called. Declare the scope universe via declaredSchemaScopes, " +
-                    "or remove declaredScopedSchemas entirely.",
+                message = "declareScoping declares ${scoping.scopedSchemas.size} scopedSchema entry/entries but " +
+                    "scopes(...) was not called. Declare the scope universe via scopes(...), or remove the " +
+                    "scopedSchema entries entirely.",
             )
         }
 
@@ -102,7 +104,7 @@ object SchemaScopingValidator {
             if (unknown.isNotEmpty()) {
                 errors += SchemaScopingValidationError(
                     code = ScopingErrorCodes.SCOPED_SCHEMA_UNKNOWN_SCOPE,
-                    message = "Scoped schema '$id' references scope id(s) not in declaredSchemaScopes: " +
+                    message = "Scoped schema '$id' references scope id(s) not declared via scopes(...): " +
                         "$unknown. Declared scopes: ${scoping.scopeUniverse.sorted()}.",
                 )
             }

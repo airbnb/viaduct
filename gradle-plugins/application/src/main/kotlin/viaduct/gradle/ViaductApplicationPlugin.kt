@@ -4,7 +4,6 @@ import centralSchemaDirectory
 import grtClassesDirectory
 import javaGrtClassesDirectory
 import javaGrtSourcesDirectory
-import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.attributes.Category
@@ -16,8 +15,6 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.kotlin.dsl.register
-import viaduct.apiannotations.ExperimentalApi
-import viaduct.apiannotations.InternalApi
 import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.createOrGetJavaCodegenClasspath
@@ -27,33 +24,17 @@ import viaduct.gradle.ViaductPluginCommon.validateApplicationProjectPlacement
 import viaduct.gradle.task.AssembleCentralSchemaTask
 import viaduct.gradle.task.GenerateGRTClassFilesTask
 import viaduct.gradle.task.GenerateJavaGRTSourcesTask
-import viaduct.service.api.scoping.SchemaScopingValidator
 
 abstract class ViaductApplicationPlugin : Plugin<Project> {
-    @OptIn(ExperimentalApi::class, InternalApi::class)
     override fun apply(project: Project): Unit =
         with(project) {
             validateApplicationProjectPlacement()
 
-            val appExt = extensions.create(
+            extensions.create(
                 "viaductApplication",
                 ViaductApplicationExtension::class.java,
                 objects,
             )
-
-            // Cross-property DSL invariants run after all build-script configuration has settled so
-            // the rules do not depend on the order of declaredSchemaScopes / declaredScopedSchemas
-            // calls. Per-ID syntax errors already throw at the offending DSL line via the setters
-            // themselves.
-            afterEvaluate {
-                val errors = SchemaScopingValidator.validate(appExt.schemaScoping.get())
-                if (errors.isNotEmpty()) {
-                    throw GradleException(
-                        "viaductApplication scope configuration is invalid:\n" +
-                            errors.joinToString("\n") { "  - [${it.code}] ${it.message}" },
-                    )
-                }
-            }
 
             val assembleCentralSchemaTask = setupAssembleCentralSchemaTask()
             setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
