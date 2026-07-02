@@ -158,14 +158,19 @@ class RemoteResolverInitializer(private val config: RemoteResolverConfig) : Auto
         RemoteProxyResolverFactory(
             channel,
             callbackEndpoint,
-            shouldProxyNode = { config.remoteTypes.isEmpty() || it.typeName in config.remoteTypes }
+            shouldProxyNode = { config.remoteTypes.isEmpty() || it.typeName in config.remoteTypes },
+            // Fields are opt-in (empty = none); nodes default to all.
+            shouldProxyField = { config.remoteFields.isNotEmpty() && it.resolverId in config.remoteFields }
         )
 
     private fun logEnabled() {
         if (config.remoteTypes.isEmpty()) {
-            log.info("Remote resolver execution enabled for all types ({})", config.mode)
+            log.info("Remote resolver execution enabled for all node types ({})", config.mode)
         } else {
-            log.info("Remote resolver execution enabled for types {} ({})", config.remoteTypes, config.mode)
+            log.info("Remote resolver execution enabled for node types {} ({})", config.remoteTypes, config.mode)
+        }
+        if (config.remoteFields.isNotEmpty()) {
+            log.info("Remote resolver execution enabled for fields {} ({})", config.remoteFields, config.mode)
         }
     }
 

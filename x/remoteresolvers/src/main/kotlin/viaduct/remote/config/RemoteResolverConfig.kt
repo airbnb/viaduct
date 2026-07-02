@@ -24,6 +24,7 @@ data class RemoteResolverConfig(
     val enabled: Boolean,
     val mode: RemoteResolverMode = RemoteResolverMode.IN_PROCESS,
     val remoteTypes: Set<String>,
+    val remoteFields: Set<String> = emptySet(),
     val rrsServerName: String = DEFAULT_RRS_SERVER_NAME,
     val callbackEndpoint: String = DEFAULT_CALLBACK_ENDPOINT,
     val rrsHost: String = DEFAULT_RRS_HOST,
@@ -34,6 +35,7 @@ data class RemoteResolverConfig(
         const val ENV_ENABLED = "VIADUCT_REMOTE_RESOLVER_ENABLED"
         const val ENV_MODE = "VIADUCT_REMOTE_RESOLVER_MODE"
         const val ENV_TYPES = "VIADUCT_REMOTE_RESOLVER_TYPES"
+        const val ENV_FIELDS = "VIADUCT_REMOTE_RESOLVER_FIELDS"
         const val ENV_RRS_HOST = "VIADUCT_RRS_HOST"
         const val ENV_RRS_PORT = "VIADUCT_RRS_PORT"
         const val ENV_CALLBACK_PORT = "VIADUCT_RRS_CALLBACK_PORT"
@@ -49,6 +51,7 @@ data class RemoteResolverConfig(
                 enabled = parseEnabled(env.get(ENV_ENABLED)),
                 mode = parseMode(env.get(ENV_MODE)),
                 remoteTypes = parseTypes(env.get(ENV_TYPES)),
+                remoteFields = parseTypes(env.get(ENV_FIELDS)),
                 rrsHost = env.get(ENV_RRS_HOST) ?: DEFAULT_RRS_HOST,
                 rrsPort = env.get(ENV_RRS_PORT)?.toIntOrNull() ?: DEFAULT_RRS_PORT,
                 callbackPort = env.get(ENV_CALLBACK_PORT)?.toIntOrNull() ?: DEFAULT_CALLBACK_PORT,
