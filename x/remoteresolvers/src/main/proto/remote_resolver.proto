@@ -10,6 +10,9 @@ option java_outer_classname = "RemoteResolverProto";
 service RemoteResolverService {
   // Execute a batch of node resolver invocations
   rpc BatchResolveNode(BatchResolveNodeRequest) returns (BatchResolveNodeResponse);
+
+  // Execute a batch of field resolver invocations
+  rpc BatchResolveField(BatchResolveFieldRequest) returns (BatchResolveFieldResponse);
 }
 
 // Service for callbacks from resolver back to engine (RRS -> RRP)
@@ -62,6 +65,65 @@ message ResolvedNode {
   oneof result {
     // Success: Map<String, Any?> serialized as JSON
     bytes data_json = 2;
+
+    // Failure: error information
+    ErrorInfo error = 3;
+  }
+}
+
+// Request to resolve a batch of field-resolver invocations
+message BatchResolveFieldRequest {
+  // Identifier for the FieldResolverExecutor to invoke (the field coordinate, "Type.field")
+  string executor_id = 1;
+
+  // List of field selectors to resolve
+  repeated FieldSelector selectors = 2;
+
+  // Opaque handle to an EngineExecutionContext held by the sender; valid only for
+  // the duration of the request.
+  string context_handle = 3;
+
+  // Endpoint the remote service dials for re-entrant callbacks. Accepts either
+  // "host:port" (network) or an in-process channel name.
+  string callback_endpoint = 4;
+}
+
+// A single field invocation to resolve
+message FieldSelector {
+  // Sender-assigned key (batch index) used to correlate the response; FieldResolverExecutor
+  // selectors have no natural id of their own.
+  string selector_key = 1;
+
+  // Field arguments serialized as a JSON object (Map<String, Any?>).
+  bytes arguments_json = 2;
+
+  // Opaque handle to the EngineSelectionSet on the field (sub-selections), or empty when
+  // the field has no selections / the registry is not shared (network mode).
+  string selections_handle = 3;
+
+  // Eagerly-resolved required-selection-set object value (the parent object), as serialized
+  // EngineObjectData — an empty object when the resolver declares no object selection set.
+  bytes object_value_json = 4;
+
+  // Eagerly-resolved required-selection-set query value, as serialized EngineObjectData —
+  // an empty object when the resolver declares no query selection set.
+  bytes query_value_json = 5;
+}
+
+// Response containing resolved field values
+message BatchResolveFieldResponse {
+  // Results for each selector
+  repeated ResolvedField results = 1;
+}
+
+// Result for a single field resolution
+message ResolvedField {
+  // The selector_key this result corresponds to
+  string selector_key = 1;
+
+  oneof result {
+    // Success: the field value, JSON-enveloped ({"v": <value>}) so null/scalars round-trip.
+    bytes value_json = 2;
 
     // Failure: error information
     ErrorInfo error = 3;

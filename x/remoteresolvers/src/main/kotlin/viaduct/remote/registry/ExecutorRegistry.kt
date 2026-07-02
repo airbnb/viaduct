@@ -1,28 +1,28 @@
 package viaduct.remote.registry
 
 import java.util.concurrent.ConcurrentHashMap
-import viaduct.engine.api.spi.NodeResolverExecutor
 
 /**
- * Registry of [NodeResolverExecutor] instances keyed by GraphQL type name.
+ * In-process registry of resolver executors keyed by a stable, cross-JVM string id.
  *
- * Type names are stable across JVMs, so both the proxy (which registers at proxy
- * creation) and the remote service (which registers at tenant bootstrap) can use
- * them as a shared identifier.
+ * The id is stable across JVMs, so both the proxy (which registers when a resolver is
+ * wrapped at bootstrap) and the remote service (which registers at tenant bootstrap) can
+ * use it as a shared identifier. [NodeExecutorRegistry] and [FieldExecutorRegistry] are
+ * separate instances so the two keyspaces and value types never mix.
  */
-object ExecutorRegistry {
-    private val executors = ConcurrentHashMap<String, NodeResolverExecutor>()
+sealed class ExecutorRegistry<T>(private val idOf: (T) -> String) {
+    private val executors = ConcurrentHashMap<String, T>()
 
-    /** Registers an executor under its type name and returns that name as its handle. */
-    fun register(executor: NodeResolverExecutor): String {
-        val id = executor.typeName
+    /** Registers an [executor] under its stable id and returns that id as its handle. */
+    fun register(executor: T): String {
+        val id = idOf(executor)
         executors[id] = executor
         return id
     }
 
-    fun get(id: String): NodeResolverExecutor? = executors[id]
+    fun get(id: String): T? = executors[id]
 
-    fun unregister(id: String): NodeResolverExecutor? = executors.remove(id)
+    fun unregister(id: String): T? = executors.remove(id)
 
     /** Clears all entries. Intended for tests. */
     fun clear() = executors.clear()

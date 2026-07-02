@@ -22,6 +22,9 @@ object SelectionsRegistry {
 
     fun unregister(handle: String): EngineSelectionSet? = selections.remove(handle)
 
+    /** Number of live handles. Intended for tests, e.g. to assert no handles leaked. */
+    val size: Int get() = selections.size
+
     /** Clears all entries. Intended for tests. */
     fun clear() = selections.clear()
 }

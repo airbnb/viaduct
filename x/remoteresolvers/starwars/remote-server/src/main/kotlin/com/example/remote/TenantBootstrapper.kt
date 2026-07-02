@@ -8,14 +8,14 @@ import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import viaduct.engine.BootstrapperFactory
 import viaduct.engine.SchemaFactory
-import viaduct.remote.registry.ExecutorRegistry
+import viaduct.remote.registry.NodeExecutorRegistry
 import viaduct.remote.registry.SchemaRegistry
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 
 /**
  * Builds node-resolver executors from the tenant-module manifests on the classpath
- * (`META-INF/viaduct/modules/<pkg>.json`) and registers them in [ExecutorRegistry], so the remote
+ * (`META-INF/viaduct/modules/<pkg>.json`) and registers them in [NodeExecutorRegistry], so the remote
  * gRPC service can dispatch resolves by type name. This is the RFC-249 file-based bootstrap pattern:
  * executor wiring comes from the manifest entries, not from parsing SDL — so no full `Viaduct`
  * engine instance is needed just to enumerate resolvers.
@@ -43,7 +43,7 @@ class TenantBootstrapper(private val tenantCodeInjector: CodeInjector) {
         }
 
         nodeExecutors.forEach { (typeName, executor) ->
-            ExecutorRegistry.register(executor)
+            NodeExecutorRegistry.register(executor)
             log.info("Registered node resolver for type: {}", typeName)
         }
 

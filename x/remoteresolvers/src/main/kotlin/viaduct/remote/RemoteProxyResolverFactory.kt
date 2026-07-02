@@ -5,7 +5,7 @@ import java.time.Duration
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.ProxyResolverFactory
-import viaduct.remote.registry.ExecutorRegistry
+import viaduct.remote.registry.NodeExecutorRegistry
 
 /**
  * [ProxyResolverFactory] that wraps node resolvers with a gRPC proxy
@@ -31,7 +31,7 @@ class RemoteProxyResolverFactory(
 ) : ProxyResolverFactory {
     override fun proxyNode(executor: NodeResolverExecutor): NodeResolverExecutor? {
         if (!shouldProxyNode(executor)) return null
-        val executorId = ExecutorRegistry.register(executor)
+        val executorId = NodeExecutorRegistry.register(executor)
         return RemoteNodeProxyExecutor(
             originalExecutor = executor,
             executorId = executorId,

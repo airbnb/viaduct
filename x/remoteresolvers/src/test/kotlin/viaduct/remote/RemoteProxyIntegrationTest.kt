@@ -15,7 +15,7 @@ import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.remote.fixtures.SimpleNodeResolverExecutor
 import viaduct.remote.registry.ContextRegistry
-import viaduct.remote.registry.ExecutorRegistry
+import viaduct.remote.registry.NodeExecutorRegistry
 import viaduct.remote.registry.SelectionsRegistry
 
 /**
@@ -150,7 +150,7 @@ class RemoteProxyIntegrationTest {
     fun `test end-to-end gRPC remote resolver flow`() =
         runBlocking {
             // Clean up registries before test
-            ExecutorRegistry.clear()
+            NodeExecutorRegistry.clear()
             ContextRegistry.clear()
             SelectionsRegistry.clear()
 
@@ -178,8 +178,8 @@ class RemoteProxyIntegrationTest {
                 .start()
 
             try {
-                // 4. Setup: Register the actual resolver in ExecutorRegistry (simulating service discovery)
-                val executorId = ExecutorRegistry.register(actualResolver)
+                // 4. Setup: Register the actual resolver in NodeExecutorRegistry (simulating service discovery)
+                val executorId = NodeExecutorRegistry.register(actualResolver)
 
                 // 5. Setup: Create gRPC channel to RRS
                 val rrsChannel = io.grpc.inprocess.InProcessChannelBuilder
@@ -250,7 +250,7 @@ class RemoteProxyIntegrationTest {
                 // Cleanup
                 rrsServer.shutdown()
                 callbackServer.shutdown()
-                ExecutorRegistry.clear()
+                NodeExecutorRegistry.clear()
                 ContextRegistry.clear()
                 SelectionsRegistry.clear()
             }
@@ -260,7 +260,7 @@ class RemoteProxyIntegrationTest {
     fun `test callback flow with re-entrant calls`() =
         runBlocking {
             // Clean up registries before test
-            ExecutorRegistry.clear()
+            NodeExecutorRegistry.clear()
             ContextRegistry.clear()
             SelectionsRegistry.clear()
 
@@ -292,9 +292,9 @@ class RemoteProxyIntegrationTest {
                 .start()
 
             try {
-                // 5. Setup: Register both resolvers in ExecutorRegistry
-                val postExecutorId = ExecutorRegistry.register(postResolver)
-                ExecutorRegistry.register(userResolver)
+                // 5. Setup: Register both resolvers in NodeExecutorRegistry
+                val postExecutorId = NodeExecutorRegistry.register(postResolver)
+                NodeExecutorRegistry.register(userResolver)
 
                 // 6. Setup: Create gRPC channel to RRS
                 val rrsChannel = InProcessChannelBuilder
@@ -354,7 +354,7 @@ class RemoteProxyIntegrationTest {
                 // Cleanup
                 rrsServer.shutdown()
                 callbackServer.shutdown()
-                ExecutorRegistry.clear()
+                NodeExecutorRegistry.clear()
                 ContextRegistry.clear()
                 SelectionsRegistry.clear()
             }
