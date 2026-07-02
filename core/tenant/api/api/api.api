@@ -34,6 +34,7 @@ public abstract interface class viaduct/api/context/MutationFieldExecutionContex
 
 public final class viaduct/api/context/MutationFieldExecutionContext$DefaultImpls {
 	public static synthetic fun mutation$default (Lviaduct/api/context/MutationFieldExecutionContext;Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static synthetic fun mutation$default (Lviaduct/api/context/MutationFieldExecutionContext;Lviaduct/api/documents/MutationFromAnnotation;Ljava/util/Map;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
 public abstract interface class viaduct/api/context/NodeExecutionContext : viaduct/api/context/ResolverExecutionContext {
@@ -49,6 +50,7 @@ public abstract interface class viaduct/api/context/ResolverExecutionContext : v
 
 public final class viaduct/api/context/ResolverExecutionContext$DefaultImpls {
 	public static synthetic fun query$default (Lviaduct/api/context/ResolverExecutionContext;Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static synthetic fun query$default (Lviaduct/api/context/ResolverExecutionContext;Lviaduct/api/documents/QueryFromAnnotation;Ljava/util/Map;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static synthetic fun selectionsFor$default (Lviaduct/api/context/ResolverExecutionContext;Lviaduct/api/reflect/Type;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lviaduct/api/select/SelectionSet;
 }
 

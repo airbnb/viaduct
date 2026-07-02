@@ -1,5 +1,6 @@
 package viaduct.api.context
 
+import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.documents.Selections
 import viaduct.api.globalid.GlobalID
 import viaduct.api.reflect.RootObjectField
@@ -31,6 +32,25 @@ interface ResolverExecutionContext<Q : QueryType> : ExecutionContext {
      */
     suspend fun query(
         selections: @Selections String,
+        variables: Map<String, Any?> = emptyMap()
+    ): Q
+
+    /**
+     * Loads the operation declared by a [@GraphQLOperation][viaduct.api.documents.GraphQLOperation]
+     * query object on the root Query type, and returns the response typed as [Q].
+     *
+     * Example usage:
+     * ```
+     * val result = ctx.query(GetUserQuery)
+     * ```
+     *
+     * @param operation The query operation object declaring the operation document
+     * @param variables Optional variables to use in the operation
+     * @return The query result typed as [Q]
+     */
+    @ExperimentalApi
+    suspend fun query(
+        operation: QueryFromAnnotation,
         variables: Map<String, Any?> = emptyMap()
     ): Q
 

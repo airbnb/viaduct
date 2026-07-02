@@ -1,5 +1,7 @@
 package viaduct.tenant.runtime.bootstrap
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import graphql.language.FragmentDefinition
 import kotlin.reflect.KClass
 import kotlin.reflect.full.declaredMemberFunctions
 import viaduct.api.NodeResolverBase
@@ -16,6 +18,7 @@ import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.RequiredSelectionSetSupport
 import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
+import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -34,7 +37,7 @@ import viaduct.utils.slf4j.logger
 class ViaductModernExecutorFactory(
     private val codeInjector: CodeInjector,
     private val grtPackagePrefix: String,
-    @Suppress("UNUSED_PARAMETER") configSource: InputStreamSource,
+    private val configSource: InputStreamSource,
 ) : ExecutorFactory {
     /** Production constructor — GRT package sourced from the compile-time constant. */
     constructor(codeInjector: CodeInjector, configSource: InputStreamSource) : this(codeInjector, GRT_PACKAGE_PREFIX, configSource)
@@ -46,6 +49,14 @@ class ViaductModernExecutorFactory(
     }
 
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory(reflectionLoader)
+
+    private val namedFragments: Map<String, FragmentDefinition> by lazy {
+        val root = configSource.openStream().use { objectMapper.readTree(it) }
+        root.path("namedFragments")
+            .mapNotNull { it.takeIf { node -> node.isTextual }?.asText() }
+            .flatMap { CachedDocumentParser.parseDocument(it).getDefinitionsOfType(FragmentDefinition::class.java) }
+            .associateBy { it.name }
+    }
 
     @Suppress("UNCHECKED_CAST")
     override fun createFieldResolverExecutor(
@@ -68,6 +79,7 @@ class ViaductModernExecutorFactory(
             queryTypeName = apiData.queryTypeName,
             returnTypeName = apiData.returnTypeName,
             grtConvFactory = grtConvFactory,
+            knownFragments = namedFragments,
         )
 
         val resolverKClass = resolverClass.kotlin
@@ -131,6 +143,7 @@ class ViaductModernExecutorFactory(
             reflectionLoader = reflectionLoader,
             resultType = reflectiveType,
             grtConvFactory = grtConvFactory,
+            knownFragments = namedFragments,
         )
 
         val resolverKClass = resolverClass.kotlin
@@ -209,5 +222,6 @@ class ViaductModernExecutorFactory(
 
     companion object {
         private val log by logger()
+        private val objectMapper = jacksonObjectMapper()
     }
 }

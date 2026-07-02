@@ -3,6 +3,7 @@ package viaduct.tenant.runtime.context
 import kotlin.reflect.KClass
 import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.SelectiveFieldExecutionContext
+import viaduct.api.documents.MutationFromAnnotation
 import viaduct.api.internal.InternalContext
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
@@ -45,14 +46,18 @@ class MutationFieldExecutionContextImpl<Q : Query, M : Mutation>(
     ) {
     override fun selections(): SelectionSet<CompositeOutput> = selectionSet()
 
-    @Suppress("UNCHECKED_CAST")
     override suspend fun mutation(
         selections: String,
         variables: Map<String, Any?>
-    ): M {
-        val mutationType = reflectionLoader.reflectionFor(schema.schema.mutationType.name) as Type<M>
-        return mutation(selectionsFor(mutationType, selections, variables))
-    }
+    ): M = mutation(selectionsFor(mutationType(), selections, variables))
+
+    override suspend fun mutation(
+        operation: MutationFromAnnotation,
+        variables: Map<String, Any?>
+    ): M = mutation(engineExecutionContextWrapper.selectionsForOperation(mutationType(), operation.operationText, variables))
+
+    @Suppress("UNCHECKED_CAST")
+    private fun mutationType(): Type<M> = reflectionLoader.reflectionFor(schema.schema.mutationType.name) as Type<M>
 
     private suspend fun <T : Mutation> mutation(selections: SelectionSet<T>) = engineExecutionContextWrapper.mutation(this, selections)
 }

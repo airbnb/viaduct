@@ -1,5 +1,6 @@
 package viaduct.tenant.runtime.context.factory
 
+import graphql.language.FragmentDefinition
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLTypeUtil
 import java.util.Locale.getDefault
@@ -87,6 +88,7 @@ class NodeExecutionContextFactory(
     private val reflectionLoader: ReflectionLoader,
     resultType: Type<NodeObject>,
     private val grtConvFactory: GRTConvFactory,
+    private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
 ) : ResolverExecutionContextFactoryBase<NodeObject>(
         resolverBaseClass,
         NodeExecutionContext::class.java,
@@ -101,7 +103,7 @@ class NodeExecutionContextFactory(
         val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, engineExecutionContext.globalIDCodec, reflectionLoader, grtConvFactory)
         val wrappedContext = NodeExecutionContextImpl(
             internalContext,
-            EngineExecutionContextWrapperImpl(engineExecutionContext),
+            EngineExecutionContextWrapperImpl(engineExecutionContext, knownFragments),
             this.toSelectionSet(selections),
             requestContext,
             internalContext.deserializeGlobalID(id)
@@ -133,6 +135,7 @@ class FieldExecutionContextFactory internal constructor(
     private val grtConvFactory: GRTConvFactory,
     private val graphqlTypeName: String? = null,
     private val graphqlFieldName: String? = null,
+    private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
 ) : VariablesProviderContextFactory,
     ResolverExecutionContextFactoryBase<CompositeOutput>(
         resolverBaseClass,
@@ -149,7 +152,7 @@ class FieldExecutionContextFactory internal constructor(
         syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)? = null,
     ): BaseFieldExecutionContext<*, *, *> {
         val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, engineExecutionContext.globalIDCodec, reflectionLoader, grtConvFactory)
-        val engineExecutionContextWrapper = EngineExecutionContextWrapperImpl(engineExecutionContext)
+        val engineExecutionContextWrapper = EngineExecutionContextWrapperImpl(engineExecutionContext, knownFragments)
 
         val wrappedContext = when (expectedContextInterface) {
             ConnectionFieldExecutionContext::class.java -> ConnectionFieldExecutionContextImpl(
@@ -218,6 +221,7 @@ class FieldExecutionContextFactory internal constructor(
             queryTypeName: String,
             returnTypeName: String?,
             grtConvFactory: GRTConvFactory,
+            knownFragments: Map<String, FragmentDefinition> = emptyMap(),
         ): FieldExecutionContextFactory {
             val expectedContextInterface = resolveExpectedContextInterface(resolverBaseClass)
             val queryCls = reflectionLoader.reflectionFor(queryTypeName).kcls as KClass<Query>
@@ -245,6 +249,7 @@ class FieldExecutionContextFactory internal constructor(
                 grtConvFactory,
                 graphqlTypeName = typeName,
                 graphqlFieldName = fieldName,
+                knownFragments = knownFragments,
             )
         }
 
@@ -264,6 +269,7 @@ class FieldExecutionContextFactory internal constructor(
             typeName: String,
             fieldName: String,
             grtConvFactory: GRTConvFactory,
+            knownFragments: Map<String, FragmentDefinition> = emptyMap(),
         ): FieldExecutionContextFactory {
             val fieldDef = schema.schema.getObjectType(typeName)?.getFieldDefinition(fieldName)
                 ?: throw IllegalArgumentException("Called on a missing field coordinate ($typeName.$fieldName).")
@@ -290,6 +296,7 @@ class FieldExecutionContextFactory internal constructor(
                 grtConvFactory,
                 graphqlTypeName = typeName,
                 graphqlFieldName = fieldName,
+                knownFragments = knownFragments,
             )
         }
 

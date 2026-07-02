@@ -83,6 +83,12 @@ abstract class ContextTestBase {
                 variables: Map<String, Any?>
             ): SelectionSet<T> = realWrapper.selectionsFor(type, selections, variables)
 
+            override fun <T : CompositeOutput> selectionsForOperation(
+                type: Type<T>,
+                operationText: String,
+                variables: Map<String, Any?>
+            ): SelectionSet<T> = realWrapper.selectionsForOperation(type, operationText, variables)
+
             override fun <A : Arguments, BR : Object> rootFieldRef(
                 ctx: InternalContext,
                 field: RootObjectField<*, BR, A>,

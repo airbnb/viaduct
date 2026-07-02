@@ -133,6 +133,7 @@ class ViaductTenantModuleBootstrapper(
                 typeName = typeName,
                 fieldName = fieldName,
                 grtConvFactory = grtConvFactory,
+                knownFragments = namedFragments,
             )
 
             val (objectSelectionSet, querySelectionSet) = requiredSelectionSetFactory.createRequiredSelectionSets(
@@ -263,7 +264,7 @@ class ViaductTenantModuleBootstrapper(
             @Suppress("UNCHECKED_CAST")
             val reflectiveType = reflectionLoader.reflectionFor(typeName) as Type<NodeObject>
             val resolverContextFactory: NodeExecutionContextFactory =
-                NodeExecutionContextFactory(baseClass, reflectionLoader, reflectiveType, grtConvFactory)
+                NodeExecutionContextFactory(baseClass, reflectionLoader, reflectiveType, grtConvFactory, namedFragments)
 
             val resolverClasses = allSubclasses.filter { it.isAnnotationPresent(Resolver::class.java) }
             if (resolverClasses.isEmpty()) {

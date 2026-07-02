@@ -1,6 +1,7 @@
 package viaduct.tenant.runtime.context
 
 import viaduct.api.context.ResolverExecutionContext
+import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InternalContext
 import viaduct.api.reflect.RootObjectField
@@ -17,14 +18,18 @@ sealed class ResolverExecutionContextImpl<Q : Query>(
     baseData: InternalContext,
     protected val engineExecutionContextWrapper: EngineExecutionContextWrapper,
 ) : ResolverExecutionContext<Q>, ExecutionContextImpl(baseData) {
-    @Suppress("UNCHECKED_CAST")
     override suspend fun query(
         selections: String,
         variables: Map<String, Any?>
-    ): Q {
-        val queryType = reflectionLoader.reflectionFor(schema.schema.queryType.name) as Type<Q>
-        return query(selectionsFor(queryType, selections, variables))
-    }
+    ): Q = query(selectionsFor(queryType(), selections, variables))
+
+    override suspend fun query(
+        operation: QueryFromAnnotation,
+        variables: Map<String, Any?>
+    ): Q = query(engineExecutionContextWrapper.selectionsForOperation(queryType(), operation.operationText, variables))
+
+    @Suppress("UNCHECKED_CAST")
+    private fun queryType(): Type<Q> = reflectionLoader.reflectionFor(schema.schema.queryType.name) as Type<Q>
 
     private suspend fun <T : Query> query(selections: SelectionSet<T>) = engineExecutionContextWrapper.query(this, selections)
 

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.context.ConnectionFieldExecutionContext
 import viaduct.api.context.SelectiveFieldExecutionContext
+import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.globalid.GlobalID
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.reflect.RootObjectField
@@ -127,6 +128,12 @@ class ConnectionBuilderTest {
 
         override suspend fun query(
             selections: String,
+            variables: Map<String, Any?>
+        ): Query = throw NotImplementedError("Not needed for tests")
+
+        @ExperimentalApi
+        override suspend fun query(
+            operation: QueryFromAnnotation,
             variables: Map<String, Any?>
         ): Query = throw NotImplementedError("Not needed for tests")
 

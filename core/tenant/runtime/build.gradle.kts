@@ -39,6 +39,8 @@ tasks.named("check").configure {
 dependencies {
     implementation(libs.caffeine)
     implementation(libs.graphql.java)
+    implementation(libs.jackson.databind)
+    implementation(libs.jackson.module)
     implementation(libs.guice)
     implementation(libs.javax.inject)
     implementation(libs.viaduct.tenant.api)

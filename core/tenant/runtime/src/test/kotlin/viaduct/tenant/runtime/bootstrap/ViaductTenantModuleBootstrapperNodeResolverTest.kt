@@ -94,6 +94,7 @@ class ViaductTenantModuleBootstrapperNodeResolverTest {
             }
             every { tenantModuleMetadata() } returns TenantModuleMetadata.EMPTY
             every { resolverClassesInPackage() } returns emptySet()
+            every { namedFragmentClassesInPackage() } returns emptySet()
         }
         return ViaductTenantModuleBootstrapper(
             codeInjector = CodeInjector.Naive,

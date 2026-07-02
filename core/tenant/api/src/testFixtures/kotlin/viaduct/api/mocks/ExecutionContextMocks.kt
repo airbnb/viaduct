@@ -10,6 +10,8 @@ import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.ResolverExecutionContext
 import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.context.SelectiveNodeExecutionContext
+import viaduct.api.documents.MutationFromAnnotation
+import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.internal.GRTConvFactory
@@ -222,6 +224,14 @@ open class MockResolverExecutionContext<Q : Query>(
         return query(selectionSet) as Q
     }
 
+    @ExperimentalApi
+    override suspend fun query(
+        operation: QueryFromAnnotation,
+        variables: Map<String, Any?>
+    ): Q {
+        throw UnsupportedOperationException("query(QueryFromAnnotation) is not supported in mock contexts.")
+    }
+
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
     override fun <T : NodeObject> nodeRef(globalID: GlobalID<T>): T {
         val id = globalIDCodec.serialize(globalID.type.name, globalID.internalID)
@@ -349,6 +359,14 @@ class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, 
     ): M {
         val mutationType = reflectionLoader.reflectionFor(schema.schema.mutationType.name) as Type<M>
         return mutation(selectionsFor(mutationType, selections, variables))
+    }
+
+    @ExperimentalApi
+    override suspend fun mutation(
+        operation: MutationFromAnnotation,
+        variables: Map<String, Any?>
+    ): M {
+        throw UnsupportedOperationException("mutation(MutationFromAnnotation) is not supported in mock contexts.")
     }
 }
 

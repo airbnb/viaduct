@@ -1,5 +1,6 @@
 package viaduct.tenant.runtime.context
 
+import graphql.language.FragmentDefinition
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.InternalContext
@@ -15,9 +16,12 @@ import viaduct.api.types.Query
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObject
 import viaduct.engine.api.ResolveSelectionSetOptions
+import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.errors.FrameworkException
 import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.handleFrameworkErrorsSuspend
+import viaduct.graphql.utils.ParsedSelections
+import viaduct.graphql.utils.SelectionsParserUtils
 import viaduct.tenant.runtime.TenantApiInputValueNormalizer.normalizeVariablesForEngine
 import viaduct.tenant.runtime.select.SelectionSetImpl
 import viaduct.tenant.runtime.toObjectGRT
@@ -52,6 +56,17 @@ interface EngineExecutionContextWrapper {
         variables: Map<String, Any?>
     ): SelectionSet<T>
 
+    /**
+     * Like [selectionsFor], but for a `@GraphQLOperation` document: the operation text is normalized
+     * into a self-contained fragment document (inlining reachable named fragments) before it is
+     * turned into a [SelectionSet]. Plain string [selectionsFor] does no such translation.
+     */
+    fun <T : CompositeOutput> selectionsForOperation(
+        type: Type<T>,
+        operationText: String,
+        variables: Map<String, Any?>
+    ): SelectionSet<T>
+
     fun <A : Arguments, BR : Object> rootFieldRef(
         ctx: InternalContext,
         field: RootObjectField<*, BR, A>,
@@ -61,6 +76,7 @@ interface EngineExecutionContextWrapper {
 
 class EngineExecutionContextWrapperImpl(
     override val engineExecutionContext: EngineExecutionContext,
+    private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
 ) : EngineExecutionContextWrapper {
     override suspend fun <T : Query> query(
         ctx: InternalContext,
@@ -103,6 +119,34 @@ class EngineExecutionContextWrapperImpl(
                 )
             )
         }
+
+    override fun <T : CompositeOutput> selectionsForOperation(
+        type: Type<T>,
+        operationText: String,
+        variables: Map<String, Any?>
+    ): SelectionSet<T> =
+        handleFrameworkErrors("selectionsForOperation") {
+            SelectionSetImpl(
+                type,
+                engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(
+                    parseSelfContained(type.name, operationText),
+                    normalizeVariablesForEngine(variables, engineExecutionContext.globalIDCodec)
+                )
+            )
+        }
+
+    /**
+     * Resolves an operation document into a self-contained [ParsedSelections]: normalize any form to
+     * a fragment document, then inline reachable [knownFragments] so no external spreads remain.
+     */
+    private fun parseSelfContained(
+        typeName: String,
+        selections: String
+    ): ParsedSelections {
+        val normalized = SelectionsParserUtils.normalizeToFragmentDocument(selections, typeName, CachedDocumentParser::parseDocument)
+        val selfContained = SelectionsParserUtils.inlineReachableFragments(normalized, knownFragments)
+        return ParsedSelections.fromDocument(typeName, selfContained)
+    }
 
     override fun <T : NodeObject> nodeRef(
         ctx: InternalContext,
