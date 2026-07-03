@@ -2,8 +2,6 @@ package viaduct.java.runtime.bridge
 
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ViaductSchema
-import viaduct.errors.FrameworkException
-import viaduct.errors.TenantUsageException
 import viaduct.java.api.context.VariablesProviderContext
 import viaduct.java.api.globalid.GlobalID
 import viaduct.java.api.internal.InternalContext
@@ -33,6 +31,8 @@ class SimpleVariablesProviderContext(
     private val engineExecutionContext: EngineExecutionContext? = null,
     private val classFinder: ResolverClassFinder? = null,
 ) : VariablesProviderContext<Arguments>, InternalContext {
+    private val delegate = JavaEngineContextDelegate(engineExecutionContext, classFinder)
+
     override fun getArguments(): Arguments = arguments ?: Arguments.NoArguments
 
     override fun getRequestContext(): Any? = requestContext
@@ -40,43 +40,17 @@ class SimpleVariablesProviderContext(
     override fun <T : NodeCompositeOutput> globalIDFor(
         type: Type<T>,
         internalID: String
-    ): GlobalID<T> {
-        val codec = engineExecutionContext?.globalIDCodec
-            ?: throw FrameworkException("globalIDFor requires engineExecutionContext.")
-        return codec.createGlobalID(type, internalID)
-    }
+    ): GlobalID<T> = delegate.globalIDFor(type, internalID)
 
-    override fun <T : NodeCompositeOutput> serialize(globalID: GlobalID<T>): String {
-        val codec = engineExecutionContext?.globalIDCodec
-            ?: throw FrameworkException("serialize requires engineExecutionContext.")
-        return codec.serializeGlobalID(globalID)
-    }
+    override fun <T : NodeCompositeOutput> serialize(globalID: GlobalID<T>): String = delegate.serialize(globalID)
 
-    // ── InternalContext implementation ──
+    // ── InternalContext implementation (delegated to JavaEngineContextDelegate) ──
 
-    override fun getSchema(): ViaductSchema {
-        return engineExecutionContext?.fullSchema
-            ?: throw FrameworkException("getSchema() requires engineExecutionContext.")
-    }
+    override fun getSchema(): ViaductSchema = delegate.getSchema()
 
-    override fun getGlobalIDCodec(): GlobalIDCodec {
-        return engineExecutionContext?.globalIDCodec
-            ?: throw FrameworkException("getGlobalIDCodec() requires engineExecutionContext.")
-    }
+    override fun getGlobalIDCodec(): GlobalIDCodec = delegate.getGlobalIDCodec()
 
-    override fun getClassFinder(): ResolverClassFinder {
-        return classFinder
-            ?: throw FrameworkException("getClassFinder() requires classFinder.")
-    }
+    override fun getClassFinder(): ResolverClassFinder = delegate.getClassFinder()
 
-    override fun <T : NodeCompositeOutput> deserializeGlobalID(serialized: String): GlobalID<T> {
-        val codec = engineExecutionContext?.globalIDCodec
-            ?: throw FrameworkException("deserializeGlobalID requires engineExecutionContext.")
-        val (typeName, internalId) = try {
-            codec.deserialize(serialized)
-        } catch (e: IllegalArgumentException) {
-            throw TenantUsageException("Invalid GlobalID: \"$serialized\"", e)
-        }
-        return GlobalIDImpl(type = typeFromName(typeName), internalId = internalId)
-    }
+    override fun <T : NodeCompositeOutput> deserializeGlobalID(serialized: String): GlobalID<T> = delegate.deserializeGlobalID(serialized)
 }

@@ -2,15 +2,10 @@ package viaduct.java.runtime.bridge
 
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.future.future
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.NodeReference
-import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
-import viaduct.errors.TenantUsageException
 import viaduct.errors.handleFrameworkErrors
-import viaduct.errors.handleFrameworkErrorsSuspend
 import viaduct.java.api.context.NodeExecutionContext
 import viaduct.java.api.context.SelectiveNodeExecutionContext
 import viaduct.java.api.globalid.GlobalID
@@ -53,6 +48,8 @@ class SimpleNodeExecutionContext(
     SelectiveNodeExecutionContext<NodeObject>,
     NodeResolverBase.Context<NodeObject>,
     InternalContext {
+    private val delegate = JavaEngineContextDelegate(engineExecutionContext, classFinder, coroutineScope)
+
     override fun getId(): GlobalID<NodeObject> {
         val codec = engineExecutionContext?.globalIDCodec
             ?: throw FrameworkException("getId requires engineExecutionContext.")
@@ -62,134 +59,47 @@ class SimpleNodeExecutionContext(
 
     override fun getRequestContext(): Any? = requestContext
 
-    // ── InternalContext implementation ──
+    // ── InternalContext implementation (delegated to JavaEngineContextDelegate) ──
 
-    override fun getSchema(): ViaductSchema {
-        return engineExecutionContext?.fullSchema
-            ?: throw FrameworkException("getSchema() requires engineExecutionContext.")
-    }
+    override fun getSchema(): ViaductSchema = delegate.getSchema()
 
-    override fun getGlobalIDCodec(): GlobalIDCodec {
-        return engineExecutionContext?.globalIDCodec
-            ?: throw FrameworkException("getGlobalIDCodec() requires engineExecutionContext.")
-    }
+    override fun getGlobalIDCodec(): GlobalIDCodec = delegate.getGlobalIDCodec()
 
-    override fun getClassFinder(): ResolverClassFinder {
-        return classFinder
-            ?: throw FrameworkException("getClassFinder() requires classFinder.")
-    }
+    override fun getClassFinder(): ResolverClassFinder = delegate.getClassFinder()
 
-    override fun <T : NodeCompositeOutput> deserializeGlobalID(serialized: String): GlobalID<T> {
-        val codec = engineExecutionContext?.globalIDCodec
-            ?: throw FrameworkException("deserializeGlobalID requires engineExecutionContext.")
-        val (typeName, internalId) = try {
-            codec.deserialize(serialized)
-        } catch (e: IllegalArgumentException) {
-            throw TenantUsageException("Invalid GlobalID: \"$serialized\"", e)
-        }
-        return GlobalIDImpl(type = typeFromName(typeName), internalId = internalId)
-    }
+    override fun <T : NodeCompositeOutput> deserializeGlobalID(serialized: String): GlobalID<T> = delegate.deserializeGlobalID(serialized)
 
     override fun <T : NodeCompositeOutput> globalIDFor(
         type: Type<T>,
         internalID: String
-    ): GlobalID<T> {
-        val codec = engineExecutionContext?.globalIDCodec
-            ?: throw FrameworkException("globalIDFor requires engineExecutionContext.")
-        return codec.createGlobalID(type, internalID)
-    }
+    ): GlobalID<T> = delegate.globalIDFor(type, internalID)
 
-    override fun <T : NodeCompositeOutput> serialize(globalID: GlobalID<T>): String {
-        val codec = engineExecutionContext?.globalIDCodec
-            ?: throw FrameworkException("serialize requires engineExecutionContext.")
-        return codec.serializeGlobalID(globalID)
-    }
+    override fun <T : NodeCompositeOutput> serialize(globalID: GlobalID<T>): String = delegate.serialize(globalID)
 
     override fun <T : NodeObject> globalIDStringFor(
         type: Type<T>,
         internalID: String
-    ): String {
-        val codec = engineExecutionContext?.globalIDCodec
-            ?: throw FrameworkException("globalIDStringFor requires engineExecutionContext.")
-        return codec.serialize(type.name, internalID)
-    }
+    ): String = delegate.globalIDStringFor(type, internalID)
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : NodeCompositeOutput> nodeRef(id: GlobalID<T>): T {
-        val engineCtx = engineExecutionContext
-            ?: throw FrameworkException("nodeRef requires engineExecutionContext.")
-        val refTypeName = id.getType().name
-        val serializedId = engineCtx.globalIDCodec.serializeGlobalID(id)
-        val graphqlType = engineCtx.activeSchema.schema.getObjectType(refTypeName)
-            ?: throw FrameworkException("GraphQL type '$refTypeName' not found in schema for nodeRef.")
-        val nodeReference = engineCtx.createNodeReference(serializedId, graphqlType)
+        // Node contexts resolve the GRT class directly from the GlobalID type (no classFinder
+        // lookup).
         val grtClass = id.getType().getJavaClass() as Class<T>
-        val internalContext = classFinder?.let { buildInternalContext(engineCtx, it) }
-        return grtClass
-            .getDeclaredConstructor(InternalContext::class.java, NodeReference::class.java)
-            .newInstance(internalContext, nodeReference) as T
+        return delegate.nodeRef(id, grtClass)
     }
 
     override fun <T : Any> query(
         selections: String,
         variables: Map<String, Any?>,
         targetClass: Class<T>,
-    ): CompletableFuture<T> {
-        val engineCtx = engineExecutionContext
-            ?: throw FrameworkException(
-                "ctx.query() requires engineExecutionContext. Ensure the resolver is running within a live execution context."
-            )
-        val scope = coroutineScope
-            ?: throw FrameworkException("ctx.query() requires a coroutineScope.")
-        return scope.future {
-            handleFrameworkErrorsSuspend("query") {
-                val queryTypeName = engineCtx.activeSchema.schema.queryType.name
-                val selectionSet = engineCtx.engineSelectionSetFactory.engineSelectionSet(
-                    queryTypeName,
-                    selections,
-                    JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(variables, engineCtx)
-                )
-                val result = engineCtx.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.DEFAULT)
-                @Suppress("UNCHECKED_CAST")
-                convertSyncEngineDataToJavaObject(
-                    targetClass,
-                    result,
-                    classFinder?.let { buildInternalContext(engineCtx, it) }
-                ) as T
-            }
-        }
-    }
+    ): CompletableFuture<T> = delegate.query(selections, variables, targetClass)
 
     override fun <T : Any> mutation(
         selections: String,
         variables: Map<String, Any?>,
         targetClass: Class<T>,
-    ): CompletableFuture<T> {
-        val engineCtx = engineExecutionContext
-            ?: throw FrameworkException(
-                "ctx.mutation() requires engineExecutionContext. Ensure the resolver is running within a live execution context."
-            )
-        val scope = coroutineScope
-            ?: throw FrameworkException("ctx.mutation() requires a coroutineScope.")
-        return scope.future {
-            handleFrameworkErrorsSuspend("mutation") {
-                val mutationType = engineCtx.activeSchema.schema.mutationType
-                    ?: throw FrameworkException("ctx.mutation() is not available: the schema has no Mutation type.")
-                val selectionSet = engineCtx.engineSelectionSetFactory.engineSelectionSet(
-                    mutationType.name,
-                    selections,
-                    JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(variables, engineCtx)
-                )
-                val result = engineCtx.resolveSelectionSet(selectionSet, ResolveSelectionSetOptions.MUTATION)
-                @Suppress("UNCHECKED_CAST")
-                convertSyncEngineDataToJavaObject(
-                    targetClass,
-                    result,
-                    classFinder?.let { buildInternalContext(engineCtx, it) }
-                ) as T
-            }
-        }
-    }
+    ): CompletableFuture<T> = delegate.mutation(selections, variables, targetClass)
 
     override fun selections(): Any =
         handleFrameworkErrors("selections") {
