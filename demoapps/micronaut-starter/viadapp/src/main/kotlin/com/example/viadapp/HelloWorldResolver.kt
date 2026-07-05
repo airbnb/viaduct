@@ -2,13 +2,16 @@ package com.example.viadapp
 
 import com.example.viadapp.resolverbases.MutationResolvers
 import com.example.viadapp.resolverbases.QueryResolvers
+import io.micronaut.context.annotation.Value
 import jakarta.inject.Singleton
 import viaduct.api.resolver.Resolver
 
 @Resolver
 @Singleton
-class HelloWorldResolver : QueryResolvers.Greeting() {
-    override suspend fun resolve(ctx: Context) = "Hello, World!"
+class HelloWorldResolver(
+    @Value("\${greeting.message:Hello, World!}") private val message: String,
+) : QueryResolvers.Greeting() {
+    override suspend fun resolve(ctx: Context) = message
 }
 
 @Resolver

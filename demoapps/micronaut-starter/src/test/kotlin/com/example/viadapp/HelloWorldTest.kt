@@ -98,4 +98,14 @@ class HelloWorldTest {
         result.errors shouldBe emptyList()
         result.getData().shouldNotBeNull()["echo"] shouldBe "hello world"
     }
+
+    @Test
+    fun `greeting resolver returns overridden message when config is set`() {
+        val ctx = ApplicationContext.run(mapOf("greeting.message" to "Hi from config!"))
+        val v = ctx.getBean(Viaduct::class.java)
+        val result = v.execute(ExecutionInput.create(operationText = "query { greeting }"))
+        result.errors shouldBe emptyList()
+        result.getData().shouldNotBeNull()["greeting"] shouldBe "Hi from config!"
+        ctx.close()
+    }
 }
