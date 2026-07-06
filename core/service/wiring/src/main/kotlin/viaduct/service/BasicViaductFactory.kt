@@ -25,6 +25,7 @@ object BasicViaductFactory {
      * @param scopedSchemas scoped schema definitions to register. Defaults to none (only the
      *        full schema is available).
      */
+    @JvmStatic
     @JvmOverloads
     fun create(
         tenantModuleInjectorFactory: TenantModuleInjectorFactory = NaiveTenantModuleInjectorFactory,

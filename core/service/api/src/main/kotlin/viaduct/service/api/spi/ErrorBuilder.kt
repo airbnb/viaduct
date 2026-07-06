@@ -73,12 +73,14 @@ class ErrorBuilder private constructor() {
         /**
          * Creates a new error builder.
          */
+        @JvmStatic
         fun newError(): ErrorBuilder = ErrorBuilder()
 
         /**
          * Creates a new error builder with context from ErrorReporter.Metadata.
          * Automatically populates path and location from the metadata.
          */
+        @JvmStatic
         fun newError(metadata: ErrorReporter.Metadata): ErrorBuilder =
             ErrorBuilder().apply {
                 metadata.executionPath?.let { path(it) }

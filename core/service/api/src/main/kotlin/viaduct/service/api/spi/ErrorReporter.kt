@@ -95,6 +95,7 @@ fun interface ErrorReporter {
 
         @StableApi
         companion object {
+            @JvmStatic
             val EMPTY = Metadata()
         }
     }
@@ -105,6 +106,7 @@ fun interface ErrorReporter {
          * A no-op implementation that does nothing.
          * Use this when you don't need custom error reporting.
          */
+        @JvmStatic
         val NOOP: ErrorReporter = ErrorReporter { _, _, _ -> }
     }
 }

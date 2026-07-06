@@ -29,6 +29,7 @@ fun interface ResolverErrorBuilder {
          * A no-op implementation that does not handle any exceptions.
          * Use this when you don't need custom error building.
          */
+        @JvmStatic
         val NOOP: ResolverErrorBuilder = ResolverErrorBuilder { _, _ -> null }
     }
 }

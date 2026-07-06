@@ -1,9 +1,9 @@
 public final class viaduct/service/BasicViaductFactory {
 	public static final field INSTANCE Lviaduct/service/BasicViaductFactory;
-	public final fun create ()Lviaduct/service/api/Viaduct;
-	public final fun create (Lviaduct/service/api/spi/TenantModuleInjectorFactory;)Lviaduct/service/api/Viaduct;
-	public final fun create (Lviaduct/service/api/spi/TenantModuleInjectorFactory;Ljava/util/List;)Lviaduct/service/api/Viaduct;
-	public static synthetic fun create$default (Lviaduct/service/BasicViaductFactory;Lviaduct/service/api/spi/TenantModuleInjectorFactory;Ljava/util/List;ILjava/lang/Object;)Lviaduct/service/api/Viaduct;
+	public static final fun create ()Lviaduct/service/api/Viaduct;
+	public static final fun create (Lviaduct/service/api/spi/TenantModuleInjectorFactory;)Lviaduct/service/api/Viaduct;
+	public static final fun create (Lviaduct/service/api/spi/TenantModuleInjectorFactory;Ljava/util/List;)Lviaduct/service/api/Viaduct;
+	public static synthetic fun create$default (Lviaduct/service/api/spi/TenantModuleInjectorFactory;Ljava/util/List;ILjava/lang/Object;)Lviaduct/service/api/Viaduct;
 }
 
 public final class viaduct/service/SchemaScopeInfo {

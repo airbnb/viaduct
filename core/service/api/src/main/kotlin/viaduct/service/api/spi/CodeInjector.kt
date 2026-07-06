@@ -26,6 +26,7 @@ interface CodeInjector {
          * an accessible, zero-arg constructors and will throw a runtime
          * error if asked to provide an object without such a constructor.
          */
+        @JvmStatic
         val Naive: CodeInjector = NaiveCodeInjector()
     }
 }

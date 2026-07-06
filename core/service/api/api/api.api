@@ -1,5 +1,7 @@
 public abstract interface class viaduct/service/api/ExecutionInput {
 	public static final field Companion Lviaduct/service/api/ExecutionInput$Companion;
+	public static fun builder ()Lviaduct/service/api/ExecutionInput$Builder;
+	public static fun create (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/Object;)Lviaduct/service/api/ExecutionInput;
 	public abstract fun getExecutionId ()Ljava/lang/String;
 	public abstract fun getOperationId ()Ljava/lang/String;
 	public abstract fun getOperationName ()Ljava/lang/String;
@@ -80,6 +82,7 @@ public final class viaduct/service/api/Viaduct$DefaultImpls {
 
 public abstract interface class viaduct/service/api/spi/CodeInjector {
 	public static final field Companion Lviaduct/service/api/spi/CodeInjector$Companion;
+	public static fun getNaive ()Lviaduct/service/api/spi/CodeInjector;
 	public abstract fun getProvider (Ljava/lang/Class;)Ljavax/inject/Provider;
 }
 
@@ -95,6 +98,8 @@ public final class viaduct/service/api/spi/ErrorBuilder {
 	public final fun location (Lviaduct/graphql/SourceLocation;)Lviaduct/service/api/spi/ErrorBuilder;
 	public final fun locations (Ljava/util/List;)Lviaduct/service/api/spi/ErrorBuilder;
 	public final fun message (Ljava/lang/String;)Lviaduct/service/api/spi/ErrorBuilder;
+	public static final fun newError ()Lviaduct/service/api/spi/ErrorBuilder;
+	public static final fun newError (Lviaduct/service/api/spi/ErrorReporter$Metadata;)Lviaduct/service/api/spi/ErrorBuilder;
 	public final fun path (Ljava/util/List;)Lviaduct/service/api/spi/ErrorBuilder;
 }
 
@@ -105,6 +110,7 @@ public final class viaduct/service/api/spi/ErrorBuilder$Companion {
 
 public abstract interface class viaduct/service/api/spi/ErrorReporter {
 	public static final field Companion Lviaduct/service/api/spi/ErrorReporter$Companion;
+	public static fun getNOOP ()Lviaduct/service/api/spi/ErrorReporter;
 	public abstract fun reportResolverError (Ljava/lang/Throwable;Ljava/lang/String;Lviaduct/service/api/spi/ErrorReporter$Metadata;)V
 }
 
@@ -131,6 +137,7 @@ public final class viaduct/service/api/spi/ErrorReporter$Metadata {
 	public static synthetic fun copy$default (Lviaduct/service/api/spi/ErrorReporter$Metadata;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/util/List;Lviaduct/graphql/SourceLocation;Ljava/lang/Object;Ljava/lang/String;ZILjava/lang/Object;)Lviaduct/service/api/spi/ErrorReporter$Metadata;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getComponentName ()Ljava/lang/String;
+	public static final fun getEMPTY ()Lviaduct/service/api/spi/ErrorReporter$Metadata;
 	public final fun getExecutionPath ()Ljava/util/List;
 	public final fun getFieldName ()Ljava/lang/String;
 	public final fun getOperationName ()Ljava/lang/String;
@@ -202,6 +209,7 @@ public final class viaduct/service/api/spi/NaiveTenantModuleInjectorFactory : vi
 public abstract interface class viaduct/service/api/spi/ResolverErrorBuilder {
 	public static final field Companion Lviaduct/service/api/spi/ResolverErrorBuilder$Companion;
 	public abstract fun exceptionToGraphQLError (Ljava/lang/Throwable;Lviaduct/service/api/spi/ErrorReporter$Metadata;)Ljava/util/List;
+	public static fun getNOOP ()Lviaduct/service/api/spi/ResolverErrorBuilder;
 }
 
 public final class viaduct/service/api/spi/ResolverErrorBuilder$Companion {

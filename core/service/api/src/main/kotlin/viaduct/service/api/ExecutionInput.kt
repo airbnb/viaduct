@@ -60,12 +60,14 @@ interface ExecutionInput {
         /**
          * Creates a new [Builder] instance for constructing [ExecutionInput] objects.
          */
+        @JvmStatic
         fun builder() = Builder()
 
         /**
          * Convenience factory method for simple cases.
          * See [Builder] for defaults.
          */
+        @JvmStatic
         fun create(
             operationText: String,
             operationName: String? = null,
