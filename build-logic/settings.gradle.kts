@@ -1,21 +1,16 @@
 // Route build-logic's own plugin + dependency resolution through the Artifactory mirror when CI sets
-// VIADUCT_ARTIFACTORY_MIRROR (and its host resolves); otherwise fall back to the Gradle Plugin Portal.
-// build-logic provides settings.common, so it can't use that plugin to set its own repositories
-// (chicken-and-egg) — without this its bootstrap (kotlin-dsl / kotlin-gradle-plugin / kotlin-stdlib)
-// resolves from Maven Central and is rate-limited (429) under CI load. Fully-qualified java.net names
-// are used because settings-script imports don't apply inside pluginManagement, which Gradle compiles
-// first; the lookup likewise can't be shared via a val declared after it. Mirrors common.settings.gradle.kts.
+// VIADUCT_ARTIFACTORY_MIRROR; otherwise fall back to the Gradle Plugin Portal. build-logic provides
+// settings.common, so it can't use that plugin to set its own repositories (chicken-and-egg) — without
+// this its bootstrap (kotlin-dsl / kotlin-gradle-plugin / kotlin-stdlib) resolves from Maven Central
+// and is rate-limited (429) under CI load. Mirrors common.settings.gradle.kts.
 pluginManagement {
     repositories {
-        System.getenv("VIADUCT_ARTIFACTORY_MIRROR")
-            ?.takeIf { runCatching { java.net.InetAddress.getByName(java.net.URI(it).host) }.isSuccess }
-            ?.let { maven { url = uri(it) } }
+        System.getenv("VIADUCT_ARTIFACTORY_MIRROR")?.let { maven { url = uri(it) } }
         gradlePluginPortal()
     }
 }
 
 val artifactoryMirror = System.getenv("VIADUCT_ARTIFACTORY_MIRROR")
-    ?.takeIf { runCatching { java.net.InetAddress.getByName(java.net.URI(it).host) }.isSuccess }
 
 @Suppress("UnstableApiUsage")
 dependencyResolutionManagement {
