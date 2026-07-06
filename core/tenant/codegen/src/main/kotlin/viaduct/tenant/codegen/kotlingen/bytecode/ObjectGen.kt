@@ -1,6 +1,7 @@
 package viaduct.tenant.codegen.kotlingen.bytecode
 
 import getEscapedFieldName
+import viaduct.apiannotations.VisibleForTest
 import viaduct.codegen.km.getterName
 import viaduct.codegen.km.kotlinTypeString
 import viaduct.codegen.st.STContents
@@ -15,6 +16,7 @@ import viaduct.tenant.codegen.bytecode.config.isNode
 import viaduct.tenant.codegen.bytecode.config.kmType
 import viaduct.tenant.codegen.bytecode.config.typeOfNodeField
 
+@VisibleForTest
 fun KotlinGRTFilesBuilder.objectKotlinGen(typeDef: ViaductSchema.Object): STContents {
     val connectionInfo = resolveConnectionInfo(typeDef)
 

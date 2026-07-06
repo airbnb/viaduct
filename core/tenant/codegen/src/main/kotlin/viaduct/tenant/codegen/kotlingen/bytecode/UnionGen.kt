@@ -2,11 +2,13 @@ package viaduct.tenant.codegen.kotlingen.bytecode
 
 // See README.md for the patterns that guided this file
 
+import viaduct.apiannotations.VisibleForTest
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
 
+@VisibleForTest
 fun KotlinGRTFilesBuilder.unionKotlinGen(typeDef: ViaductSchema.Union) = STContents(unionSTGroup, UnionModelImpl(typeDef, pkg, reflectedTypeGen(typeDef), fieldsObjectGen(typeDef)))
 
 private interface UnionModel {

@@ -1,6 +1,7 @@
 package viaduct.tenant.codegen.bytecode
 
 import java.io.File
+import viaduct.apiannotations.VisibleForTest
 import viaduct.codegen.km.KmClassFilesBuilder
 import viaduct.codegen.utils.JavaName
 import viaduct.codegen.utils.KmName
@@ -164,6 +165,7 @@ abstract class GRTClassFilesBuilderBase protected constructor(
         baseTypeMapper.addSchemaGRTReference(def, fqn, kmClassFilesBuilder)
     }
 
+    @VisibleForTest
     fun checkInvariants(
         check: FailureCollector = FailureCollector(),
         allowedSuperTypes: Set<KmName>

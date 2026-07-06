@@ -10,8 +10,10 @@ import io.kotest.property.arbitrary.filter
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
 import io.kotest.property.asSample
+import viaduct.apiannotations.VisibleForTest
 
 /** Convert an arb to an infinite [kotlin.sequences.Sequence] */
+@VisibleForTest
 fun <T> Gen<T>.asSequence(rs: RandomSource): Sequence<T> = generate(rs).map { it.value }
 
 /**
@@ -21,13 +23,16 @@ fun <T> Gen<T>.asSequence(rs: RandomSource): Sequence<T> = generate(rs).map { it
  * The underlying Arb must eventually produce a non-empty Iterable; if every sample is empty,
  * [Arb.sample] will loop indefinitely.
  */
+@VisibleForTest
 fun <T> Arb<Iterable<T>>.flatten(): Arb<T> = Flatten(map { it.iterator() })
 
 /** transform this Arb using [fn], dropping any null values returned by [fn] */
 @JvmName("mapNotNull")
+@VisibleForTest
 fun <T, R> Arb<T>.mapNotNull(fn: (T) -> R?): Arb<R> = map(fn).filter { it != null }.map { it!! }
 
-private class Flatten<T>(
+@VisibleForTest
+internal class Flatten<T>(
     val underlying: Arb<Iterator<T>>,
 ) : Arb<T>() {
     private var chunk: Iterator<T>? = null
@@ -53,6 +58,7 @@ private class Flatten<T>(
  * Throw a property check failure.
  * The [seed] parameter is included in the error message for reproducibility.
  */
+@VisibleForTest
 fun failProperty(
     message: String,
     cause: Throwable? = null,

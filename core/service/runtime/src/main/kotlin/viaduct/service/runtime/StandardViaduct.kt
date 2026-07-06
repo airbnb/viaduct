@@ -18,6 +18,7 @@ import java.util.concurrent.Executor
 import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.future.await
+import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.BootstrapperFactory
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineImpl
@@ -179,6 +180,7 @@ class StandardViaduct
                     this.tenantModuleInjectorFactory = tenantModuleInjectorFactory
                 }
 
+            @VisibleForTest
             fun withExecutorRegistryConfigSources(
                 executorRegistryConfigSources: List<InputStreamSource>,
                 grtPackagePrefix: String? = null,
