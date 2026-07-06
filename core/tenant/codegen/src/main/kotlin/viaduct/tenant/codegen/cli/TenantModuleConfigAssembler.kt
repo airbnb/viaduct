@@ -6,8 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import graphql.language.Field
 import graphql.language.FragmentDefinition
-import graphql.language.FragmentSpread
-import graphql.language.InlineFragment
 import graphql.language.SelectionSet
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
@@ -73,7 +71,9 @@ internal object TenantModuleConfigAssembler {
         validateNameConflicts(descriptors, fragmentsByName)
 
         if (schemaSdl != null) {
-            validateAssembledRss(descriptors, fragmentsByName, schemaSdl)
+            val schema = UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(schemaSdl))
+            validateAssembledRss(descriptors, fragmentsByName, schema)
+            validateAssembledOperations(descriptors, fragmentsByName, schema)
         }
 
         val outputFile = outputDir.resolve(REGISTRY_RESOURCE_PATH).resolve("$tenantPackage.json")
@@ -146,9 +146,8 @@ internal object TenantModuleConfigAssembler {
     private fun validateAssembledRss(
         descriptors: List<PerSourceDescriptorFile>,
         fragmentsByName: Map<String, String>,
-        schemaSdl: String,
+        schema: graphql.schema.GraphQLSchema,
     ) {
-        val schema = UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(schemaSdl))
         val rssValidator = RequiredSelectionSetValidator(schema)
         val errors = mutableListOf<String>()
 
@@ -167,6 +166,24 @@ internal object TenantModuleConfigAssembler {
 
         if (errors.isNotEmpty()) {
             error("RSS validation failed at assembly:\n" + errors.joinToString("\n"))
+        }
+    }
+
+    /** Validates every @GraphQLOperation against the schema via [GraphQLOperationValidator]. */
+    private fun validateAssembledOperations(
+        descriptors: List<PerSourceDescriptorFile>,
+        fragmentsByName: Map<String, String>,
+        schema: graphql.schema.GraphQLSchema,
+    ) {
+        val operations = descriptors.flatMap { it.namedOperations }
+        if (operations.isEmpty()) return
+
+        val validator = GraphQLOperationValidator(schema)
+        val errors = mutableListOf<String>()
+        operations.forEach { validator.validate(it, fragmentsByName, errors) }
+
+        if (errors.isNotEmpty()) {
+            error("@GraphQLOperation validation failed at assembly:\n" + errors.joinToString("\n"))
         }
     }
 
@@ -300,40 +317,11 @@ internal object TenantModuleConfigAssembler {
         return copy(selections = "$baseSelections\n$appended")
     }
 
-    /**
-     * BFS over selection sets to collect the names of all fragment spreads transitively
-     * reachable that are present in [knownFragments] but not in [alreadyDefined].
-     */
     private fun collectReachableFragmentNames(
         roots: List<SelectionSet>,
         knownFragments: Map<String, String>,
         alreadyDefined: Set<String>,
-    ): List<String> {
-        val visited = mutableSetOf<String>()
-        val result = mutableListOf<String>()
-        val queue = ArrayDeque<SelectionSet>()
-        roots.forEach { queue.add(it) }
-
-        while (queue.isNotEmpty()) {
-            val current = queue.removeFirst()
-            current.selections.forEach { selection ->
-                when (selection) {
-                    is FragmentSpread -> {
-                        val name = selection.name
-                        if (visited.add(name) && name !in alreadyDefined && name in knownFragments) {
-                            result.add(name)
-                            // Parse the fragment body to find its own spreads transitively.
-                            DocumentParser.parse(knownFragments.getValue(name)).getDefinitionsOfType(FragmentDefinition::class.java).mapNotNull { it.selectionSet }.forEach { queue.add(it) }
-                        }
-                    }
-
-                    is Field -> selection.selectionSet?.let { queue.add(it) }
-                    is InlineFragment -> queue.add(selection.selectionSet)
-                }
-            }
-        }
-        return result
-    }
+    ): List<String> = FragmentSpreadCollector.collectReachableExternalFragments(roots, knownFragments, alreadyDefined)
 
     /** A selection block, the type its fragment is expected to be on, and whether it is the query (vs. object) selection set. */
     private data class SelectionPair(

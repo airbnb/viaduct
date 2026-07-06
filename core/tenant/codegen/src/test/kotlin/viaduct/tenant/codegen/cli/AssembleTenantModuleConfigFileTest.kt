@@ -774,4 +774,73 @@ class AssembleTenantModuleConfigFileTest {
         )
         runCli(descriptors = descriptors, out = outputDir())
     }
+
+    @Test
+    fun `schema-sdl validates a valid named operation`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Operations.json").writeText(
+            """
+            {"nodes":[],"fields":[],"namedOperations":[
+              {"text":"{ viewer { id name } }","kind":"QUERY","implFqn":"com.example.feature.EchoQuery"}
+            ]}
+            """.trimIndent(),
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
+        // Should not throw.
+        runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+    }
+
+    @Test
+    fun `schema-sdl fails a named operation with an unknown field`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Operations.json").writeText(
+            """
+            {"nodes":[],"fields":[],"namedOperations":[
+              {"text":"{ viewer { notAField } }","kind":"QUERY","implFqn":"com.example.feature.BadQuery"}
+            ]}
+            """.trimIndent(),
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
+        val exception = assertThrows<IllegalStateException> {
+            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+        }
+        assertTrue(exception.message!!.contains("@GraphQLOperation validation failed"), exception.message)
+        assertTrue(exception.message!!.contains("notAField"), exception.message)
+    }
+
+    @Test
+    fun `schema-sdl fails a mutation operation declared as a query`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Operations.json").writeText(
+            """
+            {"nodes":[],"fields":[],"namedOperations":[
+              {"text":"mutation { touch }","kind":"QUERY","implFqn":"com.example.feature.MisdeclaredQuery"}
+            ]}
+            """.trimIndent(),
+        )
+        val schema = schemaFile("type Query { viewer: User } type Mutation { touch: Boolean } type User { id: ID }")
+        val exception = assertThrows<IllegalStateException> {
+            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+        }
+        assertTrue(exception.message!!.contains("@GraphQLOperation validation failed"), exception.message)
+        assertTrue(exception.message!!.contains("QueryFromAnnotation"), exception.message)
+    }
+
+    @Test
+    fun `schema-sdl validates a named operation spreading a cross-leaf named fragment`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Operations.json").writeText(
+            """
+            {"nodes":[],"fields":[],"namedOperations":[
+              {"text":"{ viewer { ...UserFields } }","kind":"QUERY","implFqn":"com.example.feature.SpreadQuery"}
+            ]}
+            """.trimIndent(),
+        )
+        File(descriptors, "FragmentDefs.json").writeText(
+            """{"nodes":[],"fields":[],"namedFragments":["fragment UserFields on User { id name }"]}""",
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
+        // Should not throw — the external fragment is resolved during validation.
+        runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+    }
 }
