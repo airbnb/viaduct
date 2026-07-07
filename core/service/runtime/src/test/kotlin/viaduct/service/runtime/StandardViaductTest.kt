@@ -16,6 +16,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
@@ -334,6 +335,44 @@ class StandardViaductTest {
         assertEquals(emptyList<GraphQLError>(), result.errors)
         assertEquals(mapOf("generatedRegistryTestField" to "class-scanned"), result.getData())
     }
+
+    @Test
+    fun `buildWithReusedSchemas refreshes generated registry sources without rebuilding schemas`() {
+        val sdl = """
+            extend type Query {
+                generatedRegistryTestField: String @resolver
+            }
+        """.trimIndent()
+        val schemaConfiguration = SchemaConfiguration.fromSdl(sdl)
+        val oldViaduct = StandardViaduct.Builder()
+            .withTenantModuleInjectorFactory(SharedTenantModuleInjectorFactory(CodeInjector.Naive))
+            .withExecutorRegistryConfigSources(
+                listOf(generatedRegistryConfigSource(value = "old-registry"))
+            )
+            .withSchemaConfiguration(schemaConfiguration)
+            .build()
+
+        val newViaduct = StandardViaduct.Builder()
+            .withTenantModuleInjectorFactory(SharedTenantModuleInjectorFactory(CodeInjector.Naive))
+            .withExecutorRegistryConfigSources(
+                listOf(generatedRegistryConfigSource(value = "new-registry"))
+            )
+            .withSchemaConfiguration(schemaConfiguration)
+            .buildWithReusedSchemas(oldViaduct)
+        val result = runBlocking {
+            newViaduct.execute(
+                ExecutionInput.create(
+                    operationText = "{ generatedRegistryTestField }",
+                    requestContext = Any(),
+                ),
+                SchemaId.Full,
+            )
+        }
+
+        assertSame(oldViaduct.getSchema(SchemaId.Full), newViaduct.getSchema(SchemaId.Full))
+        assertEquals(emptyList<GraphQLError>(), result.errors)
+        assertEquals(mapOf("generatedRegistryTestField" to "new-registry"), result.getData())
+    }
 }
 
 private fun makeSchema(schema: String): ViaductSchema {
@@ -359,6 +398,31 @@ private class RecordingFinalizingTenantModuleInjectorFactory : TenantModuleInjec
         finalized = true
     }
 }
+
+private fun generatedRegistryConfigSource(value: String): InputStreamSource =
+    InputStreamSource.fromString(
+        """
+        {
+          "version": "1",
+          "tenantName": "generatedregistrytest",
+          "executorFactory": "${GeneratedRegistryTestExecutorFactory::class.java.name}",
+          "nodes": [],
+          "fields": [
+            {
+              "typeName": "Query",
+              "fieldName": "generatedRegistryTestField",
+              "isBatching": false,
+              "isSelective": false,
+              "attribution": "generated-registry-test",
+              "tenantAPIData": {
+                "value": "$value"
+              }
+            }
+          ]
+        }
+        """.trimIndent(),
+        name = "generated-registry-$value",
+    )
 
 class GeneratedRegistryTestExecutorFactory(
     @Suppress("UNUSED_PARAMETER") injector: CodeInjector,

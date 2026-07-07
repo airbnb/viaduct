@@ -324,7 +324,15 @@ class StandardViaduct
              *
              * @return a Viaduct Instance ready to execute
              */
-            fun build(): StandardViaduct {
+            fun build(): StandardViaduct = buildWithOptionalReusedSchemas(existingViaduct = null)
+
+            /**
+             * Builds a Viaduct instance with this builder's runtime bindings while reusing
+             * schemas from [existingViaduct].
+             */
+            fun buildWithReusedSchemas(existingViaduct: StandardViaduct): StandardViaduct = buildWithOptionalReusedSchemas(existingViaduct)
+
+            private fun buildWithOptionalReusedSchemas(existingViaduct: StandardViaduct?): StandardViaduct {
                 val finalGlobalIDCodec = globalIDCodec ?: GlobalIDCodecDefault
 
                 // engine configuration has a lot of defaults, so we copy over any non-null values from the StandardViaduct.Builder
@@ -387,7 +395,11 @@ class StandardViaduct
                     val factory = parentInjector.getInstance(Factory::class.java)
 
                     // Factory creates child injector with schema modules and returns StandardViaduct
-                    return factory.createForSchema(schemaConfiguration)
+                    return if (existingViaduct == null) {
+                        factory.createForSchema(schemaConfiguration)
+                    } else {
+                        factory.createWithReusedSchemas(schemaConfiguration, existingViaduct.engineRegistry)
+                    }
                         .also { viaduct ->
                             if (!airbnbModeEnabled && !allowSubscriptions && hasSubscriptions(viaduct.engineRegistry.getSchema(SchemaId.Full))) {
                                 throw GraphQLBuildError("Viaduct does not currently support subscriptions.")
