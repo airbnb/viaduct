@@ -10,6 +10,7 @@ class RequiredSelectionSetValidatorTest {
     companion object {
         private val TEST_SCHEMA_SDL = """
             directive @namespaceType on OBJECT
+            directive @parent on FIELD_DEFINITION
 
             type Query {
                 user(id: ID!): User
@@ -24,7 +25,23 @@ class RequiredSelectionSetValidatorTest {
                 id: ID!
                 name: String
                 friend: User
+                parent: Company @parent
             }
+
+            interface Organization {
+                companyName: String
+            }
+
+            type Company implements Organization {
+                id: ID!
+                companyName: String
+            }
+
+            type County {
+                code: String
+            }
+
+            union Place = County
 
             type Photo {
                 id: ID!
@@ -145,5 +162,57 @@ class RequiredSelectionSetValidatorTest {
             expandedSelections = "fragment Main on User { ...UserFields }\nfragment UserFields on User { bogusField }",
         )
         assertTrue(errors.any { it.contains("bogusField") }, errors.toString())
+    }
+
+    @Test
+    fun `parent field selections pass schema validation`() {
+        val errors = validate(
+            """
+            fragment Main on User {
+                id
+                parent {
+                    companyName
+                }
+            }
+            """.trimIndent(),
+            typeName = "User",
+        )
+
+        assertTrue(errors.isEmpty(), errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `parent field selections still validate parent fields`() {
+        val errors = validate(
+            """
+            fragment Main on User {
+                id
+                parent {
+                    notACompanyField
+                }
+            }
+            """.trimIndent(),
+            typeName = "User",
+        )
+
+        assertTrue(errors.any { it.contains("notACompanyField") }, errors.toString())
+    }
+
+    @Test
+    fun `ordinary fragment with arbitrary type condition still fails schema validation`() {
+        val errors = validate(
+            """
+            fragment Main on User {
+                id
+                ...CompanyFields
+            }
+            fragment CompanyFields on Company {
+                companyName
+            }
+            """.trimIndent(),
+            typeName = "User",
+        )
+
+        assertTrue(errors.any { it.contains("CompanyFields") }, errors.toString())
     }
 }

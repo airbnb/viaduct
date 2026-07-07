@@ -19,6 +19,9 @@ directive @edge on OBJECT
 "Marks an object type as a namespace type (non-entity container for grouping resolvers)"
 directive @namespaceType on OBJECT
 
+"Marks a field as resolving to the current execution parent object"
+directive @parent on FIELD_DEFINITION
+
 interface Node @scope(to: ["*"]) {
   id: ID!
 }

@@ -258,6 +258,21 @@ class DefaultSchemaFactoryTest {
     }
 
     @Test
+    fun `addDefaults should include parent directive with FIELD_DEFINITION location`() {
+        val registry = TypeDefinitionRegistry()
+
+        DefaultSchemaFactory.addDefaults(registry)
+
+        val parentDirective = registry.getDirectiveDefinition("parent").getOrNull()
+        assertTrue(parentDirective != null, "Should have @parent directive")
+        assertEquals(
+            listOf("FIELD_DEFINITION"),
+            parentDirective!!.directiveLocations.map { it.name },
+            "@parent should only apply to FIELD_DEFINITION"
+        )
+    }
+
+    @Test
     fun `addDefaults should reject schema that redefines connection directive`() {
         // Given: A schema that defines @connection
         val sdl = """directive @connection on FIELD_DEFINITION"""

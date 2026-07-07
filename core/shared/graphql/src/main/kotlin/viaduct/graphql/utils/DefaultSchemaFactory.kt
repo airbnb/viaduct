@@ -208,6 +208,23 @@ object DefaultSchemaFactory {
                     .sourceLocation(sourceLocation)
                     .build()
             }
+        },
+
+        PARENT("parent") {
+            override fun createDefinition(sourceLocation: SourceLocation): DirectiveDefinition {
+                val description = Description(
+                    "Marks a field as resolving to the current execution parent object",
+                    sourceLocation,
+                    true
+                )
+                return DirectiveDefinition
+                    .newDirectiveDefinition()
+                    .name(directiveName)
+                    .description(description)
+                    .directiveLocation(DirectiveLocation("FIELD_DEFINITION"))
+                    .sourceLocation(sourceLocation)
+                    .build()
+            }
         };
 
         /**

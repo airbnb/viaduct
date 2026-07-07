@@ -163,6 +163,78 @@ class RequiredSelectionsAreSchematicallyValidTest {
     }
 
     @Test
+    fun `valid -- parent fields can be selected from resolver RSS`() {
+        Fixture(
+            """
+                type Query { user:User }
+                type User { id:ID, parent: Company @parent }
+                type Company { companyName:String }
+            """.trimIndent()
+        ) {
+            assertValid(
+                "User" to "id",
+                """
+                    fragment Main on User {
+                        id
+                        parent {
+                            companyName
+                        }
+                    }
+                """.trimIndent()
+            )
+        }
+    }
+
+    @Test
+    fun `valid -- nested parent fields can be selected from resolver RSS`() {
+        Fixture(
+            """
+                type Query { user:User }
+                type User { id:ID, parent: Company @parent }
+                type Company { parent: Organization @parent }
+                type Organization { name:String }
+            """.trimIndent()
+        ) {
+            assertValid(
+                "User" to "id",
+                """
+                    fragment Main on User {
+                        id
+                        parent {
+                            parent {
+                                name
+                            }
+                        }
+                    }
+                """.trimIndent()
+            )
+        }
+    }
+
+    @Test
+    fun `invalid -- parent field selections still validate parent fields`() {
+        Fixture(
+            """
+                type Query { user:User }
+                type User { id:ID, parent: Company @parent }
+                type Company { companyName:String }
+            """.trimIndent()
+        )
+            .assertInvalid(
+                "User" to "id",
+                """
+                    fragment Main on User {
+                        id
+                        parent {
+                            notACompanyField
+                        }
+                    }
+                """.trimIndent()
+            )
+            .assertHasError(ValidationErrorType.FieldUndefined)
+    }
+
+    @Test
     fun `invalid -- incorrect oneof`() {
         Fixture(
             """
@@ -210,7 +282,12 @@ class RequiredSelectionsAreSchematicallyValidTest {
     }
 
     private class Fixture(sdl: String, fn: Fixture.() -> Unit = {}) {
-        val schema = ViaductSchema(sdl.asSchema)
+        val schema = ViaductSchema(
+            """
+            directive @parent on FIELD_DEFINITION
+            $sdl
+            """.trimIndent().asSchema
+        )
         val validator = RequiredSelectionsAreSchematicallyValid(schema)
 
         init {

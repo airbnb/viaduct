@@ -141,6 +141,32 @@ class DefaultSchemaValidatorTest {
     }
 
     @Test
+    fun `should detect parent field constraint violations`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            directive @parent on FIELD_DEFINITION
+            directive @resolver on FIELD_DEFINITION
+            type Query { company: Company }
+            type Company {
+                name: String
+                user: User
+            }
+            type User {
+                parentName: String @parent
+                resolvedParent: Company @parent @resolver
+            }
+            """.trimIndent()
+        )
+
+        val errors = DefaultSchemaValidator().validate(schema)
+
+        errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
+            ValidationErrorCodes.PARENT_FIELD_TYPE_NOT_COMPOSITE,
+            ValidationErrorCodes.PARENT_FIELD_HAS_CONFLICTING_RESOLVER
+        )
+    }
+
+    @Test
     fun `should detect object field with arguments missing resolver`() {
         val schema = ViaductSchema.fromTypeDefinitionRegistry(
             """
