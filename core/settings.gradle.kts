@@ -22,9 +22,10 @@ dependencyResolutionManagement {
 // auto-substitution. Without self-inclusion, `version = INCLUDED` module deps resolve externally.
 includeBuild(".")
 includeBuild("../build-logic")
-// Core modules depend on the experimental x/remoteresolvers module; include it here so standalone
-// core builds (e.g. the OSV Gradle CI job) can substitute its coordinate too.
-includeBuild("../x/remoteresolvers")
+// Core modules depend on the experimental remoteresolvers lib; include it here so standalone
+// core builds (e.g. the OSV Gradle CI job) can substitute its coordinate too. The lib now lives at
+// core/x/remoteresolvers/lib (relative: x/remoteresolvers/lib); name it to match the oss-root include.
+includeBuild("x/remoteresolvers/lib") { name = "remoteresolvers" }
 
 // Include core modules
 include(":engine:api")

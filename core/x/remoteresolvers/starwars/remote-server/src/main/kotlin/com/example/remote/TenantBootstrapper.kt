@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import viaduct.engine.BootstrapperFactory
 import viaduct.engine.SchemaFactory
+import viaduct.engine.runtime.tenantloading.ExecutionRegistryConfigSourceCollector
 import viaduct.remote.registry.FieldExecutorRegistry
 import viaduct.remote.registry.NodeExecutorRegistry
 import viaduct.remote.registry.SchemaRegistry
@@ -38,8 +39,10 @@ class TenantBootstrapper(private val tenantCodeInjector: CodeInjector) {
 
         // Build executors straight from the tenant manifests — no Viaduct engine instance needed.
         val (nodeExecutors, fieldExecutors) = runBlocking {
-            val bootstrappers = BootstrapperFactory.fromResources(SharedTenantModuleInjectorFactory(tenantCodeInjector))
-                .tenantModuleBootstrappers()
+            val bootstrappers = BootstrapperFactory.fromConfigSources(
+                SharedTenantModuleInjectorFactory(tenantCodeInjector),
+                ExecutionRegistryConfigSourceCollector.fromResources(),
+            ).tenantModuleBootstrappers()
                 .toList()
             val nodes = bootstrappers.flatMap { it.nodeResolverExecutors(schema) }
             val fields = bootstrappers.flatMap { it.fieldResolverExecutors(schema) }

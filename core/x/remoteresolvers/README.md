@@ -52,14 +52,18 @@ If you route config through your own layer instead of process env vars, pass
 an `EnvLookup` to `RemoteResolverConfig.fromEnvironment(env)` — the default is
 `EnvLookup.SYSTEM`.
 
-## Running main-server (in-process)
+## Running the demo
+
+Run these commands from this directory (`core/x/remoteresolvers`).
+
+### In-process (default)
 
 `main-server` is a Micronaut + Viaduct application with the proxy wired in. It
 serves the StarWars schema and routes node resolution through the in-process
-proxy by default — no env var needed:
+proxy by default — no mode env var needed:
 
 ```bash
-./gradlew :remoteresolvers:main-server:run
+./gradlew :main-server:run
 ```
 
 When the proxy comes up you'll see these lines in the log:
@@ -85,27 +89,27 @@ You'll get back:
 {"data":{"node":{"id":"RmlsbTox","title":"A New Hope","director":"George Lucas"}}}
 ```
 
-## Running main-server + remote-server (network)
+### Network transport (two processes)
 
-Run the remote server in one terminal and the main server in another:
+Run the remote server in one terminal and the main server (in network mode) in another:
 
 ```bash
-# Terminal A
-./gradlew :remoteresolvers:remote-server:run
+# Terminal A — remote server (runs the resolvers, binds gRPC on :50051)
+./gradlew :remote-server:run
 
-# Terminal B
-VIADUCT_REMOTE_RESOLVER_MODE=network ./gradlew :remoteresolvers:main-server:run
+# Terminal B — main server in network mode (dials :50051, binds callback :50052)
+VIADUCT_REMOTE_RESOLVER_MODE=network ./gradlew :main-server:run
 ```
 
 The same `curl` from the in-process walkthrough returns the same JSON — the
 resolver ran in the remote server process and the result was serialized back over gRPC.
 
-The remote server builds its node and field resolvers from the tenant-module manifests on its
-classpath (`META-INF/viaduct/modules/<pkg>.json`) via Viaduct's file-based bootstrapper — the
+The remote server builds its node and field resolvers from the tenant-module manifests on its classpath
+(`META-INF/viaduct/modules/<pkg>.json`) via Viaduct's file-based bootstrapper — the
 manifest entries carry the resolver wiring, so no SDL parsing is needed to construct
 the executors (the schema, loaded from `.graphqls`, is used only to validate them).
 Those manifests are generated at build time and bundled in each module jar; inspect
-one with:
+one (paths relative to the OSS root) with:
 
 ```bash
 unzip -p demoapps/starwars/modules/filmography/build/libs/filmography.jar \
@@ -122,11 +126,11 @@ remotely in network mode (it needs `birthYear`, which the main server resolves a
 
 ```bash
 # Terminal A — the remote service
-./gradlew :remoteresolvers:remote-server:run
+./gradlew :remote-server:run
 
 # Terminal B — the main server, dialing the remote service for Character.isAdult
 VIADUCT_REMOTE_RESOLVER_MODE=network VIADUCT_REMOTE_RESOLVER_FIELDS=Character.isAdult \
-  ./gradlew :remoteresolvers:main-server:run
+  ./gradlew :main-server:run
 ```
 
 Then query a field that triggers it (other fields keep resolving locally):

@@ -27,8 +27,8 @@ dependencies {
     implementation(libs.viaduct.runtime)
     implementation(libs.viaduct.x.remoteresolvers)
 
-    // main-server is a separate included build, so StarWars tenant modules come in
-    // via Maven coordinates (substituted by the OSS root settings.gradle.kts).
+    // StarWars tenant modules are not published; they are provided from source via the
+    // includeBuild + dependencySubstitution in settings.gradle.kts.
     implementation("com.example.starwars:common")
     runtimeOnly("com.example.starwars:filmography")
     runtimeOnly("com.example.starwars:universe")

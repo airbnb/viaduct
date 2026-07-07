@@ -3,10 +3,6 @@ plugins {
     application
 }
 
-repositories {
-    mavenCentral()
-}
-
 dependencies {
     // Kotlin
     implementation(libs.kotlin.reflect)
@@ -22,8 +18,9 @@ dependencies {
     // Remote Resolver module - provides RemoteResolverServiceImpl and registries
     implementation(libs.viaduct.x.remoteresolvers)
 
-    // StarWars tenant modules - the actual resolvers to execute remotely
-    // These are resolved via includeBuild in settings.gradle.kts
+    // StarWars tenant modules - the actual resolvers to execute remotely.
+    // Not published; provided from source via the includeBuild + dependencySubstitution
+    // in settings.gradle.kts.
     implementation("com.example.starwars:common")
     implementation("com.example.starwars:filmography")
     implementation("com.example.starwars:universe")

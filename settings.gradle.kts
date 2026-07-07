@@ -42,20 +42,20 @@ includeBuild("gradle-plugins")
 includeBuild("gradle-plugins/gradletestapps")
 
 // The publish step (publishToMavenLocal) only needs the published builds: core,
-// publications, gradle-plugins (above) and the remoteresolvers proxy library (below).
-// The experimental main/remote servers and the demo apps are passive composite participants;
-// configuring them resolves their third-party Gradle plugins from Maven Central, which gets
-// rate-limited (429) during CI's parallel publish. -PexcludeDemoApps skips them. (the main and
-// remote servers depend on com.example.starwars, so they are skipped together with the demo apps.)
+// publications, and gradle-plugins (above).
+// The demo apps are passive composite participants; configuring them resolves their third-party
+// Gradle plugins from Maven Central, which gets rate-limited (429) during CI's parallel publish.
+// -PexcludeDemoApps skips them.
 val excludeDemoApps = providers.gradleProperty("excludeDemoApps").isPresent
 
-// experimental — remoteresolvers proxy library (published; consumed by the main/remote servers)
-includeBuild("x/remoteresolvers")
+// The experimental remoteresolvers lib is a non-participating included build: built from source and
+// static-analyzed in CI (see _infra/ci/jobs/static_analysis.yml), but never published to Maven
+// Central (it is not in orchestration.participatingIncludedBuilds); its tests run via Bazel. Its
+// StarWars demo servers live in a separate self-contained composite at core/x/remoteresolvers (built
+// and run from there — see its README) and are intentionally NOT part of this composite.
+includeBuild("core/x/remoteresolvers/lib") { name = "remoteresolvers" }
 
 if (!excludeDemoApps) {
-    // main-server (engine side) and remote-server (resolver side, for NETWORK transport)
-    includeBuild("x/remoteresolvers/starwars/main-server")
-    includeBuild("x/remoteresolvers/starwars/remote-server")
 
     // demo apps
     includeBuild("demoapps/cli-starter")

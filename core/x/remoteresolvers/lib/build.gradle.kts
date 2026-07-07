@@ -1,27 +1,21 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     id("buildroot.versioning")
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
-    `maven-publish`
     id("com.google.protobuf") version "0.9.4"
 }
 
-// Uses plain maven-publish rather than conventions.viaduct-publishing to avoid
-// a Dokka version conflict when this module is consumed as an included build.
-// Local-only publication — main-server (the only consumer) finds the artifact in ~/.m2/.
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-            // Core Viaduct modules use the "INCLUDED" version-ref placeholder in the catalog;
-            // without this mapping the published POM copies that placeholder verbatim and
-            // local consumers fail to resolve 'com.airbnb.viaduct.engine:api:INCLUDED'.
-            versionMapping {
-                allVariants { fromResolutionResult() }
-            }
-        }
+// Treat Kotlin compiler warnings as errors, matching the Bazel build's -Werror
+tasks.withType<KotlinCompile>().configureEach {
+    compilerOptions {
+        allWarningsAsErrors = true
     }
 }
+
+// Not published: this experimental lib is consumed include-only — the starwars demo servers
+// includeBuild it from source (see ../starwars/*/settings.gradle.kts).
 
 // Configure detekt to use local config
 tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
