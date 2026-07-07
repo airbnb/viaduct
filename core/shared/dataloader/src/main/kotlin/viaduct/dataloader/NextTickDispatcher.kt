@@ -69,7 +69,7 @@ open class NextTickDispatcher(
     private val wrappedDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val nextTickQueueDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val nextTickExceptionHandler: CoroutineExceptionHandler? = null,
-    flagManager: FlagManager = FlagManager.disabled,
+    flagManager: FlagManager = FlagManager.Disabled,
 ) : CoroutineDispatcher() {
     /********************/
 

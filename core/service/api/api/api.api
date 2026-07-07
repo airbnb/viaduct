@@ -160,6 +160,16 @@ public abstract interface class viaduct/service/api/spi/FlagManager {
 	public abstract fun isEnabled (Lviaduct/service/api/spi/FlagManager$Flag;)Z
 }
 
+public final class viaduct/service/api/spi/FlagManager$Default : viaduct/service/api/spi/FlagManager {
+	public static final field INSTANCE Lviaduct/service/api/spi/FlagManager$Default;
+	public fun isEnabled (Lviaduct/service/api/spi/FlagManager$Flag;)Z
+}
+
+public final class viaduct/service/api/spi/FlagManager$Disabled : viaduct/service/api/spi/FlagManager {
+	public static final field INSTANCE Lviaduct/service/api/spi/FlagManager$Disabled;
+	public fun isEnabled (Lviaduct/service/api/spi/FlagManager$Flag;)Z
+}
+
 public abstract interface class viaduct/service/api/spi/FlagManager$Flag {
 	public abstract fun getFlagName ()Ljava/lang/String;
 }
@@ -171,16 +181,6 @@ public final class viaduct/service/api/spi/FlagManager$Flags : java/lang/Enum, v
 	public fun getFlagName ()Ljava/lang/String;
 	public static fun valueOf (Ljava/lang/String;)Lviaduct/service/api/spi/FlagManager$Flags;
 	public static fun values ()[Lviaduct/service/api/spi/FlagManager$Flags;
-}
-
-public final class viaduct/service/api/spi/FlagManager$default : viaduct/service/api/spi/FlagManager {
-	public static final field INSTANCE Lviaduct/service/api/spi/FlagManager$default;
-	public fun isEnabled (Lviaduct/service/api/spi/FlagManager$Flag;)Z
-}
-
-public final class viaduct/service/api/spi/FlagManager$disabled : viaduct/service/api/spi/FlagManager {
-	public static final field INSTANCE Lviaduct/service/api/spi/FlagManager$disabled;
-	public fun isEnabled (Lviaduct/service/api/spi/FlagManager$Flag;)Z
 }
 
 public abstract interface class viaduct/service/api/spi/GlobalIDCodec {

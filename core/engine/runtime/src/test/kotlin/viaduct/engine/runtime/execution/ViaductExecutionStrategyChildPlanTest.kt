@@ -47,7 +47,7 @@ import viaduct.service.api.spi.FlagManager
  */
 @ExperimentalCoroutinesApi
 class ViaductExecutionStrategyChildPlanTest {
-    private val nextTickDispatcher = NextTickDispatcher(flagManager = FlagManager.disabled)
+    private val nextTickDispatcher = NextTickDispatcher(flagManager = FlagManager.Disabled)
 
     @Test
     @Suppress("UNCHECKED_CAST")

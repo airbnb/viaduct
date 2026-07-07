@@ -115,9 +115,8 @@ class ServiceApiJavaCoverageTest {
 
     final FlagManager flagManager = new JavaFlagManager();
     flagManager.isEnabled(FlagManager.Flags.ENABLE_SELECTIVE_OER_KEYS);
-    assertNotNull(FlagManager.disabled.INSTANCE); // FlagManager.disabled is Java-legal
-    // TODO: FlagManager.default is unreferenceable from Java ('default' is a reserved word);
-    //       add coverage once it renames to FlagManager.Default.
+    assertNotNull(FlagManager.Disabled.INSTANCE);
+    assertNotNull(FlagManager.Default.INSTANCE);
 
     final CodeInjector codeInjector = new JavaCodeInjector();
     codeInjector.getProvider(String.class);

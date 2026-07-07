@@ -44,7 +44,7 @@ internal class ScopeInstrumentationTest {
         contextMocks = ContextMocks(
             myFullSchema = fullSchema,
             myScopedSchema = scopedSchema,
-            myFlagManager = FlagManager.default,
+            myFlagManager = FlagManager.Default,
         )
 
         clearMocks(mockExecutionContext)

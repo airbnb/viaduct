@@ -289,7 +289,7 @@ object ExecutionTestHelpers {
     ): CompositeLocalContext =
         ContextMocks(
             myFullSchema = schema,
-            myFlagManager = FlagManager.default,
+            myFlagManager = FlagManager.Default,
             myDispatcherRegistry = dispatcherRegistry
         ).localContext
 

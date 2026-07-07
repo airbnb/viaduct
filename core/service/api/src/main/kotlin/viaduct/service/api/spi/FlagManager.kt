@@ -19,13 +19,13 @@ interface FlagManager {
 
     /** A [FlagManager] that reports all flags as disabled. */
     @StableApi
-    object disabled : FlagManager {
+    object Disabled : FlagManager {
         override fun isEnabled(flag: Flag): Boolean = false
     }
 
     /** A [FlagManager] that uses the framework-default state for each flag. */
     @StableApi
-    object default : FlagManager {
+    object Default : FlagManager {
         override fun isEnabled(flag: Flag): Boolean = false
     }
 

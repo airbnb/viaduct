@@ -7,7 +7,7 @@ Viaduct exposes certain runtime behaviours as feature flags so that service engi
 
 ## Default behaviour
 
-If you do not call `withFlagManager`, Viaduct uses `FlagManager.default`. The default enables flags that are considered safe and stable, and disables experimental or killswitch flags. See [Available flags](#available-flags) for the per-flag defaults.
+If you do not call `withFlagManager`, Viaduct uses `FlagManager.Default`. The default enables flags that are considered safe and stable, and disables experimental or killswitch flags. See [Available flags](#available-flags) for the per-flag defaults.
 
 ## Available flags
 
@@ -54,18 +54,18 @@ class StarWarsFlagManager(
     private val flagCache: FlagCache,
 ) : FlagManager {
     override fun isEnabled(flag: FlagManager.Flag): Boolean =
-        flagCache.get(flag.flagName) ?: FlagManager.default.isEnabled(flag)
+        flagCache.get(flag.flagName) ?: FlagManager.Default.isEnabled(flag)
 }
 ```
 
-Falling back to `FlagManager.default` for unknown flags means your service automatically picks up the recommended default for any flags added in future Viaduct releases.
+Falling back to `FlagManager.Default` for unknown flags means your service automatically picks up the recommended default for any flags added in future Viaduct releases.
 
 ## Built-in implementations
 
 | Implementation | Behaviour |
 |---|---|
-| `FlagManager.default` | Framework-recommended defaults — use this as a fallback |
-| `FlagManager.disabled` | All flags disabled — useful in tests to isolate behaviour |
+| `FlagManager.Default` | Framework-recommended defaults — use this as a fallback |
+| `FlagManager.Disabled` | All flags disabled — useful in tests to isolate behaviour |
 
 ## See also
 

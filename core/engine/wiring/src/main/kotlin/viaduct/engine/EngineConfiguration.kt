@@ -27,7 +27,7 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 @OptIn(ExperimentalCoroutinesApi::class)
 data class EngineConfiguration(
     val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
-    val flagManager: FlagManager = FlagManager.default,
+    val flagManager: FlagManager = FlagManager.Default,
     /**
      * Temporary for airbnb only. Off for OSS.
      * The engine will bypass the access checker for airbnb during completion

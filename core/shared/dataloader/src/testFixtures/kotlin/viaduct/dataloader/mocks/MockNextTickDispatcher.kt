@@ -28,7 +28,7 @@ class MockNextTickDispatcher constructor(
     private val testScheduler: TestCoroutineScheduler = TestCoroutineScheduler(),
     private val internalDispatcher: TestDispatcher = StandardTestDispatcher(testScheduler),
     private val batchQueueDispatcher: TestDispatcher = UnconfinedTestDispatcher(testScheduler),
-) : Delay, NextTickDispatcher(internalDispatcher, batchQueueDispatcher, flagManager = FlagManager.disabled) {
+) : Delay, NextTickDispatcher(internalDispatcher, batchQueueDispatcher, flagManager = FlagManager.Disabled) {
     @InternalCoroutinesApi
     override fun scheduleResumeAfterDelay(
         timeMillis: Long,

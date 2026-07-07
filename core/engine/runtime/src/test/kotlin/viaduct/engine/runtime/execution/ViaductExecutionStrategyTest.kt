@@ -99,7 +99,7 @@ class ViaductExecutionStrategyTest {
     @OptIn(ObsoleteCoroutinesApi::class, DelicateCoroutinesApi::class)
     val nextTickDispatcher = NextTickDispatcher(
         wrappedDispatcher = kotlinx.coroutines.newSingleThreadContext("test-dispatcher"),
-        flagManager = FlagManager.disabled
+        flagManager = FlagManager.Disabled
     )
 
     @Test

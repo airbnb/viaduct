@@ -52,7 +52,7 @@ class FieldResolverExecutionConditionTest {
         val schema = GraphQLSchema.newSchema().query(runtimeType).build()
         val engineExecutionContext = ContextMocks(
             myFullSchema = viaduct.engine.api.ViaductSchema(schema),
-            myFlagManager = FlagManager.default,
+            myFlagManager = FlagManager.Default,
         ).engineExecutionContext
         val field = GJField.newField("id").build()
         val childRss = createRSS("HiveTable", "id")

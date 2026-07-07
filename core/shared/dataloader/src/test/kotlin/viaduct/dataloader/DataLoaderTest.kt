@@ -20,7 +20,7 @@ class DataLoaderTest {
         NextTickDispatcher(
             Executors.newSingleThreadExecutor().asCoroutineDispatcher(),
             Executors.newSingleThreadExecutor().asCoroutineDispatcher(),
-            flagManager = FlagManager.disabled
+            flagManager = FlagManager.Disabled
         )
 
     private val dataLoaderStatsCollectorMock = mockk<DataLoaderStatsCollector>(relaxed = true)

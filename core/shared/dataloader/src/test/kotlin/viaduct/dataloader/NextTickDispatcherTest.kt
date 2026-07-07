@@ -24,7 +24,7 @@ class NextTickDispatcherTest {
         NextTickDispatcher(
             Executors.newSingleThreadExecutor().asCoroutineDispatcher(),
             Executors.newSingleThreadExecutor().asCoroutineDispatcher(),
-            flagManager = FlagManager.disabled,
+            flagManager = FlagManager.Disabled,
         )
 
     @Test

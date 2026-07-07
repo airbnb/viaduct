@@ -8,17 +8,17 @@ class FlagManagerTest {
     @Test
     fun `FlagManager_disabled always returns false`() {
         Flags.values().forEach { flag ->
-            assertFalse(FlagManager.disabled.isEnabled(flag))
+            assertFalse(FlagManager.Disabled.isEnabled(flag))
         }
     }
 
     @Test
     fun `FlagManager_default returns false for selective oer keys`() {
-        assertFalse(FlagManager.default.isEnabled(Flags.ENABLE_SELECTIVE_OER_KEYS))
+        assertFalse(FlagManager.Default.isEnabled(Flags.ENABLE_SELECTIVE_OER_KEYS))
     }
 
     @Test
     fun `FlagManager_default does not enable field RSS origin filtering killswitch`() {
-        assertFalse(FlagManager.default.isEnabled(Flags.KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING))
+        assertFalse(FlagManager.Default.isEnabled(Flags.KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING))
     }
 }

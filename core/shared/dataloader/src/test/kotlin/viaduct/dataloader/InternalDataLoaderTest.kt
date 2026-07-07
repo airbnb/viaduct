@@ -68,7 +68,7 @@ class InternalDataLoaderTest {
         NextTickDispatcher(
             Dispatchers.Default,
             Executors.newCachedThreadPool().asCoroutineDispatcher(),
-            flagManager = FlagManager.disabled
+            flagManager = FlagManager.Disabled
         )
 
     /**
@@ -78,7 +78,7 @@ class InternalDataLoaderTest {
         NextTickDispatcher(
             Executors.newSingleThreadExecutor().asCoroutineDispatcher(),
             Executors.newSingleThreadExecutor().asCoroutineDispatcher(),
-            flagManager = FlagManager.disabled,
+            flagManager = FlagManager.Disabled,
         )
 
     @ParameterizedTest
