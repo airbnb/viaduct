@@ -36,7 +36,7 @@ Viaduct manages many objects with different lifetimes. Understanding these lifec
 - `EngineFactory` — schema-scoped singleton in `SchemaScopedModule`
 - `CheckerExecutorFactory` — schema-scoped singleton, creates access checker executors
 - `CachingPreparsedDocumentProvider` — query parse cache, has Deployment lifecycle but is mutated on a per-request basis.
-- Tenant module bootstrappers — `ViaductTenantModuleBootstrapper` instances that discover `@Resolver` classes, rebuilt on hot-deploy
+- Tenant module bootstrappers — generated registry-backed bootstrappers that create resolver executors, rebuilt on hot-deploy
 
 **Request lifecycle:**
 

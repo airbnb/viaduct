@@ -165,8 +165,7 @@ class ModuleBootstrapperTest {
         override fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj> = CompletableFuture.completedFuture(TestNodeObj())
     }
 
-    // Fixtures for strict bootstrap validation tests (mirrors Kotlin
-    // ViaductTenantModuleBootstrapper behavior).
+    // Fixtures for strict bootstrap validation tests.
     @NodeResolverFor(typeName = "OrphanNodeType")
     abstract class OrphanNodeResolverBase : NodeResolverBase<TestNodeObj> {
         abstract fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj>

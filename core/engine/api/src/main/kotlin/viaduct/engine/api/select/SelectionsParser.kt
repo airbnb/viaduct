@@ -34,11 +34,8 @@ object SelectionsParser {
     /**
      * Return a [ParsedSelections] from the provided type and [Selections] string.
      *
-     * [knownFragments] is populated only by the classic (reflection-based) bootstrapper
-     * ([viaduct.tenant.runtime.bootstrap.ViaductTenantModuleBootstrapper]), which scans the
-     * classpath at startup to resolve [@GraphQLFragment][viaduct.api.documents.GraphQLFragment]
-     * spreads at runtime. The KSP/codegen path inlines named fragments into the selections string
-     * at assembly time, so [knownFragments] is empty there.
+     * The KSP/codegen path inlines named fragments into the selections string at assembly time,
+     * so [knownFragments] is empty there.
      */
     fun parse(
         typeName: String,

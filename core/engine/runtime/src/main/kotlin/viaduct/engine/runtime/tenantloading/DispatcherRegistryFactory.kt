@@ -56,8 +56,6 @@ class DispatcherRegistryFactory(
             tenantAPIBootstrapper.tenantModuleBootstrappers()
         }
 
-        var nonContributingModernBootstrappersPresent = false
-
         // Concatenate resolvers from all bootstrappers into a single list.
         for (tenant in tenantModuleBootstrappers) {
             val (tenantFieldResolverExecutors, tenantNodeResolverExecutors) = try {
@@ -91,9 +89,6 @@ class DispatcherRegistryFactory(
             }
             if (!tenantContributesExecutors) {
                 log().warn("Bootstrapping $tenant (a ${tenant.javaClass.name}) did not contribute any executors")
-                if (tenant.javaClass.simpleName == "ViaductTenantModuleBootstrapper") {
-                    nonContributingModernBootstrappersPresent = true
-                }
             }
         }
 
@@ -120,9 +115,6 @@ class DispatcherRegistryFactory(
             }
         }
         val dispatcherRegistry = DispatcherRegistry.Impl(fieldResolverDispatchers.toMap(), nodeResolverDispatchers.toMap(), fieldCheckerDispatchers.toMap(), typeCheckerDispatchers.toMap())
-        if (dispatcherRegistry.isEmpty() && nonContributingModernBootstrappersPresent) {
-            log().warn("Empty executor registry for {}.", tenantModuleBootstrappers)
-        }
 
         validator.validate(
             ExecutorValidatorContext(

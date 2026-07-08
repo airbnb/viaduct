@@ -45,7 +45,7 @@ abstract class AbstractFeatureAppTestContractBase {
 
     /**
      * Creates the [TenantAPIBootstrapperBuilder] used to bootstrap resolvers.
-     * Kotlin subclasses return a `ViaductTenantAPIBootstrapper.Builder`;
+     * Kotlin subclasses return an execution-registry bootstrapper builder;
      * Java subclasses return a `MockTenantAPIBootstrapperBuilder` wrapper.
      */
     protected abstract fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder

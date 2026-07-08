@@ -4,15 +4,9 @@ package viaduct.engine.runtime
 
 import graphql.language.AstPrinter
 import io.kotest.matchers.types.shouldBeInstanceOf
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.unmockkAll
-import io.mockk.verify
 import kotlin.collections.count
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -20,10 +14,6 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertDoesNotThrow
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-import org.slf4j.LoggerFactory.getLogger
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
@@ -87,9 +77,6 @@ class DispatcherRegistryTest {
             )
         )
     }
-
-    @AfterEach
-    fun tearDown() = unmockkAll()
 
     private fun createDispatcherRegistry() = DispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, checkerExecutorFactory).create(Samples.testSchema) as DispatcherRegistry.Impl
 
@@ -315,37 +302,6 @@ class DispatcherRegistryTest {
             assert(nodeResolverExecutors["TestNode"]!! is MockNodeUnbatchedResolverExecutor)
             assert(nodeResolverExecutors["TestBatchNode"]!! is MockNodeBatchResolverExecutor)
         }
-
-    @Test
-    fun `should log warning when registry is empty with non-contributing modern bootstrappers`() {
-        class ViaductTenantModuleBootstrapper : TenantModuleBootstrapper {
-            override fun fieldResolverExecutors(schema: ViaductSchema) = emptyList<Pair<Coordinate, FieldResolverExecutor>>()
-
-            override fun nodeResolverExecutors(schema: ViaductSchema) = emptyList<Pair<String, NodeResolverExecutor>>()
-        }
-
-        mockkStatic(LoggerFactory::class)
-        val mockLogger = mockk<Logger>(relaxed = true)
-        every { getLogger(any<Class<*>>()) } returns mockLogger
-        every { getLogger(any<String>()) } returns mockLogger
-        val logPrefix = "Empty executor registry for "
-
-        assertDoesNotThrow {
-            val dispatcherRegistry = DispatcherRegistryFactory(
-                MockTenantAPIBootstrapper(listOf(ViaductTenantModuleBootstrapper())),
-                Validator.Unvalidated,
-                MockCheckerExecutorFactory()
-            ).create(Samples.testSchema) as DispatcherRegistry.Impl
-
-            assertTrue(dispatcherRegistry.isEmpty())
-            assertEquals(0, dispatcherRegistry.fieldResolverDispatchers.size)
-            assertEquals(0, dispatcherRegistry.nodeResolverDispatchers.size)
-            assertEquals(0, dispatcherRegistry.fieldCheckerDispatchers.size)
-            assertEquals(0, dispatcherRegistry.typeCheckerDispatchers.size)
-        }
-
-        verify(atLeast = 1) { mockLogger.warn(match<String> { it.startsWith(logPrefix) }, any<Any>()) }
-    }
 
     @Test
     fun `handles TenantModuleException gracefully`() {
