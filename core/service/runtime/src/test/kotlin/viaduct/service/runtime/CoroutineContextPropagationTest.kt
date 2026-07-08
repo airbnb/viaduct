@@ -40,7 +40,7 @@ class CoroutineContextPropagationTest {
         runBlocking {
             withContext(TestContext(42)) {
                 val input = ExecutionInput.create("{result}")
-                val result = subject.execute(input, SchemaId.Full)
+                val result = subject.execute(input, SchemaId.Base)
                 result.assertJson("{data: {result: 42}}")
             }
         }

@@ -19,7 +19,7 @@ object ScopingErrorCodes {
     /** DSL rejected a scoped-schema ID that does not match the API-name identifier shape. */
     const val SCHEMA_ID_FORMAT_INVALID = "SCHEMA_ID_FORMAT_INVALID"
 
-    /** DSL rejected a scoped-schema ID that is reserved by Viaduct (`FULL`, `NONE`). */
+    /** DSL rejected a scoped-schema ID that is reserved by Viaduct (`BASE`, `NONE`). */
     const val SCHEMA_ID_RESERVED = "SCHEMA_ID_RESERVED"
 
     /**

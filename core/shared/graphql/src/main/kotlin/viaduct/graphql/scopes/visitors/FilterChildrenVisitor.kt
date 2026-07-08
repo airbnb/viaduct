@@ -18,7 +18,7 @@ import viaduct.graphql.scopes.utils.isIntrospectionField
 internal class FilterChildrenVisitor(
     private val appliedScopes: Set<String>,
     private val scopeDirectiveParser: ScopeDirectiveParser,
-    private val elementChildren: MutableMap<GraphQLSchemaElement, List<GraphQLNamedSchemaElement>?>
+    private val elementChildren: MutableMap<GraphQLSchemaElement, List<GraphQLNamedSchemaElement>?>,
 ) : TraverserVisitorStub<GraphQLSchemaElement>() {
     override fun enter(context: TraverserContext<GraphQLSchemaElement>): TraversalControl {
         if (isIntrospectionField(context.thisNode())) {
@@ -44,17 +44,16 @@ internal class FilterChildrenVisitor(
             return
         }
 
+        val children = getChildrenForElement(element) ?: return
+
         // Build an object containing which child elements are part of each scope (all scopes)
         val metadata = scopeDirectiveParser.metadataForElement(element) ?: return
 
         // Get the element names in the _applied_ scopes
-        val elementNamesInAppliedScopes = getElementNamesInScopes(metadata)
-
-        // Filter the child elements from the original map
-        val newChildElements =
-            (getChildrenForElement(element) ?: return).filter { el ->
-                elementNamesInAppliedScopes.contains(getKeyForElement(el))
-            }
+        val elementNamesInAppliedScopes = getElementNamesInScopes(metadata, appliedScopes)
+        val newChildElements = children.filter { el ->
+            elementNamesInAppliedScopes.contains(getKeyForElement(el))
+        }
 
         elementChildren[element] = newChildElements
     }
@@ -63,13 +62,15 @@ internal class FilterChildrenVisitor(
      * Fold over the scope list and get a union of all field names from the scope metadata
      * that are visible for those scopes.
      **/
-    private fun getElementNamesInScopes(elementScopeMetadata: ElementScopeMetadata) =
-        appliedScopes.fold(setOf<String>()) { acc, scope ->
-            val elementNamesForScope =
-                elementScopeMetadata.elementsForScopes[scope]?.map { getKeyForNode(it) }?.toSet()
-                    ?: setOf()
-            acc + elementNamesForScope
-        }
+    private fun getElementNamesInScopes(
+        elementScopeMetadata: ElementScopeMetadata,
+        scopes: Set<String>,
+    ) = scopes.fold(setOf<String>()) { acc, scope ->
+        val elementNamesForScope =
+            elementScopeMetadata.elementsForScopes[scope]?.map { getKeyForNode(it) }?.toSet()
+                ?: setOf()
+        acc + elementNamesForScope
+    }
 
     private fun getKeyForNode(node: NamedNode<*>): String =
         if (node is TypeName) {

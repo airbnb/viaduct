@@ -200,7 +200,7 @@ internal class ViaductDescriptor(
         ): ViaductDescriptor =
             ViaductDescriptor(
                 schemas = (viaduct as? StandardViaduct)?.schemaDescriptors()
-                    ?: listOf(SchemaDescriptor(SchemaId.Full.toString(), schemaPrinter.print(config.schema.schema))),
+                    ?: listOf(SchemaDescriptor(SchemaId.Base.toString(), schemaPrinter.print(config.schema.schema))),
                 fieldResolvers = config.fieldResolverExecutors
                     .sortedBy { it.first.asString() }
                     .map { (coord, executor) -> executor.describe(coord, config.instrumentedFieldResolverFactory) },

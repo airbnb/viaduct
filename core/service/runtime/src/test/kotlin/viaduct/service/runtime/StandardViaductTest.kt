@@ -258,6 +258,27 @@ class StandardViaductTest {
     }
 
     @Test
+    fun `build should validate tenant-local resolver fields against full schema`() {
+        val sdl = """
+            extend type Query {
+                visible: String
+                missingTenantLocal: String @tenantLocal @resolver
+            }
+        """.trimIndent()
+        val schemaConfiguration = SchemaConfiguration.fromSdl(sdl)
+
+        val exception = assertThrows<GraphQLBuildError> {
+            StandardViaduct.Builder()
+                .withNoTenantAPIBootstrapper()
+                .withSchemaConfiguration(schemaConfiguration)
+                .build()
+        }
+
+        assertEquals(true, exception.message?.contains("Query.missingTenantLocal"))
+        assertEquals("MissingResolversException", exception.cause?.javaClass?.simpleName)
+    }
+
+    @Test
     fun `build should succeed with lenient resolver validation when resolver field has no executor`() {
         val sdl = """
             extend type Query {
@@ -328,7 +349,7 @@ class StandardViaductTest {
                     operationText = "{ generatedRegistryTestField }",
                     requestContext = Any(),
                 ),
-                SchemaId.Full,
+                SchemaId.Base,
             )
         }
 
@@ -365,11 +386,11 @@ class StandardViaductTest {
                     operationText = "{ generatedRegistryTestField }",
                     requestContext = Any(),
                 ),
-                SchemaId.Full,
+                SchemaId.Base,
             )
         }
 
-        assertSame(oldViaduct.getSchema(SchemaId.Full), newViaduct.getSchema(SchemaId.Full))
+        assertSame(oldViaduct.getSchema(SchemaId.Base), newViaduct.getSchema(SchemaId.Base))
         assertEquals(emptyList<GraphQLError>(), result.errors)
         assertEquals(mapOf("generatedRegistryTestField" to "new-registry"), result.getData())
     }

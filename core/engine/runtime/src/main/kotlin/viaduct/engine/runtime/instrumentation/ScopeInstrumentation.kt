@@ -32,7 +32,7 @@ class ScopeInstrumentation : ViaductInstrumentationBase() {
                 }
             }
 
-            // update the execution to use activeSchema, which is fullSchema or scopedSchema depending on introspection
+            // Update the execution to use activeSchema, which is fullSchema or scopedSchema depending on introspection.
             contextBuilder.graphQLSchema(
                 engineExecutionContext.activeSchema.schema
             )

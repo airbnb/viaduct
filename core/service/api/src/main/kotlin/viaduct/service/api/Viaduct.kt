@@ -22,13 +22,13 @@ interface Viaduct {
      * control the threads on which execution runs, should use [executeAsync] instead.
      *
      * @param executionInput the execution input for this operation
-     * @param schemaId the id of the schema against which to execute, defaults to [SchemaId.Full]
+     * @param schemaId the id of the schema against which to execute, defaults to [SchemaId.Base]
      * @return the [ExecutionResult] whose [errors][ExecutionResult.errors] are sorted by path
      *         then by message
      */
     suspend fun execute(
         executionInput: ExecutionInput,
-        schemaId: SchemaId = SchemaId.Full
+        schemaId: SchemaId = SchemaId.Base
     ): ExecutionResult
 
     /**
@@ -51,11 +51,11 @@ interface Viaduct {
     ): CompletableFuture<ExecutionResult>
 
     /**
-     * Executes an operation against [SchemaId.Full] on the [ForkJoinPool.commonPool].
+     * Executes an operation against [SchemaId.Base] on the [ForkJoinPool.commonPool].
      *
      * @see executeAsync
      */
-    fun executeAsync(executionInput: ExecutionInput): CompletableFuture<ExecutionResult> = executeAsync(executionInput, SchemaId.Full, ForkJoinPool.commonPool())
+    fun executeAsync(executionInput: ExecutionInput): CompletableFuture<ExecutionResult> = executeAsync(executionInput, SchemaId.Base, ForkJoinPool.commonPool())
 
     /**
      * Executes an operation against [schemaId] on the [ForkJoinPool.commonPool].

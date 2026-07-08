@@ -128,7 +128,7 @@ abstract class AbstractFeatureAppTestContractBase {
         }
     }
 
-    open fun defaultSchemaId(): SchemaId = SchemaId.Full
+    open fun defaultSchemaId(): SchemaId = SchemaId.Base
 
     /**
      * Returns the [FieldResolverExecutor] for the given coordinate, or null if none is registered.
@@ -142,7 +142,7 @@ abstract class AbstractFeatureAppTestContractBase {
         fieldName: String,
     ): FieldResolverExecutor? {
         tryBuildViaductService()
-        val schema = (viaductService as StandardViaduct).engineRegistry.getSchema(SchemaId.Full)
+        val schema = (viaductService as StandardViaduct).engineRegistry.getSchema(SchemaId.Base)
         val coordinate = typeName to fieldName
         return runBlocking {
             createBootstrapperBuilder().create().tenantModuleBootstrappers()

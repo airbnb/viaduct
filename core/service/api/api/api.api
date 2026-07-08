@@ -58,8 +58,8 @@ public abstract class viaduct/service/api/SchemaId {
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class viaduct/service/api/SchemaId$Full : viaduct/service/api/SchemaId {
-	public static final field INSTANCE Lviaduct/service/api/SchemaId$Full;
+public final class viaduct/service/api/SchemaId$Base : viaduct/service/api/SchemaId {
+	public static final field INSTANCE Lviaduct/service/api/SchemaId$Base;
 }
 
 public final class viaduct/service/api/SchemaId$None : viaduct/service/api/SchemaId {

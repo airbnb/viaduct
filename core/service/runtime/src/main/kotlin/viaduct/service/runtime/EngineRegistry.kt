@@ -17,6 +17,7 @@ import viaduct.engine.EngineFactory
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.Engine
 import viaduct.engine.api.ViaductSchema
+import viaduct.graphql.scopes.ScopedSchemaBuilder
 import viaduct.service.api.SchemaId
 import viaduct.utils.collections.parallelMap
 import viaduct.utils.slf4j.logger
@@ -27,6 +28,7 @@ import viaduct.utils.slf4j.logger
  */
 class EngineRegistry private constructor(
     private val schemasById: Map<SchemaId, Lazy<ViaductSchema>> = emptyMap(),
+    private val fullSchema: ViaductSchema,
     private val documentProviderFactory: DocumentProviderFactory,
 ) {
     /**
@@ -36,6 +38,12 @@ class EngineRegistry private constructor(
     internal fun getAllSchemas(): Map<SchemaId, Lazy<ViaductSchema>> {
         return schemasById
     }
+
+    /**
+     * Complete internal schema used for planning and execution. Unlike [SchemaId.Base], this
+     * schema includes tenant-local fields.
+     */
+    fun getFullSchema(): ViaductSchema = fullSchema
 
     /**
      * Exception thrown when a requested schema is not found in the registry.
@@ -93,12 +101,23 @@ class EngineRegistry private constructor(
                         log.info("Full schema built in {} s ({} ms).", duration.inWholeSeconds, duration.inWholeMilliseconds)
                         schema
                     }
+                    val baseGraphQLSchema = ScopedSchemaBuilder(
+                        inputSchema = fullSchema.schema,
+                        validScopes = fullSchema.scopes(),
+                        additionalVisitorConstructors = emptyList(),
+                    ).applyBaseSchema().filtered
+                    val baseSchema = if (baseGraphQLSchema === fullSchema.schema) {
+                        fullSchema
+                    } else {
+                        fullSchema.copy(schema = baseGraphQLSchema)
+                    }
                     EngineRegistry(
                         buildMap {
-                            put(SchemaId.Full, lazyOf(fullSchema))
+                            put(SchemaId.Base, lazyOf(baseSchema))
                             // block while building scoped schemas in parallel
                             putAll(buildScopedSchemas(config.scopedSchemas.toMap(), fullSchema))
                         },
+                        fullSchema,
                         documentProviderFactory,
                     )
                 }.let { (registry, duration) ->
@@ -124,6 +143,7 @@ class EngineRegistry private constructor(
                 val allSchemas = existingRegistry.getAllSchemas()
                 return EngineRegistry(
                     allSchemas,
+                    existingRegistry.fullSchema,
                     documentProviderFactory,
                 )
             }
@@ -150,7 +170,7 @@ class EngineRegistry private constructor(
 
     /**
      * This must be set exactly once, before any calls to [getEngine].
-     * We cannot set it in the constructor because of the dependency of [EngineFactory] on the "full" schema. So we must wait for
+     * We cannot set it in the constructor because of the dependency of [EngineFactory] on the full schema. So we must wait for
      * the EngineRegistry to be constructed with the full schema, and then we can construct the [EngineFactory] and set it here.
      */
     private lateinit var engineFactory: EngineFactory
@@ -163,6 +183,12 @@ class EngineRegistry private constructor(
     }
 
     private val enginesById = ConcurrentHashMap<SchemaId, Engine>()
+    private val internalFullSchemaEngine: Engine by lazy {
+        log.info("Initializing full-schema engine")
+        createFullSchemaEngine().also {
+            log.info("Full-schema engine initialized successfully.")
+        }
+    }
 
     /**
      * Retrieve the set of all registered [SchemaId]s.
@@ -186,6 +212,20 @@ class EngineRegistry private constructor(
                 log.info("Engine for schema ID {} initialized successfully.", schemaId)
             }
         }
+    }
+
+    /**
+     * Retrieve the internal full-schema [Engine].
+     *
+     * The full schema intentionally does not have a public [SchemaId] because clients should execute
+     * against [SchemaId.Base] or a scoped schema. Internal re-entrant execution, such as derived field
+     * provider fragments, may still need to validate and execute against tenant-local fields.
+     */
+    fun getFullSchemaEngine(): Engine {
+        if (!::engineFactory.isInitialized) {
+            throw IllegalStateException("EngineRegistry not fully initialized as engine factory has not been set. This is fatal and should never happen.")
+        }
+        return internalFullSchemaEngine
     }
 
     /**
@@ -232,9 +272,27 @@ class EngineRegistry private constructor(
             ?: throw IllegalStateException("Engine for schema ID $schemaId does not directly expose the GraphQL object.")
     }
 
+    /**
+     * **Deprecated:** Do not use. This method is only for temporary use during migration to [Engine] from [GraphQL].
+     * Retrieve the underlying full-schema [GraphQL] instance for internal re-entrant execution.
+     */
+    @Deprecated("Do not use. This method is only for temporary use during migration to [viaduct.engine.Engine] from [graphql.GraphQL].")
+    @Suppress("FunctionName")
+    fun getFullSchemaGraphQLEngine_DONOTUSE(): GraphQL {
+        val engine = getFullSchemaEngine()
+        @Suppress("DEPRECATION")
+        return (engine as? viaduct.engine.EngineGraphQLJavaCompat)?.getGraphQL()
+            ?: throw IllegalStateException("Full-schema engine does not directly expose the GraphQL object.")
+    }
+
     private fun createEngine(schemaId: SchemaId): Engine {
         val schema = getSchema(schemaId)
         val documentProvider = documentProviderFactory.create(schemaId, schema)
-        return engineFactory.create(schema, documentProvider, getSchema(SchemaId.Full))
+        return engineFactory.create(schema, documentProvider, fullSchema)
+    }
+
+    private fun createFullSchemaEngine(): Engine {
+        val documentProvider = documentProviderFactory.create(SchemaId.Base, fullSchema)
+        return engineFactory.create(fullSchema, documentProvider, fullSchema)
     }
 }

@@ -1,6 +1,7 @@
 package viaduct.graphql.scopes
 
 import graphql.Directives
+import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLNamedSchemaElement
 import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLSchemaElement
@@ -12,11 +13,13 @@ import viaduct.graphql.scopes.utils.buildSchemaTraverser
 import viaduct.graphql.scopes.utils.getChildrenForElement
 import viaduct.graphql.scopes.visitors.CompositeVisitor
 import viaduct.graphql.scopes.visitors.FilterChildrenVisitor
+import viaduct.graphql.scopes.visitors.FilterTenantLocalFieldsVisitor
 import viaduct.graphql.scopes.visitors.SchemaTransformations
 import viaduct.graphql.scopes.visitors.TransformationsVisitor
 import viaduct.graphql.scopes.visitors.TypeRemovalVisitor
 import viaduct.graphql.scopes.visitors.ValidateRequiredScopesVisitor
 import viaduct.graphql.scopes.visitors.ValidateScopesVisitor
+import viaduct.graphql.utils.DefaultSchemaFactory
 
 typealias AdditionalVisitorConstructor = (
     GraphQLSchema,
@@ -29,11 +32,35 @@ internal class SchemaScopeTransformer(
     private val validScopes: Set<String>,
     private val additionalVisitorConstructors: List<AdditionalVisitorConstructor>
 ) {
+    private companion object {
+        val TENANT_LOCAL_DIRECTIVE_NAME = DefaultSchemaFactory.DefaultDirective.TENANT_LOCAL.directiveName
+    }
+
     fun applyScopes(
         inputSchema: GraphQLSchema,
-        appliedScopes: Set<String>
+        appliedScopes: Set<String>,
+        includeTenantLocalFields: Boolean,
     ): GraphQLSchema {
-        val schemaTransformations = buildTransformations(inputSchema, appliedScopes)
+        val schemaTransformations = buildTransformations(
+            inputSchema,
+            appliedScopes,
+            includeTenantLocalFields = includeTenantLocalFields,
+        )
+        return transformAndNormalizeDirectives(inputSchema, schemaTransformations)
+    }
+
+    fun applyBaseSchema(inputSchema: GraphQLSchema): GraphQLSchema {
+        if (!hasTenantLocalFields(inputSchema)) {
+            return inputSchema
+        }
+        val schemaTransformations = buildBaseSchemaTransformations(inputSchema)
+        return transformAndNormalizeDirectives(inputSchema, schemaTransformations)
+    }
+
+    private fun transformAndNormalizeDirectives(
+        inputSchema: GraphQLSchema,
+        schemaTransformations: SchemaTransformations,
+    ): GraphQLSchema {
         return transformSchema(inputSchema, schemaTransformations).let { scopedSchema ->
             // NOTE(jimmy): There is a known issue where graphql-java can duplicate the skip+include directives
             // when transforming a schema that already has skip+include in its input. The issue is fixed when
@@ -52,7 +79,8 @@ internal class SchemaScopeTransformer(
 
     fun buildTransformations(
         schema: GraphQLSchema,
-        appliedScopes: Set<String>
+        appliedScopes: Set<String>,
+        includeTenantLocalFields: Boolean = false,
     ): SchemaTransformations {
         // Traverse the Schema AST
         val stubRoot = StubRoot(schema)
@@ -73,13 +101,13 @@ internal class SchemaScopeTransformer(
                 .map { it(schema, typesToRemove, elementChildren, appliedScopes) }
                 .toTypedArray()
         val visitor = when {
-            validScopes.isEmpty() && appliedScopes.isEmpty() ->
+            validScopes.isEmpty() && appliedScopes.isEmpty() && includeTenantLocalFields ->
                 // If no scopes are applied, we can skip the validation and just run additional visitors
                 CompositeVisitor(
                     *additionalVisitors
                 )
 
-            appliedScopes == validScopes -> CompositeVisitor(
+            appliedScopes == validScopes && includeTenantLocalFields -> CompositeVisitor(
                 ValidateRequiredScopesVisitor(scopeDirectiveParser),
                 *additionalVisitors
             )
@@ -90,7 +118,11 @@ internal class SchemaScopeTransformer(
                     ValidateScopesVisitor(validScopes, scopeDirectiveParser),
                     // inspect the scope information for this type or its extensions and save it's modified children
                     // in `elementChildren`
-                    FilterChildrenVisitor(appliedScopes, scopeDirectiveParser, elementChildren),
+                    FilterChildrenVisitor(
+                        appliedScopes = appliedScopes,
+                        scopeDirectiveParser = scopeDirectiveParser,
+                        elementChildren = elementChildren,
+                    ),
                     // Based on the filtered children, decide if the element should be removed
                     TypeRemovalVisitor(typesToRemove, elementChildren),
                     // Run any additional visitors
@@ -107,6 +139,32 @@ internal class SchemaScopeTransformer(
         )
     }
 
+    private fun buildBaseSchemaTransformations(schema: GraphQLSchema): SchemaTransformations {
+        val stubRoot = StubRoot(schema)
+        val elementChildren =
+            schema.allTypesAsList
+                .associate {
+                    Pair(it as GraphQLSchemaElement, getChildrenForElement(it))
+                }.toMutableMap()
+        val typesToRemove = mutableSetOf<String>()
+        val additionalVisitors =
+            additionalVisitorConstructors
+                .map { it(schema, typesToRemove, elementChildren, emptySet()) }
+                .toTypedArray()
+        val visitor = CompositeVisitor(
+            FilterTenantLocalFieldsVisitor(elementChildren),
+            TypeRemovalVisitor(typesToRemove, elementChildren),
+            *additionalVisitors
+        )
+
+        buildSchemaTraverser(schema).traverse(stubRoot, visitor)
+
+        return SchemaTransformations(
+            elementChildren = elementChildren,
+            typesNamesToRemove = typesToRemove
+        )
+    }
+
     /**
      * Given a schema and a set of transformations, transform the input schema.
      */
@@ -114,4 +172,11 @@ internal class SchemaScopeTransformer(
         schema: GraphQLSchema,
         transformations: SchemaTransformations
     ): GraphQLSchema = SchemaTransformer.transformSchema(schema, TransformationsVisitor(transformations))
+
+    private fun hasTenantLocalFields(schema: GraphQLSchema): Boolean =
+        schema.allTypesAsList.any { element ->
+            getChildrenForElement(element)?.any { child ->
+                child is GraphQLFieldDefinition && child.hasAppliedDirective(TENANT_LOCAL_DIRECTIVE_NAME)
+            } == true
+        }
 }

@@ -68,14 +68,14 @@ val viaduct =
 
 Each execution targets a **schema variant** identified by a `SchemaId`:
 
-- `SchemaId.Full` — default “complete” schema.
+- `SchemaId.Base` — default unscoped external schema.
 - `SchemaId.Scoped(id, scopeIds)` — a schema variant derived from the full schema by applying *scope IDs*.
 - `SchemaId.None` — sentinel “non-existent schema” (typically not used for normal execution).
 
 ```kotlin
 import viaduct.service.api.SchemaId
 
-val full = SchemaId.Full
+val base = SchemaId.Base
 
 val internalOnly = SchemaId.Scoped(
   id = "INTERNAL",
@@ -147,16 +147,15 @@ val input =
 ```kotlin
 interface Viaduct {
   // Kotlin / coroutine entry point: suspends until the operation completes.
-  suspend fun execute(input: ExecutionInput, schemaId: SchemaId = SchemaId.Full): ExecutionResult
+  suspend fun execute(input: ExecutionInput, schemaId: SchemaId = SchemaId.Base): ExecutionResult
 
   // Java-friendly entry point: returns a future and runs on the given Executor
   // (defaults to ForkJoinPool.commonPool()).
   fun executeAsync(
     input: ExecutionInput,
-    schemaId: SchemaId = SchemaId.Full,
+    schemaId: SchemaId = SchemaId.Base,
     executor: Executor = ForkJoinPool.commonPool(),
   ): CompletableFuture<ExecutionResult>
-
   fun getAppliedScopes(schemaId: SchemaId): Set<String>?
 }
 ```
@@ -173,7 +172,7 @@ coroutine context.
 import viaduct.service.api.SchemaId
 
 suspend fun handleRequest(viaduct: Viaduct, input: ExecutionInput): Map<String, Any?> {
-  val result = viaduct.execute(input, SchemaId.Full)
+  val result = viaduct.execute(input, SchemaId.Base)
   return result.toSpecification()
 }
 ```
@@ -191,13 +190,13 @@ runs on (defaulting to `ForkJoinPool.commonPool()`). It is the idiomatic entry p
 callers and other non-coroutine contexts.
 
 ```kotlin
-val result = viaduct.executeAsync(input, SchemaId.Full).join()
+val result = viaduct.executeAsync(input, SchemaId.Base).join()
 val response = result.toSpecification()
 ```
 
 ```java
 // From Java
-ExecutionResult result = viaduct.executeAsync(input, SchemaId.Full.INSTANCE).join();
+ExecutionResult result = viaduct.executeAsync(input, SchemaId.Base.INSTANCE).join();
 ```
 
 **When to use**
@@ -235,7 +234,7 @@ This is primarily for **authorization / access-control** and auditing:
 val scopes: Set<String>? = viaduct.getAppliedScopes(schemaId)
 
 if (scopes == null) {
-  // full schema (no scopes)
+  // base schema (no scopes)
 } else if ("internal" !in scopes) {
   // reject or downgrade capabilities
 }

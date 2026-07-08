@@ -24,7 +24,6 @@ import viaduct.engine.runtime.tenantloading.ExecutorValidator
 import viaduct.engine.runtime.tenantloading.MissingResolverValidationCtx
 import viaduct.engine.runtime.tenantloading.MissingResolverValidator
 import viaduct.engine.runtime.validation.Validator
-import viaduct.service.api.SchemaId
 import viaduct.utils.slf4j.logger
 
 internal class SchemaScopedModule(
@@ -72,7 +71,7 @@ internal class SchemaScopedModule(
         fun providesFullViaductSchema(
             @BaseRegistry engineRegistry: EngineRegistry
         ): ViaductSchema {
-            return engineRegistry.getSchema(SchemaId.Full)
+            return engineRegistry.getFullSchema()
         }
 
         @Provides

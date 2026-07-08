@@ -135,6 +135,20 @@ object DefaultSchemaFactory {
             }
         },
 
+        TENANT_LOCAL("tenantLocal") {
+            override fun createDefinition(sourceLocation: SourceLocation): DirectiveDefinition {
+                val description = Description("@tenantLocal directive", sourceLocation, false)
+
+                return DirectiveDefinition
+                    .newDirectiveDefinition()
+                    .name(directiveName)
+                    .description(description)
+                    .directiveLocation(DirectiveLocation("FIELD_DEFINITION"))
+                    .sourceLocation(sourceLocation)
+                    .build()
+            }
+        },
+
         ID_OF("idOf") {
             override fun createDefinition(sourceLocation: SourceLocation): DirectiveDefinition {
                 val description = Description("@idOf directive", sourceLocation, false)

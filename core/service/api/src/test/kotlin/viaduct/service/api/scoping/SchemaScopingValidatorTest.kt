@@ -78,27 +78,27 @@ class SchemaScopingValidatorTest {
     }
 
     @Test
-    fun `validate accepts a sole full-alias entry when a universe is declared`() {
-        // An entry like `"FULL_ALIAS" to emptySet()` is a documented "full-schema alias" —
-        // the scoped schema exposes everything in the declared universe (no filtering).
+    fun `validate accepts a sole base-alias entry when a universe is declared`() {
+        // An entry like `"BASE_ALIAS" to emptySet()` is a documented base-schema alias:
+        // the scoped schema exposes the base schema without additional scope filtering.
         // Distinct from the no-universe case below: the universe declaration is what flips
-        // an empty-set entry from "invalid scoping intent" to "full-schema alias".
+        // an empty-set entry from "invalid scoping intent" to "base-schema alias".
         val scoping = SchemaScoping(
             scopeUniverse = setOf("public", "internal"),
-            scopedSchemas = mapOf("FULL_ALIAS" to emptySet()),
+            scopedSchemas = mapOf("BASE_ALIAS" to emptySet()),
         )
         assertEquals(emptyList<SchemaScopingValidationError>(), SchemaScopingValidator.validate(scoping))
     }
 
     @Test
-    fun `validate accepts a full-alias entry alongside a normal scoped schema`() {
-        // Pins that the empty-set "full-schema alias" entry does not taint validation of its
+    fun `validate accepts a base-alias entry alongside a normal scoped schema`() {
+        // Pins that the empty-set "base-schema alias" entry does not taint validation of its
         // siblings — the loop body's empty-unknown short-circuit must not interfere with
         // subset-checking the next entry.
         val scoping = SchemaScoping(
             scopeUniverse = setOf("public", "internal"),
             scopedSchemas = mapOf(
-                "FULL_ALIAS" to emptySet(),
+                "BASE_ALIAS" to emptySet(),
                 "PUBLIC_ONLY" to setOf("public"),
             ),
         )

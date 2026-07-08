@@ -27,7 +27,7 @@ class SchemaConfiguration private constructor(
     internal val scopedSchemas = ConcurrentHashMap(initialScopedSchemas)
 
     /**
-     * Configuration for building a full (unfiltered) schema from a source.
+     * Configuration for building the internal full schema from a source.
      *
      * This represents the "source" step of schema creation - taking raw schema definitions
      * (SDL strings, resource files, or existing schemas) and building a complete executable
@@ -35,7 +35,7 @@ class SchemaConfiguration private constructor(
      *
      * Key characteristics:
      * - Requires a [SchemaFactory] to perform the expensive parsing and schema building
-     * - Always produces a schema with ID [SchemaId.Full]
+     * - Produces the complete internal schema, including tenant-local fields
      * - Built exactly once per configuration (eager evaluation)
      * - The output serves as input for [ScopedSchemaConfig] instances
      *
@@ -74,7 +74,7 @@ class SchemaConfiguration private constructor(
     }
 
     /**
-     * Configuration for deriving a scoped (filtered) schema from a full schema.
+     * Configuration for deriving a scoped (filtered) schema from the full schema.
      *
      * This represents the "transformation" step of schema creation - taking an already-built
      * full schema and applying scope filtering to produce a schema that only includes types
@@ -113,13 +113,7 @@ class SchemaConfiguration private constructor(
                 scopedId: SchemaId.Scoped
             ): ViaductSchema {
                 val scopeIds = scopedId.scopeIds
-                if (scopeIds.isEmpty()) {
-                    return schema
-                }
                 val validScopes = schema.scopes()
-                if (validScopes.isEmpty()) {
-                    return schema
-                }
                 val scopedSchema = ScopedSchemaBuilder(
                     inputSchema = schema.schema,
                     additionalVisitorConstructors = emptyList(),
@@ -138,8 +132,8 @@ class SchemaConfiguration private constructor(
 
         /**
          * Creates a [SchemaConfiguration] that registers schemas from the provided SDL string.
-         * Registers one schema for each provided [ScopeConfig] and one full schema.
-         * The full schema includes all types and fields without any filtering.
+         * Registers one schema for each provided [ScopeConfig] and one base schema.
+         * The internal full schema includes all fields; the base schema filters tenant-local fields.
          *
          * @param sdl the GraphQL SDL string defining the schema
          * @param scopes set of [ScopeConfig] defining scoped schemas to register
@@ -162,8 +156,8 @@ class SchemaConfiguration private constructor(
 
         /**
          * Creates a [SchemaConfiguration] that registers schemas by loading them from resources.
-         * Registers one schema for each provided [ScopeConfig] and one full schema.
-         * The full schema includes all types and fields without any filtering.
+         * Registers one schema for each provided [ScopeConfig] and one base schema.
+         * The internal full schema includes all fields; the base schema filters tenant-local fields.
          * The resources are loaded from the specified [grtPackagePrefix] and can be filtered using [resourcesIncluded].
          * If [grtPackagePrefix] is null, resources are loaded from the root of the classpath.
          * If [resourcesIncluded] is null, all resources in the package are included.
@@ -191,8 +185,8 @@ class SchemaConfiguration private constructor(
 
         /**
          * Creates a [SchemaConfiguration] that registers schemas from an existing [ViaductSchema].
-         * Registers one schema for each provided [ScopeConfig] and one full schema.
-         * The full schema includes all types and fields without any filtering.
+         * Registers one schema for each provided [ScopeConfig] and one base schema.
+         * The internal full schema includes all fields; the base schema filters tenant-local fields.
          * The provided [schema] is used as the basis for all registered schemas.
          *
          * @param schema the existing [ViaductSchema] to register schemas from
@@ -218,7 +212,7 @@ class SchemaConfiguration private constructor(
     // The following classes are used to wrap prebuilt schemas for the deprecated mutable registration method.
 
     /**
-     * Wraps a prebuilt _full_ [ViaductSchema] for use in the deprecated mutable registration method.
+     * Wraps a prebuilt full [ViaductSchema] for use in the deprecated mutable registration method.
      * The schema is provided via a computation block to allow for lazy evaluation if needed.
      */
     private class FromPrebuiltFullSchema(
@@ -251,7 +245,7 @@ class SchemaConfiguration private constructor(
      *
      * @deprecated This mutable registration method will be removed in favor of immutable configuration.
      * Use the [fromSchema] factory method to create an immutable configuration instead.
-     * @param schemaId unique identifier for the schema, can be full or scoped
+     * @param schemaId unique identifier for the schema, can be base or scoped
      * @param scopedSchemaComputeBlock function that returns the [ViaductSchema] when needed
      * @param lazy if true, the schema is computed lazily; otherwise, it is computed immediately
      */
@@ -262,7 +256,7 @@ class SchemaConfiguration private constructor(
         lazy: Boolean = false,
     ) {
         when (schemaId) {
-            is SchemaId.Full -> {
+            is SchemaId.Base -> {
                 if (fullSchemaConfig == null) {
                     fullSchemaConfig = FromPrebuiltFullSchema(scopedSchemaComputeBlock)
                 }

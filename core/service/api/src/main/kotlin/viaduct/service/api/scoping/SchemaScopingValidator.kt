@@ -35,7 +35,7 @@ object SchemaScopingValidator {
     const val SCHEMA_ID_PATTERN = "^[A-Za-z][A-Za-z0-9_]*$"
 
     /** Scoped-schema IDs reserved by Viaduct for internal sentinels. */
-    val RESERVED_SCHEMA_IDS: Set<String> = setOf("FULL", "NONE")
+    val RESERVED_SCHEMA_IDS: Set<String> = setOf("BASE", "NONE")
 
     private val scopeIdRegex = Regex(SCOPE_ID_PATTERN)
     private val schemaIdRegex = Regex(SCHEMA_ID_PATTERN)

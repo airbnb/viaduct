@@ -31,7 +31,7 @@ class ExecuteAsyncExecutorTest {
         val executorThreadName = "viaduct-executor-e2e-thread"
         val executor = Executors.newSingleThreadExecutor { runnable -> Thread(runnable, executorThreadName) }
         try {
-            val result = subject.executeAsync(ExecutionInput.create("{ result }"), SchemaId.Full, executor).join()
+            val result = subject.executeAsync(ExecutionInput.create("{ result }"), SchemaId.Base, executor).join()
 
             assertTrue(result.errors.isEmpty(), "expected no errors, got ${result.errors}")
             val resolverThreadName = result.getData()?.get("result") as String?

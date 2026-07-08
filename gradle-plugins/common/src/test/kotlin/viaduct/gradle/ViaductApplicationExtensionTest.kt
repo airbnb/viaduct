@@ -43,7 +43,7 @@ class ViaductApplicationExtensionTest {
     fun `declareScoping with scopes and scopedSchema populates the snapshot`() {
         extension.declareScoping {
             scopes("public", "internal", "admin")
-            scopedSchema("FULL_ALIAS")
+            scopedSchema("BASE_ALIAS")
             scopedSchema("PUBLIC_API", "public")
             scopedSchema("INTERNAL_API", "public", "internal")
         }
@@ -51,7 +51,7 @@ class ViaductApplicationExtensionTest {
         val expected = SchemaScoping(
             scopeUniverse = setOf("public", "internal", "admin"),
             scopedSchemas = mapOf(
-                "FULL_ALIAS" to emptySet(),
+                "BASE_ALIAS" to emptySet(),
                 "PUBLIC_API" to setOf("public"),
                 "INTERNAL_API" to setOf("public", "internal"),
             ),
@@ -146,7 +146,7 @@ class ViaductApplicationExtensionTest {
         val ex = assertThrows<GradleException> {
             extension.declareScoping {
                 scopes("public")
-                scopedSchema("FULL", "public")
+                scopedSchema("BASE", "public")
             }
         }
         ex.message!! shouldContain ScopingErrorCodes.SCHEMA_ID_RESERVED
@@ -184,7 +184,7 @@ class ViaductApplicationExtensionTest {
     fun `build flags scopedSchema without a declared universe with SCOPED_SCHEMAS_WITHOUT_UNIVERSE`() {
         val ex = assertThrows<GradleException> {
             extension.declareScoping {
-                scopedSchema("FULL_ALIAS")
+                scopedSchema("BASE_ALIAS")
             }
         }
         ex.message!! shouldContain ScopingErrorCodes.SCOPED_SCHEMAS_WITHOUT_UNIVERSE

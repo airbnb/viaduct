@@ -258,6 +258,21 @@ class DefaultSchemaFactoryTest {
     }
 
     @Test
+    fun `addDefaults should include tenantLocal directive with FIELD_DEFINITION location`() {
+        val registry = TypeDefinitionRegistry()
+
+        DefaultSchemaFactory.addDefaults(registry)
+
+        val tenantLocalDirective = registry.getDirectiveDefinition("tenantLocal").getOrNull()
+        assertTrue(tenantLocalDirective != null, "Should have @tenantLocal directive")
+        assertEquals(
+            listOf("FIELD_DEFINITION"),
+            tenantLocalDirective!!.directiveLocations.map { it.name },
+            "@tenantLocal should only apply to fields"
+        )
+    }
+
+    @Test
     fun `addDefaults should include parent directive with FIELD_DEFINITION location`() {
         val registry = TypeDefinitionRegistry()
 

@@ -2,9 +2,16 @@
 
 package viaduct.graphql.scopes
 
+import graphql.schema.idl.SchemaParser
+import graphql.schema.idl.UnExecutableSchemaGenerator
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.graphql.scopes.errors.DirectiveRetainedTypeScopeError
+import viaduct.graphql.scopes.utils.ScopeDirectiveParser
+import viaduct.graphql.utils.DefaultSchemaFactory
 
 class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
     @Test
@@ -26,6 +33,86 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
             )
         val allScopedSchema = scopedSchemaBuilder.applyScopes(allScopes)
         assertSchemaEqualToFixture("/scopes/simple/test-scope__all.graphqls", allScopedSchema.filtered)
+    }
+
+    @Test
+    fun `tenant-local field filter removes tenant-local fields without requiring scope projection`() {
+        val schema = schemaFromSdl(
+            """
+            type Query {
+                publicField: String
+                internalOnly: String @tenantLocal
+            }
+            """.trimIndent()
+        )
+
+        val filteredSchema = ScopedSchemaBuilder(schema, sortedSetOf(), listOf()).applyBaseSchema().filtered
+
+        assertNotNull(filteredSchema.queryType.getFieldDefinition("publicField"))
+        assertNull(filteredSchema.queryType.getFieldDefinition("internalOnly"))
+    }
+
+    @Test
+    fun `tenant-local field filter removes types emptied by tenant-local fields`() {
+        val schema = schemaFromSdl(
+            """
+            type Query {
+                publicField: String
+                internalOnly: InternalOnly @tenantLocal
+            }
+
+            type InternalOnly {
+                value: String @tenantLocal
+            }
+            """.trimIndent()
+        )
+
+        val filteredSchema = ScopedSchemaBuilder(schema, sortedSetOf(), listOf()).applyBaseSchema().filtered
+
+        assertNotNull(filteredSchema.queryType.getFieldDefinition("publicField"))
+        assertNull(filteredSchema.queryType.getFieldDefinition("internalOnly"))
+        assertNull(filteredSchema.getType("InternalOnly"))
+    }
+
+    @Test
+    fun `scope metadata excludes tenant-local fields`() {
+        val schema = schemaFromSdl(
+            """
+            type Query @scope(to: ["public"]) {
+                publicField: String
+                internalOnly: String @tenantLocal
+            }
+            """.trimIndent()
+        )
+
+        val metadata = ScopeDirectiveParser(setOf("public")).metadataForElement(schema.queryType)
+
+        assertEquals(
+            listOf("publicField"),
+            metadata!!.elementsForScopes["public"]!!.map { it.name }
+        )
+    }
+
+    @Test
+    fun `tenant-local-only extensions do not require scope directives`() {
+        val schema = schemaFromSdl(
+            """
+            type Query @scope(to: ["public"]) {
+                publicField: String
+            }
+
+            extend type Query {
+                internalOnly: String @tenantLocal
+            }
+            """.trimIndent()
+        )
+
+        val filteredSchema = ScopedSchemaBuilder(schema, sortedSetOf("public"), listOf())
+            .applyScopes(setOf("public"))
+            .filtered
+
+        assertNotNull(filteredSchema.queryType.getFieldDefinition("publicField"))
+        assertNull(filteredSchema.queryType.getFieldDefinition("internalOnly"))
     }
 
     @Test
@@ -156,4 +243,11 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
             scopedSchemaBuilder.applyScopes(setOf("other-scope"))
         }
     }
+
+    private fun schemaFromSdl(sdl: String) =
+        UnExecutableSchemaGenerator.makeUnExecutableSchema(
+            SchemaParser().parse(sdl).apply {
+                DefaultSchemaFactory.addDefaults(this, allowExisting = true)
+            }
+        )
 }

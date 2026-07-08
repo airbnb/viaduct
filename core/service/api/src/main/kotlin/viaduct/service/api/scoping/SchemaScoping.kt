@@ -15,7 +15,7 @@ import viaduct.apiannotations.ExperimentalApi
  * @property scopeUniverse the complete set of scope IDs declared as valid for this application;
  *  empty when the application does not opt into scoping.
  * @property scopedSchemas mapping from declared scoped-schema ID to its scope set; an empty scope
- *  set is an alias for the full schema.
+ *  set is an alias for the base schema.
  * @property version manifest schema version, used to evolve the on-disk JSON format.
  */
 @ExperimentalApi

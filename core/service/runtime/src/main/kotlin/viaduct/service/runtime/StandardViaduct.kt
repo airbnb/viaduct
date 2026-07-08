@@ -56,8 +56,9 @@ import viaduct.service.runtime.builtinresolvers.ViaductBuiltInResolversBootstrap
  * An immutable implementation of Viaduct interface, it configures and executes queries against the Viaduct runtime
  *
  * Registers two different types of schema:
- * 1. The full schema, which is only exposed to internal Viaduct interfaces such as derived fields and components.
- * 2. Scoped schemas, which have both introspectable and non-introspectable versions. Scoped schemas that are
+ * 1. The base schema, which includes all non-tenant-local fields.
+ * 2. The internal full schema, which includes tenant-local fields and is used for planning and resolver validation.
+ * 3. Scoped schemas, which have both introspectable and non-introspectable versions. Scoped schemas that are
  *   not already registered when requested will be lazily computed.
  */
 class StandardViaduct
@@ -401,7 +402,7 @@ class StandardViaduct
                         factory.createWithReusedSchemas(schemaConfiguration, existingViaduct.engineRegistry)
                     }
                         .also { viaduct ->
-                            if (!airbnbModeEnabled && !allowSubscriptions && hasSubscriptions(viaduct.engineRegistry.getSchema(SchemaId.Full))) {
+                            if (!airbnbModeEnabled && !allowSubscriptions && hasSubscriptions(viaduct.engineRegistry.getSchema(SchemaId.Base))) {
                                 throw GraphQLBuildError("Viaduct does not currently support subscriptions.")
                             }
                         }
@@ -506,7 +507,7 @@ class StandardViaduct
          * the caller's coroutine context.
          *
          * @param executionInput the [ExecutionInput] to execute
-         * @param schemaId the id of the schema for which we want to execute the operation. Defaults to the full schema.
+         * @param schemaId the id of the schema for which we want to execute the operation. Defaults to the base schema.
          * @return sorted [ExecutionResult]
          */
         override suspend fun execute(

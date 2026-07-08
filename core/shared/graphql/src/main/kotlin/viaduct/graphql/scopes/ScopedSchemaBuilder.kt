@@ -2,6 +2,7 @@ package viaduct.graphql.scopes
 
 import graphql.schema.GraphQLAppliedDirective
 import graphql.schema.GraphQLDirective
+import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLInputType
 import graphql.schema.GraphQLInterfaceType
@@ -17,7 +18,9 @@ import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeReference
 import graphql.schema.GraphQLUnionType
 import java.util.SortedSet
+import viaduct.graphql.scopes.utils.getChildrenForElement
 import viaduct.graphql.scopes.utils.isIntrospectionType
+import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.utils.memoize.memoize
 
 /**
@@ -43,6 +46,10 @@ class ScopedSchemaBuilder(
     private val validScopes: SortedSet<String>,
     private val additionalVisitorConstructors: List<AdditionalVisitorConstructor>
 ) {
+    private companion object {
+        val TENANT_LOCAL_DIRECTIVE_NAME = DefaultSchemaFactory.DefaultDirective.TENANT_LOCAL.directiveName
+    }
+
     /**
      * Given a list of "scope" names, return a ScopedGraphQLSchema object, containing the original input schema
      * and the filtered schema with those scopes applied and types/interfaces/enums/unions/fields filtered
@@ -53,16 +60,33 @@ class ScopedSchemaBuilder(
      * @property scopesToApply The list of scope names to apply to the input schema.
      * @return a new ScopedGraphQLSchema object containing the original and the filtered GraphQLSchema objects.
      */
-    fun applyScopes(scopesToApply: Set<String>): ScopedGraphQLSchema {
+    @JvmOverloads
+    fun applyScopes(
+        scopesToApply: Set<String>,
+        includeTenantLocalFields: Boolean = false,
+    ): ScopedGraphQLSchema {
         val scopeTransformer = SchemaScopeTransformer(validScopes, additionalVisitorConstructors)
         // replace the types in the schema with TypeReferences
         val preparedSchema = replaceAllTypesWithReferences(inputSchema)
         val scopedSchema =
             scopeTransformer.applyScopes(
                 preparedSchema,
-                scopesToApply.toSortedSet()
+                scopesToApply.toSortedSet(),
+                includeTenantLocalFields,
             )
         return ScopedGraphQLSchema(inputSchema, scopedSchema)
+    }
+
+    fun applyBaseSchema(): ScopedGraphQLSchema {
+        if (!hasTenantLocalFields(inputSchema)) {
+            return ScopedGraphQLSchema(inputSchema, inputSchema)
+        }
+        val scopeTransformer = SchemaScopeTransformer(validScopes, additionalVisitorConstructors)
+        val preparedSchema = replaceAllTypesWithReferences(inputSchema)
+        return ScopedGraphQLSchema(
+            inputSchema,
+            scopeTransformer.applyBaseSchema(preparedSchema),
+        )
     }
 
     private fun replaceAllTypesWithReferences(inputSchema: GraphQLSchema): GraphQLSchema =
@@ -249,6 +273,13 @@ class ScopedSchemaBuilder(
             is GraphQLScalarType -> type
             is GraphQLNamedSchemaElement -> GraphQLTypeReference.typeRef(type.name)
             else -> error("Can't replace non-named type with type reference.")
+        }
+
+    private fun hasTenantLocalFields(schema: GraphQLSchema): Boolean =
+        schema.allTypesAsList.any { element ->
+            getChildrenForElement(element)?.any { child ->
+                child is GraphQLFieldDefinition && child.hasAppliedDirective(TENANT_LOCAL_DIRECTIVE_NAME)
+            } == true
         }
 }
 

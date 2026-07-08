@@ -30,6 +30,7 @@ import graphql.schema.GraphQLSchemaElement
 import graphql.schema.GraphQLTypeUtil.unwrapAll
 import graphql.schema.GraphQLUnionType
 import viaduct.graphql.scopes.errors.SchemaScopeValidationError
+import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.utils.slf4j.logger
 
 internal class ScopeDirectiveParser(
@@ -40,6 +41,7 @@ internal class ScopeDirectiveParser(
 
         private const val SCOPED_TO_ARG: String = "to"
         private const val WILDCARD_SCOPE: String = "*"
+        private val TENANT_LOCAL_DIRECTIVE_NAME = DefaultSchemaFactory.DefaultDirective.TENANT_LOCAL.directiveName
     }
 
     fun metadataForElement(element: GraphQLSchemaElement): ElementScopeMetadata? {
@@ -59,6 +61,9 @@ internal class ScopeDirectiveParser(
 
         // Validate the children of this element
         getChildrenForElement(element)?.forEach { child ->
+            if (isTenantLocalField(child)) {
+                return@forEach
+            }
             val referencedType =
                 when (child) {
                     is GraphQLFieldDefinition -> unwrapAll(child.type)
@@ -124,7 +129,7 @@ internal class ScopeDirectiveParser(
             )
         }
 
-        val childNodes = getChildNodes(element.definition!!)
+        val childNodes = getScopeMetadataChildNodes(element.definition!!)
         val scopesForType = getScopesFromDirective(element, "scope")
         val elementsForScopes =
             mutableMapOf<
@@ -157,7 +162,10 @@ internal class ScopeDirectiveParser(
         }
         val extensionDefinitions = getExtensions(element)
         extensionDefinitions?.forEach { node ->
-            val extensionChildElementNames = getChildNodes(node)
+            val extensionChildElementNames = getScopeMetadataChildNodes(node)
+            if (extensionChildElementNames.isEmpty()) {
+                return@forEach
+            }
             val scopesForExtension = getScopesFromDirective(node, "scope")
             // validate the scopes defined in the extensions are defined in the root type definition
             if (!scopesForType.containsAll(scopesForExtension)) {
@@ -176,6 +184,12 @@ internal class ScopeDirectiveParser(
 
         return ElementScopeMetadata(element.name, elementsForScopes)
     }
+
+    private fun getScopeMetadataChildNodes(node: Node<*>): List<NamedNode<*>> = getChildNodes(node).filterNot(::isTenantLocalFieldNode)
+
+    private fun isTenantLocalField(element: GraphQLNamedSchemaElement): Boolean = element is GraphQLFieldDefinition && element.hasAppliedDirective(TENANT_LOCAL_DIRECTIVE_NAME)
+
+    private fun isTenantLocalFieldNode(node: NamedNode<*>): Boolean = node is DirectivesContainer<*> && node.getDirectives(TENANT_LOCAL_DIRECTIVE_NAME).isNotEmpty()
 
     private fun getChildNodes(node: Node<*>): List<NamedNode<*>> =
         when (node) {

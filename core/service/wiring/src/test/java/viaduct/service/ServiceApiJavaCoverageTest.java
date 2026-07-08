@@ -49,7 +49,7 @@ import viaduct.service.wiring.graphiql.GraphiQLHtmlKt;
  */
 class ServiceApiJavaCoverageTest {
 
-  // Minimal schema: the full schema serves { __typename } with no tenants and no resolvers.
+  // Minimal schema: the base schema serves { __typename } with no tenants and no resolvers.
   private static final String SDL =
       "extend type Query @scope(to: [\"viaduct-public\"]) { greeting: String }";
 
@@ -58,7 +58,7 @@ class ServiceApiJavaCoverageTest {
     final var viaduct = buildMinimalViaduct();
     final var input =
         ExecutionInput.Companion.create("{ __typename }", null, Collections.emptyMap(), null);
-    final ExecutionResult result = viaduct.executeAsync(input, SchemaId.Full.INSTANCE).join();
+    final ExecutionResult result = viaduct.executeAsync(input, SchemaId.Base.INSTANCE).join();
 
     final Map<String, Object> data = result.getData();
     assertNotNull(data, "expected data for { __typename }");
@@ -75,17 +75,17 @@ class ServiceApiJavaCoverageTest {
     // All three executeAsync overloads are Java-callable
     final CompletableFuture<ExecutionResult> f1 = viaduct.executeAsync(input);
     final CompletableFuture<ExecutionResult> f2 =
-        viaduct.executeAsync(input, SchemaId.Full.INSTANCE);
+        viaduct.executeAsync(input, SchemaId.Base.INSTANCE);
     final CompletableFuture<ExecutionResult> f3 =
-        viaduct.executeAsync(input, SchemaId.Full.INSTANCE, ForkJoinPool.commonPool());
+        viaduct.executeAsync(input, SchemaId.Base.INSTANCE, ForkJoinPool.commonPool());
     assertEquals("Query", Objects.requireNonNull(f1.join().getData()).get("__typename"));
     assertEquals("Query", Objects.requireNonNull(f2.join().getData()).get("__typename"));
     assertEquals("Query", Objects.requireNonNull(f3.join().getData()).get("__typename"));
 
-    // getAppliedScopes on the full schema is always valid. The None/Scoped ids are constructed
+    // getAppliedScopes on the base schema is always valid. The None/Scoped ids are constructed
     // here for compile coverage but not passed to getAppliedScopes: None is a sentinel and
     // getAppliedScopes on an unregistered schema throws by design.
-    viaduct.getAppliedScopes(SchemaId.Full.INSTANCE);
+    viaduct.getAppliedScopes(SchemaId.Base.INSTANCE);
     final SchemaId none = SchemaId.None.INSTANCE;
     final SchemaId scoped = new SchemaId.Scoped("public", Set.of("viaduct-public"));
     assertNotNull(none);

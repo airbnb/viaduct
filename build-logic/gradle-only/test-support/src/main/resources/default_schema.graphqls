@@ -10,6 +10,9 @@ directive @resolver(isSelective: Boolean! = false, isBatching: Boolean! = false)
 "@scope directive"
 directive @scope(to: [String!]!) repeatable on OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT
 
+"@tenantLocal directive"
+directive @tenantLocal on FIELD_DEFINITION
+
 "Marks an object type as a Relay Connection type"
 directive @connection on OBJECT
 

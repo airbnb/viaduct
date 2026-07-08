@@ -82,7 +82,7 @@ class SchemaScopingTest {
             scopeUniverse = setOf("public", "internal"),
             scopedSchemas = mapOf(
                 "PUBLIC_API" to setOf("public"),
-                "FULL_ALIAS" to emptySet(),
+                "BASE_ALIAS" to emptySet(),
             ),
         )
 
