@@ -21,6 +21,7 @@ import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.DecodedGlobalID
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.FlagManager.Flag
@@ -262,9 +263,9 @@ class ViaductBuilderTest {
                 localID: String
             ) = "$typeName:$localID"
 
-            override fun deserialize(globalID: String): Pair<String, String> {
+            override fun deserialize(globalID: String): DecodedGlobalID {
                 val (t, id) = globalID.split(":", limit = 2)
-                return Pair(t, id)
+                return DecodedGlobalID(t, id)
             }
         }
         val schemaConfiguration = SchemaConfiguration.fromSchema(

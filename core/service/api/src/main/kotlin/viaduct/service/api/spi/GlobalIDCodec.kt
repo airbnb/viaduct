@@ -28,8 +28,8 @@ interface GlobalIDCodec {
      * Deserializes a GlobalID string back into its components.
      *
      * @param globalID The serialized GlobalID string
-     * @return A Pair containing the type name (first) and local ID (second)
+     * @return The decoded [DecodedGlobalID] (type name and local ID)
      * @throws IllegalArgumentException if the globalID string is malformed
      */
-    fun deserialize(globalID: String): Pair<String, String>
+    fun deserialize(globalID: String): DecodedGlobalID
 }

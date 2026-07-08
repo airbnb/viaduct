@@ -112,13 +112,13 @@ class ArbIRResultTest : KotestPropertyBase() {
                 // id field
                 run {
                     val id = (value.fields["id"] as IR.Value.String).value
-                    assertEquals("Foo", codec.deserialize(id).first)
+                    assertEquals("Foo", codec.deserialize(id).typeName)
                 }
 
                 // barId field
                 run {
                     val id = (value.fields["barId"] as IR.Value.String).value
-                    assertEquals("Bar", codec.deserialize(id).first)
+                    assertEquals("Bar", codec.deserialize(id).typeName)
                 }
 
                 // barIds field
@@ -126,14 +126,14 @@ class ArbIRResultTest : KotestPropertyBase() {
                     val ids = (value.fields["barIds"] as IR.Value.List).value
                     for (id in ids) {
                         id as IR.Value.String
-                        assertEquals("Bar", codec.deserialize(id.value).first)
+                        assertEquals("Bar", codec.deserialize(id.value).typeName)
                     }
                 }
 
                 // anyId field
                 run {
                     val id = (value.fields["anyId"] as IR.Value.String).value
-                    val idType = codec.deserialize(id).first
+                    val idType = codec.deserialize(id).typeName
 
                     assertTrue(idType in setOf("Foo", "Bar"))
                 }

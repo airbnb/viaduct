@@ -90,6 +90,19 @@ public final class viaduct/service/api/spi/CodeInjector$Companion {
 	public final fun getNaive ()Lviaduct/service/api/spi/CodeInjector;
 }
 
+public final class viaduct/service/api/spi/DecodedGlobalID {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lviaduct/service/api/spi/DecodedGlobalID;
+	public static synthetic fun copy$default (Lviaduct/service/api/spi/DecodedGlobalID;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lviaduct/service/api/spi/DecodedGlobalID;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLocalID ()Ljava/lang/String;
+	public final fun getTypeName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class viaduct/service/api/spi/ErrorBuilder {
 	public static final field Companion Lviaduct/service/api/spi/ErrorBuilder$Companion;
 	public final fun build ()Lviaduct/service/api/GraphQLError;
@@ -184,7 +197,7 @@ public final class viaduct/service/api/spi/FlagManager$Flags : java/lang/Enum, v
 }
 
 public abstract interface class viaduct/service/api/spi/GlobalIDCodec {
-	public abstract fun deserialize (Ljava/lang/String;)Lkotlin/Pair;
+	public abstract fun deserialize (Ljava/lang/String;)Lviaduct/service/api/spi/DecodedGlobalID;
 	public abstract fun serialize (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
 }
 
@@ -236,7 +249,7 @@ public final class viaduct/service/api/spi/TenantModuleInjectorFactory$DefaultIm
 
 public final class viaduct/service/api/spi/globalid/GlobalIDCodecDefault : viaduct/service/api/spi/GlobalIDCodec {
 	public static final field INSTANCE Lviaduct/service/api/spi/globalid/GlobalIDCodecDefault;
-	public fun deserialize (Ljava/lang/String;)Lkotlin/Pair;
+	public fun deserialize (Ljava/lang/String;)Lviaduct/service/api/spi/DecodedGlobalID;
 	public fun serialize (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
 }
 

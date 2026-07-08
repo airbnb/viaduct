@@ -101,7 +101,7 @@ class IDValueGenTest : KotestPropertyBase() {
             }
 
             arb.forAll { (size, value) ->
-                size == codec.deserialize(value).second.length
+                size == codec.deserialize(value).localID.length
             }
         }
 
@@ -120,7 +120,7 @@ class IDValueGenTest : KotestPropertyBase() {
             }
 
             arb.forAll { id ->
-                codec.deserialize(id).first == "Foo"
+                codec.deserialize(id).typeName == "Foo"
             }
         }
 
@@ -139,7 +139,7 @@ class IDValueGenTest : KotestPropertyBase() {
             }
 
             arb.forAll { id ->
-                codec.deserialize(id).first == "Foo"
+                codec.deserialize(id).typeName == "Foo"
             }
         }
 
@@ -158,7 +158,7 @@ class IDValueGenTest : KotestPropertyBase() {
             }
 
             arb.forAll { id ->
-                codec.deserialize(id).first == "Bar"
+                codec.deserialize(id).typeName == "Bar"
             }
         }
 
@@ -177,7 +177,7 @@ class IDValueGenTest : KotestPropertyBase() {
             }
 
             arb.forAll { id ->
-                val type = codec.deserialize(id).first
+                val type = codec.deserialize(id).typeName
                 type == "Foo" || type == "Bar"
             }
         }
@@ -202,7 +202,7 @@ class IDValueGenTest : KotestPropertyBase() {
                 arb.asSequence()
                     .take(iterations)
                     .any { ids ->
-                        val types = ids.map { codec.deserialize(it).first }.toSet()
+                        val types = ids.map { codec.deserialize(it).typeName }.toSet()
                         "Foo" in types && "Bar" in types
                     }
             )
@@ -223,7 +223,7 @@ class IDValueGenTest : KotestPropertyBase() {
             }
 
             arb.forAll { id ->
-                codec.deserialize(id).first == "Foo"
+                codec.deserialize(id).typeName == "Foo"
             }
         }
 
@@ -242,7 +242,7 @@ class IDValueGenTest : KotestPropertyBase() {
             }
 
             arb.forAll { id ->
-                val type = codec.deserialize(id).first
+                val type = codec.deserialize(id).typeName
                 type == "Foo" || type == "Bar"
             }
         }
@@ -262,7 +262,7 @@ class IDValueGenTest : KotestPropertyBase() {
             }
 
             arb.forAll { id ->
-                val type = codec.deserialize(id).first
+                val type = codec.deserialize(id).typeName
                 type == "Foo" || type == "Bar"
             }
         }

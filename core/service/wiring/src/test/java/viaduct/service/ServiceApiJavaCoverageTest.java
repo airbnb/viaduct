@@ -13,7 +13,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
-import kotlin.Pair;
 import org.junit.jupiter.api.Test;
 import viaduct.service.api.ExecutionInput;
 import viaduct.service.api.ExecutionResult;
@@ -21,6 +20,7 @@ import viaduct.service.api.GraphQLError;
 import viaduct.service.api.SchemaId;
 import viaduct.service.api.Viaduct;
 import viaduct.service.api.spi.CodeInjector;
+import viaduct.service.api.spi.DecodedGlobalID;
 import viaduct.service.api.spi.ErrorBuilder;
 import viaduct.service.api.spi.ErrorReporter;
 import viaduct.service.api.spi.FlagManager;
@@ -110,8 +110,9 @@ class ServiceApiJavaCoverageTest {
     assertNotNull(noopBuilder);
 
     final GlobalIDCodec codec = new JavaGlobalIDCodec();
-    final Pair<String, String> parts = codec.deserialize(codec.serialize("User", "42"));
-    assertEquals("User", parts.getFirst());
+    final DecodedGlobalID parts = codec.deserialize(codec.serialize("User", "42"));
+    assertEquals("User", parts.getTypeName());
+    assertEquals("42", parts.getLocalID());
 
     final FlagManager flagManager = new JavaFlagManager();
     flagManager.isEnabled(FlagManager.Flags.ENABLE_SELECTIVE_OER_KEYS);

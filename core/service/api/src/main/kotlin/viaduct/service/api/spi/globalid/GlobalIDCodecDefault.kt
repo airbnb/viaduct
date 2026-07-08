@@ -5,6 +5,7 @@ import com.google.common.net.UrlEscapers
 import java.net.URLDecoder
 import java.util.Base64
 import viaduct.apiannotations.StableApi
+import viaduct.service.api.spi.DecodedGlobalID
 import viaduct.service.api.spi.GlobalIDCodec
 
 /**
@@ -36,10 +37,10 @@ object GlobalIDCodecDefault : GlobalIDCodec {
      * Deserializes a Base64-encoded GlobalID string back into its components.
      *
      * @param globalID The Base64-encoded GlobalID string
-     * @return Pair of (typeName, localID) with URL-decoding applied to localID
+     * @return the [DecodedGlobalID] (typeName, localID), with URL-decoding applied to localID
      * @throws IllegalArgumentException if the globalID is malformed or not valid Base64
      */
-    override fun deserialize(globalID: String): Pair<String, String> =
+    override fun deserialize(globalID: String): DecodedGlobalID =
         try {
             val decoded = dec.decode(globalID).decodeToString()
             val parts = decoded.split(DELIM, limit = 2)
@@ -51,7 +52,7 @@ object GlobalIDCodecDefault : GlobalIDCodec {
             val (typeName, encodedLocalID) = parts
             val localID = URLDecoder.decode(encodedLocalID, Charsets.UTF_8.name())
 
-            Pair(typeName, localID)
+            DecodedGlobalID(typeName, localID)
         } catch (e: IllegalArgumentException) {
             throw IllegalArgumentException(
                 "Failed to deserialize GlobalID: \"$globalID\". ${e.message}",
