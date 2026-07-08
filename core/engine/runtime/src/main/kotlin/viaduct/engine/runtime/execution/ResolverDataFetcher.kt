@@ -35,8 +35,8 @@ class ResolverDataFetcher(
         )
 
         private data class EngineResults(
-            val parentResult: ObjectEngineResult,
-            val queryResult: ObjectEngineResult
+            val currentObjectResult: ObjectEngineResult,
+            val queryResult: ObjectEngineResult,
         )
     }
 
@@ -75,7 +75,7 @@ class ResolverDataFetcher(
             val queryPlan = FieldExecutionHelpers.findRssQueryPlan(rss, localExecutionContext)
             val variables = resolveRSSVariables(
                 arguments = environment.arguments,
-                currentEngineData = engineResults.parentResult,
+                currentEngineData = engineResults.currentObjectResult,
                 queryEngineData = engineResults.queryResult,
                 engineExecutionContext = localExecutionContext,
                 environment.graphQlContext,
@@ -94,7 +94,7 @@ class ResolverDataFetcher(
 
         val objectValueFactory = EngineObjectDataFactory { instrumentationContext ->
             SyncEngineObjectDataFactory.resolve(
-                engineResults.parentResult,
+                engineResults.currentObjectResult,
                 objectErrorMessage,
                 objectEngineSelectionSet,
                 parentPath = objectParentPath,
@@ -109,7 +109,7 @@ class ResolverDataFetcher(
             val queryPlan = FieldExecutionHelpers.findRssQueryPlan(rss, localExecutionContext)
             val variables = resolveRSSVariables(
                 arguments = environment.arguments,
-                currentEngineData = engineResults.parentResult,
+                currentEngineData = engineResults.currentObjectResult,
                 queryEngineData = engineResults.queryResult,
                 engineExecutionContext = localExecutionContext,
                 environment.graphQlContext,
@@ -155,8 +155,8 @@ class ResolverDataFetcher(
     private fun getEngineResults(environment: DataFetchingEnvironment): EngineResults {
         val engineLoaderContext = environment.findLocalContextForType<EngineResultLocalContext>()
         val queryEngineResult = engineLoaderContext.queryEngineResult
-        val parentEngineResult = engineLoaderContext.parentEngineResult
-        assert(parentEngineResult.type.name == typeName)
-        return EngineResults(parentEngineResult, queryEngineResult)
+        val currentObjectEngineResult = engineLoaderContext.currentObjectEngineResult
+        assert(currentObjectEngineResult.type.name == typeName)
+        return EngineResults(currentObjectEngineResult, queryEngineResult)
     }
 }

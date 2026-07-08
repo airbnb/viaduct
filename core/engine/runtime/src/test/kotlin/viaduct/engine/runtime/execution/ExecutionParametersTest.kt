@@ -101,19 +101,20 @@ class ExecutionParametersTest {
                 .path(ResultPath.rootPath())
                 .build(),
             queryPlan = childPlan,
-            parentEngineResult = ObjectEngineResultImpl.newForType(fooType),
+            currentObjectEngineResult = ObjectEngineResultImpl.newForType(fooType),
             rootValue = rootValue
         )
 
         val result = parameters.forChildPlan(childPlan, emptyVariables)
 
-        assertSame(parameters.queryEngineResult, result.parentEngineResult)
+        assertSame(ExecutionParameters.Parent.Unparented, parameters.parent)
+        assertSame(parameters.queryEngineResult, result.currentObjectEngineResult)
         assertSame(parameters.queryEngineResult, result.queryEngineResult)
         assertEquals(rootValue, result.source)
         assertEquals(queryType, result.executionStepInfo.type)
         assertEquals(ResultPath.rootPath(), result.executionStepInfo.path)
-        assertSame(parameters, result.parent)
         assertEquals(childPlan.attribution, result.attribution)
+        assertSame(parameters, (result.parent as ExecutionParameters.Parent.PlanParent).parameters)
     }
 
     @Test
@@ -133,17 +134,18 @@ class ExecutionParametersTest {
             source = parentSource,
             executionStepInfo = idStepInfo,
             queryPlan = childPlan,
-            parentEngineResult = ObjectEngineResultImpl.newForType(fooType)
+            currentObjectEngineResult = ObjectEngineResultImpl.newForType(fooType)
         )
 
         val result = parameters.forChildPlan(childPlan, emptyVariables)
 
-        assertSame(parameters.parentEngineResult, result.parentEngineResult)
+        assertSame(parameters.currentObjectEngineResult, result.currentObjectEngineResult)
         assertEquals(parentSource, result.source)
         assertEquals(fooType, result.executionStepInfo.type)
         assertEquals(ResultPath.rootPath().segment("foo"), result.executionStepInfo.path)
         assertEquals(childAst, result.executionStepInfo.field.singleField.selectionSet)
         assertEquals(childPlan.attribution, result.attribution)
+        assertSame(parameters, (result.parent as ExecutionParameters.Parent.PlanParent).parameters)
     }
 
     @Test
@@ -166,7 +168,7 @@ class ExecutionParametersTest {
             source = parentSource,
             executionStepInfo = executionStepInfoForField(mergedField("foo", selectionSet("id"))),
             queryPlan = childPlan,
-            parentEngineResult = ObjectEngineResultImpl.newForType(fooType)
+            currentObjectEngineResult = ObjectEngineResultImpl.newForType(fooType)
         )
 
         val result = parameters.forChildPlan(
@@ -175,10 +177,11 @@ class ExecutionParametersTest {
             ExecutionParameters.ChildPlanTarget.FieldType(fieldEngineResult, fieldResolutionResult.originalSource),
         )
 
-        assertSame(fieldEngineResult, result.parentEngineResult)
+        assertSame(fieldEngineResult, result.currentObjectEngineResult)
         assertEquals(fieldResolutionResult.originalSource, result.source)
         assertEquals(fooType, result.executionStepInfo.type)
         assertEquals(childSelection, result.executionStepInfo.field.singleField.selectionSet)
+        assertSame(parameters, (result.parent as ExecutionParameters.Parent.PlanParent).parameters)
     }
 
     @Test
@@ -266,12 +269,13 @@ class ExecutionParametersTest {
             ),
         )
 
-        assertSame(parameters.queryEngineResult, result.parentEngineResult)
+        assertSame(parameters.queryEngineResult, result.currentObjectEngineResult)
         assertSame(parameters.queryEngineResult, result.queryEngineResult)
         assertEquals(defaultRootValue, result.source)
         assertEquals(ResultPath.rootPath(), result.executionStepInfo.path)
         assertEquals(queryType, result.executionStepInfo.type)
         assertEquals(childPlan.attribution, result.attribution)
+        assertSame(parameters, (result.parent as ExecutionParameters.Parent.PlanParent).parameters)
     }
 
     @Test
@@ -302,10 +306,11 @@ class ExecutionParametersTest {
             ),
         )
 
-        assertSame(isolatedRootResult, result.parentEngineResult)
+        assertSame(isolatedRootResult, result.currentObjectEngineResult)
         assertSame(isolatedRootResult, result.rootEngineResult)
         assertSame(isolatedQueryResult, result.queryEngineResult)
         assertEquals(defaultRootValue, result.source)
+        assertSame(parameters, (result.parent as ExecutionParameters.Parent.PlanParent).parameters)
     }
 
     @Test
@@ -333,11 +338,12 @@ class ExecutionParametersTest {
             ),
         )
 
-        assertSame(isolatedQueryResult, result.parentEngineResult)
+        assertSame(isolatedQueryResult, result.currentObjectEngineResult)
         assertSame(isolatedRootResult, result.rootEngineResult)
         assertSame(isolatedQueryResult, result.queryEngineResult)
         assertEquals(defaultRootValue, result.source)
         assertEquals(ResultPath.rootPath(), result.executionStepInfo.path)
+        assertSame(parameters, (result.parent as ExecutionParameters.Parent.PlanParent).parameters)
     }
 
     @Test
@@ -366,12 +372,13 @@ class ExecutionParametersTest {
         )
         val nestedQueryParameters = subqueryParameters.forChildPlan(childPlan, emptyVariables)
 
-        assertSame(isolatedQueryResult, nestedQueryParameters.parentEngineResult)
+        assertSame(isolatedQueryResult, nestedQueryParameters.currentObjectEngineResult)
         assertSame(isolatedRootResult, nestedQueryParameters.rootEngineResult)
         assertSame(isolatedQueryResult, nestedQueryParameters.queryEngineResult)
         assertEquals(defaultRootValue, nestedQueryParameters.source)
         assertEquals(ResultPath.rootPath(), nestedQueryParameters.executionStepInfo.path)
         assertEquals(queryType, nestedQueryParameters.executionStepInfo.type)
+        assertSame(subqueryParameters, (nestedQueryParameters.parent as ExecutionParameters.Parent.PlanParent).parameters)
     }
 
     @Test
@@ -390,7 +397,7 @@ class ExecutionParametersTest {
             source = defaultRootValue,
             executionStepInfo = idStepInfo,
             queryPlan = childPlan,
-            parentEngineResult = ObjectEngineResultImpl.newForType(fooType)
+            currentObjectEngineResult = ObjectEngineResultImpl.newForType(fooType)
         )
 
         val result = parameters.forChildPlan(childPlan, emptyVariables)
@@ -435,14 +442,14 @@ class ExecutionParametersTest {
 
         val result = baseParameters.forField(queryType, collectedField)
 
-        assertSame(baseParameters, result.parent)
-        assertSame(baseParameters.parentEngineResult, result.parentEngineResult)
+        assertSame(baseParameters.currentObjectEngineResult, result.currentObjectEngineResult)
         assertSame(collectedField, result.field)
         assertEquals(ResultPath.rootPath().segment("foo"), result.executionStepInfo.path)
         assertSame(fooFieldDefinition, result.executionStepInfo.fieldDefinition)
         assertSame(queryType, result.executionStepInfo.objectType)
         assertSame(mergedField, result.executionStepInfo.field)
         assertEquals(argumentValue, result.executionStepInfo.arguments["id"])
+        assertSame(baseParameters, (result.parent as ExecutionParameters.Parent.ObjectParent).parameters)
     }
 
     @Test
@@ -467,14 +474,14 @@ class ExecutionParametersTest {
 
         val result = fieldParameters.forObjectTraversal(collectedField, nextEngineResult, updatedLocalContext, childSource)
 
-        assertSame(fieldParameters.parent, result.parent)
         assertSame(fieldParameters.field, result.field)
-        assertSame(nextEngineResult, result.parentEngineResult)
+        assertSame(nextEngineResult, result.currentObjectEngineResult)
         assertSame(updatedLocalContext, result.localContext)
         assertEquals(childSource, result.source)
         assertSame(collectedField.selectionSet, result.selectionSet)
         assertEquals(fieldParameters.executionStepInfo.path, result.executionStepInfo.path)
         assertEquals(nextEngineResult.type, unwrapNonNull(result.executionStepInfo.type))
+        assertSame(fieldParameters, (result.parent as ExecutionParameters.Parent.ObjectTraversalParent).parameters)
     }
 
     @Test
@@ -482,11 +489,11 @@ class ExecutionParametersTest {
         val rootEngineResult = ObjectEngineResultImpl.newForType(queryType)
         val staleQueryEngineResult = ObjectEngineResultImpl.newForType(queryType)
         val activeQueryEngineResult = ObjectEngineResultImpl.newForType(queryType)
-        val parentEngineResult = ObjectEngineResultImpl.newForType(queryType)
+        val currentObjectEngineResult = ObjectEngineResultImpl.newForType(queryType)
         val extantLocalContext = defaultLocalContext.addOrUpdate(
             EngineResultLocalContext(
                 rootEngineResult = rootEngineResult,
-                parentEngineResult = ObjectEngineResultImpl.newForType(fooType),
+                currentObjectEngineResult = ObjectEngineResultImpl.newForType(fooType),
                 queryEngineResult = staleQueryEngineResult,
                 executionStrategyParams = mockk(),
                 executionContext = mockk()
@@ -499,7 +506,7 @@ class ExecutionParametersTest {
                 .path(ResultPath.rootPath())
                 .build(),
             queryPlan = queryPlanFor(type = queryType),
-            parentEngineResult = parentEngineResult,
+            currentObjectEngineResult = currentObjectEngineResult,
             localContext = extantLocalContext,
             queryEngineResult = activeQueryEngineResult,
             rootEngineResult = rootEngineResult,
@@ -507,10 +514,10 @@ class ExecutionParametersTest {
         val collectedField = collectedFooField(mergedField("foo", selectionSet("id")))
         val fieldParameters = baseParameters.forField(queryType, collectedField)
 
-        val dfe = FieldExecutionHelpers.buildDataFetchingEnvironment(fieldParameters, collectedField, parentEngineResult)
+        val dfe = FieldExecutionHelpers.buildDataFetchingEnvironment(fieldParameters, collectedField, currentObjectEngineResult)
         val localContext = dfe.getLocalContextForType<EngineResultLocalContext>()
 
-        assertSame(parentEngineResult, localContext?.parentEngineResult)
+        assertSame(currentObjectEngineResult, localContext?.currentObjectEngineResult)
         assertSame(activeQueryEngineResult, localContext?.queryEngineResult)
         assertSame(rootEngineResult, localContext?.rootEngineResult)
     }
@@ -574,7 +581,7 @@ class ExecutionParametersTest {
         source: Any?,
         executionStepInfo: ExecutionStepInfo,
         queryPlan: QueryPlan,
-        parentEngineResult: ObjectEngineResultImpl = ObjectEngineResultImpl.newForType(fooType),
+        currentObjectEngineResult: ObjectEngineResultImpl = ObjectEngineResultImpl.newForType(fooType),
         localContext: CompositeLocalContext = defaultLocalContext,
         rootValue: Any = defaultRootValue,
         queryEngineResult: ObjectEngineResultImpl = ObjectEngineResultImpl.newForType(queryType),
@@ -592,7 +599,7 @@ class ExecutionParametersTest {
         return ExecutionParameters(
             _engineExecutionContext = mockk<EngineExecutionContextImpl>(relaxed = true),
             constants = constants,
-            parentEngineResult = parentEngineResult,
+            currentObjectEngineResult = currentObjectEngineResult,
             queryEngineResult = queryEngineResult,
             coercedVariables = emptyVariables,
             queryPlan = queryPlan,

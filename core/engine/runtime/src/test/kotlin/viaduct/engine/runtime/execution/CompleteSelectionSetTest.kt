@@ -31,7 +31,7 @@ import viaduct.engine.runtime.ObjectEngineResultImpl
 class CompleteSelectionSetTest {
     // ==================== Object-typed completions (non-Query) ====================
     // These exercise the forChildPlan path where isRootQueryQueryPlan=false,
-    // which uses parentEngineResult. This is the primary production path for
+    // which uses currentObjectEngineResult. This is the primary production path for
     // DFP shims (ClassicDerivedFieldResolverExecutor) and checker execution.
 
     @Test
@@ -114,7 +114,7 @@ class CompleteSelectionSetTest {
                     objectSelections("value")
                     fn { _, _, _, _, ctx ->
                         val params = ctx.executionHandle as ExecutionParameters
-                        val containerOER = params.parentEngineResult
+                        val containerOER = params.currentObjectEngineResult
 
                         val rss = createRSS("Container", "value")
                         val result = ctx.completeSelectionSet(

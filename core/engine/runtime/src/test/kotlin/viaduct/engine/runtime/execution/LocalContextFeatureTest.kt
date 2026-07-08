@@ -28,21 +28,21 @@ class LocalContextFeatureTest {
                         "foo" to DataFetcher {
                             val ctx = it.getLocalContextForType<EngineResultLocalContext>()
                             assertEquals("Query", ctx?.rootEngineResult?.type?.name)
-                            assertEquals("Query", ctx?.parentEngineResult?.type?.name)
+                            assertEquals("Query", ctx?.currentObjectEngineResult?.type?.name)
                         }
                     ),
                     "Foo" to mapOf(
                         "bar" to DataFetcher {
                             val ctx = it.getLocalContextForType<EngineResultLocalContext>()
                             assertEquals("Query", ctx?.rootEngineResult?.type?.name)
-                            assertEquals("Foo", ctx?.parentEngineResult?.type?.name)
+                            assertEquals("Foo", ctx?.currentObjectEngineResult?.type?.name)
                         }
                     ),
                     "Bar" to mapOf(
                         "x" to DataFetcher {
                             val ctx = it.getLocalContextForType<EngineResultLocalContext>()
                             assertEquals("Query", ctx?.rootEngineResult?.type?.name)
-                            assertEquals("Bar", ctx?.parentEngineResult?.type?.name)
+                            assertEquals("Bar", ctx?.currentObjectEngineResult?.type?.name)
                             42
                         }
                     )

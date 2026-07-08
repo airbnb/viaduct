@@ -57,7 +57,7 @@ interface Engine {
      *
      * @param executionHandle The opaque handle from the current execution context.
      * @param selectionSet The [RequiredSelectionSet] containing the fields to complete.
-     * @param targetResult The explicit OER to complete against; null uses parentEngineResult from handle.
+     * @param targetResult The explicit OER to complete against; null uses the current object result from handle.
      * @param arguments Field arguments for RSS variable resolution (e.g., from DataFetchingEnvironment.arguments).
      * @param options The [CompleteSelectionSetOptions] controlling completion behavior.
      * @return The completed [ExecutionResult] containing the data Map and any errors.

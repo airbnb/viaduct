@@ -82,7 +82,7 @@ class FieldResolverExecutionConditionTest {
         val executionStepInfo = mockk<ExecutionStepInfo>()
         every { executionStepInfo.objectType } returns runtimeType
         every { parameters.engineExecutionContext } returns engineExecutionContext
-        every { parameters.parentEngineResult } returns ObjectEngineResultImpl.newForType(runtimeType)
+        every { parameters.currentObjectEngineResult } returns ObjectEngineResultImpl.newForType(runtimeType)
         every { parameters.executionStepInfo } returns executionStepInfo
 
         val exception = assertThrows<IllegalStateException> {

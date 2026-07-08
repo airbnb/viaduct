@@ -114,13 +114,13 @@ class FieldCompleter(
         val ctxCompleteObject = nonNullCtx(
             parameters.instrumentation.beginCompleteObject(instrumentationParams, parameters.executionContext.instrumentationState)
         )
-        val parentOER = parameters.parentEngineResult
+        val currentOER = parameters.currentObjectEngineResult
 
         val barrier = Value.fromDeferred(
             waitAllDeferreds(
                 listOf(
-                    parentOER.fieldResolutionState, // Ensure all fields are resolved
-                    parentOER.lazyResolutionState, // If the OER is lazy, ensure it's been resolved
+                    currentOER.fieldResolutionState, // Ensure all fields are resolved
+                    currentOER.lazyResolutionState, // If the OER is lazy, ensure it's been resolved
                 )
             )
         )
@@ -130,14 +130,14 @@ class FieldCompleter(
                 if (throwable != null) {
                     ctxCompleteObject.onCompletedNullable(null, throwable)
                     val field = checkNotNull(parameters.field)
-                    val dataFetchingEnvironmentProvider = { buildDataFetchingEnvironment(parameters, field, parentOER) }
+                    val dataFetchingEnvironmentProvider = { buildDataFetchingEnvironment(parameters, field, currentOER) }
                     handleFetchingException(dataFetchingEnvironmentProvider, throwable)
                         .flatMap {
                             val err = FieldCompletionException(throwable, it.errors)
                             parameters.errorAccumulator += it.errors
                             Value.fromThrowable(err)
                         }
-                } else if (parentOER.isResolvedToNull()) {
+                } else if (currentOER.isResolvedToNull()) {
                     ctxCompleteObject.onCompletedNullable(null, null)
                     completeValueForNull(parameters)
                 } else {
@@ -151,19 +151,19 @@ class FieldCompleter(
 
     @Suppress("UNCHECKED_CAST")
     private fun objectFieldMap(parameters: ExecutionParameters): Value<Map<String, Any?>> {
-        val parentOER = parameters.parentEngineResult
-        val fields = collectFields(parentOER.type, parameters).selections
+        val currentOER = parameters.currentObjectEngineResult
+        val fields = collectFields(currentOER.type, parameters).selections
         val fieldValues = fields.map { field ->
             field as QueryPlan.CollectedField
 
-            val newParams = parameters.forField(parentOER.type, field)
+            val newParams = parameters.forField(currentOER.type, field)
             val fieldKey = buildOERKeyForField(newParams, field)
             val bypassChecker = shouldBypassChecker(field, parameters)
 
             // Obtain a result for this field
             val unhandledFieldValue = combineValues(
-                parentOER.getValue(fieldKey, RAW_VALUE_SLOT),
-                parentOER.getValue(fieldKey, ACCESS_CHECK_SLOT),
+                currentOER.getValue(fieldKey, RAW_VALUE_SLOT),
+                currentOER.getValue(fieldKey, ACCESS_CHECK_SLOT),
                 bypassChecker,
                 field.fieldName,
                 newParams.path
@@ -252,7 +252,7 @@ class FieldCompleter(
             if (throwable == null) {
                 return@thenCompose Value.fromValue(checkNotNull(result) to null)
             }
-            val dataFetchingEnvironmentProvider = { buildDataFetchingEnvironment(params, field, params.parentEngineResult) }
+            val dataFetchingEnvironmentProvider = { buildDataFetchingEnvironment(params, field, params.currentObjectEngineResult) }
             // Unwrap both concurrency wrappers (CompletionException from async paths) and Viaduct
             // wrappers (FieldFetchingException added in dataFetcherResultToValue) so instrumentation
             // hooks (e.g. beginFieldCompletion.onCompleted) see the original underlying exception.
@@ -312,10 +312,6 @@ class FieldCompleter(
         fieldResolutionResult: Value<FieldResolutionResult>,
     ): Value<FieldCompletionResult> {
         val executionStepInfo = parameters.executionStepInfo
-        val newParams = parameters.copy(
-            executionStepInfo = executionStepInfo,
-            parent = parameters,
-        )
 
         val instParams = InstrumentationFieldCompleteParameters(
             parameters.executionContextWithLocalContext,
@@ -332,10 +328,10 @@ class FieldCompleter(
             return getFieldCompletionResultForException(e)
         }
 
-        val handledFieldValue = fieldResolutionResult.handleExceptionWithCapture(newParams, field)
+        val handledFieldValue = fieldResolutionResult.handleExceptionWithCapture(parameters, field)
         return handledFieldValue.thenCompose { handledPair, _ ->
             val (handled, fetchThrowable) = checkNotNull(handledPair)
-            completeValue(field, newParams, Value.fromValue(handled), fieldCompleteInstCtx)
+            completeValue(field, parameters, Value.fromValue(handled), fieldCompleteInstCtx)
                 .thenCompose { completeResult, err ->
                     try {
                         fieldCompleteInstCtx.onCompletedNullable(completeResult?.value, fetchThrowable ?: err)

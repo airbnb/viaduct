@@ -147,11 +147,11 @@ class FieldResolver(
             val immediate = Value.waitAll(results.map { it.immediate })
             val overall = Value.waitAll(results.map { it.overall })
 
-            val parentOER = parameters.parentEngineResult
+            val currentOER = parameters.currentObjectEngineResult
             // We don't use the result of this operation, but we need to ensure it's scheduled
             // so that the resolution state is updated when the immediate values are ready.
             immediate.thenApply { _, _ ->
-                parentOER.fieldResolutionState.complete(Unit)
+                currentOER.fieldResolutionState.complete(Unit)
             }
 
             // Wait for all values to be completed.
@@ -227,7 +227,7 @@ class FieldResolver(
                 Value.fromThrowable(t)
             }
             Value.waitAll(immediateResults).thenApply { _, _ ->
-                parameters.parentEngineResult.fieldResolutionState.complete(Unit)
+                parameters.currentObjectEngineResult.fieldResolutionState.complete(Unit)
             }
             return overall
         } catch (e: Exception) {
@@ -277,7 +277,7 @@ class FieldResolver(
     ) {
         val fieldResolverDispatcher =
             parameters.engineExecutionContext.dispatcherRegistry.getFieldResolverDispatcher(
-                parameters.parentEngineResult.type.name,
+                parameters.currentObjectEngineResult.type.name,
                 field.fieldName,
             )
         val objectSelectionSetId = fieldResolverDispatcher?.objectSelectionSet?.id
@@ -292,8 +292,8 @@ class FieldResolver(
                 debug("Launching child plan for field ${field.fieldName} at path ${parameters.path}, selection set: ${childQueryPlan.selectionSet}")
             }
             val target = when (childPlan.requiredSelectionSetId) {
-                objectSelectionSetId -> ExecutionParameters.ChildPlanTarget.ExplicitParentResult(parameters.parentEngineResult)
-                querySelectionSetId -> ExecutionParameters.ChildPlanTarget.ExplicitParentResult(parameters.queryEngineResult)
+                objectSelectionSetId -> ExecutionParameters.ChildPlanTarget.ExplicitObjectResult(parameters.currentObjectEngineResult)
+                querySelectionSetId -> ExecutionParameters.ChildPlanTarget.ExplicitObjectResult(parameters.queryEngineResult)
                 else -> ExecutionParameters.ChildPlanTarget.FromContext
             }
             launchQueryPlan(
@@ -373,7 +373,7 @@ class FieldResolver(
             val variables = FieldExecutionHelpers.resolveQueryPlanVariables(
                 plan,
                 parameters.executionStepInfo.arguments,
-                executionTarget.parentEngineResult,
+                executionTarget.currentObjectEngineResult,
                 executionTarget.queryEngineResult,
                 parameters.engineExecutionContext,
                 parameters.executionContext.graphQLContext,
@@ -408,7 +408,7 @@ class FieldResolver(
         field: QueryPlan.CollectedField
     ): FieldDispatch {
         // We're fetching an individual field; the current engine result will always be an ObjectEngineResult
-        val parentOER = parameters.parentEngineResult
+        val currentOER = parameters.currentObjectEngineResult
         val executionStepInfoForField = parameters.executionStepInfo
 
         val fieldInstrumentationCtx = nonNullCtx(
@@ -419,13 +419,13 @@ class FieldResolver(
         )
 
         val dataFetchingEnvironmentProvider =
-            FpKit.intraThreadMemoize { buildDataFetchingEnvironment(parameters, field, parentOER) }
+            FpKit.intraThreadMemoize { buildDataFetchingEnvironment(parameters, field, currentOER) }
         val oerKey = buildOERKeyForField(parameters, field)
 
         fieldInstrumentationCtx.onDispatched()
 
         // Check if the field is already being fetched, and if so, we can await the pending and return the result
-        val fieldResolutionResultValue: Value<FieldResolutionResult> = parentOER.computeIfAbsent(oerKey) { slotSetter ->
+        val fieldResolutionResultValue: Value<FieldResolutionResult> = currentOER.computeIfAbsent(oerKey) { slotSetter ->
             log.ifDebug {
                 debug("Field @ {} with OER key: {} is not being fetched, fetching now...", parameters.path, oerKey)
             }
@@ -535,7 +535,7 @@ class FieldResolver(
                                 Value.nullValue
                             } else {
                                 val newParams = updateListItemParameters(parameters, index)
-                                val itemDfeSupplier: () -> DataFetchingEnvironment = { buildDataFetchingEnvironment(newParams, field, parameters.parentEngineResult) }
+                                val itemDfeSupplier: () -> DataFetchingEnvironment = { buildDataFetchingEnvironment(newParams, field, parameters.currentObjectEngineResult) }
                                 accessCheckRunner.typeCheck(newParams, itemDfeSupplier, oer, itemFrr, this@FieldResolver)
                             }
                         }
@@ -683,8 +683,7 @@ class FieldResolver(
             else -> {
                 // if engineResult is a scalar or simple value, then no nesting is possible and we can return
                 val oer = fieldResolutionResult.engineResult as? ObjectEngineResultImpl ?: return Value.fromValue(Unit)
-                val traversalParameters =
-                    parameters.forObjectTraversal(field, oer, fieldResolutionResult.localContext, fieldResolutionResult.originalSource, fieldResolutionResult.resolutionPolicy)
+                val traversalParameters = parameters.forObjectTraversal(field, oer, fieldResolutionResult.localContext, fieldResolutionResult.originalSource, fieldResolutionResult.resolutionPolicy)
                 if (isMutationNamespace(parameters, oer.type)) {
                     fetchObjectSerially(oer.type, traversalParameters)
                 } else {

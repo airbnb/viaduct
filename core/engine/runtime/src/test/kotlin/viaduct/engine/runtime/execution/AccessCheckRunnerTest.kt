@@ -475,7 +475,7 @@ class AccessCheckRunnerTest {
             every { childPlans } returns emptyList()
             every { fieldTypeChildPlans } returns FieldTypeChildPlans.empty
         }
-        every { params.parentEngineResult } returns objectEngineResult {
+        every { params.currentObjectEngineResult } returns objectEngineResult {
             type = fooObjectType
             data = emptyMap()
         }

@@ -108,7 +108,7 @@ object FieldExecutionHelpers {
     fun buildDataFetchingEnvironment(
         parameters: ExecutionParameters,
         field: QueryPlan.CollectedField,
-        parentOER: ObjectEngineResultImpl,
+        currentOER: ObjectEngineResultImpl,
     ): DataFetchingEnvironment {
         val mergedField = checkNotNull(field.mergedField) {
             "FieldExecutionHelpers.buildDataFetchingEnvironment requires a merged field"
@@ -141,13 +141,13 @@ object FieldExecutionHelpers {
             // update the context with either a new EngineResultLocalContext or update the existing one
             ctx.get<EngineResultLocalContext>().let { extant ->
                 ctx.addOrUpdate(
-                    // if the context is already set, just update the parentOER
+                    // if the context is already set, just update the currentOER
                     extant?.copy(
-                        parentEngineResult = parentOER,
+                        currentObjectEngineResult = currentOER,
                         queryEngineResult = parameters.queryEngineResult,
                     ) ?: EngineResultLocalContext(
                         // otherwise create it
-                        parentEngineResult = parentOER,
+                        currentObjectEngineResult = currentOER,
                         queryEngineResult = parameters.queryEngineResult,
                         rootEngineResult = parameters.rootEngineResult,
                         executionStrategyParams = parameters.gjParameters,
@@ -169,7 +169,7 @@ object FieldExecutionHelpers {
             .mergedField(mergedField)
             .fieldType(fieldDef.type)
             .executionStepInfo(execStepInfoSupplier)
-            .parentType(parentOER.type)
+            .parentType(currentOER.type)
             .selectionSet(fieldCollector)
             .queryDirectives(queryDirectives)
             .build()

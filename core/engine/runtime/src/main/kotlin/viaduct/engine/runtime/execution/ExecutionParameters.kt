@@ -55,7 +55,7 @@ import viaduct.utils.slf4j.logger
  * The copy will automatically preserve the handle pointing to this ExecutionParameters.
  *
  * @property constants Immutable execution-wide constants shared across the entire execution
- * @property parentEngineResult Parent ObjectEngineResult for field execution (changes during traversal)
+ * @property currentObjectEngineResult ObjectEngineResult for the object currently being resolved
  * @property coercedVariables Coerced variables for the current execution context
  * @property queryPlan Current query plan being executed
  * @property queryPlanIndex Index over currently materialized query plans for RSS lookup during subquery execution
@@ -64,7 +64,7 @@ import viaduct.utils.slf4j.logger
  * @property executionStepInfo Current position in the query execution tree
  * @property selectionSet Selection set for the current level of execution
  * @property errorAccumulator Errors collected at this level
- * @property parent Parent parameters in the traversal chain, if any
+ * @property parent Relationship between this execution scope and the scope it was derived from
  * @property field Field currently being executed, if any
  * @property bypassChecksDuringCompletion If execution is in the context of an access check
  * @property resolutionPolicy The resolution policy to use for this execution step
@@ -73,7 +73,7 @@ data class ExecutionParameters(
     @Suppress("ConstructorParameterNaming")
     private var _engineExecutionContext: EngineExecutionContext,
     val constants: Constants,
-    val parentEngineResult: ObjectEngineResultImpl,
+    val currentObjectEngineResult: ObjectEngineResultImpl,
     val queryEngineResult: ObjectEngineResultImpl,
     val coercedVariables: CoercedVariables,
     val queryPlan: QueryPlan,
@@ -83,12 +83,34 @@ data class ExecutionParameters(
     val executionStepInfo: ExecutionStepInfo,
     val selectionSet: QueryPlan.SelectionSet,
     val errorAccumulator: ErrorAccumulator,
-    val parent: ExecutionParameters? = null,
+    val parent: Parent = Parent.Unparented,
     val field: QueryPlan.CollectedField? = null,
     val bypassChecksDuringCompletion: Boolean = false,
     val resolutionPolicy: ResolutionPolicy = ResolutionPolicy.STANDARD,
     val attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
 ) : EngineExecutionContext.ExecutionHandle {
+    /** Relationship between an [ExecutionParameters] and the execution scope it was derived from. */
+    sealed interface Parent {
+        /** Root execution scope. */
+        object Unparented : Parent
+
+        /** This scope executes a field selected from [parameters]' current object. */
+        @JvmInline
+        value class ObjectParent(val parameters: ExecutionParameters) : Parent
+
+        /**
+         * This scope traverses the object value produced while executing [parameters].
+         *
+         * [parameters]' current object is this scope's nearest object ancestor.
+         */
+        @JvmInline
+        value class ObjectTraversalParent(val parameters: ExecutionParameters) : Parent
+
+        /** This scope executes a child [QueryPlan] launched from [parameters]. */
+        @JvmInline
+        value class PlanParent(val parameters: ExecutionParameters) : Parent
+    }
+
     // Each ExecutionParameters gets its own EEC copy to prevent cross-contamination
     // between different execution contexts (e.g., parent vs child field resolution).
     // The handle is set eagerly to ensure eec.copy() always preserves the correct handle.
@@ -129,7 +151,6 @@ data class ExecutionParameters(
         .nonNullFieldValidator(NonNullableFieldValidator(executionContext))
         .executionStepInfo(executionStepInfo)
         .path(path)
-        .parent(parent?.gjParameters)
         .field(this.field?.mergedField)
         .build()
 
@@ -182,11 +203,11 @@ data class ExecutionParameters(
             objectType,
         )
         return copy(
-            parentEngineResult = parentEngineResult,
+            currentObjectEngineResult = currentObjectEngineResult,
             coercedVariables = coercedVariables,
             field = field,
             executionStepInfo = executionStepInfo,
-            parent = this,
+            parent = Parent.ObjectParent(this),
             resolutionPolicy = resolutionPolicy,
         )
     }
@@ -195,24 +216,25 @@ data class ExecutionParameters(
      * Describes the result/source boundary a child plan should execute against.
      *
      * Most child plans inherit the current request's root/query results and only
-     * adjust the immediate parent result/source. Selection execution is the exception:
+     * adjust the current object result/source. Selection execution is the exception:
      * [IsolatedRootResult] replaces both the root result and the active query result
      * so a resolver-driven subquery cannot reuse parent or sibling root memoization.
      */
     sealed interface ChildPlanTarget {
         /**
-         * Inherit from the current execution context. Uses the current parentEngineResult
-         * as the OER, current source, and the parent's ExecutionStepInfo.
+         * Inherit from the current execution context. Uses the current object result,
+         * current source, and the parent ExecutionStepInfo.
          * This is the standard path for RSS child plans during normal field resolution.
          */
         object FromContext : ChildPlanTarget
 
         /**
-         * Override the immediate parent result only, inheriting source, step info, and
+         * Override the current object result only, inheriting source, step info, and
          * execution-wide root/query results from context.
          * Used by completeSelectionSet when an explicit targetResult is provided.
          */
-        data class ExplicitParentResult(val parentResult: ObjectEngineResultImpl) : ChildPlanTarget
+        @JvmInline
+        value class ExplicitObjectResult(val result: ObjectEngineResultImpl) : ChildPlanTarget
 
         /**
          * Execute a root selection set in an isolated result context. The root result
@@ -225,8 +247,8 @@ data class ExecutionParameters(
         ) : ChildPlanTarget
 
         /**
-         * Provide explicit parent result and source for field-type child plans. Uses the current
-         * ExecutionStepInfo (not the parent's) since the plan operates at the field's type level.
+         * Provide explicit current object result and source for field-type child plans. Uses the current
+         * ExecutionStepInfo since the plan operates at the field's type level.
          * Used by checker execution for type-level RSS.
          */
         data class FieldType(
@@ -238,7 +260,7 @@ data class ExecutionParameters(
     data class ChildPlanExecutionTarget(
         val objectType: GraphQLObjectType,
         val isRootQueryQueryPlan: Boolean,
-        val parentEngineResult: ObjectEngineResultImpl,
+        val currentObjectEngineResult: ObjectEngineResultImpl,
         val queryEngineResult: ObjectEngineResultImpl,
     )
 
@@ -258,23 +280,23 @@ data class ExecutionParameters(
             else -> queryEngineResult
         }
 
-        // ExplicitParentResult always honors the explicit parent result. IsolatedRootResult
+        // ExplicitObjectResult always honors the explicit object result. IsolatedRootResult
         // starts a new root/query result boundary. FromContext and FieldType fall back to
         // queryEngineResult for Query plans.
-        val childParentEngineResult = when {
-            target is ChildPlanTarget.ExplicitParentResult -> target.parentResult
+        val childCurrentObjectEngineResult = when {
+            target is ChildPlanTarget.ExplicitObjectResult -> target.result
             target is ChildPlanTarget.IsolatedRootResult -> {
                 if (isRootQueryQueryPlan) target.queryResult else target.rootResult
             }
             isRootQueryQueryPlan -> childQueryEngineResult
             target is ChildPlanTarget.FieldType -> target.parentResult
-            else -> parentEngineResult
+            else -> currentObjectEngineResult
         }
 
         return ChildPlanExecutionTarget(
             objectType = objectType,
             isRootQueryQueryPlan = isRootQueryQueryPlan,
-            parentEngineResult = childParentEngineResult,
+            currentObjectEngineResult = childCurrentObjectEngineResult,
             queryEngineResult = childQueryEngineResult,
         )
     }
@@ -290,12 +312,12 @@ data class ExecutionParameters(
         target: ChildPlanTarget = ChildPlanTarget.FromContext,
     ): ChildPlanExecutionTarget {
         val executionTarget = childPlanExecutionTarget(childPlan, target)
-        val variableParentEngineResult = when (target) {
+        val variableCurrentObjectEngineResult = when (target) {
             is ChildPlanTarget.FieldType -> target.parentResult
-            is ChildPlanTarget.IsolatedRootResult -> executionTarget.parentEngineResult
-            else -> parentEngineResult
+            is ChildPlanTarget.IsolatedRootResult -> executionTarget.currentObjectEngineResult
+            else -> currentObjectEngineResult
         }
-        return executionTarget.copy(parentEngineResult = variableParentEngineResult)
+        return executionTarget.copy(currentObjectEngineResult = variableCurrentObjectEngineResult)
     }
 
     /**
@@ -303,7 +325,7 @@ data class ExecutionParameters(
      *
      * The [target] controls how the child plan's object results, source, and ExecutionStepInfo
      * are selected. Query-typed plans normally use the active queryEngineResult,
-     * the execution root, and a fresh ExecutionStepInfo; [ChildPlanTarget.ExplicitParentResult]
+     * the execution root, and a fresh ExecutionStepInfo; [ChildPlanTarget.ExplicitObjectResult]
      * intentionally overrides only the immediate parent result for completion, while
      * [ChildPlanTarget.IsolatedRootResult] replaces the root/query results for selection execution.
      *
@@ -344,15 +366,15 @@ data class ExecutionParameters(
         }
 
         return buildChildParams(
-            childPlan,
-            variables,
-            isRootQueryQueryPlan,
-            objectType,
-            executionTarget.parentEngineResult,
-            executionTarget.queryEngineResult,
-            childSource,
-            parentStepInfo,
-            newConstants,
+            childPlan = childPlan,
+            variables = variables,
+            isRootQueryQueryPlan = isRootQueryQueryPlan,
+            objectType = objectType,
+            newCurrentObjectEngineResult = executionTarget.currentObjectEngineResult,
+            newQueryEngineResult = executionTarget.queryEngineResult,
+            source = childSource,
+            parentFieldStepInfo = parentStepInfo,
+            newConstants = newConstants,
         )
     }
 
@@ -361,7 +383,7 @@ data class ExecutionParameters(
         variables: CoercedVariables,
         isRootQueryQueryPlan: Boolean,
         objectType: GraphQLObjectType,
-        newParentOER: ObjectEngineResultImpl,
+        newCurrentObjectEngineResult: ObjectEngineResultImpl,
         newQueryEngineResult: ObjectEngineResultImpl,
         source: Any?,
         parentFieldStepInfo: ExecutionStepInfo?,
@@ -438,13 +460,13 @@ data class ExecutionParameters(
             queryPlan = childPlan,
             queryPlanIndex = newIndex,
             selectionSet = childPlan.selectionSet,
-            parent = this,
             errorAccumulator = ErrorAccumulator(),
             executionStepInfo = childExecutionStepInfo,
-            parentEngineResult = newParentOER,
+            currentObjectEngineResult = newCurrentObjectEngineResult,
             queryEngineResult = newQueryEngineResult,
             localContext = localContext,
             source = source,
+            parent = Parent.PlanParent(this),
             resolutionPolicy = resolutionPolicy,
             attribution = childPlan.attribution,
         )
@@ -465,9 +487,9 @@ data class ExecutionParameters(
         localContext: CompositeLocalContext,
         source: Any?,
         resolutionPolicy: ResolutionPolicy = this.resolutionPolicy,
-    ): ExecutionParameters {
-        return copy(
-            parentEngineResult = engineResult, // Update parent to be the current object we're traversing into
+    ): ExecutionParameters =
+        copy(
+            currentObjectEngineResult = engineResult,
             coercedVariables = coercedVariables,
             // ExecutionStepInfo.type is initially set to an abstract type like Node
             // It can be refined during execution as abstract types become resolved
@@ -475,9 +497,9 @@ data class ExecutionParameters(
             localContext = localContext,
             source = source,
             selectionSet = checkNotNull(field.selectionSet) { "Expected selection set to be non-null." },
+            parent = Parent.ObjectTraversalParent(this),
             resolutionPolicy = resolutionPolicy,
         )
-    }
 
     /**
      * Factory for creating root [ExecutionParameters] instances.
@@ -547,7 +569,7 @@ data class ExecutionParameters(
                 return ExecutionParameters(
                     _engineExecutionContext = engineExecutionContext,
                     constants = constants,
-                    parentEngineResult = rootEngineResult, // Initially, parent is the same as root
+                    currentObjectEngineResult = rootEngineResult, // Initially, the current object is the root
                     queryEngineResult = queryEngineResult,
                     coercedVariables = executionContext.coercedVariables,
                     queryPlan = queryPlan,

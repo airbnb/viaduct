@@ -323,7 +323,7 @@ class EngineImpl(
 
             val variables = FieldExecutionHelpers.resolveRSSVariables(
                 arguments = arguments,
-                currentEngineData = parentParamsWithQueryPlanIndex.parentEngineResult,
+                currentEngineData = parentParamsWithQueryPlanIndex.currentObjectEngineResult,
                 queryEngineData = parentParamsWithQueryPlanIndex.queryEngineResult,
                 engineExecutionContext = parentParamsWithQueryPlanIndex.engineExecutionContext,
                 graphQLContext = parentParamsWithQueryPlanIndex.executionContext.graphQLContext,
@@ -335,7 +335,7 @@ class EngineImpl(
                 checkNotNull(targetOER) { "targetResult is required when isFieldTypePlan is true" }
                 ExecutionParameters.ChildPlanTarget.FieldType(targetOER, parentParamsWithQueryPlanIndex.source)
             } else if (targetOER != null) {
-                ExecutionParameters.ChildPlanTarget.ExplicitParentResult(targetOER)
+                ExecutionParameters.ChildPlanTarget.ExplicitObjectResult(targetOER)
             } else {
                 ExecutionParameters.ChildPlanTarget.FromContext
             }

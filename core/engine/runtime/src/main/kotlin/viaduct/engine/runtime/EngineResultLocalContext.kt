@@ -9,8 +9,8 @@ import graphql.execution.ExecutionStrategyParameters
  */
 data class EngineResultLocalContext(
     val rootEngineResult: ObjectEngineResultImpl,
-    val parentEngineResult: ObjectEngineResultImpl,
+    val currentObjectEngineResult: ObjectEngineResultImpl,
     val queryEngineResult: ObjectEngineResultImpl,
     val executionStrategyParams: ExecutionStrategyParameters?,
-    val executionContext: ExecutionContext?
+    val executionContext: ExecutionContext?,
 )

@@ -56,7 +56,7 @@ class AccessCheckRunner(
             parameters,
             dataFetchingEnvironmentSupplier,
             checkerDispatcher,
-            parameters.parentEngineResult,
+            parameters.currentObjectEngineResult,
             parameters.executionStepInfo.arguments,
             CheckerExecutor.CheckerType.FIELD,
         )

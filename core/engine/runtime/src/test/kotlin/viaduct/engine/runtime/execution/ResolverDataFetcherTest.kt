@@ -133,7 +133,7 @@ class ResolverDataFetcherTest {
         val dataFetchingEnvironment: ViaductDataFetchingEnvironment = mockk()
         val engineResultLocalContext = EngineResultLocalContext(
             rootEngineResult = ObjectEngineResultImpl.newForType(schema.schema.queryType),
-            parentEngineResult = ObjectEngineResultImpl.newForType(testTypeObject),
+            currentObjectEngineResult = ObjectEngineResultImpl.newForType(testTypeObject),
             queryEngineResult = ObjectEngineResultImpl.newForType(schema.schema.queryType),
             executionStrategyParams = null,
             executionContext = null
@@ -231,7 +231,7 @@ class ResolverDataFetcherTest {
                     ),
                     flagManager = allDisabledFlags
                 ).apply {
-                    engineResultLocalContext.parentEngineResult.putResolvedValue("testField", expectedResult)
+                    engineResultLocalContext.currentObjectEngineResult.putResolvedValue("testField", expectedResult)
 
                     val receivedResult = resolverDataFetcher.get(dataFetchingEnvironment).join()
                     assertEquals(expectedResult, receivedResult)
@@ -256,7 +256,7 @@ class ResolverDataFetcherTest {
                     flagManager = allDisabledFlags,
                 ).apply {
                     // Populate the parent engine result so sync resolution can complete
-                    engineResultLocalContext.parentEngineResult.computeIfAbsent(
+                    engineResultLocalContext.currentObjectEngineResult.computeIfAbsent(
                         ObjectEngineResult.Key("testField", "testField", emptyMap())
                     ) { setter ->
                         setter.set(
@@ -309,7 +309,7 @@ class ResolverDataFetcherTest {
                         every { dataFetchingEnvironment.arguments } returns mapOf("id" to 1)
                         val bazResult = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Baz")!!)
                         bazResult.putResolvedInt("x", 123)
-                        engineResultLocalContext.parentEngineResult.putResolvedObject(
+                        engineResultLocalContext.currentObjectEngineResult.putResolvedObject(
                             fieldName = "baz",
                             value = bazResult,
                             arguments = mapOf("id" to 1),
