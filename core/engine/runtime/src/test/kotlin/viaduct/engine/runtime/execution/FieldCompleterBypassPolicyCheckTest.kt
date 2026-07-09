@@ -67,7 +67,7 @@ class FieldCompleterBypassPolicyCheckTest {
             dispatcher.executor = object : CheckerExecutor {
                 override suspend fun execute(
                     arguments: Map<String, Any?>,
-                    objectDataMap: Map<String, EngineObjectData>,
+                    objectDataMap: Map<String, EngineObjectData.Sync>,
                     context: EngineExecutionContext,
                     checkerType: CheckerExecutor.CheckerType,
                 ) = dispatcher.execute(arguments, emptyMap(), context, checkerType)

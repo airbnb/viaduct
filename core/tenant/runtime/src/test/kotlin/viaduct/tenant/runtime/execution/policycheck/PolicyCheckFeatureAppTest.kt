@@ -119,7 +119,7 @@ class PolicyCheckFeatureAppTest : PolicyCheckContractTest() {
     ) : CheckerExecutor {
         override suspend fun execute(
             arguments: Map<String, Any?>,
-            objectDataMap: Map<String, EngineObjectData>,
+            objectDataMap: Map<String, EngineObjectData.Sync>,
             context: EngineExecutionContext,
             checkerType: CheckerExecutor.CheckerType
         ): CheckerResult {

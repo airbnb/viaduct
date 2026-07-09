@@ -117,12 +117,12 @@ class AccessCheckRunnerTest {
 
                     override suspend fun execute(
                         arguments: Map<String, Any?>,
-                        objectDataMap: Map<String, EngineObjectData>,
+                        objectDataMap: Map<String, EngineObjectData.Sync>,
                         context: EngineExecutionContext,
                         checkerType: CheckerExecutor.CheckerType
                     ): CheckerResult {
                         checkerExecuted = true
-                        assertEquals(emptyList<String>(), objectDataMap.getValue("checker").fetchSelections().toList())
+                        assertEquals(emptyList<String>(), objectDataMap.getValue("checker").getSelections().toList())
                         return CheckerResult.Success
                     }
                 }
@@ -148,7 +148,7 @@ class AccessCheckRunnerTest {
 
                         override suspend fun execute(
                             arguments: Map<String, Any?>,
-                            objectDataMap: Map<String, EngineObjectData>,
+                            objectDataMap: Map<String, EngineObjectData.Sync>,
                             context: EngineExecutionContext,
                             checkerType: CheckerExecutor.CheckerType
                         ): CheckerResult = CheckerResult.Success
@@ -189,7 +189,7 @@ class AccessCheckRunnerTest {
                         object : CheckerExecutor by checkerExecutor {
                             override suspend fun execute(
                                 arguments: Map<String, Any?>,
-                                objectDataMap: Map<String, EngineObjectData>,
+                                objectDataMap: Map<String, EngineObjectData.Sync>,
                                 context: EngineExecutionContext,
                                 checkerType: CheckerExecutor.CheckerType
                             ): CheckerResult {
@@ -667,7 +667,7 @@ class AccessCheckRunnerTest {
 
             override suspend fun execute(
                 arguments: Map<String, Any?>,
-                objectDataMap: Map<String, EngineObjectData>,
+                objectDataMap: Map<String, EngineObjectData.Sync>,
                 context: EngineExecutionContext,
                 checkerType: CheckerExecutor.CheckerType
             ): CheckerResult {
@@ -680,7 +680,7 @@ class AccessCheckRunnerTest {
 
             override suspend fun execute(
                 arguments: Map<String, Any?>,
-                objectDataMap: Map<String, EngineObjectData>,
+                objectDataMap: Map<String, EngineObjectData.Sync>,
                 context: EngineExecutionContext,
                 checkerType: CheckerExecutor.CheckerType
             ): CheckerResult {

@@ -56,7 +56,7 @@ import viaduct.engine.runtime.select.EngineSelectionSetImpl
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.graphql.utils.ParsedSelections
 
-typealias CheckerFn = suspend (arguments: Map<String, Any?>, objectDataMap: Map<String, EngineObjectData>) -> Unit
+typealias CheckerFn = suspend (arguments: Map<String, Any?>, objectDataMap: Map<String, EngineObjectData.Sync>) -> Unit
 typealias NodeBatchResolverFn = suspend (selectors: List<NodeResolverExecutor.Selector>, context: EngineExecutionContext) -> Map<NodeResolverExecutor.Selector, Result<EngineObjectData>>
 typealias NodeUnbatchedResolverFn = suspend (id: String, selections: EngineSelectionSet?, context: EngineExecutionContext) -> EngineObjectData
 typealias FieldUnbatchedResolverFn = suspend (
@@ -271,7 +271,7 @@ class MockCheckerExecutor(
 ) : CheckerExecutor {
     override suspend fun execute(
         arguments: Map<String, Any?>,
-        objectDataMap: Map<String, EngineObjectData>,
+        objectDataMap: Map<String, EngineObjectData.Sync>,
         context: EngineExecutionContext,
         checkerType: CheckerExecutor.CheckerType
     ): CheckerResult {

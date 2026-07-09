@@ -40,7 +40,7 @@ class AccessCheckRunner(
          * Sentinel passed as the `objectDataMap` to a [MaterializingCheckerExecutor], which ignores
          * it and sources checker object data from its materializers instead.
          */
-        private val NO_PREMATERIALIZED_DATA = emptyMap<String, EngineObjectData>()
+        private val NO_PREMATERIALIZED_DATA = emptyMap<String, EngineObjectData.Sync>()
     }
 
     /**
@@ -250,7 +250,7 @@ class AccessCheckRunner(
     ) : CheckerExecutor by dispatcher.executor {
         override suspend fun execute(
             arguments: Map<String, Any?>,
-            objectDataMap: Map<String, EngineObjectData>,
+            objectDataMap: Map<String, EngineObjectData.Sync>,
             context: EngineExecutionContext,
             checkerType: CheckerExecutor.CheckerType
         ): CheckerResult = dispatcher.execute(arguments, objectDataFactories, context, checkerType)

@@ -105,7 +105,7 @@ object CheckerExecutor {
 
                 override suspend fun execute(
                     arguments: Map<String, Any?>,
-                    objectDataMap: Map<String, EngineObjectData>,
+                    objectDataMap: Map<String, EngineObjectData.Sync>,
                     context: EngineExecutionContext,
                     checkerType: EngineCheckerExecutor.CheckerType
                 ): CheckerResult {
@@ -170,7 +170,7 @@ object CheckerExecutor {
 
         data class Args(
             val arguments: Map<String, Any?>,
-            val objectDataMap: Map<String, EngineObjectData>,
+            val objectDataMap: Map<String, EngineObjectData.Sync>,
             val context: EngineExecutionContext,
             val checkerType: EngineCheckerExecutor.CheckerType
         )
@@ -186,7 +186,7 @@ object CheckerExecutor {
 
         override suspend fun execute(
             arguments: Map<String, Any?>,
-            objectDataMap: Map<String, EngineObjectData>,
+            objectDataMap: Map<String, EngineObjectData.Sync>,
             context: EngineExecutionContext,
             checkerType: EngineCheckerExecutor.CheckerType
         ): CheckerResult =

@@ -1607,7 +1607,7 @@ class ViaductExecutionStrategyTest {
         dispatcher.executor = object : CheckerExecutor {
             override suspend fun execute(
                 arguments: Map<String, Any?>,
-                objectDataMap: Map<String, EngineObjectData>,
+                objectDataMap: Map<String, EngineObjectData.Sync>,
                 context: EngineExecutionContext,
                 checkerType: CheckerExecutor.CheckerType,
             ): CheckerResult = dispatcher.execute(arguments, emptyMap(), context, checkerType)
@@ -1640,7 +1640,7 @@ class ViaductExecutionStrategyTest {
         dispatcher.executor = object : CheckerExecutor {
             override suspend fun execute(
                 arguments: Map<String, Any?>,
-                objectDataMap: Map<String, EngineObjectData>,
+                objectDataMap: Map<String, EngineObjectData.Sync>,
                 context: EngineExecutionContext,
                 checkerType: CheckerExecutor.CheckerType,
             ): CheckerResult {
@@ -2042,7 +2042,7 @@ class ViaductExecutionStrategyTest {
                     dispatcher.executor = object : viaduct.engine.api.spi.CheckerExecutor {
                         override suspend fun execute(
                             arguments: Map<String, Any?>,
-                            objectDataMap: Map<String, viaduct.engine.api.EngineObjectData>,
+                            objectDataMap: Map<String, viaduct.engine.api.EngineObjectData.Sync>,
                             context: viaduct.engine.api.EngineExecutionContext,
                             checkerType: viaduct.engine.api.spi.CheckerExecutor.CheckerType,
                         ) = dispatcher.execute(arguments, emptyMap(), context, checkerType)
