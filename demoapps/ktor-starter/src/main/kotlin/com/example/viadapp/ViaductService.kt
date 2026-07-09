@@ -6,6 +6,7 @@ package com.example.viadapp
 import io.ktor.server.application.Application
 
 const val SCHEMA_ID: String = "publicSchema"
+const val DEFAULT_SCOPE_ID: String = "default"
 
 fun main(argv: Array<String>) {
     io.ktor.server.jetty.jakarta.EngineMain.main(argv)

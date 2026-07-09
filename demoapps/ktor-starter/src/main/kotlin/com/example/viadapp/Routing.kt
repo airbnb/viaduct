@@ -34,7 +34,7 @@ private val ktorStarterGraphiQLConfig = GraphiQLHtmlConfig(
 
 private val viaduct by lazy {
     BasicViaductFactory.create(
-        scopedSchemas = listOf(SchemaScopeInfo(SCHEMA_ID)),
+        scopedSchemas = listOf(SchemaScopeInfo(SCHEMA_ID, setOf(DEFAULT_SCOPE_ID))),
     )
 }
 
