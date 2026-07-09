@@ -1,4 +1,4 @@
-# MANDATORY_REVIEWERS airbnb/service-platform ted-tenedorio skevy
+# MANDATORY_REVIEWERS airbnb/service-tools ted-tenedorio skevy
 build:
   maxIssues: 0
 
