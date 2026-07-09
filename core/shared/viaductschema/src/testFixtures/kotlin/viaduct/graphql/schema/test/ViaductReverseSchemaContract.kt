@@ -179,7 +179,7 @@ interface ViaductReverseSchemaContract {
     }
 
     @Test
-    fun `interface implementing interface — syntactic vs semantic`() {
+    fun `interface implementing interface - syntactic vs semantic`() {
         val rev = createReverseSchema(
             """
             interface Base { id: ID! }
@@ -450,7 +450,7 @@ interface ViaductReverseSchemaContract {
     }
 
     @Test
-    fun `field arg reference collapses to containing record — two hops`() {
+    fun `field arg reference collapses to containing record - two hops`() {
         val rev = createReverseSchema(
             """
             input Filter { x: Int }
@@ -519,7 +519,7 @@ interface ViaductReverseSchemaContract {
     }
 
     @Test
-    fun `deduplication — multiple fields of same record referencing same target`() {
+    fun `deduplication - multiple fields of same record referencing same target`() {
         val rev = createReverseSchema(
             """
             type Target { x: String }
