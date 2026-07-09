@@ -27,7 +27,7 @@ interface EngineObjectDataBuilder {
         value: Any?
     ): EngineObjectDataBuilder
 
-    fun build(): EngineObjectData
+    fun build(): EngineObjectData.Sync
 
     companion object {
         fun from(type: GraphQLObjectType): EngineObjectDataBuilder {

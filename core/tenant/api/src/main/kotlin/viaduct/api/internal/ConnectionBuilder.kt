@@ -179,7 +179,7 @@ abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
         hasPreviousPage: Boolean,
         startCursor: String?,
         endCursor: String?
-    ): EngineObjectData {
+    ): EngineObjectData.Sync {
         val pageInfoType = connectionContext.internal.schema.schema.getObjectType("PageInfo")
             ?: error("PageInfo type not found in schema")
 

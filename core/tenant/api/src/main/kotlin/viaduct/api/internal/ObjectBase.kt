@@ -283,7 +283,7 @@ abstract class ObjectBase(
 
         protected fun buildEngineObjectData(): EngineObjectData.Sync =
             handleFrameworkErrors("ObjectBase.Builder.buildEngineObjectData failed") {
-                val overlay = wrapper.getEngineObjectData() as EngineObjectData.Sync
+                val overlay = wrapper.getEngineObjectData()
                 baseEngineObjectData?.let { base ->
                     OverlayEngineObjectData(overlay, base)
                 } ?: overlay

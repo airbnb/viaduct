@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.internal.EODBuilderWrapper
 import viaduct.api.mocks.createSchema
-import viaduct.engine.api.EngineObjectData
 import viaduct.errors.TenantUsageException
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
@@ -55,7 +54,7 @@ class EODBuilderWrapperTest {
         wrapper.put("enumField", TestEnum.VALUE_A)
 
         val result = wrapper.getEngineObjectData()
-        assertEquals("VALUE_A", (result as EngineObjectData.Sync).get("enumField"))
+        assertEquals("VALUE_A", result.get("enumField"))
     }
 
     @Test
@@ -67,7 +66,7 @@ class EODBuilderWrapperTest {
         wrapper.put("enumField", "VALUE_C")
 
         val result = wrapper.getEngineObjectData()
-        assertEquals("VALUE_C", (result as EngineObjectData.Sync).get("enumField"))
+        assertEquals("VALUE_C", result.get("enumField"))
     }
 
     @Test
@@ -78,7 +77,7 @@ class EODBuilderWrapperTest {
         wrapper.put("enumField", "VALUE_A")
 
         val result = wrapper.getEngineObjectData()
-        assertEquals("VALUE_A", (result as EngineObjectData.Sync).get("enumField"))
+        assertEquals("VALUE_A", result.get("enumField"))
     }
 
     @Test
@@ -127,7 +126,7 @@ class EODBuilderWrapperTest {
         wrapper.put("enumField", null)
 
         val result = wrapper.getEngineObjectData()
-        assertEquals(null, (result as EngineObjectData.Sync).get("enumField"))
+        assertEquals(null, result.get("enumField"))
     }
 
     @Test
@@ -186,7 +185,7 @@ class EODBuilderWrapperTest {
         wrapper.put("enumList", listOf(TestEnum.VALUE_A, "VALUE_B", "VALUE_C"))
 
         val result = wrapper.getEngineObjectData()
-        assertEquals(listOf("VALUE_A", "VALUE_B", "VALUE_C"), (result as EngineObjectData.Sync).get("enumList"))
+        assertEquals(listOf("VALUE_A", "VALUE_B", "VALUE_C"), result.get("enumList"))
     }
 
     @Test
@@ -213,7 +212,7 @@ class EODBuilderWrapperTest {
         wrapper.put("enumList", listOf(TestEnum.VALUE_A, null, "VALUE_B"))
 
         val result = wrapper.getEngineObjectData()
-        assertEquals(listOf("VALUE_A", null, "VALUE_B"), (result as EngineObjectData.Sync).get("enumList"))
+        assertEquals(listOf("VALUE_A", null, "VALUE_B"), result.get("enumList"))
     }
 
     @Test
@@ -251,7 +250,7 @@ class EODBuilderWrapperTest {
         wrapper.put("enumField", "")
 
         val result = wrapper.getEngineObjectData()
-        assertEquals("", (result as EngineObjectData.Sync).get("enumField"))
+        assertEquals("", result.get("enumField"))
     }
 
     @Test
@@ -264,8 +263,8 @@ class EODBuilderWrapperTest {
         wrapper.put("intField", 123)
 
         val result = wrapper.getEngineObjectData()
-        assertEquals("VALUE_B", (result as EngineObjectData.Sync).get("enumField"))
-        assertEquals("test", (result as EngineObjectData.Sync).get("stringField"))
-        assertEquals(123, (result as EngineObjectData.Sync).get("intField"))
+        assertEquals("VALUE_B", result.get("enumField"))
+        assertEquals("test", result.get("stringField"))
+        assertEquals(123, result.get("intField"))
     }
 }
