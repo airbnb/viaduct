@@ -141,8 +141,6 @@ class ResolverInstrumentationFeatureTest {
                 return resolver
             }
 
-            override fun shouldInstrumentFetchSelections(state: ViaductResolverInstrumentation.InstrumentationState?) = true
-
             override fun beginFetchSelection(
                 parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
                 state: ViaductResolverInstrumentation.InstrumentationState?
@@ -157,8 +155,6 @@ class ResolverInstrumentationFeatureTest {
         object : ViaductResolverInstrumentation {
             override fun createInstrumentationState(parameters: ViaductResolverInstrumentation.CreateInstrumentationStateParameters): ViaductResolverInstrumentation.InstrumentationState =
                 TrackingState("checker")
-
-            override fun shouldInstrumentFetchSelections(state: ViaductResolverInstrumentation.InstrumentationState?) = true
 
             override fun beginFetchSelection(
                 parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,

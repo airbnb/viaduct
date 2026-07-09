@@ -28,12 +28,10 @@ class InstrumentedCheckerDispatcher(
     ): CheckerResult {
         val createStateParameter = ViaductResolverInstrumentation.CreateInstrumentationStateParameters()
         val state = instrumentation.createInstrumentationState(createStateParameter)
-        val wrapFetchSelections = instrumentation.shouldInstrumentFetchSelections(state)
         val instrumentationContext = ResolverInstrumentationContext(instrumentation, state)
         val instrumentedObjectDataFactories = objectDataFactories.mapValues { (_, factory) ->
             EngineObjectDataFactory {
-                val fetchCtx = if (wrapFetchSelections) instrumentationContext else null
-                val syncData = factory.create(fetchCtx)
+                val syncData = factory.create(instrumentationContext)
                 InstrumentedEngineObjectData.Sync(syncData, instrumentation, state)
             }
         }

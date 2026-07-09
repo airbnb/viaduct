@@ -1,6 +1,5 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
-import viaduct.engine.api.instrumentation.resolver.CheckerFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.SyncFetchFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
@@ -15,7 +14,6 @@ class ThrowingResolverInstrumentation(
     private val throwOnInstrumentExecute: Boolean = false,
     private val throwOnInstrumentFetch: Boolean = false,
     private val throwOnInstrumentReadSelection: Boolean = false,
-    private val throwOnInstrumentChecker: Boolean = false
 ) : ViaductResolverInstrumentation {
     override fun createInstrumentationState(parameters: ViaductResolverInstrumentation.CreateInstrumentationStateParameters): ViaductResolverInstrumentation.InstrumentationState {
         if (throwOnCreateState) {
@@ -54,16 +52,5 @@ class ThrowingResolverInstrumentation(
             throw RuntimeException(exceptionMessage)
         }
         return fetchFn
-    }
-
-    override fun <T> instrumentAccessChecker(
-        checker: CheckerFunction<T>,
-        parameters: ViaductResolverInstrumentation.InstrumentExecuteCheckerParameters,
-        state: ViaductResolverInstrumentation.InstrumentationState?,
-    ): CheckerFunction<T> {
-        if (throwOnInstrumentChecker) {
-            throw RuntimeException(exceptionMessage)
-        }
-        return checker
     }
 }

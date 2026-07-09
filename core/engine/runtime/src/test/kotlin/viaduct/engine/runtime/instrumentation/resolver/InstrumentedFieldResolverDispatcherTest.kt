@@ -13,7 +13,6 @@ import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
@@ -202,7 +201,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve wraps context in InstrumentedEngineExecutionContext when shouldInstrumentFetchSelections is true`() =
+    fun `resolve wraps context in InstrumentedEngineExecutionContext`() =
         runBlocking {
             // Given
             val mockDispatcher: FieldResolverDispatcher = mockk()
@@ -224,9 +223,9 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve does not wrap context in InstrumentedEngineExecutionContext when shouldInstrumentFetchSelections is false`() =
+    fun `resolve wraps context in InstrumentedEngineExecutionContext even for DEFAULT instrumentation`() =
         runBlocking {
-            // Given — ViaductResolverInstrumentation.DEFAULT returns false for shouldInstrumentFetchSelections
+            // Given — wrapping is unconditional, so even DEFAULT instrumentation gets a wrapped context
             val mockDispatcher: FieldResolverDispatcher = mockk()
             val capturedContext = slot<EngineExecutionContext>()
 
@@ -240,9 +239,8 @@ internal class InstrumentedFieldResolverDispatcherTest {
             // When
             testClass.resolve(emptyMap(), stubObjectFactory, stubQueryFactory, null, defaultContext)
 
-            // Then — context is a plain EngineExecutionContextImpl, not wrapped
-            assertFalse(capturedContext.captured is InstrumentedEngineExecutionContext)
-            capturedContext.captured.shouldBeInstanceOf<EngineExecutionContextImpl>()
+            // Then
+            capturedContext.captured.shouldBeInstanceOf<InstrumentedEngineExecutionContext>()
         }
 
     @Test
@@ -295,11 +293,11 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `sync getter is always wrapped with InstrumentedEngineObjectData_Sync when shouldInstrumentFetchSelections is true`() =
+    fun `sync getter is wrapped with InstrumentedEngineObjectData_Sync`() =
         runBlocking {
             // Given
             val mockDispatcher: FieldResolverDispatcher = mockk()
-            val instrumentation = RecordingResolverInstrumentation() // shouldInstrumentFetchSelections = true
+            val instrumentation = RecordingResolverInstrumentation()
             val capturedObjectFactory = slot<EngineObjectDataFactory>()
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
@@ -317,9 +315,9 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `sync getter is always wrapped with InstrumentedEngineObjectData_Sync even when shouldInstrumentFetchSelections is false`() =
+    fun `sync getter is wrapped with InstrumentedEngineObjectData_Sync even for DEFAULT instrumentation`() =
         runBlocking {
-            // Given — DEFAULT instrumentation returns false for shouldInstrumentFetchSelections
+            // Given — DEFAULT instrumentation
             val mockDispatcher: FieldResolverDispatcher = mockk()
             val capturedObjectFactory = slot<EngineObjectDataFactory>()
 
@@ -333,7 +331,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             // When
             testClass.resolve(emptyMap(), stubObjectFactory, stubQueryFactory, null, defaultContext)
 
-            // Then — sync getter still returns InstrumentedEngineObjectData.Sync regardless of the debug gate
+            // Then — sync getter returns InstrumentedEngineObjectData.Sync
             capturedObjectFactory.captured.create(null).shouldBeInstanceOf<InstrumentedEngineObjectData.Sync>()
         }
 }

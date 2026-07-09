@@ -1,7 +1,6 @@
 package viaduct.engine.api.instrumentation.resolver
 
 import graphql.execution.ResultPath
-import viaduct.engine.api.CheckerMetadata
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ResolverMetadata
 
@@ -27,13 +26,6 @@ fun interface SyncFetchFunction<T> {
 }
 
 /**
- * A function interface for access checker execution.
- */
-fun interface CheckerFunction<T> {
-    suspend fun check(): T
-}
-
-/**
  * Instrumentation interface for observing Viaduct Modern resolver execution lifecycle.
  *
  * Implementations can track metrics, tracing, logging, or other observability concerns
@@ -44,18 +36,6 @@ interface ViaductResolverInstrumentation {
      * Opaque state object that can be passed between instrumentation lifecycle methods.
      */
     interface InstrumentationState
-
-    /**
-     * Whether this instrumentation performs any meaningful work in [beginFetchSelection]
-     * for a given request.
-     *
-     * When true, [viaduct.engine.runtime.instrumentation.resolver.InstrumentedEngineExecutionContext]
-     * and the resolver materializers are wired with instrumentation. When false, that wiring is
-     * skipped, avoiding unnecessary allocations on the hot path.
-     * [instrumentReadSelection] is always invoked on field reads and is not gated by this flag.
-     * Resolver instrumentation via [instrumentResolverExecution] is unaffected by this flag.
-     */
-    fun shouldInstrumentFetchSelections(state: InstrumentationState?): Boolean = false
 
     companion object {
         /** Default no-op instrumentation state */
@@ -124,29 +104,6 @@ interface ViaductResolverInstrumentation {
     ): FetchSelectionInstrumentation = FetchSelectionInstrumentation.NOOP
 
     /**
-     * Wraps selection fetching with instrumentation.
-     *
-     * @deprecated Wrapping the fetch changes materialization scheduling. Implement
-     * [beginFetchSelection] instead, which observes completion without wrapping the awaited work.
-     * @param fetchFn The fetch function to instrument
-     * @param parameters Parameters for the fetch operation
-     * @param state The instrumentation state
-     * @return The instrumented fetch function
-     */
-    @Deprecated("Implement beginFetchSelection instead; wrapping the fetch changes scheduling.")
-    fun <T> instrumentFetchSelection(
-        fetchFn: FetchFunction<T>,
-        parameters: InstrumentFetchSelectionParameters,
-        state: InstrumentationState?,
-    ): FetchFunction<T> =
-        FetchFunction {
-            val handle = beginFetchSelection(parameters, state)
-            val result = runCatching { fetchFn.fetch() }
-            handle.finish(result.exceptionOrNull())
-            result.getOrThrow()
-        }
-
-    /**
      * Wraps synchronous selection reading with instrumentation.
      * Called when reading pre-materialized field data from [viaduct.engine.api.EngineObjectData.Sync].
      * @param fetchFn The sync fetch function to instrument
@@ -159,21 +116,4 @@ interface ViaductResolverInstrumentation {
         parameters: InstrumentFetchSelectionParameters,
         state: InstrumentationState?,
     ): SyncFetchFunction<T> = fetchFn
-
-    data class InstrumentExecuteCheckerParameters(
-        val checkerMetadata: CheckerMetadata
-    )
-
-    /**
-     * Wraps access checker execution with instrumentation.
-     * @param checker The checker function to instrument
-     * @param parameters Parameters for the checker execution
-     * @param state The instrumentation state
-     * @return The instrumented checker function
-     */
-    fun <T> instrumentAccessChecker(
-        checker: CheckerFunction<T>,
-        parameters: InstrumentExecuteCheckerParameters,
-        state: InstrumentationState?,
-    ): CheckerFunction<T> = checker
 }

@@ -1,7 +1,5 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
-import viaduct.engine.api.instrumentation.resolver.CheckerFunction
-import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.SyncFetchFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
@@ -22,11 +20,6 @@ import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentatio
 class ChainedResolverInstrumentation(
     val instrumentations: List<ViaductResolverInstrumentation>
 ) : ViaductResolverInstrumentation {
-    override fun shouldInstrumentFetchSelections(state: ViaductResolverInstrumentation.InstrumentationState?): Boolean {
-        val chainedState = state as? ChainedInstrumentationState ?: return true
-        return instrumentations.any { it.shouldInstrumentFetchSelections(chainedState.getState(it)) }
-    }
-
     /**
      * Composite state that holds individual states for each instrumentation in the chain.
      */
@@ -67,20 +60,6 @@ class ChainedResolverInstrumentation(
         }
     }
 
-    @Deprecated("Implement beginFetchSelection instead; wrapping the fetch changes scheduling.")
-    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
-    override fun <T> instrumentFetchSelection(
-        fetchFn: FetchFunction<T>,
-        parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
-        state: ViaductResolverInstrumentation.InstrumentationState?,
-    ): FetchFunction<T> {
-        state as ChainedInstrumentationState
-        return instrumentations.foldRight(fetchFn) { instrumentation, next ->
-            val instrState = state.getState(instrumentation)
-            instrumentation.instrumentFetchSelection(next, parameters, instrState)
-        }
-    }
-
     override fun <T> instrumentReadSelection(
         fetchFn: SyncFetchFunction<T>,
         parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
@@ -90,18 +69,6 @@ class ChainedResolverInstrumentation(
         return instrumentations.foldRight(fetchFn) { instrumentation, next ->
             val instrState = state.getState(instrumentation)
             instrumentation.instrumentReadSelection(next, parameters, instrState)
-        }
-    }
-
-    override fun <T> instrumentAccessChecker(
-        checker: CheckerFunction<T>,
-        parameters: ViaductResolverInstrumentation.InstrumentExecuteCheckerParameters,
-        state: ViaductResolverInstrumentation.InstrumentationState?
-    ): CheckerFunction<T> {
-        state as ChainedInstrumentationState
-        return instrumentations.foldRight(checker) { instrumentation, next ->
-            val instrState = state.getState(instrumentation)
-            instrumentation.instrumentAccessChecker(next, parameters, instrState)
         }
     }
 }

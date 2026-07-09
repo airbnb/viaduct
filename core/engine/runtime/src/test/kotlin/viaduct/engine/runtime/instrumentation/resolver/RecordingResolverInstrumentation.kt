@@ -1,7 +1,6 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
 import java.util.concurrent.ConcurrentLinkedQueue
-import viaduct.engine.api.instrumentation.resolver.CheckerFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.SyncFetchFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
@@ -21,22 +20,13 @@ class RecordingResolverInstrumentation : ViaductResolverInstrumentation {
         val error: Throwable?
     )
 
-    data class RecordingExecuteCheckerContext(
-        val parameters: ViaductResolverInstrumentation.InstrumentExecuteCheckerParameters,
-        val result: Any?,
-        val error: Throwable?
-    )
-
     val fetchSelectionContexts = ConcurrentLinkedQueue<RecordingFetchSelectionContext>()
     val syncFetchSelectionContexts = ConcurrentLinkedQueue<RecordingFetchSelectionContext>()
     val executeResolverContexts = ConcurrentLinkedQueue<RecordingExecuteResolverContext>()
-    val executeCheckerContexts = ConcurrentLinkedQueue<RecordingExecuteCheckerContext>()
 
     override fun createInstrumentationState(parameters: ViaductResolverInstrumentation.CreateInstrumentationStateParameters): ViaductResolverInstrumentation.InstrumentationState {
         return RecordingInstrumentationState()
     }
-
-    override fun shouldInstrumentFetchSelections(state: ViaductResolverInstrumentation.InstrumentationState?): Boolean = true
 
     override fun <T> instrumentResolverExecution(
         resolver: ResolverFunction<T>,
@@ -97,21 +87,9 @@ class RecordingResolverInstrumentation : ViaductResolverInstrumentation {
         }
     }
 
-    override fun <T> instrumentAccessChecker(
-        checker: CheckerFunction<T>,
-        parameters: ViaductResolverInstrumentation.InstrumentExecuteCheckerParameters,
-        state: ViaductResolverInstrumentation.InstrumentationState?,
-    ): CheckerFunction<T> =
-        CheckerFunction {
-            recordExecution({ checker.check() }) { result, error ->
-                executeCheckerContexts.add(RecordingExecuteCheckerContext(parameters, result, error))
-            }
-        }
-
     fun reset() {
         fetchSelectionContexts.clear()
         syncFetchSelectionContexts.clear()
         executeResolverContexts.clear()
-        executeCheckerContexts.clear()
     }
 }

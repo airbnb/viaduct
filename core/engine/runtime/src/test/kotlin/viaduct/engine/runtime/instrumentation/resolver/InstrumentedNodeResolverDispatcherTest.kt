@@ -9,7 +9,6 @@ import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -128,11 +127,11 @@ internal class InstrumentedNodeResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve wraps context in InstrumentedEngineExecutionContext when shouldInstrumentFetchSelections is true`() =
+    fun `resolve wraps context in InstrumentedEngineExecutionContext`() =
         runBlocking {
             // Given
             val mockDispatcher: NodeResolverDispatcher = mockk()
-            val instrumentation = RecordingResolverInstrumentation() // shouldInstrumentFetchSelections = true
+            val instrumentation = RecordingResolverInstrumentation()
             val capturedContext = slot<EngineExecutionContext>()
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
@@ -148,9 +147,9 @@ internal class InstrumentedNodeResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve does not wrap context in InstrumentedEngineExecutionContext when shouldInstrumentFetchSelections is false`() =
+    fun `resolve wraps context in InstrumentedEngineExecutionContext even for DEFAULT instrumentation`() =
         runBlocking {
-            // Given
+            // Given — wrapping is unconditional
             val mockDispatcher: NodeResolverDispatcher = mockk()
             val capturedContext = slot<EngineExecutionContext>()
 
@@ -162,7 +161,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
             // When
             testClass.resolve("id123", mockk(), defaultContext)
 
-            // Then - context must not be wrapped when fetch selection instrumentation is inactive
-            assertFalse(capturedContext.captured is InstrumentedEngineExecutionContext)
+            // Then
+            assertTrue(capturedContext.captured is InstrumentedEngineExecutionContext)
         }
 }

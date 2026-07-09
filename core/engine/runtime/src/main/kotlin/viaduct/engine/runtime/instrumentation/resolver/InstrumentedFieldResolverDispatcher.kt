@@ -48,17 +48,14 @@ class InstrumentedFieldResolverDispatcher(
             executionPath = context.dataFetchingEnvironment?.executionStepInfo?.path,
         )
 
-        val wrapFetchSelections = instrumentation.shouldInstrumentFetchSelections(state)
         val instrumentationContext = ResolverInstrumentationContext(instrumentation, state)
 
         val instrumentedObjectFactory = EngineObjectDataFactory { resolverInstrumentationContext ->
-            val fetchCtx = if (wrapFetchSelections) (resolverInstrumentationContext ?: instrumentationContext) else resolverInstrumentationContext
-            val syncData = objectValueFactory.create(fetchCtx)
+            val syncData = objectValueFactory.create(resolverInstrumentationContext ?: instrumentationContext)
             InstrumentedEngineObjectData.Sync(syncData, instrumentation, state)
         }
         val instrumentedQueryFactory = EngineObjectDataFactory { resolverInstrumentationContext ->
-            val fetchCtx = if (wrapFetchSelections) (resolverInstrumentationContext ?: instrumentationContext) else resolverInstrumentationContext
-            val syncData = queryValueFactory.create(fetchCtx)
+            val syncData = queryValueFactory.create(resolverInstrumentationContext ?: instrumentationContext)
             InstrumentedEngineObjectData.Sync(syncData, instrumentation, state)
         }
 
@@ -67,11 +64,7 @@ class InstrumentedFieldResolverDispatcher(
                 context.fieldScopeWithAttribution(ExecutionAttribution.fromResolver(resolverMetadata.name))
             },
         )
-        val instrumentedContext = if (wrapFetchSelections) {
-            InstrumentedEngineExecutionContext(implWithAttribution, instrumentation, state)
-        } else {
-            implWithAttribution
-        }
+        val instrumentedContext = InstrumentedEngineExecutionContext(implWithAttribution, instrumentation, state)
 
         return instrumentation.instrumentResolverExecution(
             ResolverFunction {
