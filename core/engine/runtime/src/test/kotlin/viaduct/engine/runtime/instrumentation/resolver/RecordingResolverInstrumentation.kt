@@ -2,7 +2,6 @@ package viaduct.engine.runtime.instrumentation.resolver
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import viaduct.engine.api.instrumentation.resolver.CheckerFunction
-import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.SyncFetchFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
@@ -50,15 +49,12 @@ class RecordingResolverInstrumentation : ViaductResolverInstrumentation {
             }
         }
 
-    override fun <T> instrumentFetchSelection(
-        fetchFn: FetchFunction<T>,
+    override fun beginFetchSelection(
         parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
         state: ViaductResolverInstrumentation.InstrumentationState?,
-    ): FetchFunction<T> =
-        FetchFunction {
-            recordExecution({ fetchFn.fetch() }) { result, error ->
-                fetchSelectionContexts.add(RecordingFetchSelectionContext(parameters, result, error))
-            }
+    ): ViaductResolverInstrumentation.FetchSelectionInstrumentation =
+        ViaductResolverInstrumentation.FetchSelectionInstrumentation { error ->
+            fetchSelectionContexts.add(RecordingFetchSelectionContext(parameters, null, error))
         }
 
     override fun <T> instrumentReadSelection(

@@ -34,16 +34,12 @@ class ViaductResolverInstrumentationTest {
 
     @Test
     @ExperimentalCoroutinesApi
-    fun `DEFAULT instrumentation executes fetch function`() =
-        runBlocking {
-            val expectedResult = "test field value"
-            val result = ViaductResolverInstrumentation.DEFAULT.instrumentFetchSelection(
-                FetchFunction { expectedResult },
-                ViaductResolverInstrumentation.InstrumentFetchSelectionParameters(
-                    selection = "testField"
-                ),
-                null
-            ).fetch()
-            assertEquals(expectedResult, result)
-        }
+    fun `DEFAULT instrumentation returns noop fetch selection instrumentation`() {
+        ViaductResolverInstrumentation.DEFAULT.beginFetchSelection(
+            ViaductResolverInstrumentation.InstrumentFetchSelectionParameters(
+                selection = "testField"
+            ),
+            null
+        ).finish(null)
+    }
 }

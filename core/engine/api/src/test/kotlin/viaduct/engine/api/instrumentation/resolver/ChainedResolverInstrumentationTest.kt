@@ -91,48 +91,36 @@ class ChainedResolverInstrumentationTest {
         }
 
     @Test
-    @ExperimentalCoroutinesApi
-    fun `instrumentFetchSelection chains all instrumentations`() =
-        runBlocking {
-            val parameters = ViaductResolverInstrumentation.InstrumentFetchSelectionParameters("testSelection")
-            val instr1FetchSelectionCalled = AtomicBoolean(false)
-            val instr2FetchSelectionCalled = AtomicBoolean(false)
-            val expectedResult = mapOf("key" to "value")
+    fun `beginFetchSelection begins all instrumentations and finishes in reverse order`() {
+        val parameters = ViaductResolverInstrumentation.InstrumentFetchSelectionParameters("testSelection")
+        val events = mutableListOf<String>()
 
-            val instr1 = object : ViaductResolverInstrumentation {
-                override fun <T> instrumentFetchSelection(
-                    fetchFn: FetchFunction<T>,
-                    parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
-                    state: ViaductResolverInstrumentation.InstrumentationState?,
-                ): FetchFunction<T> {
-                    instr1FetchSelectionCalled.set(true)
-                    return super.instrumentFetchSelection(fetchFn, parameters, state)
-                }
+        val instr1 = object : ViaductResolverInstrumentation {
+            override fun beginFetchSelection(
+                parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
+                state: ViaductResolverInstrumentation.InstrumentationState?,
+            ): ViaductResolverInstrumentation.FetchSelectionInstrumentation {
+                events.add("begin1")
+                return ViaductResolverInstrumentation.FetchSelectionInstrumentation { events.add("finish1") }
             }
-
-            val instr2 = object : ViaductResolverInstrumentation {
-                override fun <T> instrumentFetchSelection(
-                    fetchFn: FetchFunction<T>,
-                    parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
-                    state: ViaductResolverInstrumentation.InstrumentationState?,
-                ): FetchFunction<T> {
-                    instr2FetchSelectionCalled.set(true)
-                    return super.instrumentFetchSelection(fetchFn, parameters, state)
-                }
-            }
-
-            val chained = ChainedResolverInstrumentation(listOf(instr1, instr2))
-            val state = chained.createInstrumentationState(ViaductResolverInstrumentation.CreateInstrumentationStateParameters())
-            val result = chained.instrumentFetchSelection(
-                { expectedResult },
-                parameters,
-                state
-            ).fetch()
-
-            assertEquals(expectedResult, result)
-            assertTrue(instr1FetchSelectionCalled.get())
-            assertTrue(instr2FetchSelectionCalled.get())
         }
+
+        val instr2 = object : ViaductResolverInstrumentation {
+            override fun beginFetchSelection(
+                parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
+                state: ViaductResolverInstrumentation.InstrumentationState?,
+            ): ViaductResolverInstrumentation.FetchSelectionInstrumentation {
+                events.add("begin2")
+                return ViaductResolverInstrumentation.FetchSelectionInstrumentation { events.add("finish2") }
+            }
+        }
+
+        val chained = ChainedResolverInstrumentation(listOf(instr1, instr2))
+        val state = chained.createInstrumentationState(ViaductResolverInstrumentation.CreateInstrumentationStateParameters())
+        chained.beginFetchSelection(parameters, state).finish(null)
+
+        assertEquals(listOf("begin1", "begin2", "finish2", "finish1"), events)
+    }
 
     @Test
     @ExperimentalCoroutinesApi

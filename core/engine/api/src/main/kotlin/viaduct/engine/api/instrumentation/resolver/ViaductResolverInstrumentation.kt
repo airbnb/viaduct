@@ -46,15 +46,14 @@ interface ViaductResolverInstrumentation {
     interface InstrumentationState
 
     /**
-     * Whether this instrumentation performs any meaningful work in [instrumentFetchSelection]
+     * Whether this instrumentation performs any meaningful work in [beginFetchSelection]
      * for a given request.
      *
-     * When true, [viaduct.engine.runtime.instrumentation.resolver.InstrumentedEngineObjectData]
-     * wraps nested [viaduct.engine.api.EngineObjectData] values returned by fetch operations.
-     * When false, wrapping is skipped, avoiding unnecessary allocations on the hot path.
+     * When true, [viaduct.engine.runtime.instrumentation.resolver.InstrumentedEngineExecutionContext]
+     * and the resolver materializers are wired with instrumentation. When false, that wiring is
+     * skipped, avoiding unnecessary allocations on the hot path.
      * [instrumentReadSelection] is always invoked on field reads and is not gated by this flag.
      * Resolver instrumentation via [instrumentResolverExecution] is unaffected by this flag.
-     *
      */
     fun shouldInstrumentFetchSelections(state: InstrumentationState?): Boolean = false
 
@@ -102,17 +101,50 @@ interface ViaductResolverInstrumentation {
     )
 
     /**
+     * Handle for an in-flight selection materialization observation.
+     */
+    fun interface FetchSelectionInstrumentation {
+        fun finish(cause: Throwable?)
+
+        companion object {
+            val NOOP = FetchSelectionInstrumentation {}
+        }
+    }
+
+    /**
+     * Starts selection materialization instrumentation.
+     *
+     * The caller is responsible for invoking [FetchSelectionInstrumentation.finish] when the
+     * selection's slot values have completed. This observes materialization without wrapping the
+     * awaited work or changing resolver scheduling.
+     */
+    fun beginFetchSelection(
+        parameters: InstrumentFetchSelectionParameters,
+        state: InstrumentationState?,
+    ): FetchSelectionInstrumentation = FetchSelectionInstrumentation.NOOP
+
+    /**
      * Wraps selection fetching with instrumentation.
+     *
+     * @deprecated Wrapping the fetch changes materialization scheduling. Implement
+     * [beginFetchSelection] instead, which observes completion without wrapping the awaited work.
      * @param fetchFn The fetch function to instrument
      * @param parameters Parameters for the fetch operation
      * @param state The instrumentation state
      * @return The instrumented fetch function
      */
+    @Deprecated("Implement beginFetchSelection instead; wrapping the fetch changes scheduling.")
     fun <T> instrumentFetchSelection(
         fetchFn: FetchFunction<T>,
         parameters: InstrumentFetchSelectionParameters,
         state: InstrumentationState?,
-    ): FetchFunction<T> = fetchFn
+    ): FetchFunction<T> =
+        FetchFunction {
+            val handle = beginFetchSelection(parameters, state)
+            val result = runCatching { fetchFn.fetch() }
+            handle.finish(result.exceptionOrNull())
+            result.getOrThrow()
+        }
 
     /**
      * Wraps synchronous selection reading with instrumentation.

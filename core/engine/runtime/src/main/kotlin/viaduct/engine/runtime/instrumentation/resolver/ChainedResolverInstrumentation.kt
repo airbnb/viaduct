@@ -53,6 +53,22 @@ class ChainedResolverInstrumentation(
         }
     }
 
+    override fun beginFetchSelection(
+        parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
+        state: ViaductResolverInstrumentation.InstrumentationState?,
+    ): ViaductResolverInstrumentation.FetchSelectionInstrumentation {
+        state as ChainedInstrumentationState
+        val fetchSelectionInstrumentations = instrumentations.map { instrumentation ->
+            val instrState = state.getState(instrumentation)
+            instrumentation.beginFetchSelection(parameters, instrState)
+        }
+        return ViaductResolverInstrumentation.FetchSelectionInstrumentation { cause ->
+            fetchSelectionInstrumentations.asReversed().forEach { it.finish(cause) }
+        }
+    }
+
+    @Deprecated("Implement beginFetchSelection instead; wrapping the fetch changes scheduling.")
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun <T> instrumentFetchSelection(
         fetchFn: FetchFunction<T>,
         parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,

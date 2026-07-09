@@ -6,7 +6,6 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.FieldDirectives
-import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
@@ -64,14 +63,14 @@ object SyncEngineObjectDataFactory {
      * Internal implementation that resolves selections from a non-null selection set.
      * Called from [resolve] for the top-level case and from [unwrap] for nested objects.
      *
-     * If [instrumentationContext] is provided, each selection is wrapped with
-     * [ViaductResolverInstrumentation.instrumentFetchSelection] for observability.
+     * Cell slot [Value]s are collected non-suspendingly in a first pass, then awaited before
+     * [unwrap] assembles the results ([unwrap] does not suspend for the [Cell] case once slots
+     * are complete).
      *
-     * Batched awaitAll: cell slot [Value]s are collected non-suspendingly in a first pass, then
-     * awaited together in a single [Value.waitAll] call. This collapses 2×N serial suspend-resume
-     * cycles (one per slot per cell) down to a single suspension point per resolver invocation.
-     * After [Value.waitAll] completes, the cell slots are synchronously available and
-     * [unwrap] does not suspend for the [Cell] case.
+     * All slots are awaited together in a single [Value.waitAll], collapsing 2×N serial
+     * suspend-resume cycles down to one suspension point per resolver invocation. When
+     * instrumentation is enabled, per-selection instrumentation is started before the batched
+     * await and finished from callbacks on each selection's slot completion.
      */
     @Suppress("USELESS_IS_CHECK") // defensive check for Cell type
     private suspend fun resolveImpl(
@@ -90,17 +89,17 @@ object SyncEngineObjectDataFactory {
         val engineSelections = projectedSelectionSet.selections()
         val conditionallyExcludedResultKeys = projectedSelectionSet.conditionallyExcludedResultKeys()
 
-        // Phase 1: collect per-selection state and pre-fetch cell slot Values (non-suspending).
+        // Phase 1: collect per-selection state and the cell slot Values to await (non-suspending).
         data class SelectionState(
             val selectionName: String,
             val selectionPath: ResultPath?,
             val cell: Any?,
             val subselections: EngineSelectionSet?,
             val fieldDirectives: FieldDirectives?,
+            val slotValues: List<Value<Any?>>,
         )
 
         val selectionStates = ArrayList<SelectionState>(engineSelections.size)
-        val cellValues = mutableListOf<Value<Any?>>()
 
         for (selection in engineSelections) {
             val selectionName = selection.selectionName
@@ -127,62 +126,59 @@ object SyncEngineObjectDataFactory {
                     selections = selections,
                 )
             )
-            selectionStates += SelectionState(selectionName, selectionPath, cell, subselections, fieldDirectives)
 
-            if (cell is Cell) {
-                @Suppress("UNCHECKED_CAST")
-                cellValues += cell.getValue(RAW_VALUE_SLOT) as Value<Any?>
-                if (!skipAccessCheck) {
+            val slotValues = if (cell is Cell) {
+                buildList {
                     @Suppress("UNCHECKED_CAST")
-                    cellValues += cell.getValue(ACCESS_CHECK_SLOT) as Value<Any?>
+                    add(cell.getValue(RAW_VALUE_SLOT) as Value<Any?>)
+                    if (!skipAccessCheck) {
+                        @Suppress("UNCHECKED_CAST")
+                        add(cell.getValue(ACCESS_CHECK_SLOT) as Value<Any?>)
+                    }
+                }
+            } else {
+                emptyList()
+            }
+            selectionStates += SelectionState(selectionName, selectionPath, cell, subselections, fieldDirectives, slotValues)
+        }
+
+        instrumentationContext?.let { context ->
+            for (state in selectionStates) {
+                val params = ViaductResolverInstrumentation.InstrumentFetchSelectionParameters(
+                    selection = state.selectionName,
+                    parentTypeName = objectEngineResult.type.name,
+                    resultPath = state.selectionPath,
+                )
+                val fetchSelectionInstrumentation = context.instrumentation.beginFetchSelection(
+                    params,
+                    context.state,
+                )
+                // invokeOnCompletion (not thenApply) so finish() also fires on cancellation;
+                // thenApply routes through Deferred.handle, which swallows CancellationException.
+                Value.waitAll(state.slotValues).asDeferred().invokeOnCompletion { throwable ->
+                    fetchSelectionInstrumentation.finish(throwable)
                 }
             }
         }
 
         // Await all async cell slots concurrently. awaitOrElse rather than await() so that a
         // SyncThrow fast-path in waitAll doesn't escape — errors stay in the slots for unwrap().
-        Value.waitAll(cellValues).awaitOrElse { }
+        Value.waitAll(selectionStates.flatMap { it.slotValues }).awaitOrElse { }
 
-        // Phase 2: assemble results. Cell slots are now complete; unwrap() does not suspend
-        // for the Cell case.
+        // Cell slots are now complete; unwrap() does not suspend for the Cell case.
         for (state in selectionStates) {
             val fieldChildSelections = selections?.selectionSetForSelection(objectEngineResult.type, state.selectionName)
-            data[state.selectionName] = if (instrumentationContext != null) {
-                val params = ViaductResolverInstrumentation.InstrumentFetchSelectionParameters(
-                    selection = state.selectionName,
-                    parentTypeName = objectEngineResult.type.name,
-                    resultPath = state.selectionPath
-                )
-                instrumentationContext.instrumentation.instrumentFetchSelection(
-                    FetchFunction {
-                        unwrap(
-                            state.cell,
-                            state.subselections,
-                            errorMessage,
-                            state.selectionPath,
-                            isResolverSelective,
-                            fieldChildSelections,
-                            skipAccessCheck,
-                            state.fieldDirectives,
-                            instrumentationContext,
-                        )
-                    },
-                    params,
-                    instrumentationContext.state
-                ).fetch()
-            } else {
-                unwrap(
-                    state.cell,
-                    state.subselections,
-                    errorMessage,
-                    state.selectionPath,
-                    isResolverSelective,
-                    fieldChildSelections,
-                    skipAccessCheck,
-                    state.fieldDirectives,
-                    instrumentationContext,
-                )
-            }
+            data[state.selectionName] = unwrap(
+                state.cell,
+                state.subselections,
+                errorMessage,
+                state.selectionPath,
+                isResolverSelective,
+                fieldChildSelections,
+                skipAccessCheck,
+                state.fieldDirectives,
+                instrumentationContext,
+            )
         }
 
         return SyncProxyEngineObjectData(

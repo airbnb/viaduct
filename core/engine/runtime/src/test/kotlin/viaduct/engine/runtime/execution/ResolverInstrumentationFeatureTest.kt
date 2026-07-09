@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
-import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.mocks.EngineTestModule
@@ -144,14 +143,13 @@ class ResolverInstrumentationFeatureTest {
 
             override fun shouldInstrumentFetchSelections(state: ViaductResolverInstrumentation.InstrumentationState?) = true
 
-            override fun <T> instrumentFetchSelection(
-                fetchFn: FetchFunction<T>,
+            override fun beginFetchSelection(
                 parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
                 state: ViaductResolverInstrumentation.InstrumentationState?
-            ): FetchFunction<T> {
-                val resolverName = (state as TrackingState).key ?: return fetchFn
+            ): ViaductResolverInstrumentation.FetchSelectionInstrumentation {
+                val resolverName = (state as TrackingState).key ?: return ViaductResolverInstrumentation.FetchSelectionInstrumentation.NOOP
                 resolverToFields[resolverName]?.add(parameters.selection)
-                return fetchFn
+                return ViaductResolverInstrumentation.FetchSelectionInstrumentation.NOOP
             }
         }
 
@@ -162,14 +160,13 @@ class ResolverInstrumentationFeatureTest {
 
             override fun shouldInstrumentFetchSelections(state: ViaductResolverInstrumentation.InstrumentationState?) = true
 
-            override fun <T> instrumentFetchSelection(
-                fetchFn: FetchFunction<T>,
+            override fun beginFetchSelection(
                 parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
                 state: ViaductResolverInstrumentation.InstrumentationState?
-            ): FetchFunction<T> {
-                val key = (state as TrackingState).key ?: return fetchFn
+            ): ViaductResolverInstrumentation.FetchSelectionInstrumentation {
+                val key = (state as TrackingState).key ?: return ViaductResolverInstrumentation.FetchSelectionInstrumentation.NOOP
                 checkerToFields.computeIfAbsent(key) { CopyOnWriteArrayList() }.add(parameters.selection)
-                return fetchFn
+                return ViaductResolverInstrumentation.FetchSelectionInstrumentation.NOOP
             }
         }
 }

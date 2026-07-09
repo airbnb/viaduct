@@ -10,8 +10,10 @@ import graphql.validation.ValidationErrorType
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -25,7 +27,6 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.mocks.MockCheckerErrorResult
@@ -87,6 +88,17 @@ class SyncEngineObjectDataFactoryTest {
             instrumentationContext = instrumentationContext,
         )
     }
+
+    private fun recordingFetchSelectionInstrumentation(record: (ViaductResolverInstrumentation.InstrumentFetchSelectionParameters) -> Unit): ViaductResolverInstrumentation =
+        object : ViaductResolverInstrumentation {
+            override fun beginFetchSelection(
+                parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
+                state: ViaductResolverInstrumentation.InstrumentationState?,
+            ): ViaductResolverInstrumentation.FetchSelectionInstrumentation {
+                record(parameters)
+                return ViaductResolverInstrumentation.FetchSelectionInstrumentation.NOOP
+            }
+        }
 
     private inner class Fixture(sdl: String, test: suspend Fixture.() -> Unit) {
         val schema = createSchema(sdl)
@@ -1030,15 +1042,8 @@ class SyncEngineObjectDataFactoryTest {
 
             val recordedSelections = mutableListOf<String>()
             val state = object : ViaductResolverInstrumentation.InstrumentationState {}
-            val instrumentation = object : ViaductResolverInstrumentation {
-                override fun <T> instrumentFetchSelection(
-                    fetchFn: FetchFunction<T>,
-                    parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
-                    state: ViaductResolverInstrumentation.InstrumentationState?,
-                ): FetchFunction<T> {
-                    recordedSelections.add(parameters.selection)
-                    return fetchFn
-                }
+            val instrumentation = recordingFetchSelectionInstrumentation {
+                recordedSelections.add(it.selection)
             }
 
             val ctx = ResolverInstrumentationContext(instrumentation, state)
@@ -1047,6 +1052,170 @@ class SyncEngineObjectDataFactoryTest {
             assertEquals(42, syncData.get("x"))
             assertEquals("hello", syncData.get("y"))
             assertEquals(setOf("x", "y"), recordedSelections.toSet())
+        }
+    }
+
+    @Test
+    fun `resolveImpl finishes selection instrumentation after slot values complete`() {
+        Fixture("type Query { x: Int }") {
+            val oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Query"))
+            val rawValue = CompletableDeferred<FieldResolutionResult>()
+            oer.computeIfAbsent(ObjectEngineResult.Key("x")) { slotSetter ->
+                slotSetter.setRawValue(Value.fromDeferred(rawValue))
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+            val selectionSet = mkSelectionSet("Query", "x")
+
+            val beginSignal = CompletableDeferred<Unit>()
+            val finishedSelections = mutableListOf<String>()
+            val state = object : ViaductResolverInstrumentation.InstrumentationState {}
+            val instrumentation = object : ViaductResolverInstrumentation {
+                override fun beginFetchSelection(
+                    parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
+                    state: ViaductResolverInstrumentation.InstrumentationState?,
+                ): ViaductResolverInstrumentation.FetchSelectionInstrumentation {
+                    beginSignal.complete(Unit)
+                    return ViaductResolverInstrumentation.FetchSelectionInstrumentation { cause ->
+                        assertEquals(null, cause)
+                        finishedSelections.add(parameters.selection)
+                    }
+                }
+            }
+
+            val ctx = ResolverInstrumentationContext(instrumentation, state)
+            coroutineScope {
+                val resolveResult = async {
+                    resolveSyncData(oer, "error", selectionSet, instrumentationContext = ctx)
+                }
+                beginSignal.await()
+                assertTrue(finishedSelections.isEmpty())
+
+                rawValue.complete(
+                    FieldResolutionResult(
+                        42,
+                        emptyList(),
+                        CompositeLocalContext.empty,
+                        emptyMap(),
+                        "x"
+                    )
+                )
+
+                val syncData = resolveResult.await()
+                assertEquals(42, syncData.get("x"))
+            }
+
+            assertEquals(listOf("x"), finishedSelections)
+        }
+    }
+
+    @Test
+    fun `resolveImpl finishes selection instrumentation with the throwable when the slot completes exceptionally`() {
+        Fixture("type Query { x: Int }") {
+            val oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Query"))
+            val rawValue = CompletableDeferred<FieldResolutionResult>()
+            oer.computeIfAbsent(ObjectEngineResult.Key("x")) { slotSetter ->
+                slotSetter.setRawValue(Value.fromDeferred(rawValue))
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+            val selectionSet = mkSelectionSet("Query", "x")
+
+            val slotError = RuntimeException("slot failed")
+            val beginSignal = CompletableDeferred<Unit>()
+            var capturedCause: Throwable? = null
+            var finishCalled = false
+            val state = object : ViaductResolverInstrumentation.InstrumentationState {}
+            val instrumentation = object : ViaductResolverInstrumentation {
+                override fun beginFetchSelection(
+                    parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
+                    state: ViaductResolverInstrumentation.InstrumentationState?,
+                ): ViaductResolverInstrumentation.FetchSelectionInstrumentation {
+                    beginSignal.complete(Unit)
+                    return ViaductResolverInstrumentation.FetchSelectionInstrumentation { cause ->
+                        finishCalled = true
+                        capturedCause = cause
+                    }
+                }
+            }
+
+            val ctx = ResolverInstrumentationContext(instrumentation, state)
+            coroutineScope {
+                val resolveResult = async {
+                    resolveSyncData(oer, "error", selectionSet, instrumentationContext = ctx)
+                }
+                beginSignal.await()
+                assertTrue(!finishCalled)
+
+                // Complete the raw value slot exceptionally. The batched awaitOrElse in
+                // resolveImpl swallows slot errors (they stay in the cell for access-time
+                // throwing), so resolveSyncData itself returns normally.
+                rawValue.completeExceptionally(slotError)
+
+                val syncData = resolveResult.await()
+                // The error is stored in the field and thrown on access, not during resolve().
+                val thrown = assertThrows<Exception> { syncData.get("x") }
+                assertSame(slotError, thrown)
+            }
+
+            // finish() must have received the slot's throwable, not null.
+            assertTrue(finishCalled)
+            assertSame(slotError, capturedCause)
+        }
+    }
+
+    @Test
+    fun `resolveImpl finishes selection instrumentation with a CancellationException when the slot is cancelled`() {
+        Fixture("type Query { x: Int }") {
+            val oer = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Query"))
+            val rawValue = CompletableDeferred<FieldResolutionResult>()
+            oer.computeIfAbsent(ObjectEngineResult.Key("x")) { slotSetter ->
+                slotSetter.setRawValue(Value.fromDeferred(rawValue))
+                slotSetter.setCheckerValue(Value.fromValue(CheckerResult.Success))
+            }
+            val selectionSet = mkSelectionSet("Query", "x")
+
+            val beginSignal = CompletableDeferred<Unit>()
+            var capturedCause: Throwable? = null
+            var finishCalled = false
+            val state = object : ViaductResolverInstrumentation.InstrumentationState {}
+            val instrumentation = object : ViaductResolverInstrumentation {
+                override fun beginFetchSelection(
+                    parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
+                    state: ViaductResolverInstrumentation.InstrumentationState?,
+                ): ViaductResolverInstrumentation.FetchSelectionInstrumentation {
+                    beginSignal.complete(Unit)
+                    return ViaductResolverInstrumentation.FetchSelectionInstrumentation { cause ->
+                        finishCalled = true
+                        capturedCause = cause
+                    }
+                }
+            }
+
+            val ctx = ResolverInstrumentationContext(instrumentation, state)
+            coroutineScope {
+                val resolveResult = async {
+                    resolveSyncData(oer, "error", selectionSet, instrumentationContext = ctx)
+                }
+                beginSignal.await()
+                assertTrue(!finishCalled)
+
+                // Cancel the raw value slot. This guards the fix that switched from thenApply
+                // (which swallows CancellationException via Deferred.handle) to
+                // asDeferred().invokeOnCompletion (which fires on cancellation). Cancelling the
+                // slot cancels the batched await, so resolveSyncData's async throws
+                // CancellationException — swallow it here so the test itself does not fail.
+                rawValue.cancel(CancellationException("slot cancelled"))
+
+                try {
+                    resolveResult.await()
+                } catch (_: CancellationException) {
+                    // Expected: the batched await surfaces cancellation to the resolve coroutine.
+                }
+            }
+
+            // finish() must have fired and received a CancellationException, not null.
+            assertTrue(finishCalled)
+            assertNotNull(capturedCause)
+            capturedCause.shouldBeInstanceOf<CancellationException>()
         }
     }
 
@@ -1084,15 +1253,8 @@ class SyncEngineObjectDataFactoryTest {
 
             val recordedSelections = mutableListOf<String>()
             val state = object : ViaductResolverInstrumentation.InstrumentationState {}
-            val instrumentation = object : ViaductResolverInstrumentation {
-                override fun <T> instrumentFetchSelection(
-                    fetchFn: FetchFunction<T>,
-                    parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
-                    state: ViaductResolverInstrumentation.InstrumentationState?,
-                ): FetchFunction<T> {
-                    recordedSelections.add(parameters.selection)
-                    return fetchFn
-                }
+            val instrumentation = recordingFetchSelectionInstrumentation {
+                recordedSelections.add(it.selection)
             }
 
             val ctx = ResolverInstrumentationContext(instrumentation, state)
@@ -1116,15 +1278,8 @@ class SyncEngineObjectDataFactoryTest {
 
             val recordedPaths = mutableMapOf<String, ResultPath?>()
             val state = object : ViaductResolverInstrumentation.InstrumentationState {}
-            val instrumentation = object : ViaductResolverInstrumentation {
-                override fun <T> instrumentFetchSelection(
-                    fetchFn: FetchFunction<T>,
-                    parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
-                    state: ViaductResolverInstrumentation.InstrumentationState?,
-                ): FetchFunction<T> {
-                    recordedPaths[parameters.selection] = parameters.resultPath
-                    return fetchFn
-                }
+            val instrumentation = recordingFetchSelectionInstrumentation {
+                recordedPaths[it.selection] = it.resultPath
             }
 
             val parentPath = ResultPath.parse("/query/user")
@@ -1150,15 +1305,8 @@ class SyncEngineObjectDataFactoryTest {
 
             val recordedPaths = mutableMapOf<String, ResultPath?>()
             val state = object : ViaductResolverInstrumentation.InstrumentationState {}
-            val instrumentation = object : ViaductResolverInstrumentation {
-                override fun <T> instrumentFetchSelection(
-                    fetchFn: FetchFunction<T>,
-                    parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
-                    state: ViaductResolverInstrumentation.InstrumentationState?,
-                ): FetchFunction<T> {
-                    recordedPaths[parameters.selection] = parameters.resultPath
-                    return fetchFn
-                }
+            val instrumentation = recordingFetchSelectionInstrumentation {
+                recordedPaths[it.selection] = it.resultPath
             }
 
             val ctx = ResolverInstrumentationContext(instrumentation, state)
@@ -1190,15 +1338,8 @@ class SyncEngineObjectDataFactoryTest {
 
             val recordedPaths = mutableMapOf<String, ResultPath?>()
             val state = object : ViaductResolverInstrumentation.InstrumentationState {}
-            val instrumentation = object : ViaductResolverInstrumentation {
-                override fun <T> instrumentFetchSelection(
-                    fetchFn: FetchFunction<T>,
-                    parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
-                    state: ViaductResolverInstrumentation.InstrumentationState?,
-                ): FetchFunction<T> {
-                    recordedPaths[parameters.selection] = parameters.resultPath
-                    return fetchFn
-                }
+            val instrumentation = recordingFetchSelectionInstrumentation {
+                recordedPaths[it.selection] = it.resultPath
             }
 
             val parentPath = ResultPath.parse("/query/user")
@@ -1252,15 +1393,8 @@ class SyncEngineObjectDataFactoryTest {
 
             val recordedPaths = mutableMapOf<String, ResultPath?>()
             val state = object : ViaductResolverInstrumentation.InstrumentationState {}
-            val instrumentation = object : ViaductResolverInstrumentation {
-                override fun <T> instrumentFetchSelection(
-                    fetchFn: FetchFunction<T>,
-                    parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
-                    state: ViaductResolverInstrumentation.InstrumentationState?,
-                ): FetchFunction<T> {
-                    recordedPaths[parameters.selection] = parameters.resultPath
-                    return fetchFn
-                }
+            val instrumentation = recordingFetchSelectionInstrumentation {
+                recordedPaths[it.selection] = it.resultPath
             }
 
             val parentPath = ResultPath.parse("/query/parent")
@@ -1361,15 +1495,8 @@ class SyncEngineObjectDataFactoryTest {
             data class Recorded(val selection: String, val parentType: String?, val path: ResultPath?)
             val recorded = mutableListOf<Recorded>()
             val state = object : ViaductResolverInstrumentation.InstrumentationState {}
-            val instrumentation = object : ViaductResolverInstrumentation {
-                override fun <T> instrumentFetchSelection(
-                    fetchFn: FetchFunction<T>,
-                    parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
-                    state: ViaductResolverInstrumentation.InstrumentationState?,
-                ): FetchFunction<T> {
-                    recorded.add(Recorded(parameters.selection, parameters.parentTypeName, parameters.resultPath))
-                    return fetchFn
-                }
+            val instrumentation = recordingFetchSelectionInstrumentation {
+                recorded.add(Recorded(it.selection, it.parentTypeName, it.resultPath))
             }
 
             val parentPath = ResultPath.parse("/query/root")
@@ -1543,15 +1670,8 @@ class SyncEngineObjectDataFactoryTest {
             data class Recorded(val selection: String, val parentType: String?, val path: ResultPath?)
             val recorded = mutableListOf<Recorded>()
             val state = object : ViaductResolverInstrumentation.InstrumentationState {}
-            val instrumentation = object : ViaductResolverInstrumentation {
-                override fun <T> instrumentFetchSelection(
-                    fetchFn: FetchFunction<T>,
-                    parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
-                    state: ViaductResolverInstrumentation.InstrumentationState?,
-                ): FetchFunction<T> {
-                    recorded.add(Recorded(parameters.selection, parameters.parentTypeName, parameters.resultPath))
-                    return fetchFn
-                }
+            val instrumentation = recordingFetchSelectionInstrumentation {
+                recorded.add(Recorded(it.selection, it.parentTypeName, it.resultPath))
             }
 
             val parentPath = ResultPath.parse("/query/root")

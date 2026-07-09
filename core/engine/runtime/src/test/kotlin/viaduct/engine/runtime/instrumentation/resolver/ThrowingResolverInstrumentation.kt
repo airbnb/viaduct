@@ -1,7 +1,6 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
 import viaduct.engine.api.instrumentation.resolver.CheckerFunction
-import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.SyncFetchFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
@@ -36,15 +35,14 @@ class ThrowingResolverInstrumentation(
         return resolver
     }
 
-    override fun <T> instrumentFetchSelection(
-        fetchFn: FetchFunction<T>,
+    override fun beginFetchSelection(
         parameters: ViaductResolverInstrumentation.InstrumentFetchSelectionParameters,
         state: ViaductResolverInstrumentation.InstrumentationState?,
-    ): FetchFunction<T> {
+    ): ViaductResolverInstrumentation.FetchSelectionInstrumentation {
         if (throwOnInstrumentFetch) {
             throw RuntimeException(exceptionMessage)
         }
-        return fetchFn
+        return ViaductResolverInstrumentation.FetchSelectionInstrumentation.NOOP
     }
 
     override fun <T> instrumentReadSelection(
