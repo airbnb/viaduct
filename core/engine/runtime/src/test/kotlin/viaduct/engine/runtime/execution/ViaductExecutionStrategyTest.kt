@@ -50,6 +50,7 @@ import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.runtime.CheckerDispatcher
+import viaduct.engine.runtime.EngineObjectDataFactory
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.RequestScopeCancellationException
 import viaduct.engine.runtime.context.getLocalContextForType
@@ -1591,7 +1592,7 @@ class ViaductExecutionStrategyTest {
 
             override suspend fun execute(
                 arguments: Map<String, Any?>,
-                objectDataMap: Map<String, EngineObjectData>,
+                objectDataFactories: Map<String, EngineObjectDataFactory>,
                 context: EngineExecutionContext,
                 checkerType: CheckerExecutor.CheckerType,
             ): CheckerResult =
@@ -1609,7 +1610,7 @@ class ViaductExecutionStrategyTest {
                 objectDataMap: Map<String, EngineObjectData>,
                 context: EngineExecutionContext,
                 checkerType: CheckerExecutor.CheckerType,
-            ): CheckerResult = dispatcher.execute(arguments, objectDataMap, context, checkerType)
+            ): CheckerResult = dispatcher.execute(arguments, emptyMap(), context, checkerType)
 
             override val checkerMetadata = null
             override val requiredSelectionSets = dispatcher.requiredSelectionSets
@@ -1628,11 +1629,11 @@ class ViaductExecutionStrategyTest {
 
             override suspend fun execute(
                 arguments: Map<String, Any?>,
-                objectDataMap: Map<String, EngineObjectData>,
+                objectDataFactories: Map<String, EngineObjectDataFactory>,
                 context: EngineExecutionContext,
                 checkerType: CheckerExecutor.CheckerType,
             ): CheckerResult {
-                readRss(checkNotNull(objectDataMap[rssName]))
+                readRss(checkNotNull(objectDataFactories[rssName]).create(null))
                 return CheckerResult.Success
             }
         }
@@ -1642,7 +1643,10 @@ class ViaductExecutionStrategyTest {
                 objectDataMap: Map<String, EngineObjectData>,
                 context: EngineExecutionContext,
                 checkerType: CheckerExecutor.CheckerType,
-            ): CheckerResult = dispatcher.execute(arguments, objectDataMap, context, checkerType)
+            ): CheckerResult {
+                readRss(checkNotNull(objectDataMap[rssName]))
+                return CheckerResult.Success
+            }
 
             override val checkerMetadata = null
             override val requiredSelectionSets = dispatcher.requiredSelectionSets
@@ -2023,7 +2027,7 @@ class ViaductExecutionStrategyTest {
 
                     override suspend fun execute(
                         arguments: Map<String, Any?>,
-                        objectDataMap: Map<String, viaduct.engine.api.EngineObjectData>,
+                        objectDataFactories: Map<String, viaduct.engine.runtime.EngineObjectDataFactory>,
                         context: viaduct.engine.api.EngineExecutionContext,
                         checkerType: viaduct.engine.api.spi.CheckerExecutor.CheckerType,
                     ): viaduct.engine.api.CheckerResult =
@@ -2041,7 +2045,7 @@ class ViaductExecutionStrategyTest {
                             objectDataMap: Map<String, viaduct.engine.api.EngineObjectData>,
                             context: viaduct.engine.api.EngineExecutionContext,
                             checkerType: viaduct.engine.api.spi.CheckerExecutor.CheckerType,
-                        ) = dispatcher.execute(arguments, objectDataMap, context, checkerType)
+                        ) = dispatcher.execute(arguments, emptyMap(), context, checkerType)
 
                         override val checkerMetadata = null
                         override val requiredSelectionSets = emptyMap<String, viaduct.engine.api.RequiredSelectionSet?>()

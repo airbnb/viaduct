@@ -12,7 +12,7 @@ This document covers the engine's access check architecture—how checkers are r
 - **CheckerExecutorFactory**: Creates `CheckerExecutor` instances for each field coordinate or type at bootstrap time. Returns `null` for fields/types without checks.
 - **CheckerResult**: Sealed interface representing check outcomes—`Success` or `Error`. Errors carry an exception and define how field and type errors combine.
 - **CheckerDispatcher**: Runtime wrapper around `CheckerExecutor` that the engine's execution pipeline interacts with.
-- **RSS (Required Selection Set)**: Selections a checker needs resolved before it can execute. The engine resolves these and passes the data to the checker as `EngineObjectData`. Checks are **not** run on checker RSS selections.
+- **RSS (Required Selection Set)**: Selections a checker needs resolved before it can execute. The engine resolves these and passes the data to the checker as `EngineObjectData.Sync`. Checks are **not** run on checker RSS selections.
 - **OER (ObjectEngineResult)**: Memoization structure for field results. Each field and list element has two slots: `RAW_VALUE_SLOT` (resolver result) and `ACCESS_CHECK_SLOT` (checker result). This multi-slot design allows us to bypass checks for checker RSSes by reading only from the raw slot.
 - **QueryPlan**: Intermediate representation of a GraphQL selection set. Built on first request (then cached), it embeds checker RSS as child plans so the engine knows what data to pre-fetch for checkers.
 
@@ -140,7 +140,7 @@ A `QueryPlan` is an intermediate representation of a GraphQL selection set. It m
 
 The central orchestrator. Three public methods:
 
-- **`fieldCheck()`** — Looks up the field's `CheckerDispatcher` from the `DispatcherRegistry`, resolves RSS variables, builds a `CheckerProxyEngineObjectData`, and calls `dispatcher.execute()`.
+- **`fieldCheck()`** — Looks up the field's `CheckerDispatcher` from the `DispatcherRegistry` and calls `executeChecker()`, which builds an `EngineObjectDataMaterializer` per checker RSS (deferring materialization into the instrumentation boundary) and dispatches via `dispatcher.execute()`.
 - **`typeCheck()`** — Same flow for type-level checks. Also pre-fetches child query plans for the type.
 - **`combineWithTypeCheck()`** — Waits for the field checker and (if applicable) type checker, then combines their results using `CheckerResult.combine()`.
 
@@ -177,18 +177,18 @@ For client query fields, `FieldCompleter.combineValues()` reads both slots durin
 2. If checker errored → surface checker error
 3. If both succeed → use raw value
 
-For field resolver RSS selections, slot access happens in `ProxyEngineObjectData` (see [CheckerProxyEngineObjectData](#checkerproxyengineobjectdata) below).
+For field resolver RSS selections, slot access happens in the sync object data (see [CheckerSyncEngineObjectData](#checkersyncengineobjectdata) below).
 
 **Key files:**
 
 - `engine/runtime/.../ObjectEngineResultImpl.kt` — slot constants, `setCheckerValue()` extension
 - `engine/runtime/.../execution/FieldCompleter.kt` — `combineValues()` method
 
-### CheckerProxyEngineObjectData
+### CheckerSyncEngineObjectData
 
-When a checker declares RSS, the engine resolves that data and provides it as `EngineObjectData`. `CheckerProxyEngineObjectData` wraps the parent OER but overrides `fetchCheckedValue()` to read from `RAW_VALUE_SLOT` only and not `ACCESS_CHECK_SLOT`. This prevents a circular dependency where a checker's RSS includes a field that itself has a checker.
+When a checker declares RSS, the engine eagerly resolves that data and provides it as an `EngineObjectData.Sync`. `CheckerSyncEngineObjectData.resolve()` materializes the selections via `SyncEngineObjectDataFactory` with `skipAccessCheck = true`, so only `RAW_VALUE_SLOT` is read and `ACCESS_CHECK_SLOT` is not. This prevents a circular dependency where a checker's RSS includes a field that itself has a checker. The wrapper also carries the underlying `objectEngineResult` so the checker execution path can complete the checker's required selection set.
 
-**Key file:** `engine/runtime/.../CheckerProxyEngineObjectData.kt`
+**Key file:** `engine/runtime/.../CheckerSyncEngineObjectData.kt`
 
 ## Error Types
 
@@ -197,13 +197,13 @@ When a checker declares RSS, the engine resolves that data and provides it as `E
 
 ## Observability
 
-Checker execution is instrumented via `ViaductResolverInstrumentation.instrumentAccessChecker()`. The `InstrumentedCheckerExecutor` wraps the real executor, fires instrumentation callbacks, and wraps the `EngineObjectData` with `InstrumentedEngineObjectData` for observability.
+Checker data materialization is instrumented via `InstrumentedCheckerDispatcher`, which wraps each `EngineObjectDataMaterializer` so the materialized checker RSS data is returned as an `InstrumentedEngineObjectData.Sync` for fetch/read observability. Access-check execution *timing* is owned separately by GraphQL-Java instrumentation through `IViaductInstrumentation.instrumentAccessCheck()` (see `AccessCheckRunner.executeChecker()`).
 
 **Key files:**
 
-- `engine/api/.../instrumentation/resolver/ViaductResolverInstrumentation.kt`
-- `engine/runtime/.../instrumentation/resolver/InstrumentedCheckerExecutor.kt`
+- `engine/api/.../instrumentation/IViaductInstrumentation.kt` — `instrumentAccessCheck()`
 - `engine/runtime/.../instrumentation/resolver/InstrumentedCheckerDispatcher.kt`
+- `engine/runtime/.../instrumentation/resolver/InstrumentedEngineObjectData.kt` — `InstrumentedEngineObjectData.Sync`
 
 ## Testing
 

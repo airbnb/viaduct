@@ -2,6 +2,7 @@ package viaduct.engine.runtime
 
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 
 /**
  * An [EngineObjectData.Sync] that carries the underlying [ObjectEngineResult] alongside
@@ -19,6 +20,7 @@ class CheckerSyncEngineObjectData(
             selectionSet: EngineSelectionSet?,
             isResolverSelective: IsResolverSelective,
             selections: ObjectEngineResult.Selections?,
+            instrumentationContext: ResolverInstrumentationContext? = null,
         ): CheckerSyncEngineObjectData {
             val syncData = SyncEngineObjectDataFactory.resolve(
                 objectEngineResult,
@@ -27,6 +29,7 @@ class CheckerSyncEngineObjectData(
                 isResolverSelective = isResolverSelective,
                 selections = selections,
                 skipAccessCheck = true,
+                instrumentationContext = instrumentationContext,
             )
             return CheckerSyncEngineObjectData(objectEngineResult, syncData)
         }

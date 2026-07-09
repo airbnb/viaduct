@@ -29,6 +29,7 @@ import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.runtime.CheckerDispatcher
 import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.EngineObjectDataFactory
 import viaduct.engine.runtime.NodeEngineObjectDataImpl
 import viaduct.engine.runtime.NodeResolverDispatcher
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.executeViaductModernGraphQL
@@ -84,7 +85,7 @@ class FieldResolverInstrumentationTest {
 
                 override suspend fun execute(
                     arguments: Map<String, Any?>,
-                    objectDataMap: Map<String, EngineObjectData>,
+                    objectDataFactories: Map<String, EngineObjectDataFactory>,
                     context: EngineExecutionContext,
                     checkerType: CheckerExecutor.CheckerType
                 ) = block()

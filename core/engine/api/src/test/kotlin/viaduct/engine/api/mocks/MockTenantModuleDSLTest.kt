@@ -12,14 +12,14 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.Coordinate
-import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.spi.CheckerExecutor.CheckerType
+import viaduct.engine.runtime.EngineObjectDataFactory
 
 class MockTenantModuleDSLTest {
     companion object {
         private val emptyArgs = emptyMap<String, Any?>()
-        private val emptyObjectMap = emptyMap<String, EngineObjectData>()
+        private val emptyObjectMap = emptyMap<String, EngineObjectDataFactory>()
 
         private const val SCHEMA_SDL = """
             extend type Query {

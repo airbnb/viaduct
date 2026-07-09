@@ -1,63 +1,13 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.instrumentation.resolver.FetchFunction
 import viaduct.engine.api.instrumentation.resolver.SyncFetchFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 
 /**
- * Wraps [viaduct.engine.api.EngineObjectData] to add instrumentation around field selection fetches.
- *
- * Both [fetch] and [fetchOrNull] wrap the actual fetch operation with [resolverInstrumentation]
- * for observability. Other methods delegate directly to [engineObjectData].
- *
- * Nested [EngineObjectData] values returned by fetch operations are also wrapped with
- * [InstrumentedEngineObjectData] so that instrumentation propagates through the full selection
- * set hierarchy.
+ * Namespace for instrumented EngineObjectData wrappers.
  */
-class InstrumentedEngineObjectData(
-    val engineObjectData: EngineObjectData,
-    val resolverInstrumentation: ViaductResolverInstrumentation,
-    val instrumentationState: ViaductResolverInstrumentation.InstrumentationState
-) : EngineObjectData {
-    init {
-        require(engineObjectData !is InstrumentedEngineObjectData) {
-            "EngineObjectData may only be instrumented once"
-        }
-    }
-
-    override val type get() = engineObjectData.type
-
-    override suspend fun fetch(selection: String): Any? = instrumentedFetch(selection) { engineObjectData.fetch(selection) }
-
-    override suspend fun fetchOrNull(selection: String): Any? = instrumentedFetch(selection) { engineObjectData.fetchOrNull(selection) }
-
-    override suspend fun fetchSelections(): Iterable<String> = engineObjectData.fetchSelections()
-
-    private suspend fun instrumentedFetch(
-        selection: String,
-        fetchBlock: suspend () -> Any?
-    ): Any? {
-        val params = ViaductResolverInstrumentation.InstrumentFetchSelectionParameters(
-            selection = selection,
-            parentTypeName = engineObjectData.type.name
-        )
-        val value = resolverInstrumentation.instrumentFetchSelection(
-            FetchFunction { fetchBlock() },
-            params,
-            instrumentationState
-        ).fetch()
-        return wrapNestedEngineObjectData(value)
-    }
-
-    private fun wrapNestedEngineObjectData(value: Any?): Any? =
-        when (value) {
-            is InstrumentedEngineObjectData -> value
-            is EngineObjectData -> InstrumentedEngineObjectData(value, resolverInstrumentation, instrumentationState)
-            is List<*> -> copyOnWrapList(value, ::wrapNestedEngineObjectData)
-            else -> value
-        }
-
+object InstrumentedEngineObjectData {
     /**
      * Wraps [EngineObjectData.Sync] to add instrumentation around synchronous field selection gets.
      *

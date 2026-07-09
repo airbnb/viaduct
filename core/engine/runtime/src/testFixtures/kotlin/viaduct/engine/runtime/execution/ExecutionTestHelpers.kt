@@ -49,6 +49,7 @@ import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.CheckerDispatcher
 import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.EngineObjectDataFactory
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.instrumentation.ChainedViaductModernInstrumentation
@@ -382,7 +383,7 @@ object CheckerDispatchers {
 
             override suspend fun execute(
                 arguments: Map<String, Any?>,
-                objectDataMap: Map<String, EngineObjectData>,
+                objectDataFactories: Map<String, EngineObjectDataFactory>,
                 context: EngineExecutionContext,
                 checkerType: viaduct.engine.api.spi.CheckerExecutor.CheckerType
             ): CheckerResult = CheckerResult.Success

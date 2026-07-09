@@ -2,7 +2,6 @@ package viaduct.engine.runtime
 
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.spi.CheckerExecutor
 
 /**
@@ -17,10 +16,13 @@ class CheckerDispatcherImpl(
 
     override suspend fun execute(
         arguments: Map<String, Any?>,
-        objectDataMap: Map<String, EngineObjectData>,
+        objectDataFactories: Map<String, EngineObjectDataFactory>,
         context: EngineExecutionContext,
         checkerType: CheckerExecutor.CheckerType
     ): CheckerResult {
+        val objectDataMap = objectDataFactories.mapValues { (_, factory) ->
+            factory.create(null)
+        }
         return checkerExecutor.execute(arguments, objectDataMap, context, checkerType)
     }
 }

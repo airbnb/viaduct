@@ -16,6 +16,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.runtime.CheckerDispatcher
+import viaduct.engine.runtime.EngineObjectDataFactory
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.executeViaductModernGraphQL
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
 
@@ -51,7 +52,7 @@ class FieldCompleterBypassPolicyCheckTest {
 
             override suspend fun execute(
                 arguments: Map<String, Any?>,
-                objectDataMap: Map<String, EngineObjectData>,
+                objectDataFactories: Map<String, EngineObjectDataFactory>,
                 context: EngineExecutionContext,
                 checkerType: CheckerExecutor.CheckerType,
             ): CheckerResult =
@@ -69,7 +70,7 @@ class FieldCompleterBypassPolicyCheckTest {
                     objectDataMap: Map<String, EngineObjectData>,
                     context: EngineExecutionContext,
                     checkerType: CheckerExecutor.CheckerType,
-                ) = dispatcher.execute(arguments, objectDataMap, context, checkerType)
+                ) = dispatcher.execute(arguments, emptyMap(), context, checkerType)
 
                 override val checkerMetadata = null
                 override val requiredSelectionSets = emptyMap<String, RequiredSelectionSet?>()

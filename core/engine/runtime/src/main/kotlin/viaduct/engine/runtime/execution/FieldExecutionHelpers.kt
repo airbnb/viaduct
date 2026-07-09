@@ -33,6 +33,7 @@ import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.gj
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
@@ -321,6 +322,7 @@ object FieldExecutionHelpers {
         engineExecutionContext: EngineExecutionContext,
         graphQLContext: GraphQLContext,
         locale: Locale,
+        instrumentationContext: ResolverInstrumentationContext? = null,
     ): CoercedVariables =
         resolveVariables(
             variableDefinitions = plan.variableDefinitions,
@@ -331,6 +333,7 @@ object FieldExecutionHelpers {
             engineExecutionContext = engineExecutionContext,
             graphQLContext = graphQLContext,
             locale = locale,
+            instrumentationContext = instrumentationContext,
         )
 
     suspend fun resolveQueryPlanVariables(
@@ -384,7 +387,8 @@ object FieldExecutionHelpers {
         queryEngineData: ObjectEngineResult,
         engineExecutionContext: EngineExecutionContext,
         graphQLContext: GraphQLContext,
-        locale: Locale
+        locale: Locale,
+        instrumentationContext: ResolverInstrumentationContext? = null,
     ): CoercedVariables =
         variablesResolvers.fold(emptyMap<String, Any?>()) { acc, vr ->
             val isResolverSelective = engineExecutionContext.isResolverSelective
@@ -399,7 +403,8 @@ object FieldExecutionHelpers {
                     queryEngineData,
                     engineExecutionContext,
                     graphQLContext,
-                    locale
+                    locale,
+                    instrumentationContext,
                 )
                 val vss = engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(
                     vrss.selections,
@@ -426,8 +431,14 @@ object FieldExecutionHelpers {
                     isResolverSelective = isResolverSelective,
                     selections = selectionContext,
                     skipAccessCheck = vrss.forChecker,
+                    instrumentationContext = instrumentationContext,
                 )
-            } ?: SyncEngineObjectDataFactory.resolve(currentEngineData, "missing from variable RSS", isResolverSelective = isResolverSelective)
+            } ?: SyncEngineObjectDataFactory.resolve(
+                currentEngineData,
+                "missing from variable RSS",
+                isResolverSelective = isResolverSelective,
+                instrumentationContext = instrumentationContext,
+            )
 
             val resolved = vr.resolve(VariablesResolver.ResolveCtx(variablesData, arguments), engineExecutionContext)
             acc + resolved

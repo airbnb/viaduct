@@ -2,86 +2,91 @@
 
 package viaduct.engine.runtime.instrumentation.resolver
 
-import io.mockk.coEvery
+import graphql.schema.GraphQLObjectType
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.CheckerMetadata
 import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.runtime.CheckerDispatcher
+import viaduct.engine.runtime.EngineObjectDataFactory
 
 internal class InstrumentedCheckerDispatcherTest {
+    private val testGraphQLObjectType = GraphQLObjectType.newObject().name("TestType").build()
+
     @Test
-    fun `execute skips instrumentation when checkerMetadata is null`() =
-        runBlocking {
-            val mockDispatcher: CheckerDispatcher = mockk()
-            val mockExecutor: CheckerExecutor = mockk()
-            val instrumentation = RecordingResolverInstrumentation()
-            val mockResult: CheckerResult = CheckerResult.Success
+    fun `executor delegates to underlying dispatcher executor`() {
+        val mockExecutor: CheckerExecutor = mockk()
+        val dispatcher = object : CheckerDispatcher {
+            override val requiredSelectionSets = emptyMap<String, viaduct.engine.api.RequiredSelectionSet?>()
+            override val executor = mockExecutor
 
-            every { mockDispatcher.executor } returns mockExecutor
-            every { mockExecutor.requiredSelectionSets } returns emptyMap()
-            every { mockExecutor.checkerMetadata } returns null
-            coEvery { mockExecutor.execute(any(), any(), any(), any()) } returns mockResult
-
-            val testClass = InstrumentedCheckerDispatcher(mockDispatcher, instrumentation)
-            val result = testClass.executor.execute(emptyMap(), emptyMap(), mockk(), CheckerExecutor.CheckerType.FIELD)
-
-            assertSame(mockResult, result)
-            assertEquals(0, instrumentation.executeCheckerContexts.size)
+            override suspend fun execute(
+                arguments: Map<String, Any?>,
+                objectDataFactories: Map<String, EngineObjectDataFactory>,
+                context: EngineExecutionContext,
+                checkerType: CheckerExecutor.CheckerType
+            ): CheckerResult = CheckerResult.Success
         }
 
-    @Test
-    fun `execute calls instrumentation on success`() =
-        runBlocking {
-            val mockDispatcher: CheckerDispatcher = mockk()
-            val mockExecutor: CheckerExecutor = mockk()
-            val instrumentation = RecordingResolverInstrumentation()
-            val mockMetadata = CheckerMetadata(checkerName = "Himeji", typeName = "User", fieldName = "email")
-            val mockResult: CheckerResult = CheckerResult.Success
+        val testClass = InstrumentedCheckerDispatcher(dispatcher, RecordingResolverInstrumentation())
 
-            every { mockDispatcher.executor } returns mockExecutor
-            every { mockExecutor.requiredSelectionSets } returns emptyMap()
-            every { mockExecutor.checkerMetadata } returns mockMetadata
-            coEvery { mockExecutor.execute(any(), any(), any(), any()) } returns mockResult
-
-            val testClass = InstrumentedCheckerDispatcher(mockDispatcher, instrumentation)
-            val result = testClass.executor.execute(emptyMap(), emptyMap(), mockk(), CheckerExecutor.CheckerType.FIELD)
-
-            assertSame(mockResult, result)
-            assertEquals(1, instrumentation.executeCheckerContexts.size)
-            val context = instrumentation.executeCheckerContexts.first()
-            assertEquals(mockMetadata, context.parameters.checkerMetadata)
-        }
+        assertSame(mockExecutor, testClass.executor)
+    }
 
     @Test
-    fun `execute calls instrumentation on exception`() =
+    fun `execute materializes checker data with resolver instrumentation and wraps sync data for reads`() =
         runBlocking {
-            val mockDispatcher: CheckerDispatcher = mockk()
-            val mockExecutor: CheckerExecutor = mockk()
             val instrumentation = RecordingResolverInstrumentation()
-            val mockMetadata = CheckerMetadata(checkerName = "Gandalf", typeName = "Query")
-            val exception = RuntimeException("test error")
-
-            every { mockDispatcher.executor } returns mockExecutor
-            every { mockExecutor.requiredSelectionSets } returns emptyMap()
-            every { mockExecutor.checkerMetadata } returns mockMetadata
-            coEvery { mockExecutor.execute(any(), any(), any(), any()) } throws exception
-
-            val testClass = InstrumentedCheckerDispatcher(mockDispatcher, instrumentation)
-
-            val thrown = assertThrows<RuntimeException> {
-                testClass.executor.execute(emptyMap(), emptyMap(), mockk(), CheckerExecutor.CheckerType.FIELD)
+            val syncData = mockk<EngineObjectData.Sync>()
+            val expectedValue = "value"
+            var capturedInstrumentationContext: ResolverInstrumentationContext? = null
+            var capturedObjectData: EngineObjectData? = null
+            val factory = EngineObjectDataFactory { instrumentationContext ->
+                capturedInstrumentationContext = instrumentationContext
+                syncData
             }
-            assertSame(exception, thrown)
+            val dispatcher = object : CheckerDispatcher {
+                override val requiredSelectionSets = emptyMap<String, viaduct.engine.api.RequiredSelectionSet?>()
+                override val executor: CheckerExecutor = mockk()
 
-            assertEquals(1, instrumentation.executeCheckerContexts.size)
-            val context = instrumentation.executeCheckerContexts.first()
-            assertEquals(mockMetadata, context.parameters.checkerMetadata)
+                override suspend fun execute(
+                    arguments: Map<String, Any?>,
+                    objectDataFactories: Map<String, EngineObjectDataFactory>,
+                    context: EngineExecutionContext,
+                    checkerType: CheckerExecutor.CheckerType
+                ): CheckerResult {
+                    capturedObjectData = objectDataFactories.getValue("checker").create(null)
+                    capturedObjectData!!.fetch("field")
+                    return CheckerResult.Success
+                }
+            }
+
+            every { syncData.type } returns testGraphQLObjectType
+            every { syncData.get("field") } returns expectedValue
+
+            val testClass = InstrumentedCheckerDispatcher(dispatcher, instrumentation)
+            val result = testClass.execute(
+                arguments = emptyMap(),
+                objectDataFactories = mapOf("checker" to factory),
+                context = mockk(),
+                checkerType = CheckerExecutor.CheckerType.FIELD,
+            )
+
+            assertSame(CheckerResult.Success, result)
+            assertNotNull(capturedInstrumentationContext)
+            capturedObjectData.shouldBeInstanceOf<InstrumentedEngineObjectData.Sync>()
+            assertEquals(1, instrumentation.syncFetchSelectionContexts.size)
+            val readContext = instrumentation.syncFetchSelectionContexts.first()
+            assertEquals("field", readContext.parameters.selection)
+            assertEquals(expectedValue, readContext.result)
         }
 }

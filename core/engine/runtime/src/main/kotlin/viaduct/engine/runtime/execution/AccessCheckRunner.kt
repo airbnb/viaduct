@@ -9,6 +9,8 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
 import java.util.function.Supplier
 import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.combine
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CoroutineInterop
@@ -17,6 +19,7 @@ import viaduct.engine.runtime.CheckerSyncEngineObjectData
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
+import viaduct.engine.runtime.EngineObjectDataFactory
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.Value
@@ -32,6 +35,12 @@ class AccessCheckRunner(
 ) {
     companion object {
         private val log by logger()
+
+        /**
+         * Sentinel passed as the `objectDataMap` to a [MaterializingCheckerExecutor], which ignores
+         * it and sources checker object data from its materializers instead.
+         */
+        private val NO_PREMATERIALIZED_DATA = emptyMap<String, EngineObjectData>()
     }
 
     /**
@@ -183,21 +192,85 @@ class AccessCheckRunner(
         val baseExecutionContext = parameters.engineExecutionContext.copy(
             dataFetchingEnvironment = dataFetchingEnvironment
         )
-        val instrumentedDispatcher = parameters.instrumentation.instrumentAccessCheck(
-            dispatcher.executor,
+        val objectDataFactories = checkerObjectDataFactories(
+            parameters,
+            dispatcher,
+            objectEngineResult,
+            arguments,
+            baseExecutionContext,
+            dataFetchingEnvironment,
+        )
+        // The checker data is supplied lazily via [objectDataFactories], which the dispatcher
+        // materializes inside the instrumentation boundary. But [instrumentAccessCheck] wraps a
+        // [CheckerExecutor] whose execute() takes already-materialized data, so we adapt the
+        // factory-driven dispatch into that shape here.
+        val materializingExecutor = MaterializingCheckerExecutor(dispatcher, objectDataFactories)
+        val instrumentedExecutor = parameters.instrumentation.instrumentAccessCheck(
+            materializingExecutor,
             dataFetchingEnvironment,
             InstrumentationExecutionStrategyParameters(parameters.executionContextWithLocalContext, parameters.gjParameters),
             parameters.executionContext.instrumentationState
         )
 
         val deferred = coroutineInterop.scopedAsync {
-            val rssMap = instrumentedDispatcher.requiredSelectionSets
-            val rssData = rssMap.mapValues { (_, rss) ->
-                rss?.let {
+            log.ifDebug {
+                val fieldCoord = if (checkerType == CheckerExecutor.CheckerType.FIELD) {
+                    "${parameters.executionStepInfo.objectType.name}.${parameters.field!!.fieldName}"
+                } else {
+                    "${objectEngineResult.type.name}"
+                }
+                debug("[AccessCheck] Executing ${checkerType.name} access check for '$fieldCoord' at path '${parameters.path}', checker name: '${dispatcher.checkerMetadata?.checkerName}'")
+            }
+            // [MaterializingCheckerExecutor] ignores the objectDataMap argument and sources data
+            // from the materializers instead, so pass an empty map here.
+            instrumentedExecutor.execute(
+                arguments,
+                NO_PREMATERIALIZED_DATA,
+                baseExecutionContext,
+                checkerType
+            )
+        }
+        return Value.fromDeferred(deferred)
+    }
+
+    /**
+     * Adapts a factory-driven [dispatcher] into the [CheckerExecutor] shape so it can be
+     * passed through
+     * [viaduct.engine.api.instrumentation.IViaductInstrumentation.WithInstrumentAccessCheck.instrumentAccessCheck],
+     * which operates on [CheckerExecutor] values.
+     *
+     * This is the crux of the lazy-materialization design: it ignores the `objectDataMap` argument
+     * of [CheckerExecutor.execute] and instead sources the checker's object data from
+     * [objectDataFactories], which [dispatcher] materializes *inside* the instrumentation
+     * boundary. Callers should invoke [execute] with [NO_PREMATERIALIZED_DATA].
+     */
+    private class MaterializingCheckerExecutor(
+        private val dispatcher: CheckerDispatcher,
+        private val objectDataFactories: Map<String, EngineObjectDataFactory>,
+    ) : CheckerExecutor by dispatcher.executor {
+        override suspend fun execute(
+            arguments: Map<String, Any?>,
+            objectDataMap: Map<String, EngineObjectData>,
+            context: EngineExecutionContext,
+            checkerType: CheckerExecutor.CheckerType
+        ): CheckerResult = dispatcher.execute(arguments, objectDataFactories, context, checkerType)
+    }
+
+    private fun checkerObjectDataFactories(
+        parameters: ExecutionParameters,
+        dispatcher: CheckerDispatcher,
+        objectEngineResult: ObjectEngineResultImpl,
+        arguments: Map<String, Any?>,
+        baseExecutionContext: EngineExecutionContext,
+        dataFetchingEnvironment: DataFetchingEnvironment,
+    ): Map<String, EngineObjectDataFactory> {
+        return dispatcher.requiredSelectionSets.mapValues { (_, rss) ->
+            EngineObjectDataFactory { instrumentationContext ->
+                val selectionData = rss?.let {
                     if (!it.executionCondition.shouldExecute(dataFetchingEnvironment)) {
                         return@let null
                     }
-                    val queryPlan = FieldExecutionHelpers.findRssQueryPlan(rss, baseExecutionContext)
+                    val queryPlan = FieldExecutionHelpers.findRssQueryPlan(it, baseExecutionContext)
                     val variables = resolveVariables(
                         plan = queryPlan,
                         arguments = arguments,
@@ -206,6 +279,7 @@ class AccessCheckRunner(
                         engineExecutionContext = baseExecutionContext,
                         graphQLContext = parameters.executionContext.graphQLContext,
                         locale = parameters.executionContext.locale,
+                        instrumentationContext = instrumentationContext,
                     )
                     val oerSelections = FieldExecutionHelpers.createOERSelections(
                         variables,
@@ -217,9 +291,6 @@ class AccessCheckRunner(
                         oerSelections,
                     )
                 }
-            }
-            val proxyEODMap = rssData.mapValues { (key, selectionData) ->
-                val rss = rssMap[key]
                 val visibleEngineSelectionSet = selectionData?.first
                 val oerSelections = selectionData?.second
                 val oerToWrap = if (rss != null && rss.selections.typeName == parameters.graphQLSchema.queryType.name) {
@@ -233,23 +304,9 @@ class AccessCheckRunner(
                     visibleEngineSelectionSet,
                     isResolverSelective = baseExecutionContext.isResolverSelective,
                     selections = oerSelections,
+                    instrumentationContext = instrumentationContext,
                 )
             }
-            log.ifDebug {
-                val fieldCoord = if (checkerType == CheckerExecutor.CheckerType.FIELD) {
-                    "${parameters.executionStepInfo.objectType.name}.${parameters.field!!.fieldName}"
-                } else {
-                    "${objectEngineResult.type.name}"
-                }
-                debug("[AccessCheck] Executing ${checkerType.name} access check for '$fieldCoord' at path '${parameters.path}', checker name: '${dispatcher.checkerMetadata?.checkerName}'")
-            }
-            instrumentedDispatcher.execute(
-                arguments,
-                proxyEODMap,
-                baseExecutionContext,
-                checkerType
-            )
         }
-        return Value.fromDeferred(deferred)
     }
 }
