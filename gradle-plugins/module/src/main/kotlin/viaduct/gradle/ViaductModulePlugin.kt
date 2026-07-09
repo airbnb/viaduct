@@ -10,6 +10,7 @@ import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.register
@@ -57,7 +58,7 @@ class ViaductModulePlugin : Plugin<Project> {
             val centralSchemaIncomingCfg = ViaductModulePluginSupport.setupIncomingConfigurationForCentralSchema(this)
             val generateResolverBasesTask = setupGenerateResolverBasesTask(moduleExt, centralSchemaIncomingCfg)
 
-            setupKspRegistryExtractor(moduleExt)
+            setupKspRegistryExtractor(moduleExt, generateResolverBasesTask)
 
             ViaductModulePluginSupport.wireToContainingApplicationProject(
                 this,
@@ -92,7 +93,10 @@ class ViaductModulePlugin : Plugin<Project> {
             }
         }
 
-    private fun Project.setupKspRegistryExtractor(moduleExt: ViaductModuleExtension) {
+    private fun Project.setupKspRegistryExtractor(
+        moduleExt: ViaductModuleExtension,
+        generateResolverBasesTask: TaskProvider<GenerateResolverBasesTask>,
+    ) {
         val version = pluginVersion(ViaductModulePlugin::class.java)
         val codegenClasspath = createOrGetCodegenClasspath(version)
 
@@ -100,6 +104,19 @@ class ViaductModulePlugin : Plugin<Project> {
         // processor and wire up the assembly task.
         pluginManager.withPlugin("com.google.devtools.ksp") {
             dependencies.add("ksp", "com.airbnb.viaduct:buildtime:$version")
+
+            // KSP registers kspKotlin lazily, so tasks.named() would throw UnknownTaskException
+            // here; tasks.matching() returns a live collection instead.
+            // https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/TaskCollection.html
+            val kspKotlinTasks = tasks.matching { it.name == "kspKotlin" }
+
+            // Fingerprints kspKotlin on the resolver-bases dir (RELATIVE = path-relative-to-root
+            // + content, so cache still hits across checkouts).
+            kspKotlinTasks.configureEach {
+                inputs.files(generateResolverBasesTask.flatMap { it.outputDirectory })
+                    .withPropertyName("viaductResolverBases")
+                    .withPathSensitivity(PathSensitivity.RELATIVE)
+            }
 
             // Bridge task: copies KSP's descriptor output to a stable intermediates directory.
             //
@@ -154,6 +171,13 @@ class ViaductModulePlugin : Plugin<Project> {
                     assembleTask.configure {
                         tenantPackage.set(pkg)
                         tenantPackagePrefix.set(appExt.modulePackagePrefix)
+                    }
+                    // Same cache-key protection as above, but for the package identity values
+                    // rather than the resolver-bases file contents.
+                    kspKotlinTasks.configureEach {
+                        inputs.property("viaductTenantPackage", pkg)
+                        inputs.property("viaductTenantPackagePrefix", appExt.modulePackagePrefix)
+                        inputs.property("viaductModulePackageSuffix", moduleExt.modulePackageSuffix.orElse(""))
                     }
                 }
                 validateKspConfiguration()
