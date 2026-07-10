@@ -3,7 +3,7 @@ title: Global IDs
 description: Global identifiers for nodes
 ---
 
-Viaduct uses two different Kotlin types to represent GraphQL `ID` types: `GlobalID<T>` and String. `GlobalID<T>` is an object that consists of a type and an internal ID. They are used to uniquely identify node objects in the graph. `GlobalID` values support structural equality, as opposed to referential equality.
+Viaduct uses two different Kotlin types to represent GraphQL `ID` types: `GlobalID<T>` and String. `GlobalID<T>` is an object that consists of a type and an internal ID. They are used to uniquely identify `Node` objects in the graph. `GlobalID` values support structural equality, as opposed to referential equality.
 
 There are two conditions under which `GlobalID<T>` will be used:
 
@@ -54,9 +54,11 @@ id(ctx.globalIDFor<MyNode>(entity.id))
 
 > The serialization format of Global IDs is intentionally **opaque**. Neither tenant code nor external clients should attempt to parse them.
 
-If you find yourself needing to decode global ids in your application logic, chances are you are missing an `@idOf` directive in your schema (see below).
+The objective of the global-id type is to support modularity: each `Node` implementation can have its own, encapsulated opinion as to how its instances are identified.  This opinion is encapsulated in the `internalID` half of a global id. At the same time, Viaduct itself needs a way to dispatch `ID`s to the node-resolver that supports them, which is where the `type` half of a global id comes in.  But note that both of these concerns should be encapsulated from external clients: they should be treat global ids as opaque, atomic identifiers.
 
-Because global ids should be treated as opaque, they are not well-suited as _durable_ identifiers, i.e., identifiers that an external application might put into their long-term storage. Applications that need durable identifiers for nodes should design an additional means of identifying them. Such identifiers are often used in root fields like:
+Viaduct resolvers, should be using our `GlobalID` type to safely extract `internalID`s from a serialized global id. If you find yourself needing to decode global ids in such application logic, chances are you are missing an `@idOf` directive in your schema (see below). Resolvers should use `internalID`s (or some other identifier) to identify `Node` instances in a database or in a downstream service: serialized global ids are not intended for that purpose.
+
+Architects should assume that over a long-enough period of time the serialization format for global ids will change and they should design their applications around that assumption. While on front-ends, global ids should remain stable across a client session (and perhaps even beyond that), on the backend the architectural assumption should be that the format of globals ids may change, and thus they are not well suited as _durable_ identifiers, i.e., identifiers that an external application might put into their long-term storage. Backends often expose their `internalID` directly, which is a fine pattern. An alternative is to encapsulate `internalID`s and use an even more durable identifier such as an account number:
 
 ```graphql
 extend type Query {
