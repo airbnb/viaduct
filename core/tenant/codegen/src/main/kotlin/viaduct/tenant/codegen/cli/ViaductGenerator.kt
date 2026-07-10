@@ -26,6 +26,7 @@ import viaduct.tenant.codegen.util.shouldUseBinarySchema
 class ViaductGenerator : CliktCommand() {
     // modern module args
     private val tenantPkg: String by option("--tenant_pkg").required()
+    private val tenantPackage: String? by option("--tenant_package")
     private val modernModuleGeneratedDir: File? by option("--modern_module_generated_directory")
         .file(mustExist = false, canBeFile = false)
     private val modernModuleOutputArchive: File? by option("--modern_module_output_archive")
@@ -54,6 +55,7 @@ class ViaductGenerator : CliktCommand() {
         .file(mustExist = false, canBeDir = false)
     private val tenantFromSourceNameRegex: String? by option("--tenant_from_source_name_regex")
         .convert { unquoteRegexPattern(it) }
+    private val tenantSchemaModulePrefix: String? by option("--tenant_schema_module_prefix")
 
     private val isFeatureAppTest: Boolean by option("--isFeatureAppTest").flag()
 
@@ -83,7 +85,9 @@ class ViaductGenerator : CliktCommand() {
             BUILD_TIME_MODULE_EXTRACTOR
         }
 
-        val tenantPackage = tenantPackagePrefixInFile?.readText()?.trim() ?: "$tenantPackagePrefix.${tenantPkg.replace("_", ".")}"
+        // Service blocks can override the output Kotlin package without changing the logical
+        // tenant path used to derive schema ownership.
+        val tenantPackage = tenantPackage ?: tenantPackagePrefixInFile?.readText()?.trim() ?: "$tenantPackagePrefix.${tenantPkg.replace("_", ".")}"
         val packagePrefixForTenant = tenantPackagePrefixInFile?.readText()?.trim() ?: tenantPackagePrefix!!
         val grtPackages = if (isFeatureAppTest) tenantPackage else "viaduct.api.grts"
 
@@ -91,6 +95,7 @@ class ViaductGenerator : CliktCommand() {
             tenantPackage = tenantPackage,
             tenantPackagePrefix = packagePrefixForTenant,
             tenantName = tenantPkg,
+            tenantSchemaModulePrefix = tenantSchemaModulePrefix,
             grtPackage = grtPackages,
             modernModuleGeneratedDir = modernModuleGeneratedDir,
             metainfGeneratedDir = metainfGeneratedDir,

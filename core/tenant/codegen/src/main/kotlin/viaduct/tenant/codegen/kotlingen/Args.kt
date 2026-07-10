@@ -13,4 +13,5 @@ class Args(
     val resolverGeneratedDir: File,
     val isFeatureAppTest: Boolean = false,
     val baseTypeMapper: BaseTypeMapper,
+    val tenantSchemaModulePrefix: String? = null,
 )

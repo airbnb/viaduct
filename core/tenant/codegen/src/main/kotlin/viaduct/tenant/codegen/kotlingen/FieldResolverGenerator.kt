@@ -20,6 +20,7 @@ fun ViaductSchema.generateFieldResolvers(args: Args) {
         this,
         args.tenantPackage,
         args.tenantPackagePrefix,
+        args.tenantSchemaModulePrefix,
         args.resolverGeneratedDir,
         args.grtPackage,
         args.isFeatureAppTest,
@@ -33,6 +34,7 @@ private class FieldResolverGenerator(
     private val schema: ViaductSchema,
     private val tenantPackage: String,
     private val tenantPackagePrefix: String,
+    private val tenantSchemaModulePrefix: String?,
     private val resolverGeneratedDir: File,
     private val grtPackage: String,
     private val isFeatureAppTest: Boolean = false,
@@ -63,12 +65,30 @@ private class FieldResolverGenerator(
             // This check will not pass for feature test app run so just generate field resolvers
             // even if the tenantModule doesn't match for it
             if (!isFeatureAppTest) {
-                if (extension.sourceLocation?.tenantModule != targetTenantModule) continue
+                val extensionTenantModule = extension.sourceLocation?.tenantModule
+                if (!tenantOwnsModule(extensionTenantModule, targetTenantModule, tenantSchemaModulePrefix)) continue
             }
             resolverFields.addAll(extension.members.filter { it.hasAppliedDirective(RESOLVER_DIRECTIVE) })
         }
         return resolverFields
     }
+}
+
+/**
+ * A tenant normally owns exactly one schema module, but service blocks may own a whole subtree
+ * like `entity/userblock/...` while still generating code into a service-owned package.
+ */
+internal fun tenantOwnsModule(
+    sourceTenantModule: String?,
+    targetTenantModule: String,
+    tenantSchemaModulePrefix: String?,
+): Boolean {
+    if (sourceTenantModule == null) return false
+    if (tenantSchemaModulePrefix != null) {
+        return sourceTenantModule == tenantSchemaModulePrefix ||
+            sourceTenantModule.startsWith("$tenantSchemaModulePrefix/")
+    }
+    return sourceTenantModule == targetTenantModule
 }
 
 // internal for testing

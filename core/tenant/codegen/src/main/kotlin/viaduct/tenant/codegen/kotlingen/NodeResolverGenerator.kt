@@ -16,6 +16,7 @@ fun ViaductSchema.generateNodeResolvers(args: Args) {
         this,
         args.tenantPackage,
         args.tenantPackagePrefix,
+        args.tenantSchemaModulePrefix,
         args.grtPackage,
         args.resolverGeneratedDir,
         args.isFeatureAppTest
@@ -27,6 +28,7 @@ private class NodeResolverGenerator(
     private val schema: ViaductSchema,
     private val tenantPackage: String,
     private val tenantPackagePrefix: String,
+    private val tenantSchemaModulePrefix: String?,
     private val grtPackage: String,
     private val resolverGeneratedDir: File,
     private val isFeatureAppTest: Boolean
@@ -56,7 +58,7 @@ private class NodeResolverGenerator(
 
     private fun isTenantOwnedNode(def: ViaductSchema.TypeDef): Boolean {
         return if (!isFeatureAppTest) {
-            def.isNode && def.sourceLocation?.tenantModule == targetTenantModule
+            def.isNode && tenantOwnsModule(def.sourceLocation?.tenantModule, targetTenantModule, tenantSchemaModulePrefix)
         } else {
             def.isNode
         }
