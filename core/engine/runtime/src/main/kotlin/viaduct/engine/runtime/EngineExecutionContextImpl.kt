@@ -20,6 +20,7 @@ import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.SubqueryExecutionException
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldSelectivityProvider
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -169,6 +170,21 @@ class EngineExecutionContextImpl(
     override suspend fun resolveSelectionSet(
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions,
+    ): EngineObjectData.Sync = resolveSelectionSet(selectionSet, options, instrumentationContext = null)
+
+    /**
+     * Subquery materialization with an optional [ResolverInstrumentationContext].
+     *
+     * When [instrumentationContext] is non-null and [engine] implements
+     * [SubqueryInstrumentationEngine] (always true in production — `engine` is `EngineImpl`),
+     * per-selection fetch instrumentation fires for the resolved fields. Otherwise this falls back
+     * to the plain [Engine.resolveSelectionSet], so non-instrumented callers and test doubles are
+     * unaffected.
+     */
+    internal suspend fun resolveSelectionSet(
+        selectionSet: EngineSelectionSet,
+        options: ResolveSelectionSetOptions,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): EngineObjectData.Sync {
         val handle = executionHandle
             ?: throw SubqueryExecutionException(
@@ -180,7 +196,17 @@ class EngineExecutionContextImpl(
         val effectiveOptions = options.copy(attribution = fieldScope.attribution)
 
         return executeWithMetrics {
-            engine.resolveSelectionSet(handle, selectionSet, effectiveOptions)
+            val subqueryInstrumentationEngine = engine as? SubqueryInstrumentationEngine
+            if (instrumentationContext == null || subqueryInstrumentationEngine == null) {
+                engine.resolveSelectionSet(handle, selectionSet, effectiveOptions)
+            } else {
+                subqueryInstrumentationEngine.resolveSelectionSet(
+                    handle,
+                    selectionSet,
+                    effectiveOptions,
+                    instrumentationContext,
+                )
+            }
         }
     }
 

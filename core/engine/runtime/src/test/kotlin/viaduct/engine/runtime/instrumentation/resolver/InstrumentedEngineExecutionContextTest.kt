@@ -6,6 +6,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertSame
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolveSelectionSetOptions
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.mocks.ContextMocks
 
@@ -30,7 +32,7 @@ internal class InstrumentedEngineExecutionContextTest {
             val selectionSet: EngineSelectionSet = mockk()
             val impl: EngineExecutionContextImpl = mockk(relaxed = true)
 
-            coEvery { impl.resolveSelectionSet(selectionSet, any()) } returns rawObjectData
+            coEvery { impl.resolveSelectionSet(selectionSet, any(), any()) } returns rawObjectData
 
             val testClass = InstrumentedEngineExecutionContext(impl, instrumentation, state)
 
@@ -52,7 +54,7 @@ internal class InstrumentedEngineExecutionContextTest {
             val selectionSet: EngineSelectionSet = mockk()
             val impl: EngineExecutionContextImpl = mockk(relaxed = true)
 
-            coEvery { impl.resolveSelectionSet(selectionSet, any()) } returns rawObjectData
+            coEvery { impl.resolveSelectionSet(selectionSet, any(), any()) } returns rawObjectData
 
             val testClass = InstrumentedEngineExecutionContext(impl, instrumentation, state)
 
@@ -68,7 +70,7 @@ internal class InstrumentedEngineExecutionContextTest {
         }
 
     @Test
-    fun `resolveSelectionSet forwards selectionSet and options to impl`() =
+    fun `resolveSelectionSet forwards selectionSet, options, and instrumentation context to impl`() =
         runBlocking {
             // Given
             val instrumentation = RecordingResolverInstrumentation()
@@ -78,15 +80,21 @@ internal class InstrumentedEngineExecutionContextTest {
             val options = ResolveSelectionSetOptions.MUTATION
             val impl: EngineExecutionContextImpl = mockk(relaxed = true)
 
-            coEvery { impl.resolveSelectionSet(selectionSet, options) } returns rawObjectData
+            val contextSlot = slot<ResolverInstrumentationContext>()
+            coEvery {
+                impl.resolveSelectionSet(selectionSet, options, capture(contextSlot))
+            } returns rawObjectData
 
             val testClass = InstrumentedEngineExecutionContext(impl, instrumentation, state)
 
             // When
             testClass.resolveSelectionSet(selectionSet, options)
 
-            // Then — impl is invoked with exactly the selectionSet and options passed by the caller
-            coVerify(exactly = 1) { impl.resolveSelectionSet(selectionSet, options) }
+            // Then — impl is invoked with exactly the selectionSet and options passed by the caller,
+            // plus a ResolverInstrumentationContext carrying this wrapper's instrumentation and state.
+            coVerify(exactly = 1) { impl.resolveSelectionSet(selectionSet, options, any()) }
+            assertSame(instrumentation, contextSlot.captured.instrumentation)
+            assertSame(state, contextSlot.captured.state)
         }
 
     @Test

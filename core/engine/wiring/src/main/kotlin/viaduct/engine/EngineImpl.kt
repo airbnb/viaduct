@@ -25,6 +25,7 @@ import viaduct.engine.api.SubqueryExecutionException
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
@@ -32,6 +33,7 @@ import viaduct.engine.runtime.EngineExecutionContextFactory
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
+import viaduct.engine.runtime.SubqueryInstrumentationEngine
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.execution.AccessCheckRunner
@@ -65,7 +67,7 @@ class EngineImpl(
     documentProvider: PreparsedDocumentProvider,
     private val fullSchema: ViaductSchema,
     private val queryPlanFactory: QueryPlanFactory,
-) : Engine, EngineGraphQLJavaCompat {
+) : Engine, EngineGraphQLJavaCompat, SubqueryInstrumentationEngine {
     private val coroutineInterop: CoroutineInterop = config.coroutineInterop
     private val airbnbBypassPolicyCheckDuringCompletion: Boolean = config.airbnbBypassPolicyCheckDuringCompletion
     private val dataFetcherExceptionHandler: DataFetcherExceptionHandler = config.dataFetcherExceptionHandler
@@ -170,6 +172,13 @@ class EngineImpl(
         executionHandle: EngineExecutionContext.ExecutionHandle,
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions,
+    ): EngineObjectData.Sync = resolveSelectionSet(executionHandle, selectionSet, options, instrumentationContext = null)
+
+    override suspend fun resolveSelectionSet(
+        executionHandle: EngineExecutionContext.ExecutionHandle,
+        selectionSet: EngineSelectionSet,
+        options: ResolveSelectionSetOptions,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): EngineObjectData.Sync {
         val parentParams = executionHandle.asExecutionParameters()
         val subqueryExecution = executeSelectionSet(executionHandle, selectionSet, options)
@@ -183,6 +192,7 @@ class EngineImpl(
             selectionSet = selectionSet,
             isResolverSelective = isResolverSelective,
             selections = subqueryExecution.selections,
+            instrumentationContext = instrumentationContext,
         )
     }
 

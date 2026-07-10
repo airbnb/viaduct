@@ -9,6 +9,7 @@ import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.fetchAs
@@ -119,6 +120,143 @@ class ResolverInstrumentationFeatureTest {
             assertTrue(
                 "gateField" in checkerToFields["checker"]!!.toSet(),
                 "fields read during checker variable-resolver RSS materialization should fire fetch-selection instrumentation"
+            )
+        }
+    }
+
+    @Test
+    fun `ctx query subquery materialization invokes fetch selection instrumentation`() {
+        val resolverToFields = ConcurrentHashMap<String, CopyOnWriteArrayList<String>>()
+        val instrumentation = fieldTrackingInstrumentation(resolverToFields)
+
+        EngineTestModule(
+            """
+            extend type Query {
+                rootValue: Int
+                container: Container
+            }
+
+            type Container {
+                derivedFromQuery: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "rootValue") {
+                resolver {
+                    resolverName("query-root-value-resolver")
+                    fn { _, _, _, _, _ -> 42 }
+                }
+            }
+
+            field("Query" to "container") {
+                resolver {
+                    resolverName("query-container-resolver")
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "derivedFromQuery") {
+                resolver {
+                    resolverName("container-derived-resolver")
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "rootValue", emptyMap())
+                        val queryResult = ctx.query(selectionSet = rss)
+                        queryResult.fetchAs<Int>("rootValue") * 2
+                    }
+                }
+            }
+        }.runFeatureTest(
+            engineConfig = EngineConfiguration.featureTestDefault.copy(resolverInstrumentation = instrumentation)
+        ) {
+            runQuery("{ container { derivedFromQuery } }")
+                .assertJson("""{"data": {"container": {"derivedFromQuery": 84}}}""")
+
+            // The resolver that calls ctx.query() materializes the subquery's selected field,
+            // so beginFetchSelection must fire for "rootValue" keyed under that resolver's name.
+            assertTrue(
+                "container-derived-resolver" in resolverToFields.keys,
+                "ctx.query() resolver should be tracked by fetch-selection instrumentation"
+            )
+            assertTrue(
+                "rootValue" in resolverToFields["container-derived-resolver"]!!.toSet(),
+                "ctx.query() subquery materialization should fire beginFetchSelection for the selected field"
+            )
+        }
+    }
+
+    @Test
+    fun `ctx mutation subquery materialization invokes fetch selection instrumentation`() {
+        val resolverToFields = ConcurrentHashMap<String, CopyOnWriteArrayList<String>>()
+        val instrumentation = fieldTrackingInstrumentation(resolverToFields)
+
+        EngineTestModule(
+            """
+            extend type Query {
+                container: Container
+            }
+
+            extend type Mutation {
+                incrementCounter: Int
+            }
+
+            type Container {
+                triggerMutation: Int
+            }
+            """.trimIndent()
+        ) {
+            var counter = 0
+
+            field("Mutation" to "incrementCounter") {
+                resolver {
+                    resolverName("mutation-increment-resolver")
+                    fn { _, _, _, _, _ -> ++counter }
+                }
+            }
+
+            field("Query" to "container") {
+                resolver {
+                    resolverName("query-container-resolver")
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "triggerMutation") {
+                resolver {
+                    resolverName("container-trigger-mutation-resolver")
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Mutation", "incrementCounter", emptyMap())
+                        val mutationResult = ctx.mutation(selectionSet = rss)
+                        mutationResult.fetchAs<Int>("incrementCounter")
+                    }
+                }
+            }
+        }.runFeatureTest(
+            engineConfig = EngineConfiguration.featureTestDefault.copy(resolverInstrumentation = instrumentation)
+        ) {
+            runQuery("{ container { triggerMutation } }")
+                .assertJson("""{"data": {"container": {"triggerMutation": 1}}}""")
+
+            // The resolver that calls ctx.mutation() materializes the subquery's selected field,
+            // so beginFetchSelection must fire for "incrementCounter" keyed under that resolver's name.
+            assertTrue(
+                "container-trigger-mutation-resolver" in resolverToFields.keys,
+                "ctx.mutation() resolver should be tracked by fetch-selection instrumentation"
+            )
+            assertTrue(
+                "incrementCounter" in resolverToFields["container-trigger-mutation-resolver"]!!.toSet(),
+                "ctx.mutation() subquery materialization should fire beginFetchSelection for the selected field"
             )
         }
     }
