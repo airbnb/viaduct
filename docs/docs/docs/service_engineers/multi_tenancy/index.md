@@ -103,6 +103,9 @@ tenants/catalog/
 
 The `src/main/viaduct/schema` directory is the convention the module plugin uses for tenant SDL. The Kotlin package should align with the application project's `modulePackagePrefix` plus the tenant project's `modulePackageSuffix`.
 
+!!! warning
+    Viaduct validates package prefixes and suffixes as dotted identifier segments, but it does not reject every reserved word from every resolver implementation language. Service engineers should consider adding application-specific Gradle linting to ensure `modulePackagePrefix` and `modulePackageSuffix` values are valid package names for the languages their resolver teams use.
+
 For example, with:
 
 ```kotlin

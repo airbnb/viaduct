@@ -31,6 +31,7 @@ includeBuild("../core")
 includeBuild("../build-logic")
 
 include(":common")
+include(":settings")
 include(":application")
 include(":module")
 include(":module-java")

@@ -18,6 +18,8 @@ dependencies {
     // listing unchanged.
     api(libs.viaduct.service.api)
 
+    implementation(libs.jackson.module)
+
     implementation(libs.idea.gradle.plugin)
 
     testImplementation(gradleTestKit())

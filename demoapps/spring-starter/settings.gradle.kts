@@ -1,8 +1,8 @@
-val viaductVersion: String by settings
-
 // When part of composite build, use local gradle-plugins
 // When standalone, use Maven Central (only after version is published)
 pluginManagement {
+    val viaductVersion: String by settings
+
     if (gradle.parent != null) {
         includeBuild("../../gradle-plugins")
     } else {
@@ -14,7 +14,16 @@ pluginManagement {
             gradlePluginPortal()
         }
     }
+    plugins {
+        id("com.airbnb.viaduct.settings-gradle-plugin") version viaductVersion
+    }
 }
+
+plugins {
+    id("com.airbnb.viaduct.settings-gradle-plugin")
+}
+
+val viaductVersion: String by settings
 
 dependencyResolutionManagement {
     repositories {
@@ -33,3 +42,13 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "viaduct-spring-starter"
+
+includeViaductApplication {
+    project(":")
+    modulePackagePrefix("com.example.viadapp")
+
+    includeModule {
+        project(":")
+        modulePackageSuffix("resolvers")
+    }
+}
