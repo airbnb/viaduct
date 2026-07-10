@@ -7,6 +7,7 @@ import io.grpc.StatusRuntimeException
 import io.grpc.inprocess.InProcessChannelBuilder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CancellationException
 import org.slf4j.LoggerFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -58,31 +59,32 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
 
         val results = try {
             executor.resolve(selectors, remoteContext)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             log.error("Resolver execution failed for type '{}': {}", executor.typeName, e.message, e)
             return buildErrorResponse(selectors, e)
         }
 
-        // serialize is suspend — can't use map {} here.
+        // serialize is suspend — can't use map {} here. Isolate a serialization failure (e.g. a nested
+        // NodeReference, which throws now) to that node's error rather than fail the whole batch —
+        // mirroring the per-selector isolation on batchResolveField.
         val protoResults = mutableListOf<ResolvedNode>()
         for ((selector, result) in results) {
-            val node = if (result.isSuccess) {
-                val serialized = EngineObjectDataSerializer.serialize(result.getOrThrow())
-                ResolvedNode.newBuilder()
-                    .setSelectorId(selector.id)
-                    .setDataJson(com.google.protobuf.ByteString.copyFrom(serialized))
-                    .build()
-            } else {
-                val error = result.exceptionOrNull()!!
-                ResolvedNode.newBuilder()
-                    .setSelectorId(selector.id)
-                    .setError(
-                        ErrorInfo.newBuilder()
-                            .setMessage(error.message ?: "Unknown error")
-                            .setErrorType(error::class.java.name)
+            val node = when {
+                result.isSuccess ->
+                    try {
+                        ResolvedNode.newBuilder()
+                            .setSelectorId(selector.id)
+                            .setDataJson(com.google.protobuf.ByteString.copyFrom(EngineObjectDataSerializer.serialize(result.getOrThrow())))
                             .build()
-                    )
-                    .build()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        log.warn("Failed to serialize node result for id '{}' (type '{}'): {}", selector.id, executor.typeName, e.message, e)
+                        nodeError(selector.id, e)
+                    }
+                else -> nodeError(selector.id, result.exceptionOrNull()!!)
             }
             protoResults.add(node)
         }
@@ -127,16 +129,19 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
 
         val results = try {
             executor.batchResolve(keyedSelectors.map { it.second }, remoteContext)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             log.error("Field resolver execution failed for '{}': {}", request.executorId, e.message, e)
             return buildFieldErrorResponse(keyedSelectors.map { it.first }, e)
         }
 
-        // Isolate a non-serializable success value (e.g. an object-typed field) to that selector's
-        // error instead of failing the whole batch.
-        val protoResults = keyedSelectors.map { (key, selector) ->
+        // serializeValue is suspend (an object result walks its selections), so build with a loop.
+        // Isolate a non-serializable success value to that selector's error rather than fail the batch.
+        val protoResults = mutableListOf<ResolvedField>()
+        for ((key, selector) in keyedSelectors) {
             val result = results[selector]
-            when {
+            val proto = when {
                 result == null -> fieldError(key, IllegalStateException("Resolver returned no result for selector '$key'"))
                 result.isSuccess ->
                     try {
@@ -144,11 +149,14 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
                             .setSelectorKey(key)
                             .setValueJson(com.google.protobuf.ByteString.copyFrom(FieldValueSerializer.serializeValue(result.getOrNull())))
                             .build()
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         fieldError(key, e)
                     }
                 else -> fieldError(key, result.exceptionOrNull()!!)
             }
+            protoResults.add(proto)
         }
 
         log.debug("Returning {} field result(s) for executor '{}'", protoResults.size, request.executorId)
@@ -196,6 +204,20 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
             .addAllResults(protoResults)
             .build()
     }
+
+    private fun nodeError(
+        selectorId: String,
+        error: Throwable
+    ): ResolvedNode =
+        ResolvedNode.newBuilder()
+            .setSelectorId(selectorId)
+            .setError(
+                ErrorInfo.newBuilder()
+                    .setMessage(error.message ?: "Node resolver execution failed")
+                    .setErrorType(error::class.java.name)
+                    .build()
+            )
+            .build()
 
     // Builds the context for an incoming resolve. Re-entrant queries route back to the caller over
     // the cached callback channel; when the caller's context isn't in this JVM (network mode), the

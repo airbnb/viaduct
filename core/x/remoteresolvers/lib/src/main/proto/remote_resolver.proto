@@ -122,7 +122,11 @@ message ResolvedField {
   string selector_key = 1;
 
   oneof result {
-    // Success: the field value, JSON-enveloped ({"v": <value>}) so null/scalars round-trip.
+    // Success: the field value as a tagged JSON envelope (see FieldValueSerializer) — records the
+    // value's kind (null/scalar/noderef/object/list) plus, for references/objects, its GraphQL type.
+    // NOTE: this tagged format is not wire-compatible with the earlier bare `{"v": <value>}` envelope
+    // (this experimental transport carries no protocol version), so the RRS and RRP must be built
+    // from the same commit / co-deployed. Field number reused deliberately.
     bytes value_json = 2;
 
     // Failure: error information

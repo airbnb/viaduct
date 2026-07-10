@@ -3,6 +3,7 @@ package viaduct.remote
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import graphql.schema.GraphQLObjectType
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ResolvedEngineObjectData
 
 /**
@@ -30,24 +31,36 @@ object EngineObjectDataSerializer {
     ): EngineObjectData.Sync {
         @Suppress("UNCHECKED_CAST")
         val dataMap = objectMapper.readValue(jsonBytes, Map::class.java) as Map<String, Any?>
-        return buildEngineObjectData(dataMap, graphQLObjectType)
+        return buildFromMap(dataMap, graphQLObjectType)
     }
 
-    private suspend fun serializeToMap(data: EngineObjectData): Map<String, Any?> {
+    /** Serializes an [EngineObjectData] to a JSON-friendly field map; nested objects and lists recurse. */
+    internal suspend fun serializeToMap(data: EngineObjectData): Map<String, Any?> {
         val selections = data.fetchSelections()
         val dataMap = mutableMapOf<String, Any?>()
         for (selection in selections) {
-            val value = data.fetchOrNull(selection)
-            dataMap[selection] = when (value) {
-                is EngineObjectData -> serializeToMap(value)
-                is List<*> -> value.map { if (it is EngineObjectData) serializeToMap(it) else it }
-                else -> value
-            }
+            dataMap[selection] = serializeChild(data.fetchOrNull(selection))
         }
         return dataMap
     }
 
-    private fun buildEngineObjectData(
+    // A nested NodeReference can't be serialized here: NodeEngineObjectDataImpl implements both
+    // NodeReference and EngineObjectData, so recursing into serializeToMap would await a resolution
+    // that never happens on the serialize path (it hangs until the request deadline). Fail fast — the
+    // caller isolates it to a per-selector/-node error rather than hanging the whole batch.
+    private suspend fun serializeChild(value: Any?): Any? =
+        when (value) {
+            is NodeReference -> throw UnsupportedOperationException(
+                "Cannot serialize a nested NodeReference (type '${value.type.name}'); " +
+                    "resolve the reference before returning it."
+            )
+            is EngineObjectData -> serializeToMap(value)
+            is List<*> -> value.map { serializeChild(it) }
+            else -> value
+        }
+
+    /** Rebuilds an [EngineObjectData] from a field map produced by [serializeToMap], under [type]. */
+    internal fun buildFromMap(
         dataMap: Map<String, Any?>,
         type: GraphQLObjectType
     ): EngineObjectData.Sync {
@@ -62,7 +75,7 @@ object EngineObjectDataSerializer {
         when (value) {
             is Map<*, *> -> {
                 @Suppress("UNCHECKED_CAST")
-                buildEngineObjectData(value as Map<String, Any?>, NESTED_OBJECT_TYPE)
+                buildFromMap(value as Map<String, Any?>, NESTED_OBJECT_TYPE)
             }
             is List<*> -> value.map { rewrap(it) }
             else -> value

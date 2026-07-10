@@ -30,20 +30,42 @@ class SimpleNodeResolverExecutor(
 
         // Resolve each selector
         return selectors.associateWith { selector ->
-            val data = nodeData[selector.id]
-            if (data != null) {
-                Result.success(
-                    EngineObjectDataBuilder.from(graphQLType).apply {
-                        data.forEach { (key, value) -> put(key, value) }
-                    }.build()
+            when {
+                // Sentinel: return a node whose value carries an unresolved nested NodeReference.
+                // EngineObjectDataSerializer.serialize rejects a nested NodeReference (serializeChild
+                // throws), so this node fails serialization on the RRS side while its batch-mates —
+                // which take the normal path below — still serialize and return successfully.
+                selector.id == UNSERIALIZABLE_NODE_ID -> Result.success(
+                    EngineObjectDataBuilder.from(graphQLType)
+                        .put("id", selector.id)
+                        .put("friend", context.createNodeReference(selector.id, graphQLType))
+                        .build()
                 )
-            } else {
-                Result.failure(NoSuchElementException("Node not found: ${selector.id}"))
+                else -> {
+                    val data = nodeData[selector.id]
+                    if (data != null) {
+                        Result.success(
+                            EngineObjectDataBuilder.from(graphQLType).apply {
+                                data.forEach { (key, value) -> put(key, value) }
+                            }.build()
+                        )
+                    } else {
+                        Result.failure(NoSuchElementException("Node not found: ${selector.id}"))
+                    }
+                }
             }
         }
     }
 
     companion object {
+        /**
+         * Node id that makes [resolve] return a node whose serialization throws: its value carries an
+         * unresolved nested [viaduct.engine.api.NodeReference], which [EngineObjectData] serialization
+         * refuses to encode. Used to exercise per-node serialization-failure isolation in the
+         * remote-resolver batch path (a bad node must not sink its batch-mates).
+         */
+        const val UNSERIALIZABLE_NODE_ID = "user:unserializable"
+
         /**
          * Creates a resolver with sample user data for testing.
          */

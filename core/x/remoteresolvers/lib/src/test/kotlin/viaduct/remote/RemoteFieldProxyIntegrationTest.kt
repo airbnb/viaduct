@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineSelectionSet
@@ -211,9 +212,10 @@ class RemoteFieldProxyIntegrationTest {
         runBlocking {
             // Regression test for a handle leak: batchResolve registers a context handle in
             // ContextRegistry and a selection handle in SelectionsRegistry up front, then
-            // serializes each selector (arguments + value getters). If serialization throws,
-            // those process-global handles must still be unregistered. withServers clears all
-            // registries before this block, giving a clean baseline (size == 0).
+            // serializes each selector (arguments + value getters). A serialization failure is now
+            // isolated to the offending selector's Result rather than propagated, but the
+            // process-global handles must still be unregistered in the finally block regardless.
+            // withServers clears all registries before this block, giving a clean baseline (size == 0).
             withServers { rrsChannel, callbackEndpoint, context ->
                 val executor = SimpleFieldResolverExecutor()
                 val executorId = FieldExecutorRegistry.register(executor)
@@ -238,13 +240,20 @@ class RemoteFieldProxyIntegrationTest {
                     syncQueryValueGetter = { emptyQueryValue() }
                 )
 
-                val thrown = assertThrows<RuntimeException> {
-                    runBlocking { proxy.batchResolve(listOf(throwingSelector), context) }
-                }
-                assertEquals("boom", thrown.message, "The serialization failure should propagate")
+                // batchResolve no longer propagates the failure; it isolates it to this selector's
+                // Result (and, since it's the only selector, returns without making an RPC).
+                val results = proxy.batchResolve(listOf(throwingSelector), context)
 
-                // The fix's try/finally must have unregistered both handles; without it these
-                // would each hold one leaked entry.
+                val result = results[throwingSelector]
+                assertNotNull(result, "Result should not be null")
+                assertFalse(result!!.isSuccess, "Serialization failure should surface as a failure")
+                assertTrue(
+                    result.exceptionOrNull() is RemoteResolverException,
+                    "Should be RemoteResolverException, got ${result.exceptionOrNull()}"
+                )
+
+                // The try/finally must have unregistered both handles despite the isolation; without
+                // it these would each hold one leaked entry.
                 assertEquals(0, ContextRegistry.size, "Context handle leaked after serialization failure")
                 assertEquals(0, SelectionsRegistry.size, "Selection handle leaked after serialization failure")
             }
@@ -317,10 +326,10 @@ class RemoteFieldProxyIntegrationTest {
     fun `non-serializable result fails only its own selector in a batch`() =
         runBlocking {
             withServers { rrsChannel, callbackEndpoint, context ->
-                // age 7 -> the resolver returns an object value (EngineObjectData), which
-                // FieldValueSerializer rejects; any other age returns a Boolean scalar. This drives
-                // the per-selector try/catch in RemoteResolverServiceImpl.batchResolveField.
-                val objectReturning = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
+                // age 7 -> the resolver returns a value the wire format genuinely can't carry (an
+                // arbitrary non-JSON, non-EngineObject type); any other age returns a Boolean scalar.
+                // This drives the per-selector try/catch in RemoteResolverServiceImpl.batchResolveField.
+                val unserializableReturning = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
                     override suspend fun batchResolve(
                         selectors: List<FieldResolverExecutor.Selector>,
                         context: EngineExecutionContext
@@ -328,31 +337,26 @@ class RemoteFieldProxyIntegrationTest {
                         selectors.associateWith { selector ->
                             runCatching {
                                 val age = (selector.syncObjectValueGetter().get(SimpleFieldResolverExecutor.AGE_FIELD) as Number).toInt()
-                                if (age == OBJECT_RETURN_AGE) {
-                                    // Non-JSON-friendly: an object value carries no type identity on the wire.
-                                    characterObjectValue(age)
-                                } else {
-                                    age >= SimpleFieldResolverExecutor.ADULT_AGE
-                                }
+                                if (age == UNSERIALIZABLE_AGE) Unserializable() else age >= SimpleFieldResolverExecutor.ADULT_AGE
                             }
                         }
                 }
-                val executorId = FieldExecutorRegistry.register(objectReturning)
+                val executorId = FieldExecutorRegistry.register(unserializableReturning)
                 val proxy = RemoteFieldProxyExecutor(
-                    originalExecutor = objectReturning,
+                    originalExecutor = unserializableReturning,
                     executorId = executorId,
                     rrsChannel = rrsChannel,
                     callbackEndpoint = callbackEndpoint
                 )
 
-                val badSelector = selectorForAge(OBJECT_RETURN_AGE)
+                val badSelector = selectorForAge(UNSERIALIZABLE_AGE)
                 val goodSelector = selectorForAge(30)
                 val results = proxy.batchResolve(listOf(badSelector, goodSelector), context)
 
-                // The object-returning selector is isolated to a failure...
+                // The non-serializable selector is isolated to a failure...
                 val badResult = results[badSelector]
                 assertNotNull(badResult, "Bad selector should have a result")
-                assertFalse(badResult!!.isSuccess, "Object-returning selector should fail")
+                assertFalse(badResult!!.isSuccess, "Non-serializable selector should fail")
                 assertTrue(
                     badResult.exceptionOrNull() is RemoteResolverException,
                     "Should be RemoteResolverException, got ${badResult.exceptionOrNull()}"
@@ -364,6 +368,158 @@ class RemoteFieldProxyIntegrationTest {
                     results[goodSelector]?.getOrNull(),
                     "The other selector should resolve normally despite its batch-mate failing"
                 )
+            }
+        }
+
+    @Test
+    fun `a sender-side serialization failure fails only its own selector in a batch`() =
+        runBlocking {
+            withServers { rrsChannel, callbackEndpoint, context ->
+                // The middle selector's object-value getter throws while the proxy is serializing the
+                // batch, so it never reaches the wire. The two well-formed selectors around it must
+                // still be sent to the remote and resolve normally. This is the sender-side mirror of
+                // `non-serializable result fails only its own selector in a batch`: one bad selector
+                // can't sink its batch-mates.
+                val executor = SimpleFieldResolverExecutor()
+                val executorId = FieldExecutorRegistry.register(executor)
+                val proxy = RemoteFieldProxyExecutor(
+                    originalExecutor = executor,
+                    executorId = executorId,
+                    rrsChannel = rrsChannel,
+                    callbackEndpoint = callbackEndpoint
+                )
+
+                val adultSelector = selectorForAge(40)
+                val throwingSelector = FieldResolverExecutor.Selector(
+                    arguments = emptyMap(),
+                    selections = null,
+                    syncObjectValueGetter = { throw RuntimeException("boom mid-batch") },
+                    syncQueryValueGetter = { emptyQueryValue() }
+                )
+                val minorSelector = selectorForAge(12)
+                val results = proxy.batchResolve(
+                    listOf(adultSelector, throwingSelector, minorSelector),
+                    context
+                )
+
+                // The middle selector is isolated to a failure...
+                val throwingResult = results[throwingSelector]
+                assertNotNull(throwingResult, "Throwing selector should have a result")
+                assertFalse(throwingResult!!.isSuccess, "The un-serializable middle selector should fail")
+                assertTrue(
+                    throwingResult.exceptionOrNull() is RemoteResolverException,
+                    "Should be RemoteResolverException, got ${throwingResult.exceptionOrNull()}"
+                )
+
+                // ...while both well-formed selectors still round-trip through the real RPC.
+                assertEquals(true, results[adultSelector]?.getOrNull(), "age 40 should resolve isAdult=true")
+                assertEquals(false, results[minorSelector]?.getOrNull(), "age 12 should resolve isAdult=false")
+            }
+        }
+
+    @Test
+    fun `a node-reference field value round-trips as a NodeReference over the wire`() =
+        runBlocking {
+            withServers { rrsChannel, callbackEndpoint, context ->
+                // The resolver returns a node reference (as `Character.species` would). It must ship
+                // as {id, type} and be rebuilt into a NodeReference on the engine side.
+                val refReturning = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
+                    override suspend fun batchResolve(
+                        selectors: List<FieldResolverExecutor.Selector>,
+                        context: EngineExecutionContext
+                    ): Map<FieldResolverExecutor.Selector, Result<Any?>> = selectors.associateWith { Result.success(context.createNodeReference("Character:7", characterType)) }
+                }
+                val executorId = FieldExecutorRegistry.register(refReturning)
+                val proxy = RemoteFieldProxyExecutor(
+                    originalExecutor = refReturning,
+                    executorId = executorId,
+                    rrsChannel = rrsChannel,
+                    callbackEndpoint = callbackEndpoint
+                )
+
+                val selector = selectorForAge(25)
+                val result = proxy.batchResolve(listOf(selector), context)[selector]
+                assertNotNull(result, "Result should not be null")
+                assertTrue(result!!.isSuccess, "Node-reference result should succeed")
+                val value = result.getOrNull()
+                assertTrue(value is NodeReference, "Expected a NodeReference, got $value")
+                assertEquals("Character:7", (value as NodeReference).id)
+                assertEquals("Character", value.type.name)
+            }
+        }
+
+    @Test
+    fun `an object field value round-trips as an EngineObjectData over the wire`() =
+        runBlocking {
+            withServers { rrsChannel, callbackEndpoint, context ->
+                // The resolver returns a resolved object (as an object-typed field would). It must
+                // ship as {type, field-map} and rebuild against the real type on the engine side.
+                val objectReturning = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
+                    override suspend fun batchResolve(
+                        selectors: List<FieldResolverExecutor.Selector>,
+                        context: EngineExecutionContext
+                    ): Map<FieldResolverExecutor.Selector, Result<Any?>> =
+                        selectors.associateWith {
+                            Result.success(
+                                ResolvedEngineObjectData.Builder(characterType).put("name", "Yoda").build()
+                            )
+                        }
+                }
+                val executorId = FieldExecutorRegistry.register(objectReturning)
+                val proxy = RemoteFieldProxyExecutor(
+                    originalExecutor = objectReturning,
+                    executorId = executorId,
+                    rrsChannel = rrsChannel,
+                    callbackEndpoint = callbackEndpoint
+                )
+
+                val selector = selectorForAge(25)
+                val result = proxy.batchResolve(listOf(selector), context)[selector]
+                assertNotNull(result, "Result should not be null")
+                assertTrue(result!!.isSuccess, "Object result should succeed")
+                val value = result.getOrNull()
+                assertTrue(value is EngineObjectData.Sync, "Expected an EngineObjectData.Sync, got $value")
+                assertEquals("Character", (value as EngineObjectData.Sync).type.name)
+                assertEquals("Yoda", value.get("name"))
+            }
+        }
+
+    @Test
+    fun `a list of objects field value round-trips element-by-element over the wire`() =
+        runBlocking {
+            withServers { rrsChannel, callbackEndpoint, context ->
+                // Mirrors `allCharacters`: a list of resolved objects. Each element ships tagged and
+                // rebuilds independently on the engine side.
+                val listReturning = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
+                    override suspend fun batchResolve(
+                        selectors: List<FieldResolverExecutor.Selector>,
+                        context: EngineExecutionContext
+                    ): Map<FieldResolverExecutor.Selector, Result<Any?>> =
+                        selectors.associateWith {
+                            Result.success(
+                                listOf(
+                                    ResolvedEngineObjectData.Builder(characterType).put("name", "Luke").build(),
+                                    ResolvedEngineObjectData.Builder(characterType).put("name", "Leia").build()
+                                )
+                            )
+                        }
+                }
+                val executorId = FieldExecutorRegistry.register(listReturning)
+                val proxy = RemoteFieldProxyExecutor(
+                    originalExecutor = listReturning,
+                    executorId = executorId,
+                    rrsChannel = rrsChannel,
+                    callbackEndpoint = callbackEndpoint
+                )
+
+                val selector = selectorForAge(25)
+                val result = proxy.batchResolve(listOf(selector), context)[selector]
+                assertNotNull(result, "Result should not be null")
+                assertTrue(result!!.isSuccess, "List result should succeed")
+                val list = result.getOrNull() as List<*>
+                assertEquals(2, list.size)
+                assertEquals("Luke", (list[0] as EngineObjectData.Sync).get("name"))
+                assertEquals("Leia", (list[1] as EngineObjectData.Sync).get("name"))
             }
         }
 
@@ -409,8 +565,12 @@ class RemoteFieldProxyIntegrationTest {
             }
         }
 
+    // An arbitrary type the wire format can't carry (not a scalar, list, map, EngineObjectData, or
+    // NodeReference), used to exercise the per-selector serialization-failure path.
+    private class Unserializable
+
     private companion object {
-        // Sentinel age that makes the object-returning fixture emit a non-serializable value.
-        private const val OBJECT_RETURN_AGE = 7
+        // Sentinel age that makes the fixture emit a genuinely non-serializable value.
+        private const val UNSERIALIZABLE_AGE = 7
     }
 }

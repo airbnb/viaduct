@@ -159,7 +159,7 @@ class RemoteResolverInitializer(private val config: RemoteResolverConfig) : Auto
             channel,
             callbackEndpoint,
             shouldProxyNode = { config.remoteTypes.isEmpty() || it.typeName in config.remoteTypes },
-            // Fields are opt-in (empty = none); nodes default to all.
+            // Fields are opt-in by coordinate (empty = none); nodes default to all.
             shouldProxyField = { config.remoteFields.isNotEmpty() && it.resolverId in config.remoteFields }
         )
 
