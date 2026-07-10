@@ -3,6 +3,7 @@
 
 package viaduct.deferred
 
+import java.util.concurrent.CompletionException
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.atomic.AtomicInteger
@@ -554,17 +555,25 @@ fun Deferred<*>.propagateLocalFailure(
 /**
  * Relay a failure that originated upstream (another coroutine, CompletionStage, etc.).
  *
+ * CompletableFuture dependent stages wrap failures in [CompletionException], so unwrap one layer
+ * first. This mirrors kotlinx's own `CompletionStage.asDeferred` ("unwrap it consistently with
+ * fast path") and keeps this slow path consistent with [asDeferred]'s fast path, where
+ * `CompletableFuture.get` already does the unwrapping. Without it, a relayed cancellation
+ * completes the deferred exceptionally and surfaces downstream as an ordinary failure (e.g.
+ * recorded against a field's metrics and error reporting).
+ *
  * CancellationExceptions are always forwarded as cancellations, while other throwables simply
  * complete this deferred exceptionally. CompletionHandlerExceptions are rethrown so they are not
  * swallowed, and we never catch [Error] types.
  */
 @OptIn(InternalCoroutinesApi::class)
 fun CompletableDeferred<*>.propagateUpstreamFailure(failure: Throwable?) {
-    when (failure) {
+    val unwrapped = (failure as? CompletionException)?.cause ?: failure
+    when (unwrapped) {
         null -> return
-        is CompletionHandlerException -> throw failure
-        is CancellationException -> cancel(failure)
-        is Exception -> completeExceptionally(failure)
-        else -> throw failure
+        is CompletionHandlerException -> throw unwrapped
+        is CancellationException -> cancel(unwrapped)
+        is Exception -> completeExceptionally(unwrapped)
+        else -> throw unwrapped
     }
 }

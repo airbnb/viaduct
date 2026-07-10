@@ -3,6 +3,7 @@
 package viaduct.deferred
 
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -1323,6 +1324,45 @@ class DeferredExtensionsTest {
                 cf.completeExceptionally(IllegalStateException("x"))
                 val ex = assertThrows<IllegalStateException> { d.await() }
                 assertEquals("x", ex.message)
+            }
+
+        @Test
+        fun `asDeferred SLOW forwards a bare cancellation as cancellation`() =
+            runBlocking {
+                val cf = CompletableFuture<Int>()
+                val d = cf.asDeferred()
+                cf.completeExceptionally(CancellationException("cancelled"))
+                assertTrue(d.isCancelled)
+                val ex = assertThrows<CancellationException> { d.await() }
+                assertEquals("cancelled", ex.message)
+            }
+
+        @OptIn(ExperimentalCoroutinesApi::class)
+        @Test
+        fun `asDeferred SLOW forwards a CompletionException-wrapped cancellation as cancellation`() =
+            runBlocking {
+                val cf = CompletableFuture<Int>()
+                val d = cf.asDeferred()
+                val cause = RuntimeException("original failure")
+                val cancellation = CancellationException("cancelled").apply { initCause(cause) }
+                cf.completeExceptionally(CompletionException(cancellation))
+                assertTrue(d.isCancelled)
+                val stored = d.getCompletionExceptionOrNull()
+                assertTrue(stored is CancellationException)
+                assertEquals("cancelled", stored?.message)
+                assertEquals(cause, stored?.cause)
+            }
+
+        @OptIn(ExperimentalCoroutinesApi::class)
+        @Test
+        fun `asDeferred SLOW unwraps a CompletionException-wrapped failure consistently with the fast path`() =
+            runBlocking {
+                val cf = CompletableFuture<Int>()
+                val d = cf.asDeferred()
+                cf.completeExceptionally(CompletionException(IllegalStateException("x")))
+                val stored = d.getCompletionExceptionOrNull()
+                assertTrue(stored is IllegalStateException)
+                assertEquals("x", stored?.message)
             }
 
         @Test
