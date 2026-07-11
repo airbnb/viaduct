@@ -140,10 +140,9 @@ curl -X POST http://localhost:8080/graphql -H "Content-Type: application/json" \
 ```
 
 Composite-returning fields (objects, node references) can be proxied too — e.g.
-`VIADUCT_REMOTE_RESOLVER_FIELDS=Character.species` — and are fully supported in `in_process`. In
-`network` mode a composite-returning field additionally needs its sub-selection set carried over the
-wire, which is a documented follow-up; until then, proxy composite fields in `in_process` (leaf
-fields like `isAdult` work in either transport).
+`VIADUCT_REMOTE_RESOLVER_FIELDS=Character.species` — in both `in_process` and `network` mode. In
+`network` mode the field's sub-selection set is shipped over the wire so the remote can reconstruct
+it against its own schema (in `in_process` the shared registry is used directly).
 
 `VIADUCT_REMOTE_RESOLVER_TYPES` (nodes) and `VIADUCT_REMOTE_RESOLVER_FIELDS` (fields) are
 independent: node proxying defaults to *all* node types when `VIADUCT_REMOTE_RESOLVER_TYPES` is
@@ -155,9 +154,13 @@ empty, while field proxying is opt-in.
   (`VIADUCT_REMOTE_RESOLVER_FIELDS`). A proxied field result carries scalars, `null`, node references,
   resolved objects, and lists thereof; a field returning an arbitrary non-JSON, non-`EngineObjectData`
   value (or a `Map`/list-leaf containing one) is rejected at serialize time.
-- Composite-returning field resolvers (objects, node references) are fully supported in `in_process`.
-  In `network` mode they additionally need the field's selection set carried over the wire (a
-  documented follow-up); leaf-returning fields work in either transport.
+- Composite-returning field resolvers (objects, node references) are supported in both `in_process`
+  and `network` mode; in `network` mode the field's selection set is shipped over the wire and
+  reconstructed against the remote's schema.
+- Proxying the built-in `Query.node` / `Query.nodes` resolvers over `network` requires the remote
+  server to run with the *same* `GlobalIDCodec` as the caller: the remote decodes global ids with its
+  own codec, so a custom codec on only one side mis-resolves the node type. With the default codec on
+  both sides (as in the demo) they work as-is.
 - Selective resolvers (`isSelective = true`) are rejected at construction (both node and field).
 - Wire format only handles JSON-friendly engine values. Custom scalars with bespoke coercers, and
   JSR-310 types without a configured `ObjectMapper`, will fail at serialize time.

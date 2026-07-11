@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 import org.slf4j.LoggerFactory
+import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.remote.grpc.BatchResolveFieldRequest
@@ -19,6 +20,7 @@ import viaduct.remote.grpc.ErrorInfo
 import viaduct.remote.grpc.RemoteResolverServiceGrpcKt
 import viaduct.remote.grpc.ResolvedField
 import viaduct.remote.grpc.ResolvedNode
+import viaduct.remote.grpc.SerializedSelectionSet
 import viaduct.remote.registry.ContextRegistry
 import viaduct.remote.registry.FieldExecutorRegistry
 import viaduct.remote.registry.NodeExecutorRegistry
@@ -112,19 +114,40 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
         // Selector keys correlate the response (a field Selector has no natural id). deserialize is
         // suspend, so build with a loop.
         val keyedSelectors = mutableListOf<Pair<String, FieldResolverExecutor.Selector>>()
+        // A per-selector deserialization failure (malformed payload, unknown type, unparseable
+        // selection set) is isolated to that selector's error — matching the resolver-execution and
+        // value-serialization paths below — so one bad selector can't abort the whole batch.
+        val preFailed = mutableListOf<ResolvedField>()
         for (proto in request.selectorsList) {
-            val objectValue = EngineObjectDataSerializer.deserialize(proto.objectValueJson.toByteArray(), objectType)
-            val queryValue = EngineObjectDataSerializer.deserialize(proto.queryValueJson.toByteArray(), queryType)
-            val arguments = FieldValueSerializer.deserializeArguments(proto.argumentsJson.toByteArray())
-            val selections = proto.selectionsHandle.takeIf { it.isNotEmpty() }?.let { SelectionsRegistry.get(it) }
-            keyedSelectors.add(
-                proto.selectorKey to FieldResolverExecutor.Selector(
-                    arguments = arguments,
-                    selections = selections,
-                    syncObjectValueGetter = { objectValue },
-                    syncQueryValueGetter = { queryValue }
+            try {
+                val objectValue = EngineObjectDataSerializer.deserialize(proto.objectValueJson.toByteArray(), objectType)
+                val queryValue = EngineObjectDataSerializer.deserialize(proto.queryValueJson.toByteArray(), queryType)
+                val arguments = FieldValueSerializer.deserializeArguments(proto.argumentsJson.toByteArray())
+                // Prefer the shared-registry handle (IN_PROCESS fast path, preserves object identity);
+                // fall back to reconstructing the shipped selection set (NETWORK mode, no shared registry).
+                val selections = proto.selectionsHandle.takeIf { it.isNotEmpty() }?.let { SelectionsRegistry.get(it) }
+                    ?: if (proto.hasSelections()) reconstructSelections(proto.selections, remoteContext) else null
+                keyedSelectors.add(
+                    proto.selectorKey to FieldResolverExecutor.Selector(
+                        arguments = arguments,
+                        selections = selections,
+                        syncObjectValueGetter = { objectValue },
+                        syncQueryValueGetter = { queryValue }
+                    )
                 )
-            )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.warn("Failed to deserialize field selector '{}' for '{}': {}", proto.selectorKey, request.executorId, e.message, e)
+                preFailed.add(fieldError(proto.selectorKey, e))
+            }
+        }
+
+        // Every selector pre-failed deserialization — return their errors without invoking the resolver.
+        // An unbatched built-in resolver asserts `require(selectors.size == 1)`, so calling it with an
+        // empty batch would throw and misattribute the deserialization failures to the resolver.
+        if (keyedSelectors.isEmpty()) {
+            return BatchResolveFieldResponse.newBuilder().addAllResults(preFailed).build()
         }
 
         val results = try {
@@ -133,15 +156,17 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
             throw e
         } catch (e: Exception) {
             log.error("Field resolver execution failed for '{}': {}", request.executorId, e.message, e)
-            return buildFieldErrorResponse(keyedSelectors.map { it.first }, e)
+            return BatchResolveFieldResponse.newBuilder()
+                .addAllResults(keyedSelectors.map { fieldError(it.first, e) })
+                .addAllResults(preFailed)
+                .build()
         }
 
-        // serializeValue is suspend (an object result walks its selections), so build with a loop.
         // Isolate a non-serializable success value to that selector's error rather than fail the batch.
-        val protoResults = mutableListOf<ResolvedField>()
-        for ((key, selector) in keyedSelectors) {
+        // (serializeValue is suspend, but `map` is inline, so no manual accumulator loop is needed.)
+        val protoResults = keyedSelectors.map { (key, selector) ->
             val result = results[selector]
-            val proto = when {
+            when {
                 result == null -> fieldError(key, IllegalStateException("Resolver returned no result for selector '$key'"))
                 result.isSuccess ->
                     try {
@@ -156,8 +181,7 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
                     }
                 else -> fieldError(key, result.exceptionOrNull()!!)
             }
-            protoResults.add(proto)
-        }
+        } + preFailed
 
         log.debug("Returning {} field result(s) for executor '{}'", protoResults.size, request.executorId)
         return BatchResolveFieldResponse.newBuilder()
@@ -180,6 +204,23 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
         }
         callbackChannelCache.clear()
     }
+
+    // Rebuilds a field's sub-selection set from its serialized form against the remote's own schema
+    // (via the context's selection-set factory). Used when the per-JVM selections handle isn't
+    // resolvable here (NETWORK mode). A blank document means an empty selection set.
+    private fun reconstructSelections(
+        proto: SerializedSelectionSet,
+        context: RemoteEngineExecutionContext
+    ): EngineSelectionSet =
+        if (proto.document.isBlank()) {
+            EmptyEngineSelectionSet(proto.type)
+        } else {
+            context.engineSelectionSetFactory.engineSelectionSet(
+                proto.type,
+                proto.document,
+                FieldValueSerializer.deserializeArguments(proto.variablesJson.toByteArray())
+            )
+        }
 
     private fun notFound(
         kind: String,
@@ -249,14 +290,6 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
                     .build()
             )
             .build()
-
-    private fun buildFieldErrorResponse(
-        selectorKeys: List<String>,
-        error: Exception
-    ): BatchResolveFieldResponse {
-        val results = selectorKeys.map { fieldError(it, error) }
-        return BatchResolveFieldResponse.newBuilder().addAllResults(results).build()
-    }
 
     // "host:port" → network channel; anything else → in-process channel name.
     private fun createCallbackChannel(endpoint: String): ManagedChannel {

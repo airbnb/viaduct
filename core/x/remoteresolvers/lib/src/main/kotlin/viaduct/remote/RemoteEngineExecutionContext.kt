@@ -13,6 +13,7 @@ import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.ObjectEngineResult
+import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.remote.grpc.EngineCallbackServiceGrpcKt
 import viaduct.remote.grpc.QueryRequest
 import viaduct.remote.registry.SelectionsRegistry
@@ -61,13 +62,28 @@ class RemoteEngineExecutionContext(
     override val fieldScope: EngineExecutionContext.FieldExecutionScope
         get() = requireDelegate("fieldScope").fieldScope
 
-    override val engineSelectionSetFactory: EngineSelectionSet.Factory
-        get() = requireDelegate("engineSelectionSetFactory").engineSelectionSetFactory
+    // Network mode has no delegate; build a schema-only factory from localSchema so a remotely-run
+    // resolver can reconstruct sub-selection sets shipped over the wire. Mirrors the delegate-first
+    // createNodeReference / globalIDCodec fallback (delegate and localSchema are mutually exclusive —
+    // buildRemoteContext sets localSchema only when there's no delegate — so the order doesn't matter).
+    // Memoized: one factory per context instance.
+    private val localSelectionSetFactory: EngineSelectionSet.Factory? by lazy {
+        localSchema?.let { EngineSelectionSetFactoryImpl(it) }
+    }
 
+    override val engineSelectionSetFactory: EngineSelectionSet.Factory
+        get() = delegate?.engineSelectionSetFactory
+            ?: localSelectionSetFactory
+            ?: throw UnsupportedOperationException("'engineSelectionSetFactory' requires a local engine context or schema")
+
+    // A resolver running remotely may build a node reference (e.g. `ctx.nodeRef(...)`). In network
+    // mode there is no local engine to construct a fully-resolvable reference, but a resolver-produced
+    // reference only needs to carry its id + type to the wire — the engine side rebuilds a live
+    // reference on receipt — so a lightweight holder suffices and avoids requiring engine state here.
     override fun createNodeReference(
         id: String,
         graphQLObjectType: GraphQLObjectType
-    ): NodeReference = requireDelegate("createNodeReference").createNodeReference(id, graphQLObjectType)
+    ): NodeReference = delegate?.createNodeReference(id, graphQLObjectType) ?: RemoteNodeReference(id, graphQLObjectType)
 
     override fun createRootFieldReference(
         rootFieldPath: List<String>,
@@ -110,6 +126,14 @@ class RemoteEngineExecutionContext(
         }
         return EngineObjectDataSerializer.deserialize(response.objectDataJson.toByteArray(), REMOTE_RESULT_TYPE)
     }
+
+    // Minimal [NodeReference] for network mode: carries only id + type (the [EngineObject.type] used
+    // by [FieldValueSerializer] to tag the wire value). It is never resolved on the service side —
+    // the engine side rebuilds a resolvable reference via its own `createNodeReference`.
+    private class RemoteNodeReference(
+        override val id: String,
+        override val type: GraphQLObjectType
+    ) : NodeReference
 
     private companion object {
         // Type identity isn't propagated over the wire; the receiver-side builder just

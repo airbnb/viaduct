@@ -88,6 +88,21 @@ message BatchResolveFieldRequest {
   string callback_endpoint = 4;
 }
 
+// A serialized EngineSelectionSet — carries a field's sub-selections over the wire so the remote
+// can reconstruct them against its own schema. The per-JVM selections_handle below is unresolvable
+// across processes (network mode), so composite-returning field resolvers rely on this instead.
+message SerializedSelectionSet {
+  // Type condition the selections are on (EngineSelectionSet.type).
+  string type = 1;
+
+  // Fragment document string (EngineSelectionSet.toFragment().document), e.g.
+  // "fragment Main on Species { name }". Blank means an empty selection set.
+  string document = 2;
+
+  // Selection-set variables as a JSON object (Map<String, Any?>); same codec as arguments_json.
+  bytes variables_json = 3;
+}
+
 // A single field invocation to resolve
 message FieldSelector {
   // Sender-assigned key (batch index) used to correlate the response; FieldResolverExecutor
@@ -98,7 +113,8 @@ message FieldSelector {
   bytes arguments_json = 2;
 
   // Opaque handle to the EngineSelectionSet on the field (sub-selections), or empty when
-  // the field has no selections / the registry is not shared (network mode).
+  // the field has no selections / the registry is not shared (network mode). In-process fast
+  // path: preferred when resolvable (preserves object identity); network falls back to `selections`.
   string selections_handle = 3;
 
   // Eagerly-resolved required-selection-set object value (the parent object), as serialized
@@ -108,6 +124,10 @@ message FieldSelector {
   // Eagerly-resolved required-selection-set query value, as serialized EngineObjectData —
   // an empty object when the resolver declares no query selection set.
   bytes query_value_json = 5;
+
+  // Serialized sub-selection set, populated whenever the selector has a non-empty selection set.
+  // The remote reconstructs it against its own schema when selections_handle isn't resolvable.
+  SerializedSelectionSet selections = 6;
 }
 
 // Response containing resolved field values

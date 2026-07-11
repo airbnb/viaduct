@@ -3,16 +3,19 @@ package viaduct.remote
 import com.google.protobuf.ByteString
 import io.grpc.ManagedChannel
 import java.time.Duration
+import java.util.IdentityHashMap
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 import org.slf4j.LoggerFactory
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.remote.grpc.BatchResolveFieldRequest
 import viaduct.remote.grpc.FieldSelector as ProtoFieldSelector
 import viaduct.remote.grpc.RemoteResolverServiceGrpcKt
+import viaduct.remote.grpc.SerializedSelectionSet
 import viaduct.remote.registry.ContextRegistry
 import viaduct.remote.registry.SelectionsRegistry
 
@@ -79,19 +82,43 @@ class RemoteFieldProxyExecutor(
             // resolved object). Isolate that to the offending selector's Result and still send the rest —
             // mirroring the RRS-side per-selector isolation — rather than failing the whole batch.
             val preFailed = mutableMapOf<FieldResolverExecutor.Selector, Result<Any?>>()
+            // A batched field usually shares one selection-set instance across all its selectors; build
+            // the wire form (handle + serialized selection set) once per distinct instance rather than
+            // re-render the selection-set AST for every selector.
+            val wireSelections = IdentityHashMap<EngineSelectionSet, WireSelections>()
             for ((index, selector) in indexed) {
                 try {
-                    val selectionsHandle = selector.selections?.let { SelectionsRegistry.register(it) } ?: ""
-                    if (selectionsHandle.isNotEmpty()) selectionsHandles.add(selectionsHandle)
-                    protoSelectors.add(
-                        ProtoFieldSelector.newBuilder()
-                            .setSelectorKey(index.toString())
-                            .setArgumentsJson(ByteString.copyFrom(FieldValueSerializer.serializeArguments(selector.arguments)))
-                            .setSelectionsHandle(selectionsHandle)
-                            .setObjectValueJson(ByteString.copyFrom(EngineObjectDataSerializer.serialize(selector.syncObjectValueGetter())))
-                            .setQueryValueJson(ByteString.copyFrom(EngineObjectDataSerializer.serialize(selector.syncQueryValueGetter())))
-                            .build()
-                    )
+                    val selections = selector.selections
+                    val wire = selections?.let { sel ->
+                        wireSelections.getOrPut(sel) {
+                            val handle = SelectionsRegistry.register(sel)
+                            selectionsHandles.add(handle)
+                            // The handle is per-JVM (unresolvable in NETWORK mode), so also ship the
+                            // selection set itself; the remote reconstructs it against its own schema. Even
+                            // a fully-@skip'd (empty) composite set must stay NON-null on the remote or the
+                            // tenant runtime rejects the composite return. `.document`/`.variables` both
+                            // derive from toFragment(), so capture it once.
+                            val fragment = sel.toFragment()
+                            WireSelections(
+                                handle = handle,
+                                proto = SerializedSelectionSet.newBuilder()
+                                    .setType(sel.type)
+                                    .setDocument(fragment.document)
+                                    .setVariablesJson(ByteString.copyFrom(FieldValueSerializer.serializeArguments(fragment.variables.asMap())))
+                                    .build()
+                            )
+                        }
+                    }
+                    val builder = ProtoFieldSelector.newBuilder()
+                        .setSelectorKey(index.toString())
+                        .setArgumentsJson(ByteString.copyFrom(FieldValueSerializer.serializeArguments(selector.arguments)))
+                        .setSelectionsHandle(wire?.handle ?: "")
+                        .setObjectValueJson(ByteString.copyFrom(EngineObjectDataSerializer.serialize(selector.syncObjectValueGetter())))
+                        .setQueryValueJson(ByteString.copyFrom(EngineObjectDataSerializer.serialize(selector.syncQueryValueGetter())))
+                    // A missing `selections` means "no sub-selections" (leaf field); otherwise ship the
+                    // reconstructable selection set built above.
+                    if (wire != null) builder.setSelections(wire.proto)
+                    protoSelectors.add(builder.build())
                     sent.add(index to selector)
                 } catch (e: CancellationException) {
                     throw e
@@ -151,3 +178,9 @@ class RemoteFieldProxyExecutor(
         }
     }
 }
+
+/** Memoized wire form of a selection set: its per-JVM registry [handle] and its serialized [proto]. */
+private data class WireSelections(
+    val handle: String,
+    val proto: SerializedSelectionSet
+)

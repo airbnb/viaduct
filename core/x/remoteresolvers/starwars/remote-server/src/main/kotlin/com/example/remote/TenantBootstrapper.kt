@@ -14,6 +14,7 @@ import viaduct.remote.registry.NodeExecutorRegistry
 import viaduct.remote.registry.SchemaRegistry
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
+import viaduct.service.runtime.builtinresolvers.ViaductBuiltInResolversBootstrapper
 
 /**
  * Builds node- and field-resolver executors from the tenant-module manifests on the classpath
@@ -39,13 +40,18 @@ class TenantBootstrapper(private val tenantCodeInjector: CodeInjector) {
 
         // Build executors straight from the tenant manifests — no Viaduct engine instance needed.
         val (nodeExecutors, fieldExecutors) = runBlocking {
-            val bootstrappers = BootstrapperFactory.fromConfigSources(
+            val tenantBootstrappers = BootstrapperFactory.fromConfigSources(
                 SharedTenantModuleInjectorFactory(tenantCodeInjector),
                 ExecutionRegistryConfigSourceCollector.fromResources(),
             ).tenantModuleBootstrappers()
                 .toList()
-            val nodes = bootstrappers.flatMap { it.nodeResolverExecutors(schema) }
-            val fields = bootstrappers.flatMap { it.fieldResolverExecutors(schema) }
+            // Also register the engine's built-in resolvers (Query.node / Query.nodes and
+            // @namespaceType field resolvers). They aren't in the tenant manifests — the engine adds
+            // them separately at startup — so proxying e.g. Query.node needs them registered here too.
+            val builtinBootstrappers = ViaductBuiltInResolversBootstrapper().tenantModuleBootstrappers().toList()
+            val allBootstrappers = tenantBootstrappers + builtinBootstrappers
+            val nodes = allBootstrappers.flatMap { it.nodeResolverExecutors(schema) }
+            val fields = allBootstrappers.flatMap { it.fieldResolverExecutors(schema) }
             nodes to fields
         }
 

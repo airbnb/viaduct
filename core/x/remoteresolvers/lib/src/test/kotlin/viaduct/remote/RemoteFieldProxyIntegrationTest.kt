@@ -2,10 +2,13 @@
 
 package viaduct.remote
 
+import com.google.protobuf.ByteString
 import graphql.schema.GraphQLObjectType
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -24,8 +27,12 @@ import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.remote.fixtures.ArgumentEchoFieldResolverExecutor
 import viaduct.remote.fixtures.CallbackFieldResolverExecutor
 import viaduct.remote.fixtures.SimpleFieldResolverExecutor
+import viaduct.remote.grpc.BatchResolveFieldRequest
+import viaduct.remote.grpc.FieldSelector
+import viaduct.remote.grpc.SerializedSelectionSet
 import viaduct.remote.registry.ContextRegistry
 import viaduct.remote.registry.FieldExecutorRegistry
+import viaduct.remote.registry.SchemaRegistry
 import viaduct.remote.registry.SelectionsRegistry
 
 /**
@@ -122,6 +129,14 @@ class RemoteFieldProxyIntegrationTest {
         }
     }
 
+    // The direct-batchResolveField tests register a schema in the process-global SchemaRegistry to
+    // drive the NETWORK reconstruction path; withServers clears the other registries in its finally
+    // but not this one. Clear it after every test so a registered schema can't leak into a later test.
+    @AfterEach
+    fun clearSchemaRegistry() {
+        SchemaRegistry.clear()
+    }
+
     @Test
     fun `field value round-trips through the full gRPC stack`() =
         runBlocking {
@@ -167,6 +182,58 @@ class RemoteFieldProxyIntegrationTest {
                 assertEquals(2, results.size, "Should have one result per selector")
                 assertEquals(true, results[adultSelector]?.getOrNull(), "age 40 should resolve isAdult=true")
                 assertEquals(false, results[minorSelector]?.getOrNull(), "age 12 should resolve isAdult=false")
+            }
+        }
+
+    @Test
+    fun `a batch sharing one selection-set instance resolves every selector`() =
+        runBlocking {
+            // The proxy memoizes the shipped selection set by object identity (one toFragment()/
+            // register per distinct instance). Drive a batch whose selectors all share ONE non-null
+            // EngineSelectionSet instance and verify every selector still round-trips to its own value —
+            // memoizing the shared selection set must not collapse or corrupt the per-selector results.
+            withServers { rrsChannel, callbackEndpoint, context ->
+                val executor = SimpleFieldResolverExecutor()
+                val executorId = FieldExecutorRegistry.register(executor)
+                val proxy = RemoteFieldProxyExecutor(
+                    originalExecutor = executor,
+                    executorId = executorId,
+                    rrsChannel = rrsChannel,
+                    callbackEndpoint = callbackEndpoint
+                )
+
+                // One selection-set instance shared across all three selectors.
+                val sharedSelections = createEngineSelectionSet(
+                    SelectionsParser.parse("Character", "name"),
+                    testSchema,
+                    emptyMap()
+                )
+
+                // A fresh syncObjectValueGetter per call keeps the selectors distinct map keys (Selector
+                // identity keys on that lambda) even though they share the same arguments and selections.
+                fun selectorSharing(age: Int): FieldResolverExecutor.Selector {
+                    val objectValue = characterObjectValue(age)
+                    val queryValue = emptyQueryValue()
+                    return FieldResolverExecutor.Selector(
+                        arguments = emptyMap(),
+                        selections = sharedSelections,
+                        syncObjectValueGetter = { objectValue },
+                        syncQueryValueGetter = { queryValue }
+                    )
+                }
+
+                val adultSelector = selectorSharing(40)
+                val minorSelector = selectorSharing(12)
+                val secondAdultSelector = selectorSharing(21)
+                val results = proxy.batchResolve(
+                    listOf(adultSelector, minorSelector, secondAdultSelector),
+                    context
+                )
+
+                assertEquals(3, results.size, "each selector sharing the selection set should resolve independently")
+                assertEquals(true, results[adultSelector]?.getOrNull(), "age 40 should resolve isAdult=true")
+                assertEquals(false, results[minorSelector]?.getOrNull(), "age 12 should resolve isAdult=false")
+                assertEquals(true, results[secondAdultSelector]?.getOrNull(), "age 21 should resolve isAdult=true")
             }
         }
 
@@ -563,6 +630,222 @@ class RemoteFieldProxyIntegrationTest {
                         "confirming the callback fired. Got errorType=${exception.errorType}, message=${exception.message}"
                 )
             }
+        }
+
+    @Test
+    fun `a serialized selection set is reconstructed on the remote when the handle is unresolvable`() =
+        runBlocking {
+            // Simulates NETWORK mode: the per-JVM selections handle isn't resolvable on the remote, so
+            // the service must rebuild the field's sub-selection set from the serialized {type,
+            // document, variables} shipped in the FieldSelector. We call batchResolveField directly with
+            // an EMPTY handle + serialized selections and an UNREGISTERED context handle (forcing the
+            // schema-only reconstruction path), and capture the selection set the resolver receives.
+            FieldExecutorRegistry.clear()
+            ContextRegistry.clear()
+            SelectionsRegistry.clear()
+            SchemaRegistry.register(testSchema)
+
+            val received = AtomicReference<String?>()
+            val recording = object : FieldResolverExecutor by SimpleFieldResolverExecutor(resolverId = "Character.friend") {
+                override suspend fun batchResolve(
+                    selectors: List<FieldResolverExecutor.Selector>,
+                    context: EngineExecutionContext
+                ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
+                    received.set(selectors.first().selections?.printAsFieldSet())
+                    return selectors.associateWith { Result.success(true) }
+                }
+            }
+            val executorId = FieldExecutorRegistry.register(recording)
+
+            // The selection set we "ship" — on Character (a testSchema type), fields name + age.
+            val shipped = createEngineSelectionSet(SelectionsParser.parse("Character", "name age"), testSchema, emptyMap())
+            val request = BatchResolveFieldRequest.newBuilder()
+                .setExecutorId(executorId)
+                .setContextHandle("net-${System.nanoTime()}") // unregistered → schema-only (network) context
+                .setCallbackEndpoint("cb-${System.nanoTime()}")
+                .addSelectors(
+                    FieldSelector.newBuilder()
+                        .setSelectorKey("0")
+                        .setArgumentsJson(ByteString.copyFrom(FieldValueSerializer.serializeArguments(emptyMap())))
+                        .setSelectionsHandle("") // force the serialized reconstruction path
+                        .setObjectValueJson(ByteString.copyFrom(EngineObjectDataSerializer.serialize(characterObjectValue(25))))
+                        .setQueryValueJson(ByteString.copyFrom(EngineObjectDataSerializer.serialize(emptyQueryValue())))
+                        .setSelections(
+                            SerializedSelectionSet.newBuilder()
+                                .setType(shipped.type)
+                                .setDocument(shipped.document)
+                                .setVariablesJson(ByteString.copyFrom(FieldValueSerializer.serializeArguments(shipped.variables)))
+                                .build()
+                        )
+                        .build()
+                )
+                .build()
+
+            val response = RemoteResolverServiceImpl().batchResolveField(request)
+
+            assertEquals(1, response.resultsCount, "one result expected")
+            assertNotNull(received.get(), "resolver should receive a reconstructed (non-null) selection set")
+            assertEquals(
+                shipped.printAsFieldSet(),
+                received.get(),
+                "the reconstructed selection set should match what was shipped"
+            )
+        }
+
+    @Test
+    fun `an empty blank-document selection set reconstructs to a non-null empty set`() =
+        runBlocking {
+            // Regression: a composite field whose sub-selection is entirely @skip'd ships a blank
+            // document. It must reconstruct to a NON-null (empty) selection set on the remote, or a
+            // composite-returning resolver hits the "null selection set on a composite type" error.
+            FieldExecutorRegistry.clear()
+            ContextRegistry.clear()
+            SelectionsRegistry.clear()
+            SchemaRegistry.register(testSchema)
+
+            val received = AtomicReference<Any?>(null)
+            val recording = object : FieldResolverExecutor by SimpleFieldResolverExecutor(resolverId = "Character.friend") {
+                override suspend fun batchResolve(
+                    selectors: List<FieldResolverExecutor.Selector>,
+                    context: EngineExecutionContext
+                ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
+                    received.set(selectors.first().selections)
+                    return selectors.associateWith { Result.success(true) }
+                }
+            }
+            val executorId = FieldExecutorRegistry.register(recording)
+
+            val request = BatchResolveFieldRequest.newBuilder()
+                .setExecutorId(executorId)
+                .setContextHandle("net-${System.nanoTime()}")
+                .setCallbackEndpoint("cb-${System.nanoTime()}")
+                .addSelectors(
+                    FieldSelector.newBuilder()
+                        .setSelectorKey("0")
+                        .setArgumentsJson(ByteString.copyFrom(FieldValueSerializer.serializeArguments(emptyMap())))
+                        .setSelectionsHandle("")
+                        .setObjectValueJson(ByteString.copyFrom(EngineObjectDataSerializer.serialize(characterObjectValue(25))))
+                        .setQueryValueJson(ByteString.copyFrom(EngineObjectDataSerializer.serialize(emptyQueryValue())))
+                        // Blank document = a fully-skipped (empty) selection set.
+                        .setSelections(
+                            SerializedSelectionSet.newBuilder()
+                                .setType("Character")
+                                .setDocument("")
+                                .setVariablesJson(ByteString.copyFrom(FieldValueSerializer.serializeArguments(emptyMap())))
+                                .build()
+                        )
+                        .build()
+                )
+                .build()
+
+            RemoteResolverServiceImpl().batchResolveField(request)
+            assertTrue(
+                received.get() is EmptyEngineSelectionSet,
+                "a blank-document selection set must reconstruct to a non-null empty set, got ${received.get()}"
+            )
+        }
+
+    @Test
+    fun `a malformed selection set fails only its own selector, not the batch`() =
+        runBlocking {
+            FieldExecutorRegistry.clear()
+            ContextRegistry.clear()
+            SelectionsRegistry.clear()
+            SchemaRegistry.register(testSchema)
+
+            val recording = object : FieldResolverExecutor by SimpleFieldResolverExecutor(resolverId = "Character.friend") {
+                override suspend fun batchResolve(
+                    selectors: List<FieldResolverExecutor.Selector>,
+                    context: EngineExecutionContext
+                ): Map<FieldResolverExecutor.Selector, Result<Any?>> = selectors.associateWith { Result.success(true) }
+            }
+            val executorId = FieldExecutorRegistry.register(recording)
+
+            suspend fun selector(
+                key: String,
+                document: String
+            ) = FieldSelector.newBuilder()
+                .setSelectorKey(key)
+                .setArgumentsJson(ByteString.copyFrom(FieldValueSerializer.serializeArguments(emptyMap())))
+                .setSelectionsHandle("")
+                .setObjectValueJson(ByteString.copyFrom(EngineObjectDataSerializer.serialize(characterObjectValue(25))))
+                .setQueryValueJson(ByteString.copyFrom(EngineObjectDataSerializer.serialize(emptyQueryValue())))
+                .setSelections(
+                    SerializedSelectionSet.newBuilder()
+                        .setType("Character")
+                        .setDocument(document)
+                        .setVariablesJson(ByteString.copyFrom(FieldValueSerializer.serializeArguments(emptyMap())))
+                        .build()
+                )
+                .build()
+
+            val request = BatchResolveFieldRequest.newBuilder()
+                .setExecutorId(executorId)
+                .setContextHandle("net-${System.nanoTime()}")
+                .setCallbackEndpoint("cb-${System.nanoTime()}")
+                .addSelectors(selector("good", "fragment _ on Character { name }"))
+                .addSelectors(selector("bad", "}} not a valid document {{"))
+                .build()
+
+            val byKey = RemoteResolverServiceImpl().batchResolveField(request).resultsList.associateBy { it.selectorKey }
+            assertEquals(2, byKey.size, "both selectors should be represented in the response")
+            assertTrue(byKey.getValue("good").hasValueJson(), "the valid selector should still resolve")
+            assertTrue(byKey.getValue("bad").hasError(), "the malformed selector should be an isolated per-selector error")
+        }
+
+    @Test
+    fun `every selector failing deserialization returns errors without invoking the resolver`() =
+        runBlocking {
+            // Regression: when *every* selector fails to deserialize, batchResolveField returns their
+            // per-selector errors WITHOUT calling the resolver. Invoking an unbatched built-in resolver
+            // with the empty surviving-selector list would trip its `require(selectors.size == 1)` and
+            // misattribute the deserialization failures to the resolver.
+            FieldExecutorRegistry.clear()
+            ContextRegistry.clear()
+            SelectionsRegistry.clear()
+            SchemaRegistry.register(testSchema)
+
+            val batchResolveInvoked = AtomicReference(false)
+            val spy = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
+                override suspend fun batchResolve(
+                    selectors: List<FieldResolverExecutor.Selector>,
+                    context: EngineExecutionContext
+                ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
+                    batchResolveInvoked.set(true)
+                    return selectors.associateWith { Result.success(true) }
+                }
+            }
+            val executorId = FieldExecutorRegistry.register(spy)
+
+            // Both selectors carry malformed object-value bytes, so both fail
+            // EngineObjectDataSerializer.deserialize before the resolver would ever run.
+            suspend fun malformedSelector(key: String) =
+                FieldSelector.newBuilder()
+                    .setSelectorKey(key)
+                    .setArgumentsJson(ByteString.copyFrom(FieldValueSerializer.serializeArguments(emptyMap())))
+                    .setSelectionsHandle("")
+                    .setObjectValueJson(ByteString.copyFromUtf8("}} not valid json {{"))
+                    .setQueryValueJson(ByteString.copyFrom(EngineObjectDataSerializer.serialize(emptyQueryValue())))
+                    .build()
+
+            val request = BatchResolveFieldRequest.newBuilder()
+                .setExecutorId(executorId)
+                .setContextHandle("net-${System.nanoTime()}")
+                .setCallbackEndpoint("cb-${System.nanoTime()}")
+                .addSelectors(malformedSelector("0"))
+                .addSelectors(malformedSelector("1"))
+                .build()
+
+            val response = RemoteResolverServiceImpl().batchResolveField(request)
+
+            assertFalse(
+                batchResolveInvoked.get(),
+                "resolver must not be invoked when every selector fails deserialization"
+            )
+            val byKey = response.resultsList.associateBy { it.selectorKey }
+            assertEquals(2, byKey.size, "both selectors should be represented in the response")
+            assertTrue(byKey.getValue("0").hasError(), "selector 0 should be an isolated per-selector error")
+            assertTrue(byKey.getValue("1").hasError(), "selector 1 should be an isolated per-selector error")
         }
 
     // An arbitrary type the wire format can't carry (not a scalar, list, map, EngineObjectData, or
