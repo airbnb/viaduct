@@ -51,6 +51,9 @@ interface FlagManager {
          */
         ENABLE_SELECTIVE_OER_KEYS("enable_selective_oer_keys"),
 
+        /** Enables the Mat-based resolver workflow, which differentially executes resolvers */
+        ENABLE_MAT_RESOLUTION("enable_mat_resolution"),
+
         /** Killswitch for non-blocking enqueue flush in the coroutine dispatcher. */
         KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH("common.kotlin.nextTickDispatcher.killswitch.nonBlockingEnqueueFlush"),
 

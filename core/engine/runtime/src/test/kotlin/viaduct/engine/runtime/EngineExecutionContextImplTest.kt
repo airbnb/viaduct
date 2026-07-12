@@ -47,6 +47,21 @@ class EngineExecutionContextImplTest {
         assertFalse(disabledContext.isResolverSelective(selectiveCoordinate))
     }
 
+    @Test
+    fun `mat resolution flag is latched per request`() {
+        var enabled = true
+        val flagManager = object : FlagManager {
+            override fun isEnabled(flag: FlagManager.Flag): Boolean = flag == FlagManager.Flags.ENABLE_MAT_RESOLUTION && enabled
+        }
+        val enabledContext = engineExecutionContext(flagManager)
+
+        enabled = false
+
+        assertTrue(enabledContext.matResolutionEnabled)
+        assertTrue(enabledContext.copy().matResolutionEnabled)
+        assertFalse(engineExecutionContext(flagManager).matResolutionEnabled)
+    }
+
     private fun engineExecutionContext(
         flagManager: FlagManager,
         fullSchema: ViaductSchema = ContextMocks().fullSchema,

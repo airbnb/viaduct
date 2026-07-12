@@ -1160,7 +1160,7 @@ class EngineSelectionSetImplTest {
 
     @Test
     fun `selectionSetForSelection -- empty`() {
-        mk("Query", "__typename @if(skip:true)", "extend type Query { x: Query }").let {
+        mk("Query", "__typename @skip(if:true)", "extend type Query { x: Query }").let {
             assertThrows<IllegalArgumentException> {
                 it.selectionSetForSelection("Query", "x")
             }
@@ -1302,6 +1302,25 @@ class EngineSelectionSetImplTest {
     @Test
     fun `selectionSetForType -- widening inline fragment keeps enclosing type constraint`() {
         val ss = mk("Node", "... on Baz { ... on Node { id } }")
+
+        assertEquals(setOf("id"), ss.selectionSetForType("Node").typeFields.keys)
+        assertEquals(setOf("id"), ss.selectionSetForType("Baz").typeFields.keys)
+        assertEquals(emptySet<String>(), ss.selectionSetForType("Foo").typeFields.keys)
+    }
+
+    @Test
+    fun `selectionSetForType -- widening fragment spread keeps enclosing type constraint`() {
+        val ss = mk(
+            "Node",
+            """
+                fragment Main on Node {
+                  ... on Baz {
+                    ...Frag
+                  }
+                }
+                fragment Frag on Node { id }
+            """.trimIndent()
+        )
 
         assertEquals(setOf("id"), ss.selectionSetForType("Node").typeFields.keys)
         assertEquals(setOf("id"), ss.selectionSetForType("Baz").typeFields.keys)

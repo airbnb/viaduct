@@ -14,6 +14,7 @@ import graphql.execution.ResultPath
 import graphql.execution.ValuesResolver
 import graphql.execution.directives.QueryDirectivesImpl
 import graphql.language.Argument
+import graphql.language.SelectionSet as GJSelectionSet
 import graphql.language.VariableDefinition
 import graphql.normalized.ExecutableNormalizedField
 import graphql.schema.DataFetchingEnvironment
@@ -22,13 +23,17 @@ import graphql.schema.DataFetchingFieldSelectionSetImpl
 import graphql.schema.FieldCoordinates
 import graphql.schema.GraphQLArgument
 import graphql.schema.GraphQLCodeRegistry
+import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLFieldDefinition
+import graphql.schema.GraphQLNamedType
 import graphql.schema.GraphQLObjectType
+import graphql.schema.GraphQLTypeUtil
 import graphql.util.FpKit
 import java.util.Locale
 import java.util.function.Supplier
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
@@ -38,12 +43,14 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
 import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
+import viaduct.engine.runtime.EngineExecutionContextExtensions.matResolutionEnabled
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.observability.ExecutionObservabilityContext
+import viaduct.graphql.utils.ParsedSelections
 
 object FieldExecutionHelpers {
     val executionStepInfoFactory = ExecutionStepInfoFactory()
@@ -92,6 +99,32 @@ object FieldExecutionHelpers {
             field.alias,
             parameters.executionStepInfo.arguments,
             selectionSet
+        )
+    }
+
+    internal fun engineSelectionSet(ctx: EngineExecutionContext): EngineSelectionSet? = engineSelectionSet(ctx.executionHandle!!.asExecutionParameters())
+
+    internal fun engineSelectionSet(parameters: ExecutionParameters): EngineSelectionSet? {
+        val field = requireNotNull(parameters.field)
+
+        if (parameters.engineExecutionContext.matResolutionEnabled) {
+            return ExecutionSelectionSet.createForField(parameters, field)
+        }
+
+        val unwrappedType = GraphQLTypeUtil.unwrapAll(parameters.executionStepInfo.type)
+        if (unwrappedType !is GraphQLCompositeType) return null
+        val typeName = (unwrappedType as GraphQLNamedType).name
+
+        val selections = field.mergedField.fields.mapNotNull { it.selectionSet }
+            .flatMap { it.selections }
+            .let(::GJSelectionSet)
+        return parameters.engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(
+            ParsedSelections(
+                typeName,
+                selections,
+                parameters.engineExecutionContext.fieldScope.fragments,
+            ),
+            parameters.coercedVariables.toMap(),
         )
     }
 

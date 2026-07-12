@@ -31,6 +31,9 @@ interface EngineSelectionSet {
     /** the type condition of this selection set */
     val type: String
 
+    /** the [ViaductSchema] that this EngineSelectionSet describes */
+    val schema: ViaductSchema
+
     val document: String
         get() = toFragment().document
 
@@ -66,7 +69,7 @@ interface EngineSelectionSet {
 
     /**
      * Return the result keys (aliases or field names) of selections that were excluded from
-     * this selection set because an @skip or @include directive evaluated to a definite drop.
+     * this selection set due to a skip or include directive.
      *
      * These keys are absent from [selections] and will not appear in resolved data, but
      * are distinct from fields that were never part of the original fragment — callers can
