@@ -29,7 +29,6 @@ import viaduct.service.api.spi.InputStreamSource;
 import viaduct.service.api.spi.NaiveTenantModuleInjectorFactory;
 import viaduct.service.api.spi.ResolverErrorBuilder;
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory;
-import viaduct.service.runtime.SchemaConfiguration;
 import viaduct.service.spi.JavaCodeInjector;
 import viaduct.service.spi.JavaErrorReporter;
 import viaduct.service.spi.JavaFlagManager;
@@ -167,26 +166,22 @@ class ServiceApiJavaCoverageTest {
   }
 
   private static Viaduct buildMinimalViaduct() {
-    final var schemaConfig =
-        SchemaConfiguration.Companion.fromSdl(
-            SDL,
-            Set.of(new SchemaConfiguration.ScopeConfig("public", Set.of("viaduct-public"))),
-            false);
+    final var scopedSchemas = List.of(new SchemaScopeInfo("public", Set.of("viaduct-public")));
     return new ViaductBuilder()
         .withFlagManager(new JavaFlagManager())
         // No public "no tenants" switch (withNoTenantAPIBootstrapper is internal); the public
         // path supplies an injector factory and discovers zero tenants on this classpath.
         .withTenantModuleInjectorFactory(NaiveTenantModuleInjectorFactory.INSTANCE)
         .withLenientResolverValidation(true)
-        .withSchemaConfiguration(schemaConfig)
+        .withScopedSchemasFromSdl(SDL, scopedSchemas)
         .build();
   }
 
   /**
    * Never invoked — exists purely to prove these calls COMPILE from Java. Kept out of the executed
    * tests because {@link BasicViaductFactory#create} discovers tenant modules from the classpath
-   * and {@code SchemaConfiguration.getDEFAULT()} loads schema resources, neither of which exists
-   * here; building/executing is already covered by {@link #executionSmoke()}.
+   * and {@code withScopedSchemas} loads schema resources, neither of which exists here;
+   * building/executing is already covered by {@link #executionSmoke()}.
    */
   @SuppressWarnings("unused")
   private static void compileOnlyReferences() {
@@ -195,21 +190,22 @@ class ServiceApiJavaCoverageTest {
     final Viaduct v1 = factory.create();
     final Viaduct v2 = factory.create(NaiveTenantModuleInjectorFactory.INSTANCE);
     final Viaduct v3 = factory.create(NaiveTenantModuleInjectorFactory.INSTANCE, List.of());
+    final var scopedSchemas = List.of(new SchemaScopeInfo("public", Set.of("viaduct-public")));
 
     // Every public, non-experimental ViaductBuilder setter is Java-callable.
     final Viaduct v4 =
         new ViaductBuilder()
             .withFlagManager(new JavaFlagManager())
             .withTenantModuleInjectorFactory(NaiveTenantModuleInjectorFactory.INSTANCE)
-            .withScopedSchemas(List.of(new SchemaScopeInfo("public", Set.of("viaduct-public"))))
-            .withSchemaConfiguration(SchemaConfiguration.Companion.getDEFAULT()) // S5
+            .withScopedSchemas(scopedSchemas)
+            .withScopedSchemasFromSdl(SDL, scopedSchemas)
             .withMeterRegistry(new SimpleMeterRegistry())
-            .withResolverErrorReporter(ErrorReporter.Companion.getNOOP()) // S5
-            .withDataFetcherErrorBuilder(ResolverErrorBuilder.Companion.getNOOP()) // S5
+            .withResolverErrorReporter(ErrorReporter.Companion.getNOOP())
+            .withDataFetcherErrorBuilder(ResolverErrorBuilder.Companion.getNOOP())
             .withGlobalIDCodec(new JavaGlobalIDCodec())
             .withLenientResolverValidation(true)
             .build();
-    // note: SchemaConfiguration.fromSchema(ViaductSchema) requires a non-service (engine) type,
-    //       so it is intentionally not exercised here; the smoke uses fromSdl instead.
+    // note: the runtime SchemaConfiguration type is internal; Java schema setup goes through
+    //       withScopedSchemas / withScopedSchemasFromSdl.
   }
 }

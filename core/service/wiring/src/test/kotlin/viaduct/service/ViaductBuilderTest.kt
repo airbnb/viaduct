@@ -1,8 +1,5 @@
 package viaduct.service
 
-import graphql.schema.idl.RuntimeWiring
-import graphql.schema.idl.SchemaGenerator
-import graphql.schema.idl.SchemaParser
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -28,28 +25,18 @@ import viaduct.service.api.spi.FlagManager.Flag
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.TenantModuleInjectorFactory
-import viaduct.service.runtime.SchemaConfiguration
 
 class ViaductBuilderTest {
-    val schema = mkSchema(
+    // fromSdl parses this raw SDL and the framework injects the @scope/@resolver directive
+    // definitions, so the SDL must not redeclare them (redeclaring a core directive fails the
+    // schema build). helloWorld has no registered resolver, so strict validation rejects it
+    // unless withLenientResolverValidation() is set.
+    val sdl =
         """
-             directive @resolver(isSelective: Boolean! = false) on FIELD_DEFINITION | OBJECT
-             directive @backingData(class: String!) on FIELD_DEFINITION
-
-             type Query @scope(to: ["*"]) {
-              _: String @deprecated
-             }
-             type Mutation @scope(to: ["*"]) {
-               _: String @deprecated
-             }
-
-             directive @scope(to: [String!]!) repeatable on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
-
              extend type Query @scope(to: ["publicScope"]) {
               helloWorld: String @resolver
              }
         """
-    )
 
     val flagManager = object : FlagManager {
         override fun isEnabled(flag: Flag) = true
@@ -57,32 +44,36 @@ class ViaductBuilderTest {
 
     @Test
     fun testBuilderProxy() {
-        val schemaConfiguration = SchemaConfiguration.fromSchema(
-            schema,
-            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
-        )
         ViaductBuilder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withSchemaConfiguration(schemaConfiguration)
+            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo("public", setOf("publicScope"))))
             .build().let {
                 assertNotNull(it)
             }
     }
 
     @Test
-    fun testWithMeterRegistry() {
-        val meterRegistry = SimpleMeterRegistry()
-        val schemaConfiguration = SchemaConfiguration.fromSchema(
-            schema,
-            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
-        )
+    fun testWithScopedSchemasFromSdl() {
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withSchemaConfiguration(schemaConfiguration)
+            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo("public", setOf("publicScope"))))
+            .build()
+
+        assertNotNull(viaduct)
+    }
+
+    @Test
+    fun testWithMeterRegistry() {
+        val meterRegistry = SimpleMeterRegistry()
+        val viaduct = ViaductBuilder()
+            .withFlagManager(flagManager)
+            .withNoTenantAPIBootstrapper()
+            .withLenientResolverValidation()
+            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo("public", setOf("publicScope"))))
             .withMeterRegistry(meterRegistry)
             .build()
 
@@ -94,15 +85,11 @@ class ViaductBuilderTest {
         val errorReporter = ErrorReporter { _, _, _ ->
             // No-op for testing
         }
-        val schemaConfiguration = SchemaConfiguration.fromSchema(
-            schema,
-            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
-        )
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withSchemaConfiguration(schemaConfiguration)
+            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo("public", setOf("publicScope"))))
             .withResolverErrorReporter(errorReporter)
             .build()
 
@@ -112,15 +99,11 @@ class ViaductBuilderTest {
     @Test
     fun testWithDataFetcherErrorBuilder() {
         val errorBuilder = ResolverErrorBuilder.NOOP
-        val schemaConfiguration = SchemaConfiguration.fromSchema(
-            schema,
-            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
-        )
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withSchemaConfiguration(schemaConfiguration)
+            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo("public", setOf("publicScope"))))
             .withDataFetcherErrorBuilder(errorBuilder)
             .build()
 
@@ -132,17 +115,13 @@ class ViaductBuilderTest {
         val meterRegistry = SimpleMeterRegistry()
         val errorReporter = ErrorReporter.NOOP
         val errorBuilder = ResolverErrorBuilder.NOOP
-        val schemaConfiguration = SchemaConfiguration.fromSchema(
-            schema,
-            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
-        )
 
         val builder = ViaductBuilder()
         val result = builder
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withSchemaConfiguration(schemaConfiguration)
+            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo("public", setOf("publicScope"))))
             .withMeterRegistry(meterRegistry)
             .withResolverErrorReporter(errorReporter)
             .withDataFetcherErrorBuilder(errorBuilder)
@@ -160,17 +139,13 @@ class ViaductBuilderTest {
         val meterRegistry = SimpleMeterRegistry()
         val errorReporter = ErrorReporter.NOOP
         val errorBuilder = ResolverErrorBuilder.NOOP
-        val schemaConfiguration = SchemaConfiguration.fromSchema(
-            schema,
-            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
-        )
 
         // Test that all observability methods can be used together
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withSchemaConfiguration(schemaConfiguration)
+            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo("public", setOf("publicScope"))))
             .withMeterRegistry(meterRegistry)
             .withResolverErrorReporter(errorReporter)
             .withDataFetcherErrorBuilder(errorBuilder)
@@ -183,10 +158,6 @@ class ViaductBuilderTest {
     fun testObservabilityWithOtherBuilderMethods() {
         val meterRegistry = SimpleMeterRegistry()
         val errorReporter = ErrorReporter.NOOP
-        val schemaConfiguration = SchemaConfiguration.fromSchema(
-            schema,
-            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
-        )
 
         // Test that observability methods work with other builder methods
         val viaduct = ViaductBuilder()
@@ -195,7 +166,7 @@ class ViaductBuilderTest {
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
             .withResolverErrorReporter(errorReporter) // Observability in the middle
-            .withSchemaConfiguration(schemaConfiguration)
+            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo("public", setOf("publicScope"))))
             .build()
 
         assertNotNull(viaduct)
@@ -205,10 +176,6 @@ class ViaductBuilderTest {
     fun testBuilderReturnsCorrectInstance() {
         val meterRegistry = SimpleMeterRegistry()
         val builder = ViaductBuilder()
-        SchemaConfiguration.fromSchema(
-            schema,
-            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
-        )
 
         val returned = builder.withMeterRegistry(meterRegistry)
 
@@ -219,15 +186,11 @@ class ViaductBuilderTest {
 
     @Test
     fun `strict mode rejects missing resolver at build time`() {
-        val schemaConfiguration = SchemaConfiguration.fromSchema(
-            schema,
-            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
-        )
         val exception = assertThrows<GraphQLBuildError> {
             ViaductBuilder()
                 .withFlagManager(flagManager)
                 .withNoTenantAPIBootstrapper()
-                .withSchemaConfiguration(schemaConfiguration)
+                .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo("public", setOf("publicScope"))))
                 .build()
         }
         assertTrue(exception.message!!.contains("helloWorld"))
@@ -241,15 +204,11 @@ class ViaductBuilderTest {
                 tenantBootstrapClass: Class<*>?
             ) = CodeInjector.Naive
         }
-        val schemaConfiguration = SchemaConfiguration.fromSchema(
-            schema,
-            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
-        )
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withTenantModuleInjectorFactory(injectorFactory)
             .withLenientResolverValidation()
-            .withSchemaConfiguration(schemaConfiguration)
+            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo("public", setOf("publicScope"))))
             .build()
 
         assertNotNull(viaduct)
@@ -268,15 +227,11 @@ class ViaductBuilderTest {
                 return DecodedGlobalID(t, id)
             }
         }
-        val schemaConfiguration = SchemaConfiguration.fromSchema(
-            schema,
-            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
-        )
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withSchemaConfiguration(schemaConfiguration)
+            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo("public", setOf("publicScope"))))
             .withGlobalIDCodec(codec)
             .build()
 
@@ -298,15 +253,11 @@ class ViaductBuilderTest {
                 typeName: String
             ) = null
         }
-        val schemaConfiguration = SchemaConfiguration.fromSchema(
-            schema,
-            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
-        )
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withSchemaConfiguration(schemaConfiguration)
+            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo("public", setOf("publicScope"))))
             .withCheckerExecutorFactoryCreator { factory }
             .build()
 
@@ -326,19 +277,13 @@ class ViaductBuilderTest {
                     override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> = listOf(noOpBootstrapper)
                 }
         }
-        val schemaConfiguration = SchemaConfiguration.fromSchema(
-            schema,
-            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
-        )
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withTenantAPIBootstrapperBuilder(bootstrapperBuilder)
             .withLenientResolverValidation()
-            .withSchemaConfiguration(schemaConfiguration)
+            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo("public", setOf("publicScope"))))
             .build()
 
         assertNotNull(viaduct)
     }
-
-    private fun mkSchema(sdl: String): ViaductSchema = ViaductSchema(SchemaGenerator().makeExecutableSchema(SchemaParser().parse(sdl), RuntimeWiring.MOCKED_WIRING))
 }

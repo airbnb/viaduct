@@ -22,6 +22,7 @@ public class ViaductApplication {
 
   private static final String TENANT_PACKAGE = "com.example.viadapp.resolvers";
 
+  @SuppressWarnings("deprecation")
   public static void main(String[] argv) throws Exception {
     Logger rootLogger = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
     rootLogger.setLevel(Level.ERROR);

@@ -12,7 +12,7 @@ import viaduct.apiannotations.StableApi
  *   useful for multi-tenancy or permission-based field visibility.
  * - [None] — represents a non-existent schema, used as a sentinel value.
  *
- * @see viaduct.service.ViaductBuilder.withSchemaConfiguration
+ * @see viaduct.service.ViaductBuilder.withScopedSchemas
  */
 @StableApi
 abstract class SchemaId(

@@ -60,13 +60,12 @@ class ViaductBuilder {
         }
 
     /**
-     * Configures scoped schemas from a list of [SchemaScopeInfo] descriptors.
-     * Schema resources are discovered from the classpath.
+     * Configures scoped schemas from a list of [SchemaScopeInfo] descriptors, discovering the
+     * schema from classpath resources.
      *
-     * This is a convenience method equivalent to calling [withSchemaConfiguration] with
-     * [SchemaConfiguration.fromResources]. The last of [withSchemaConfiguration] or
-     * [withScopedSchemas] to be called wins.
+     * If both this and [withScopedSchemasFromSdl] are called, the last one wins.
      */
+    @Suppress("DEPRECATION")
     fun withScopedSchemas(scopedSchemas: List<SchemaScopeInfo>) =
         apply {
             val schemaConfiguration = SchemaConfiguration.fromResources(
@@ -75,11 +74,23 @@ class ViaductBuilder {
             builder.withSchemaConfiguration(schemaConfiguration)
         }
 
-    /** Configures schema registration, including multi-tenant scoped schemas. */
-    fun withSchemaConfiguration(schemaConfiguration: SchemaConfiguration) =
-        apply {
-            builder.withSchemaConfiguration(schemaConfiguration)
-        }
+    /**
+     * Configures scoped schemas from a list of [SchemaScopeInfo] descriptors, building the schema
+     * from the given [sdl] string.
+     *
+     * If both this and [withScopedSchemas] are called, the last one wins.
+     */
+    @Suppress("DEPRECATION")
+    fun withScopedSchemasFromSdl(
+        sdl: String,
+        scopedSchemas: List<SchemaScopeInfo>
+    ) = apply {
+        val schemaConfiguration = SchemaConfiguration.fromSdl(
+            sdl,
+            scopes = scopedSchemas.map { it.toScopeConfig() }.toSet()
+        )
+        builder.withSchemaConfiguration(schemaConfiguration)
+    }
 
     /**
      * Configures the MeterRegistry for metrics collection.

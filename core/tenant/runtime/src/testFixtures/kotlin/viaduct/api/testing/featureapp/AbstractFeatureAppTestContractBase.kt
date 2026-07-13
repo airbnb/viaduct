@@ -85,6 +85,7 @@ abstract class AbstractFeatureAppTestContractBase {
      * Configures scoped schemas for the test. Each [SchemaScopeInfo] binds a schema name
      * to a set of scope IDs. Replaces the default (unscoped) schema configuration.
      */
+    @Suppress("DEPRECATION")
     fun withScopedSchemas(scopedSchemas: List<SchemaScopeInfo>) {
         val scopeConfigs = scopedSchemas.map {
             SchemaConfiguration.ScopeConfig(it.schemaId.id, it.scopesToApply)

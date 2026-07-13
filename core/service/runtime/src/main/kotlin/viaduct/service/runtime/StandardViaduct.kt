@@ -212,6 +212,7 @@ class StandardViaduct
                     this.checkerExecutorFactoryCreator = factoryCreator
                 }
 
+            @Deprecated("For Airbnb use only", level = DeprecationLevel.WARNING)
             fun withSchemaConfiguration(schemaConfiguration: SchemaConfiguration): Builder =
                 apply {
                     this.schemaConfiguration = schemaConfiguration

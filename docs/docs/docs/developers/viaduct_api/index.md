@@ -39,14 +39,15 @@ val viaduct: Viaduct = BasicViaductFactory.create()
 ViaductBuilder provides full control of all the internal configurations of the Viaduct.
 
 ```kotlin
+import viaduct.service.SchemaScopeInfo
 import viaduct.service.ViaductBuilder
-import viaduct.service.runtime.SchemaConfiguration
 
 val viaduct =
   ViaductBuilder()
-    .withSchemaConfiguration(
-      SchemaConfiguration.fromResources(
-        // scopes, GRT resource discovery, etc.
+    // Register scoped schemas discovered from classpath resources.
+    .withScopedSchemas(
+      listOf(
+        SchemaScopeInfo(id = "public", scopesToApply = setOf("public"))
       )
     )
     // Optional platform hooks:
@@ -54,7 +55,6 @@ val viaduct =
     // .withFlagManager(flagManager)
     // .withResolverErrorReporter(errorReporter)
     // .withDataFetcherErrorBuilder(resolverErrorBuilder)
-    // .withDataFetcherExceptionHandler(exceptionHandler)
     // .withGlobalIDCodec(globalIdCodec)
     .build()
 ```
