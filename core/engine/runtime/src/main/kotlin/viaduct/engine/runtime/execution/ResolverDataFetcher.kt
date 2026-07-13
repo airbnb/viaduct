@@ -19,7 +19,6 @@ import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.context.findLocalContextForType
 import viaduct.engine.runtime.dfe.engineExecutionContext
-import viaduct.engine.runtime.execution.FieldExecutionHelpers.engineSelectionSet
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.resolveRSSVariables
 
 class ResolverDataFetcher(
@@ -149,7 +148,7 @@ class ResolverDataFetcher(
         environment.arguments,
         factories.objectValueFactory,
         factories.queryValueFactory,
-        engineSelectionSet(engineExecutionContext),
+        engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(environment),
         engineExecutionContext
     )
 

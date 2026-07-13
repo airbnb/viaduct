@@ -11,7 +11,6 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.spi.NodeResolverExecutor
 
@@ -74,7 +73,6 @@ internal fun NodeResolverExecutor.Selector.covers(other: NodeResolverExecutor.Se
 @ExcludeFromJacocoGeneratedReport
 private object NonSelectiveCacheMarker : EngineSelectionSet {
     override val type: String get() = throw UnsupportedOperationException()
-    override val schema: ViaductSchema get() = throw UnsupportedOperationException()
 
     override fun selections(): List<EngineSelection> = throw UnsupportedOperationException()
 

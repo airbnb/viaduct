@@ -76,7 +76,7 @@ fun createExecutionStrategy(): ExecutionStrategy = AsyncExecutionStrategy(Simple
 
 fun createInstrumentation(): Instrumentation = ChainedInstrumentation(listOf<Instrumentation>())
 
-fun EngineSelectionSet.variables() = this.variables
+fun EngineSelectionSet.variables() = (this as EngineSelectionSetImpl).ctx.variables
 
 fun createEngineSelectionSet(
     parsedSelections: ParsedSelections,

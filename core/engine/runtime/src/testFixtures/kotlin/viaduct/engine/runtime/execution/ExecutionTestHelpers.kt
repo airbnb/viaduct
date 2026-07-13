@@ -25,7 +25,6 @@ import graphql.schema.TypeResolver
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
-import graphql.validation.QueryComplexityLimits
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.map
 import java.util.concurrent.CompletableFuture
@@ -267,21 +266,19 @@ object ExecutionTestHelpers {
         variables: Map<String, Any?> = emptyMap(),
         operationName: String? = null,
         context: GraphQLContext = GraphQLContext.getDefault(),
-        dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
-        flagManager: FlagManager = FlagManager.Default,
+        dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty
     ): ExecutionInput =
         ExecutionInput.newExecutionInput()
             .query(query)
             .apply { operationName?.let { operationName(it) } }
             .variables(variables)
-            .localContext(createLocalContext(schema, dispatcherRegistry, flagManager))
+            .localContext(createLocalContext(schema, dispatcherRegistry))
             .graphQLContext { b ->
                 // executing large queries can trigger GJ's ddos prevention
                 // Configure ParserOptions to use the sdl configuration, which has
                 // no size limits on what it will parse
                 // Add this first so that it can be overridden by the context argument
                 b.put(ParserOptions::class.java, ParserOptions.getDefaultSdlParserOptions())
-                b.put(QueryComplexityLimits.KEY, QueryComplexityLimits.NONE)
 
                 context.stream().forEach { (k, v) -> b.put(k, v) }
             }
@@ -289,12 +286,11 @@ object ExecutionTestHelpers {
 
     fun createLocalContext(
         schema: ViaductSchema,
-        dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
-        flagManager: FlagManager = FlagManager.Default,
+        dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty
     ): CompositeLocalContext =
         ContextMocks(
             myFullSchema = schema,
-            myFlagManager = flagManager,
+            myFlagManager = FlagManager.Default,
             myDispatcherRegistry = dispatcherRegistry
         ).localContext
 
@@ -347,8 +343,7 @@ fun Arb<ExecutionInput>.asViaductExecutionInput(schema: ViaductSchema): Arb<Exec
                 mapOf(
                     // to enable testing very large queries, use the "sdl" parser options, which
                     // supports parsing large inputs
-                    ParserOptions::class.java to ParserOptions.getDefaultSdlParserOptions(),
-                    QueryComplexityLimits.KEY to QueryComplexityLimits.NONE,
+                    ParserOptions::class.java to ParserOptions.getDefaultSdlParserOptions()
                 )
             )
         }

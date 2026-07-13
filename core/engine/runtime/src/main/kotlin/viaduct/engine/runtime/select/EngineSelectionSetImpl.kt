@@ -111,8 +111,6 @@ data class EngineSelectionSetImpl(
 ) : EngineSelectionSet {
     override val type: String get() = def.name
 
-    override val schema: ViaductSchema = ctx.schema
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
 

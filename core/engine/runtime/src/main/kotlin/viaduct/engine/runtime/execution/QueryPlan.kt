@@ -4,8 +4,6 @@ import graphql.execution.MergedField
 import graphql.language.AstPrinter
 import graphql.language.Field as GJField
 import graphql.language.FragmentDefinition as GJFragmentDefinition
-import graphql.language.FragmentSpread as GJFragmentSpread
-import graphql.language.InlineFragment as GJInlineFragment
 import graphql.language.SelectionSet as GJSelectionSet
 import graphql.language.SourceLocation
 import graphql.language.VariableDefinition
@@ -163,15 +161,13 @@ data class QueryPlan(
     data class FragmentSpread(
         val name: String,
         override val constraints: Constraints,
-        override val variableReferences: List<SelectionVariableReference> = emptyList(),
-        val fragmentSpread: GJFragmentSpread? = null,
+        override val variableReferences: List<SelectionVariableReference> = emptyList()
     ) : Selection
 
     data class InlineFragment(
         val selectionSet: SelectionSet,
         override val constraints: Constraints,
-        override val variableReferences: List<SelectionVariableReference> = emptyList(),
-        val inlineFragment: GJInlineFragment? = null,
+        override val variableReferences: List<SelectionVariableReference> = emptyList()
     ) : Selection
 
     /**
@@ -208,48 +204,29 @@ data class QueryPlan(
      * Carrying the enclosing references with the child selection set keeps that boundary visible
      * without forcing collection to know which field or inline fragment led to the selection set.
      */
-    data class SelectionSet(
+    class SelectionSet private constructor(
         val selections: List<Selection>,
-        val enclosingVariableReferences: List<SelectionVariableReference> = emptyList(),
-        val conditionallyExcludedCoordinates: Set<Coordinate> = emptySet(),
+        val enclosingVariableReferences: List<SelectionVariableReference>
     ) {
+        constructor(selections: List<Selection>) : this(selections, emptyList())
+
         constructor(vararg selections: Selection) : this(listOf(*selections))
 
-        operator fun plus(selection: Selection): SelectionSet = copy(selections = selections + selection)
+        operator fun plus(selection: Selection): SelectionSet = SelectionSet(selections + selection, enclosingVariableReferences)
 
-        operator fun plus(other: SelectionSet): SelectionSet =
-            if (other.isEmpty()) {
-                this
-            } else if (isEmpty()) {
-                other
-            } else {
-                val nextEnclosingVariableReferences =
-                    if (other.enclosingVariableReferences.isEmpty()) {
-                        enclosingVariableReferences
-                    } else if (enclosingVariableReferences.isEmpty()) {
-                        other.enclosingVariableReferences
-                    } else {
-                        enclosingVariableReferences + other.enclosingVariableReferences
-                    }
-                val nextConditionallyExcludedCoordinates =
-                    if (other.conditionallyExcludedCoordinates.isEmpty()) {
-                        conditionallyExcludedCoordinates
-                    } else if (conditionallyExcludedCoordinates.isEmpty()) {
-                        other.conditionallyExcludedCoordinates
-                    } else {
-                        conditionallyExcludedCoordinates + other.conditionallyExcludedCoordinates
-                    }
-                SelectionSet(
-                    selections + other.selections,
-                    nextEnclosingVariableReferences,
-                    nextConditionallyExcludedCoordinates
-                )
-            }
+        internal fun withEnclosingVariableReferences(enclosingVariableReferences: List<SelectionVariableReference>): SelectionSet {
+            return SelectionSet(selections, enclosingVariableReferences)
+        }
 
-        private fun isEmpty(): Boolean =
-            selections.isEmpty() &&
-                enclosingVariableReferences.isEmpty() &&
-                conditionallyExcludedCoordinates.isEmpty()
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is SelectionSet) return false
+            return selections == other.selections
+        }
+
+        override fun hashCode(): Int = selections.hashCode()
+
+        override fun toString(): String = "SelectionSet(selections=$selections)"
 
         companion object {
             val empty: SelectionSet = SelectionSet(emptyList())

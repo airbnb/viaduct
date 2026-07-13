@@ -5,7 +5,6 @@ package viaduct.engine
 import graphql.ExecutionInput as GJExecutionInput
 import graphql.ExecutionResult
 import graphql.GraphQL
-import graphql.execution.CoercedVariables
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.ExecutionId
 import graphql.execution.instrumentation.Instrumentation
@@ -52,6 +51,7 @@ import viaduct.engine.runtime.graphql_java.GraphQLJavaConfig
 import viaduct.engine.runtime.instrumentation.ResolverDataFetcherInstrumentation
 import viaduct.engine.runtime.instrumentation.ScopeInstrumentation
 import viaduct.engine.runtime.instrumentation.TaggedMetricInstrumentation
+import viaduct.engine.runtime.select.EngineSelectionSetImpl
 import viaduct.service.api.spi.FlagManager
 
 @Deprecated("Airbnb use only")
@@ -231,6 +231,8 @@ class EngineImpl(
             )
         }
 
+        val rssImpl = selectionSet as EngineSelectionSetImpl
+
         val eecImpl = parentParams.engineExecutionContext as EngineExecutionContextImpl
 
         val selectionParams = try {
@@ -248,7 +250,7 @@ class EngineImpl(
             }
             parentParams.forChildPlan(
                 queryPlan,
-                CoercedVariables.of(selectionSet.variables),
+                rssImpl.ctx.coercedVariables,
                 ExecutionParameters.ChildPlanTarget.IsolatedRootResult(
                     rootResult = targetOER,
                     queryResult = queryOER,

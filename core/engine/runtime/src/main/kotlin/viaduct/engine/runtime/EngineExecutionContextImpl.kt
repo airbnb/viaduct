@@ -51,7 +51,6 @@ class EngineExecutionContextFactory(
         requestContext: Any?
     ): EngineExecutionContext {
         val selectiveOERKeysEnabled = flagManager.isEnabled(FlagManager.Flags.ENABLE_SELECTIVE_OER_KEYS)
-        val matResolutionEnabled = flagManager.isEnabled(FlagManager.Flags.ENABLE_MAT_RESOLUTION)
         val isResolverSelective =
             if (selectiveOERKeysEnabled) {
                 IsResolverSelective
@@ -72,9 +71,9 @@ class EngineExecutionContextFactory(
             ConcurrentHashMap<String, NodeDataLoader>(),
             selectiveOERKeysEnabled,
             flagManager.isEnabled(FlagManager.Flags.KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING),
-            matResolutionEnabled,
             engine,
             globalIDCodec,
+            flagManager,
             meterRegistry,
             isResolverSelective,
         )
@@ -114,9 +113,9 @@ class EngineExecutionContextImpl(
     internal val nodeDataLoaders: ConcurrentHashMap<String, NodeDataLoader>,
     val selectiveOERKeysEnabled: Boolean,
     val fieldRssOriginFilteringKillSwitchEnabled: Boolean,
-    val matResolutionEnabled: Boolean,
     override val engine: Engine,
     override val globalIDCodec: GlobalIDCodec,
+    private val flagManager: FlagManager,
     private val meterRegistry: MeterRegistry?,
     val isResolverSelective: IsResolverSelective,
     var dataFetchingEnvironment: DataFetchingEnvironment? = null,
@@ -300,7 +299,6 @@ class EngineExecutionContextImpl(
         dataFetchingEnvironment: DataFetchingEnvironment? = this.dataFetchingEnvironment,
         selectiveOERKeysEnabled: Boolean = this.selectiveOERKeysEnabled,
         fieldRssOriginFilteringKillSwitchEnabled: Boolean = this.fieldRssOriginFilteringKillSwitchEnabled,
-        matResolutionEnabled: Boolean = this.matResolutionEnabled,
     ): EngineExecutionContextImpl {
         return EngineExecutionContextImpl(
             fullSchema = this.fullSchema,
@@ -314,9 +312,9 @@ class EngineExecutionContextImpl(
             nodeDataLoaders = this.nodeDataLoaders,
             selectiveOERKeysEnabled = selectiveOERKeysEnabled,
             fieldRssOriginFilteringKillSwitchEnabled = fieldRssOriginFilteringKillSwitchEnabled,
-            matResolutionEnabled = matResolutionEnabled,
             engine = this.engine,
             globalIDCodec = this.globalIDCodec,
+            flagManager = this.flagManager,
             meterRegistry = this.meterRegistry,
             isResolverSelective = this.isResolverSelective,
             dataFetchingEnvironment = dataFetchingEnvironment,

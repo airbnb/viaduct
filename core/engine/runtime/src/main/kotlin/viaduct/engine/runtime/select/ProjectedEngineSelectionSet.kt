@@ -39,7 +39,6 @@ internal class ProjectedEngineSelectionSet(
     internal val sourceImpl: EngineSelectionSetImpl
 ) : EngineSelectionSet {
     override val type: String get() = concreteType.name
-    override val schema get() = ctx.schema
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

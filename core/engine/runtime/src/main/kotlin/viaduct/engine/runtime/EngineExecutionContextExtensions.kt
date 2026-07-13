@@ -27,9 +27,6 @@ object EngineExecutionContextExtensions {
     val EngineExecutionContext.selectiveOERKeysEnabled: Boolean
         get() = asImpl().selectiveOERKeysEnabled
 
-    val EngineExecutionContext.matResolutionEnabled: Boolean
-        get() = asImpl().matResolutionEnabled
-
     val EngineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled: Boolean
         get() = asImpl().fieldRssOriginFilteringKillSwitchEnabled
 

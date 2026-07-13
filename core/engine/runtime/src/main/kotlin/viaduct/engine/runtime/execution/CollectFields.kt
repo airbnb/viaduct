@@ -189,7 +189,9 @@ object CollectFields {
 
         val newSelectionSet = host.selectionSet?.let { hss ->
             val dss = donor.selectionSet!!
-            hss + dss
+            SelectionSet(
+                selections = hss.selections + dss.selections
+            ).withEnclosingVariableReferences((hss.enclosingVariableReferences + dss.enclosingVariableReferences).distinct())
         }
         return host.copy(
             mergedField = merge(host.mergedField, donor.mergedField),
