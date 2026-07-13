@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import viaduct.graphql.schema.ViaductSchema;
+import viaduct.tenant.codegen.graphql.schema.ScopeAndTenantLocalSchemaFilter;
 
 /**
  * Main entry point for Java resolver base classes code generation. This class handles the
@@ -61,13 +63,33 @@ public class JavaResolversCodegen {
       String tenantPackage,
       String tenantModule)
       throws IOException {
+    return generate(schemaFiles, resolverOutputDir, grtPackage, tenantPackage, tenantModule, null);
+  }
+
+  /**
+   * Generates Java resolver base classes, optionally filtering the schema to a set of applied
+   * scopes first.
+   *
+   * @param appliedScopes when non-null and non-empty, the schema is projected to just the
+   *     types/fields in at least one of these scopes before generation (via the shared {@link
+   *     ScopeAndTenantLocalSchemaFilter}). Null or empty means no filtering.
+   * @see #generate(List, File, String, String, String)
+   */
+  public Result generate(
+      List<File> schemaFiles,
+      File resolverOutputDir,
+      String grtPackage,
+      String tenantPackage,
+      String tenantModule,
+      Set<String> appliedScopes)
+      throws IOException {
     // Ensure output directory exists
     if (!resolverOutputDir.exists() && !resolverOutputDir.mkdirs()) {
       throw new IOException("Failed to create resolver output directory: " + resolverOutputDir);
     }
 
-    // Parse schemas into ViaductSchema
-    ViaductSchema schema = parser.parse(schemaFiles);
+    // Parse schemas into ViaductSchema, then optionally filter to the requested scopes.
+    ViaductSchema schema = SchemaScopeFilter.parseAndFilter(parser, schemaFiles, appliedScopes);
 
     List<File> generatedFiles = new ArrayList<>();
 

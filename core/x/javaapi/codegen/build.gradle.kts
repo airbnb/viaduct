@@ -26,6 +26,10 @@ dependencies {
     // Template engine + shared language-neutral schema analysis (SchemaAnalysis)
     implementation(libs.viaduct.shared.codegen)
 
+    // ScopeAndTenantLocalSchemaFilter — codegen-time @scope filtering reused from the Kotlin
+    // tenant codegen (see SchemaScopeFilter). Matches the Bazel dep on tenant/codegen:schema.
+    implementation(libs.viaduct.tenant.codegen)
+
     // Testing
     testImplementation(libs.assertj.core)
     // Classpath resource scanning for golden snapshots (works under both Gradle and Bazel).

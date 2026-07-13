@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -195,6 +196,85 @@ class JavaGRTsCodegenTest {
     Path packageDir = grtOutputDir.toPath().resolve("com/example/exclude");
     assertFalse(Files.exists(packageDir.resolve("Query.java")));
     assertTrue(Files.exists(packageDir.resolve("User.java")));
+  }
+
+  @Test
+  void appliedScopesFilterExcludesOutOfScopeTypes() throws IOException {
+    // Two object types in disjoint scopes; the @scope directive is declared inline so parsing
+    // succeeds (the Java codegen parser does not auto-add it).
+    String scopedSchema =
+        """
+        directive @scope(to: [String!]!) repeatable on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
+        type InScope @scope(to: ["a"]) {
+          id: ID!
+        }
+        type OutOfScope @scope(to: ["b"]) {
+          id: ID!
+        }
+        """;
+
+    Path scopedSchemaFile = tempDir.resolve("scoped-schema.graphqls");
+    Files.writeString(scopedSchemaFile, scopedSchema);
+    File grtOutputDir = tempDir.resolve("scoped-output").toFile();
+
+    JavaGRTsCodegen.Result result =
+        codegen.generate(
+            List.of(scopedSchemaFile.toFile()),
+            grtOutputDir,
+            "com.example.scoped",
+            false,
+            Set.of("a"));
+
+    // Only the in-scope type should be generated.
+    assertEquals(1, result.objectCount());
+
+    Path packageDir = grtOutputDir.toPath().resolve("com/example/scoped");
+    assertTrue(Files.exists(packageDir.resolve("InScope.java")));
+    assertFalse(Files.exists(packageDir.resolve("OutOfScope.java")));
+  }
+
+  @Test
+  void noAppliedScopesGeneratesAllTypes() throws IOException {
+    // Regression guard for the null/empty scope path: no filtering means every type is generated.
+    String scopedSchema =
+        """
+        directive @scope(to: [String!]!) repeatable on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
+        type InScope @scope(to: ["a"]) {
+          id: ID!
+        }
+        type OutOfScope @scope(to: ["b"]) {
+          id: ID!
+        }
+        """;
+
+    Path scopedSchemaFile = tempDir.resolve("no-scopes-schema.graphqls");
+    Files.writeString(scopedSchemaFile, scopedSchema);
+
+    // Existing 4-arg overload: no scopes supplied.
+    File grtOutputDir = tempDir.resolve("no-scopes-output").toFile();
+    JavaGRTsCodegen.Result result =
+        codegen.generate(
+            List.of(scopedSchemaFile.toFile()), grtOutputDir, "com.example.noscopes", false);
+
+    assertEquals(2, result.objectCount());
+    Path packageDir = grtOutputDir.toPath().resolve("com/example/noscopes");
+    assertTrue(Files.exists(packageDir.resolve("InScope.java")));
+    assertTrue(Files.exists(packageDir.resolve("OutOfScope.java")));
+
+    // 5-arg overload with an empty scope set behaves the same as no filtering.
+    File emptyScopesOutputDir = tempDir.resolve("empty-scopes-output").toFile();
+    JavaGRTsCodegen.Result emptyScopesResult =
+        codegen.generate(
+            List.of(scopedSchemaFile.toFile()),
+            emptyScopesOutputDir,
+            "com.example.emptyscopes",
+            false,
+            Set.of());
+
+    assertEquals(2, emptyScopesResult.objectCount());
+    Path emptyScopesPackageDir = emptyScopesOutputDir.toPath().resolve("com/example/emptyscopes");
+    assertTrue(Files.exists(emptyScopesPackageDir.resolve("InScope.java")));
+    assertTrue(Files.exists(emptyScopesPackageDir.resolve("OutOfScope.java")));
   }
 
   @Test

@@ -69,6 +69,12 @@ class JavaGRTsGenerator : CliktCommand(
     private val includeRootTypes: Boolean by option("--include_root_types", help = "If set, include Query/Mutation/Subscription GRTs")
         .flag()
 
+    private val appliedScopes: List<String>? by option(
+        "--applied_scopes",
+        help = "Comma-separated scope names; when set, the schema is filtered to just these scopes " +
+            "before generation (mirrors the Kotlin codegen's --applied_scopes)"
+    ).split(",")
+
     private val verbose: Boolean by option("--verbose", help = "Print generation results")
         .flag()
 
@@ -84,9 +90,13 @@ class JavaGRTsGenerator : CliktCommand(
         grtOutputDir.mkdirs()
         resolverGeneratedDir.mkdirs()
 
+        // Scope filtering (optional): when --applied_scopes is set, the schema is projected to just
+        // the in-scope types/fields before generation. Empty/absent means "no filtering".
+        val scopeSet = appliedScopes?.filter { it.isNotBlank() }?.toSet()?.takeIf { it.isNotEmpty() }
+
         // Generate GRTs (enums, objects, inputs, interfaces, unions)
         val grtsCodegen = JavaGRTsCodegen()
-        val grtsResult = grtsCodegen.generate(schemaFiles, grtOutputDir, resolvedGrtPackage, includeRootTypes)
+        val grtsResult = grtsCodegen.generate(schemaFiles, grtOutputDir, resolvedGrtPackage, includeRootTypes, scopeSet)
 
         // Remove Subscription.java when includeRootTypes is true: the viaduct.java.api.types
         // package defines marker interfaces for Query and Mutation but not Subscription.
@@ -97,7 +107,7 @@ class JavaGRTsGenerator : CliktCommand(
 
         // Generate Resolvers (separate step)
         val resolversCodegen = JavaResolversCodegen()
-        val resolversResult = resolversCodegen.generate(schemaFiles, resolverGeneratedDir, resolvedGrtPackage, resolvedTenantPackage)
+        val resolversResult = resolversCodegen.generate(schemaFiles, resolverGeneratedDir, resolvedGrtPackage, resolvedTenantPackage, null, scopeSet)
 
         // Archive outputs into srcjars if requested
         grtOutputArchive?.let { archive ->

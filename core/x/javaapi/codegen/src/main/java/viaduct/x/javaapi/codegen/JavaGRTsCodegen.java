@@ -4,7 +4,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import viaduct.graphql.schema.ViaductSchema;
+import viaduct.tenant.codegen.graphql.schema.ScopeAndTenantLocalSchemaFilter;
 
 /**
  * Main entry point for Java GRTs (GraphQL Representational Types) code generation. This class
@@ -48,13 +50,31 @@ public class JavaGRTsCodegen {
   public Result generate(
       List<File> schemaFiles, File grtOutputDir, String grtPackage, boolean includeRootTypes)
       throws IOException {
+    return generate(schemaFiles, grtOutputDir, grtPackage, includeRootTypes, null);
+  }
+
+  /**
+   * Generates Java GRTs, optionally filtering the schema to a set of applied scopes first.
+   *
+   * @param appliedScopes when non-null and non-empty, the schema is projected to just the
+   *     types/fields in at least one of these scopes before generation (via the shared {@link
+   *     ScopeAndTenantLocalSchemaFilter}). Null or empty means no filtering.
+   * @see #generate(List, File, String, boolean)
+   */
+  public Result generate(
+      List<File> schemaFiles,
+      File grtOutputDir,
+      String grtPackage,
+      boolean includeRootTypes,
+      Set<String> appliedScopes)
+      throws IOException {
     // Ensure output directory exists
     if (!grtOutputDir.exists() && !grtOutputDir.mkdirs()) {
       throw new IOException("Failed to create GRT output directory: " + grtOutputDir);
     }
 
-    // Parse schemas into ViaductSchema
-    ViaductSchema schema = parser.parse(schemaFiles);
+    // Parse schemas into ViaductSchema, then optionally filter to the requested scopes.
+    ViaductSchema schema = SchemaScopeFilter.parseAndFilter(parser, schemaFiles, appliedScopes);
 
     List<File> generatedFiles = new ArrayList<>();
 
