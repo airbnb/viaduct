@@ -18,13 +18,13 @@ import viaduct.engine.api.spi.FieldResolverExecutor
  * [viaduct.remote.RemoteFieldProxyExecutor].
  */
 class SimpleFieldResolverExecutor(
-    override val resolverId: String = "Character.isAdult"
+    override val resolverId: String = "Character.isAdult",
+    override val metadata: ResolverMetadata = ResolverMetadata.forMock("SimpleFieldResolverExecutor:$resolverId")
 ) : FieldResolverExecutor {
     override val objectSelectionSet: RequiredSelectionSet? = null
     override val querySelectionSet: RequiredSelectionSet? = null
     override val isSelective: Boolean = false
     override val isBatching: Boolean = true
-    override val metadata: ResolverMetadata = ResolverMetadata.forMock("SimpleFieldResolverExecutor:$resolverId")
 
     override suspend fun batchResolve(
         selectors: List<FieldResolverExecutor.Selector>,

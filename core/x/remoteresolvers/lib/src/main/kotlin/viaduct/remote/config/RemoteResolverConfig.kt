@@ -25,6 +25,8 @@ data class RemoteResolverConfig(
     val mode: RemoteResolverMode = RemoteResolverMode.IN_PROCESS,
     val remoteTypes: Set<String>,
     val remoteFields: Set<String> = emptySet(),
+    /** When false, no field resolvers are proxied even though nodes still are (the field-only off switch). */
+    val fieldProxyingEnabled: Boolean = true,
     val rrsServerName: String = DEFAULT_RRS_SERVER_NAME,
     val callbackEndpoint: String = DEFAULT_CALLBACK_ENDPOINT,
     val rrsHost: String = DEFAULT_RRS_HOST,
@@ -46,16 +48,24 @@ data class RemoteResolverConfig(
         const val DEFAULT_RRS_PORT = 50051
         const val DEFAULT_CALLBACK_PORT = 50052
 
-        fun fromEnvironment(env: EnvLookup = EnvLookup.SYSTEM): RemoteResolverConfig =
-            RemoteResolverConfig(
+        // Sentinel values for ENV_FIELDS that turn field proxying fully off (node proxying stays on) —
+        // the first-class rollback for the default-on flip, distinct from empty (= all fields).
+        private val FIELDS_OFF_SENTINELS = setOf("none", "off", "-")
+
+        fun fromEnvironment(env: EnvLookup = EnvLookup.SYSTEM): RemoteResolverConfig {
+            val fieldsRaw = env.get(ENV_FIELDS)
+            val fieldProxyingOff = fieldsRaw?.trim()?.lowercase() in FIELDS_OFF_SENTINELS
+            return RemoteResolverConfig(
                 enabled = parseEnabled(env.get(ENV_ENABLED)),
                 mode = parseMode(env.get(ENV_MODE)),
                 remoteTypes = parseTypes(env.get(ENV_TYPES)),
-                remoteFields = parseTypes(env.get(ENV_FIELDS)),
+                remoteFields = if (fieldProxyingOff) emptySet() else parseTypes(fieldsRaw),
+                fieldProxyingEnabled = !fieldProxyingOff,
                 rrsHost = env.get(ENV_RRS_HOST) ?: DEFAULT_RRS_HOST,
                 rrsPort = env.get(ENV_RRS_PORT)?.toIntOrNull() ?: DEFAULT_RRS_PORT,
                 callbackPort = env.get(ENV_CALLBACK_PORT)?.toIntOrNull() ?: DEFAULT_CALLBACK_PORT,
             )
+        }
 
         // Strict-boolean parse: `"1"` / `"yes"` / blank / unparseable all fall through to
         // `false`, so opt-in requires the literal `"true"`.

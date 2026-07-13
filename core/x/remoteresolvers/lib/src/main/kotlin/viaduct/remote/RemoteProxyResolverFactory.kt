@@ -13,6 +13,11 @@ import viaduct.remote.registry.NodeExecutorRegistry
  * forwarded to a [RemoteResolverService]: node resolvers via [RemoteNodeProxyExecutor],
  * field resolvers via [RemoteFieldProxyExecutor].
  *
+ * Selective resolvers are never proxied, regardless of the predicates below:
+ * [RemoteNodeProxyExecutor]/[RemoteFieldProxyExecutor] reject them at construction, so this factory
+ * skips them *before* registering — otherwise the default "proxy all" would crash bootstrap on a
+ * selective resolver, or orphan a registry entry when the constructor throws.
+ *
  * @param rrsChannel Channel to the remote resolver service. Caller owns the channel.
  * @param callbackEndpoint Endpoint the remote service dials for re-entrant queries;
  *   either "host:port" (network) or an in-process channel name.
@@ -22,17 +27,19 @@ import viaduct.remote.registry.NodeExecutorRegistry
  * @param shouldProxyNode Predicate to opt specific node types in or out of proxying.
  *   Defaults to proxying every node resolver.
  * @param shouldProxyField Predicate to opt specific field resolvers in or out of proxying.
- *   Defaults to proxying no field resolvers — field results have mixed serializability, so
- *   field proxying is opt-in by coordinate.
+ *   Defaults to proxying every field resolver (mirroring nodes). Selective resolvers are always
+ *   skipped regardless of this predicate — [RemoteFieldProxyExecutor] rejects them at construction.
  */
 class RemoteProxyResolverFactory(
     private val rrsChannel: ManagedChannel,
     private val callbackEndpoint: String,
     private val requestDeadline: Duration? = null,
     private val shouldProxyNode: (NodeResolverExecutor) -> Boolean = { true },
-    private val shouldProxyField: (FieldResolverExecutor) -> Boolean = { false }
+    private val shouldProxyField: (FieldResolverExecutor) -> Boolean = { true }
 ) : ProxyResolverFactory {
     override fun proxyNode(executor: NodeResolverExecutor): NodeResolverExecutor? {
+        // Skip selective resolvers before registering (see class KDoc).
+        if (executor.isSelective) return null
         if (!shouldProxyNode(executor)) return null
         val executorId = NodeExecutorRegistry.register(executor)
         return RemoteNodeProxyExecutor(
@@ -45,6 +52,8 @@ class RemoteProxyResolverFactory(
     }
 
     override fun proxyField(executor: FieldResolverExecutor): FieldResolverExecutor? {
+        // Skip selective resolvers before registering (see class KDoc).
+        if (executor.isSelective) return null
         if (!shouldProxyField(executor)) return null
         val executorId = FieldExecutorRegistry.register(executor)
         return RemoteFieldProxyExecutor(
@@ -57,14 +66,14 @@ class RemoteProxyResolverFactory(
     }
 
     companion object {
-        /** Creates a factory that proxies every node resolver. */
+        /** Creates a factory that proxies every node and field resolver. */
         fun proxyAll(
             rrsChannel: ManagedChannel,
             callbackEndpoint: String,
             requestDeadline: Duration? = null
         ) = RemoteProxyResolverFactory(rrsChannel, callbackEndpoint, requestDeadline)
 
-        /** Creates a factory that proxies only the listed GraphQL type names. */
+        /** Creates a factory that proxies only the listed node type names, and no field resolvers. */
         fun proxyTypes(
             rrsChannel: ManagedChannel,
             callbackEndpoint: String,
@@ -74,7 +83,8 @@ class RemoteProxyResolverFactory(
             rrsChannel,
             callbackEndpoint,
             requestDeadline,
-            shouldProxyNode = { it.typeName in types }
+            shouldProxyNode = { it.typeName in types },
+            shouldProxyField = { false }
         )
 
         /** Creates a factory that proxies only the listed field coordinates ("Type.field"), and no nodes. */

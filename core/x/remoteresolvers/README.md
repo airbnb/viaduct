@@ -29,7 +29,7 @@ The module ships with two transports:
 | --- | --- | --- | --- |
 | `VIADUCT_REMOTE_RESOLVER_MODE` | `in_process` | main | `in_process` or `network` (case-insensitive). |
 | `VIADUCT_REMOTE_RESOLVER_TYPES` | _empty_ | main | Comma-separated GraphQL type names whose node resolvers to proxy. Empty means all node types. |
-| `VIADUCT_REMOTE_RESOLVER_FIELDS` | _empty_ | main | Comma-separated field coordinates (`Type.field`) whose field resolvers to proxy. Empty means **none** — field proxying is opt-in. |
+| `VIADUCT_REMOTE_RESOLVER_FIELDS` | _empty_ | main | Comma-separated field coordinates (`Type.field`) whose field resolvers to proxy. Empty means **all** field resolvers except the engine's built-ins (`Query.node`/`nodes`, `@namespaceType`) and selective resolvers; a listed coordinate is proxied even if it's a built-in. Set to `none` (or `off`/`-`) to disable field proxying entirely while leaving node proxying on. |
 | `VIADUCT_RRS_HOST` | `localhost` | main | Hostname the main server dials when `mode=network`. |
 | `VIADUCT_RRS_PORT` | `50051` | both | Remote server gRPC port — the main server dials it, the remote server binds it. |
 | `VIADUCT_RRS_CALLBACK_HOST` | `localhost` | remote | Hostname the remote server reaches the main server callback at. |
@@ -70,6 +70,7 @@ When the proxy comes up you'll see these lines in the log:
 
 ```
 INFO  viaduct.remote.config.RemoteResolverInitializer - Remote resolver execution enabled for all node types (IN_PROCESS)
+INFO  viaduct.remote.config.RemoteResolverInitializer - Remote resolver execution enabled for all field resolvers by default (IN_PROCESS); built-ins and selective resolvers excluded (set VIADUCT_REMOTE_RESOLVER_FIELDS to narrow or 'none' to disable)
 INFO  viaduct.remote.config.RemoteResolverInitializer - Starting in-process gRPC server: viaduct-rrs-inprocess
 INFO  viaduct.remote.config.RemoteResolverInitializer - Starting in-process gRPC server: viaduct-rrp-callback
 INFO  viaduct.remote.config.RemoteResolverInitializer - Remote resolver execution initialized (IN_PROCESS)
@@ -118,52 +119,56 @@ unzip -p demoapps/starwars/modules/filmography/build/libs/filmography.jar \
 
 ## Proxying field resolvers
 
-Field resolvers are proxied **opt-in** by coordinate: set `VIADUCT_REMOTE_RESOLVER_FIELDS` to a
-comma-separated list of `Type.field` coordinates. The engine resolves each listed field's required
-selection set on the main server and ships the resolved object/query values to the remote service,
-which runs the resolver and returns the value. Return values of every common kind round-trip:
-scalars, `null`, node references (`Character.species`, `Character.homeworld`), resolved objects, and
-lists of any of these.
+Like node resolvers, **every field resolver is proxied by default**. The engine resolves each field's
+required selection set on the main server and ships the resolved object/query values — and the
+field's own sub-selection set — to the remote service, which runs the resolver and returns the value.
+Every return kind round-trips in either transport: scalars, `null`, node references
+(`Character.species`, `Character.homeworld`), resolved objects, and lists of any of these.
 
-For example, to run `Character.isAdult` remotely (it needs `birthYear`, which the main server
-resolves and sends along):
+To restrict proxying to specific fields, set `VIADUCT_REMOTE_RESOLVER_FIELDS` to a comma-separated
+list of `Type.field` coordinates (the empty default proxies them all). For example, to run *only*
+`Character.isAdult` remotely:
 
 ```bash
 VIADUCT_REMOTE_RESOLVER_FIELDS=Character.isAdult ./gradlew :main-server:run
 ```
 
-Then query it (other fields keep resolving locally):
+Either way, a query spanning multiple field kinds resolves end-to-end through the remote service — in
+both `in_process` and `network` mode (scalars, node references, and their sub-selections all cross
+the wire):
 
 ```bash
 curl -X POST http://localhost:8080/graphql -H "Content-Type: application/json" \
-  -d '{"query":"{ allCharacters(limit: 5) { name birthYear isAdult } }"}'
+  -d '{"query":"{ allCharacters(limit: 5) { name birthYear isAdult species { name } homeworld { name } } }"}'
 ```
 
-Composite-returning fields (objects, node references) can be proxied too — e.g.
-`VIADUCT_REMOTE_RESOLVER_FIELDS=Character.species` — in both `in_process` and `network` mode. In
-`network` mode the field's sub-selection set is shipped over the wire so the remote can reconstruct
-it against its own schema (in `in_process` the shared registry is used directly).
-
 `VIADUCT_REMOTE_RESOLVER_TYPES` (nodes) and `VIADUCT_REMOTE_RESOLVER_FIELDS` (fields) are
-independent: node proxying defaults to *all* node types when `VIADUCT_REMOTE_RESOLVER_TYPES` is
-empty, while field proxying is opt-in.
+independent — each defaults to *all* and can be narrowed on its own.
 
 ## Limitations
 
-- Node resolvers are proxied by default; field resolvers are opt-in per coordinate
-  (`VIADUCT_REMOTE_RESOLVER_FIELDS`). A proxied field result carries scalars, `null`, node references,
-  resolved objects, and lists thereof; a field returning an arbitrary non-JSON, non-`EngineObjectData`
-  value (or a `Map`/list-leaf containing one) is rejected at serialize time.
-- Composite-returning field resolvers (objects, node references) are supported in both `in_process`
-  and `network` mode; in `network` mode the field's selection set is shipped over the wire and
-  reconstructed against the remote's schema.
+- **Default-on (semantic note):** an empty `VIADUCT_REMOTE_RESOLVER_FIELDS` now means *all* field
+  resolvers — it previously meant *none*. To turn field proxying off while keeping node proxying, set
+  `VIADUCT_REMOTE_RESOLVER_FIELDS=none` (or `off`/`-`); to disable the whole feature (nodes too) use
+  `VIADUCT_REMOTE_RESOLVER_ENABLED=false`. Or list only the coordinates you want.
+- Node and field resolvers are both proxied by default. A proxied field result carries scalars,
+  `null`, node references, resolved objects, and lists thereof; a field returning an arbitrary
+  non-JSON, non-`EngineObjectData` value (or a `Map`/list-leaf containing one) is rejected at
+  serialize time.
+- Every proxied field is a gRPC hop (batched per field coordinate) — fields are finer-grained than
+  nodes, so proxying *all* of them has a much larger call surface; narrow
+  `VIADUCT_REMOTE_RESOLVER_FIELDS` for latency-sensitive paths. The engine's built-in resolvers
+  (`Query.node`/`nodes`, `@namespaceType`) are excluded from the default for this reason — proxy
+  them only by listing them explicitly.
 - Proxying the built-in `Query.node` / `Query.nodes` resolvers over `network` requires the remote
   server to run with the *same* `GlobalIDCodec` as the caller: the remote decodes global ids with its
   own codec, so a custom codec on only one side mis-resolves the node type. With the default codec on
   both sides (as in the demo) they work as-is.
-- Selective resolvers (`isSelective = true`) are rejected at construction (both node and field).
+- Selective resolvers (`isSelective = true`) are never proxied — they run locally (the proxy factory
+  skips them); constructing a proxy for one directly still throws.
 - Wire format only handles JSON-friendly engine values. Custom scalars with bespoke coercers, and
-  JSR-310 types without a configured `ObjectMapper`, will fail at serialize time.
+  JSR-310 types without a configured `ObjectMapper`, will fail at serialize time; likewise a field's
+  sub-selection set travels over the wire, so its variable values must be JSON-friendly.
 - Nested objects are reconstructed under a placeholder type — code that walks
   the result via `EngineObjectData.fetchOrNull` works at any depth, but code
   that inspects type identity does not. A field's returned object (and its required-selection-set

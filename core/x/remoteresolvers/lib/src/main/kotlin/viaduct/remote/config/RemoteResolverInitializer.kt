@@ -158,9 +158,19 @@ class RemoteResolverInitializer(private val config: RemoteResolverConfig) : Auto
         RemoteProxyResolverFactory(
             channel,
             callbackEndpoint,
+            // Both nodes and fields default to all (empty set = all); a non-empty set restricts to it.
             shouldProxyNode = { config.remoteTypes.isEmpty() || it.typeName in config.remoteTypes },
-            // Fields are opt-in by coordinate (empty = none); nodes default to all.
-            shouldProxyField = { config.remoteFields.isNotEmpty() && it.resolverId in config.remoteFields }
+            // Default (empty set) proxies all field resolvers EXCEPT the engine's built-ins
+            // (Query.node/nodes, @namespaceType) — those are in-JVM framework ops, so a gRPC hop is
+            // pure overhead. An explicit VIADUCT_REMOTE_RESOLVER_FIELDS entry still opts a built-in in.
+            // A `none` sentinel (fieldProxyingEnabled = false) turns field proxying fully off.
+            shouldProxyField = {
+                config.fieldProxyingEnabled &&
+                    (
+                        (config.remoteFields.isEmpty() && it.metadata.name !in BUILT_IN_FIELD_RESOLVER_NAMES) ||
+                            it.resolverId in config.remoteFields
+                    )
+            }
         )
 
     private fun logEnabled() {
@@ -169,7 +179,19 @@ class RemoteResolverInitializer(private val config: RemoteResolverConfig) : Auto
         } else {
             log.info("Remote resolver execution enabled for node types {} ({})", config.remoteTypes, config.mode)
         }
-        if (config.remoteFields.isNotEmpty()) {
+        if (!config.fieldProxyingEnabled) {
+            log.info(
+                "Remote resolver field proxying disabled via VIADUCT_REMOTE_RESOLVER_FIELDS=none; " +
+                    "node proxying unaffected ({})",
+                config.mode
+            )
+        } else if (config.remoteFields.isEmpty()) {
+            log.info(
+                "Remote resolver execution enabled for all field resolvers by default ({}); built-ins and " +
+                    "selective resolvers excluded (set VIADUCT_REMOTE_RESOLVER_FIELDS to narrow or 'none' to disable)",
+                config.mode
+            )
+        } else {
             log.info("Remote resolver execution enabled for fields {} ({})", config.remoteFields, config.mode)
         }
     }
@@ -186,5 +208,13 @@ class RemoteResolverInitializer(private val config: RemoteResolverConfig) : Auto
 
     private companion object {
         const val SHUTDOWN_TIMEOUT_SECONDS = 5L
+
+        // Engine built-in field resolvers (by ResolverMetadata.name) — proxied only when explicitly
+        // listed, never by default: they're in-JVM framework ops, so proxying them is wasted round-trips.
+        val BUILT_IN_FIELD_RESOLVER_NAMES = setOf(
+            "query-node-resolver",
+            "query-nodes-resolver",
+            "namespace-type-resolver"
+        )
     }
 }
