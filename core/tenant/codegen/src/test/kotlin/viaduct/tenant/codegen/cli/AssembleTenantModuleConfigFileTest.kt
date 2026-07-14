@@ -6,6 +6,9 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
+import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.binary.extensions.toBinaryFile
+import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 
 class AssembleTenantModuleConfigFileTest {
     @TempDir
@@ -22,6 +25,7 @@ class AssembleTenantModuleConfigFileTest {
         executorFactory: String = "com.example.feature.ExampleExecutorFactory",
         out: File = outputDir(),
         schemaSdl: File? = null,
+        schemaBinary: File? = null,
     ) {
         val args = mutableListOf(
             "--descriptor-dir",
@@ -39,10 +43,40 @@ class AssembleTenantModuleConfigFileTest {
         if (schemaSdl != null) {
             args += listOf("--schema-sdl", schemaSdl.absolutePath)
         }
+        if (schemaBinary != null) {
+            args += listOf("--schema-binary", schemaBinary.absolutePath)
+        }
         AssembleTenantModuleConfigFile().main(args)
     }
 
     private fun schemaFile(sdl: String): File = File(tempDir, "schema.graphqls").also { it.writeText(sdl) }
+
+    private fun sourceSchemaFile(
+        relativePath: String,
+        sdl: String,
+    ): File =
+        File(tempDir, relativePath).also { file ->
+            file.parentFile.mkdirs()
+            file.writeText(sdl)
+        }
+
+    private fun schemaBinaryFile(vararg schemaFiles: File): File =
+        File(tempDir, "schema.bgql").also { binarySchema ->
+            ViaductSchema.fromTypeDefinitionRegistry(schemaFiles.toList()).toBinaryFile(binarySchema)
+        }
+
+    private fun runCliWithSchema(
+        descriptors: File,
+        out: File,
+        schema: File,
+    ) {
+        runCli(
+            descriptors = descriptors,
+            out = out,
+            schemaSdl = schema,
+            schemaBinary = schemaBinaryFile(schema),
+        )
+    }
 
     @Test
     fun `writes output file under META-INF viaduct modules with tenant package name`() {
@@ -515,7 +549,40 @@ class AssembleTenantModuleConfigFileTest {
             """.trimIndent(),
         )
         val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
-        runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+        runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
+    }
+
+    @Test
+    fun `schema-sdl without schema-binary fails clearly`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Resolver.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "NameResolver",
+                "implFqn": "com.example.feature.resolvers.NameResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.Name",
+                "typeName": "User",
+                "fieldName": "name",
+                "objectSelections": {
+                  "selections": "fragment _ on User { id name }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts"
+            }
+            """.trimIndent(),
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
+
+        val exception = assertThrows<IllegalArgumentException> {
+            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+        }
+
+        assertTrue(exception.message!!.contains("--schema-binary is required"), exception.message)
     }
 
     @Test
@@ -544,12 +611,83 @@ class AssembleTenantModuleConfigFileTest {
         )
         val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
         val exception = assertThrows<IllegalStateException> {
-            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+            runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
         }
         assertTrue(exception.message!!.contains("RSS validation failed"), exception.message)
         // Field-undefined errors carry a hint pointing at the compilation-schema docs.
         assertTrue(exception.message!!.contains("missing field or type in your tenant's compilation schema"), exception.message)
         assertTrue(exception.message!!.contains("tenant-compilation-schemas"), exception.message)
+    }
+
+    @Test
+    fun `schema-binary rejects RSS object selections referencing tenant-local field from another tenant`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Resolver.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "NameResolver",
+                "implFqn": "com.example.feature.resolvers.NameResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.Name",
+                "typeName": "User",
+                "fieldName": "name",
+                "objectSelections": {
+                  "selections": "fragment _ on User { tenantLocalFromOther }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts"
+            }
+            """.trimIndent(),
+        )
+        val featureSchemaSdl = """
+            directive @tenantLocal on FIELD_DEFINITION
+
+            type Query {
+                viewer: User
+            }
+
+            type User {
+                id: ID
+                name: String
+            }
+        """.trimIndent()
+        val otherSchemaSdl = """
+            extend type User {
+                tenantLocalFromOther: String @tenantLocal
+            }
+        """.trimIndent()
+        val schema = schemaFile(
+            """
+            directive @tenantLocal on FIELD_DEFINITION
+
+            type Query {
+                viewer: User
+            }
+
+            type User {
+                id: ID
+                name: String
+            }
+
+            extend type User {
+                tenantLocalFromOther: String @tenantLocal
+            }
+            """.trimIndent(),
+        )
+        val schemaBinary = schemaBinaryFile(
+            sourceSchemaFile("build/viaduct/centralSchema/partition/feature/graphql/schema.graphqls", featureSchemaSdl),
+            sourceSchemaFile("build/viaduct/centralSchema/partition/other/graphql/schema.graphqls", otherSchemaSdl),
+        )
+        val exception = assertThrows<IllegalStateException> {
+            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema, schemaBinary = schemaBinary)
+        }
+        assertTrue(exception.message!!.contains("RSS validation failed"), exception.message)
+        assertTrue(exception.message!!.contains("User.tenantLocalFromOther"), exception.message)
+        assertTrue(exception.message!!.contains("owned by other"), exception.message)
     }
 
     @Test
@@ -581,7 +719,7 @@ class AssembleTenantModuleConfigFileTest {
         )
         val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
         val out = outputDir()
-        runCli(descriptors = descriptors, out = out, schemaSdl = schema)
+        runCliWithSchema(descriptors = descriptors, out = out, schema = schema)
 
         val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
         assertTrue(json.contains("fragment UserFields on User { id name }"), json)
@@ -616,7 +754,7 @@ class AssembleTenantModuleConfigFileTest {
         )
         val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
         val exception = assertThrows<IllegalStateException> {
-            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+            runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
         }
         assertTrue(exception.message!!.contains("RSS validation failed"), exception.message)
     }
@@ -647,7 +785,7 @@ class AssembleTenantModuleConfigFileTest {
         )
         val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String } type Photo { url: String }")
         val exception = assertThrows<IllegalStateException> {
-            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+            runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
         }
         assertTrue(exception.message!!.contains("must be on the parent type (User)"), exception.message)
     }
@@ -678,7 +816,7 @@ class AssembleTenantModuleConfigFileTest {
         )
         val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
         val exception = assertThrows<IllegalStateException> {
-            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+            runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
         }
         assertTrue(exception.message!!.contains("must be on the root query type (Query)"), exception.message)
     }
@@ -711,7 +849,7 @@ class AssembleTenantModuleConfigFileTest {
             "type Query { viewer: User } type Mutation { createUser: User } type User { id: ID }",
         )
         val exception = assertThrows<IllegalStateException> {
-            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+            runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
         }
         assertTrue(exception.message!!.contains("should not set objectValueFragment"), exception.message)
     }
@@ -745,7 +883,7 @@ class AssembleTenantModuleConfigFileTest {
             """.trimIndent(),
         )
         val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
-        runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+        runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
     }
 
     @Test
@@ -787,7 +925,7 @@ class AssembleTenantModuleConfigFileTest {
         )
         val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
         // Should not throw.
-        runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+        runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
     }
 
     @Test
@@ -802,7 +940,7 @@ class AssembleTenantModuleConfigFileTest {
         )
         val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
         val exception = assertThrows<IllegalStateException> {
-            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+            runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
         }
         assertTrue(exception.message!!.contains("@GraphQLOperation validation failed"), exception.message)
         assertTrue(exception.message!!.contains("notAField"), exception.message)
@@ -820,7 +958,7 @@ class AssembleTenantModuleConfigFileTest {
         )
         val schema = schemaFile("type Query { viewer: User } type Mutation { touch: Boolean } type User { id: ID }")
         val exception = assertThrows<IllegalStateException> {
-            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+            runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
         }
         assertTrue(exception.message!!.contains("@GraphQLOperation validation failed"), exception.message)
         assertTrue(exception.message!!.contains("QueryFromAnnotation"), exception.message)
@@ -841,6 +979,6 @@ class AssembleTenantModuleConfigFileTest {
         )
         val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
         // Should not throw — the external fragment is resolved during validation.
-        runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
+        runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
     }
 }

@@ -37,6 +37,9 @@ class AssembleTenantModuleConfigFile : CliktCommand(
     private val schemaSdl: File? by option("--schema-sdl")
         .file(mustExist = true, canBeFile = true)
 
+    private val schemaBinary: File? by option("--schema-binary")
+        .file(mustExist = true, canBeFile = true)
+
     private val outputDir: File by option("--output-dir")
         .file(mustExist = false, canBeFile = false)
         .required()
@@ -57,6 +60,7 @@ class AssembleTenantModuleConfigFile : CliktCommand(
             tenantPackage = tenantPackage,
             tenantPackagePrefix = tenantPackagePrefix,
             schemaSdl = schemaSdl?.readText(),
+            schemaBinary = schemaBinary,
             outputDir = outputDir,
         )
     }

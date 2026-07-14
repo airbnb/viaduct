@@ -17,6 +17,8 @@ import viaduct.engine.api.bootstrap.executionregistry.ProviderVariablesAPIData
 import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
 import viaduct.engine.api.bootstrap.executionregistry.VariableProviderEntryConfig
 import viaduct.engine.api.parse.DocumentParser
+import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.binary.extensions.fromBinaryFile
 import viaduct.graphql.utils.SelectionsParserUtils
 import viaduct.tenant.codegen.ksp.PerSourceDescriptorFile
 import viaduct.tenant.codegen.ksp.ResolverParams
@@ -40,6 +42,7 @@ internal object TenantModuleConfigAssembler {
         tenantPackagePrefix: String? = null,
         outputDir: File,
         schemaSdl: String? = null,
+        schemaBinary: File? = null,
     ) {
         writeRegistryFromDescriptors(
             descriptors = descriptorJsons.map(codec::decode),
@@ -48,6 +51,7 @@ internal object TenantModuleConfigAssembler {
             tenantPackagePrefix = tenantPackagePrefix,
             outputDir = outputDir,
             schemaSdl = schemaSdl,
+            schemaBinary = schemaBinary,
         )
     }
 
@@ -58,6 +62,7 @@ internal object TenantModuleConfigAssembler {
         tenantPackagePrefix: String?,
         outputDir: File,
         schemaSdl: String? = null,
+        schemaBinary: File? = null,
     ) {
         val bootstrapClasses = descriptors.mapNotNull { it.bootstrapClass }
         if (bootstrapClasses.size > 1) {
@@ -70,9 +75,17 @@ internal object TenantModuleConfigAssembler {
 
         validateNameConflicts(descriptors, fragmentsByName)
 
+        val tenantModuleName = tenantModuleNameFromPackage(tenantPackage, tenantPackagePrefix)
+
         if (schemaSdl != null) {
-            val schema = UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(schemaSdl))
-            validateAssembledRss(descriptors, fragmentsByName, schema)
+            val typeDefinitionRegistry = SchemaParser().parse(schemaSdl)
+            val schema = UnExecutableSchemaGenerator.makeUnExecutableSchema(typeDefinitionRegistry)
+            val viaductSchema = ViaductSchema.fromBinaryFile(
+                requireNotNull(schemaBinary) {
+                    "--schema-binary is required when --schema-sdl is provided for tenant-local RSS ownership validation"
+                },
+            )
+            validateAssembledRss(descriptors, fragmentsByName, schema, viaductSchema, tenantModuleName)
             validateAssembledOperations(descriptors, fragmentsByName, schema)
         }
 
@@ -147,8 +160,14 @@ internal object TenantModuleConfigAssembler {
         descriptors: List<PerSourceDescriptorFile>,
         fragmentsByName: Map<String, String>,
         schema: graphql.schema.GraphQLSchema,
+        viaductSchema: ViaductSchema,
+        tenantModuleName: String,
     ) {
-        val rssValidator = RequiredSelectionSetValidator(schema)
+        val rssValidator = RequiredSelectionSetValidator(
+            tenantCompilationSchema = schema,
+            currentTenantModule = tenantModuleName,
+            tenantCompilationViaductSchema = viaductSchema,
+        )
         val errors = mutableListOf<String>()
 
         descriptors.flatMap { it.fields }.forEach { field ->

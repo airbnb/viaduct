@@ -30,6 +30,9 @@ class AssembleTenantModuleConfigJar : CliktCommand(
     private val schemaSdl: File? by option("--schema-sdl")
         .file(mustExist = true, canBeDir = false)
 
+    private val schemaBinary: File? by option("--schema-binary")
+        .file(mustExist = true, canBeDir = false)
+
     /**
      * FQN of the `ExecutorFactory` recorded in the assembled config. Defaults to the Kotlin factory
      * so existing callers are unaffected; the Java path passes
@@ -69,6 +72,7 @@ class AssembleTenantModuleConfigJar : CliktCommand(
                 tenantPackage = tenantPackage,
                 tenantPackagePrefix = tenantPackagePrefix,
                 schemaSdl = schemaSdl?.readText(),
+                schemaBinary = schemaBinary,
                 outputDir = outputDir,
             )
 
