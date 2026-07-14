@@ -29,8 +29,26 @@ class ViaductApplicationSchemaScopeRuleTest {
     lateinit var projectDir: File
 
     private fun writeSettings() {
-        File(projectDir, "settings.gradle.kts").writeText("""rootProject.name = "test"""")
+        File(projectDir, "settings.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.airbnb.viaduct.settings-gradle-plugin")
+            }
+
+            rootProject.name = "test"
+
+            includeViaductApplication {
+                project(":")
+                modulePackagePrefix("com.example.test")
+            }
+            """.trimIndent()
+        )
     }
+
+    private fun combinedPluginClasspath(): List<File> =
+        System.getProperty("java.class.path")
+            .split(File.pathSeparator)
+            .map { File(it) }
 
     private fun buildScript(viaductBlock: String): String =
         buildString {
@@ -40,7 +58,6 @@ class ViaductApplicationSchemaScopeRuleTest {
             appendLine("}")
             appendLine()
             appendLine("viaductApplication {")
-            appendLine("    modulePackagePrefix.set(\"com.example.test\")")
             viaductBlock.trimIndent().lines().forEach { line ->
                 if (line.isBlank()) appendLine() else appendLine("    $line")
             }
@@ -79,7 +96,7 @@ class ViaductApplicationSchemaScopeRuleTest {
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
-            .withPluginClasspath()
+            .withPluginClasspath(combinedPluginClasspath())
             .withArguments("assembleViaductCentralSchema", "--stacktrace")
             .buildAndFail()
 
@@ -115,7 +132,7 @@ class ViaductApplicationSchemaScopeRuleTest {
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
-            .withPluginClasspath()
+            .withPluginClasspath(combinedPluginClasspath())
             .withArguments(
                 "assembleViaductCentralSchema",
                 "--configuration-cache",
@@ -144,7 +161,7 @@ class ViaductApplicationSchemaScopeRuleTest {
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
-            .withPluginClasspath()
+            .withPluginClasspath(combinedPluginClasspath())
             .withArguments(
                 "assembleViaductCentralSchema",
                 "--configuration-cache",
