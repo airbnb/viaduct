@@ -92,10 +92,18 @@ class ViaductJavaModulePluginFunctionalTest {
             .withArguments(":app:javaresolvers:printViaductJavaApplicationAnchor")
             .build()
 
-        assertTrue(result.output.contains("CENTRAL_SCHEMA_PROJECT=:app"))
-        assertTrue(result.output.contains("CENTRAL_SCHEMA_CONFIGURATION=viaductCentralSchema"))
-        assertTrue(result.output.contains("JAVA_GRT_PROJECT=:app"))
-        assertTrue(result.output.contains("JAVA_GRT_CONFIGURATION=viaductJavaGRTClasses"))
+        assertTrue(result.output.contains("VIADUCT_APPLICATION_PROJECT=:app"), result.output)
+        assertTrue(result.output.contains("VIADUCT_APPLICATION_CONFIGURATION=null"), result.output)
+        assertTrue(result.output.contains("CENTRAL_SCHEMA_EXTENDS=[viaductApplication]"), result.output)
+        assertTrue(result.output.contains("JAVA_GRT_EXTENDS=[]"), result.output)
+        assertTrue(result.output.contains("DIRECT_CENTRAL_SCHEMA_DEPS=[]"), result.output)
+        assertTrue(result.output.contains("DIRECT_JAVA_GRT_DEPS=[:app]"), result.output)
+        assertTrue(
+            result.output.contains("DIRECT_JAVA_GRT_CONFIGURATIONS=[viaductJavaGRTClasses]"),
+            result.output
+        )
+        assertTrue(result.output.contains("CENTRAL_SCHEMA_KIND=central-schema"), result.output)
+        assertTrue(result.output.contains("JAVA_GRT_KIND=java-grt-classes"), result.output)
     }
 
     @Test
@@ -231,21 +239,58 @@ class ViaductJavaModulePluginFunctionalTest {
 
             tasks.register('printViaductJavaApplicationAnchor') {
                 doLast {
-                    def centralSchemaDependency =
+                    def viaductApplicationDependency =
+                        configurations.getByName('viaductApplication')
+                            .dependencies
+                            .findAll { it instanceof org.gradle.api.artifacts.ProjectDependency }
+                            .first()
+                    def centralSchemaExtends =
+                        configurations.getByName('viaductCentralSchemaIn')
+                            .extendsFrom
+                            .collect { it.name }
+                            .sort()
+                    def grtExtends =
+                        configurations.getByName('viaductJavaGRTClassesIn')
+                            .extendsFrom
+                            .collect { it.name }
+                            .sort()
+                    def directCentralSchemaDeps =
                         configurations.getByName('viaductCentralSchemaIn')
                             .dependencies
-                            .findAll { it instanceof ProjectDependency }
-                            .first()
-                    def grtDependency =
+                            .findAll { it instanceof org.gradle.api.artifacts.ProjectDependency }
+                            .collect { it.path }
+                            .sort()
+                    def directGrtDeps =
                         configurations.getByName('viaductJavaGRTClassesIn')
                             .dependencies
-                            .findAll { it instanceof ProjectDependency }
-                            .first()
+                            .findAll { it instanceof org.gradle.api.artifacts.ProjectDependency }
+                            .collect { it.path }
+                            .sort()
+                    def directGrtConfigurations =
+                        configurations.getByName('viaductJavaGRTClassesIn')
+                            .dependencies
+                            .findAll { it instanceof org.gradle.api.artifacts.ProjectDependency }
+                            .collect { it.targetConfiguration }
+                            .sort()
+                    def viaductKindAttribute = org.gradle.api.attributes.Attribute.of('viaduct.kind', String)
+                    def centralSchemaKind =
+                        configurations.getByName('viaductCentralSchemaIn')
+                            .attributes
+                            .getAttribute(viaductKindAttribute)
+                    def grtKind =
+                        configurations.getByName('viaductJavaGRTClassesIn')
+                            .attributes
+                            .getAttribute(viaductKindAttribute)
 
-                    println "CENTRAL_SCHEMA_PROJECT=${'$'}{centralSchemaDependency.path}"
-                    println "CENTRAL_SCHEMA_CONFIGURATION=${'$'}{centralSchemaDependency.targetConfiguration}"
-                    println "JAVA_GRT_PROJECT=${'$'}{grtDependency.path}"
-                    println "JAVA_GRT_CONFIGURATION=${'$'}{grtDependency.targetConfiguration}"
+                    println "VIADUCT_APPLICATION_PROJECT=${'$'}{viaductApplicationDependency.path}"
+                    println "VIADUCT_APPLICATION_CONFIGURATION=${'$'}{viaductApplicationDependency.targetConfiguration}"
+                    println "CENTRAL_SCHEMA_EXTENDS=${'$'}centralSchemaExtends"
+                    println "JAVA_GRT_EXTENDS=${'$'}grtExtends"
+                    println "DIRECT_CENTRAL_SCHEMA_DEPS=${'$'}directCentralSchemaDeps"
+                    println "DIRECT_JAVA_GRT_DEPS=${'$'}directGrtDeps"
+                    println "DIRECT_JAVA_GRT_CONFIGURATIONS=${'$'}directGrtConfigurations"
+                    println "CENTRAL_SCHEMA_KIND=${'$'}centralSchemaKind"
+                    println "JAVA_GRT_KIND=${'$'}grtKind"
                 }
             }
             """.trimIndent()

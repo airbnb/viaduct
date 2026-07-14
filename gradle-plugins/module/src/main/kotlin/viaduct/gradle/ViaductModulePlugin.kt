@@ -32,6 +32,7 @@ class ViaductModulePlugin : Plugin<Project> {
             ViaductModulePluginSupport.configureDirectModuleDependencyChecks(this)
             ViaductModulePluginSupport.configureModulePackageSuffixConvention(this, moduleExt)
 
+            val viaductApplication = ViaductModulePluginSupport.setupViaductApplicationConfiguration(this)
             val grtIncomingCfg = ViaductModulePluginSupport.createGRTIncomingConfiguration(
                 this,
                 ViaductPluginCommon.Configs.GRT_CLASSES_KOTLIN_INCOMING,
@@ -42,7 +43,8 @@ class ViaductModulePlugin : Plugin<Project> {
                 ViaductModulePluginSupport.setupAssembleSchemaPartitionTask(this, moduleLayout)
             ViaductModulePluginSupport.setupOutgoingConfigurationForPartitionSchema(this, assembleSchemaPartitionTask)
 
-            val centralSchemaIncomingCfg = ViaductModulePluginSupport.setupIncomingConfigurationForCentralSchema(this)
+            val centralSchemaIncomingCfg =
+                ViaductModulePluginSupport.setupIncomingConfigurationForCentralSchema(this, viaductApplication)
             val generateResolverBasesTask = setupGenerateResolverBasesTask(moduleLayout, centralSchemaIncomingCfg)
 
             setupKspRegistryExtractor(moduleLayout, generateResolverBasesTask)
@@ -50,6 +52,7 @@ class ViaductModulePlugin : Plugin<Project> {
             ViaductModulePluginSupport.wireToTopologyApplicationProject(
                 this,
                 topology,
+                viaductApplication,
                 centralSchemaIncomingCfg,
                 grtIncomingCfg,
                 ViaductPluginCommon.Configs.GRT_CLASSES_KOTLIN_OUTGOING,

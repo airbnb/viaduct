@@ -53,6 +53,9 @@ object ViaductPluginCommon {
         /** Module: consumable configuration for a modules schema partition. */
         const val SCHEMA_PARTITION_OUTGOING = "viaductSchemaPartition"
 
+        /** Module: dependency bucket for the Viaduct application project that owns this module. */
+        const val VIADUCT_APPLICATION = "viaductApplication"
+
         /** Module: resolvable configuration for the central schema file. */
         const val CENTRAL_SCHEMA_INCOMING = "viaductCentralSchemaIn"
 

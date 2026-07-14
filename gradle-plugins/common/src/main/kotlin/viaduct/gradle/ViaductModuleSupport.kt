@@ -96,6 +96,17 @@ object ViaductModulePluginSupport {
             }
         }
 
+    fun setupViaductApplicationConfiguration(project: Project): Configuration {
+        val existing = project.configurations.findByName(ViaductPluginCommon.Configs.VIADUCT_APPLICATION)
+        if (existing != null) return existing
+
+        return project.configurations.create(ViaductPluginCommon.Configs.VIADUCT_APPLICATION).apply {
+            description = "Dependency bucket for the Viaduct application project that owns this module."
+            isCanBeConsumed = false
+            isCanBeResolved = false
+        }
+    }
+
     fun setupAssembleSchemaPartitionTask(
         project: Project,
         moduleLayout: ViaductModulePackageLayout,
@@ -124,11 +135,15 @@ object ViaductModulePluginSupport {
         schemaPartitionCfg.outgoing.artifact(assembleSchemaPartitionTask.flatMap { it.outputDirectory })
     }
 
-    fun setupIncomingConfigurationForCentralSchema(project: Project): Configuration =
+    fun setupIncomingConfigurationForCentralSchema(
+        project: Project,
+        viaductApplication: Configuration,
+    ): Configuration =
         project.configurations.create(ViaductPluginCommon.Configs.CENTRAL_SCHEMA_INCOMING).apply {
             description = "Resolvable configuration for the central schema (used to generate resolver base classes)."
             isCanBeConsumed = false
             isCanBeResolved = true
+            extendsFrom(viaductApplication)
             attributes { attrs ->
                 attrs.attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.CENTRAL_SCHEMA)
             }
@@ -137,6 +152,7 @@ object ViaductModulePluginSupport {
     fun wireToTopologyApplicationProject(
         project: Project,
         topology: ViaductApplicationTopology,
+        viaductApplication: Configuration,
         centralSchemaIncomingCfg: Configuration,
         grtIncomingCfg: Configuration,
         grtOutgoingConfigName: String,
@@ -160,11 +176,10 @@ object ViaductModulePluginSupport {
         }
 
         project.dependencies.add(
-            centralSchemaIncomingCfg.name,
+            viaductApplication.name,
             project.dependencies.project(
                 mapOf(
                     "path" to topology.applicationProjectPath,
-                    "configuration" to ViaductPluginCommon.Configs.CENTRAL_SCHEMA_OUTGOING,
                 ),
             ),
         )

@@ -24,6 +24,7 @@ class ViaductJavaModulePlugin : Plugin<Project> {
             ViaductModulePluginSupport.configureDirectModuleDependencyChecks(this)
             ViaductModulePluginSupport.configureModulePackageSuffixConvention(this, moduleExt)
 
+            val viaductApplication = ViaductModulePluginSupport.setupViaductApplicationConfiguration(this)
             val grtIncomingCfg = ViaductModulePluginSupport.createGRTIncomingConfiguration(
                 this,
                 ViaductPluginCommon.Configs.GRT_CLASSES_JAVA_INCOMING,
@@ -34,12 +35,14 @@ class ViaductJavaModulePlugin : Plugin<Project> {
                 ViaductModulePluginSupport.setupAssembleSchemaPartitionTask(this, moduleLayout)
             ViaductModulePluginSupport.setupOutgoingConfigurationForPartitionSchema(this, assembleSchemaPartitionTask)
 
-            val centralSchemaIncomingCfg = ViaductModulePluginSupport.setupIncomingConfigurationForCentralSchema(this)
+            val centralSchemaIncomingCfg =
+                ViaductModulePluginSupport.setupIncomingConfigurationForCentralSchema(this, viaductApplication)
             val generateResolverBasesTask = setupGenerateResolverBasesTask(moduleLayout, centralSchemaIncomingCfg)
 
             ViaductModulePluginSupport.wireToTopologyApplicationProject(
                 this,
                 topology,
+                viaductApplication,
                 centralSchemaIncomingCfg,
                 grtIncomingCfg,
                 ViaductPluginCommon.Configs.GRT_CLASSES_JAVA_OUTGOING,
