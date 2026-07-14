@@ -1188,6 +1188,123 @@ class DefaultSchemaFactoryTest {
         assertTrue((exception.message ?: "").contains("hasNextPage"), "Should mention missing field")
     }
 
+    @Test
+    fun `getDefaultSDL default includes scope directive definition`() {
+        val sdl = DefaultSchemaFactory.getDefaultSDL()
+        val registry = SchemaParser().parse(sdl)
+
+        assertTrue(
+            registry.getDirectiveDefinition("scope").isPresent,
+            "Default SDL should define @scope"
+        )
+    }
+
+    @Test
+    fun `getDefaultSDL with includeScopeDirective=false omits the scope directive definition`() {
+        val sdl = DefaultSchemaFactory.getDefaultSDL(includeScopeDirective = false)
+        val registry = SchemaParser().parse(sdl)
+
+        assertFalse(
+            registry.getDirectiveDefinition("scope").isPresent,
+            "SDL should not define @scope when includeScopeDirective=false"
+        )
+        // Other default directives must still be present — only @scope is gated.
+        assertTrue(registry.getDirectiveDefinition("resolver").isPresent, "@resolver must survive")
+        assertTrue(registry.getDirectiveDefinition("idOf").isPresent, "@idOf must survive")
+    }
+
+    @Test
+    fun `getDefaultSDL with includeScopeDirective=false omits scope on Node interface`() {
+        val sdl = DefaultSchemaFactory.getDefaultSDL(
+            includeNodeDefinition = DefaultSchemaFactory.IncludeNodeSchema.Always,
+            includeScopeDirective = false
+        )
+        val registry = SchemaParser().parse(sdl)
+
+        val node = registry.getType("Node").get() as InterfaceTypeDefinition
+        assertFalse(
+            node.directives.any { it.name == "scope" },
+            "Node interface should not carry @scope when includeScopeDirective=false"
+        )
+    }
+
+    @Test
+    fun `getDefaultSDL with includeScopeDirective=false omits scope on synthetic Query extension`() {
+        val sdl = DefaultSchemaFactory.getDefaultSDL(
+            existingSDLFiles = listOf(mkFile("type User implements Node { id:ID! }")),
+            includeScopeDirective = false
+        )
+        val registry = SchemaParser().parse(sdl)
+
+        val queryExtensions = registry.objectTypeExtensions()["Query"] ?: emptyList()
+        assertTrue(queryExtensions.isNotEmpty(), "Node query extension must still be emitted")
+        assertFalse(
+            queryExtensions.any { ext -> ext.directives.any { it.name == "scope" } },
+            "Synthesized Query extension carrying node/nodes should not carry @scope"
+        )
+    }
+
+    @Test
+    fun `getDefaultSDL with includeScopeDirective=false omits scope on PageInfo`() {
+        val sdl = DefaultSchemaFactory.getDefaultSDL(includeScopeDirective = false)
+        val registry = SchemaParser().parse(sdl)
+
+        val pageInfo = registry.getType("PageInfo").get() as ObjectTypeDefinition
+        assertFalse(
+            pageInfo.directives.any { it.name == "scope" },
+            "PageInfo should not carry @scope when includeScopeDirective=false"
+        )
+    }
+
+    @Test
+    fun `getDefaultSDL with includeScopeDirective=false omits scope on synthetic root types`() {
+        val sdl = DefaultSchemaFactory.getDefaultSDL(includeScopeDirective = false)
+        val registry = SchemaParser().parse(sdl)
+
+        val query = registry.getType("Query").get() as ObjectTypeDefinition
+        assertFalse(
+            query.directives.any { it.name == "scope" },
+            "Synthetic Query root should not carry @scope when includeScopeDirective=false"
+        )
+    }
+
+    @Test
+    fun `getDefaultSDL with includeScopeDirective=false parses as a valid SDL round-trip`() {
+        val sdl = DefaultSchemaFactory.getDefaultSDL(
+            existingSDLFiles = listOf(mkFile("type User implements Node { id:ID! }")),
+            includeScopeDirective = false
+        )
+        // Round-trip must remain executable: no dangling @scope references from the framework.
+        assertDoesNotThrow {
+            UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(sdl))
+        }
+    }
+
+    @Test
+    fun `addDefaults registry overload with includeScopeDirective=false gates all 5 sites`() {
+        val registry = SchemaParser().parse("type User implements Node { id:ID! }")
+
+        DefaultSchemaFactory.addDefaults(registry, includeScopeDirective = false)
+
+        // 1. Directive definition omitted
+        assertFalse(registry.getDirectiveDefinition("scope").isPresent, "@scope def should be omitted")
+        // 2. PageInfo carries no @scope
+        val pageInfo = registry.getType("PageInfo").get() as ObjectTypeDefinition
+        assertFalse(pageInfo.directives.any { it.name == "scope" }, "PageInfo should carry no @scope")
+        // 3. Node interface carries no @scope
+        val node = registry.getType("Node").get() as InterfaceTypeDefinition
+        assertFalse(node.directives.any { it.name == "scope" }, "Node interface should carry no @scope")
+        // 4. Node Query extension carries no @scope
+        val queryExtensions = registry.objectTypeExtensions()["Query"] ?: emptyList()
+        assertFalse(
+            queryExtensions.any { ext -> ext.directives.any { it.name == "scope" } },
+            "Synthetic Query extension should carry no @scope"
+        )
+        // 5. Empty root Query carries no @scope
+        val query = registry.getType("Query").get() as ObjectTypeDefinition
+        assertFalse(query.directives.any { it.name == "scope" }, "Root Query should carry no @scope")
+    }
+
     // ---- helpers ----
 
     private fun defaultDirectiveNames() = DefaultDirective.values().map { it.directiveName }

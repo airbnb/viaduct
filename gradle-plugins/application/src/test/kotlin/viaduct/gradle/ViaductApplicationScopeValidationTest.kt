@@ -6,7 +6,6 @@ import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
 
 /**
  * Smoke coverage of the schema-scoping DSL integration through Gradle TestKit. The purpose here
@@ -20,52 +19,7 @@ import org.junit.jupiter.api.io.TempDir
  *      script line, with the error code visible in build output.
  *   3. Cross-property aggregation — proves the multi-error message shape the developer will read.
  */
-class ViaductApplicationScopeValidationTest {
-    @TempDir
-    lateinit var projectDir: File
-
-    private fun writeSettings() {
-        File(projectDir, "settings.gradle.kts").writeText(
-            """
-            plugins {
-                id("com.airbnb.viaduct.settings-gradle-plugin")
-            }
-
-            rootProject.name = "test"
-
-            includeViaductApplication {
-                project(":")
-                modulePackagePrefix("com.example.test")
-            }
-            """.trimIndent()
-        )
-    }
-
-    private fun combinedPluginClasspath(): List<File> =
-        System.getProperty("java.class.path")
-            .split(File.pathSeparator)
-            .map { File(it) }
-
-    /**
-     * Builds a `build.gradle.kts` whose `viaductApplication { ... }` block contains [viaductBlock].
-     * The body is line-indented programmatically (rather than via nested `trimIndent` interpolation)
-     * so the resulting Kotlin file has consistent indentation regardless of how the caller formats
-     * its block.
-     */
-    private fun buildScript(viaductBlock: String): String =
-        buildString {
-            appendLine("plugins {")
-            appendLine("    `java-library`")
-            appendLine("    id(\"com.airbnb.viaduct.application-gradle-plugin\")")
-            appendLine("}")
-            appendLine()
-            appendLine("viaductApplication {")
-            viaductBlock.trimIndent().lines().forEach { line ->
-                if (line.isBlank()) appendLine() else appendLine("    $line")
-            }
-            appendLine("}")
-        }
-
+class ViaductApplicationScopeValidationTest : ViaductApplicationTestKitFixture() {
     @Test
     fun `valid scope configuration succeeds under configuration cache`() {
         writeSettings()

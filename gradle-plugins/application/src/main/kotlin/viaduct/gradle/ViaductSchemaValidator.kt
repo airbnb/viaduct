@@ -74,7 +74,27 @@ class ViaductSchemaValidator(private val logger: Logger, private val extensionsO
             logger.debug("Schema syntax validation successful. Found {} types defined.", typeRegistry.types().size)
             emptyList()
         } catch (e: SchemaProblem) {
-            e.errors
+            e.errors.map { err ->
+                val msg = err.message ?: ""
+                if (isUnknownScopeDirective(msg)) {
+                    ValidationError.newValidationError()
+                        .description(
+                            "$msg — The framework only emits the built-in `@scope` directive " +
+                                "definition when the application opts into schema scoping. To fix, " +
+                                "either (1) declare a scope universe in your application's build " +
+                                "script so the framework provides the directive:\n" +
+                                "    viaductApplication {\n" +
+                                "        declareScoping { scopes(\"default\", \"...\") }\n" +
+                                "    }\n" +
+                                "or (2) define your own `directive @scope` in one of your schema " +
+                                "files if you want to use the name outside the framework's scoping " +
+                                "feature, or (3) remove the @scope usage from your schema."
+                        )
+                        .build()
+                } else {
+                    err
+                }
+            }
         } catch (e: InvalidSchemaException) {
             // InvalidSchemaException is @Internal and its errors field is package-private;
             // the combined message string is the only public API surface.
@@ -182,7 +202,17 @@ class ViaductSchemaValidator(private val logger: Logger, private val extensionsO
 
     private fun normalizePath(path: String): String? = runCatching { Path.of(path).toAbsolutePath().normalize().toString() }.getOrNull()
 
+    private fun isUnknownScopeDirective(msg: String): Boolean = UNKNOWN_SCOPE_DIRECTIVE_REGEX.containsMatchIn(msg)
+
     companion object {
         private const val EMPTY_TYPE_PATTERN = "must define one or more fields"
+
+        // graphql-java's SchemaProblem message for an undefined directive comes in two flavors:
+        //   - parser-level "Unknown directive 'scope'"
+        //   - validator-level "tried to use an undeclared directive 'scope'"
+        // Tolerate case on both prefixes (graphql-java has flipped casing in past releases), and
+        // both `'scope'` and `'@scope'` renderings across graphql-java versions.
+        private val UNKNOWN_SCOPE_DIRECTIVE_REGEX =
+            Regex("(?i)(?:unknown directive|undeclared directive)\\s+'@?scope'")
     }
 }

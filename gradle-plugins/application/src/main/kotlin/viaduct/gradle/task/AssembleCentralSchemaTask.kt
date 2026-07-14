@@ -113,7 +113,16 @@ abstract class AssembleCentralSchemaTask
             }
             val allSchemaFiles = outputDirectory.get().asFileTree.matching { include("**/*.graphqls") }.files
 
-            val sdl = DefaultSchemaFactory.getDefaultSDL(existingSDLFiles = allSchemaFiles.toList())
+            // Gate the built-in `@scope` decoration on whether this application has opted into
+            // schema scoping. When `isScoped` is false, none of the framework-generated types
+            // (Node, PageInfo, synthetic root types) carry `@scope`, the `@scope` directive
+            // definition is omitted, and tenant schemas cannot use `@scope` — enforcement is
+            // moved to build time.
+            val includeScopeDirective = schemaScoping.get().isScoped
+            val sdl = DefaultSchemaFactory.getDefaultSDL(
+                existingSDLFiles = allSchemaFiles.toList(),
+                includeScopeDirective = includeScopeDirective,
+            )
             val sdlFile = outputDirectory.get().asFile.resolve(BUILTIN_SCHEMA_FILE)
             sdlFile.writeText(sdl)
 

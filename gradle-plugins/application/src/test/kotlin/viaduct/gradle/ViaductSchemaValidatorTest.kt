@@ -230,4 +230,36 @@ class ViaductSchemaValidatorTest {
         errors[0].message shouldContain "CustomA"
         errors[0].message shouldNotContain "CustomB"
     }
+
+    @Test
+    fun `Unknown scope directive parse error is enriched with both remediations`() {
+        // Simulates the slice-4 case: the application did NOT opt into scoping, so the framework
+        // omitted the `@scope` directive definition; a tenant schema that still uses `@scope`
+        // trips a graphql-java parse error, which we enrich with a call-to-action naming BOTH
+        // valid fixes: opt into framework scoping via declareScoping, or define `directive @scope`
+        // in the tenant schema (the framework only owns the name when scoping is on).
+        val schemaFile = tempDir.resolve("schema.graphqls").toFile().apply {
+            writeText(
+                """
+                type Query @scope(to: ["default"]) {
+                    hello: String
+                }
+                """.trimIndent()
+            )
+        }
+
+        val errors = validator.validateSchema(listOf(schemaFile))
+
+        errors shouldExist { err ->
+            val msg = err.message ?: ""
+            ("Unknown directive" in msg || "undeclared directive" in msg) &&
+                "scope" in msg &&
+                "declareScoping" in msg &&
+                "viaductApplication" in msg &&
+                // Custom-definition alternative must be surfaced too — otherwise users who want to
+                // use the `@scope` name outside the framework's scoping feature have no signposted
+                // path forward.
+                "directive @scope" in msg
+        }
+    }
 }

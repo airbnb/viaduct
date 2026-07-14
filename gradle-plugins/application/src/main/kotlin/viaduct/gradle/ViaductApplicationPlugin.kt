@@ -42,7 +42,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
 
             val viaductModules = setupViaductModulesConfiguration()
             val assembleCentralSchemaTask = setupAssembleCentralSchemaTask(viaductModules, appExt)
-            setupValidateSchemaExtensionsTask()
+            setupValidateSchemaExtensionsTask(appExt)
             setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
             setupIncomingDependenciesFromTopology(topology, viaductModules)
 
@@ -119,7 +119,8 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         return viaductModules
     }
 
-    private fun Project.setupValidateSchemaExtensionsTask() {
+    @OptIn(ExperimentalApi::class)
+    private fun Project.setupValidateSchemaExtensionsTask(appExt: ViaductApplicationExtension) {
         tasks.register<ValidateSchemaExtensionsTask>("validateViaductSchemaExtensions") {
             baseSchemaFiles.setFrom(
                 project.fileTree("src/main/viaduct/schemabase") {
@@ -131,6 +132,9 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
                     include("**/*.graphqls")
                 }
             )
+            // Same input as AssembleCentralSchemaTask so preflight and assembly agree on whether
+            // `@scope` is defined in the framework's built-in SDL.
+            schemaScoping.set(appExt.schemaScoping)
         }
     }
 

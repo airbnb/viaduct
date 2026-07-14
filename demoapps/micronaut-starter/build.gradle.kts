@@ -6,6 +6,17 @@ plugins {
     jacoco
 }
 
+viaductApplication {
+    // The starter's `viadapp` module ships an SDL with `@scope(to: ["default"])` on its
+    // Query/Mutation extensions, so opt into schema scoping. Post-slice-4 the build-time
+    // central-SDL assembler only emits the `@scope` directive definition when the app
+    // declares a scope universe; without this block the assembler drops `directive @scope`
+    // and graphql-java rejects the tenant SDL with "Unknown directive '@scope'".
+    declareScoping {
+        scopes("default")
+    }
+}
+
 application {
     mainClass.set("com.example.viadapp.AppKt")
 }

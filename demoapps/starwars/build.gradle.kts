@@ -6,6 +6,17 @@ plugins {
     jacoco
 }
 
+viaductApplication {
+    // Starwars uses `@scope` densely across Character, Film, Species, Planet, Vehicle, and
+    // Starship, so opt into schema scoping. Declaring the full universe here makes
+    // `@scope` available at build time and lets `ScopeUsageRule` validate directive usages.
+    // `modulePackagePrefix` is now declared in `settings.gradle.kts` via
+    // `includeViaductApplication { modulePackagePrefix(...) }`.
+    declareScoping {
+        scopes("default", "extras")
+    }
+}
+
 micronaut {
     runtime("netty")
     testRuntime("junit")

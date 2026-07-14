@@ -109,6 +109,8 @@ object DefaultSchemaFactory {
         },
 
         SCOPE("scope") {
+            override val gatedByScoping: Boolean get() = true
+
             override fun createDefinition(sourceLocation: SourceLocation): DirectiveDefinition {
                 val description = Description("@scope directive", sourceLocation, false)
 
@@ -245,6 +247,15 @@ object DefaultSchemaFactory {
          * Creates the DirectiveDefinition for this directive.
          */
         abstract fun createDefinition(sourceLocation: SourceLocation): DirectiveDefinition
+
+        /**
+         * When true, this directive is only emitted when the caller opts into schema scoping
+         * (`addDefaultDirectives(..., includeScopeDirective = true)`). Overridden to `true` on
+         * `SCOPE`; every other entry stays unconditional. Encoding the gate on the enum keeps the
+         * dispatch a boolean check instead of a name comparison — no risk of a directive rename
+         * silently un-gating it.
+         */
+        open val gatedByScoping: Boolean get() = false
     }
 
     /**
@@ -283,7 +294,8 @@ object DefaultSchemaFactory {
         includeNodeQueries: IncludeNodeSchema = IncludeNodeSchema.IfUsed,
         existingSDLFiles: List<File> = emptyList(),
         includePageInfo: Boolean = true,
-        includeRootTypes: Boolean = true
+        includeRootTypes: Boolean = true,
+        includeScopeDirective: Boolean = true,
     ): String {
         val extantRegistry = if (existingSDLFiles.isNotEmpty()) {
             val reader = MultiSourceReader.newMultiSourceReader().let { readerBuilder ->
@@ -307,7 +319,8 @@ object DefaultSchemaFactory {
             forceAddRootTypes = includeRootTypes,
             allowExisting = existingSDLFiles.isNotEmpty(),
             includePageInfo = includePageInfo,
-            includeRootTypes = includeRootTypes
+            includeRootTypes = includeRootTypes,
+            includeScopeDirective = includeScopeDirective,
         )
         return builder.building.toSDL()
     }
@@ -324,6 +337,7 @@ object DefaultSchemaFactory {
      * @param forceAddRootTypes whether to force adding root types even without extensions
      * @param allowExisting whether to allow existing definitions without throwing errors
      */
+    @JvmOverloads
     fun addDefaults(
         registry: TypeDefinitionRegistry,
         includeNodeDefinition: IncludeNodeSchema = IncludeNodeSchema.IfUsed,
@@ -331,6 +345,7 @@ object DefaultSchemaFactory {
         forceAddRootTypes: Boolean = false,
         allowExisting: Boolean = false,
         airbnbModeEnabled: Boolean = false,
+        includeScopeDirective: Boolean = true,
     ) {
         addDefaults(
             builder = RegistryBuilder(registry, TypeDefinitionRegistry()),
@@ -339,6 +354,7 @@ object DefaultSchemaFactory {
             forceAddRootTypes = forceAddRootTypes,
             allowExisting = allowExisting,
             airbnbModeEnabled = airbnbModeEnabled,
+            includeScopeDirective = includeScopeDirective,
         )
     }
 
@@ -350,12 +366,13 @@ object DefaultSchemaFactory {
         allowExisting: Boolean,
         includePageInfo: Boolean = true,
         includeRootTypes: Boolean = true,
-        airbnbModeEnabled: Boolean = false
+        airbnbModeEnabled: Boolean = false,
+        includeScopeDirective: Boolean = true,
     ): RegistryBuilder {
-        addDefaultDirectives(builder, allowExisting)
+        addDefaultDirectives(builder, allowExisting, includeScopeDirective)
         addStandardScalars(builder, allowExisting)
         if (includePageInfo) {
-            addPageInfoType(builder, airbnbModeEnabled = airbnbModeEnabled)
+            addPageInfoType(builder, includeScopeDirective = includeScopeDirective, airbnbModeEnabled = airbnbModeEnabled)
         }
 
         val hasNodeTypeReference by lazy {
@@ -366,28 +383,28 @@ object DefaultSchemaFactory {
 
         // Conditionally add Query.node/s fields
         when (includeNodeQueries) {
-            IncludeNodeSchema.Always -> addNodeQueryFields(builder, allowExisting)
+            IncludeNodeSchema.Always -> addNodeQueryFields(builder, allowExisting, includeScopeDirective)
             IncludeNodeSchema.Never -> {}
             IncludeNodeSchema.IfUsed -> {
                 if (hasNodeTypeReference) {
-                    addNodeQueryFields(builder, allowExisting)
+                    addNodeQueryFields(builder, allowExisting, includeScopeDirective)
                 }
             }
         }
 
         // Conditionally add Node definition
         when (includeNodeDefinition) {
-            IncludeNodeSchema.Always -> addNodeInterface(builder, allowExisting)
+            IncludeNodeSchema.Always -> addNodeInterface(builder, allowExisting, includeScopeDirective)
             IncludeNodeSchema.Never -> {}
             IncludeNodeSchema.IfUsed -> {
                 if (hasNodeTypeReference) {
-                    addNodeInterface(builder, allowExisting)
+                    addNodeInterface(builder, allowExisting, includeScopeDirective)
                 }
             }
         }
 
         if (includeRootTypes) {
-            addRootTypes(builder, forceAddRootTypes, allowExisting)
+            addRootTypes(builder, forceAddRootTypes, allowExisting, includeScopeDirective)
         }
         return builder
     }
@@ -410,9 +427,13 @@ object DefaultSchemaFactory {
      */
     private fun addDefaultDirectives(
         builder: RegistryBuilder,
-        allowExisting: Boolean = false
+        allowExisting: Boolean = false,
+        includeScopeDirective: Boolean
     ) {
         DefaultDirective.values().forEach { directive ->
+            if (!includeScopeDirective && directive.gatedByScoping) {
+                return@forEach
+            }
             val existingDef = builder.getDirectiveDefinition(directive.directiveName)
             if (existingDef != null) {
                 val locationInfo = " (currently defined @ ${existingDef.sourceLocation}."
@@ -439,7 +460,7 @@ object DefaultSchemaFactory {
      */
     private fun addPageInfoType(
         builder: RegistryBuilder,
-        includeScopeDirective: Boolean = true,
+        includeScopeDirective: Boolean,
         airbnbModeEnabled: Boolean = false
     ) {
         val existingPageInfo = builder.getType("PageInfo")
@@ -498,7 +519,7 @@ object DefaultSchemaFactory {
             .sourceLocation(sourceLocation)
 
         if (includeScopeDirective) {
-            pageInfoBuilder.directive(createScopeDirective(listOf("*")))
+            pageInfoBuilder.directive(WILDCARD_SCOPE_DIRECTIVE)
         }
 
         val pageInfo = pageInfoBuilder.build()
@@ -599,7 +620,8 @@ object DefaultSchemaFactory {
      */
     private fun addNodeInterface(
         builder: RegistryBuilder,
-        allowExisting: Boolean = false
+        allowExisting: Boolean = false,
+        includeScopeDirective: Boolean
     ) {
         if (builder.getType("Node").isPresent) {
             maybeThrow(
@@ -617,17 +639,17 @@ object DefaultSchemaFactory {
             .sourceLocation(sourceLocation)
             .build()
 
-        val scopeDirective = createScopeDirective(listOf("*"))
-
-        val nodeInterface = InterfaceTypeDefinition
+        val nodeInterfaceBuilder = InterfaceTypeDefinition
             .newInterfaceTypeDefinition()
             .name("Node")
             .definition(idField)
-            .directive(scopeDirective)
             .sourceLocation(sourceLocation)
-            .build()
 
-        builder.add(nodeInterface)
+        if (includeScopeDirective) {
+            nodeInterfaceBuilder.directive(WILDCARD_SCOPE_DIRECTIVE)
+        }
+
+        builder.add(nodeInterfaceBuilder.build())
         log.debug("Added default Node interface")
     }
 
@@ -641,7 +663,8 @@ object DefaultSchemaFactory {
      */
     private fun addNodeQueryFields(
         builder: RegistryBuilder,
-        allowExisting: Boolean = false
+        allowExisting: Boolean = false,
+        includeScopeDirective: Boolean
     ) {
         // Check if Query type extension with node/nodes fields already exists
         @Suppress("UNCHECKED_CAST")
@@ -698,19 +721,18 @@ object DefaultSchemaFactory {
             .sourceLocation(sourceLocation)
             .build()
 
-        // Create Query extension with @scope(to: ["*"])
-        val scopeDirective = createScopeDirective(listOf("*"))
-
-        val queryExtension = ObjectTypeExtensionDefinition
+        val queryExtensionBuilder = ObjectTypeExtensionDefinition
             .newObjectTypeExtensionDefinition()
             .name("Query")
             .fieldDefinition(nodeField)
             .fieldDefinition(nodesField)
-            .directive(scopeDirective)
             .sourceLocation(sourceLocation)
-            .build()
 
-        builder.add(queryExtension)
+        if (includeScopeDirective) {
+            queryExtensionBuilder.directive(WILDCARD_SCOPE_DIRECTIVE)
+        }
+
+        builder.add(queryExtensionBuilder.build())
         log.debug("Added default Node query fields (node, nodes)")
     }
 
@@ -763,7 +785,8 @@ object DefaultSchemaFactory {
     private fun addRootTypes(
         builder: RegistryBuilder,
         force: Boolean = false,
-        allowExisting: Boolean = false
+        allowExisting: Boolean = false,
+        includeScopeDirective: Boolean
     ) {
         // Check if user has provided a custom schema definition
         val existingSchemaDefinition = builder.getSchemaDefinition()
@@ -778,9 +801,9 @@ object DefaultSchemaFactory {
         val mutationTypeName = "Mutation"
         val subscriptionTypeName = "Subscription"
 
-        addRootType(builder, queryTypeName, objectExtensions, allowExisting = allowExisting)
-        val didAddMutation = addRootType(builder, mutationTypeName, objectExtensions, ifNeeded = !force, allowExisting = allowExisting)
-        val didAddSubscription = addRootType(builder, subscriptionTypeName, objectExtensions, ifNeeded = !force, allowExisting = allowExisting)
+        addRootType(builder, queryTypeName, objectExtensions, allowExisting = allowExisting, includeScopeDirective = includeScopeDirective)
+        val didAddMutation = addRootType(builder, mutationTypeName, objectExtensions, ifNeeded = !force, allowExisting = allowExisting, includeScopeDirective = includeScopeDirective)
+        val didAddSubscription = addRootType(builder, subscriptionTypeName, objectExtensions, ifNeeded = !force, allowExisting = allowExisting, includeScopeDirective = includeScopeDirective)
 
         val opDefinitions = mutableListOf<OperationTypeDefinition>(
             OperationTypeDefinition
@@ -825,7 +848,8 @@ object DefaultSchemaFactory {
         typeName: String,
         objectExtensions: Map<String, List<*>>,
         ifNeeded: Boolean = false,
-        allowExisting: Boolean = false
+        allowExisting: Boolean = false,
+        includeScopeDirective: Boolean
     ): Boolean {
         val hasExtensions = objectExtensions.containsKey(typeName)
         val hasDefinition = builder.getType(typeName).isPresent
@@ -844,7 +868,7 @@ object DefaultSchemaFactory {
         val shouldAdd = !ifNeeded || hasExtensions
 
         if (shouldAdd) {
-            val rootType = createEmptyRootType(typeName, hasExtensions)
+            val rootType = createEmptyRootType(typeName, hasExtensions, includeScopeDirective)
             builder.add(rootType)
             log.debug(
                 "Added default {} root type (detected {} extensions)",
@@ -858,11 +882,9 @@ object DefaultSchemaFactory {
 
     private fun createEmptyRootType(
         typeName: String,
-        hasExtensions: Boolean
+        hasExtensions: Boolean,
+        includeScopeDirective: Boolean
     ): ObjectTypeDefinition {
-        // Create @scope directive with to: ["*"] to make root type accessible to all scopes
-        val scopeDirective = createScopeDirective(listOf("*"))
-
         val builder = ObjectTypeDefinition
             .newObjectTypeDefinition()
             .name(typeName)
@@ -894,11 +916,22 @@ object DefaultSchemaFactory {
             // only add dummy field if there are no extensions, otherwise the extensions will provide fields
             builder.fieldDefinition(dummyField)
         }
+        if (includeScopeDirective) {
+            builder.directive(WILDCARD_SCOPE_DIRECTIVE)
+        }
         return builder
-            .directive(scopeDirective)
             .sourceLocation(sourceLocation)
             .build()
     }
+
+    /**
+     * The `@scope(to: ["*"])` directive that decorates framework-owned types (Node, PageInfo,
+     * synthetic Query/Mutation/Subscription). `"*"` is the universal-scope wildcard: framework
+     * types must appear in every scoped schema regardless of which scope IDs the caller requested.
+     * Hoisted so all four framework decoration sites reference the same value instead of
+     * rebuilding it, which also makes the wildcard convention searchable.
+     */
+    private val WILDCARD_SCOPE_DIRECTIVE: Directive by lazy { createScopeDirective(listOf("*")) }
 
     private fun createScopeDirective(to: List<String>): Directive {
         val toArgument = Argument
