@@ -14,8 +14,6 @@ java {
 
 dependencies {
     implementation(project(":common"))
-    // Reuse AssembleSchemaPartitionTask + ViaductModuleExtension from the Kotlin module plugin
-    implementation(project(":module"))
 
     // Classes bundled directly into this plugin JAR via conventions.viaduct-fat-plugin.
     bundled(libs.viaduct.shared.graphql)

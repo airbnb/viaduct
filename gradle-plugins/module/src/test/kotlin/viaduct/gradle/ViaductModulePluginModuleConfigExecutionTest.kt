@@ -133,14 +133,6 @@ class ViaductModulePluginModuleConfigExecutionTest {
                 mavenCentral()
             }
 
-            viaductApplication {
-                modulePackagePrefix.set("com.example.test")
-            }
-
-            viaductModule {
-                modulePackageSuffix.set("resolvers")
-            }
-
             dependencies {
                 implementation("com.airbnb.viaduct:api")
             }

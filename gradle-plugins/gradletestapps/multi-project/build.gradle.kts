@@ -3,10 +3,6 @@ plugins {
     id("com.airbnb.viaduct.application-gradle-plugin")
 }
 
-viaductApplication {
-    modulePackagePrefix.set("com.example.execution.multiproject")
-}
-
 dependencies {
     implementation("com.airbnb.viaduct:api")
     implementation("com.airbnb.viaduct:runtime")

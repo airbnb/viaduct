@@ -81,4 +81,77 @@ class ViaductJavaModulePluginFunctionalTest {
 
         assertTrue(result.output.contains("not as a module project"), "Expected output to reject application-only placement")
     }
+
+    @Test
+    fun `topology package values configure Java module resolver base task when project DSL disagrees`() {
+        File(projectDir, "settings.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.airbnb.viaduct.settings-gradle-plugin")
+            }
+
+            rootProject.name = "test"
+
+            includeViaductApplication {
+                project(":app")
+                modulePackagePrefix("com.example.topology")
+
+                includeModule {
+                    project(":app:javaresolvers")
+                    modulePackageSuffix("javaresolvers")
+                }
+            }
+            """.trimIndent()
+        )
+        File(projectDir, "build.gradle").writeText("")
+
+        val appDir = File(projectDir, "app").also { it.mkdirs() }
+        File(appDir, "build.gradle").writeText(
+            """
+            plugins {
+                id 'java-library'
+                id 'com.airbnb.viaduct.application-gradle-plugin'
+            }
+            viaductApplication {
+                modulePackagePrefix.set('com.example.project')
+            }
+            """.trimIndent()
+        )
+
+        val moduleDir = File(projectDir, "app/javaresolvers").also { it.mkdirs() }
+        File(moduleDir, "build.gradle").writeText(
+            """
+            plugins {
+                id 'java-library'
+                id 'com.airbnb.viaduct.module-java-gradle-plugin'
+            }
+            viaductModule {
+                modulePackageSuffix.set('project')
+            }
+
+            tasks.register('printViaductJavaTopologyPackageInputs') {
+                doLast {
+                    def resolverTask = tasks.named('generateViaductResolverBases').get()
+
+                    println "JAVA_TENANT_PREFIX=${'$'}{resolverTask.tenantPackagePrefix.get()}"
+                    println "JAVA_TENANT_PACKAGE=${'$'}{resolverTask.tenantPackage.get()}"
+                    println "JAVA_OUTPUT=${'$'}{resolverTask.outputDirectory.get().asFile.absolutePath.replace(File.separatorChar, '/' as char)}"
+                }
+            }
+            """.trimIndent()
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withPluginClasspath(combinedPluginClasspath())
+            .withArguments(":app:javaresolvers:printViaductJavaTopologyPackageInputs")
+            .build()
+
+        assertTrue(result.output.contains("JAVA_TENANT_PREFIX=com.example.topology"))
+        assertTrue(result.output.contains("JAVA_TENANT_PACKAGE=javaresolvers"))
+        assertTrue(
+            result.output.contains("generated-sources/viaduct/javaResolverBases"),
+            "Expected Java resolver-base output root to be configured",
+        )
+    }
 }

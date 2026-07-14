@@ -5,49 +5,38 @@ import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
-import org.gradle.api.artifacts.ProjectDependency
-import org.gradle.api.attributes.Category
-import org.gradle.api.attributes.LibraryElements
-import org.gradle.api.attributes.Usage
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.register
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
-import schemaPartitionDirectory
 import viaduct.apiannotations.InternalApi
-import viaduct.apiannotations.StableApi
-import viaduct.gradle.ViaductPluginCommon.APPLICATION_PLUGIN_IDS
 import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
-import viaduct.gradle.ViaductPluginCommon.findContainingViaductApplicationProject
-import viaduct.gradle.ViaductPluginCommon.hasViaductApplicationPlugin
 import viaduct.gradle.ViaductPluginCommon.pluginVersion
-import viaduct.gradle.ViaductPluginCommon.prettyPath
-import viaduct.gradle.ViaductPluginCommon.requireViaductTopology
 import viaduct.gradle.ViaductPluginCommon.validateModuleProjectPlacement
-import viaduct.gradle.task.AssembleSchemaPartitionTask
 import viaduct.gradle.task.AssembleTenantModuleConfigFileTask
 import viaduct.gradle.task.GenerateResolverBasesTask
-
-@StableApi
-open class ViaductModuleExtension(objects: org.gradle.api.model.ObjectFactory) {
-    /** Kotlin package name suffix for this module (can be empty). */
-    val modulePackageSuffix = objects.property(String::class.java)
-}
 
 @InternalApi
 class ViaductModulePlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
-            validateModuleProjectPlacement("com.airbnb.viaduct.module-gradle-plugin")
+            val moduleLayout = ViaductModulePluginSupport.modulePackageLayout(
+                this,
+                validateModuleProjectPlacement("com.airbnb.viaduct.module-gradle-plugin"),
+            )
 
             val moduleExt = extensions.findByType(ViaductModuleExtension::class.java)
                 ?: extensions.create("viaductModule", ViaductModuleExtension::class.java, objects)
 
             ViaductModulePluginSupport.configureDirectModuleDependencyChecks(this)
             ViaductModulePluginSupport.configureModulePackageSuffixConvention(this, moduleExt)
+            ViaductModulePluginSupport.validateContainingApplicationProjectPlugin(
+                this,
+                "com.airbnb.viaduct.module-gradle-plugin",
+            )
 
             val grtIncomingCfg = ViaductModulePluginSupport.createGRTIncomingConfiguration(
                 this,
@@ -56,13 +45,13 @@ class ViaductModulePlugin : Plugin<Project> {
             )
 
             val assembleSchemaPartitionTask =
-                ViaductModulePluginSupport.setupAssembleSchemaPartitionTask(this, moduleExt)
+                ViaductModulePluginSupport.setupAssembleSchemaPartitionTask(this, moduleLayout)
             ViaductModulePluginSupport.setupOutgoingConfigurationForPartitionSchema(this, assembleSchemaPartitionTask)
 
             val centralSchemaIncomingCfg = ViaductModulePluginSupport.setupIncomingConfigurationForCentralSchema(this)
-            val generateResolverBasesTask = setupGenerateResolverBasesTask(moduleExt, centralSchemaIncomingCfg)
+            val generateResolverBasesTask = setupGenerateResolverBasesTask(moduleLayout, centralSchemaIncomingCfg)
 
-            setupKspRegistryExtractor(moduleExt, generateResolverBasesTask)
+            setupKspRegistryExtractor(moduleLayout, generateResolverBasesTask)
 
             ViaductModulePluginSupport.wireToContainingApplicationProject(
                 this,
@@ -98,7 +87,7 @@ class ViaductModulePlugin : Plugin<Project> {
         }
 
     private fun Project.setupKspRegistryExtractor(
-        moduleExt: ViaductModuleExtension,
+        moduleLayout: ViaductModulePackageLayout,
         generateResolverBasesTask: TaskProvider<GenerateResolverBasesTask>,
     ) {
         val version = pluginVersion(ViaductModulePlugin::class.java)
@@ -165,25 +154,19 @@ class ViaductModulePlugin : Plugin<Project> {
                     }
             }
 
-            // Wire tenant package (needs afterEvaluate to read appExt)
+            assembleTask.configure {
+                tenantPackage.set(moduleLayout.fullTenantPackage)
+                tenantPackagePrefix.set(moduleLayout.modulePackagePrefix)
+            }
+            // Same cache-key protection as above, but for the package identity values
+            // rather than the resolver-bases file contents.
+            kspKotlinTasks.configureEach {
+                inputs.property("viaductTenantPackage", moduleLayout.fullTenantPackage)
+                inputs.property("viaductTenantPackagePrefix", moduleLayout.modulePackagePrefix)
+                inputs.property("viaductModulePackageSuffix", moduleLayout.modulePackageSuffix)
+            }
+
             afterEvaluate {
-                val appExt = findContainingViaductApplicationProject()
-                    ?.extensions
-                    ?.findByType(ViaductApplicationExtension::class.java)
-                if (appExt != null) {
-                    val pkg = computeTenantPackage(moduleExt, appExt)
-                    assembleTask.configure {
-                        tenantPackage.set(pkg)
-                        tenantPackagePrefix.set(appExt.modulePackagePrefix)
-                    }
-                    // Same cache-key protection as above, but for the package identity values
-                    // rather than the resolver-bases file contents.
-                    kspKotlinTasks.configureEach {
-                        inputs.property("viaductTenantPackage", pkg)
-                        inputs.property("viaductTenantPackagePrefix", appExt.modulePackagePrefix)
-                        inputs.property("viaductModulePackageSuffix", moduleExt.modulePackageSuffix.orElse(""))
-                    }
-                }
                 validateKspConfiguration()
             }
         }
@@ -241,22 +224,13 @@ class ViaductModulePlugin : Plugin<Project> {
         return kotlinExt.coreLibrariesVersion
     }
 
-    internal fun computeTenantPackage(
-        moduleExt: ViaductModuleExtension,
-        appExt: ViaductApplicationExtension
-    ): String {
-        val prefix = appExt.modulePackagePrefix.get()
-        val suffix = moduleExt.modulePackageSuffix.getOrElse("")
-        return if (suffix.isBlank()) prefix else "$prefix.$suffix"
-    }
-
     private fun Project.setupGenerateResolverBasesTask(
-        moduleExt: ViaductModuleExtension,
+        moduleLayout: ViaductModulePackageLayout,
         centralSchemaIncomingCfg: Configuration
     ): TaskProvider<GenerateResolverBasesTask> {
         val version = pluginVersion(ViaductModulePlugin::class.java)
         val codegenClasspath = createOrGetCodegenClasspath(version)
-        val taskProvider = tasks.register<GenerateResolverBasesTask>("generateViaductResolverBases") {
+        return tasks.register<GenerateResolverBasesTask>("generateViaductResolverBases") {
             buildFlags.putAll(ViaductPluginCommon.DEFAULT_BUILD_FLAGS)
             centralSchemaFiles.from(
                 centralSchemaIncomingCfg.incoming.artifactView {}.files.asFileTree.matching { include("**/*.graphqls") }
@@ -264,215 +238,7 @@ class ViaductModulePlugin : Plugin<Project> {
             tenantFromSourceRegex.set("$centralSchemaDirectoryName/partition/(.*)/graphql")
             classpath.setFrom(codegenClasspath)
             mainClass.set(RESOLVER_CODEGEN_MAIN_CLASS)
-        }
-
-        // We intentionally validate here so same-project builds can finish configuring
-        // viaductApplication { ... } before we read modulePackagePrefix, while still
-        // failing during configuration (e.g. on `help`) instead of waiting for task execution.
-        //
-        // Keep this block narrow and "safe":
-        // - OK: plugin presence checks, reading final extension values, configuring already-registered tasks
-        // - NOT OK: filesystem probing, task registration, dependency resolution, task-graph inspection,
-        //           or any other late configuration unrelated to extension validation
-        ViaductModulePluginSupport.validateContainingApplicationProject(
-            this,
-            "com.airbnb.viaduct.module-gradle-plugin",
-        ) { appExt ->
-            taskProvider.configure { wireToExtensions(moduleExt, appExt) }
-        }
-
-        return taskProvider
-    }
-}
-
-@InternalApi
-object ViaductModulePluginSupport {
-    fun configureDirectModuleDependencyChecks(project: Project) {
-        project.pluginManager.withPlugin("java") { project.enforceNoDirectModuleDeps() }
-        project.pluginManager.withPlugin("org.jetbrains.kotlin.jvm") { project.enforceNoDirectModuleDeps() }
-    }
-
-    fun configureModulePackageSuffixConvention(
-        project: Project,
-        moduleExt: ViaductModuleExtension
-    ) {
-        APPLICATION_PLUGIN_IDS.forEach { pluginId ->
-            project.pluginManager.withPlugin(pluginId) {
-                moduleExt.modulePackageSuffix.convention("")
-            }
-        }
-    }
-
-    fun createGRTIncomingConfiguration(
-        project: Project,
-        configurationName: String,
-        kind: String,
-    ): Configuration =
-        project.configurations.create(configurationName).apply {
-            description = "Resolvable configuration for the GRT jar file."
-            isCanBeConsumed = false
-            isCanBeResolved = true
-            attributes {
-                attribute(ViaductPluginCommon.VIADUCT_KIND, kind)
-                attribute(Usage.USAGE_ATTRIBUTE, project.objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
-                attribute(Category.CATEGORY_ATTRIBUTE, project.objects.named(Category::class.java, Category.LIBRARY))
-                attribute(
-                    LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
-                    project.objects.named(LibraryElements::class.java, LibraryElements.JAR),
-                )
-            }
-        }
-
-    fun setupAssembleSchemaPartitionTask(
-        project: Project,
-        moduleExt: ViaductModuleExtension,
-    ): TaskProvider<AssembleSchemaPartitionTask> =
-        project.tasks.register<AssembleSchemaPartitionTask>("prepareViaductSchemaPartition") {
-            val schemaDir = project.layout.projectDirectory.dir("src/main/viaduct/schema")
-            graphqlSrcDir.set(schemaDir)
-            schemaFiles.setFrom(project.fileTree(schemaDir).matching { include("**/*.graphqls") })
-            prefixPath.set(
-                moduleExt.modulePackageSuffix.map { raw ->
-                    val trimmed = raw.trim()
-                    (if (trimmed.isEmpty()) "" else trimmed.replace('.', '/')) + "/graphql"
-                },
-            )
-            outputDirectory.set(project.schemaPartitionDirectory())
-        }
-
-    fun setupOutgoingConfigurationForPartitionSchema(
-        project: Project,
-        assembleSchemaPartitionTask: TaskProvider<AssembleSchemaPartitionTask>,
-    ) {
-        val schemaPartitionCfg =
-            project.configurations.create(ViaductPluginCommon.Configs.SCHEMA_PARTITION_OUTGOING).apply {
-                description = "Consumable configuration containing the module's schema partition (aka, 'local schema')."
-                isCanBeConsumed = true
-                isCanBeResolved = false
-                attributes {
-                    attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.SCHEMA_PARTITION)
-                }
-            }
-        schemaPartitionCfg.outgoing.artifact(assembleSchemaPartitionTask.flatMap { it.outputDirectory })
-    }
-
-    fun setupIncomingConfigurationForCentralSchema(project: Project): Configuration =
-        project.configurations.create(ViaductPluginCommon.Configs.CENTRAL_SCHEMA_INCOMING).apply {
-            description = "Resolvable configuration for the central schema (used to generate resolver base classes)."
-            isCanBeConsumed = false
-            isCanBeResolved = true
-            attributes {
-                attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.CENTRAL_SCHEMA)
-            }
-        }
-
-    fun validateContainingApplicationProject(
-        project: Project,
-        modulePluginId: String,
-        configure: Project.(ViaductApplicationExtension) -> Unit,
-    ) {
-        project.afterEvaluate {
-            val topology = project.requireViaductTopology(modulePluginId)
-            val applicationProject = project.findProject(topology.applicationProjectPath)
-                ?: throw GradleException(
-                    "Viaduct settings topology declares application project " +
-                        "'${topology.applicationProjectPath}' for module ${project.prettyPath()}, " +
-                        "but that project is not included in this Gradle build.",
-                )
-            if (!applicationProject.hasViaductApplicationPlugin()) {
-                throw GradleException(
-                    "Viaduct module ${project.prettyPath()} is declared under application project " +
-                        "${applicationProject.prettyPath()}, but that project does not apply one of " +
-                        "${APPLICATION_PLUGIN_IDS.joinToString(", ") { "'$it'" }}.",
-                )
-            }
-            val appExt = applicationProject.extensions.getByType(ViaductApplicationExtension::class.java)
-            val prefix = appExt.modulePackagePrefix.orNull
-            if (prefix.isNullOrBlank()) {
-                throw GradleException(
-                    "viaductApplication.modulePackagePrefix must be set in the containing Viaduct " +
-                        "application project ${applicationProject.prettyPath()}. " +
-                        "Add it to that build file:\n" +
-                        "  viaductApplication {\n" +
-                        "    modulePackagePrefix = \"com.example.myapp\"\n" +
-                        "  }",
-                )
-            }
-            project.configure(appExt)
-        }
-    }
-
-    fun wireToContainingApplicationProject(
-        project: Project,
-        grtIncomingConfigName: String,
-        grtOutgoingConfigName: String,
-    ) {
-        var wired = false
-
-        generateSequence(project) { it.parent }.forEach { candidate ->
-            APPLICATION_PLUGIN_IDS.forEach { pluginId ->
-                candidate.pluginManager.withPlugin(pluginId) {
-                    if (wired || project.findContainingViaductApplicationProject() != candidate) return@withPlugin
-
-                    candidate.dependencies.add(
-                        ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING,
-                        candidate.dependencies.project(
-                            mapOf(
-                                "path" to project.path,
-                                "configuration" to ViaductPluginCommon.Configs.SCHEMA_PARTITION_OUTGOING,
-                            ),
-                        ),
-                    )
-                    candidate.dependencies.add("runtimeOnly", project)
-
-                    project.dependencies.add(
-                        ViaductPluginCommon.Configs.CENTRAL_SCHEMA_INCOMING,
-                        project.dependencies.project(
-                            mapOf(
-                                "path" to candidate.path,
-                                "configuration" to ViaductPluginCommon.Configs.CENTRAL_SCHEMA_OUTGOING,
-                            ),
-                        ),
-                    )
-
-                    project.dependencies.add(
-                        grtIncomingConfigName,
-                        project.dependencies.project(
-                            mapOf(
-                                "path" to candidate.path,
-                                "configuration" to grtOutgoingConfigName,
-                            ),
-                        ),
-                    )
-
-                    wired = true
-                }
-            }
-        }
-    }
-
-    private fun Project.enforceNoDirectModuleDeps() {
-        configurations.configureEach {
-            withDependencies {
-                val topology = this@enforceNoDirectModuleDeps.requireViaductTopology("com.airbnb.viaduct.module-gradle-plugin")
-                filterIsInstance<ProjectDependency>().forEach { pd ->
-                    val target = this@enforceNoDirectModuleDeps.findProject(pd.path)
-                    if (target != null &&
-                        topology.isModuleProject(target.path) &&
-                        this@enforceNoDirectModuleDeps.path != topology.applicationProjectPath &&
-                        target.path != topology.applicationProjectPath
-                    ) {
-                        val from = this@enforceNoDirectModuleDeps.prettyPath()
-                        val to = target.prettyPath()
-                        val build = this@enforceNoDirectModuleDeps.buildFile
-
-                        throw GradleException(
-                            "Module $from must not depend directly on $to; " +
-                                "used in $build, use the central schema for inter-module references.",
-                        )
-                    }
-                }
-            }
+            wireToModuleLayout(moduleLayout)
         }
     }
 }

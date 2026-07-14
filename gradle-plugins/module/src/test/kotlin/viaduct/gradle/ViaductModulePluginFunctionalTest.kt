@@ -89,6 +89,115 @@ class ViaductModulePluginFunctionalTest {
     }
 
     @Test
+    fun `topology package values configure Kotlin module tasks when project DSL disagrees`() {
+        File(projectDir, "settings.gradle.kts").writeViaductSettings(
+            applicationProjectPath = ":app",
+            modulePackagePrefix = "com.example.topology",
+            modules = mapOf(":app:mymodule" to "topology"),
+        )
+        File(projectDir, "build.gradle").writeText("")
+
+        val appDir = File(projectDir, "app").also { it.mkdirs() }
+        File(appDir, "build.gradle").writeText(
+            """
+            plugins {
+                id 'java-library'
+                id 'com.airbnb.viaduct.application-gradle-plugin'
+            }
+            viaductApplication {
+                modulePackagePrefix.set('com.example.project')
+            }
+            """.trimIndent()
+        )
+
+        val moduleDir = File(projectDir, "app/mymodule").also { it.mkdirs() }
+        File(moduleDir, "build.gradle").writeText(
+            """
+            plugins {
+                id 'java-library'
+                id 'org.jetbrains.kotlin.jvm'
+                id 'com.airbnb.viaduct.module-gradle-plugin'
+                id 'com.google.devtools.ksp'
+            }
+            viaductModule {
+                modulePackageSuffix.set('project')
+            }
+
+            tasks.register('printViaductTopologyPackageInputs') {
+                doLast {
+                    def resolverTask = tasks.named('generateViaductResolverBases').get()
+                    def partitionTask = tasks.named('prepareViaductSchemaPartition').get()
+
+                    println "RESOLVER_TENANT_PREFIX=${'$'}{resolverTask.tenantPackagePrefix.get()}"
+                    println "RESOLVER_TENANT_PACKAGE=${'$'}{resolverTask.tenantPackage.get()}"
+                    println "RESOLVER_OUTPUT=${'$'}{resolverTask.outputDirectory.get().asFile.absolutePath.replace(File.separatorChar, '/' as char)}"
+                    println "SCHEMA_PREFIX=${'$'}{partitionTask.prefixPath.get()}"
+                }
+            }
+            """.trimIndent()
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withPluginClasspath(combinedPluginClasspath())
+            .withArguments(":app:mymodule:printViaductTopologyPackageInputs")
+            .build()
+
+        assertTrue(result.output.contains("RESOLVER_TENANT_PREFIX=com.example.topology"))
+        assertTrue(result.output.contains("RESOLVER_TENANT_PACKAGE=topology"))
+        assertTrue(
+            result.output.contains("generated-sources/viaduct/resolverBases/com/example/topology/topology"),
+            "Expected resolver-base output path to use topology package values",
+        )
+        assertTrue(result.output.contains("SCHEMA_PREFIX=topology/graphql"))
+    }
+
+    @Test
+    fun `blank suffix application module uses topology prefix for resolver package`() {
+        File(projectDir, "settings.gradle.kts").writeViaductSettings(
+            modulePackagePrefix = "com.example.blank",
+            modules = mapOf(":" to ""),
+        )
+        File(projectDir, "build.gradle").writeText(
+            """
+            plugins {
+                id 'java-library'
+                id 'org.jetbrains.kotlin.jvm'
+                id 'com.airbnb.viaduct.application-gradle-plugin'
+                id 'com.airbnb.viaduct.module-gradle-plugin'
+                id 'com.google.devtools.ksp'
+            }
+
+            tasks.register('printViaductBlankSuffixPackageInputs') {
+                doLast {
+                    def resolverTask = tasks.named('generateViaductResolverBases').get()
+                    def partitionTask = tasks.named('prepareViaductSchemaPartition').get()
+
+                    println "RESOLVER_TENANT_PREFIX='${'$'}{resolverTask.tenantPackagePrefix.get()}'"
+                    println "RESOLVER_TENANT_PACKAGE=${'$'}{resolverTask.tenantPackage.get()}"
+                    println "RESOLVER_OUTPUT=${'$'}{resolverTask.outputDirectory.get().asFile.absolutePath.replace(File.separatorChar, '/' as char)}"
+                    println "SCHEMA_PREFIX=${'$'}{partitionTask.prefixPath.get()}"
+                }
+            }
+            """.trimIndent()
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withPluginClasspath(combinedPluginClasspath())
+            .withArguments("printViaductBlankSuffixPackageInputs")
+            .build()
+
+        assertTrue(result.output.contains("RESOLVER_TENANT_PREFIX=''"))
+        assertTrue(result.output.contains("RESOLVER_TENANT_PACKAGE=com.example.blank"))
+        assertTrue(
+            result.output.contains("generated-sources/viaduct/resolverBases/com/example/blank"),
+            "Expected resolver-base output path to use topology package prefix",
+        )
+        assertTrue(result.output.contains("SCHEMA_PREFIX=graphql"))
+    }
+
+    @Test
     fun `module resolves schema and grt dependencies from nearest application ancestor`() {
         File(projectDir, "settings.gradle.kts").writeViaductSettings(
             applicationProjectPath = ":app",
@@ -157,67 +266,6 @@ class ViaductModulePluginFunctionalTest {
 
         assertTrue(result.output.contains("CENTRAL_SCHEMA_PROJECT=:app"), "Expected central schema dependency to target ':app'")
         assertTrue(result.output.contains("KOTLIN_GRT_PROJECT=:app"), "Expected Kotlin GRT dependency to target ':app'")
-    }
-
-    @Test
-    fun `missing modulePackagePrefix fails with clear message`() {
-        File(projectDir, "settings.gradle.kts").writeViaductSettings(modules = mapOf(":mymodule" to "test"))
-        File(projectDir, "build.gradle.kts").writeText(
-            """
-            plugins {
-                `java-library`
-                id("com.airbnb.viaduct.application-gradle-plugin")
-            }
-            """.trimIndent()
-        )
-        val moduleDir = File(projectDir, "mymodule").also { it.mkdirs() }
-        File(moduleDir, "build.gradle.kts").writeText(
-            """
-            plugins {
-                id("com.airbnb.viaduct.module-gradle-plugin")
-            }
-            """.trimIndent()
-        )
-
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir)
-            .withPluginClasspath(combinedPluginClasspath())
-            .withArguments("help")
-            .buildAndFail()
-
-        assertTrue(result.output.contains("modulePackagePrefix"), "Expected output to mention 'modulePackagePrefix'")
-    }
-
-    @Test
-    fun `blank modulePackagePrefix fails with clear message`() {
-        File(projectDir, "settings.gradle.kts").writeViaductSettings(modules = mapOf(":mymodule" to "test"))
-        File(projectDir, "build.gradle.kts").writeText(
-            """
-            plugins {
-                `java-library`
-                id("com.airbnb.viaduct.application-gradle-plugin")
-            }
-            viaductApplication {
-                modulePackagePrefix.set("   ")
-            }
-            """.trimIndent()
-        )
-        val moduleDir = File(projectDir, "mymodule").also { it.mkdirs() }
-        File(moduleDir, "build.gradle.kts").writeText(
-            """
-            plugins {
-                id("com.airbnb.viaduct.module-gradle-plugin")
-            }
-            """.trimIndent()
-        )
-
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir)
-            .withPluginClasspath(combinedPluginClasspath())
-            .withArguments("help")
-            .buildAndFail()
-
-        assertTrue(result.output.contains("modulePackagePrefix"), "Expected output to mention 'modulePackagePrefix'")
     }
 
     @Test

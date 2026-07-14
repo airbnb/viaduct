@@ -8,7 +8,6 @@ import org.gradle.api.Project
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
@@ -19,8 +18,7 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.workers.WorkerExecutor
 import viaduct.gradle.CodegenWorkAction
-import viaduct.gradle.ViaductApplicationExtension
-import viaduct.gradle.ViaductModuleExtension
+import viaduct.gradle.ViaductModulePackageLayout
 import viaduct.gradle.ViaductPluginCommon
 import viaduct.gradle.runCodegen
 
@@ -83,46 +81,11 @@ abstract class GenerateJavaResolverBasesTask
             )
         }
 
-        fun Project.wireToExtensions(
-            moduleExt: ViaductModuleExtension,
-            appExt: ViaductApplicationExtension
-        ) {
-            val pkgPrefixProv = tenantPackagePrefix(moduleExt, appExt)
-            tenantPackagePrefix.set(pkgPrefixProv)
-
-            val pkgProv = tenantPackage(moduleExt, appExt)
-            tenantPackage.set(pkgProv)
-
+        fun Project.wireToModuleLayout(moduleLayout: ViaductModulePackageLayout) {
+            tenantPackagePrefix.set(moduleLayout.resolverBasePackagePrefix)
+            tenantPackage.set(moduleLayout.resolverBasePackage)
             // The codegen CLI writes files at {outputDir}/{package-as-path}/resolverbases/*.java,
             // so outputDirectory must be the source set root — not a pre-augmented subdirectory.
             outputDirectory.set(javaResolverBasesDirectory())
-        }
-
-        private fun tenantPackagePrefix(
-            moduleExt: ViaductModuleExtension,
-            appExt: ViaductApplicationExtension
-        ): Provider<String> {
-            val suffixProv = moduleExt.modulePackageSuffix
-            val blankSuffixProv = suffixProv.map { it.isBlank() }
-            val pkgPrefixProv = blankSuffixProv.flatMap { blank ->
-                if (blank) suffixProv else appExt.modulePackagePrefix
-            }
-            return pkgPrefixProv
-        }
-
-        private fun tenantPackage(
-            moduleExt: ViaductModuleExtension,
-            appExt: ViaductApplicationExtension,
-        ): Provider<String> {
-            val suffixProv = moduleExt.modulePackageSuffix
-            val blankSuffixProv = suffixProv.map { it.isBlank() }
-            val pkgProv = blankSuffixProv.flatMap { blank ->
-                if (blank) {
-                    appExt.modulePackagePrefix
-                } else {
-                    suffixProv
-                }
-            }
-            return pkgProv
         }
     }

@@ -4,11 +4,9 @@ import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.Project
 import org.gradle.api.file.ConfigurableFileCollection
-import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
@@ -20,8 +18,7 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.workers.WorkerExecutor
 import resolverBasesDirectory
 import viaduct.apiannotations.InternalApi
-import viaduct.gradle.ViaductApplicationExtension
-import viaduct.gradle.ViaductModuleExtension
+import viaduct.gradle.ViaductModulePackageLayout
 import viaduct.gradle.ViaductPluginCommon
 import viaduct.gradle.runCodegen
 import viaduct.graphql.schema.ViaductSchema
@@ -95,62 +92,13 @@ abstract class GenerateResolverBasesTask
             )
         }
 
-        fun Project.wireToExtensions(
-            moduleExt: ViaductModuleExtension,
-            appExt: ViaductApplicationExtension
-        ) {
-            val pkgPrefixProv = tenantPackagePrefix(moduleExt, appExt)
-            tenantPackagePrefix.set(pkgPrefixProv)
-
-            val pkgProv = tenantPackage(moduleExt, appExt)
-            tenantPackage.set(pkgProv)
-
-            val outputAugmentedDir = outputAugmentedDir(pkgPrefixProv, pkgProv)
-            outputDirectory.set(outputAugmentedDir)
-        }
-
-        private fun tenantPackagePrefix(
-            moduleExt: ViaductModuleExtension,
-            appExt: ViaductApplicationExtension
-        ): Provider<String> {
-            val suffixProv = moduleExt.modulePackageSuffix
-            val blankSuffixProv = suffixProv.map { it.isBlank() }
-            val pkgPrefixProv = blankSuffixProv.flatMap { blank ->
-                if (blank) suffixProv else appExt.modulePackagePrefix
-            }
-            return pkgPrefixProv
-        }
-
-        private fun tenantPackage(
-            moduleExt: ViaductModuleExtension,
-            appExt: ViaductApplicationExtension,
-        ): Provider<String> {
-            val suffixProv = moduleExt.modulePackageSuffix
-            val blankSuffixProv = suffixProv.map { it.isBlank() }
-            val pkgProv = blankSuffixProv.flatMap { blank ->
-                if (blank) {
-                    appExt.modulePackagePrefix
-                } else {
-                    suffixProv
+        fun Project.wireToModuleLayout(moduleLayout: ViaductModulePackageLayout) {
+            tenantPackagePrefix.set(moduleLayout.resolverBasePackagePrefix)
+            tenantPackage.set(moduleLayout.resolverBasePackage)
+            outputDirectory.set(
+                resolverBasesDirectory().map { base ->
+                    base.dir(moduleLayout.fullTenantPackagePath)
                 }
-            }
-            return pkgProv
-        }
-
-        private fun Project.outputAugmentedDir(
-            pkgPrefixProv: Provider<String>,
-            pkgProv: Provider<String>,
-        ): Provider<Directory> {
-            val outputAugmentedDir = resolverBasesDirectory().flatMap { base ->
-                pkgPrefixProv
-                    .flatMap { pfx ->
-                        pkgProv.map { pkg ->
-                            (if (pkg.isBlank()) pfx else "$pfx.$pkg").trim('.').replace('.', '/')
-                        }
-                    }
-                    .map { rel -> base.asFile.toPath().resolve(rel).toFile() }
-                    .map { dir -> objects.directoryProperty().apply { set(dir) }.get() }
-            }
-            return outputAugmentedDir
+            )
         }
     }

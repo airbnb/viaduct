@@ -69,13 +69,13 @@ abstract class AssembleSchemaPartitionTask
                             "Every Viaduct module must define at least one .graphqls schema file."
                     )
             }
-            fileSystemOperations.sync {
-                from(graphqlSrcDir.get()) {
-                    include("**/*.graphqls")
-                    into(prefixPath.get())
+            fileSystemOperations.sync { spec ->
+                spec.from(graphqlSrcDir.get()) { copySpec ->
+                    copySpec.include("**/*.graphqls")
+                    copySpec.into(prefixPath.get())
                 }
-                into(outputDirectory.get())
-                includeEmptyDirs = false
+                spec.into(outputDirectory.get())
+                spec.includeEmptyDirs = false
             }
         }
     }

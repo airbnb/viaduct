@@ -15,13 +15,20 @@ import viaduct.gradle.task.GenerateJavaResolverBasesTask
 class ViaductJavaModulePlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
-            validateModuleProjectPlacement("com.airbnb.viaduct.module-java-gradle-plugin")
+            val moduleLayout = ViaductModulePluginSupport.modulePackageLayout(
+                this,
+                validateModuleProjectPlacement("com.airbnb.viaduct.module-java-gradle-plugin"),
+            )
 
             val moduleExt = extensions.findByType(ViaductModuleExtension::class.java)
                 ?: extensions.create("viaductModule", ViaductModuleExtension::class.java, objects)
 
             ViaductModulePluginSupport.configureDirectModuleDependencyChecks(this)
             ViaductModulePluginSupport.configureModulePackageSuffixConvention(this, moduleExt)
+            ViaductModulePluginSupport.validateContainingApplicationProjectPlugin(
+                this,
+                "com.airbnb.viaduct.module-java-gradle-plugin",
+            )
 
             val grtIncomingCfg = ViaductModulePluginSupport.createGRTIncomingConfiguration(
                 this,
@@ -30,11 +37,11 @@ class ViaductJavaModulePlugin : Plugin<Project> {
             )
 
             val assembleSchemaPartitionTask =
-                ViaductModulePluginSupport.setupAssembleSchemaPartitionTask(this, moduleExt)
+                ViaductModulePluginSupport.setupAssembleSchemaPartitionTask(this, moduleLayout)
             ViaductModulePluginSupport.setupOutgoingConfigurationForPartitionSchema(this, assembleSchemaPartitionTask)
 
             val centralSchemaIncomingCfg = ViaductModulePluginSupport.setupIncomingConfigurationForCentralSchema(this)
-            val generateResolverBasesTask = setupGenerateResolverBasesTask(moduleExt, centralSchemaIncomingCfg)
+            val generateResolverBasesTask = setupGenerateResolverBasesTask(moduleLayout, centralSchemaIncomingCfg)
 
             ViaductModulePluginSupport.wireToContainingApplicationProject(
                 this,
@@ -70,25 +77,17 @@ class ViaductJavaModulePlugin : Plugin<Project> {
         }
 
     private fun Project.setupGenerateResolverBasesTask(
-        moduleExt: ViaductModuleExtension,
+        moduleLayout: ViaductModulePackageLayout,
         centralSchemaIncomingCfg: Configuration
     ): TaskProvider<GenerateJavaResolverBasesTask> {
         val version = pluginVersion(ViaductJavaModulePlugin::class.java)
         val codegenClasspath = createOrGetJavaCodegenClasspath(version)
-        val taskProvider = tasks.register<GenerateJavaResolverBasesTask>("generateViaductResolverBases") {
+        return tasks.register<GenerateJavaResolverBasesTask>("generateViaductResolverBases") {
             centralSchemaFiles.from(
                 centralSchemaIncomingCfg.incoming.artifactView {}.files.asFileTree.matching { include("**/*.graphqls") }
             )
             classpath.setFrom(codegenClasspath)
+            wireToModuleLayout(moduleLayout)
         }
-
-        ViaductModulePluginSupport.validateContainingApplicationProject(
-            this,
-            "com.airbnb.viaduct.module-java-gradle-plugin",
-        ) { appExt ->
-            taskProvider.configure { wireToExtensions(moduleExt, appExt) }
-        }
-
-        return taskProvider
     }
 }
