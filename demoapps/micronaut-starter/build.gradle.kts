@@ -6,10 +6,6 @@ plugins {
     jacoco
 }
 
-viaductApplication {
-    modulePackagePrefix.set("com.example")
-}
-
 application {
     mainClass.set("com.example.viadapp.AppKt")
 }

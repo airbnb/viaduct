@@ -6,10 +6,6 @@ plugins {
     alias(libs.plugins.viaduct.module)
 }
 
-viaductModule {
-    modulePackageSuffix.set("filmography")
-}
-
 dependencies {
     api(libs.viaduct.api)
     implementation(libs.viaduct.runtime)

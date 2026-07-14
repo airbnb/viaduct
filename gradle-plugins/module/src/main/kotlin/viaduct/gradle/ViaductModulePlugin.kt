@@ -26,11 +26,7 @@ class ViaductModulePlugin : Plugin<Project> {
             val topology = validateModuleProjectPlacement("com.airbnb.viaduct.module-gradle-plugin")
             val moduleLayout = ViaductModulePluginSupport.modulePackageLayout(this, topology)
 
-            val moduleExt = extensions.findByType(ViaductModuleExtension::class.java)
-                ?: extensions.create("viaductModule", ViaductModuleExtension::class.java, objects)
-
             ViaductModulePluginSupport.configureDirectModuleDependencyChecks(this, topology)
-            ViaductModulePluginSupport.configureModulePackageSuffixConvention(this, moduleExt)
 
             val viaductApplication = ViaductModulePluginSupport.setupViaductApplicationConfiguration(this)
             val grtIncomingCfg = ViaductModulePluginSupport.createGRTIncomingConfiguration(

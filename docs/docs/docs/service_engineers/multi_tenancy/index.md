@@ -5,7 +5,7 @@ description: Structuring a Viaduct application so multiple tenant projects contr
 
 Viaduct multi-tenancy is a source and build structure for letting multiple teams contribute independently owned GraphQL schema partitions and resolver code to one Viaduct application.
 
-A tenant is one Gradle project that applies the Viaduct module plugin. It contributes a schema partition and the resolver implementations for that partition. The application project applies the Viaduct application plugin, depends on the tenant projects, and builds the `Viaduct` runtime that serves the composed schema.
+A tenant is one Gradle project that applies the Viaduct module plugin. It contributes a schema partition and the resolver implementations for that partition. The settings topology declares the application project, tenant projects, and package layout. The application project applies the Viaduct application plugin and builds the `Viaduct` runtime that serves the composed schema.
 
 This page is for service engineers setting up that source and build structure. For resolver authoring patterns, see the [Developers](../../developers/index.md) section. For a worked example, see the [Star Wars tutorial](../../../getting_started/starwars/index.md).
 
@@ -31,7 +31,37 @@ tenants/orders/build.gradle.kts          # tenant project
 tenants/users/build.gradle.kts           # tenant project
 ```
 
-The exact directory names are your choice; `modules`, `tenants`, or domain-specific names are all fine as long as Gradle includes the projects and the projects are correctly configured. The application project applies `viaduct.application`. Tenant projects apply `viaduct.module`. Shared library projects do not apply either Viaduct plugin.
+The exact directory names are your choice; `modules`, `tenants`, or domain-specific names are all fine as long as Gradle includes the projects and the Viaduct topology declares them. The application project applies `viaduct.application`. Tenant projects apply `viaduct.module`. Shared library projects do not apply either Viaduct plugin.
+
+## Settings Topology
+
+Declare the Viaduct application and tenant modules in `settings.gradle.kts`:
+
+```kotlin title="settings.gradle.kts"
+plugins {
+    id("com.airbnb.viaduct.settings-gradle-plugin")
+}
+
+includeViaductApplication {
+    project(":")
+    modulePackagePrefix("com.example.myservice")
+
+    includeModule {
+        project(":tenants:catalog")
+        modulePackageSuffix("catalog")
+    }
+    includeModule {
+        project(":tenants:orders")
+        modulePackageSuffix("orders")
+    }
+    includeModule {
+        project(":tenants:users")
+        modulePackageSuffix("users")
+    }
+}
+```
+
+The application plugin uses this topology to wire module schema partitions and runtime dependencies. Module plugins use the same topology to find the owning application and generate code under the declared package layout.
 
 ## Application Project
 
@@ -43,17 +73,9 @@ plugins {
     alias(libs.plugins.viaduct.application)
 }
 
-viaductApplication {
-    modulePackagePrefix.set("com.example.myservice")
-}
-
 dependencies {
     implementation(libs.viaduct.api)
     implementation(libs.viaduct.runtime)
-
-    runtimeOnly(project(":tenants:catalog"))
-    runtimeOnly(project(":tenants:orders"))
-    runtimeOnly(project(":tenants:users"))
 }
 ```
 
@@ -64,7 +86,7 @@ The application project is also where service-engineering concerns usually live:
 - configuring dependency injection for resolver classes
 - configuring schema variants, observability, feature flags, and deployment packaging
 
-Tenant projects should normally be `runtimeOnly` dependencies of the application project. They must be present on the application runtime classpath so Viaduct can discover their generated metadata and resolver classes, but tenant implementation code should not be part of the application project's compilation classpath.
+Tenant projects should normally be listed in the Viaduct settings topology rather than manually added as application project dependencies. The application plugin adds topology modules to the application runtime classpath so Viaduct can discover their generated metadata and resolver classes, while keeping tenant implementation code out of the application project's compilation classpath.
 
 ## Tenant Projects
 
@@ -76,10 +98,6 @@ plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.ksp)
     alias(libs.plugins.viaduct.module)
-}
-
-viaductModule {
-    modulePackageSuffix.set("catalog")
 }
 
 dependencies {
@@ -101,24 +119,12 @@ tenants/catalog/
     ProductSearchResolver.kt
 ```
 
-The `src/main/viaduct/schema` directory is the convention the module plugin uses for tenant SDL. The Kotlin package should align with the application project's `modulePackagePrefix` plus the tenant project's `modulePackageSuffix`.
+The `src/main/viaduct/schema` directory is the convention the module plugin uses for tenant SDL. The Kotlin package should align with the settings topology `modulePackagePrefix` plus the tenant project's `modulePackageSuffix`.
 
 !!! warning
-    Viaduct validates package prefixes and suffixes as dotted identifier segments, but it does not reject every reserved word from every resolver implementation language. Service engineers should consider adding application-specific Gradle linting to ensure `modulePackagePrefix` and `modulePackageSuffix` values are valid package names for the languages their resolver teams use.
+    Viaduct validates topology package prefixes and suffixes as dotted identifier segments, but it does not reject every reserved word from every resolver implementation language. Service engineers should consider adding application-specific Gradle linting to ensure `modulePackagePrefix` and `modulePackageSuffix` values are valid package names for the languages their resolver teams use.
 
-For example, with:
-
-```kotlin
-viaductApplication {
-    modulePackagePrefix.set("com.example.myservice")
-}
-
-viaductModule {
-    modulePackageSuffix.set("catalog")
-}
-```
-
-resolver implementations for that tenant should live under a package such as:
+For example, with `modulePackagePrefix("com.example.myservice")` on the application topology and `modulePackageSuffix("catalog")` on a tenant module, resolver implementations for that tenant should live under a package such as:
 
 ```text
 com.example.myservice.catalog
@@ -156,7 +162,7 @@ The service engineer should choose a layout that makes ownership and build behav
 - Tenant projects are small enough that one team can own their schema and resolver code.
 - Shared JVM code lives in ordinary library projects, separate from tenant schema partitions.
 - Tenant project names and package suffixes are stable, because they shape generated code and resolver discovery.
-- The application project has explicit `runtimeOnly` Gradle dependencies on every tenant it serves.
+- The Viaduct settings topology lists every tenant served by the application.
 - The application project is the only place that owns runtime integration decisions.
 
 ### Organizing Large Schemas by Domain
@@ -170,20 +176,16 @@ tenants/
     accountsreceivable/
 ```
 
-In that layout, the tenant projects might use package suffixes such as:
+In that layout, the tenant modules might use settings-topology package suffixes such as:
 
 ```kotlin
-viaductModule {
-    modulePackageSuffix.set("finance.accountspayable")
-}
+modulePackageSuffix("finance.accountspayable")
 ```
 
 and:
 
 ```kotlin
-viaductModule {
-    modulePackageSuffix.set("finance.accountsreceivable")
-}
+modulePackageSuffix("finance.accountsreceivable")
 ```
 
 This keeps generated code and resolver discovery aligned with the ownership structure without implying that every directory is a Gradle project.
@@ -195,7 +197,6 @@ Application project:
 - web server or message consumer entry point
 - `BasicViaductFactory` or `ViaductBuilder` configuration
 - dependency injection integration
-- tenant project runtime dependencies
 - schema scoping configuration
 - observability and error handling configuration
 
@@ -217,13 +218,25 @@ Shared library project:
 
 ### Tenant Project Not on the Runtime Classpath
 
-If a tenant project applies the module plugin but is not a runtime dependency of the application project, the application build may not package the tenant metadata and resolver classes needed at runtime.
+If a tenant project applies the module plugin but the application does not package its tenant metadata and resolver classes at runtime, first check that the tenant is declared in the settings topology:
 
-Add the tenant project as an application runtime dependency, for example `runtimeOnly(project(":tenants:catalog"))`. Tenant implementation code should stay off the application project's compilation classpath.
+```kotlin
+includeViaductApplication {
+    project(":app")
+    modulePackagePrefix("com.example.app")
+
+    includeModule {
+        project(":tenants:catalog")
+        modulePackageSuffix("catalog")
+    }
+}
+```
+
+The application plugin wires topology-declared tenant modules onto the runtime classpath. If runtime metadata is still missing, verify that the application and tenant plugins are applied to the projects named in settings, and inspect the application's runtime classpath rather than adding a manual `runtimeOnly(project(...))` edge.
 
 ### Package Prefix and Suffix Do Not Line Up
 
-If resolvers are not found at runtime, check that `viaductApplication.modulePackagePrefix` and each `viaductModule.modulePackageSuffix` match the Kotlin packages where resolver classes are compiled.
+If resolvers are not found at runtime, check that the settings topology `modulePackagePrefix` and each tenant project's `modulePackageSuffix` match the Kotlin packages where resolver classes are compiled.
 
 ### Treating Tenant Schema Composition as a Gradle Dependency Graph
 

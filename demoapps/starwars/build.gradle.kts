@@ -6,10 +6,6 @@ plugins {
     jacoco
 }
 
-viaductApplication {
-    modulePackagePrefix.set("com.example.starwars")
-}
-
 micronaut {
     runtime("netty")
     testRuntime("junit")

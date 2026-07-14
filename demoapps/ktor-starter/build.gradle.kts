@@ -9,10 +9,6 @@ application {
     mainClass.set("com.example.viadapp.ViaductServiceKt")
 }
 
-viaductApplication {
-    modulePackagePrefix.set("com.example.viadapp")
-}
-
 dependencies {
     implementation(libs.viaduct.api)
     implementation(libs.viaduct.runtime)

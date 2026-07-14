@@ -34,10 +34,6 @@ class ViaductApplicationTopologyValidationTest {
                 `java-library`
                 id("com.airbnb.viaduct.application-gradle-plugin")
             }
-
-            viaductApplication {
-                modulePackagePrefix.set("com.example.test")
-            }
             """.trimIndent()
         )
 

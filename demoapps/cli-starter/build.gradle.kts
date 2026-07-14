@@ -8,14 +8,6 @@ plugins {
     application
 }
 
-viaductApplication {
-    modulePackagePrefix.set("com.example.viadapp")
-}
-
-viaductModule {
-    modulePackageSuffix.set("resolvers")
-}
-
 dependencies {
     implementation(libs.viaduct.api)
     implementation(libs.viaduct.runtime)

@@ -66,10 +66,6 @@ class ViaductJavaModulePluginFunctionalTest {
                 id("com.airbnb.viaduct.application-gradle-plugin")
                 id("com.airbnb.viaduct.module-java-gradle-plugin")
             }
-
-            viaductApplication {
-                modulePackagePrefix.set("com.example.test")
-            }
             """.trimIndent()
         )
 
@@ -125,7 +121,7 @@ class ViaductJavaModulePluginFunctionalTest {
     }
 
     @Test
-    fun `topology package values configure Java module resolver base task when project DSL disagrees`() {
+    fun `topology package values configure Java module resolver base task without project DSL`() {
         File(projectDir, "settings.gradle.kts").writeText(
             """
             plugins {
@@ -154,9 +150,6 @@ class ViaductJavaModulePluginFunctionalTest {
                 id 'java-library'
                 id 'com.airbnb.viaduct.application-gradle-plugin'
             }
-            viaductApplication {
-                modulePackagePrefix.set('com.example.project')
-            }
             """.trimIndent()
         )
 
@@ -166,9 +159,6 @@ class ViaductJavaModulePluginFunctionalTest {
             plugins {
                 id 'java-library'
                 id 'com.airbnb.viaduct.module-java-gradle-plugin'
-            }
-            viaductModule {
-                modulePackageSuffix.set('project')
             }
 
             tasks.register('printViaductJavaTopologyPackageInputs') {

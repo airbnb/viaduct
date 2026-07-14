@@ -1,10 +1,4 @@
 public class viaduct/gradle/ViaductApplicationExtension {
 	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
-	public final fun getModulePackagePrefix ()Lorg/gradle/api/provider/Property;
-}
-
-public class viaduct/gradle/ViaductModuleExtension {
-	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
-	public final fun getModulePackageSuffix ()Lorg/gradle/api/provider/Property;
 }
 

@@ -12,9 +12,6 @@ import viaduct.service.api.scoping.ScopingErrorCodes
 @StableApi
 @OptIn(ExperimentalApi::class, InternalApi::class)
 open class ViaductApplicationExtension(objects: ObjectFactory) {
-    /** Kotlin package name prefix for all modules. */
-    val modulePackagePrefix = objects.property(String::class.java)
-
     private val schemaScopingProperty =
         objects.property(SchemaScoping::class.java).convention(SchemaScoping.EMPTY)
 

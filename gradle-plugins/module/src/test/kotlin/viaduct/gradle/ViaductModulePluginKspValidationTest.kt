@@ -84,12 +84,6 @@ class ViaductModulePluginKspValidationTest {
                 id("com.airbnb.viaduct.application-gradle-plugin")
                 id("com.airbnb.viaduct.module-gradle-plugin")
             }
-            viaductApplication {
-                modulePackagePrefix.set("com.example.test")
-            }
-            viaductModule {
-                modulePackageSuffix.set("test")
-            }
             """.trimIndent()
         )
         val schemaDir = File(projectDir, "src/main/viaduct/schema").also { it.mkdirs() }

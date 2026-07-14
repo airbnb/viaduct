@@ -218,10 +218,4 @@ class ViaductApplicationExtensionTest {
         ex.message!! shouldContain "missing_a"
         ex.message!! shouldContain "missing_b"
     }
-
-    @Test
-    fun `pre-existing scalar properties remain functional`() {
-        extension.modulePackagePrefix.set("com.example")
-        assertEquals("com.example", extension.modulePackagePrefix.get())
-    }
 }

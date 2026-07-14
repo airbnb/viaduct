@@ -4,10 +4,6 @@ plugins {
     application
 }
 
-viaductApplication {
-    modulePackagePrefix.set("com.example.viadapp")
-}
-
 dependencies {
     implementation(libs.viaduct.api)
     implementation(libs.viaduct.runtime)

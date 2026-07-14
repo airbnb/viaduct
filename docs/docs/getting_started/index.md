@@ -228,7 +228,25 @@ Viaduct has two Gradle plugins that orchestrate schema validation, code generati
 
 * `com.airbnb.viaduct.application-gradle-plugin` - this plugin is applied to the project that will build the `Viaduct` instance using the `BasicViaductFactory` (or the more full-featured `ViaductBuilder`). This is typically the project that contains the host web server, although it need not be.
 
-* `com.airbnb.viaduct.module-gradle-plugin` - this plugin is applied to the projects that contain schema fragments and the corresponding resolvers. Projects applying this plugin must be either the same as the project that applied the application plugin, or an ancestor of that project.
+* `com.airbnb.viaduct.module-gradle-plugin` - this plugin is applied to the projects that contain schema fragments and the corresponding resolvers. Projects applying this plugin must be declared in the Viaduct topology in `settings.gradle.kts`; module projects must be either the same as the application project or descendants of it.
+
+The Viaduct topology in `settings.gradle.kts` declares the application project, its modules, and the package layout used by generated resolver code:
+
+```kotlin
+plugins {
+    id("com.airbnb.viaduct.settings-gradle-plugin")
+}
+
+includeViaductApplication {
+    project(":")
+    modulePackagePrefix("com.example.viadapp")
+
+    includeModule {
+        project(":resolvers")
+        modulePackageSuffix("resolvers")
+    }
+}
+```
 
 In our Ktor application, the root Gradle project applies the application plugin and contains the Ktor server:
 
@@ -243,17 +261,10 @@ application {
     mainClass.set("com.example.viadapp.ViaductServiceKt")
 }
 
-viaductApplication {
-    modulePackagePrefix.set("com.example.viadapp")
-}
-
 dependencies {
     // Viaduct framework
     implementation(libs.viaduct.api)
     implementation(libs.viaduct.runtime)
-
-    // Application logic from our tenant module
-    implementation(project(":resolvers"))
 
     implementation(libs.ktor.server.core.jvm)
     ...other ktor dependencies
@@ -268,10 +279,6 @@ plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.ksp)
     alias(libs.plugins.viaduct.module) // Marks this project as a tenant module
-}
-
-viaductModule {
-    modulePackageSuffix.set("resolvers")
 }
 
 dependencies {

@@ -68,12 +68,6 @@ class ViaductModulePluginFunctionalTest {
                 id("com.airbnb.viaduct.module-gradle-plugin")
                 id("com.google.devtools.ksp")
             }
-            viaductApplication {
-                modulePackagePrefix.set("com.example.test")
-            }
-            viaductModule {
-                modulePackageSuffix.set("test")
-            }
             """.trimIndent()
         )
         val schemaDir = File(projectDir, "src/main/viaduct/schema").also { it.mkdirs() }
@@ -92,7 +86,7 @@ class ViaductModulePluginFunctionalTest {
     }
 
     @Test
-    fun `topology package values configure Kotlin module tasks when project DSL disagrees`() {
+    fun `topology package values configure Kotlin module tasks without project DSL`() {
         File(projectDir, "settings.gradle.kts").writeViaductSettings(
             applicationProjectPath = ":app",
             modulePackagePrefix = "com.example.topology",
@@ -107,9 +101,6 @@ class ViaductModulePluginFunctionalTest {
                 id 'java-library'
                 id 'com.airbnb.viaduct.application-gradle-plugin'
             }
-            viaductApplication {
-                modulePackagePrefix.set('com.example.project')
-            }
             """.trimIndent()
         )
 
@@ -121,9 +112,6 @@ class ViaductModulePluginFunctionalTest {
                 id 'org.jetbrains.kotlin.jvm'
                 id 'com.airbnb.viaduct.module-gradle-plugin'
                 id 'com.google.devtools.ksp'
-            }
-            viaductModule {
-                modulePackageSuffix.set('project')
             }
 
             tasks.register('printViaductTopologyPackageInputs') {
@@ -217,9 +205,6 @@ class ViaductModulePluginFunctionalTest {
                 `java-library`
                 id("com.airbnb.viaduct.application-gradle-plugin")
             }
-            viaductApplication {
-                modulePackagePrefix.set("com.example.test")
-            }
             """.trimIndent()
         )
 
@@ -231,9 +216,6 @@ class ViaductModulePluginFunctionalTest {
                 kotlin("jvm")
                 id("com.airbnb.viaduct.module-gradle-plugin")
                 id("com.google.devtools.ksp")
-            }
-            viaductModule {
-                modulePackageSuffix.set("mymodule")
             }
 
             tasks.register("printViaductApplicationAnchor") {
@@ -512,9 +494,6 @@ class ViaductModulePluginFunctionalTest {
                 `java-library`
                 id("com.airbnb.viaduct.application-gradle-plugin")
             }
-            viaductApplication {
-                modulePackagePrefix.set("com.example.test")
-            }
             """.trimIndent()
         )
         val moduleDir = File(projectDir, "mymodule").also { it.mkdirs() }
@@ -524,9 +503,6 @@ class ViaductModulePluginFunctionalTest {
                 kotlin("jvm")
                 id("com.airbnb.viaduct.module-gradle-plugin")
                 id("com.google.devtools.ksp")
-            }
-            viaductModule {
-                modulePackageSuffix.set("test")
             }
             """.trimIndent()
         )
@@ -732,9 +708,6 @@ class ViaductModulePluginFunctionalTest {
                 `java-library`
                 id("com.airbnb.viaduct.application-gradle-plugin")
             }
-            viaductApplication {
-                modulePackagePrefix.set("com.example.test")
-            }
             """.trimIndent()
         )
         val moduleADir = File(projectDir, "moduleA").also { it.mkdirs() }
@@ -791,9 +764,6 @@ class ViaductModulePluginFunctionalTest {
                 `java-library`
                 id("com.airbnb.viaduct.application-gradle-plugin")
             }
-            viaductApplication {
-                modulePackagePrefix.set("com.example.test")
-            }
             """.trimIndent()
         )
         val moduleADir = File(projectDir, "moduleA").also { it.mkdirs() }
@@ -843,9 +813,6 @@ class ViaductModulePluginFunctionalTest {
                 `java-library`
                 id("com.airbnb.viaduct.application-gradle-plugin")
             }
-            viaductApplication {
-                modulePackagePrefix.set("com.example.test")
-            }
             """.trimIndent()
         )
         val moduleDir = File(projectDir, "module").also { it.mkdirs() }
@@ -892,9 +859,6 @@ class ViaductModulePluginFunctionalTest {
                 `java-library`
                 id("com.airbnb.viaduct.application-gradle-plugin")
             }
-            viaductApplication {
-                modulePackagePrefix.set("com.example.test")
-            }
             """.trimIndent()
         )
         val moduleDir = File(projectDir, "mymodule").also { it.mkdirs() }
@@ -904,9 +868,6 @@ class ViaductModulePluginFunctionalTest {
                 kotlin("jvm")
                 id("com.airbnb.viaduct.module-gradle-plugin")
                 id("com.google.devtools.ksp")
-            }
-            viaductModule {
-                modulePackageSuffix.set("mymodule")
             }
             """.trimIndent()
         )
@@ -931,9 +892,6 @@ class ViaductModulePluginFunctionalTest {
                 `java-library`
                 id("com.airbnb.viaduct.application-gradle-plugin")
             }
-            viaductApplication {
-                modulePackagePrefix.set("com.example.test")
-            }
             """.trimIndent()
         )
         val moduleDir = File(projectDir, "mymodule").also { it.mkdirs() }
@@ -943,9 +901,6 @@ class ViaductModulePluginFunctionalTest {
                 kotlin("jvm")
                 id("com.airbnb.viaduct.module-gradle-plugin")
                 id("com.google.devtools.ksp")
-            }
-            viaductModule {
-                modulePackageSuffix.set("test")
             }
             """.trimIndent()
         )

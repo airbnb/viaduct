@@ -60,7 +60,6 @@ class ViaductApplicationScopeValidationTest {
             appendLine("}")
             appendLine()
             appendLine("viaductApplication {")
-            appendLine("    modulePackagePrefix.set(\"com.example.test\")")
             viaductBlock.trimIndent().lines().forEach { line ->
                 if (line.isBlank()) appendLine() else appendLine("    $line")
             }

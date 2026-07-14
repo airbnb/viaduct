@@ -8,23 +8,15 @@ import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
 import org.gradle.api.file.RegularFile
-import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
 import schemaPartitionDirectory
 import viaduct.apiannotations.InternalApi
-import viaduct.apiannotations.StableApi
 import viaduct.gradle.ViaductPluginCommon.APPLICATION_PLUGIN_IDS
 import viaduct.gradle.ViaductPluginCommon.prettyPath
 import viaduct.gradle.ViaductPluginCommon.requireViaductTopology
 import viaduct.gradle.ViaductPluginCommon.requireViaductTopologyModuleProjectPaths
 import viaduct.gradle.task.AssembleSchemaPartitionTask
-
-@StableApi
-open class ViaductModuleExtension(objects: ObjectFactory) {
-    /** Kotlin package name suffix for this module (can be empty). */
-    val modulePackageSuffix = objects.property(String::class.java)
-}
 
 @InternalApi
 data class ViaductModulePackageLayout(
@@ -77,17 +69,6 @@ object ViaductModulePluginSupport {
         }
         project.pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
             project.enforceNoDirectModuleDeps(applicationProjectPath, moduleProjectPaths)
-        }
-    }
-
-    fun configureModulePackageSuffixConvention(
-        project: Project,
-        moduleExt: ViaductModuleExtension
-    ) {
-        APPLICATION_PLUGIN_IDS.forEach { pluginId ->
-            project.pluginManager.withPlugin(pluginId) {
-                moduleExt.modulePackageSuffix.convention("")
-            }
         }
     }
 
