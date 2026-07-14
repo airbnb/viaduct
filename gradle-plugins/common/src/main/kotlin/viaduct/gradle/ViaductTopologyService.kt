@@ -17,7 +17,11 @@ data class ViaductApplicationTopology(
     val applicationProjectPath: String,
     val modulePackagePrefix: String,
     val modulePackageSuffixes: Map<String, String>,
-)
+) {
+    fun isApplicationProject(projectPath: String): Boolean = applicationProjectPath == projectPath
+
+    fun isModuleProject(projectPath: String): Boolean = modulePackageSuffixes.containsKey(projectPath)
+}
 
 @InternalApi
 abstract class ViaductTopologyService : BuildService<ViaductTopologyService.Params> {

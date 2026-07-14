@@ -27,6 +27,7 @@ dependencies {
     // Testing (kotlin-test, junit, junit-engine, junit-launcher provided by conventions.gradle-plugin-kotlin)
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(gradleTestKit())
+    testImplementation(project(":settings"))
 }
 
 // Include version in JAR manifest for JAR introspection and debugging

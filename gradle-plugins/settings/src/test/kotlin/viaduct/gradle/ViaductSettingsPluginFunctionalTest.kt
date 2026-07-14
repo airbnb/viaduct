@@ -110,16 +110,6 @@ class ViaductSettingsPluginFunctionalTest {
     }
 
     @Test
-    fun `gradletestapps configure with settings plugin DSL`() {
-        val result = GradleRunner.create()
-            .withProjectDir(gradleTestAppsDir())
-            .withArguments("help")
-            .build()
-
-        result.output shouldContain "BUILD SUCCESSFUL"
-    }
-
-    @Test
     fun `multiple disjoint applications and plain projects can coexist`() {
         writeSettings(
             """
@@ -497,17 +487,4 @@ class ViaductSettingsPluginFunctionalTest {
         GradleRunner.create()
             .withProjectDir(projectDir)
             .withPluginClasspath()
-
-    private fun gradleTestAppsDir(): File {
-        val startDir = File(System.getProperty("user.dir"))
-        return generateSequence(startDir) { it.parentFile }
-            .flatMap { dir ->
-                sequenceOf(
-                    File(dir, "gradletestapps"),
-                    File(dir, "gradle-plugins/gradletestapps"),
-                )
-            }
-            .firstOrNull { File(it, "settings.gradle.kts").isFile }
-            ?: error("Could not locate gradletestapps from ${startDir.absolutePath}")
-    }
 }

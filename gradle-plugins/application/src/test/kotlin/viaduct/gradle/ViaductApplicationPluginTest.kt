@@ -64,6 +64,7 @@ class ViaductApplicationPluginTest {
             .withProjectDir(appDir)
             .build()
         appProject.pluginManager.apply("java-library")
+        root.registerViaductTopology(":app")
 
         appProject.pluginManager.apply(ViaductApplicationPlugin::class.java)
 
@@ -95,6 +96,7 @@ class ViaductApplicationPluginTest {
             .withProjectDir(nestedDir)
             .build()
         nestedProject.pluginManager.apply("java-library")
+        root.registerViaductTopology(":app")
 
         appProject.pluginManager.apply(ViaductApplicationPlugin::class.java)
 
@@ -104,8 +106,8 @@ class ViaductApplicationPluginTest {
         val allMessages = generateSequence(ex as Throwable?) { it.cause }
             .mapNotNull { it.message }
             .joinToString("\n")
-        assertTrue(allMessages.contains(":app"))
-        assertTrue(allMessages.contains("containing Viaduct application project"))
+        assertTrue(allMessages.contains(":app:nested"))
+        assertTrue(allMessages.contains("not declared in the Viaduct settings topology"))
     }
 
     @Test
@@ -334,4 +336,25 @@ class ViaductApplicationPluginTest {
     }
 
     private fun createCommonSchemaDir(): File = File(project.projectDir, "src/viaduct/schema").apply { mkdirs() }
+
+    private fun Project.registerViaductTopology(applicationProjectPath: String) {
+        gradle.sharedServices.registerIfAbsent(
+            ViaductTopologyService.NAME,
+            ViaductTopologyService::class.java,
+        ) {
+            parameters.topologyJson.set(
+                ViaductTopologyJson.encode(
+                    ViaductApplicationMap(
+                        applicationTopologies = mapOf(
+                            applicationProjectPath to ViaductApplicationTopology(
+                                applicationProjectPath = applicationProjectPath,
+                                modulePackagePrefix = "com.example.test",
+                                modulePackageSuffixes = emptyMap(),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+    }
 }

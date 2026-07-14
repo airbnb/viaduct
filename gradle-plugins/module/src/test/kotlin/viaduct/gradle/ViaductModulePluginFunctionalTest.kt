@@ -27,7 +27,7 @@ class ViaductModulePluginFunctionalTest {
     }
 
     @Test
-    fun `module plugin without application plugin fails with clear message`() {
+    fun `module plugin without settings topology fails with clear message`() {
         // Multi-project build: root applies no plugins; subproject applies only the module plugin.
         File(projectDir, "settings.gradle.kts").writeText(
             """
@@ -51,13 +51,14 @@ class ViaductModulePluginFunctionalTest {
             .withArguments("help")
             .buildAndFail()
 
-        assertTrue(result.output.contains("application-gradle-plugin"), "Expected output to mention 'application-gradle-plugin'")
+        assertTrue(result.output.contains("Viaduct settings topology"), "Expected output to mention Viaduct settings topology")
+        assertTrue(result.output.contains("settings-gradle-plugin"), "Expected output to mention 'settings-gradle-plugin'")
     }
 
     @Test
     fun `same-project topology is supported`() {
         // Single-project build: both plugins applied to the root project (cli-starter topology).
-        File(projectDir, "settings.gradle.kts").writeText("""rootProject.name = "test"""")
+        File(projectDir, "settings.gradle.kts").writeViaductSettings(modules = mapOf(":" to "test"))
         File(projectDir, "build.gradle.kts").writeText(
             """
             plugins {
@@ -89,12 +90,9 @@ class ViaductModulePluginFunctionalTest {
 
     @Test
     fun `module resolves schema and grt dependencies from nearest application ancestor`() {
-        File(projectDir, "settings.gradle.kts").writeText(
-            """
-            rootProject.name = "test"
-            include("app")
-            include("app:mymodule")
-            """.trimIndent()
+        File(projectDir, "settings.gradle.kts").writeViaductSettings(
+            applicationProjectPath = ":app",
+            modules = mapOf(":app:mymodule" to "mymodule"),
         )
         File(projectDir, "build.gradle.kts").writeText("")
 
@@ -163,12 +161,7 @@ class ViaductModulePluginFunctionalTest {
 
     @Test
     fun `missing modulePackagePrefix fails with clear message`() {
-        File(projectDir, "settings.gradle.kts").writeText(
-            """
-            rootProject.name = "test"
-            include("mymodule")
-            """.trimIndent()
-        )
+        File(projectDir, "settings.gradle.kts").writeViaductSettings(modules = mapOf(":mymodule" to "test"))
         File(projectDir, "build.gradle.kts").writeText(
             """
             plugins {
@@ -197,12 +190,7 @@ class ViaductModulePluginFunctionalTest {
 
     @Test
     fun `blank modulePackagePrefix fails with clear message`() {
-        File(projectDir, "settings.gradle.kts").writeText(
-            """
-            rootProject.name = "test"
-            include("mymodule")
-            """.trimIndent()
-        )
+        File(projectDir, "settings.gradle.kts").writeViaductSettings(modules = mapOf(":mymodule" to "test"))
         File(projectDir, "build.gradle.kts").writeText(
             """
             plugins {
@@ -234,12 +222,7 @@ class ViaductModulePluginFunctionalTest {
 
     @Test
     fun `module without schema directory fails with clear message`() {
-        File(projectDir, "settings.gradle.kts").writeText(
-            """
-            rootProject.name = "test"
-            include("mymodule")
-            """.trimIndent()
-        )
+        File(projectDir, "settings.gradle.kts").writeViaductSettings(modules = mapOf(":mymodule" to "test"))
         File(projectDir, "build.gradle.kts").writeText(
             """
             plugins {
@@ -277,12 +260,11 @@ class ViaductModulePluginFunctionalTest {
 
     @Test
     fun `direct module-to-module dependency fails with clear message`() {
-        File(projectDir, "settings.gradle.kts").writeText(
-            """
-            rootProject.name = "test"
-            include("moduleA")
-            include("moduleB")
-            """.trimIndent()
+        File(projectDir, "settings.gradle.kts").writeViaductSettings(
+            modules = mapOf(
+                ":moduleA" to "moduleA",
+                ":moduleB" to "moduleB",
+            ),
         )
         File(projectDir, "build.gradle.kts").writeText(
             """
@@ -339,12 +321,9 @@ class ViaductModulePluginFunctionalTest {
 
     @Test
     fun `dependency on non-module project is allowed`() {
-        File(projectDir, "settings.gradle.kts").writeText(
-            """
-            rootProject.name = "test"
-            include("moduleA")
-            include("libproject")
-            """.trimIndent()
+        File(projectDir, "settings.gradle.kts").writeViaductSettings(
+            modules = mapOf(":moduleA" to "moduleA"),
+            plainIncludes = listOf(":libproject"),
         )
         File(projectDir, "build.gradle.kts").writeText(
             """
@@ -394,12 +373,9 @@ class ViaductModulePluginFunctionalTest {
 
     @Test
     fun `dependency on non-module project with same leaf name as another module is not blocked`() {
-        File(projectDir, "settings.gradle.kts").writeText(
-            """
-            rootProject.name = "test"
-            include("module")
-            include("lib:module")
-            """.trimIndent()
+        File(projectDir, "settings.gradle.kts").writeViaductSettings(
+            modules = mapOf(":module" to "module"),
+            plainIncludes = listOf(":lib:module"),
         )
         File(projectDir, "build.gradle.kts").writeText(
             """
@@ -449,12 +425,7 @@ class ViaductModulePluginFunctionalTest {
 
     @Test
     fun `assembleViaductCentralSchema succeeds when optional schema directories are absent`() {
-        File(projectDir, "settings.gradle.kts").writeText(
-            """
-            rootProject.name = "test"
-            include("mymodule")
-            """.trimIndent()
-        )
+        File(projectDir, "settings.gradle.kts").writeViaductSettings(modules = mapOf(":mymodule" to "mymodule"))
         File(projectDir, "build.gradle.kts").writeText(
             """
             plugins {
@@ -493,12 +464,7 @@ class ViaductModulePluginFunctionalTest {
 
     @Test
     fun `schema directory with no graphqls files fails with clear message`() {
-        File(projectDir, "settings.gradle.kts").writeText(
-            """
-            rootProject.name = "test"
-            include("mymodule")
-            """.trimIndent()
-        )
+        File(projectDir, "settings.gradle.kts").writeViaductSettings(modules = mapOf(":mymodule" to "test"))
         File(projectDir, "build.gradle.kts").writeText(
             """
             plugins {

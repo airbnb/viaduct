@@ -141,14 +141,47 @@ object ViaductPluginCommon {
             )
 
     fun Project.validateApplicationProjectPlacement() {
-        val containingAncestor = parent?.findContainingViaductApplicationProject()
-        if (containingAncestor != null) {
+        val topology = requireViaductTopology("com.airbnb.viaduct.application-gradle-plugin")
+        if (!topology.isApplicationProject(path)) {
             throw GradleException(
                 "Project ${prettyPath()} cannot apply 'com.airbnb.viaduct.application-gradle-plugin' " +
-                    "because ancestor ${containingAncestor.prettyPath()} is already the containing " +
-                    "Viaduct application project for this subtree.",
+                    "because the Viaduct settings topology declares it as a module of application " +
+                    "'${topology.applicationProjectPath}', not as an application project.",
             )
         }
+    }
+
+    fun Project.validateModuleProjectPlacement(modulePluginId: String): ViaductApplicationTopology {
+        val topology = requireViaductTopology(modulePluginId)
+        if (!topology.isModuleProject(path)) {
+            throw GradleException(
+                "Project ${prettyPath()} cannot apply '$modulePluginId' because the Viaduct settings " +
+                    "topology declares it as an application project, not as a module project. " +
+                    "For a self-contained application module, add includeModule { project(\"$path\") } " +
+                    "to the includeViaductApplication declaration.",
+            )
+        }
+        return topology
+    }
+
+    fun Project.requireViaductTopology(pluginId: String): ViaductApplicationTopology =
+        requireViaductTopologyService().topologyFor(path)
+            ?: throw GradleException(
+                "Project ${prettyPath()} applies '$pluginId' but is not declared in the Viaduct " +
+                    "settings topology. Apply 'com.airbnb.viaduct.settings-gradle-plugin' in " +
+                    "settings.gradle.kts and declare the project with includeViaductApplication { ... }.",
+            )
+
+    private fun Project.requireViaductTopologyService(): ViaductTopologyService {
+        val registration = gradle.sharedServices.registrations.findByName(ViaductTopologyService.NAME)
+            ?: throw GradleException(
+                "Viaduct settings topology is required but shared service " +
+                    "'${ViaductTopologyService.NAME}' is not registered. Apply " +
+                    "'com.airbnb.viaduct.settings-gradle-plugin' in settings.gradle.kts and declare " +
+                    "the Viaduct application topology with includeViaductApplication { ... }.",
+            )
+
+        return registration.service.get() as ViaductTopologyService
     }
 
     fun Project.hasViaductApplicationPlugin(): Boolean = APPLICATION_PLUGIN_IDS.any { pluginId -> plugins.hasPlugin(pluginId) }

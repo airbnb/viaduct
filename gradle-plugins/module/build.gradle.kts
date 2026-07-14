@@ -29,6 +29,7 @@ dependencies {
     // Testing
     testImplementation(gradleTestKit())
     testImplementation(project(":application"))
+    testImplementation(project(":settings"))
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.ksp.gradle.plugin)
     testImplementation(libs.kotlin.gradle.plugin)

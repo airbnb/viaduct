@@ -69,15 +69,14 @@ class ViaductModulePluginKspValidationTest {
     @TempDir
     lateinit var projectDir: File
 
-    private fun combinedPluginClasspath(): List<File> {
-        val moduleClasspath = GradleRunner.create().withPluginClasspath().pluginClasspath
-        val appPluginJar = File(ViaductApplicationPlugin::class.java.protectionDomain.codeSource.location.toURI())
-        return moduleClasspath + listOf(appPluginJar)
-    }
+    private fun combinedPluginClasspath(): List<File> =
+        System.getProperty("java.class.path")
+            .split(File.pathSeparator)
+            .map { File(it) }
 
     @Test
     fun `module without KSP fails with actionable error`() {
-        File(projectDir, "settings.gradle.kts").writeText("""rootProject.name = "test"""")
+        File(projectDir, "settings.gradle.kts").writeViaductSettings(modules = mapOf(":" to "test"))
         File(projectDir, "build.gradle.kts").writeText(
             """
             plugins {

@@ -23,6 +23,7 @@ dependencies {
 
     testImplementation(gradleTestKit())
     testImplementation(project(":application"))
+    testImplementation(project(":settings"))
 }
 
 tasks.jar {

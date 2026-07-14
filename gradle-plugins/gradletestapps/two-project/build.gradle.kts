@@ -10,7 +10,6 @@ viaductApplication {
 dependencies {
     implementation("com.airbnb.viaduct:api")
     implementation("com.airbnb.viaduct:runtime")
-    implementation(project(":two-project:resolvers"))
 }
 
 tasks.withType<Test>().configureEach {

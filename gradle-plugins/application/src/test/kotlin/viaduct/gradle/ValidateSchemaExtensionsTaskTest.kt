@@ -38,6 +38,7 @@ class ValidateSchemaExtensionsTaskTest {
             .withProjectDir(appDir)
             .build()
         project.pluginManager.apply("java-library")
+        root.registerViaductTopology(":app")
         project.pluginManager.apply(ViaductApplicationPlugin::class.java)
     }
 
@@ -126,5 +127,26 @@ class ValidateSchemaExtensionsTaskTest {
 
         errors.map { it.message }.none { it.contains("[${ValidationErrorCodes.DIRECTIVE_DEFINED_IN_MODULE}]") }
             .shouldBe(true)
+    }
+
+    private fun Project.registerViaductTopology(applicationProjectPath: String) {
+        gradle.sharedServices.registerIfAbsent(
+            ViaductTopologyService.NAME,
+            ViaductTopologyService::class.java,
+        ) {
+            parameters.topologyJson.set(
+                ViaductTopologyJson.encode(
+                    ViaductApplicationMap(
+                        applicationTopologies = mapOf(
+                            applicationProjectPath to ViaductApplicationTopology(
+                                applicationProjectPath = applicationProjectPath,
+                                modulePackagePrefix = "com.example.test",
+                                modulePackageSuffixes = emptyMap(),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
     }
 }

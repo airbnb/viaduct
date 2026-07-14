@@ -116,11 +116,9 @@ class ViaductModulePluginModuleConfigExecutionTest {
             org.gradle.configuration-cache=true
             """.trimIndent()
         )
-        File(projectDir, "settings.gradle.kts").writeText(
-            """
-            rootProject.name = "test"
-            includeBuild("${publicationsDir.invariantSeparatorsPath}")
-            """.trimIndent()
+        File(projectDir, "settings.gradle.kts").writeViaductSettings(
+            modules = mapOf(":" to "resolvers"),
+            includedBuilds = listOf(publicationsDir),
         )
         File(projectDir, "build.gradle.kts").writeText(
             """

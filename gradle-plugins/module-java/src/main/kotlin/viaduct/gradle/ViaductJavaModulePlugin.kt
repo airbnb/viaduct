@@ -9,11 +9,14 @@ import org.gradle.kotlin.dsl.register
 import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.ViaductPluginCommon.createOrGetJavaCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.pluginVersion
+import viaduct.gradle.ViaductPluginCommon.validateModuleProjectPlacement
 import viaduct.gradle.task.GenerateJavaResolverBasesTask
 
 class ViaductJavaModulePlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
+            validateModuleProjectPlacement("com.airbnb.viaduct.module-java-gradle-plugin")
+
             val moduleExt = extensions.findByType(ViaductModuleExtension::class.java)
                 ?: extensions.create("viaductModule", ViaductModuleExtension::class.java, objects)
 

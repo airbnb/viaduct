@@ -25,8 +25,26 @@ class ViaductApplicationScopeValidationTest {
     lateinit var projectDir: File
 
     private fun writeSettings() {
-        File(projectDir, "settings.gradle.kts").writeText("""rootProject.name = "test"""")
+        File(projectDir, "settings.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.airbnb.viaduct.settings-gradle-plugin")
+            }
+
+            rootProject.name = "test"
+
+            includeViaductApplication {
+                project(":")
+                modulePackagePrefix("com.example.test")
+            }
+            """.trimIndent()
+        )
     }
+
+    private fun combinedPluginClasspath(): List<File> =
+        System.getProperty("java.class.path")
+            .split(File.pathSeparator)
+            .map { File(it) }
 
     /**
      * Builds a `build.gradle.kts` whose `viaductApplication { ... }` block contains [viaductBlock].
@@ -66,7 +84,7 @@ class ViaductApplicationScopeValidationTest {
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
-            .withPluginClasspath()
+            .withPluginClasspath(combinedPluginClasspath())
             .withArguments("help", "--configuration-cache", "--configuration-cache-problems=fail")
             .build()
 
@@ -88,7 +106,7 @@ class ViaductApplicationScopeValidationTest {
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
-            .withPluginClasspath()
+            .withPluginClasspath(combinedPluginClasspath())
             .withArguments("help")
             .buildAndFail()
 
@@ -115,7 +133,7 @@ class ViaductApplicationScopeValidationTest {
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
-            .withPluginClasspath()
+            .withPluginClasspath(combinedPluginClasspath())
             .withArguments("help")
             .buildAndFail()
 

@@ -22,9 +22,11 @@ import viaduct.gradle.ViaductPluginCommon.APPLICATION_PLUGIN_IDS
 import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.findContainingViaductApplicationProject
+import viaduct.gradle.ViaductPluginCommon.hasViaductApplicationPlugin
 import viaduct.gradle.ViaductPluginCommon.pluginVersion
 import viaduct.gradle.ViaductPluginCommon.prettyPath
-import viaduct.gradle.ViaductPluginCommon.requireContainingViaductApplicationProject
+import viaduct.gradle.ViaductPluginCommon.requireViaductTopology
+import viaduct.gradle.ViaductPluginCommon.validateModuleProjectPlacement
 import viaduct.gradle.task.AssembleSchemaPartitionTask
 import viaduct.gradle.task.AssembleTenantModuleConfigFileTask
 import viaduct.gradle.task.GenerateResolverBasesTask
@@ -39,6 +41,8 @@ open class ViaductModuleExtension(objects: org.gradle.api.model.ObjectFactory) {
 class ViaductModulePlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
+            validateModuleProjectPlacement("com.airbnb.viaduct.module-gradle-plugin")
+
             val moduleExt = extensions.findByType(ViaductModuleExtension::class.java)
                 ?: extensions.create("viaductModule", ViaductModuleExtension::class.java, objects)
 
@@ -283,11 +287,6 @@ class ViaductModulePlugin : Plugin<Project> {
 
 @InternalApi
 object ViaductModulePluginSupport {
-    private val MODULE_PLUGIN_IDS = listOf(
-        "com.airbnb.viaduct.module-gradle-plugin",
-        "com.airbnb.viaduct.module-java-gradle-plugin",
-    )
-
     fun configureDirectModuleDependencyChecks(project: Project) {
         project.pluginManager.withPlugin("java") { project.enforceNoDirectModuleDeps() }
         project.pluginManager.withPlugin("org.jetbrains.kotlin.jvm") { project.enforceNoDirectModuleDeps() }
@@ -373,7 +372,20 @@ object ViaductModulePluginSupport {
         configure: Project.(ViaductApplicationExtension) -> Unit,
     ) {
         project.afterEvaluate {
-            val applicationProject = requireContainingViaductApplicationProject(modulePluginId)
+            val topology = project.requireViaductTopology(modulePluginId)
+            val applicationProject = project.findProject(topology.applicationProjectPath)
+                ?: throw GradleException(
+                    "Viaduct settings topology declares application project " +
+                        "'${topology.applicationProjectPath}' for module ${project.prettyPath()}, " +
+                        "but that project is not included in this Gradle build.",
+                )
+            if (!applicationProject.hasViaductApplicationPlugin()) {
+                throw GradleException(
+                    "Viaduct module ${project.prettyPath()} is declared under application project " +
+                        "${applicationProject.prettyPath()}, but that project does not apply one of " +
+                        "${APPLICATION_PLUGIN_IDS.joinToString(", ") { "'$it'" }}.",
+                )
+            }
             val appExt = applicationProject.extensions.getByType(ViaductApplicationExtension::class.java)
             val prefix = appExt.modulePackagePrefix.orNull
             if (prefix.isNullOrBlank()) {
@@ -442,13 +454,13 @@ object ViaductModulePluginSupport {
     private fun Project.enforceNoDirectModuleDeps() {
         configurations.configureEach {
             withDependencies {
+                val topology = this@enforceNoDirectModuleDeps.requireViaductTopology("com.airbnb.viaduct.module-gradle-plugin")
                 filterIsInstance<ProjectDependency>().forEach { pd ->
                     val target = this@enforceNoDirectModuleDeps.findProject(pd.path)
-                    val applicationProject = this@enforceNoDirectModuleDeps.findContainingViaductApplicationProject()
                     if (target != null &&
-                        isViaductModule(target) &&
-                        this@enforceNoDirectModuleDeps != applicationProject &&
-                        target != applicationProject
+                        topology.isModuleProject(target.path) &&
+                        this@enforceNoDirectModuleDeps.path != topology.applicationProjectPath &&
+                        target.path != topology.applicationProjectPath
                     ) {
                         val from = this@enforceNoDirectModuleDeps.prettyPath()
                         val to = target.prettyPath()
@@ -463,6 +475,4 @@ object ViaductModulePluginSupport {
             }
         }
     }
-
-    private fun isViaductModule(target: Project): Boolean = MODULE_PLUGIN_IDS.any { pluginId -> target.plugins.hasPlugin(pluginId) }
 }

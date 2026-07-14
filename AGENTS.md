@@ -16,6 +16,10 @@ For more information about the details of how Viaduct executes GraphQL operation
 - [`impldocs/e2e-snapshot-test.md`](impldocs/e2e-snapshot-test.md) - Test publication process using a snapshot (good to use when you've changes the Gradle artifact logic)
 - [`impldocs/execution-registry-ksp-pipeline.md`](impldocs/execution-registry-ksp-pipeline.md) - KSP three-stage pipeline for generating the tenant module config: isolation mode, stale-output cleanup, and why assembly is non-incremental.
 
+## Shell notes
+
+- This workspace commonly runs commands under `zsh`; `status` is a readonly special parameter there. When wrapping Gradle commands and preserving exit codes, use a variable name like `rc` or `exit_code`, not `status`.
+
 ## Navigating the Shared Libraries
 
 The `shared/` directory contains libraries used across the Viaduct engine and tenant APIs:
