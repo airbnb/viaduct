@@ -5,7 +5,7 @@ import java.util.concurrent.ConcurrentHashMap
 import viaduct.engine.api.EngineSelectionSet
 
 /**
- * In-process registry that hands out opaque handles to [EngineSelectionSet] instances.
+ * In-memory registry that hands out opaque handles to [EngineSelectionSet] instances.
  *
  * Handles are ephemeral; callers must unregister when the owning request completes.
  */

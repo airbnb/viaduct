@@ -4,7 +4,6 @@ import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
-import io.grpc.inprocess.InProcessChannelBuilder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
@@ -31,9 +30,9 @@ import viaduct.remote.registry.SelectionsRegistry
  * gRPC service that executes node resolvers on behalf of a [RemoteNodeProxyExecutor].
  *
  * Looks up the executor by handle, wraps the context so re-entrant queries route back
- * to the caller over gRPC, invokes the resolver, and serializes the result. Network
- * mode (handle absent from the local registry) falls back to a stub context fed by
- * [SchemaRegistry] and an empty selection set.
+ * to the caller over gRPC, invokes the resolver, and serializes the result. When a
+ * handle is absent from the local registry, the service falls back to a stub context
+ * fed by [SchemaRegistry] and an empty selection set.
  */
 open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolverServiceCoroutineImplBase() {
     private val log = LoggerFactory.getLogger(RemoteResolverServiceImpl::class.java)
@@ -49,10 +48,9 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
             ?: throw notFound("executor", request.executorId)
         val remoteContext = buildRemoteContext(request.contextHandle, request.callbackEndpoint)
 
-        // IN_PROCESS shares the JVM registry; NETWORK mode lacks it, so the resolver runs
-        // with an empty selection set and the proxy side projects requested fields client-
-        // side. Wire-level selection-set serialization would unlock RRS-side pruning but
-        // isn't required for correctness.
+        // A registry miss means the resolver runs with an empty selection set and the proxy side
+        // projects requested fields client-side. Wire-level selection-set serialization would
+        // unlock RRS-side pruning but isn't required for correctness.
         val selectors = request.selectorsList.map { protoSelector ->
             val selections = SelectionsRegistry.get(protoSelector.selectionsHandle)
                 ?: EmptyEngineSelectionSet(executor.typeName)
@@ -123,8 +121,8 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
                 val objectValue = EngineObjectDataSerializer.deserialize(proto.objectValueJson.toByteArray(), objectType)
                 val queryValue = EngineObjectDataSerializer.deserialize(proto.queryValueJson.toByteArray(), queryType)
                 val arguments = FieldValueSerializer.deserializeArguments(proto.argumentsJson.toByteArray())
-                // Prefer the shared-registry handle (IN_PROCESS fast path, preserves object identity);
-                // fall back to reconstructing the shipped selection set (NETWORK mode, no shared registry).
+                // Prefer a resolvable registry handle, which preserves object identity; otherwise
+                // reconstruct the selection set shipped by the caller.
                 val selections = proto.selectionsHandle.takeIf { it.isNotEmpty() }?.let { SelectionsRegistry.get(it) }
                     ?: if (proto.hasSelections()) reconstructSelections(proto.selections, remoteContext) else null
                 keyedSelectors.add(
@@ -207,7 +205,7 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
 
     // Rebuilds a field's sub-selection set from its serialized form against the remote's own schema
     // (via the context's selection-set factory). Used when the per-JVM selections handle isn't
-    // resolvable here (NETWORK mode). A blank document means an empty selection set.
+    // resolvable here. A blank document means an empty selection set.
     private fun reconstructSelections(
         proto: SerializedSelectionSet,
         context: RemoteEngineExecutionContext
@@ -261,8 +259,8 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
             .build()
 
     // Builds the context for an incoming resolve. Re-entrant queries route back to the caller over
-    // the cached callback channel; when the caller's context isn't in this JVM (network mode), the
-    // locally registered schema is used instead.
+    // the cached callback channel; when the caller's context isn't registered locally, the locally
+    // registered schema is used instead.
     private fun buildRemoteContext(
         contextHandle: String,
         callbackEndpoint: String
@@ -291,21 +289,19 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
             )
             .build()
 
-    // "host:port" → network channel; anything else → in-process channel name.
-    private fun createCallbackChannel(endpoint: String): ManagedChannel {
-        val networkParts = endpoint.split(":")
-        return if (networkParts.size == 2 && networkParts[1].toIntOrNull() != null) {
-            val host = networkParts[0]
-            val port = networkParts[1].toInt()
-            log.debug("Creating network callback channel to {}:{}", host, port)
-            ManagedChannelBuilder.forAddress(host, port)
-                .usePlaintext()
-                .build()
-        } else {
-            log.debug("Creating in-process callback channel: {}", endpoint)
-            InProcessChannelBuilder.forName(endpoint)
-                .directExecutor()
-                .build()
+    /** Creates the network channel used for re-entrant callbacks. Tests may override the transport. */
+    protected open fun createCallbackChannel(endpoint: String): ManagedChannel {
+        val separator = endpoint.lastIndexOf(':')
+        require(separator > 0 && separator < endpoint.lastIndex) {
+            "Callback endpoint must use host:port format: '$endpoint'"
         }
+        val host = endpoint.substring(0, separator)
+        val port = endpoint.substring(separator + 1).toIntOrNull()
+        require(port != null) { "Callback endpoint must use host:port format: '$endpoint'" }
+
+        log.debug("Creating callback channel to {}:{}", host, port)
+        return ManagedChannelBuilder.forAddress(host, port)
+            .usePlaintext()
+            .build()
     }
 }

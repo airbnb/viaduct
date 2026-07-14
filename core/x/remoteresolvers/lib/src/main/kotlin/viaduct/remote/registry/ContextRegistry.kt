@@ -5,7 +5,7 @@ import java.util.concurrent.ConcurrentHashMap
 import viaduct.engine.api.EngineExecutionContext
 
 /**
- * In-process registry that hands out opaque handles to [EngineExecutionContext]
+ * In-memory registry that hands out opaque handles to [EngineExecutionContext]
  * instances so remote callers can reference them without serializing context state.
  *
  * Handles are per-process and ephemeral; callers must unregister when the owning

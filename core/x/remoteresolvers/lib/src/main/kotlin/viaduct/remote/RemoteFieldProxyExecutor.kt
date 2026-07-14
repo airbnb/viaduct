@@ -26,7 +26,7 @@ import viaduct.remote.registry.SelectionsRegistry
  * The proxy delegates [objectSelectionSet] / [querySelectionSet] so the engine resolves them before
  * calling [batchResolve]; each selector's resolved object and query values are then serialized to the
  * remote service. The caller owns [rrsChannel]'s lifecycle. [callbackEndpoint] is where the remote
- * service dials back for re-entrant queries — "host:port" (network) or an in-process channel name.
+ * service dials back for re-entrant queries, in "host:port" form.
  */
 class RemoteFieldProxyExecutor(
     private val originalExecutor: FieldResolverExecutor,
@@ -36,9 +36,8 @@ class RemoteFieldProxyExecutor(
     private val requestDeadline: Duration? = null
 ) : FieldResolverExecutor {
     init {
-        // Selective field resolvers vary their result by the requested sub-selections, which
-        // only round-trip in IN_PROCESS mode (shared selection-set registry). Fail fast rather
-        // than silently return a wrong result under NETWORK mode.
+        // Selective field resolvers vary their result by the requested sub-selections, which the
+        // wire protocol does not yet support. Fail fast rather than return an incorrect result.
         require(!originalExecutor.isSelective) {
             "Remote execution of selective field resolvers is not yet supported " +
                 "(resolver='${originalExecutor.resolverId}'). Track progress in the remote-resolver README."
@@ -93,8 +92,8 @@ class RemoteFieldProxyExecutor(
                         wireSelections.getOrPut(sel) {
                             val handle = SelectionsRegistry.register(sel)
                             selectionsHandles.add(handle)
-                            // The handle is per-JVM (unresolvable in NETWORK mode), so also ship the
-                            // selection set itself; the remote reconstructs it against its own schema. Even
+                            // The handle is per-JVM and may be unresolvable remotely, so also ship the
+                            // selection set itself; the service reconstructs it against its own schema. Even
                             // a fully-@skip'd (empty) composite set must stay NON-null on the remote or the
                             // tenant runtime rejects the composite return. `.document`/`.variables` both
                             // derive from toFragment(), so capture it once.

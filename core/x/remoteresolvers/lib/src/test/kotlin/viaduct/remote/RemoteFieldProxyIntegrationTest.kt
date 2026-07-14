@@ -100,11 +100,12 @@ class RemoteFieldProxyIntegrationTest {
         ContextRegistry.clear()
         SelectionsRegistry.clear()
 
+        val rrsService = InProcessCallbackRemoteResolverService()
         val rrsServerName = "test-rrs-field-${System.nanoTime()}"
         val rrsServer = InProcessServerBuilder
             .forName(rrsServerName)
             .directExecutor()
-            .addService(RemoteResolverServiceImpl())
+            .addService(rrsService)
             .build()
             .start()
 
@@ -123,6 +124,7 @@ class RemoteFieldProxyIntegrationTest {
             rrsChannel.shutdownNow()
             rrsServer.shutdownNow()
             callbackServer.shutdownNow()
+            rrsService.shutdownChannels()
             FieldExecutorRegistry.clear()
             ContextRegistry.clear()
             SelectionsRegistry.clear()
@@ -130,7 +132,7 @@ class RemoteFieldProxyIntegrationTest {
     }
 
     // The direct-batchResolveField tests register a schema in the process-global SchemaRegistry to
-    // drive the NETWORK reconstruction path; withServers clears the other registries in its finally
+    // drive the registry-miss reconstruction path; withServers clears the other registries in its finally
     // but not this one. Clear it after every test so a registered schema can't leak into a later test.
     @AfterEach
     fun clearSchemaRegistry() {
@@ -635,7 +637,7 @@ class RemoteFieldProxyIntegrationTest {
     @Test
     fun `a serialized selection set is reconstructed on the remote when the handle is unresolvable`() =
         runBlocking {
-            // Simulates NETWORK mode: the per-JVM selections handle isn't resolvable on the remote, so
+            // Simulates a process boundary: the per-JVM selections handle isn't resolvable remotely, so
             // the service must rebuild the field's sub-selection set from the serialized {type,
             // document, variables} shipped in the FieldSelector. We call batchResolveField directly with
             // an EMPTY handle + serialized selections and an UNREGISTERED context handle (forcing the
@@ -661,7 +663,7 @@ class RemoteFieldProxyIntegrationTest {
             val shipped = createEngineSelectionSet(SelectionsParser.parse("Character", "name age"), testSchema, emptyMap())
             val request = BatchResolveFieldRequest.newBuilder()
                 .setExecutorId(executorId)
-                .setContextHandle("net-${System.nanoTime()}") // unregistered → schema-only (network) context
+                .setContextHandle("net-${System.nanoTime()}") // unregistered → schema-only context
                 .setCallbackEndpoint("cb-${System.nanoTime()}")
                 .addSelectors(
                     FieldSelector.newBuilder()
@@ -681,7 +683,7 @@ class RemoteFieldProxyIntegrationTest {
                 )
                 .build()
 
-            val response = RemoteResolverServiceImpl().batchResolveField(request)
+            val response = InProcessCallbackRemoteResolverService().batchResolveField(request)
 
             assertEquals(1, response.resultsCount, "one result expected")
             assertNotNull(received.get(), "resolver should receive a reconstructed (non-null) selection set")
@@ -738,7 +740,7 @@ class RemoteFieldProxyIntegrationTest {
                 )
                 .build()
 
-            RemoteResolverServiceImpl().batchResolveField(request)
+            InProcessCallbackRemoteResolverService().batchResolveField(request)
             assertTrue(
                 received.get() is EmptyEngineSelectionSet,
                 "a blank-document selection set must reconstruct to a non-null empty set, got ${received.get()}"
@@ -787,7 +789,7 @@ class RemoteFieldProxyIntegrationTest {
                 .addSelectors(selector("bad", "}} not a valid document {{"))
                 .build()
 
-            val byKey = RemoteResolverServiceImpl().batchResolveField(request).resultsList.associateBy { it.selectorKey }
+            val byKey = InProcessCallbackRemoteResolverService().batchResolveField(request).resultsList.associateBy { it.selectorKey }
             assertEquals(2, byKey.size, "both selectors should be represented in the response")
             assertTrue(byKey.getValue("good").hasValueJson(), "the valid selector should still resolve")
             assertTrue(byKey.getValue("bad").hasError(), "the malformed selector should be an isolated per-selector error")
@@ -836,7 +838,7 @@ class RemoteFieldProxyIntegrationTest {
                 .addSelectors(malformedSelector("1"))
                 .build()
 
-            val response = RemoteResolverServiceImpl().batchResolveField(request)
+            val response = InProcessCallbackRemoteResolverService().batchResolveField(request)
 
             assertFalse(
                 batchResolveInvoked.get(),

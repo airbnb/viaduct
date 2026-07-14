@@ -20,7 +20,7 @@ import viaduct.remote.registry.NodeExecutorRegistry
  *
  * @param rrsChannel Channel to the remote resolver service. Caller owns the channel.
  * @param callbackEndpoint Endpoint the remote service dials for re-entrant queries;
- *   either "host:port" (network) or an in-process channel name.
+ *   must use "host:port" form.
  * @param requestDeadline Deadline applied to every outbound resolve RPC, or `null` to rely
  *   on gRPC defaults. Unbounded waits hang resolver coroutines if the remote service is slow
  *   or unresponsive.

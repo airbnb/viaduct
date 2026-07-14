@@ -4,7 +4,7 @@ import java.util.concurrent.ConcurrentHashMap
 import org.slf4j.LoggerFactory
 
 /**
- * In-process registry of resolver executors keyed by a stable, cross-JVM string id.
+ * In-memory registry of resolver executors keyed by a stable, cross-JVM string id.
  *
  * The id is stable across JVMs, so both the proxy (which registers when a resolver is
  * wrapped at bootstrap) and the remote service (which registers at tenant bootstrap) can

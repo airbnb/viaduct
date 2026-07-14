@@ -23,7 +23,7 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 /**
  * [EngineExecutionContext] used by [RemoteResolverService]. Forwards re-entrant
  * [resolveSelectionSet] calls to the engine over gRPC. When [delegate] is `null`
- * (cross-JVM mode) members that need local engine state throw; [localSchema] and
+ * members that need local engine state throw; [localSchema] and
  * [GlobalIDCodecDefault] cover the common cases.
  */
 class RemoteEngineExecutionContext(
@@ -62,8 +62,8 @@ class RemoteEngineExecutionContext(
     override val fieldScope: EngineExecutionContext.FieldExecutionScope
         get() = requireDelegate("fieldScope").fieldScope
 
-    // Network mode has no delegate; build a schema-only factory from localSchema so a remotely-run
-    // resolver can reconstruct sub-selection sets shipped over the wire. Mirrors the delegate-first
+    // With no delegate, build a schema-only factory from localSchema so a remotely-run resolver can
+    // reconstruct sub-selection sets shipped over the wire. Mirrors the delegate-first
     // createNodeReference / globalIDCodec fallback (delegate and localSchema are mutually exclusive —
     // buildRemoteContext sets localSchema only when there's no delegate — so the order doesn't matter).
     // Memoized: one factory per context instance.
@@ -76,8 +76,8 @@ class RemoteEngineExecutionContext(
             ?: localSelectionSetFactory
             ?: throw UnsupportedOperationException("'engineSelectionSetFactory' requires a local engine context or schema")
 
-    // A resolver running remotely may build a node reference (e.g. `ctx.nodeRef(...)`). In network
-    // mode there is no local engine to construct a fully-resolvable reference, but a resolver-produced
+    // A resolver running remotely may build a node reference (e.g. `ctx.nodeRef(...)`). Without a
+    // local engine there is no way to construct a fully-resolvable reference, but a resolver-produced
     // reference only needs to carry its id + type to the wire — the engine side rebuilds a live
     // reference on receipt — so a lightweight holder suffices and avoids requiring engine state here.
     override fun createNodeReference(
@@ -127,7 +127,7 @@ class RemoteEngineExecutionContext(
         return EngineObjectDataSerializer.deserialize(response.objectDataJson.toByteArray(), REMOTE_RESULT_TYPE)
     }
 
-    // Minimal [NodeReference] for network mode: carries only id + type (the [EngineObject.type] used
+    // Minimal [NodeReference] for a context without a delegate: carries only id + type (the [EngineObject.type] used
     // by [FieldValueSerializer] to tag the wire value). It is never resolved on the service side —
     // the engine side rebuilds a resolvable reference via its own `createNodeReference`.
     private class RemoteNodeReference(

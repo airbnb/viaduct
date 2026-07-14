@@ -24,7 +24,7 @@ import viaduct.service.runtime.builtinresolvers.ViaductBuiltInResolversBootstrap
  * instance is needed just to enumerate resolvers.
  *
  * The schema is loaded from `.graphqls` ([SchemaFactory.fromResources]) and published to
- * [SchemaRegistry] for NETWORK-mode contexts; it also filters which manifest entries are realized.
+ * [SchemaRegistry] for schema-only remote contexts; it also filters which manifest entries are realized.
  */
 class TenantBootstrapper(private val tenantCodeInjector: CodeInjector) {
     private val log = LoggerFactory.getLogger(TenantBootstrapper::class.java)
@@ -33,7 +33,7 @@ class TenantBootstrapper(private val tenantCodeInjector: CodeInjector) {
     fun bootstrap(): Int {
         log.info("Bootstrapping tenant modules")
 
-        // Schema backs NETWORK-mode remote contexts (via SchemaRegistry) and filters which manifest
+        // Schema backs schema-only remote contexts (via SchemaRegistry) and filters which manifest
         // entries are realized below.
         val schema = SchemaFactory().fromResources()
         SchemaRegistry.register(schema)

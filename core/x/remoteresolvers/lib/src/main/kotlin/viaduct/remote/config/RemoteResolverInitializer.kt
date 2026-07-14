@@ -3,30 +3,24 @@ package viaduct.remote.config
 import io.grpc.ManagedChannel
 import io.grpc.Server
 import io.grpc.ServerBuilder
-import io.grpc.inprocess.InProcessChannelBuilder
-import io.grpc.inprocess.InProcessServerBuilder
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import java.net.InetAddress
 import java.net.UnknownHostException
-import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import org.slf4j.LoggerFactory
 import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.remote.EngineCallbackServiceImpl
 import viaduct.remote.RemoteProxyResolverFactory
-import viaduct.remote.RemoteResolverServiceImpl
 
 /**
  * Lifecycle manager for the experimental remote-resolver feature.
  *
  * [initialize] is thread-safe and idempotent. Once [close] runs the instance is
- * terminal — a subsequent [initialize] throws [IllegalStateException]. See
- * [RemoteResolverConfig.mode] for the supported transports.
+ * terminal — a subsequent [initialize] throws [IllegalStateException].
  */
 class RemoteResolverInitializer(private val config: RemoteResolverConfig) : AutoCloseable {
     private val log = LoggerFactory.getLogger(RemoteResolverInitializer::class.java)
 
-    private var rrsServer: Server? = null
     private var callbackServer: Server? = null
     private var rrsChannel: ManagedChannel? = null
 
@@ -34,18 +28,9 @@ class RemoteResolverInitializer(private val config: RemoteResolverConfig) : Auto
     // initialized sentinel for double-checked locking.
     @Volatile private var factory: ProxyResolverFactory = ProxyResolverFactory.NO_OP
 
-    // Once close() shuts the executor down, reusing this instance would hand back a
-    // poisoned factory; surface the misuse instead.
+    // Once close() shuts down the channel and server, reusing this instance would hand
+    // back a poisoned factory; surface the misuse instead.
     @Volatile private var closed = false
-
-    // Bounded so a misbehaving resolver can't fan out unbounded threads. Avoids
-    // directExecutor() — RRS callbacks re-enter RRP on the same call stack and would
-    // deadlock on a single thread.
-    private val inProcessExecutor by lazy {
-        Executors.newFixedThreadPool(
-            (Runtime.getRuntime().availableProcessors() * 2).coerceAtLeast(4)
-        )
-    }
 
     /**
      * Starts the gRPC transports and returns a [ProxyResolverFactory], or
@@ -63,16 +48,13 @@ class RemoteResolverInitializer(private val config: RemoteResolverConfig) : Auto
             if (factory !== ProxyResolverFactory.NO_OP) return@synchronized factory
 
             logEnabled()
-            factory = when (config.mode) {
-                RemoteResolverMode.IN_PROCESS -> initializeInProcess()
-                RemoteResolverMode.NETWORK -> initializeNetwork()
-            }
-            log.info("Remote resolver execution initialized ({})", config.mode)
+            factory = initializeTransport()
+            log.info("Remote resolver execution initialized")
             factory
         }
     }
 
-    /** Releases gRPC servers, client channel, and executor. Idempotent; safe to call before [initialize]. */
+    /** Releases the gRPC server and client channel. Idempotent; safe to call before [initialize]. */
     override fun close() {
         synchronized(this) {
             if (closed) return
@@ -83,26 +65,17 @@ class RemoteResolverInitializer(private val config: RemoteResolverConfig) : Auto
             try {
                 log.info("Shutting down remote resolver execution")
                 rrsChannel?.shutdown()
-                rrsServer?.shutdown()
                 callbackServer?.shutdown()
                 try {
                     if (rrsChannel?.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS) == false) rrsChannel?.shutdownNow()
-                    if (rrsServer?.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS) == false) rrsServer?.shutdownNow()
                     if (callbackServer?.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS) == false) callbackServer?.shutdownNow()
-                    inProcessExecutor.shutdown()
-                    if (!inProcessExecutor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                        inProcessExecutor.shutdownNow()
-                    }
                 } catch (e: InterruptedException) {
                     rrsChannel?.shutdownNow()
-                    rrsServer?.shutdownNow()
                     callbackServer?.shutdownNow()
-                    inProcessExecutor.shutdownNow()
                     Thread.currentThread().interrupt()
                 }
             } finally {
                 rrsChannel = null
-                rrsServer = null
                 callbackServer = null
                 factory = ProxyResolverFactory.NO_OP
                 closed = true
@@ -110,31 +83,9 @@ class RemoteResolverInitializer(private val config: RemoteResolverConfig) : Auto
         }
     }
 
-    private fun initializeInProcess(): ProxyResolverFactory {
-        log.info("Starting in-process gRPC server: {}", config.rrsServerName)
-        rrsServer = InProcessServerBuilder.forName(config.rrsServerName)
-            .executor(inProcessExecutor)
-            .addService(RemoteResolverServiceImpl())
-            .build()
-            .start()
-
-        log.info("Starting in-process gRPC server: {}", config.callbackEndpoint)
-        callbackServer = InProcessServerBuilder.forName(config.callbackEndpoint)
-            .executor(inProcessExecutor)
-            .addService(EngineCallbackServiceImpl())
-            .build()
-            .start()
-
-        rrsChannel = InProcessChannelBuilder.forName(config.rrsServerName)
-            .executor(inProcessExecutor)
-            .build()
-
-        return buildFactory(rrsChannel!!, config.callbackEndpoint)
-    }
-
     // Shaded Netty avoids classpath clashes with a non-shaded grpc-netty pulled in by
-    // host applications. Plaintext only; TLS is out of scope for this experimental transport.
-    private fun initializeNetwork(): ProxyResolverFactory {
+    // host applications. Plaintext only; TLS is out of scope for this experimental feature.
+    private fun initializeTransport(): ProxyResolverFactory {
         log.info("Connecting to remote RRS at {}:{}", config.rrsHost, config.rrsPort)
         rrsChannel = NettyChannelBuilder.forAddress(config.rrsHost, config.rrsPort)
             .usePlaintext()
@@ -175,24 +126,22 @@ class RemoteResolverInitializer(private val config: RemoteResolverConfig) : Auto
 
     private fun logEnabled() {
         if (config.remoteTypes.isEmpty()) {
-            log.info("Remote resolver execution enabled for all node types ({})", config.mode)
+            log.info("Remote resolver execution enabled for all node types")
         } else {
-            log.info("Remote resolver execution enabled for node types {} ({})", config.remoteTypes, config.mode)
+            log.info("Remote resolver execution enabled for node types {}", config.remoteTypes)
         }
         if (!config.fieldProxyingEnabled) {
             log.info(
                 "Remote resolver field proxying disabled via VIADUCT_REMOTE_RESOLVER_FIELDS=none; " +
-                    "node proxying unaffected ({})",
-                config.mode
+                    "node proxying unaffected"
             )
         } else if (config.remoteFields.isEmpty()) {
             log.info(
-                "Remote resolver execution enabled for all field resolvers by default ({}); built-ins and " +
-                    "selective resolvers excluded (set VIADUCT_REMOTE_RESOLVER_FIELDS to narrow or 'none' to disable)",
-                config.mode
+                "Remote resolver execution enabled for all field resolvers by default; built-ins and " +
+                    "selective resolvers excluded (set VIADUCT_REMOTE_RESOLVER_FIELDS to narrow or 'none' to disable)"
             )
         } else {
-            log.info("Remote resolver execution enabled for fields {} ({})", config.remoteFields, config.mode)
+            log.info("Remote resolver execution enabled for fields {}", config.remoteFields)
         }
     }
 

@@ -41,9 +41,6 @@ dependencies {
     implementation(libs.grpc.stub)
     implementation(libs.grpc.core)
 
-    // In-process gRPC transport (used by in-process tests and sample applications)
-    implementation(libs.grpc.inprocess)
-
     // Network gRPC transport - using shaded version to avoid Netty conflicts with Micronaut
     implementation(libs.grpc.netty.shaded)
 
@@ -57,6 +54,7 @@ dependencies {
 
     // Testing dependencies
     testImplementation(libs.junit)
+    testImplementation(libs.grpc.inprocess)
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.kotlinx.coroutines.test)
 

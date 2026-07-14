@@ -12,25 +12,17 @@ JVM gives you runtime isolation without changing how resolvers are written.
 A small proxy on the engine side intercepts node and field resolution and forwards it
 to a `RemoteResolverService` over gRPC. That service runs the resolver, and if the
 resolver needs to fan back out (`ctx.query(...)`) it does so through a callback
-service over the same channel — so resolvers behave identically whether they
-run locally or remotely.
-
-The module ships with two transports:
-
-- **`IN_PROCESS`** (default) — both ends in one JVM over gRPC's in-memory channel.
-  Useful for development and testing the wiring without a separate process.
-- **`NETWORK`** — the main server dials a separate remote server process over a
-  (shaded) Netty gRPC channel; the remote server calls back to the main server
-  through a plaintext server bound on the host.
+service — so resolvers behave identically whether they run locally or remotely.
+The main server dials a separate remote server process over a shaded Netty gRPC
+channel; the remote server calls back through a plaintext server bound by the main server.
 
 ## Configuration
 
 | Env var | Default | Side | Description |
 | --- | --- | --- | --- |
-| `VIADUCT_REMOTE_RESOLVER_MODE` | `in_process` | main | `in_process` or `network` (case-insensitive). |
 | `VIADUCT_REMOTE_RESOLVER_TYPES` | _empty_ | main | Comma-separated GraphQL type names whose node resolvers to proxy. Empty means all node types. |
 | `VIADUCT_REMOTE_RESOLVER_FIELDS` | _empty_ | main | Comma-separated field coordinates (`Type.field`) whose field resolvers to proxy. Empty means **all** field resolvers except the engine's built-ins (`Query.node`/`nodes`, `@namespaceType`) and selective resolvers; a listed coordinate is proxied even if it's a built-in. Set to `none` (or `off`/`-`) to disable field proxying entirely while leaving node proxying on. |
-| `VIADUCT_RRS_HOST` | `localhost` | main | Hostname the main server dials when `mode=network`. |
+| `VIADUCT_RRS_HOST` | `localhost` | main | Hostname the main server dials for the remote resolver service. |
 | `VIADUCT_RRS_PORT` | `50051` | both | Remote server gRPC port — the main server dials it, the remote server binds it. |
 | `VIADUCT_RRS_CALLBACK_HOST` | `localhost` | remote | Hostname the remote server reaches the main server callback at. |
 | `VIADUCT_RRS_CALLBACK_PORT` | `50052` | both | Callback port — the main server binds it, the remote server dials it. |
@@ -56,54 +48,39 @@ an `EnvLookup` to `RemoteResolverConfig.fromEnvironment(env)` — the default is
 
 Run these commands from this directory (`core/x/remoteresolvers`).
 
-### In-process (default)
-
-`main-server` is a Micronaut + Viaduct application with the proxy wired in. It
-serves the StarWars schema and routes node resolution through the in-process
-proxy by default — no mode env var needed:
-
-```bash
-./gradlew :main-server:run
-```
-
-When the proxy comes up you'll see these lines in the log:
-
-```
-INFO  viaduct.remote.config.RemoteResolverInitializer - Remote resolver execution enabled for all node types (IN_PROCESS)
-INFO  viaduct.remote.config.RemoteResolverInitializer - Remote resolver execution enabled for all field resolvers by default (IN_PROCESS); built-ins and selective resolvers excluded (set VIADUCT_REMOTE_RESOLVER_FIELDS to narrow or 'none' to disable)
-INFO  viaduct.remote.config.RemoteResolverInitializer - Starting in-process gRPC server: viaduct-rrs-inprocess
-INFO  viaduct.remote.config.RemoteResolverInitializer - Starting in-process gRPC server: viaduct-rrp-callback
-INFO  viaduct.remote.config.RemoteResolverInitializer - Remote resolver execution initialized (IN_PROCESS)
-```
-
-Then issue a node query in another shell:
-
-```bash
-curl -X POST http://localhost:8080/graphql \
-  -H "Content-Type: application/json" \
-  -d '{"query":"{ node(id:\"RmlsbTox\") { ... on Film { id title director } } }"}'
-```
-
-You'll get back:
-
-```json
-{"data":{"node":{"id":"RmlsbTox","title":"A New Hope","director":"George Lucas"}}}
-```
-
-### Network transport (two processes)
-
-Run the remote server in one terminal and the main server (in network mode) in another:
+Run the remote server and main server in separate terminals:
 
 ```bash
 # Terminal A — remote server (runs the resolvers, binds gRPC on :50051)
 ./gradlew :remote-server:run
 
-# Terminal B — main server in network mode (dials :50051, binds callback :50052)
-VIADUCT_REMOTE_RESOLVER_MODE=network ./gradlew :main-server:run
+# Terminal B — main server (dials :50051, binds callback :50052)
+./gradlew :main-server:run
 ```
 
-The same `curl` from the in-process walkthrough returns the same JSON — the
-resolver ran in the remote server process and the result was serialized back over gRPC.
+When the proxy comes up, the main-server log includes:
+
+```
+INFO  viaduct.remote.config.RemoteResolverInitializer - Remote resolver execution enabled for all node types
+INFO  viaduct.remote.config.RemoteResolverInitializer - Remote resolver execution enabled for all field resolvers by default; built-ins and selective resolvers excluded (set VIADUCT_REMOTE_RESOLVER_FIELDS to narrow or 'none' to disable)
+INFO  viaduct.remote.config.RemoteResolverInitializer - Connecting to remote RRS at localhost:50051
+INFO  viaduct.remote.config.RemoteResolverInitializer - Starting callback server on port 50052
+INFO  viaduct.remote.config.RemoteResolverInitializer - Remote resolver execution initialized
+```
+
+Issue a node query in another shell:
+
+```bash
+curl -X POST http://localhost:8080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ node(id:\"RmlsbTox\") { ... on Film { title director } } }"}'
+```
+
+The resolver runs in the remote server process and returns:
+
+```json
+{"data":{"node":{"title":"A New Hope","director":"George Lucas"}}}
+```
 
 The remote server builds its node and field resolvers from the tenant-module manifests on its classpath
 (`META-INF/viaduct/modules/<pkg>.json`) via Viaduct's file-based bootstrapper — the
@@ -122,7 +99,7 @@ unzip -p demoapps/starwars/modules/filmography/build/libs/filmography.jar \
 Like node resolvers, **every field resolver is proxied by default**. The engine resolves each field's
 required selection set on the main server and ships the resolved object/query values — and the
 field's own sub-selection set — to the remote service, which runs the resolver and returns the value.
-Every return kind round-trips in either transport: scalars, `null`, node references
+Every return kind round-trips over the remote service: scalars, `null`, node references
 (`Character.species`, `Character.homeworld`), resolved objects, and lists of any of these.
 
 To restrict proxying to specific fields, set `VIADUCT_REMOTE_RESOLVER_FIELDS` to a comma-separated
@@ -133,9 +110,8 @@ list of `Type.field` coordinates (the empty default proxies them all). For examp
 VIADUCT_REMOTE_RESOLVER_FIELDS=Character.isAdult ./gradlew :main-server:run
 ```
 
-Either way, a query spanning multiple field kinds resolves end-to-end through the remote service — in
-both `in_process` and `network` mode (scalars, node references, and their sub-selections all cross
-the wire):
+A query spanning multiple field kinds resolves end-to-end through the remote service; scalars,
+node references, and their sub-selections all cross the wire:
 
 ```bash
 curl -X POST http://localhost:8080/graphql -H "Content-Type: application/json" \
@@ -160,7 +136,7 @@ independent — each defaults to *all* and can be narrowed on its own.
   `VIADUCT_REMOTE_RESOLVER_FIELDS` for latency-sensitive paths. The engine's built-in resolvers
   (`Query.node`/`nodes`, `@namespaceType`) are excluded from the default for this reason — proxy
   them only by listing them explicitly.
-- Proxying the built-in `Query.node` / `Query.nodes` resolvers over `network` requires the remote
+- Proxying the built-in `Query.node` / `Query.nodes` resolvers remotely requires the remote
   server to run with the *same* `GlobalIDCodec` as the caller: the remote decodes global ids with its
   own codec, so a custom codec on only one side mis-resolves the node type. With the default codec on
   both sides (as in the demo) they work as-is.

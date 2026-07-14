@@ -36,8 +36,7 @@ message BatchResolveNodeRequest {
   // the duration of the request.
   string context_handle = 3;
 
-  // Endpoint the remote service dials for re-entrant callbacks. Accepts either
-  // "host:port" (network) or an in-process channel name.
+  // Endpoint the remote service dials for re-entrant callbacks, in "host:port" form.
   string callback_endpoint = 4;
 }
 
@@ -83,14 +82,12 @@ message BatchResolveFieldRequest {
   // the duration of the request.
   string context_handle = 3;
 
-  // Endpoint the remote service dials for re-entrant callbacks. Accepts either
-  // "host:port" (network) or an in-process channel name.
+  // Endpoint the remote service dials for re-entrant callbacks, in "host:port" form.
   string callback_endpoint = 4;
 }
 
 // A serialized EngineSelectionSet — carries a field's sub-selections over the wire so the remote
-// can reconstruct them against its own schema. The per-JVM selections_handle below is unresolvable
-// across processes (network mode), so composite-returning field resolvers rely on this instead.
+// can reconstruct them against its own schema when the per-JVM selections_handle is unresolvable.
 message SerializedSelectionSet {
   // Type condition the selections are on (EngineSelectionSet.type).
   string type = 1;
@@ -113,8 +110,8 @@ message FieldSelector {
   bytes arguments_json = 2;
 
   // Opaque handle to the EngineSelectionSet on the field (sub-selections), or empty when
-  // the field has no selections / the registry is not shared (network mode). In-process fast
-  // path: preferred when resolvable (preserves object identity); network falls back to `selections`.
+  // the field has no selections or the receiver cannot resolve the sender's registry handle.
+  // Preferred when resolvable because it preserves object identity; otherwise use `selections`.
   string selections_handle = 3;
 
   // Eagerly-resolved required-selection-set object value (the parent object), as serialized

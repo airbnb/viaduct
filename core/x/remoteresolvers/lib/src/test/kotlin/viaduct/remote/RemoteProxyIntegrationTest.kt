@@ -2,6 +2,7 @@
 
 package viaduct.remote
 
+import io.grpc.ManagedChannel
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import kotlinx.coroutines.runBlocking
@@ -159,7 +160,7 @@ class RemoteProxyIntegrationTest {
 
             // 2. Setup: Start InProcess gRPC server for RRS (Remote Resolver Server)
             val rrsServerName = "test-rrs-e2e"
-            val rrsService = RemoteResolverServiceImpl()
+            val rrsService = InProcessCallbackRemoteResolverService()
             val rrsServer = InProcessServerBuilder
                 .forName(rrsServerName)
                 .directExecutor()
@@ -250,6 +251,7 @@ class RemoteProxyIntegrationTest {
                 // Cleanup
                 rrsServer.shutdown()
                 callbackServer.shutdown()
+                rrsService.shutdownChannels()
                 NodeExecutorRegistry.clear()
                 ContextRegistry.clear()
                 SelectionsRegistry.clear()
@@ -273,7 +275,7 @@ class RemoteProxyIntegrationTest {
             val actualResolver = SimpleNodeResolverExecutor.createUserResolver()
 
             val rrsServerName = "test-rrs-node-serfail"
-            val rrsService = RemoteResolverServiceImpl()
+            val rrsService = InProcessCallbackRemoteResolverService()
             val rrsServer = InProcessServerBuilder
                 .forName(rrsServerName)
                 .directExecutor()
@@ -345,6 +347,7 @@ class RemoteProxyIntegrationTest {
             } finally {
                 rrsServer.shutdown()
                 callbackServer.shutdown()
+                rrsService.shutdownChannels()
                 NodeExecutorRegistry.clear()
                 ContextRegistry.clear()
                 SelectionsRegistry.clear()
@@ -368,7 +371,7 @@ class RemoteProxyIntegrationTest {
 
             // 3. Setup: Start InProcess gRPC server for RRS (Remote Resolver Server)
             val rrsServerName = "test-rrs-callback"
-            val rrsService = RemoteResolverServiceImpl()
+            val rrsService = InProcessCallbackRemoteResolverService()
             val rrsServer = InProcessServerBuilder
                 .forName(rrsServerName)
                 .directExecutor()
@@ -449,9 +452,17 @@ class RemoteProxyIntegrationTest {
                 // Cleanup
                 rrsServer.shutdown()
                 callbackServer.shutdown()
+                rrsService.shutdownChannels()
                 NodeExecutorRegistry.clear()
                 ContextRegistry.clear()
                 SelectionsRegistry.clear()
             }
         }
+}
+
+internal class InProcessCallbackRemoteResolverService : RemoteResolverServiceImpl() {
+    override fun createCallbackChannel(endpoint: String): ManagedChannel =
+        InProcessChannelBuilder.forName(endpoint)
+            .directExecutor()
+            .build()
 }

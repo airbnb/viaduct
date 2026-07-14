@@ -93,33 +93,6 @@ class RemoteResolverConfigTest {
     }
 
     @Test
-    fun `mode defaults to IN_PROCESS when env is unset`() {
-        val cfg = RemoteResolverConfig.fromEnvironment(envOf())
-        assertEquals(RemoteResolverMode.IN_PROCESS, cfg.mode)
-    }
-
-    @Test
-    fun `mode parses each value case-insensitively`() {
-        val cases = mapOf(
-            "network" to RemoteResolverMode.NETWORK,
-            "NETWORK" to RemoteResolverMode.NETWORK,
-            "in_process" to RemoteResolverMode.IN_PROCESS,
-            "inprocess" to RemoteResolverMode.IN_PROCESS,
-            "IN_PROCESS" to RemoteResolverMode.IN_PROCESS,
-        )
-        for ((raw, expected) in cases) {
-            val cfg = RemoteResolverConfig.fromEnvironment(envOf(RemoteResolverConfig.ENV_MODE to raw))
-            assertEquals(expected, cfg.mode, "value=$raw")
-        }
-    }
-
-    @Test
-    fun `mode falls back to IN_PROCESS for unknown values`() {
-        val cfg = RemoteResolverConfig.fromEnvironment(envOf(RemoteResolverConfig.ENV_MODE to "garbage"))
-        assertEquals(RemoteResolverMode.IN_PROCESS, cfg.mode)
-    }
-
-    @Test
     fun `network endpoints default and override`() {
         val defaults = RemoteResolverConfig.fromEnvironment(envOf())
         assertEquals(RemoteResolverConfig.DEFAULT_RRS_HOST, defaults.rrsHost)

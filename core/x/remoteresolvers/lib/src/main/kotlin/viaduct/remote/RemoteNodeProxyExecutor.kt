@@ -20,7 +20,7 @@ import viaduct.remote.registry.SelectionsRegistry
  *
  * The caller is responsible for the lifecycle of [rrsChannel]; this class does
  * not shut it down. [callbackEndpoint] is the address the remote service dials
- * for re-entrant queries — either "host:port" (network) or an in-process channel name.
+ * for re-entrant queries, in "host:port" form.
  */
 class RemoteNodeProxyExecutor(
     private val originalExecutor: NodeResolverExecutor,

@@ -4,8 +4,8 @@ import org.slf4j.LoggerFactory
 import viaduct.engine.api.ViaductSchema
 
 /**
- * Holds the schema [RemoteEngineExecutionContext] reads in NETWORK mode (no delegate
- * available). Single writer at startup; readers see the publish via the volatile.
+ * Holds the schema [RemoteEngineExecutionContext] reads when no delegate is available.
+ * Single writer at startup; readers see the publish via the volatile.
  */
 object SchemaRegistry {
     private val log = LoggerFactory.getLogger(SchemaRegistry::class.java)
