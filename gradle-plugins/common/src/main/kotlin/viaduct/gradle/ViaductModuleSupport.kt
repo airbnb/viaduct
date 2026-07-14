@@ -61,8 +61,23 @@ object ViaductModulePluginSupport {
     }
 
     fun configureDirectModuleDependencyChecks(project: Project) {
-        project.pluginManager.withPlugin("java") { project.enforceNoDirectModuleDeps() }
-        project.pluginManager.withPlugin("org.jetbrains.kotlin.jvm") { project.enforceNoDirectModuleDeps() }
+        val topology = project.requireViaductTopology("com.airbnb.viaduct.module-gradle-plugin")
+        configureDirectModuleDependencyChecks(project, topology)
+    }
+
+    fun configureDirectModuleDependencyChecks(
+        project: Project,
+        topology: ViaductApplicationTopology,
+    ) {
+        val applicationProjectPath = topology.applicationProjectPath
+        val moduleProjectPaths = project.requireViaductTopologyModuleProjectPaths()
+
+        project.pluginManager.withPlugin("java") {
+            project.enforceNoDirectModuleDeps(applicationProjectPath, moduleProjectPaths)
+        }
+        project.pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
+            project.enforceNoDirectModuleDeps(applicationProjectPath, moduleProjectPaths)
+        }
     }
 
     fun configureModulePackageSuffixConvention(
@@ -194,19 +209,21 @@ object ViaductModulePluginSupport {
         )
     }
 
-    private fun Project.enforceNoDirectModuleDeps() {
+    private fun Project.enforceNoDirectModuleDeps(
+        applicationProjectPath: String,
+        moduleProjectPaths: Set<String>,
+    ) {
         configurations.configureEach { configuration ->
             configuration.withDependencies { deps ->
-                val topology = this@enforceNoDirectModuleDeps.requireViaductTopology("com.airbnb.viaduct.module-gradle-plugin")
-                val moduleProjectPaths = this@enforceNoDirectModuleDeps.requireViaductTopologyModuleProjectPaths()
-                deps.filterIsInstance<ProjectDependency>().forEach { pd ->
-                    val targetPath = pd.path
-                    if (moduleProjectPaths.contains(targetPath) &&
-                        this@enforceNoDirectModuleDeps.path != topology.applicationProjectPath &&
-                        targetPath != topology.applicationProjectPath
+                val projectDependencyPaths = deps.filterIsInstance<ProjectDependency>().map { it.path }
+                projectDependencyPaths.forEach { dependencyPath ->
+                    if (
+                        moduleProjectPaths.contains(dependencyPath) &&
+                        this@enforceNoDirectModuleDeps.path != applicationProjectPath &&
+                        dependencyPath != applicationProjectPath
                     ) {
                         val from = this@enforceNoDirectModuleDeps.prettyPath()
-                        val to = if (targetPath == ":") ": (root)" else targetPath
+                        val to = if (dependencyPath == ":") ": (root)" else dependencyPath
                         val build = this@enforceNoDirectModuleDeps.buildFile
 
                         throw GradleException(

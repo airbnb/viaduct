@@ -627,6 +627,98 @@ class ViaductModulePluginFunctionalTest {
     }
 
     @Test
+    fun `direct dependencies for module own application and application project usage are allowed`() {
+        File(projectDir, "settings.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.airbnb.viaduct.settings-gradle-plugin")
+            }
+
+            rootProject.name = "test"
+
+            includeViaductApplication {
+                project(":app")
+                modulePackagePrefix("com.example.app")
+
+                includeModule {
+                    project(":app")
+                    modulePackageSuffix("root")
+                }
+
+                includeModule {
+                    project(":app:feature")
+                    modulePackageSuffix("feature")
+                }
+
+                includeModule {
+                    project(":app:consumer")
+                    modulePackageSuffix("consumer")
+                }
+            }
+            """.trimIndent()
+        )
+        File(projectDir, "build.gradle.kts").writeText("")
+
+        val appDir = File(projectDir, "app").also { it.mkdirs() }
+        File(appDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                `java-library`
+                kotlin("jvm")
+                id("com.airbnb.viaduct.application-gradle-plugin")
+                id("com.airbnb.viaduct.module-gradle-plugin")
+                id("com.google.devtools.ksp")
+            }
+
+            dependencies {
+                implementation(project(":app:feature"))
+            }
+            """.trimIndent()
+        )
+
+        val featureDir = File(projectDir, "app/feature").also { it.mkdirs() }
+        File(featureDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                `java-library`
+                kotlin("jvm")
+                id("com.airbnb.viaduct.module-gradle-plugin")
+                id("com.google.devtools.ksp")
+            }
+            """.trimIndent()
+        )
+
+        val consumerDir = File(projectDir, "app/consumer").also { it.mkdirs() }
+        File(consumerDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                `java-library`
+                kotlin("jvm")
+                id("com.airbnb.viaduct.module-gradle-plugin")
+                id("com.google.devtools.ksp")
+            }
+
+            dependencies {
+                implementation(project(":app"))
+            }
+            """.trimIndent()
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withPluginClasspath(combinedPluginClasspath())
+            .withArguments(
+                ":app:dependencies",
+                ":app:consumer:dependencies",
+                "--configuration",
+                "runtimeClasspath",
+            )
+            .build()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"), "Expected own application dependency and application usage to succeed")
+    }
+
+    @Test
     fun `direct module-to-module dependency fails with clear message`() {
         File(projectDir, "settings.gradle.kts").writeViaductSettings(
             modules = mapOf(

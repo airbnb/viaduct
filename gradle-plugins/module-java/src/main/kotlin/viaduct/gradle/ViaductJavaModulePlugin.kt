@@ -21,7 +21,7 @@ class ViaductJavaModulePlugin : Plugin<Project> {
             val moduleExt = extensions.findByType(ViaductModuleExtension::class.java)
                 ?: extensions.create("viaductModule", ViaductModuleExtension::class.java, objects)
 
-            ViaductModulePluginSupport.configureDirectModuleDependencyChecks(this)
+            ViaductModulePluginSupport.configureDirectModuleDependencyChecks(this, topology)
             ViaductModulePluginSupport.configureModulePackageSuffixConvention(this, moduleExt)
 
             val viaductApplication = ViaductModulePluginSupport.setupViaductApplicationConfiguration(this)
