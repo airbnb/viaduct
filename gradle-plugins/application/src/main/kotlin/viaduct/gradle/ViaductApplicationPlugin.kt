@@ -6,6 +6,7 @@ import javaGrtClassesDirectory
 import javaGrtSourcesDirectory
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
@@ -38,10 +39,11 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
                 objects,
             )
 
-            val assembleCentralSchemaTask = setupAssembleCentralSchemaTask()
+            val viaductModules = setupViaductModulesConfiguration()
+            val assembleCentralSchemaTask = setupAssembleCentralSchemaTask(viaductModules)
             setupValidateSchemaExtensionsTask()
             setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
-            setupIncomingDependenciesFromTopology(topology)
+            setupIncomingDependenciesFromTopology(topology, viaductModules)
 
             val kotlinGRTJar = setupKotlinGenerateGRTsTask(assembleCentralSchemaTask)
             val javaGRTJar = setupJavaGenerateGRTsTask(assembleCentralSchemaTask)
@@ -73,19 +75,16 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             this.dependencies.add("api", files(kotlinGRTJar.flatMap { it.archiveFile }))
         }
 
-    private fun Project.setupIncomingDependenciesFromTopology(topology: ViaductApplicationTopology) {
+    private fun Project.setupIncomingDependenciesFromTopology(
+        topology: ViaductApplicationTopology,
+        viaductModules: Configuration,
+    ) {
         topology.modulePackageSuffixes.keys.forEach { modulePath ->
             if (modulePath != path) {
                 dependencies.add(
-                    ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING,
-                    dependencies.project(
-                        mapOf(
-                            "path" to modulePath,
-                            "configuration" to ViaductPluginCommon.Configs.SCHEMA_PARTITION_OUTGOING,
-                        ),
-                    ),
+                    viaductModules.name,
+                    dependencies.project(mapOf("path" to modulePath)),
                 )
-                dependencies.add("runtimeOnly", dependencies.project(mapOf("path" to modulePath)))
             } else {
                 listOf(
                     "com.airbnb.viaduct.module-gradle-plugin",
@@ -105,6 +104,20 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         }
     }
 
+    private fun Project.setupViaductModulesConfiguration(): Configuration {
+        val viaductModules = configurations.create(ViaductPluginCommon.Configs.VIADUCT_MODULES).apply {
+            description = "Dependency bucket for Viaduct module projects used by this application."
+            isCanBeConsumed = false
+            isCanBeResolved = false
+        }
+
+        configurations.named("runtimeOnly").configure {
+            extendsFrom(viaductModules)
+        }
+
+        return viaductModules
+    }
+
     private fun Project.setupValidateSchemaExtensionsTask() {
         tasks.register<ValidateSchemaExtensionsTask>("validateViaductSchemaExtensions") {
             baseSchemaFiles.setFrom(
@@ -120,11 +133,12 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         }
     }
 
-    private fun Project.setupAssembleCentralSchemaTask(): TaskProvider<AssembleCentralSchemaTask> {
+    private fun Project.setupAssembleCentralSchemaTask(viaductModules: Configuration): TaskProvider<AssembleCentralSchemaTask> {
         val allPartitions = configurations.create(ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING).apply {
             description = "Resolvable configuration where all viaduct-module plugins send their schema partitions."
             isCanBeConsumed = false
             isCanBeResolved = true
+            extendsFrom(viaductModules)
             attributes { attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.SCHEMA_PARTITION) }
         }
 

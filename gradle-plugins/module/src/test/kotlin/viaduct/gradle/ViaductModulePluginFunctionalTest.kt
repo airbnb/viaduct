@@ -288,7 +288,7 @@ class ViaductModulePluginFunctionalTest {
     }
 
     @Test
-    fun `application wires only topology modules for disjoint application roots`() {
+    fun `application viaductModules bucket includes only topology modules for disjoint application roots`() {
         File(projectDir, "settings.gradle.kts").writeText(
             """
             plugins {
@@ -337,21 +337,40 @@ class ViaductModulePluginFunctionalTest {
                 tasks.register("printViaductTopologyDependencies") {
                     doLast {
                         val projectDependencyType = ProjectDependency::class.java
-                        val schemaDeps =
+                        val viaductModuleDeps =
+                            configurations.getByName("viaductModules")
+                                .dependencies
+                                .withType(projectDependencyType)
+                                .map { it.path }
+                                .sorted()
+                        val schemaExtends =
+                            configurations.getByName("viaductAllSchemaPartitionsIn")
+                                .extendsFrom
+                                .map { it.name }
+                                .sorted()
+                        val runtimeExtends =
+                            configurations.getByName("runtimeOnly")
+                                .extendsFrom
+                                .map { it.name }
+                                .sorted()
+                        val directSchemaDeps =
                             configurations.getByName("viaductAllSchemaPartitionsIn")
                                 .dependencies
                                 .withType(projectDependencyType)
-                                .map { "${'$'}{it.path}:${'$'}{it.targetConfiguration}" }
+                                .map { it.path }
                                 .sorted()
-                        val runtimeDeps =
+                        val directRuntimeDeps =
                             configurations.getByName("runtimeOnly")
                                 .dependencies
                                 .withType(projectDependencyType)
                                 .map { it.path }
                                 .sorted()
 
-                        println("SCHEMA_DEPS=${'$'}schemaDeps")
-                        println("RUNTIME_DEPS=${'$'}runtimeDeps")
+                        println("VIADUCT_MODULE_DEPS=${'$'}viaductModuleDeps")
+                        println("SCHEMA_EXTENDS=${'$'}schemaExtends")
+                        println("RUNTIME_EXTENDS=${'$'}runtimeExtends")
+                        println("DIRECT_SCHEMA_DEPS=${'$'}directSchemaDeps")
+                        println("DIRECT_RUNTIME_DEPS=${'$'}directRuntimeDeps")
                     }
                 }
                 """.trimIndent()
@@ -376,8 +395,11 @@ class ViaductModulePluginFunctionalTest {
             .withArguments(":apps:one:printViaductTopologyDependencies")
             .build()
 
-        assertTrue(result.output.contains("SCHEMA_DEPS=[:apps:one:modules:one:viaductSchemaPartition]"))
-        assertTrue(result.output.contains("RUNTIME_DEPS=[:apps:one:modules:one]"))
+        assertTrue(result.output.contains("VIADUCT_MODULE_DEPS=[:apps:one:modules:one]"), result.output)
+        assertTrue(result.output.contains("SCHEMA_EXTENDS=[viaductModules]"), result.output)
+        assertTrue(result.output.contains("RUNTIME_EXTENDS=[viaductModules]"), result.output)
+        assertTrue(result.output.contains("DIRECT_SCHEMA_DEPS=[]"), result.output)
+        assertTrue(result.output.contains("DIRECT_RUNTIME_DEPS=[]"), result.output)
         assertTrue(!result.output.contains(":apps:two:modules:two"), "Expected :apps:one not to wire :apps:two:modules:two")
         assertTrue(!result.output.contains(":support"), "Expected plain included support project not to be wired")
     }

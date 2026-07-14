@@ -35,6 +35,9 @@ object ViaductPluginCommon {
     const val JAVA_GRT_PACKAGE = "viaduct.java.grts"
 
     object Configs {
+        /** Root/app: dependency bucket for Viaduct module projects used by this application. */
+        const val VIADUCT_MODULES = "viaductModules"
+
         /** Root/app: resolvable configuration that modules add their schema partitions to. */
         const val ALL_SCHEMA_PARTITIONS_INCOMING = "viaductAllSchemaPartitionsIn"
 

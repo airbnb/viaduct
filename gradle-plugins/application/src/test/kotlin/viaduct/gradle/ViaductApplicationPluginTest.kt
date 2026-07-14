@@ -4,6 +4,7 @@ import java.io.File
 import java.nio.file.Path
 import org.gradle.api.GradleException
 import org.gradle.api.Project
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -69,6 +70,28 @@ class ViaductApplicationPluginTest {
         appProject.pluginManager.apply(ViaductApplicationPlugin::class.java)
 
         assertNotNull(appProject.extensions.findByType(ViaductApplicationExtension::class.java))
+    }
+
+    @Test
+    fun `application plugin skips self dependency in viaductModules bucket`() {
+        val rootDir = tempDir.resolve("self-contained").toFile().apply { mkdirs() }
+        val root = ProjectBuilder.builder()
+            .withName("root")
+            .withProjectDir(rootDir)
+            .build()
+        root.pluginManager.apply("java-library")
+        root.registerViaductTopology(
+            applicationProjectPath = ":",
+            modules = mapOf(":" to "resolvers"),
+        )
+
+        root.pluginManager.apply(ViaductApplicationPlugin::class.java)
+
+        val viaductModuleDependencies = root.configurations
+            .getByName(ViaductPluginCommon.Configs.VIADUCT_MODULES)
+            .dependencies
+            .withType(ProjectDependency::class.java)
+        assertTrue(viaductModuleDependencies.isEmpty())
     }
 
     @Test
@@ -337,7 +360,10 @@ class ViaductApplicationPluginTest {
 
     private fun createCommonSchemaDir(): File = File(project.projectDir, "src/viaduct/schema").apply { mkdirs() }
 
-    private fun Project.registerViaductTopology(applicationProjectPath: String) {
+    private fun Project.registerViaductTopology(
+        applicationProjectPath: String,
+        modules: Map<String, String> = emptyMap(),
+    ) {
         gradle.sharedServices.registerIfAbsent(
             ViaductTopologyService.NAME,
             ViaductTopologyService::class.java,
@@ -349,7 +375,7 @@ class ViaductApplicationPluginTest {
                             applicationProjectPath to ViaductApplicationTopology(
                                 applicationProjectPath = applicationProjectPath,
                                 modulePackagePrefix = "com.example.test",
-                                modulePackageSuffixes = emptyMap(),
+                                modulePackageSuffixes = modules,
                             ),
                         ),
                     ),
