@@ -78,6 +78,15 @@ interface Constraints {
     /** add multiple directive constraints */
     fun withDirectives(directives: List<Directive>): Constraints = directives.fold(this) { acc, d -> acc.withDirective(d) }
 
+    /** return a new [Constraints] that is the logical and of this and [other] */
+    infix fun and(other: Constraints): Constraints =
+        when {
+            this == Drop || other == Drop -> Drop
+            this == Unconstrained -> other
+            other == Unconstrained -> this
+            else -> AndConstraints(this, other)
+        }
+
     private sealed interface IfValue {
         object True : IfValue
 
@@ -258,6 +267,31 @@ interface Constraints {
                 }
                 return copy(directives = directives + cd)
             }
+        }
+
+        private data class AndConstraints(val left: Constraints, val right: Constraints) : Constraints {
+            override fun solve(ctx: Ctx): Resolution {
+                val leftResolution = left.solve(ctx)
+                if (leftResolution == Resolution.Drop) return Resolution.Drop
+
+                val rightResolution = right.solve(ctx)
+                if (rightResolution == Resolution.Drop) return Resolution.Drop
+
+                return if (
+                    leftResolution == Resolution.Unsolved ||
+                    rightResolution == Resolution.Unsolved
+                ) {
+                    Resolution.Unsolved
+                } else {
+                    Resolution.Collect
+                }
+            }
+
+            override fun narrowTypes(possibleTypes: MaskedSet<GraphQLObjectType>): Constraints = left.narrowTypes(possibleTypes).and(right.narrowTypes(possibleTypes))
+
+            override fun clearTypes(): Constraints = left.clearTypes().and(right.clearTypes())
+
+            override fun withDirective(directive: Directive): Constraints = left.withDirective(directive).and(right.withDirective(directive))
         }
 
         /** create a new [Constraints] derived from the provided properties */

@@ -3,11 +3,15 @@
 package viaduct.engine.runtime.execution
 
 import graphql.GraphQLContext
+import graphql.execution.CoercedVariables
 import graphql.execution.ExecutionContext
 import graphql.execution.ExecutionStepInfo
+import graphql.execution.MergedField
 import graphql.execution.ResultPath
 import graphql.execution.values.InputInterceptor
 import graphql.execution.values.legacycoercing.LegacyCoercingInputInterceptor
+import graphql.language.Field as GJField
+import graphql.language.SelectionSet as GJSelectionSet
 import graphql.schema.GraphQLObjectType
 import io.mockk.every
 import io.mockk.mockk
@@ -26,6 +30,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
+import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
@@ -44,6 +49,7 @@ import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.FieldResolverDispatcherImpl
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
+import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.SyncProxyEngineObjectData
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.CompositeLocalContext
@@ -51,6 +57,7 @@ import viaduct.engine.runtime.context.getLocalContextForType
 import viaduct.engine.runtime.createSchema
 import viaduct.engine.runtime.dfe.ViaductDataFetchingEnvironment
 import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.engine.runtime.select.EngineSelectionSetImpl
 import viaduct.engine.runtime.select.ProjectedEngineSelectionSet
 import viaduct.graphql.utils.ParsedSelections
 import viaduct.service.api.spi.FlagManager
@@ -95,11 +102,13 @@ class ResolverDataFetcherTest {
         val testTypeObject: GraphQLObjectType = schema.schema.getObjectType(testType)
         val executionStepInfo: ExecutionStepInfo? = ExecutionStepInfo.newExecutionStepInfo()
             .type(schema.schema.getTypeAs(testFieldType))
+            .fieldDefinition(testTypeObject.getField(testField))
             .fieldContainer(testTypeObject)
             .path(ResultPath.parse("/$testField"))
             .build()
         var resolverRan = false
         var lastReceivedObjectValue: Any? = null
+        var lastReceivedSelectionSet: EngineSelectionSet? = null
         var capturedTenantContext: ViaductTenantNameContext? = null
         val resolverId = "$testType.$testField"
         val objectValue = EngineObjectDataBuilder.from(testTypeObject).put(testField, expectedResult).build()
@@ -115,9 +124,10 @@ class ResolverDataFetcherTest {
                 objectSelectionSet = requiredSelectionSet,
                 querySelectionSet = querySelectionSet,
                 resolverId = resolverId,
-                unbatchedResolveFn = resolverFn ?: { _, receivedObjectValue, _, _, _ ->
+                unbatchedResolveFn = resolverFn ?: { _, receivedObjectValue, _, receivedSelectionSet, _ ->
                     resolverRan = true
                     lastReceivedObjectValue = receivedObjectValue
+                    lastReceivedSelectionSet = receivedSelectionSet
                     capturedTenantContext = ViaductTenantNameContext.getCurrent()
                     expectedResult
                 },
@@ -148,6 +158,26 @@ class ResolverDataFetcherTest {
             registry = baseEngineExecutionContextImpl.dispatcherRegistry,
             dispatcherRegistry = baseEngineExecutionContextImpl.dispatcherRegistry,
         )
+        private val currentField = QueryPlan.CollectedField(
+            responseKey = testField,
+            selectionSet = null,
+            mergedField = MergedField.newMergedField()
+                .addField(GJField.newField(testField).build())
+                .build(),
+            childPlans = emptyList(),
+            fieldTypeChildPlans = FieldTypeChildPlans.empty,
+        )
+        private val currentQueryPlan = QueryPlan(
+            selectionSet = QueryPlan.SelectionSet(currentField),
+            fragments = QueryPlan.Fragments.empty,
+            variablesResolvers = emptyList(),
+            parentType = testTypeObject,
+            childPlanIds = emptyList(),
+            baseIndex = QueryPlanIndex.empty(),
+            astSelectionSet = GJSelectionSet(emptyList()),
+            executionCondition = QueryPlanExecutionCondition.ALWAYS_EXECUTE,
+            variableDefinitions = emptyList(),
+        )
 
         private fun allRequiredSelectionSets(rss: RequiredSelectionSet): List<RequiredSelectionSet> =
             listOf(rss) + rss.variablesResolvers.flatMap { variablesResolver ->
@@ -175,10 +205,16 @@ class ResolverDataFetcherTest {
             supervisorScopeFactory = { CoroutineScope(it) },
             rootCoroutineContext = EmptyCoroutineContext,
         )
-        private val executionHandle = mockk<ExecutionParameters>(relaxed = true)
+        private val executionHandle = mockk<ExecutionParameters>()
         val engineExecutionContextImpl = baseEngineExecutionContextImpl.also {
             every { executionHandle.constants } returns executionConstants
             every { executionHandle.queryPlanIndex } returns queryPlanIndex
+            every { executionHandle.queryPlan } returns currentQueryPlan
+            every { executionHandle.coercedVariables } returns CoercedVariables.emptyVariables()
+            every { executionHandle.executionContext } returns executionConstants.executionContext
+            every { executionHandle.executionStepInfo } returns executionStepInfo!!
+            every { executionHandle.engineExecutionContext } returns it
+            every { executionHandle.field } returns currentField
             it.setExecutionHandle(executionHandle)
         }
 
@@ -278,6 +314,40 @@ class ResolverDataFetcherTest {
                     assertEquals(expectedResult, receivedResult)
                     assertTrue(resolverRan)
                     assertTrue(lastReceivedObjectValue is SyncProxyEngineObjectData)
+                }
+            }
+        }
+
+    @Test
+    fun `resolver receives EngineSelectionSetImpl when mat resolution is disabled`(): Unit =
+        runBlocking(Dispatchers.Default) {
+            withThreadLocalCoroutineContext {
+                Fixture(
+                    expectedResult = "test fetched result",
+                    requiredSelectionSet = null,
+                    flagManager = allDisabledFlags,
+                    testFieldType = "Foo",
+                ).apply {
+                    resolverDataFetcher.get(dataFetchingEnvironment).join()
+
+                    assertTrue(lastReceivedSelectionSet is EngineSelectionSetImpl)
+                }
+            }
+        }
+
+    @Test
+    fun `resolver receives ExecutionSelectionSet when mat resolution is enabled`(): Unit =
+        runBlocking(Dispatchers.Default) {
+            withThreadLocalCoroutineContext {
+                Fixture(
+                    expectedResult = "test fetched result",
+                    requiredSelectionSet = null,
+                    flagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_MAT_RESOLUTION),
+                    testFieldType = "Foo",
+                ).apply {
+                    resolverDataFetcher.get(dataFetchingEnvironment).join()
+
+                    assertTrue(lastReceivedSelectionSet is ExecutionSelectionSet)
                 }
             }
         }

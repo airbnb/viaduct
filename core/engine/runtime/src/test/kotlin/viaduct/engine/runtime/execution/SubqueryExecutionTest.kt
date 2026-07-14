@@ -1,6 +1,8 @@
 package viaduct.engine.runtime.execution
 
 import graphql.ExecutionResult
+import graphql.language.Argument as GJArgument
+import graphql.language.StringValue as GJStringValue
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import java.time.Duration
 import java.util.Collections
@@ -13,6 +15,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
@@ -24,8 +27,10 @@ import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
-import viaduct.engine.api.mocks.runFeatureTest
+import viaduct.engine.api.mocks.runFeatureTest as runFeatureTestOnce
 import viaduct.engine.runtime.EngineExecutionContextImpl
+import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.mocks.MockFlagManager
 
 /**
  * Test harness for subquery execution via ExecutionHandle.
@@ -51,7 +56,9 @@ import viaduct.engine.runtime.EngineExecutionContextImpl
  * - Error handling and propagation
  * - Access check execution during subqueries
  */
-class SubqueryExecutionTest {
+abstract class SubqueryExecutionTestCases(
+    private val flagManager: FlagManager,
+) {
     @Test
     fun `ctx query executes subquery against Query root`() {
         EngineTestModule(
@@ -100,6 +107,57 @@ class SubqueryExecutionTest {
         }.runFeatureTest {
             runQuery("{ container { derivedFromQuery } }")
                 .assertJson("""{"data": {"container": {"derivedFromQuery": 84}}}""")
+        }
+    }
+
+    @Test
+    fun `ctx query accepts resolver selection set`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                foo: Foo
+            }
+
+            type Foo implements Node {
+                id: ID!
+                value: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "node") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx.createNodeReference("foo-1", schema.schema.getObjectType("Foo"))
+                    }
+                }
+            }
+
+            field("Query" to "foo") {
+                resolver {
+                    fn { _, _, _, selections, ctx ->
+                        val nodeSelections = selections!!.toNodelikeSelectionSet(
+                            "node",
+                            listOf(GJArgument("id", GJStringValue("foo-1")))
+                        )
+                        ctx.query(nodeSelections).fetchAs<EngineObjectData>("node")
+                    }
+                }
+            }
+
+            type("Foo") {
+                nodeUnbatchedExecutor(selective = true) { id, _, _ ->
+                    createEngineObjectData(
+                        objectType,
+                        mapOf(
+                            "id" to id,
+                            "value" to 42
+                        )
+                    )
+                }
+            }
+        }.runFeatureTest(withoutDefaultQueryNodeResolvers = true) {
+            runQuery("{ foo { id value } }")
+                .assertJson("""{"data": {"foo": {"id": "foo-1", "value": 42}}}""")
         }
     }
 
@@ -1727,4 +1785,26 @@ class SubqueryExecutionTest {
             }
         }
     }
+
+    private fun EngineTestModule.runFeatureTest(
+        withoutDefaultQueryNodeResolvers: Boolean = false,
+        engineConfig: EngineConfiguration = EngineConfiguration.featureTestDefault,
+        block: FeatureTest.() -> Unit,
+    ) {
+        runFeatureTestOnce(
+            withoutDefaultQueryNodeResolvers = withoutDefaultQueryNodeResolvers,
+            engineConfig = engineConfig.copy(flagManager = flagManager),
+            block = block,
+        )
+    }
+}
+
+class SubqueryExecutionTest {
+    @Nested
+    inner class Legacy : SubqueryExecutionTestCases(MockFlagManager.Disabled)
+
+    @Nested
+    inner class Mat : SubqueryExecutionTestCases(
+        MockFlagManager.create(FlagManager.Flags.ENABLE_MAT_RESOLUTION)
+    )
 }

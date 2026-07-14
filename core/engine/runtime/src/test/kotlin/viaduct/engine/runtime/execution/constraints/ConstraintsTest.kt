@@ -274,6 +274,150 @@ class ConstraintsTest {
         assertSame(Constraints.Drop, Constraints.Drop.narrowToImpls(nodeType, viaductSchema))
     }
 
+    @Test
+    fun `and -- Drop is always Drop`() {
+        assertSame(Constraints.Drop, Constraints.Drop and Constraints.Drop)
+        assertSame(Constraints.Drop, Constraints.Unconstrained and Constraints.Drop)
+        assertSame(Constraints.Drop, Constraints.Drop and Constraints.Unconstrained)
+    }
+
+    @Test
+    fun `and -- solve`() {
+        val constrained = Constraints.Unconstrained
+            .narrowTypes(MaskedSet(listOf(foo))) and
+            Constraints.Unconstrained.withDirective(skip("var".varRef))
+
+        assertEquals(
+            Resolution.Collect,
+            constrained.solve(
+                Constraints.Ctx(
+                    CoercedVariables.of(mapOf("var" to false)),
+                    MaskedSet(setOf(foo))
+                )
+            )
+        )
+        assertEquals(
+            Resolution.Drop,
+            constrained.solve(
+                Constraints.Ctx(
+                    CoercedVariables.of(mapOf("var" to true)),
+                    MaskedSet(setOf(foo))
+                )
+            )
+        )
+        assertEquals(
+            Resolution.Drop,
+            constrained.solve(
+                Constraints.Ctx(
+                    CoercedVariables.of(mapOf("var" to false)),
+                    MaskedSet(setOf(bar))
+                )
+            )
+        )
+        assertEquals(
+            Resolution.Unsolved,
+            constrained.solve(Constraints.Ctx(null, MaskedSet(setOf(foo))))
+        )
+    }
+
+    @Test
+    fun `and -- narrowTypes`() {
+        val constrained = Constraints.Unconstrained
+            .narrowTypes(MaskedSet(listOf(foo, bar))) and
+            Constraints.Unconstrained.withDirective(skip("var".varRef))
+
+        val narrowed = constrained.narrowTypes(MaskedSet(listOf(foo)))
+
+        assertEquals(
+            Resolution.Collect,
+            narrowed.solve(
+                Constraints.Ctx(
+                    CoercedVariables.of(mapOf("var" to false)),
+                    MaskedSet(setOf(foo))
+                )
+            )
+        )
+        assertEquals(
+            Resolution.Drop,
+            narrowed.solve(
+                Constraints.Ctx(
+                    CoercedVariables.of(mapOf("var" to false)),
+                    MaskedSet(setOf(bar))
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `and -- clearTypes`() {
+        val constrained = Constraints.Unconstrained
+            .narrowTypes(MaskedSet(listOf(foo))) and
+            Constraints.Unconstrained
+                .narrowTypes(MaskedSet(listOf(bar)))
+                .withDirective(skip("var".varRef))
+
+        val cleared = constrained.clearTypes()
+
+        assertEquals(
+            Resolution.Collect,
+            cleared.solve(
+                Constraints.Ctx(
+                    CoercedVariables.of(mapOf("var" to false)),
+                    MaskedSet(setOf(foo))
+                )
+            )
+        )
+        assertEquals(
+            Resolution.Collect,
+            cleared.solve(
+                Constraints.Ctx(
+                    CoercedVariables.of(mapOf("var" to false)),
+                    MaskedSet(setOf(bar))
+                )
+            )
+        )
+        assertEquals(
+            Resolution.Unsolved,
+            cleared.solve(Constraints.Ctx(null, MaskedSet(setOf(foo))))
+        )
+    }
+
+    @Test
+    fun `and -- withDirective`() {
+        val constrained = (
+            Constraints.Unconstrained.narrowTypes(MaskedSet(listOf(foo))) and
+                Constraints.Unconstrained.narrowTypes(MaskedSet(listOf(foo, bar)))
+        ).withDirective(skip("var".varRef))
+
+        assertEquals(
+            Resolution.Collect,
+            constrained.solve(
+                Constraints.Ctx(
+                    CoercedVariables.of(mapOf("var" to false)),
+                    MaskedSet(setOf(foo))
+                )
+            )
+        )
+        assertEquals(
+            Resolution.Drop,
+            constrained.solve(
+                Constraints.Ctx(
+                    CoercedVariables.of(mapOf("var" to true)),
+                    MaskedSet(setOf(foo))
+                )
+            )
+        )
+        assertEquals(
+            Resolution.Drop,
+            constrained.solve(
+                Constraints.Ctx(
+                    CoercedVariables.of(mapOf("var" to false)),
+                    MaskedSet(setOf(bar))
+                )
+            )
+        )
+    }
+
     private val Boolean.value get() = BooleanValue.of(this)
     private val String.varRef get() = VariableReference.of(this)
 

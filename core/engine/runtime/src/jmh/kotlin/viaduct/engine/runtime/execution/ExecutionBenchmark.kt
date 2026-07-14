@@ -24,6 +24,7 @@ import viaduct.engine.runtime.execution.ExecutionTestHelpers.createGJGraphQL
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createSchema
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createViaductGraphQL
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
+import viaduct.service.api.spi.mocks.MockFlagManager
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -46,12 +47,19 @@ open class ExecutionBenchmark {
             Type.GJ -> createGJGraphQL(schema)
             Type.MODERN -> createViaductGraphQL(schema)
         }
-        val input = createExecutionInput(schema, data.query, data.variables)
+        val input = createExecutionInput(
+            schema,
+            data.query,
+            data.variables,
+            flagManager = MockFlagManager.Enabled
+        )
 
         fun execute(): ExecutionResult =
             runExecutionTest {
                 val modernResult = gql.executeAsync(input).await()
-                assert(modernResult.errors.isEmpty())
+                check(modernResult.errors.isEmpty()) {
+                    modernResult.toSpecification().toString()
+                }
                 modernResult
             }
     }

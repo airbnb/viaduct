@@ -4,6 +4,7 @@ import graphql.language.Argument
 import graphql.language.SelectionSet
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.fragment.Fragment
 
 /**
@@ -12,6 +13,8 @@ import viaduct.engine.api.fragment.Fragment
  * `EngineSelectionSet.empty(...)` helper that was removed from the engine API.
  */
 internal class EmptyEngineSelectionSet(override val type: String) : EngineSelectionSet {
+    override val schema: ViaductSchema get() = throw UnsupportedOperationException()
+
     override fun selections(): List<EngineSelection> = emptyList()
 
     override fun traversableSelections(): List<EngineSelection> = emptyList()

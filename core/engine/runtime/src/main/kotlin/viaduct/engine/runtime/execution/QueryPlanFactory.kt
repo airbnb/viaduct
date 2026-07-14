@@ -459,7 +459,8 @@ private class QueryPlanBuilder(
         .flatMap { vr -> vr.variableNames.map { vname -> vname to vr } }
         .toMap()
 
-    private val fragments: MutableMap<String, QueryPlan.FragmentDefinition> = mutableMapOf()
+    private val allFragments = mutableMapOf<String, QueryPlan.FragmentDefinition>()
+    private val retainedFragments = mutableSetOf<String>()
     private val fieldTypeChildPlans = LazyFieldTypeChildPlans(parameters, rssBuildContext)
 
     private data class State(
@@ -474,6 +475,8 @@ private class QueryPlanBuilder(
         val selectionSetEnclosingVariableReferences: List<SelectionVariableReference> = emptyList(),
         val resolverCoordinate: Coordinate? = null,
         val resolvedByCoordinate: Coordinate? = null,
+        val conditionallyExcludedCoordinates: Set<Coordinate> = emptySet(),
+        val spreadFragments: Set<String> = emptySet(),
     )
 
     // Builders may cache results that are only valid for the specific input they were
@@ -503,7 +506,9 @@ private class QueryPlanBuilder(
             ),
         )
 
-        val plannedFragments = QueryPlan.Fragments(fragments.toMap())
+        val plannedFragments = QueryPlan.Fragments(
+            retainedFragments.associateWith(allFragments::getValue)
+        )
         val activeVariableNames = state.selectionSet.activeVariableNames(plannedFragments)
         val variableDefinitions = selectionSet.collectVariableDefinitions(
             parameters.schema.schema,
@@ -542,7 +547,11 @@ private class QueryPlanBuilder(
                 }
             }
         return result.copy(
-            selectionSet = result.selectionSet.withEnclosingVariableReferences(state.selectionSetEnclosingVariableReferences)
+            selectionSet = QueryPlan.SelectionSet(
+                selections = result.selectionSet.selections,
+                enclosingVariableReferences = state.selectionSetEnclosingVariableReferences,
+                conditionallyExcludedCoordinates = result.conditionallyExcludedCoordinates,
+            )
         )
     }
 
@@ -701,6 +710,127 @@ private class QueryPlanBuilder(
 
     private fun buildRssPlan(rss: RequiredSelectionSet): QueryPlan? = buildRssPlan(parameters, rssBuildContext, rss)
 
+    private fun Constraints.isDrop(): Boolean = solve(Constraints.Ctx.empty) == Constraints.Resolution.Drop
+
+    private fun State.plusConditionallyExcludedCoordinates(coordinates: Set<Coordinate>): State =
+        if (coordinates.isEmpty()) {
+            this
+        } else {
+            copy(conditionallyExcludedCoordinates = conditionallyExcludedCoordinates + coordinates)
+        }
+
+    private fun collectDroppedCoordinates(
+        selectionSet: GJSelectionSet,
+        typeConditionName: String,
+        spreadFragments: Set<String>,
+    ): Set<Coordinate> {
+        val coordinates = mutableSetOf<Coordinate>()
+
+        fun collect(
+            selectionSet: GJSelectionSet,
+            currentType: GraphQLCompositeType,
+            spreadFragments: Set<String>,
+        ) {
+            for (selection in selectionSet.selections) {
+                when (selection) {
+                    is GJField ->
+                        coordinates += currentType.name to selection.resultKey
+
+                    is GJInlineFragment -> {
+                        val fragmentType = selection.typeCondition?.name
+                            ?.let { typeName ->
+                                checkNotNull(parameters.schema.schema.getType(typeName) as? GraphQLCompositeType) {
+                                    "Type $typeName not found in schema."
+                                }
+                            }
+                            ?: currentType
+                        collect(selection.selectionSet, fragmentType, spreadFragments)
+                    }
+
+                    is GJFragmentSpread -> {
+                        val name = selection.name
+                        if (name !in spreadFragments) {
+                            val fragment = checkNotNull(fragmentsByName[name]) { "Missing fragment definition: $name" }
+                            val fragmentType = checkNotNull(parameters.schema.schema.getType(fragment.typeCondition.name) as? GraphQLCompositeType) {
+                                "Type ${fragment.typeCondition.name} not found in schema."
+                            }
+                            collect(fragment.selectionSet, fragmentType, spreadFragments + name)
+                        }
+                    }
+
+                    else -> throw IllegalStateException("Unexpected selection type: ${selection.javaClass}")
+                }
+            }
+        }
+
+        val typeCondition = checkNotNull(parameters.schema.schema.getType(typeConditionName) as? GraphQLCompositeType) {
+            "Type $typeConditionName not found in schema."
+        }
+        collect(selectionSet, typeCondition, spreadFragments)
+        return coordinates
+    }
+
+    private fun fragmentDefinition(
+        name: String,
+        gjdef: GJFragmentDefinition,
+        fragType: GraphQLCompositeType,
+        spreadFragments: Set<String> = emptySet(),
+    ): QueryPlan.FragmentDefinition {
+        allFragments[name]?.let { return it }
+
+        val fragmentVariableReferences = gjdef.variableReferences()
+        val fragState = buildState(
+            gjdef.selectionSet,
+            State(
+                selectionSet = QueryPlan.SelectionSet.empty,
+                parentType = fragType,
+                constraints = Constraints.Unconstrained
+                    .narrowTypes(parameters.schema.rels.possibleObjectTypes(fragType)),
+                childPlanIds = emptyList(),
+                indexBuilder = Index.Builder(),
+                spreadFragments = spreadFragments,
+            )
+        )
+        val fragmentVariablesPlanDependencies = buildVariablesPlans(fragmentVariableReferences.variablePlanNames)
+        val fragmentVariablesPlanIds = fragmentVariablesPlanDependencies.map { it.id }
+        val fragmentChildPlanIds =
+            (fragmentVariablesPlanIds + fragState.childPlanIds).distinct()
+        val fragmentDefinition = QueryPlan.FragmentDefinition(
+            fragState.selectionSet,
+            gjdef,
+            fragmentChildPlanIds,
+            fragmentVariableReferences.references,
+            Index.Builder<RequiredSelectionSet.Id, QueryPlan>()
+                .addAll(fragmentVariablesPlanDependencies.mapNotNull { it.plan })
+                .add(fragState.indexBuilder.build())
+                .build(),
+        )
+        allFragments[name] = fragmentDefinition
+        return fragmentDefinition
+    }
+
+    private fun processFragmentSelectionSet(
+        selectionSet: GJSelectionSet,
+        typeConditionName: String,
+        state: State,
+    ): State {
+        val typeCondition = checkNotNull(parameters.schema.schema.getType(typeConditionName) as? GraphQLCompositeType) {
+            "Type $typeConditionName not found in schema."
+        }
+
+        val newConstraints = state.constraints.narrowTypes(
+            parameters.schema.rels.possibleObjectTypes(typeCondition)
+        )
+
+        return buildState(
+            selectionSet,
+            state.copy(
+                constraints = newConstraints,
+                parentType = typeCondition,
+            ),
+        )
+    }
+
     private fun processField(
         sel: GJField,
         state: State,
@@ -712,16 +842,17 @@ private class QueryPlanBuilder(
 
             val possibleParentTypes = parameters.schema.rels.possibleObjectTypes(parentType)
 
-            val fieldConstraints = constraints
-                .withDirectives(sel.directives)
-                .narrowTypes(possibleParentTypes)
+            val directiveConstraints = constraints.withDirectives(sel.directives)
+            val fieldConstraints = directiveConstraints.narrowTypes(possibleParentTypes)
+            val fieldResolution = fieldConstraints.solve(Constraints.Ctx.empty)
 
-            // solve(Ctx.empty) only catches directive-based drops (e.g. @skip(if: true) with a
-            // literal boolean). Type-based pruning is handled by narrowTypes() returning
-            // Constraints.Drop when the type intersection is empty — Ctx.empty has null parentTypes
-            // which short-circuits type resolution to Collect (same as the previous
-            // MaskedSet.empty() behaviour). Constraints.Drop.solve() always returns Drop regardless.
-            if (fieldConstraints.solve(Constraints.Ctx.empty) == Constraints.Resolution.Drop) {
+            if (fieldResolution == Constraints.Resolution.Drop) {
+                // A bare Coordinate cannot distinguish field type-only drops from impossible
+                // fragment intersections. Surface only drops already known before field type
+                // narrowing, such as static directives or an inherited dropped subtree.
+                if (directiveConstraints.isDrop()) {
+                    return plusConditionallyExcludedCoordinates(setOf(parentType.name to sel.resultKey))
+                }
                 return state
             }
 
@@ -794,13 +925,21 @@ private class QueryPlanBuilder(
             val typeCondition = checkNotNull(parameters.schema.schema.getTypeAs<GraphQLCompositeType>(typeConditionName)) {
                 "Type $typeConditionName not found"
             }
-            val newConstraints = constraints
-                .withDirectives(sel.directives)
-                .narrowTypes(
-                    parameters.schema.rels.possibleObjectTypes(typeCondition)
-                )
+            val directiveConstraints = constraints.withDirectives(sel.directives)
+            val newConstraints = directiveConstraints.narrowTypes(
+                parameters.schema.rels.possibleObjectTypes(typeCondition)
+            )
 
-            // See processField: solve(Ctx.empty) catches directive-based drops only.
+            // Drops already known before this fragment's type narrowing are intentional missing
+            // keys; type-only drops may just be impossible fragment intersections.
+            if (directiveConstraints.isDrop()) {
+                val excludedCoordinates = collectDroppedCoordinates(
+                    sel.selectionSet,
+                    typeConditionName,
+                    spreadFragments,
+                )
+                return plusConditionallyExcludedCoordinates(excludedCoordinates)
+            }
             if (newConstraints.solve(Constraints.Ctx.empty) == Constraints.Resolution.Drop) {
                 return state
             }
@@ -810,7 +949,7 @@ private class QueryPlanBuilder(
             val variablesPlanIds = variablesPlanDependencies.map { it.id }
             indexBuilder.addAll(variablesPlanDependencies.mapNotNull { it.plan })
             val fragmentSelectionSetEnclosingReferences = selectionSetEnclosingVariableReferences + variableReferences.collectionVariableReferences
-            val fragmentResult = processFragment(
+            val fragmentResult = processFragmentSelectionSet(
                 sel.selectionSet,
                 typeConditionName,
                 State(
@@ -829,6 +968,7 @@ private class QueryPlanBuilder(
                 fragmentResult.selectionSet,
                 newConstraints,
                 variableReferences.references,
+                inlineFragment = sel,
             )
             copy(
                 selectionSet = selectionSet + inlineFragment,
@@ -845,46 +985,28 @@ private class QueryPlanBuilder(
             val gjdef = checkNotNull(fragmentsByName[name]) { "Missing fragment definition: $name" }
             val fragType = parameters.schema.schema.getTypeAs<GraphQLCompositeType>(gjdef.typeCondition.name)
 
-            val newConstraints = constraints
-                .withDirectives(sel.directives)
-                .narrowTypes(
-                    parameters.schema.rels.possibleObjectTypes(fragType)
-                )
+            val directiveConstraints = constraints.withDirectives(sel.directives)
+            val newConstraints = directiveConstraints.narrowTypes(
+                parameters.schema.rels.possibleObjectTypes(fragType)
+            )
 
-            // See processField: solve(Ctx.empty) catches directive-based drops only.
-            if (newConstraints.solve(Constraints.Ctx.empty) == Constraints.Resolution.Drop) {
+            val directiveDropped = directiveConstraints.isDrop()
+            if (!directiveDropped && newConstraints.solve(Constraints.Ctx.empty) == Constraints.Resolution.Drop) {
                 return state
             }
-
-            if (name !in fragments) {
-                val fragmentVariableReferences = gjdef.variableReferences()
-                val fragState = buildState(
+            if (name in spreadFragments) return state
+            if (directiveDropped) {
+                val excludedCoordinates = collectDroppedCoordinates(
                     gjdef.selectionSet,
-                    State(
-                        selectionSet = QueryPlan.SelectionSet.empty,
-                        parentType = fragType,
-                        constraints = Constraints.Unconstrained
-                            .narrowTypes(parameters.schema.rels.possibleObjectTypes(fragType)),
-                        childPlanIds = emptyList(),
-                        indexBuilder = Index.Builder()
-                    ),
+                    gjdef.typeCondition.name,
+                    spreadFragments + name,
                 )
-                val fragmentVariablesPlanDependencies = buildVariablesPlans(fragmentVariableReferences.variablePlanNames)
-                val fragmentVariablesPlanIds = fragmentVariablesPlanDependencies.map { it.id }
-                val fragmentChildPlanIds =
-                    (fragmentVariablesPlanIds + fragState.childPlanIds).distinct()
-                fragments[name] = QueryPlan.FragmentDefinition(
-                    fragState.selectionSet,
-                    gjdef,
-                    fragmentChildPlanIds,
-                    fragmentVariableReferences.references,
-                    Index.Builder<RequiredSelectionSet.Id, QueryPlan>()
-                        .addAll(fragmentVariablesPlanDependencies.mapNotNull { it.plan })
-                        .add(fragState.indexBuilder.build())
-                        .build()
-                )
+                return plusConditionallyExcludedCoordinates(excludedCoordinates)
             }
-            val fragmentDefinition = fragments.getValue(name)
+            val fragmentDefinition = fragmentDefinition(name, gjdef, fragType, spreadFragments + name)
+
+            // If we got to this point, we have a fragment that is definitely retained
+            retainedFragments += name
 
             val variableReferences = sel.variableReferences()
             val variablesPlanDependencies = buildVariablesPlans(variableReferences.variablePlanNames)
@@ -898,38 +1020,11 @@ private class QueryPlanBuilder(
                     name,
                     newConstraints,
                     variableReferences.references,
+                    fragmentSpread = sel,
                 ),
                 childPlanIds = (childPlanIds + variablesPlanIds + fragmentDefinition.childPlanIds).distinct(),
             )
         }
-
-    private fun processFragment(
-        gjSelectionSet: GJSelectionSet,
-        typeConditionName: String,
-        state: State,
-    ): State {
-        val typeCondition = checkNotNull(parameters.schema.schema.getType(typeConditionName) as? GraphQLCompositeType) {
-            "Type $typeConditionName not found in schema."
-        }
-
-        val newConstraints = state.constraints.narrowTypes(
-            parameters.schema.rels.possibleObjectTypes(typeCondition)
-        )
-
-        // Check if this fragment combination is impossible.
-        // See processField: solve(Ctx.empty) catches directive-based drops only.
-        if (newConstraints.solve(Constraints.Ctx.empty) == Constraints.Resolution.Drop) {
-            return state
-        }
-
-        return buildState(
-            gjSelectionSet,
-            state.copy(
-                constraints = newConstraints,
-                parentType = typeCondition,
-            ),
-        )
-    }
 }
 
 /**
