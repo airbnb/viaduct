@@ -30,8 +30,6 @@ dependencies {
     implementation(libs.jetty.servlet)
     implementation(libs.jakarta.servlet.api)
 
-    implementation(project(":resolvers"))
-
     // Test dependencies
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

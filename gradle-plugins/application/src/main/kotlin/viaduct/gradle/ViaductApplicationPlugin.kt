@@ -22,6 +22,7 @@ import viaduct.gradle.ViaductPluginCommon.createOrGetJavaGRTCompileClasspath
 import viaduct.gradle.ViaductPluginCommon.pluginVersion
 import viaduct.gradle.ViaductPluginCommon.validateApplicationProjectPlacement
 import viaduct.gradle.task.AssembleCentralSchemaTask
+import viaduct.gradle.task.AssembleSchemaPartitionTask
 import viaduct.gradle.task.GenerateGRTClassFilesTask
 import viaduct.gradle.task.GenerateJavaGRTSourcesTask
 import viaduct.gradle.task.ValidateSchemaExtensionsTask
@@ -29,7 +30,7 @@ import viaduct.gradle.task.ValidateSchemaExtensionsTask
 abstract class ViaductApplicationPlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
-            validateApplicationProjectPlacement()
+            val topology = validateApplicationProjectPlacement()
 
             extensions.create(
                 "viaductApplication",
@@ -40,9 +41,18 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             val assembleCentralSchemaTask = setupAssembleCentralSchemaTask()
             setupValidateSchemaExtensionsTask()
             setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
+            setupIncomingDependenciesFromTopology(topology)
 
             val kotlinGRTJar = setupKotlinGenerateGRTsTask(assembleCentralSchemaTask)
             val javaGRTJar = setupJavaGenerateGRTsTask(assembleCentralSchemaTask)
+            extensions.add(
+                VIADUCT_APPLICATION_OUTPUTS_EXTENSION_NAME,
+                ViaductApplicationOutputProviders(
+                    centralSchemaDirectory = assembleCentralSchemaTask.flatMap { it.outputDirectory },
+                    kotlinGrtJar = kotlinGRTJar.flatMap { it.archiveFile },
+                    javaGrtJar = javaGRTJar.flatMap { it.archiveFile },
+                ),
+            )
 
             configureIdeaIntegration(kotlinGRTJar)
 
@@ -62,6 +72,38 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             // depend on generateViaductJavaGRTs explicitly.
             this.dependencies.add("api", files(kotlinGRTJar.flatMap { it.archiveFile }))
         }
+
+    private fun Project.setupIncomingDependenciesFromTopology(topology: ViaductApplicationTopology) {
+        topology.modulePackageSuffixes.keys.forEach { modulePath ->
+            if (modulePath != path) {
+                dependencies.add(
+                    ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING,
+                    dependencies.project(
+                        mapOf(
+                            "path" to modulePath,
+                            "configuration" to ViaductPluginCommon.Configs.SCHEMA_PARTITION_OUTGOING,
+                        ),
+                    ),
+                )
+                dependencies.add("runtimeOnly", dependencies.project(mapOf("path" to modulePath)))
+            } else {
+                listOf(
+                    "com.airbnb.viaduct.module-gradle-plugin",
+                    "com.airbnb.viaduct.module-java-gradle-plugin",
+                ).forEach { pluginId ->
+                    pluginManager.withPlugin(pluginId) {
+                        dependencies.add(
+                            ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING,
+                            files(
+                                tasks.named("prepareViaductSchemaPartition", AssembleSchemaPartitionTask::class.java)
+                                    .flatMap { it.outputDirectory },
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     private fun Project.setupValidateSchemaExtensionsTask() {
         tasks.register<ValidateSchemaExtensionsTask>("validateViaductSchemaExtensions") {

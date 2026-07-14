@@ -23,20 +23,14 @@ import viaduct.gradle.task.GenerateResolverBasesTask
 class ViaductModulePlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
-            val moduleLayout = ViaductModulePluginSupport.modulePackageLayout(
-                this,
-                validateModuleProjectPlacement("com.airbnb.viaduct.module-gradle-plugin"),
-            )
+            val topology = validateModuleProjectPlacement("com.airbnb.viaduct.module-gradle-plugin")
+            val moduleLayout = ViaductModulePluginSupport.modulePackageLayout(this, topology)
 
             val moduleExt = extensions.findByType(ViaductModuleExtension::class.java)
                 ?: extensions.create("viaductModule", ViaductModuleExtension::class.java, objects)
 
             ViaductModulePluginSupport.configureDirectModuleDependencyChecks(this)
             ViaductModulePluginSupport.configureModulePackageSuffixConvention(this, moduleExt)
-            ViaductModulePluginSupport.validateContainingApplicationProjectPlugin(
-                this,
-                "com.airbnb.viaduct.module-gradle-plugin",
-            )
 
             val grtIncomingCfg = ViaductModulePluginSupport.createGRTIncomingConfiguration(
                 this,
@@ -53,10 +47,13 @@ class ViaductModulePlugin : Plugin<Project> {
 
             setupKspRegistryExtractor(moduleLayout, generateResolverBasesTask)
 
-            ViaductModulePluginSupport.wireToContainingApplicationProject(
+            ViaductModulePluginSupport.wireToTopologyApplicationProject(
                 this,
-                ViaductPluginCommon.Configs.GRT_CLASSES_KOTLIN_INCOMING,
+                topology,
+                centralSchemaIncomingCfg,
+                grtIncomingCfg,
                 ViaductPluginCommon.Configs.GRT_CLASSES_KOTLIN_OUTGOING,
+                ViaductApplicationOutputProviders::kotlinGrtJar,
             )
 
             // GRT classes into source sets

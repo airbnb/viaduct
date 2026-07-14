@@ -31,8 +31,6 @@ dependencies {
 
     runtimeOnly(libs.logback.classic)
 
-    implementation(project(":resolvers"))
-
     // Import JUnit BOM to control all JUnit versions consistently
     testImplementation(enforcedPlatform(libs.junit.bom))
     testImplementation(libs.ktor.server.test.host)

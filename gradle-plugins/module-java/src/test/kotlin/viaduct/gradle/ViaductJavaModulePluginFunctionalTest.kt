@@ -83,6 +83,40 @@ class ViaductJavaModulePluginFunctionalTest {
     }
 
     @Test
+    fun `Java module resolves schema and Java grt dependencies from settings application path`() {
+        writeJavaApplicationAndModuleFixture()
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withPluginClasspath(combinedPluginClasspath())
+            .withArguments(":app:javaresolvers:printViaductJavaApplicationAnchor")
+            .build()
+
+        assertTrue(result.output.contains("CENTRAL_SCHEMA_PROJECT=:app"))
+        assertTrue(result.output.contains("CENTRAL_SCHEMA_CONFIGURATION=viaductCentralSchema"))
+        assertTrue(result.output.contains("JAVA_GRT_PROJECT=:app"))
+        assertTrue(result.output.contains("JAVA_GRT_CONFIGURATION=viaductJavaGRTClasses"))
+    }
+
+    @Test
+    fun `Java module configures under isolated projects with configuration cache`() {
+        writeJavaApplicationAndModuleFixture()
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withPluginClasspath(combinedPluginClasspath())
+            .withArguments(
+                ":app:javaresolvers:help",
+                "--configuration-cache",
+                "--configuration-cache-problems=fail",
+                "-Dorg.gradle.unsafe.isolated-projects=true",
+            )
+            .build()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
     fun `topology package values configure Java module resolver base task when project DSL disagrees`() {
         File(projectDir, "settings.gradle.kts").writeText(
             """
@@ -152,6 +186,69 @@ class ViaductJavaModulePluginFunctionalTest {
         assertTrue(
             result.output.contains("generated-sources/viaduct/javaResolverBases"),
             "Expected Java resolver-base output root to be configured",
+        )
+    }
+
+    private fun writeJavaApplicationAndModuleFixture() {
+        File(projectDir, "settings.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.airbnb.viaduct.settings-gradle-plugin")
+            }
+
+            rootProject.name = "test"
+
+            includeViaductApplication {
+                project(":app")
+                modulePackagePrefix("com.example.topology")
+
+                includeModule {
+                    project(":app:javaresolvers")
+                    modulePackageSuffix("javaresolvers")
+                }
+            }
+            """.trimIndent()
+        )
+        File(projectDir, "build.gradle").writeText("")
+
+        val appDir = File(projectDir, "app").also { it.mkdirs() }
+        File(appDir, "build.gradle").writeText(
+            """
+            plugins {
+                id 'java-library'
+                id 'com.airbnb.viaduct.application-gradle-plugin'
+            }
+            """.trimIndent()
+        )
+
+        val moduleDir = File(projectDir, "app/javaresolvers").also { it.mkdirs() }
+        File(moduleDir, "build.gradle").writeText(
+            """
+            plugins {
+                id 'java-library'
+                id 'com.airbnb.viaduct.module-java-gradle-plugin'
+            }
+
+            tasks.register('printViaductJavaApplicationAnchor') {
+                doLast {
+                    def centralSchemaDependency =
+                        configurations.getByName('viaductCentralSchemaIn')
+                            .dependencies
+                            .findAll { it instanceof ProjectDependency }
+                            .first()
+                    def grtDependency =
+                        configurations.getByName('viaductJavaGRTClassesIn')
+                            .dependencies
+                            .findAll { it instanceof ProjectDependency }
+                            .first()
+
+                    println "CENTRAL_SCHEMA_PROJECT=${'$'}{centralSchemaDependency.path}"
+                    println "CENTRAL_SCHEMA_CONFIGURATION=${'$'}{centralSchemaDependency.targetConfiguration}"
+                    println "JAVA_GRT_PROJECT=${'$'}{grtDependency.path}"
+                    println "JAVA_GRT_CONFIGURATION=${'$'}{grtDependency.targetConfiguration}"
+                }
+            }
+            """.trimIndent()
         )
     }
 }

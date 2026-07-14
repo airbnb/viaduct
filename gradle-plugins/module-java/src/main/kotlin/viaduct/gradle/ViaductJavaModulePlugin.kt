@@ -15,20 +15,14 @@ import viaduct.gradle.task.GenerateJavaResolverBasesTask
 class ViaductJavaModulePlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
-            val moduleLayout = ViaductModulePluginSupport.modulePackageLayout(
-                this,
-                validateModuleProjectPlacement("com.airbnb.viaduct.module-java-gradle-plugin"),
-            )
+            val topology = validateModuleProjectPlacement("com.airbnb.viaduct.module-java-gradle-plugin")
+            val moduleLayout = ViaductModulePluginSupport.modulePackageLayout(this, topology)
 
             val moduleExt = extensions.findByType(ViaductModuleExtension::class.java)
                 ?: extensions.create("viaductModule", ViaductModuleExtension::class.java, objects)
 
             ViaductModulePluginSupport.configureDirectModuleDependencyChecks(this)
             ViaductModulePluginSupport.configureModulePackageSuffixConvention(this, moduleExt)
-            ViaductModulePluginSupport.validateContainingApplicationProjectPlugin(
-                this,
-                "com.airbnb.viaduct.module-java-gradle-plugin",
-            )
 
             val grtIncomingCfg = ViaductModulePluginSupport.createGRTIncomingConfiguration(
                 this,
@@ -43,10 +37,13 @@ class ViaductJavaModulePlugin : Plugin<Project> {
             val centralSchemaIncomingCfg = ViaductModulePluginSupport.setupIncomingConfigurationForCentralSchema(this)
             val generateResolverBasesTask = setupGenerateResolverBasesTask(moduleLayout, centralSchemaIncomingCfg)
 
-            ViaductModulePluginSupport.wireToContainingApplicationProject(
+            ViaductModulePluginSupport.wireToTopologyApplicationProject(
                 this,
-                ViaductPluginCommon.Configs.GRT_CLASSES_JAVA_INCOMING,
+                topology,
+                centralSchemaIncomingCfg,
+                grtIncomingCfg,
                 ViaductPluginCommon.Configs.GRT_CLASSES_JAVA_OUTGOING,
+                ViaductApplicationOutputProviders::javaGrtJar,
             )
 
             // GRT classes into source sets

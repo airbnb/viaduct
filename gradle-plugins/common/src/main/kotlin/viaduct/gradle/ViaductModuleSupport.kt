@@ -7,19 +7,21 @@ import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
+import org.gradle.api.file.RegularFile
+import org.gradle.api.model.ObjectFactory
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
 import schemaPartitionDirectory
 import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.StableApi
 import viaduct.gradle.ViaductPluginCommon.APPLICATION_PLUGIN_IDS
-import viaduct.gradle.ViaductPluginCommon.findContainingViaductApplicationProject
-import viaduct.gradle.ViaductPluginCommon.hasViaductApplicationPlugin
 import viaduct.gradle.ViaductPluginCommon.prettyPath
 import viaduct.gradle.ViaductPluginCommon.requireViaductTopology
+import viaduct.gradle.ViaductPluginCommon.requireViaductTopologyModuleProjectPaths
 import viaduct.gradle.task.AssembleSchemaPartitionTask
 
 @StableApi
-open class ViaductModuleExtension(objects: org.gradle.api.model.ObjectFactory) {
+open class ViaductModuleExtension(objects: ObjectFactory) {
     /** Kotlin package name suffix for this module (can be empty). */
     val modulePackageSuffix = objects.property(String::class.java)
 }
@@ -132,90 +134,64 @@ object ViaductModulePluginSupport {
             }
         }
 
-    fun validateContainingApplicationProjectPlugin(
+    fun wireToTopologyApplicationProject(
         project: Project,
-        modulePluginId: String,
-    ) {
-        project.afterEvaluate {
-            val topology = project.requireViaductTopology(modulePluginId)
-            val applicationProject = project.findProject(topology.applicationProjectPath)
-                ?: throw GradleException(
-                    "Viaduct settings topology declares application project " +
-                        "'${topology.applicationProjectPath}' for module ${project.prettyPath()}, " +
-                        "but that project is not included in this Gradle build.",
-                )
-            if (!applicationProject.hasViaductApplicationPlugin()) {
-                throw GradleException(
-                    "Viaduct module ${project.prettyPath()} is declared under application project " +
-                        "${applicationProject.prettyPath()}, but that project does not apply one of " +
-                        "${APPLICATION_PLUGIN_IDS.joinToString(", ") { "'$it'" }}.",
-                )
-            }
-        }
-    }
-
-    fun wireToContainingApplicationProject(
-        project: Project,
-        grtIncomingConfigName: String,
+        topology: ViaductApplicationTopology,
+        centralSchemaIncomingCfg: Configuration,
+        grtIncomingCfg: Configuration,
         grtOutgoingConfigName: String,
+        grtJar: (ViaductApplicationOutputProviders) -> Provider<RegularFile>,
     ) {
-        var wired = false
-
-        generateSequence(project) { it.parent }.forEach { candidate ->
+        if (topology.applicationProjectPath == project.path) {
             APPLICATION_PLUGIN_IDS.forEach { pluginId ->
-                candidate.pluginManager.withPlugin(pluginId) {
-                    if (wired || project.findContainingViaductApplicationProject() != candidate) return@withPlugin
-
-                    candidate.dependencies.add(
-                        ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING,
-                        candidate.dependencies.project(
-                            mapOf(
-                                "path" to project.path,
-                                "configuration" to ViaductPluginCommon.Configs.SCHEMA_PARTITION_OUTGOING,
-                            ),
-                        ),
-                    )
-                    candidate.dependencies.add("runtimeOnly", project)
-
+                project.pluginManager.withPlugin(pluginId) {
+                    val outputs = project.extensions.getByType(ViaductApplicationOutputProviders::class.java)
                     project.dependencies.add(
-                        ViaductPluginCommon.Configs.CENTRAL_SCHEMA_INCOMING,
-                        project.dependencies.project(
-                            mapOf(
-                                "path" to candidate.path,
-                                "configuration" to ViaductPluginCommon.Configs.CENTRAL_SCHEMA_OUTGOING,
-                            ),
-                        ),
+                        centralSchemaIncomingCfg.name,
+                        project.files(outputs.centralSchemaDirectory),
                     )
-
                     project.dependencies.add(
-                        grtIncomingConfigName,
-                        project.dependencies.project(
-                            mapOf(
-                                "path" to candidate.path,
-                                "configuration" to grtOutgoingConfigName,
-                            ),
-                        ),
+                        grtIncomingCfg.name,
+                        project.files(grtJar(outputs)),
                     )
-
-                    wired = true
                 }
             }
+            return
         }
+
+        project.dependencies.add(
+            centralSchemaIncomingCfg.name,
+            project.dependencies.project(
+                mapOf(
+                    "path" to topology.applicationProjectPath,
+                    "configuration" to ViaductPluginCommon.Configs.CENTRAL_SCHEMA_OUTGOING,
+                ),
+            ),
+        )
+        project.dependencies.add(
+            grtIncomingCfg.name,
+            project.dependencies.project(
+                mapOf(
+                    "path" to topology.applicationProjectPath,
+                    "configuration" to grtOutgoingConfigName,
+                ),
+            ),
+        )
     }
 
     private fun Project.enforceNoDirectModuleDeps() {
         configurations.configureEach { configuration ->
             configuration.withDependencies { deps ->
                 val topology = this@enforceNoDirectModuleDeps.requireViaductTopology("com.airbnb.viaduct.module-gradle-plugin")
+                val moduleProjectPaths = this@enforceNoDirectModuleDeps.requireViaductTopologyModuleProjectPaths()
                 deps.filterIsInstance<ProjectDependency>().forEach { pd ->
-                    val target = this@enforceNoDirectModuleDeps.findProject(pd.path)
-                    if (target != null &&
-                        topology.isModuleProject(target.path) &&
+                    val targetPath = pd.path
+                    if (moduleProjectPaths.contains(targetPath) &&
                         this@enforceNoDirectModuleDeps.path != topology.applicationProjectPath &&
-                        target.path != topology.applicationProjectPath
+                        targetPath != topology.applicationProjectPath
                     ) {
                         val from = this@enforceNoDirectModuleDeps.prettyPath()
-                        val to = target.prettyPath()
+                        val to = if (targetPath == ":") ": (root)" else targetPath
                         val build = this@enforceNoDirectModuleDeps.buildFile
 
                         throw GradleException(

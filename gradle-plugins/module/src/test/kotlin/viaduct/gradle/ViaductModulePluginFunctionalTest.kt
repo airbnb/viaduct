@@ -82,10 +82,13 @@ class ViaductModulePluginFunctionalTest {
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
             .withPluginClasspath(combinedPluginClasspath())
-            .withArguments("help")
+            .withArguments("assembleViaductCentralSchema", "--configuration-cache", "--configuration-cache-problems=fail", "-Dorg.gradle.unsafe.isolated-projects=true")
             .build()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"), "Expected build to succeed")
+        val partitionSchemaFile = File(projectDir, "build/viaduct/centralSchema/partition/test/graphql/schema.graphqls")
+        assertTrue(partitionSchemaFile.isFile, "Expected same-project schema partition to be copied into central schema")
+        assertTrue(partitionSchemaFile.readText().contains("field: String"))
     }
 
     @Test
@@ -198,7 +201,7 @@ class ViaductModulePluginFunctionalTest {
     }
 
     @Test
-    fun `module resolves schema and grt dependencies from nearest application ancestor`() {
+    fun `module resolves schema and grt dependencies from settings application path`() {
         File(projectDir, "settings.gradle.kts").writeViaductSettings(
             applicationProjectPath = ":app",
             modules = mapOf(":app:mymodule" to "mymodule"),
@@ -208,6 +211,8 @@ class ViaductModulePluginFunctionalTest {
         val appDir = File(projectDir, "app").also { it.mkdirs() }
         File(appDir, "build.gradle.kts").writeText(
             """
+            import org.gradle.api.artifacts.ProjectDependency
+
             plugins {
                 `java-library`
                 id("com.airbnb.viaduct.application-gradle-plugin")
@@ -233,24 +238,36 @@ class ViaductModulePluginFunctionalTest {
 
             tasks.register("printViaductApplicationAnchor") {
                 doLast {
-                    val projectDependencyType = org.gradle.api.artifacts.ProjectDependency::class.java
+                    val projectDependencyType = ProjectDependency::class.java
                     val centralSchemaProject =
                         configurations.getByName("viaductCentralSchemaIn")
                             .dependencies
                             .withType(projectDependencyType)
                             .single()
-                            .dependencyProject
                             .path
+                    val centralSchemaConfiguration =
+                        configurations.getByName("viaductCentralSchemaIn")
+                            .dependencies
+                            .withType(projectDependencyType)
+                            .single()
+                            .targetConfiguration
                     val grtProject =
                         configurations.getByName("viaductKotlinGRTClassesIn")
                             .dependencies
                             .withType(projectDependencyType)
                             .single()
-                            .dependencyProject
                             .path
+                    val grtConfiguration =
+                        configurations.getByName("viaductKotlinGRTClassesIn")
+                            .dependencies
+                            .withType(projectDependencyType)
+                            .single()
+                            .targetConfiguration
 
                     println("CENTRAL_SCHEMA_PROJECT=${'$'}centralSchemaProject")
+                    println("CENTRAL_SCHEMA_CONFIGURATION=${'$'}centralSchemaConfiguration")
                     println("KOTLIN_GRT_PROJECT=${'$'}grtProject")
+                    println("KOTLIN_GRT_CONFIGURATION=${'$'}grtConfiguration")
                 }
             }
             """.trimIndent()
@@ -265,7 +282,104 @@ class ViaductModulePluginFunctionalTest {
             .build()
 
         assertTrue(result.output.contains("CENTRAL_SCHEMA_PROJECT=:app"), "Expected central schema dependency to target ':app'")
+        assertTrue(result.output.contains("CENTRAL_SCHEMA_CONFIGURATION=viaductCentralSchema"))
         assertTrue(result.output.contains("KOTLIN_GRT_PROJECT=:app"), "Expected Kotlin GRT dependency to target ':app'")
+        assertTrue(result.output.contains("KOTLIN_GRT_CONFIGURATION=viaductKotlinGRTClasses"))
+    }
+
+    @Test
+    fun `application wires only topology modules for disjoint application roots`() {
+        File(projectDir, "settings.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.airbnb.viaduct.settings-gradle-plugin")
+            }
+
+            rootProject.name = "test"
+            include("support")
+
+            includeViaductApplication {
+                project(":apps:one")
+                modulePackagePrefix("com.example.one")
+
+                includeModule {
+                    project(":apps:one:modules:one")
+                    modulePackageSuffix("one")
+                }
+            }
+
+            includeViaductApplication {
+                project(":apps:two")
+                modulePackagePrefix("com.example.two")
+
+                includeModule {
+                    project(":apps:two:modules:two")
+                    modulePackageSuffix("two")
+                }
+            }
+            """.trimIndent()
+        )
+        File(projectDir, "build.gradle.kts").writeText("")
+        File(projectDir, "support").mkdirs()
+        File(projectDir, "support/build.gradle.kts").writeText("plugins { `java-library` }")
+
+        listOf("one", "two").forEach { name ->
+            val appDir = File(projectDir, "apps/$name").also { it.mkdirs() }
+            File(appDir, "build.gradle.kts").writeText(
+                """
+                import org.gradle.api.artifacts.ProjectDependency
+
+                plugins {
+                    `java-library`
+                    id("com.airbnb.viaduct.application-gradle-plugin")
+                }
+
+                tasks.register("printViaductTopologyDependencies") {
+                    doLast {
+                        val projectDependencyType = ProjectDependency::class.java
+                        val schemaDeps =
+                            configurations.getByName("viaductAllSchemaPartitionsIn")
+                                .dependencies
+                                .withType(projectDependencyType)
+                                .map { "${'$'}{it.path}:${'$'}{it.targetConfiguration}" }
+                                .sorted()
+                        val runtimeDeps =
+                            configurations.getByName("runtimeOnly")
+                                .dependencies
+                                .withType(projectDependencyType)
+                                .map { it.path }
+                                .sorted()
+
+                        println("SCHEMA_DEPS=${'$'}schemaDeps")
+                        println("RUNTIME_DEPS=${'$'}runtimeDeps")
+                    }
+                }
+                """.trimIndent()
+            )
+
+            val moduleDir = File(projectDir, "apps/$name/modules/$name").also { it.mkdirs() }
+            File(moduleDir, "build.gradle.kts").writeText(
+                """
+                plugins {
+                    `java-library`
+                    kotlin("jvm")
+                    id("com.airbnb.viaduct.module-gradle-plugin")
+                    id("com.google.devtools.ksp")
+                }
+                """.trimIndent()
+            )
+        }
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withPluginClasspath(combinedPluginClasspath())
+            .withArguments(":apps:one:printViaductTopologyDependencies")
+            .build()
+
+        assertTrue(result.output.contains("SCHEMA_DEPS=[:apps:one:modules:one:viaductSchemaPartition]"))
+        assertTrue(result.output.contains("RUNTIME_DEPS=[:apps:one:modules:one]"))
+        assertTrue(!result.output.contains(":apps:two:modules:two"), "Expected :apps:one not to wire :apps:two:modules:two")
+        assertTrue(!result.output.contains(":support"), "Expected plain included support project not to be wired")
     }
 
     @Test
@@ -304,6 +418,91 @@ class ViaductModulePluginFunctionalTest {
 
         assertTrue(result.output.contains("src/main/viaduct/schema"), "Expected output to mention 'src/main/viaduct/schema'")
         assertTrue(result.output.contains("graphqls"), "Expected output to mention 'graphqls'")
+    }
+
+    @Test
+    fun `direct dependency on module from another application root fails with clear message`() {
+        File(projectDir, "settings.gradle.kts").writeText(
+            """
+            plugins {
+                id("com.airbnb.viaduct.settings-gradle-plugin")
+            }
+
+            rootProject.name = "test"
+
+            includeViaductApplication {
+                project(":apps:one")
+                modulePackagePrefix("com.example.one")
+
+                includeModule {
+                    project(":apps:one:modules:one")
+                    modulePackageSuffix("one")
+                }
+            }
+
+            includeViaductApplication {
+                project(":apps:two")
+                modulePackagePrefix("com.example.two")
+
+                includeModule {
+                    project(":apps:two:modules:two")
+                    modulePackageSuffix("two")
+                }
+            }
+            """.trimIndent()
+        )
+        File(projectDir, "build.gradle.kts").writeText("")
+
+        listOf("one", "two").forEach { name ->
+            val appDir = File(projectDir, "apps/$name").also { it.mkdirs() }
+            File(appDir, "build.gradle.kts").writeText(
+                """
+                plugins {
+                    `java-library`
+                    id("com.airbnb.viaduct.application-gradle-plugin")
+                }
+                """.trimIndent()
+            )
+        }
+
+        val moduleOneDir = File(projectDir, "apps/one/modules/one").also { it.mkdirs() }
+        File(moduleOneDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                `java-library`
+                kotlin("jvm")
+                id("com.airbnb.viaduct.module-gradle-plugin")
+                id("com.google.devtools.ksp")
+            }
+
+            dependencies {
+                implementation(project(":apps:two:modules:two"))
+            }
+            """.trimIndent()
+        )
+
+        val moduleTwoDir = File(projectDir, "apps/two/modules/two").also { it.mkdirs() }
+        File(moduleTwoDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                `java-library`
+                kotlin("jvm")
+                id("com.airbnb.viaduct.module-gradle-plugin")
+                id("com.google.devtools.ksp")
+            }
+            """.trimIndent()
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withPluginClasspath(combinedPluginClasspath())
+            .withArguments(":apps:one:modules:one:dependencies", "--configuration", "runtimeClasspath")
+            .buildAndFail()
+
+        assertTrue(
+            result.output.contains("Module :apps:one:modules:one must not depend directly on :apps:two:modules:two"),
+            "Expected output to reject the cross-application direct module dependency",
+        )
     }
 
     @Test

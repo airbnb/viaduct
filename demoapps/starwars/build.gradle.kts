@@ -51,8 +51,6 @@ dependencies {
 
     runtimeOnly(libs.logback.classic)
     implementation(project(":common"))
-    runtimeOnly(project(":modules:filmography"))
-    runtimeOnly(project(":modules:universe"))
 
     // Import JUnit BOM to control all JUnit versions consistently
     testImplementation(enforcedPlatform(libs.junit.bom))
@@ -82,4 +80,3 @@ tasks.withType<JavaExec> {
         "--add-opens", "java.base/java.lang=ALL-UNNAMED"
     )
 }
-

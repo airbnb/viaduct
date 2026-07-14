@@ -5,6 +5,9 @@ import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.attributes.Attribute
+import org.gradle.api.file.Directory
+import org.gradle.api.file.RegularFile
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.plugins.ide.idea.model.IdeaModel
 import org.jetbrains.gradle.ext.settings
@@ -107,8 +110,6 @@ object ViaductPluginCommon {
     fun Project.createOrGetJavaGRTCompileClasspath(pluginVersion: String): Configuration = createOrGetToolClasspath("viaductJavaGRTCompileClasspath", "com.airbnb.viaduct:javaapi-api:$pluginVersion")
 
     fun Project.configureIdeaIntegration(generateGRTsTask: TaskProvider<*>) {
-        pluginManager.apply("org.jetbrains.gradle.plugin.idea-ext")
-
         pluginManager.withPlugin("org.jetbrains.gradle.plugin.idea-ext") {
             val ideaExtension = extensions.findByType(IdeaModel::class.java)
             ideaExtension?.project?.settings {
@@ -129,18 +130,7 @@ object ViaductPluginCommon {
      */
     fun buildFlagFileContent(flags: Map<String, String>): String = BuildFlags.toFileContent(flags)
 
-    fun Project.findContainingViaductApplicationProject(): Project? =
-        generateSequence(this) { it.parent }
-            .firstOrNull { candidate -> candidate.hasViaductApplicationPlugin() }
-
-    fun Project.requireContainingViaductApplicationProject(modulePluginId: String): Project =
-        findContainingViaductApplicationProject()
-            ?: throw GradleException(
-                "Apply one of ${APPLICATION_PLUGIN_IDS.joinToString(", ") { "'$it'" }} " +
-                    "to this project or an ancestor project before applying '$modulePluginId'.",
-            )
-
-    fun Project.validateApplicationProjectPlacement() {
+    fun Project.validateApplicationProjectPlacement(): ViaductApplicationTopology {
         val topology = requireViaductTopology("com.airbnb.viaduct.application-gradle-plugin")
         if (!topology.isApplicationProject(path)) {
             throw GradleException(
@@ -149,6 +139,7 @@ object ViaductPluginCommon {
                     "'${topology.applicationProjectPath}', not as an application project.",
             )
         }
+        return topology
     }
 
     fun Project.validateModuleProjectPlacement(modulePluginId: String): ViaductApplicationTopology {
@@ -172,6 +163,11 @@ object ViaductPluginCommon {
                     "settings.gradle.kts and declare the project with includeViaductApplication { ... }.",
             )
 
+    fun Project.requireViaductTopologyModuleProjectPaths(): Set<String> {
+        val service = requireViaductTopologyService()
+        return service.moduleProjectPaths()
+    }
+
     private fun Project.requireViaductTopologyService(): ViaductTopologyService {
         val registration = gradle.sharedServices.registrations.findByName(ViaductTopologyService.NAME)
             ?: throw GradleException(
@@ -184,7 +180,15 @@ object ViaductPluginCommon {
         return registration.service.get() as ViaductTopologyService
     }
 
-    fun Project.hasViaductApplicationPlugin(): Boolean = APPLICATION_PLUGIN_IDS.any { pluginId -> plugins.hasPlugin(pluginId) }
-
     fun Project.prettyPath(): String = if (path == ":") ": (root)" else path
 }
+
+@InternalApi
+const val VIADUCT_APPLICATION_OUTPUTS_EXTENSION_NAME = "viaductApplicationOutputs"
+
+@InternalApi
+data class ViaductApplicationOutputProviders(
+    val centralSchemaDirectory: Provider<Directory>,
+    val kotlinGrtJar: Provider<RegularFile>,
+    val javaGrtJar: Provider<RegularFile>,
+)

@@ -35,6 +35,11 @@ abstract class ViaductTopologyService : BuildService<ViaductTopologyService.Para
 
     fun topologyFor(projectPath: String): ViaductApplicationTopology? = topology.applicationTopologies[projectPath]
 
+    fun moduleProjectPaths(): Set<String> =
+        topology.applicationTopologies.values
+            .flatMap { it.modulePackageSuffixes.keys }
+            .toSet()
+
     companion object {
         const val NAME = "ViaductTopologyService"
     }
