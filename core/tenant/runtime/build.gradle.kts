@@ -50,6 +50,7 @@ dependencies {
 
     implementation(libs.viaduct.shared.graphql)
     implementation(libs.viaduct.shared.mapping)
+    implementation(libs.viaduct.tenant.shared)
     implementation(libs.viaduct.shared.apiannotations)
     implementation(libs.viaduct.shared.utils)
     implementation(libs.classgraph)

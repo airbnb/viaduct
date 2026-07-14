@@ -44,6 +44,9 @@ dependencies {
     // Shared GraphQL utils (for collectVariableReferences extension)
     implementation(libs.viaduct.shared.graphql)
 
+    // Shared tenant support (InputValueNormalizerCore)
+    implementation(libs.viaduct.tenant.shared)
+
     // Testing
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.io.mockk.jvm)

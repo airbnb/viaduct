@@ -40,6 +40,7 @@ include(":tenant:codegen")
 include(":tenant:ksp")
 include(":tenant:validation")
 include(":tenant:runtime")
+include(":tenant:shared")
 include(":tenant:tutorials")
 include(":tenant:wiring")
 
