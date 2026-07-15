@@ -18,6 +18,8 @@ This document describes the architectural principles, workflow taxonomy, and not
 
 4. **Two-layer workflow architecture: atomics and orchestrators.** See [Workflow Taxonomy](#workflow-taxonomy) below.
 
+5. **Caching is an accelerator, not a handoff.** The `gradle/actions/setup-gradle` cache (the `~/.gradle` GitHub Actions cache) is a best-effort, cross-run speed optimization — not a deterministic channel for passing build outputs between jobs. Every job must succeed on a cold cache with no restored state; a cache hit or miss may change speed but must never change correctness. Any output one job genuinely requires from another must be transferred explicitly — via `actions/upload-artifact`/`download-artifact` or a remote build cache — never by assuming a job will restore another job's local Gradle cache. (Restoring a shared cache is also a correctness *hazard*: a cancelled job can save a partially-written cache that later jobs restore — see `cancel-in-progress` note under [Explicit permissions and concurrency](#explicit-permissions-and-concurrency).)
+
 ## Workflow Taxonomy
 
 Every workflow is classified as an **atomic**, an **orchestrator**, or an **orchestrator helper**.
@@ -217,8 +219,8 @@ push/PR to main
 ci-manual-trigger.yml  [orchestrator]
   |
   |--- build-and-test.yml  [atomic]
-  |      validate-inputs --> build --> test
-  |                                --> detekt
+  |      validate-inputs --> test   (self-contained: compiles + runs tests, no build dep)
+  |                     '--> build --> detekt
   |                                --> ktlint
   |                                --> coverage-verification
   |

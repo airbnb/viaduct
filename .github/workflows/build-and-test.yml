@@ -125,7 +125,7 @@ jobs:
         os: ${{ fromJSON(inputs.os || '["ubuntu-latest","macos-latest"]') }}
         java: ${{ fromJSON(inputs.java_versions || '["11", "17", "21"]') }}
     name: Test (Java ${{ matrix.java }}) ${{ matrix.os }}
-    needs: build
+    needs: validate-inputs
     env:
       GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
@@ -136,12 +136,6 @@ jobs:
       - uses: ./.github/actions/setup-build
         with:
           java-version: ${{ matrix.java }}
-          cache-read-only: 'true'
-
-      - uses: actions/download-artifact@v7
-        with:
-          name: build-java-${{ matrix.java }}-${{ matrix.os }}
-          path: build/
 
       - name: Run tests
         id: run_tests
