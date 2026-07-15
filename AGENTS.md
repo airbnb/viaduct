@@ -31,6 +31,7 @@ The `shared/` directory contains libraries used across the Viaduct engine and te
 
 ## Implementation Documentation
 
+- [`core/x/remoteresolvers/impldocs/architecture.md`](core/x/remoteresolvers/impldocs/architecture.md) — Experimental remote resolver architecture: independent process bootstrap, proxy and callback RPC flows, wire formats, in-memory registries, lifecycle, error isolation, and current cross-process limitations.
 - [`core/shared/errors/impldocs/executor-error-boundaries.md`](core/shared/errors/impldocs/executor-error-boundaries.md) — Exception hierarchy (`PassthroughException`, `TenantException`), the two-boundary wrapping pattern on executor SPI entry points, `InvocationTargetException` unwrapping, and how attributed exceptions surface in GraphQL error responses.
 - [`impldocs/modern-access-check.md`](impldocs/modern-access-check.md) — Access check architecture: `CheckerExecutorFactory` SPI, QueryPlan RSS embedding, the OER multi-slot pattern, and how checker results flow through completion.
 - [`impldocs/object-lifecycles.md`](impldocs/object-lifecycles.md) — Description of the "lifecycles" of major objects over the lifetime of a Viaduct runtime instance (related to injection scopes).

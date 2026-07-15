@@ -7,12 +7,16 @@ JVM gives you runtime isolation without changing how resolvers are written.
 
 > **Status:** experimental. APIs may change without notice.
 
+For implementation details, process boundaries, wire formats, and current callback
+constraints, see [`impldocs/architecture.md`](impldocs/architecture.md).
+
 ## How it works
 
 A small proxy on the engine side intercepts node and field resolution and forwards it
 to a `RemoteResolverService` over gRPC. That service runs the resolver, and if the
-resolver needs to fan back out (`ctx.query(...)`) it does so through a callback
-service — so resolvers behave identically whether they run locally or remotely.
+resolver needs to fan back out (`ctx.query(...)`) it uses a callback service to
+re-enter the main engine. The callback transport is wired, but re-entrant selection
+sets are still referenced through a process-local handle; see the limitation below.
 The main server dials a separate remote server process over a shaded Netty gRPC
 channel; the remote server calls back through a plaintext server bound by the main server.
 
@@ -123,6 +127,12 @@ independent — each defaults to *all* and can be narrowed on its own.
 
 ## Limitations
 
+- **Re-entrant selection execution is not yet cross-process:** `ctx.query()` and
+  `ctx.mutation()` register their selection set in the remote JVM and send only that
+  process-local handle to the main callback service. In-process integration tests share
+  the registry and reach the callback, but a separate remote server gets
+  `selections handle not registered` until the callback RPC carries a serialized
+  selection set (or another cross-process representation).
 - **Default-on (semantic note):** an empty `VIADUCT_REMOTE_RESOLVER_FIELDS` now means *all* field
   resolvers — it previously meant *none*. To turn field proxying off while keeping node proxying, set
   `VIADUCT_REMOTE_RESOLVER_FIELDS=none` (or `off`/`-`); to disable the whole feature (nodes too) use
