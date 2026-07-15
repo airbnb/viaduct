@@ -126,6 +126,13 @@ extend type Query @scope(to: ["default"]) {
   ): Character @resolver
 
   """
+  A one-line "name (birthYear)" summary for the character with the given name, produced by
+  running a statically-declared `@GraphQLOperation` query as a subquery. Returns null if no
+  character matches. Demonstrates `ctx.query(operation, variables)`.
+  """
+  characterSummaryByName(name: String!): String @resolver
+
+  """
   All characters
   """
   # tag::all_characters[3] Batch query sample
@@ -201,6 +208,13 @@ extend type Mutation @scope(to: ["default"]) {
   Delete a Character by ID. Returns true if a record was removed.
   """
   deleteCharacter(id: ID! @idOf(type: "Character")): Boolean @resolver
+
+  """
+  Rename a Character by running a statically-declared `@GraphQLOperation` mutation as a
+  submutation (which delegates to `updateCharacterName`), then return a "name (birthYear)"
+  summary of the renamed character. Demonstrates `ctx.mutation(operation, variables)`.
+  """
+  renameCharacterSummary(id: ID! @idOf(type: "Character"), name: String!): String @resolver
 }
 
 """

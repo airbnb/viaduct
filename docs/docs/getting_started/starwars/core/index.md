@@ -13,6 +13,7 @@ This section explains how Viaduct's core building blocks — schemas, resolvers,
 - [Field Resolvers](field_resolvers.md)
 - [Batch Resolvers](batch_resolvers.md)
 - [Named Fragments](named_fragments.md)
+- [GraphQL Operations](graphql_operations.md)
 - [Resolver Integration Patterns](resolver_integrations.md)
 
 

@@ -37,6 +37,9 @@ class UserDisplayNameResolver: UserResolvers.DisplayName() {
 
 The selection string uses standard GraphQL selection syntax — fields, arguments, inline fragments, and aliases all work. This is sometimes called an "imperative subquery," as opposed to the declarative approach of specifying data dependencies in the `@Resolver` annotation.
 
+!!! tip "Reusable, build-time-validated operations"
+    When a subquery is **fixed** (known at build time), you can declare it once with `@GraphQLOperation` and pass the operation object to `ctx.query()` / `ctx.mutation()` instead of an inline string. The document is validated against the schema at build time and can spread named fragments. See [GraphQL Operations](graphql_operations.md).
+
 Use `ctx.query()` when the selections you need aren't known until runtime. If you know what fields you need at registration time, prefer declaring them in the `@Resolver` annotation's `objectValueFragment` or `queryValueFragment` instead.
 
 ### Variables

@@ -819,6 +819,88 @@ class ResolverIntegrationTest {
     }
 
     @Nested
+    inner class GraphQLOperationResolvers {
+        @Test
+        fun `characterSummaryByName runs a GraphQLOperation query as a subquery`() {
+            val query = """
+                query {
+                    characterSummaryByName(name: "Luke")
+                }
+            """.trimIndent()
+
+            val response = client.executeGraphQLQuery(query)
+            val summary = response.path("data").path("characterSummaryByName").asText()
+
+            summary shouldContain "Luke"
+            // "name (birthYear)" shape produced by the operation-backed resolver
+            summary shouldContain "("
+        }
+
+        @Test
+        fun `characterSummaryByName returns null when no character matches`() {
+            val query = """
+                query {
+                    characterSummaryByName(name: "Nonexistent Person")
+                }
+            """.trimIndent()
+
+            val response = client.executeGraphQLQuery(query)
+
+            // The operation's searchCharacter finds nothing, so the resolver returns null and the
+            // field is omitted from the data payload.
+            response.path("data").path("characterSummaryByName").isMissingNode shouldBe true
+            response.path("errors").isMissingNode shouldBe true
+        }
+
+        @Test
+        fun `renameCharacterSummary runs a GraphQLOperation mutation as a submutation`() {
+            // Create a character to rename.
+            val createCharacterQuery = """
+                mutation {
+                    createCharacter(input: {
+                        name: "Rename Me"
+                        birthYear: "42BBY"
+                        homeworldId: "${Character.Reflection.globalId("5")}"
+                        speciesId: "${Species.Reflection.globalId("2")}"
+                    }) {
+                        id
+                    }
+                }
+            """.trimIndent()
+
+            val createResult = client.executeGraphQLQueryWithAdminAccess(createCharacterQuery)
+            val characterId = createResult.path("data").path("createCharacter").path("id").asText()
+
+            val query = """
+                mutation {
+                    renameCharacterSummary(id: "$characterId", name: "Renamed Hero")
+                }
+            """.trimIndent()
+
+            val response = client.executeGraphQLQueryWithAdminAccess(query)
+            val summary = response.path("data").path("renameCharacterSummary").asText()
+
+            summary shouldBe "Renamed Hero (42BBY)"
+        }
+
+        @Test
+        fun `renameCharacterSummary submutation still enforces the shared admin security context`() {
+            val query = """
+                mutation {
+                    renameCharacterSummary(id: "${Character.Reflection.globalId("1")}", name: "Should Fail")
+                }
+            """.trimIndent()
+
+            val response = client.executeGraphQLQuery(query)
+
+            response.path("data").path("renameCharacterSummary").isMissingNode shouldBe true
+            val errors = response.path("errors")
+            (errors.isArray && errors.size() > 0) shouldBe true
+            errors.toString() shouldContain "SecurityException: Insufficient permissions!"
+        }
+    }
+
+    @Nested
     inner class ConnectionResolvers {
         @Test
         fun `should resolve allCharactersConnection with edges and pageInfo`() {
