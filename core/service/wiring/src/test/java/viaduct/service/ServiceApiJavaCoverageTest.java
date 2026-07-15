@@ -35,8 +35,8 @@ import viaduct.service.spi.JavaFlagManager;
 import viaduct.service.spi.JavaGlobalIDCodec;
 import viaduct.service.spi.JavaInputStreamSource;
 import viaduct.service.spi.JavaResolverErrorBuilder;
+import viaduct.service.wiring.graphiql.GraphiQLHtml;
 import viaduct.service.wiring.graphiql.GraphiQLHtmlConfig;
-import viaduct.service.wiring.graphiql.GraphiQLHtmlKt;
 
 /**
  * Compile-and-execute coverage harness proving the {@code viaduct.service.*} {@code @StableApi}
@@ -161,8 +161,14 @@ class ServiceApiJavaCoverageTest {
     assertEquals(Set.of("viaduct-public"), scopeInfo.getScopesToApply());
 
     // GraphiQL HTML
-    assertNotNull(GraphiQLHtmlKt.graphiQLHtml());
-    assertNotNull(GraphiQLHtmlKt.graphiQLHtml(new GraphiQLHtmlConfig()));
+    assertNotNull(GraphiQLHtml.graphiQLHtml());
+    assertNotNull(GraphiQLHtml.graphiQLHtml(new GraphiQLHtmlConfig()));
+
+    // @JvmOverloads lets Java omit trailing defaulted args on these @StableApi ctors/factories.
+    assertNotNull(ExecutionInput.Companion.create("{ __typename }"));
+    assertNotNull(new ErrorReporter.Metadata("fieldName"));
+    assertNotNull(new GraphiQLHtmlConfig("Custom Title"));
+    assertNotNull(new SchemaScopeInfo("public"));
   }
 
   private static Viaduct buildMinimalViaduct() {

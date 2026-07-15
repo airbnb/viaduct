@@ -215,6 +215,7 @@ class ViaductBuilder {
 class SchemaScopeInfo private constructor(
     val schemaId: SchemaId,
 ) {
+    @JvmOverloads
     constructor(id: String, scopesToApply: Set<String> = emptySet()) : this(
         SchemaId.Scoped(id, scopesToApply)
     )

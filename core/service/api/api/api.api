@@ -1,6 +1,9 @@
 public abstract interface class viaduct/service/api/ExecutionInput {
 	public static final field Companion Lviaduct/service/api/ExecutionInput$Companion;
 	public static fun builder ()Lviaduct/service/api/ExecutionInput$Builder;
+	public static fun create (Ljava/lang/String;)Lviaduct/service/api/ExecutionInput;
+	public static fun create (Ljava/lang/String;Ljava/lang/String;)Lviaduct/service/api/ExecutionInput;
+	public static fun create (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lviaduct/service/api/ExecutionInput;
 	public static fun create (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/Object;)Lviaduct/service/api/ExecutionInput;
 	public abstract fun getExecutionId ()Ljava/lang/String;
 	public abstract fun getOperationId ()Ljava/lang/String;
@@ -23,6 +26,9 @@ public final class viaduct/service/api/ExecutionInput$Builder {
 
 public final class viaduct/service/api/ExecutionInput$Companion {
 	public final fun builder ()Lviaduct/service/api/ExecutionInput$Builder;
+	public final fun create (Ljava/lang/String;)Lviaduct/service/api/ExecutionInput;
+	public final fun create (Ljava/lang/String;Ljava/lang/String;)Lviaduct/service/api/ExecutionInput;
+	public final fun create (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lviaduct/service/api/ExecutionInput;
 	public final fun create (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/Object;)Lviaduct/service/api/ExecutionInput;
 	public static synthetic fun create$default (Lviaduct/service/api/ExecutionInput$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/Object;ILjava/lang/Object;)Lviaduct/service/api/ExecutionInput;
 }
@@ -134,6 +140,15 @@ public final class viaduct/service/api/spi/ErrorReporter$Companion {
 public final class viaduct/service/api/spi/ErrorReporter$Metadata {
 	public static final field Companion Lviaduct/service/api/spi/ErrorReporter$Metadata$Companion;
 	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/util/List;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/util/List;Lviaduct/graphql/SourceLocation;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/util/List;Lviaduct/graphql/SourceLocation;Ljava/lang/Object;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/util/List;Lviaduct/graphql/SourceLocation;Ljava/lang/Object;Ljava/lang/String;)V
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/util/List;Lviaduct/graphql/SourceLocation;Ljava/lang/Object;Ljava/lang/String;Z)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/List;Ljava/util/List;Lviaduct/graphql/SourceLocation;Ljava/lang/Object;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;

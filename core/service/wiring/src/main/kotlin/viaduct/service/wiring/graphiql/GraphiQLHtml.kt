@@ -1,3 +1,5 @@
+@file:JvmName("GraphiQLHtml")
+
 package viaduct.service.wiring.graphiql
 
 import viaduct.apiannotations.StableApi
@@ -21,11 +23,13 @@ private val graphiQLConfigRegex = Regex(
 
 /** Configuration for the HTML returned by [graphiQLHtml]. */
 @StableApi
-class GraphiQLHtmlConfig(
-    val title: String = DEFAULT_GRAPHIQL_TITLE,
-    val defaultQuery: String = DEFAULT_GRAPHIQL_QUERY,
-    val storageKey: String? = null,
-)
+class GraphiQLHtmlConfig
+    @JvmOverloads
+    constructor(
+        val title: String = DEFAULT_GRAPHIQL_TITLE,
+        val defaultQuery: String = DEFAULT_GRAPHIQL_QUERY,
+        val storageKey: String? = null,
+    )
 
 /**
  * Returns the HTML for the GraphiQL IDE.
