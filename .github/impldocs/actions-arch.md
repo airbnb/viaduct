@@ -43,11 +43,11 @@ An atomic workflow performs one well-defined, coherent, loosely-coupled function
 | Workflow | Purpose | Runs on |
 |---|---|---|
 | `build-and-test.yml` | Full build + test matrix, detekt, ktlint, coverage verification | PR, merge to main, daily schedule, manual |
-| `standalone-demoapp-tests.yml` | Publish to Maven Local, test all demoapps against local artifacts | PR, merge to main, daily schedule, manual |
-| `bcv_api_check.yaml` | Binary API compatibility check | PR, merge to main, daily schedule, manual |
+| `demoapps-ci-check.yml` | Publish to Maven Local, test all demoapps against local artifacts | PR, merge to main, daily schedule, manual |
+| `bcv-api-check.yml` | Binary API compatibility check | PR, merge to main, daily schedule, manual |
 | `conventional-commit.yml` | Validate PR titles follow conventional commit format | PR, manual |
 
-The first three are composed by `ci-manual-trigger.yml` — they don't have direct `push` or `pull_request` triggers themselves. `conventional-commit.yml` runs independently on PRs via its own `pull_request` trigger; it exposes `workflow_call` and `run_id` for consistency with the atomic convention, but no orchestrator composes it today.
+The first three are composed by `ci-trigger.yml`, which owns the `push`/`pull_request` triggers — the atomics have no direct `push` or `pull_request` triggers themselves. `conventional-commit.yml` runs independently on PRs via its own `pull_request` trigger; it exposes `workflow_call` and `run_id` for consistency with the atomic convention, but no orchestrator composes it today.
 
 ### Orchestrator Workflows
 
@@ -65,8 +65,7 @@ An orchestrator composes atomics (and possibly inline jobs) into a higher-level 
 
 | Workflow | Purpose | Runs on |
 |---|---|---|
-| `ci-manual-trigger.yml` | Full CI suite: build-and-test + standalone-demoapp-tests + API compat check | PR, merge to main, daily schedule (via periodic-green-check), manual |
-| `ci-trigger.yml` | Full CI suite: build-and-test + demoapps-ci-check + API compat check | manual, workflow_call (push/PR triggers to be added when `ci-manual-trigger.yml` is deleted) |
+| `ci-trigger.yml` | Full CI suite: build-and-test + demoapps-ci-check + bcv-api-check | push/PR to main, daily schedule (via periodic-green-check), manual, workflow_call |
 | `demoapps-nightly-check.yml` | End-to-end snapshot validation: publish → push → wait → verify → cleanup | manual, workflow_call |
 | `nightly-build.yml` | Nightly cron wrapper, delegates to `demoapps-nightly-check.yml` | weekday schedule (6am UTC), manual |
 | `periodic-green-check.yml` | Scheduled CI health check + branch staleness detection | daily schedule, manual |
@@ -124,8 +123,8 @@ The emit step runs early so that `run_id` is available to the calling orchestrat
 | Atomic | Job that emits run_id |
 |---|---|
 | `build-and-test.yml` | `validate-inputs` |
-| `standalone-demoapp-tests.yml` | `validate-inputs` |
-| `bcv_api_check.yaml` | `api-compatibility` |
+| `demoapps-ci-check.yml` | `validate-inputs` |
+| `bcv-api-check.yml` | `api-compatibility` |
 | `conventional-commit.yml` | `validate-pr-title` |
 
 ## Notification Architecture
@@ -216,7 +215,7 @@ send-alerts:
 push/PR to main
   |
   v
-ci-manual-trigger.yml  [orchestrator]
+ci-trigger.yml  [orchestrator]
   |
   |--- build-and-test.yml  [atomic]
   |      validate-inputs --> test   (self-contained: compiles + runs tests, no build dep)
@@ -224,11 +223,13 @@ ci-manual-trigger.yml  [orchestrator]
   |                                --> ktlint
   |                                --> coverage-verification
   |
-  |--- standalone-demoapp-tests.yml  [atomic]
-  |      validate-inputs --> publish-to-maven-local --> test-demoapps
+  |--- demoapps-ci-check.yml  [atomic]
+  |      validate-inputs --> publish-to-maven-local --> test-starters
   |                                                --> test-starwars
+  |                                                --> test-kotlin-matrix
+  |                                                --> test-gradle-matrix
   |
-  |--- bcv_api_check.yaml  [atomic]
+  |--- bcv-api-check.yml  [atomic]
   |      api-compatibility
   |
   '--- [on push, if any atomic failed]
@@ -246,11 +247,11 @@ periodic-green-check.yml  [orchestrator]
   |--- ci-check
   |      |
   |      v
-  |    ci-manual-trigger.yml  [orchestrator, send_alerts: true]
+  |    ci-trigger.yml  [orchestrator, send_alerts: true]
   |      |
   |      |--- build-and-test.yml  [atomic]
-  |      |--- standalone-demoapp-tests.yml  [atomic]
-  |      |--- bcv_api_check.yaml  [atomic]
+  |      |--- demoapps-ci-check.yml  [atomic]
+  |      |--- bcv-api-check.yml  [atomic]
   |      |
   |      '--- [if any atomic failed]
   |             format-alerts --> send-alerts --> post-alerts.yml [helper] --> Slack + Discord
@@ -317,10 +318,9 @@ Notifications are suppressed on manual dispatch — the person who triggered the
 | Workflow | What you'd run it for | Key inputs |
 |---|---|---|
 | `build-and-test.yml` | Test a specific OS/Java combination | `os`, `java_versions` |
-| `standalone-demoapp-tests.yml` | Test demoapps against a specific OS/Java combination | `os`, `java_versions` |
-| `bcv_api_check.yaml` | Check API compatibility on a branch | — |
-| `ci-manual-trigger.yml` | Run the full CI suite on demand (legacy) | `send_alerts` (default: off) |
-| `ci-trigger.yml` | Run the full CI suite using new atomics | `send_alerts` (default: off) |
+| `demoapps-ci-check.yml` | Test demoapps against a specific OS/Java combination | `os`, `java_versions` |
+| `bcv-api-check.yml` | Check API compatibility on a branch | — |
+| `ci-trigger.yml` | Run the full CI suite on demand | `send_alerts` (default: off) |
 | `demoapps-nightly-check.yml` | Run the end-to-end snapshot validation loop | `ref`, `run_ci_check` (default: off) |
 | `nightly-build.yml` | Trigger the nightly validation without waiting for cron | — |
 | `periodic-green-check.yml` | Run scheduled checks without waiting for cron | `branch`, `mode` (ci-check / staleness-check / all) |
@@ -330,13 +330,9 @@ Notifications are suppressed on manual dispatch — the person who triggered the
 
 ## Appendix: Future Work
 
-### Workflow renames
+### Workflow renames — DONE
 
-Move logic from current workflows to their renamed replacements, then delete the originals:
-
-- `ci-manual-trigger.yml` --> `ci-trigger.yml`
-
-An empty stub for the new name already exists.
+`ci-manual-trigger.yml` has been replaced by `ci-trigger.yml`, which now owns the `push`/`pull_request` triggers and composes the CI atomics (`build-and-test.yml`, `demoapps-ci-check.yml`, `bcv-api-check.yml`). The old workflow has been deleted.
 
 ### Explicit permissions and concurrency
 
@@ -344,7 +340,7 @@ Not all workflows currently declare explicit `permissions:` blocks or `concurren
 
 - **Permissions:** set `permissions:` explicitly in every workflow, defaulting to read-only. Elevate only the specific jobs that need write access (e.g., a publication job needs `contents: write`; CI jobs do not). Each workflow should document which secrets it requires so callers know what `secrets: inherit` actually grants.
 
-- **Concurrency:** workflows that mutate shared state (publish artifacts, push branches) need `concurrency` groups keyed to the branch or publication target. Use `cancel-in-progress: true` only when the old run's results are genuinely stale and incomplete work is harmless — CI checks qualify; a half-finished publication does not.
+- **Concurrency:** workflows that mutate shared state — publish artifacts, push branches, **or write the shared `~/.gradle` build cache** — need `concurrency` groups keyed to the branch or target. Use `cancel-in-progress: true` only when interrupting the old run cannot corrupt that shared state. CI build/test runs on `main` do **not** qualify: they write the shared cache, and a run cancelled mid cache-save can leave a partial entry that a later run restores — a known cache-poisoning hazard (gradle/actions#72). `build-and-test.yml`, `demoapps-ci-check.yml`, and `bcv-api-check.yml` therefore set `cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}` — PRs fast-cancel superseded runs, `main` runs queue and complete. A half-finished publication likewise does not qualify.
 
 ### Build scan infrastructure — DONE
 
