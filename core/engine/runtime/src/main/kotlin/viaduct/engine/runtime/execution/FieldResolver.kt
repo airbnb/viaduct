@@ -1,44 +1,33 @@
 package viaduct.engine.runtime.execution
 
-import graphql.TrivialDataFetcher
-import graphql.execution.DataFetcherResult
 import graphql.execution.FetchedValue
 import graphql.execution.ResolveType
 import graphql.execution.instrumentation.FieldFetchingInstrumentationContext
 import graphql.execution.instrumentation.SimpleInstrumentationContext.nonNullCtx
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
-import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
-import graphql.schema.DataFetcher
 import graphql.schema.DataFetchingEnvironment
-import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLTypeUtil
-import graphql.schema.LightDataFetcher
 import graphql.util.FpKit
-import java.util.concurrent.CompletionStage
 import java.util.function.Supplier
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import viaduct.deferred.asDeferred
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ParentManagedValue
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolutionPolicy
-import viaduct.engine.api.StandardResolutionValue
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
 import viaduct.engine.runtime.EngineExecutionContextImpl
-import viaduct.engine.runtime.FetchedValueWithExtensions
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.LazyEngineObjectData
 import viaduct.engine.runtime.ObjectEngineResult
@@ -490,17 +479,8 @@ class FieldResolver(
         val field = checkNotNull(parameters.field) { "Expected parameters.field to be non-null." }
         val data = fetchedValue.fetchedValue ?: return syncFieldResolutionResult(null, fetchedValue, resolutionPolicy)
 
-        // Unwrap data from "ParentManagedValue" or "StandardResolutionValue" if necessary, and set the effective resolution policy
-        var effectiveResolutionPolicy = resolutionPolicy
-        val effectiveData = if (data is ParentManagedValue) {
-            effectiveResolutionPolicy = ResolutionPolicy.PARENT_MANAGED
-            data.value
-        } else if (data is StandardResolutionValue) {
-            effectiveResolutionPolicy = ResolutionPolicy.STANDARD
-            data.value
-        } else {
-            data
-        }
+        val (effectiveData, effectiveResolutionPolicy) =
+            FieldExecutionHelpers.unwrapResolutionValue(data, resolutionPolicy)
 
         if (effectiveData == null) {
             return syncFieldResolutionResult(null, fetchedValue, effectiveResolutionPolicy)
@@ -519,7 +499,7 @@ class FieldResolver(
             }
             return syncFieldResolutionResult(
                 resultIterable.mapIndexed { index, it ->
-                    val itemFV = toFetchedValueOrThrow(parameters, it)
+                    val itemFV = FieldExecutionHelpers.toFetchedValueOrThrow(parameters, it)
                     ObjectEngineResultImpl.newCell { slotSetter ->
                         val itemFieldResolutionResult = buildFieldResolutionResult(
                             parameters,
@@ -730,31 +710,21 @@ class FieldResolver(
         dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
     ): FieldFetchResult =
         try {
-            val fieldDef = parameters.executionStepInfo.fieldDefinition
-            var dataFetcher = parameters.graphQLSchema.codeRegistry.getDataFetcher(
-                FieldExecutionHelpers.coordinateOfField(parameters, field),
-                fieldDef
-            )
-
-            val instrumentationFieldFetchParams = InstrumentationFieldFetchParameters(
-                parameters.executionContextWithLocalContext,
-                dataFetchingEnvironmentProvider,
-                parameters.gjParameters,
-                dataFetcher is TrivialDataFetcher<*>
-            )
+            val fieldDataFetcher =
+                FieldExecutionHelpers.buildFieldDataFetcher(
+                    parameters,
+                    field,
+                    dataFetchingEnvironmentProvider,
+                )
             val fieldFetchingInstCtx = parameters.instrumentation.beginFieldFetching(
-                instrumentationFieldFetchParams,
+                fieldDataFetcher.instrumentationParameters,
                 parameters.executionContext.instrumentationState
             ) ?: FieldFetchingInstrumentationContext.NOOP
 
             fieldFetchingInstCtx.onDispatched()
 
-            // Instrument the data fetcher
-            dataFetcher = parameters.instrumentation.instrumentDataFetcher(
-                dataFetcher,
-                instrumentationFieldFetchParams,
-                parameters.executionContext.instrumentationState
-            )
+            val dataFetcher =
+                FieldExecutionHelpers.instrumentDataFetcher(parameters, fieldDataFetcher)
 
             // For top-level mutation and subscription fields, execute the data fetcher only if the access check succeeds.
             // For everything else, execute the access check in parallel with the data fetcher.
@@ -770,14 +740,31 @@ class FieldResolver(
                         // The field checker has failed. Don't execute the data fetcher.
                         Value.nullValue
                     } else {
-                        executeDataFetcher(parameters, fieldDef, dataFetchingEnvironmentProvider, dataFetcher)
+                        FieldExecutionHelpers.executeDataFetcher(
+                            parameters,
+                            fieldDataFetcher.fieldDefinition,
+                            dataFetchingEnvironmentProvider,
+                            dataFetcher,
+                        )
                     }
                 }
             } else {
                 // In parallel mode, execute data fetcher immediately
-                executeDataFetcher(parameters, fieldDef, dataFetchingEnvironmentProvider, dataFetcher)
+                FieldExecutionHelpers.executeDataFetcher(
+                    parameters,
+                    fieldDataFetcher.fieldDefinition,
+                    dataFetchingEnvironmentProvider,
+                    dataFetcher,
+                )
             }
-            val rawValue = dataFetcherResult.thenCompose { v, e -> dataFetcherResultToValue(field, parameters, v, e) }
+            val rawValue = dataFetcherResult.thenCompose { value, error ->
+                FieldExecutionHelpers.dataFetcherResultToValue(
+                    field,
+                    parameters,
+                    value,
+                    error,
+                )
+            }
 
             val result: Value<FieldResolutionResult> = rawValue
                 .flatMap { fv ->
@@ -846,92 +833,6 @@ class FieldResolver(
                 result = Value.fromThrowable(error),
                 checkerResult = Value.fromThrowable(error)
             )
-        }
-
-    /**
-     * Converts the result of [executeDataFetcher] into Value<FetchedValueWithExtensions>.
-     *
-     * @param field The field that was fetched
-     * @param parameters The execution parameters
-     * @param value The result of executing the data fetcher
-     * @param error Any exception from executing the data fetcher
-     */
-    private fun dataFetcherResultToValue(
-        field: QueryPlan.CollectedField,
-        parameters: ExecutionParameters,
-        value: Any?,
-        error: Throwable?
-    ): Value<FetchedValueWithExtensions> {
-        if (error != null) {
-            // wrap the exception in a FieldFetchingException to disambiguate it from other exceptions
-            return Value.fromThrowable(FieldFetchingException.wrapWithPathAndLocation(error, parameters.path, field.sourceLocation))
-        }
-
-        return Value.fromValue(toFetchedValueOrThrow(parameters, value))
-    }
-
-    /**
-     * Converts a data fetcher result to [FetchedValueWithExtensions].
-     *
-     * Handles two input types:
-     * - Raw values (String, List, Map, null, etc.) → wrapped in [FetchedValueWithExtensions]
-     * - [DataFetcherResult] → extracts data/errors/extensions and wraps in [FetchedValueWithExtensions]
-     *
-     * @param parameters The execution parameters.
-     * @param result The result from the data fetcher.
-     * @return A [FetchedValueWithExtensions] containing the normalized result.
-     * @throws IllegalStateException if result is already a [FetchedValueWithExtensions], as this indicates a double-wrapping bug.
-     */
-    private fun toFetchedValueOrThrow(
-        parameters: ExecutionParameters,
-        result: Any?,
-    ): FetchedValueWithExtensions {
-        check(result !is FetchedValueWithExtensions) {
-            "Result is already a FetchedValueWithExtensions - this indicates a double-wrapping bug"
-        }
-        if (result !is DataFetcherResult<*>) {
-            return FetchedValueWithExtensions(
-                parameters.executionContext.valueUnboxer.unbox(result),
-                mutableListOf(),
-                parameters.localContext,
-                emptyMap()
-            )
-        }
-        val localContext = result.localContext?.let { result.compositeLocalContext }
-            ?: parameters.localContext
-        val value = parameters.executionContext.valueUnboxer.unbox(result.data)
-        return FetchedValueWithExtensions(value, result.errors, localContext, result.extensions ?: emptyMap())
-    }
-
-    /**
-     * Executes a data fetcher and handles both sync and async results.
-     *
-     * @param parameters The execution parameters
-     * @param fieldDef The field definition
-     * @param dataFetchingEnvironment The data fetching environment supplier
-     * @param dataFetcher The data fetcher to execute
-     * @return [Value] that describes the fetched data or error
-     */
-    private fun executeDataFetcher(
-        parameters: ExecutionParameters,
-        fieldDef: GraphQLFieldDefinition,
-        dataFetchingEnvironment: Supplier<DataFetchingEnvironment>,
-        dataFetcher: DataFetcher<*>,
-    ): Value<Any?> =
-        try {
-            if (dataFetcher is LightDataFetcher) {
-                dataFetcher.get(fieldDef, parameters.source, dataFetchingEnvironment)
-            } else {
-                dataFetcher.get(dataFetchingEnvironment.get())
-            }.let { // Any? | CompletionStage<*>
-                if (it is CompletionStage<*>) {
-                    Value.fromDeferred(it.asDeferred())
-                } else {
-                    Value.fromValue(it)
-                }
-            }
-        } catch (e: Exception) {
-            Value.fromThrowable(e)
         }
 
     private fun shouldExecuteCheckerSequentially(parameters: ExecutionParameters): Boolean {

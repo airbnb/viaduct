@@ -1,8 +1,10 @@
 package viaduct.engine.runtime.execution
 
 import graphql.GraphQLContext
+import graphql.TrivialDataFetcher
 import graphql.collect.ImmutableMapWithNullValues
 import graphql.execution.CoercedVariables
+import graphql.execution.DataFetcherResult
 import graphql.execution.ExecutionContext
 import graphql.execution.ExecutionStepInfo
 import graphql.execution.ExecutionStepInfoFactory
@@ -13,10 +15,12 @@ import graphql.execution.RawVariables
 import graphql.execution.ResultPath
 import graphql.execution.ValuesResolver
 import graphql.execution.directives.QueryDirectivesImpl
+import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.language.Argument
 import graphql.language.SelectionSet as GJSelectionSet
 import graphql.language.VariableDefinition
 import graphql.normalized.ExecutableNormalizedField
+import graphql.schema.DataFetcher
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.DataFetchingEnvironmentImpl
 import graphql.schema.DataFetchingFieldSelectionSetImpl
@@ -28,13 +32,19 @@ import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLNamedType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLTypeUtil
+import graphql.schema.LightDataFetcher
 import graphql.util.FpKit
 import java.util.Locale
+import java.util.concurrent.CompletionStage
 import java.util.function.Supplier
+import viaduct.deferred.asDeferred
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.ParentManagedValue
 import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.ResolutionPolicy
+import viaduct.engine.api.StandardResolutionValue
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.gj
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
@@ -44,9 +54,12 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFil
 import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
 import viaduct.engine.runtime.EngineExecutionContextExtensions.matResolutionEnabled
 import viaduct.engine.runtime.EngineResultLocalContext
+import viaduct.engine.runtime.FetchedValueWithExtensions
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
+import viaduct.engine.runtime.Value
+import viaduct.engine.runtime.exceptions.FieldFetchingException
 import viaduct.engine.runtime.observability.ExecutionObservabilityContext
 import viaduct.graphql.utils.ParsedSelections
 
@@ -61,6 +74,116 @@ object FieldExecutionHelpers {
         val fieldName = field.mergedField.name
         return (objectType.name to fieldName).gj
     }
+
+    /** Builds the data fetcher and instrumentation parameters for [field]. */
+    internal fun buildFieldDataFetcher(
+        parameters: ExecutionParameters,
+        field: QueryPlan.CollectedField,
+        dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
+    ): FieldDataFetcher {
+        val fieldDefinition = parameters.executionStepInfo.fieldDefinition
+        val dataFetcher = parameters.graphQLSchema.codeRegistry.getDataFetcher(
+            coordinateOfField(parameters, field),
+            fieldDefinition,
+        )
+        return FieldDataFetcher(
+            fieldDefinition = fieldDefinition,
+            dataFetcher = dataFetcher,
+            instrumentationParameters = InstrumentationFieldFetchParameters(
+                parameters.executionContextWithLocalContext,
+                dataFetchingEnvironmentProvider,
+                parameters.gjParameters,
+                dataFetcher is TrivialDataFetcher<*>,
+            ),
+        )
+    }
+
+    /** Applies field instrumentation to the data fetcher. */
+    internal fun instrumentDataFetcher(
+        parameters: ExecutionParameters,
+        fieldDataFetcher: FieldDataFetcher,
+    ): DataFetcher<*> =
+        parameters.instrumentation.instrumentDataFetcher(
+            fieldDataFetcher.dataFetcher,
+            fieldDataFetcher.instrumentationParameters,
+            parameters.executionContext.instrumentationState,
+        )
+
+    /** Executes [dataFetcher] and wraps its result or failure in a [Value]. */
+    internal fun executeDataFetcher(
+        parameters: ExecutionParameters,
+        fieldDefinition: GraphQLFieldDefinition,
+        dataFetchingEnvironment: Supplier<DataFetchingEnvironment>,
+        dataFetcher: DataFetcher<*>,
+    ): Value<Any?> =
+        try {
+            if (dataFetcher is LightDataFetcher) {
+                dataFetcher.get(fieldDefinition, parameters.source, dataFetchingEnvironment)
+            } else {
+                dataFetcher.get(dataFetchingEnvironment.get())
+            }.let {
+                if (it is CompletionStage<*>) {
+                    Value.fromDeferred(it.asDeferred())
+                } else {
+                    Value.fromValue(it)
+                }
+            }
+        } catch (e: Exception) {
+            Value.fromThrowable(e)
+        }
+
+    /** Converts a data fetcher result or failure into a fetched-value [Value]. */
+    internal fun dataFetcherResultToValue(
+        field: QueryPlan.CollectedField,
+        parameters: ExecutionParameters,
+        value: Any?,
+        error: Throwable?,
+    ): Value<FetchedValueWithExtensions> {
+        if (error != null) {
+            return Value.fromThrowable(
+                FieldFetchingException.wrapWithPathAndLocation(
+                    error,
+                    parameters.path,
+                    field.sourceLocation,
+                )
+            )
+        }
+
+        return Value.fromValue(toFetchedValueOrThrow(parameters, value))
+    }
+
+    /** Converts [result] into a [FetchedValueWithExtensions]. */
+    internal fun toFetchedValueOrThrow(
+        parameters: ExecutionParameters,
+        result: Any?,
+    ): FetchedValueWithExtensions {
+        check(result !is FetchedValueWithExtensions) {
+            "Result is already a FetchedValueWithExtensions - this indicates a double-wrapping bug"
+        }
+        if (result !is DataFetcherResult<*>) {
+            return FetchedValueWithExtensions(
+                parameters.executionContext.valueUnboxer.unbox(result),
+                mutableListOf(),
+                parameters.localContext,
+                emptyMap(),
+            )
+        }
+        val localContext = result.localContext?.let { result.compositeLocalContext }
+            ?: parameters.localContext
+        val value = parameters.executionContext.valueUnboxer.unbox(result.data)
+        return FetchedValueWithExtensions(value, result.errors, localContext, result.extensions ?: emptyMap())
+    }
+
+    /** Returns the underlying value and effective resolution policy for [data]. */
+    internal fun unwrapResolutionValue(
+        data: Any?,
+        resolutionPolicy: ResolutionPolicy,
+    ): UnwrappedResolutionValue =
+        when (data) {
+            is ParentManagedValue -> UnwrappedResolutionValue(data.value, ResolutionPolicy.PARENT_MANAGED)
+            is StandardResolutionValue -> UnwrappedResolutionValue(data.value, ResolutionPolicy.STANDARD)
+            else -> UnwrappedResolutionValue(data, resolutionPolicy)
+        }
 
     /**
      * Builds the key for the [ObjectEngineResultImpl] for a given field.
@@ -482,3 +605,16 @@ object FieldExecutionHelpers {
             )
         }
 }
+
+/** Holds a data fetcher and the metadata needed to execute and instrument it. */
+internal data class FieldDataFetcher(
+    val fieldDefinition: GraphQLFieldDefinition,
+    val dataFetcher: DataFetcher<*>,
+    val instrumentationParameters: InstrumentationFieldFetchParameters,
+)
+
+/** Holds an unwrapped resolver value and its effective resolution policy. */
+internal data class UnwrappedResolutionValue(
+    val value: Any?,
+    val resolutionPolicy: ResolutionPolicy,
+)
