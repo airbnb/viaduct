@@ -204,6 +204,12 @@ class ObjectEngineResultImplTest {
     }
 
     @Test
+    fun `response key uses alias when present`() {
+        assertEquals("test", ObjectEngineResult.Key("test").responseKey)
+        assertEquals("alias", ObjectEngineResult.Key("test", "alias").responseKey)
+    }
+
+    @Test
     fun `test fetch with selection set`() {
         runBlocking {
             val engine = newOER()

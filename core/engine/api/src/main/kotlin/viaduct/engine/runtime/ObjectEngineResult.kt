@@ -32,6 +32,9 @@ interface ObjectEngineResult {
         val arguments: Map<String, Any?> = emptyMap(),
         val selections: Selections? = null,
     ) {
+        val responseKey: String
+            get() = alias ?: name
+
         companion object {
             operator fun invoke(
                 name: String,
