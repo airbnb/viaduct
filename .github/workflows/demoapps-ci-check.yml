@@ -23,7 +23,7 @@ permissions:
 
 concurrency:
   group: demoapps-ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   validate-inputs:

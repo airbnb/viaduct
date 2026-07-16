@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
     group: bcv-api-check-${{ github.ref }}
-    cancel-in-progress: true
+    cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
     api-compatibility:
