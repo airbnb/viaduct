@@ -34,7 +34,6 @@ import java.util.function.Supplier
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.gj
@@ -44,7 +43,6 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistr
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
 import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
 import viaduct.engine.runtime.EngineExecutionContextExtensions.matResolutionEnabled
-import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
@@ -215,17 +213,9 @@ object FieldExecutionHelpers {
             .queryDirectives(queryDirectives)
             .build()
 
-        // Get the EngineExecutionContext from local context and update it with
-        // context-sensitive field scope (fragments/variables)
-        val fieldScope = FpKit.intraThreadMemoize {
-            EngineExecutionContextImpl.FieldExecutionScopeImpl(
-                fragments = parameters.queryPlan.fragments.map.mapValues { it.value.gjDef },
-                variables = parameters.coercedVariables.toMap(),
-                resolutionPolicy = parameters.resolutionPolicy,
-                attribution = parameters.queryPlan.attribution ?: ExecutionAttribution.DEFAULT,
-            )
-        }
-        val updatedEngineExecCtx = parameters.engineExecutionContext.copy(fieldScopeSupplier = fieldScope)
+        // Give the DFE its own EEC copy so the wrapper can point back at this DFE
+        // without mutating the ExecutionParameters-owned context.
+        val updatedEngineExecCtx = parameters.engineExecutionContext.copy()
         return ViaductDataFetchingEnvironmentImpl(dfe, updatedEngineExecCtx)
     }
 

@@ -1,16 +1,25 @@
 package viaduct.engine.runtime
 
+import graphql.ExecutionResult
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.future.await
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.ExecutionInput
 import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.FeatureTest
+import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
+import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 
 @ExperimentalCoroutinesApi
 class VariablesResolverTest {
@@ -240,4 +249,58 @@ class VariablesResolverTest {
             assertTrue(error.message.contains("variable resolver boom"))
         }
     }
+
+    @Test
+    fun `variable resolver required selection with aliased typename does not hang`() {
+        MockTenantModuleBootstrapper(
+            "extend type Query { flag:Boolean, query:Query }"
+        ) {
+            field("Query" to "query") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Query")!!,
+                            emptyMap()
+                        )
+                    }
+                }
+            }
+
+            field("Query" to "flag") {
+                resolver {
+                    objectSelections(
+                        "query @skip(if: ${"$"}skipNested) { __typename }"
+                    ) {
+                        variables(
+                            "skipNested",
+                            rss = createRSS(
+                                "Query",
+                                "query { ignored: __typename }"
+                            )
+                        ) { _, _ -> mapOf("skipNested" to true) }
+                    }
+                    fn { _, _, _, _, _ -> true }
+                }
+            }
+        }.runFeatureTest {
+            runQueryWithTimeout("{ query { flag } }")
+                .assertJson("{data: {query: {flag: true}}}")
+        }
+    }
+}
+
+@OptIn(ExperimentalCoroutinesApi::class)
+private fun FeatureTest.runQueryWithTimeout(query: String): ExecutionResult {
+    lateinit var result: ExecutionResult
+    runTest(timeout = 2.seconds) {
+        result = DefaultCoroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
+            engine.execute(
+                ExecutionInput(
+                    operationText = query,
+                    requestContext = Any(),
+                )
+            )
+        }.await()
+    }
+    return result
 }

@@ -510,6 +510,27 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
     }
 
     @Test
+    fun `allCoords -- concrete parent scope ignores sibling object from interface fragment`() {
+        val schema = mkSchema(
+            """
+            type Query { placeholder: Int }
+            interface HasChild { child: HasChild }
+            type Foo implements HasChild { child: HasChild }
+            type Bar implements HasChild { child: HasChild }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            setOf("Foo" to "child", "Foo" to "__typename", "Bar" to "__typename"),
+            mk(
+                "Foo",
+                "... on HasChild { child { __typename } }",
+                schema = schema,
+            ).allCoords(ViaductSchema(schema))
+        )
+    }
+
+    @Test
     fun `reachableObjects -- leaf fields return empty set`() {
         assertEquals(
             emptySet<String>(),
@@ -557,6 +578,27 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
                 """.trimIndent(),
                 schema = polymorphicSchema,
             ).reachableObjects(ViaductSchema(polymorphicSchema))
+        )
+    }
+
+    @Test
+    fun `reachableObjects -- concrete parent scope ignores sibling object from interface fragment`() {
+        val schema = mkSchema(
+            """
+            type Query { placeholder: Int }
+            interface HasChild { child: HasChild }
+            type Foo implements HasChild { child: HasChild }
+            type Bar implements HasChild { child: HasChild }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            setOf("Foo", "Bar"),
+            mk(
+                "Foo",
+                "... on HasChild { child { __typename } }",
+                schema = schema,
+            ).reachableObjects(ViaductSchema(schema))
         )
     }
 

@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.graphql.asDocument
 import viaduct.arbitrary.graphql.asSchema
@@ -526,6 +527,26 @@ class QueryPlanTest {
             assertEquals(listOf(varResolver), rssPlan.variablesResolvers)
             rssPlan.childPlanIds.shouldHaveSize(1)
             assertEquals(1, varResolver.requiredSelectionSetReads)
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- prunes statically skippable fragments`() {
+        val reg = MockRequiredSelectionSetRegistry.builder()
+            .fieldResolverEntry(
+                "Query" to "x",
+                """
+                    fragment Main on Query { ...Frag @skip(if: true) }
+                    fragment Frag on Query { __typename }
+                """.trimIndent(),
+            )
+            .build()
+
+        Fixture("type Query { x:Int }", reg) {
+            val plan = buildPlan("{x}")
+            val rssPlan = plan.planFor((plan.selectionSet.selections.single() as Field).childPlans.single())
+
+            assertTrue(rssPlan.fragments.isEmpty())
         }
     }
 

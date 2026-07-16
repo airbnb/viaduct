@@ -14,6 +14,7 @@ import graphql.language.TypeName as GJTypeName
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLTypeUtil
+import java.util.function.Supplier
 import javax.inject.Inject
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.ExperimentalTime
@@ -113,9 +114,13 @@ data class ExecutionParameters(
 
     // Each ExecutionParameters gets its own EEC copy to prevent cross-contamination
     // between different execution contexts (e.g., parent vs child field resolution).
-    // The handle is set eagerly to ensure eec.copy() always preserves the correct handle.
+    // The field scope is bound here so the EEC always reflects this parameter's plan
+    // variables/fragments. The handle is set eagerly to ensure eec.copy() preserves
+    // the correct handle.
     init {
-        _engineExecutionContext = _engineExecutionContext.copy()
+        _engineExecutionContext = _engineExecutionContext.copy(
+            fieldScopeSupplier = fieldExecutionScopeSupplier()
+        )
         _engineExecutionContext.setExecutionHandle(this)
     }
 
@@ -161,6 +166,19 @@ data class ExecutionParameters(
      */
     val engineExecutionContext: EngineExecutionContext
         get() = _engineExecutionContext
+
+    private fun fieldExecutionScopeSupplier(): Supplier<EngineExecutionContext.FieldExecutionScope> =
+        Supplier {
+            EngineExecutionContextImpl.FieldExecutionScopeImpl(
+                // Reconstruct selections with the same fragment namespace as the plan's AST.
+                // RSS fragments may be pruned from the executable plan or collide by name with
+                // fragments from the client operation.
+                fragments = queryPlan.fragments.source,
+                variables = coercedVariables.toMap(),
+                resolutionPolicy = resolutionPolicy,
+                attribution = queryPlan.attribution ?: ExecutionAttribution.DEFAULT,
+            )
+        }
 
     /** replace [queryPlanIndex] with the provided value */
     fun withQueryPlanIndex(newQueryPlanIndex: QueryPlanIndex): ExecutionParameters =

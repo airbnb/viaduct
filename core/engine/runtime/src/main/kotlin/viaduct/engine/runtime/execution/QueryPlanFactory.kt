@@ -507,7 +507,8 @@ private class QueryPlanBuilder(
         )
 
         val plannedFragments = QueryPlan.Fragments(
-            retainedFragments.associateWith(allFragments::getValue)
+            map = retainedFragments.associateWith(allFragments::getValue),
+            source = fragmentsByName,
         )
         val activeVariableNames = state.selectionSet.activeVariableNames(plannedFragments)
         val variableDefinitions = selectionSet.collectVariableDefinitions(

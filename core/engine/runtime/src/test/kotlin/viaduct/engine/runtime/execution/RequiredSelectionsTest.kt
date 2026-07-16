@@ -26,6 +26,7 @@ import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
 import viaduct.graphql.scopes.ScopedSchemaBuilder
+import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.mocks.MockFlagManager
 
 @ExperimentalCoroutinesApi
@@ -177,6 +178,77 @@ class RequiredSelectionsTest {
             runQuery("{foo}")
                 .assertJson("""{"data": {"foo": 6}}""")
         }
+
+    @Test
+    fun `child RSS keeps pruned fragments separate from operation fragments`() {
+        val module = EngineTestModule(
+            """
+            extend type Query {
+                container: Container!
+                result: Int!
+            }
+
+            type Container {
+                value: Int!
+                rssOnly: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, selections, _ ->
+                        val value = if ("rssOnly" in checkNotNull(selections).conditionallyExcludedResultKeys()) {
+                            1
+                        } else {
+                            2
+                        }
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf("value" to value),
+                        )
+                    }
+                }
+            }
+            field("Query" to "result") {
+                resolver {
+                    objectSelections(
+                        """
+                        fragment Main on Query {
+                            container {
+                                value
+                                ...Shared @skip(if: true)
+                            }
+                        }
+
+                        fragment Shared on Container {
+                            rssOnly
+                        }
+                        """.trimIndent()
+                    )
+                    fn { _, obj, _, _, _ ->
+                        obj.fetchAs<EngineObjectData>("container").fetchAs<Int>("value")
+                    }
+                }
+            }
+        }
+
+        val flagManagers = listOf(
+            MockFlagManager.Disabled,
+            MockFlagManager.create(FlagManager.Flags.ENABLE_MAT_RESOLUTION),
+        )
+        for (flagManager in flagManagers) {
+            module.runFeatureTest(
+                engineConfig = EngineConfiguration.featureTestDefault.copy(flagManager = flagManager)
+            ) {
+                runQuery(
+                    """
+                    query { ...Shared }
+                    fragment Shared on Query { result }
+                    """.trimIndent()
+                ).assertJson("{data: {result: 1}}")
+            }
+        }
+    }
 
     @Test
     fun `required selections use untyped inline fragments`() =

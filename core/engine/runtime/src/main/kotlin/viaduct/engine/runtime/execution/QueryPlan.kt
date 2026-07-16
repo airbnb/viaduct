@@ -189,10 +189,27 @@ data class QueryPlan(
         val index: QueryPlanIndex,
     )
 
-    data class Fragments(val map: Map<String, FragmentDefinition>) : Map<String, FragmentDefinition> by map {
-        operator fun plus(other: Fragments): Fragments = copy(map + other.map)
+    data class Fragments(
+        val map: Map<String, FragmentDefinition>,
+        /**
+         * Original source fragments for this plan. GJ AST-backed tenant selection sets, such as
+         * EngineSelectionSetImpl, need it because [map] omits fragments pruned during planning and
+         * client and RSS plans may reuse fragment names. It can be removed once all tenant selection
+         * sets use [ExecutionSelectionSet].
+         */
+        val source: Map<String, GJFragmentDefinition> = map.mapValues { it.value.gjDef },
+    ) : Map<String, FragmentDefinition> by map {
+        operator fun plus(other: Fragments): Fragments =
+            copy(
+                map = map + other.map,
+                source = source + other.source,
+            )
 
-        operator fun plus(entry: Pair<String, FragmentDefinition>): Fragments = copy(map + entry)
+        operator fun plus(entry: Pair<String, FragmentDefinition>): Fragments =
+            copy(
+                map = map + entry,
+                source = source + (entry.first to entry.second.gjDef),
+            )
 
         companion object {
             val empty: Fragments = Fragments(emptyMap())

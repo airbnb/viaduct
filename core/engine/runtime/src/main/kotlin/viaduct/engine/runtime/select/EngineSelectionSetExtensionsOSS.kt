@@ -46,8 +46,9 @@ fun EngineSelectionSet.toFragmentDefinition(fragmentName: String = EntryPointFra
 fun EngineSelectionSet.allCoords(schema: ViaductSchema): Set<Coordinate> =
     buildSet {
         fun visit(selectionSet: EngineSelectionSet) {
+            val selectionSetType = schema.schema.getTypeAs<GraphQLCompositeType>(selectionSet.type)
             for (sel in selectionSet.selections()) {
-                val concreteParentTypes = concreteObjectTypeNames(sel.typeCondition, schema)
+                val concreteParentTypes = concreteObjectTypeNames(sel.typeCondition, selectionSetType, schema)
                 concreteParentTypes.forEach { objectTypeName -> add(objectTypeName to sel.fieldName) }
 
                 for (parentType in concreteParentTypes) {
@@ -69,8 +70,9 @@ fun EngineSelectionSet.allCoords(schema: ViaductSchema): Set<Coordinate> =
 fun EngineSelectionSet.reachableObjects(schema: ViaductSchema): Set<String> =
     buildSet {
         fun visit(selectionSet: EngineSelectionSet) {
+            val selectionSetType = schema.schema.getTypeAs<GraphQLCompositeType>(selectionSet.type)
             for (sel in selectionSet.selections()) {
-                val concreteParentTypes = concreteObjectTypeNames(sel.typeCondition, schema)
+                val concreteParentTypes = concreteObjectTypeNames(sel.typeCondition, selectionSetType, schema)
 
                 for (parentType in concreteParentTypes) {
                     val fieldDef = schema.schema.getFieldDefinition((parentType to sel.fieldName).gj)
@@ -114,8 +116,19 @@ fun EngineSelectionSet.relation(
 
 private fun concreteObjectTypeNames(
     typeName: String,
+    scopeType: GraphQLCompositeType,
     schema: ViaductSchema
 ): List<String> {
     val type = schema.schema.getTypeAs<GraphQLCompositeType>(typeName)
-    return schema.rels.possibleObjectTypes(type).toList().map { it.name }
+    return schema.rels.possibleObjectTypes(type)
+        .intersect(schema.rels.possibleObjectTypes(scopeType))
+        .map { it.name }
+}
+
+private fun concreteObjectTypeNames(
+    typeName: String,
+    schema: ViaductSchema
+): List<String> {
+    val type = schema.schema.getTypeAs<GraphQLCompositeType>(typeName)
+    return schema.rels.possibleObjectTypes(type).map { it.name }
 }
