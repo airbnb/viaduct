@@ -178,7 +178,7 @@ class AssembleTenantModuleConfigJarTest {
             name = "leaf.jar",
             entries = mapOf(
                 "viaduct-registry/com/example/feature/Resolvers.json" to
-                    """{"nodes":[],"fields":[{"attribution":"AResolver","implFqn":"com.example.AResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.A","typeName":"A","fieldName":"f"}],"grtPackagePrefix":"viaduct.api.grts","namedFragments":["fragment AFields on A { id }"]}""",
+                    """{"nodes":[],"fields":[{"attribution":"AResolver","implFqn":"com.example.AResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.A","typeName":"A","fieldName":"f"}],"grtPackagePrefix":"viaduct.api.grts","namedFragments":[{"text":"fragment AFields on A { id }"}]}""",
             ),
         )
         val out = outputJar()
@@ -234,7 +234,7 @@ class AssembleTenantModuleConfigJarTest {
             name = "leaf-frags.jar",
             entries = mapOf(
                 "viaduct-registry/com/example/feature/FieldAndFragments.json" to
-                    """{"nodes":[],"fields":[{"attribution":"AResolver","implFqn":"com.example.AResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.A","typeName":"A","fieldName":"f","objectSelections":{"selections":"fragment _ on A { ...UserFields }","variablesProviders":[]}}],"grtPackagePrefix":"viaduct.api.grts","namedFragments":["fragment UserFields on User { id name }"]}""",
+                    """{"nodes":[],"fields":[{"attribution":"AResolver","implFqn":"com.example.AResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.A","typeName":"A","fieldName":"f","objectSelections":{"selections":"fragment _ on A { ...UserFields }","variablesProviders":[]}}],"grtPackagePrefix":"viaduct.api.grts","namedFragments":[{"text":"fragment UserFields on User { id name }"}]}""",
             ),
         )
         val out = outputJar()

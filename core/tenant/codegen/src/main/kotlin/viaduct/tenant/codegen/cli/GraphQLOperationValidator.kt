@@ -1,6 +1,5 @@
 package viaduct.tenant.codegen.cli
 
-import graphql.language.FragmentDefinition
 import graphql.language.OperationDefinition
 import graphql.schema.GraphQLSchema
 import graphql.validation.QueryComplexityLimits
@@ -74,47 +73,12 @@ internal class GraphQLOperationValidator(
         fragmentsByName: Map<String, String>,
         errors: MutableList<String>,
     ) {
-        val expanded = appendReachableFragments(document, fragmentsByName)
+        val expanded = FragmentSpreadCollector.appendReachableExternalFragments(document, fragmentsByName)
         validator.validateDocument(schema, expanded, { true }, Locale.ENGLISH, QueryComplexityLimits.NONE)
             .filterNot { it.validationErrorType in FILTERED_ERRORS }
             .forEach { error ->
                 errors.add("@GraphQLOperation validation failed for ${operation.implFqn}: ${error.message}")
             }
-    }
-
-    /**
-     * Appends external @GraphQLFragment definitions transitively reachable from the document's
-     * fragment spreads. Fragments already defined locally in the document are not appended, so a
-     * local definition shadows a same-named external one.
-     */
-    private fun appendReachableFragments(
-        document: graphql.language.Document,
-        fragmentsByName: Map<String, String>,
-    ): graphql.language.Document {
-        if (fragmentsByName.isEmpty()) return document
-
-        val localNames = document.getDefinitionsOfType(FragmentDefinition::class.java).map { it.name }.toSet()
-        val reachable = FragmentSpreadCollector.collectReachableExternalFragments(
-            roots = document.definitions.mapNotNull {
-                when (it) {
-                    is OperationDefinition -> it.selectionSet
-                    is FragmentDefinition -> it.selectionSet
-                    else -> null
-                }
-            },
-            knownFragments = fragmentsByName,
-            alreadyDefined = localNames,
-        )
-        if (reachable.isEmpty()) return document
-
-        val builder = graphql.language.Document.newDocument()
-        document.definitions.forEach(builder::definition)
-        reachable.forEach { name ->
-            DocumentParser.parse(fragmentsByName.getValue(name))
-                .getDefinitionsOfType(FragmentDefinition::class.java)
-                .forEach(builder::definition)
-        }
-        return builder.build()
     }
 
     private fun OperationKind.baseClassName(): String =

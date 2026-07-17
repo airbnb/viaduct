@@ -314,7 +314,7 @@ class AssembleTenantModuleConfigFileTest {
             """{"nodes":[],"fields":[{"attribution":"AResolver","implFqn":"com.example.AResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.A","typeName":"A","fieldName":"f"}],"grtPackagePrefix":"viaduct.api.grts"}""",
         )
         File(descriptors, "FragmentDefs.json").writeText(
-            """{"nodes":[],"fields":[],"namedFragments":["fragment AFields on A { id }"]}""",
+            """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment AFields on A { id }"}]}""",
         )
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
@@ -347,7 +347,7 @@ class AssembleTenantModuleConfigFileTest {
                 }
               } ],
               "grtPackagePrefix": "viaduct.api.grts",
-              "namedFragments": [ "fragment UserFields on User { id name }" ]
+              "namedFragments": [ {"text": "fragment UserFields on User { id name }"} ]
             }
             """.trimIndent(),
         )
@@ -379,7 +379,7 @@ class AssembleTenantModuleConfigFileTest {
                 }
               } ],
               "grtPackagePrefix": "viaduct.api.grts",
-              "namedFragments": [ "fragment ViewerFields on Query { viewer { name } }" ]
+              "namedFragments": [ {"text": "fragment ViewerFields on Query { viewer { name } }"} ]
             }
             """.trimIndent(),
         )
@@ -397,7 +397,7 @@ class AssembleTenantModuleConfigFileTest {
             """{"nodes":[],"fields":[{"attribution":"AResolver","implFqn":"com.example.AResolver","isBatching":false,"isSelective":false,"resolverBaseClass":"com.example.bases.A","typeName":"A","fieldName":"f","objectSelections":{"selections":"fragment _ on A { ...AFields }","variablesProviders":[]}}],"grtPackagePrefix":"viaduct.api.grts"}""",
         )
         File(descriptors, "FragmentDefs.json").writeText(
-            """{"nodes":[],"fields":[],"namedFragments":["fragment AFields on A { id }"]}""",
+            """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment AFields on A { id }"}]}""",
         )
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
@@ -427,7 +427,7 @@ class AssembleTenantModuleConfigFileTest {
                 }
               } ],
               "grtPackagePrefix": "viaduct.api.grts",
-              "namedFragments": [ "fragment UnusedFrag on User { email }" ]
+              "namedFragments": [ {"text": "fragment UnusedFrag on User { email }"} ]
             }
             """.trimIndent(),
         )
@@ -463,7 +463,7 @@ class AssembleTenantModuleConfigFileTest {
                 }
               } ],
               "grtPackagePrefix": "viaduct.api.grts",
-              "namedFragments": [ "fragment UserFields on User { id name }" ]
+              "namedFragments": [ {"text": "fragment UserFields on User { id name }"} ]
             }
             """.trimIndent(),
         )
@@ -480,10 +480,10 @@ class AssembleTenantModuleConfigFileTest {
     fun `duplicate @GraphQLFragment names across descriptors fail at assembly`() {
         val descriptors = descriptorDir()
         File(descriptors, "FragA.json").writeText(
-            """{"nodes":[],"fields":[],"namedFragments":["fragment UserFields on User { id }"]}""",
+            """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment UserFields on User { id }"}]}""",
         )
         File(descriptors, "FragB.json").writeText(
-            """{"nodes":[],"fields":[],"namedFragments":["fragment UserFields on User { name }"]}""",
+            """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment UserFields on User { name }"}]}""",
         )
         val exception = assertThrows<IllegalStateException> {
             runCli(descriptors = descriptors, out = outputDir())
@@ -513,7 +513,7 @@ class AssembleTenantModuleConfigFileTest {
                 }
               } ],
               "grtPackagePrefix": "viaduct.api.grts",
-              "namedFragments": [ "fragment SharedName on Listing { name }" ]
+              "namedFragments": [ {"text": "fragment SharedName on Listing { name }"} ]
             }
             """.trimIndent(),
         )
@@ -715,7 +715,7 @@ class AssembleTenantModuleConfigFileTest {
             """.trimIndent(),
         )
         File(descriptors, "FragmentDefs.json").writeText(
-            """{"nodes":[],"fields":[],"namedFragments":["fragment UserFields on User { id name }"]}""",
+            """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment UserFields on User { id name }"}]}""",
         )
         val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
         val out = outputDir()
@@ -750,13 +750,16 @@ class AssembleTenantModuleConfigFileTest {
             """.trimIndent(),
         )
         File(descriptors, "FragmentDefs.json").writeText(
-            """{"nodes":[],"fields":[],"namedFragments":["fragment UserFields on User { bogusField }"]}""",
+            """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment UserFields on User { bogusField }"}]}""",
         )
         val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
         val exception = assertThrows<IllegalStateException> {
             runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
         }
-        assertTrue(exception.message!!.contains("RSS validation failed"), exception.message)
+        // The invalid fragment is caught by standalone @GraphQLFragment validation, which runs before
+        // RSS validation — an undefined field is a defect regardless of whether a resolver spreads it.
+        assertTrue(exception.message!!.contains("@GraphQLFragment validation failed"), exception.message)
+        assertTrue(exception.message!!.contains("bogusField"), exception.message)
     }
 
     @Test
@@ -965,6 +968,84 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
+    fun `schema-sdl validates a standalone named fragment that nothing spreads`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "FragmentDefs.json").writeText(
+            """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment UserFields on User { id name }"}]}""",
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
+        // Should not throw — the fragment is valid even though no resolver or operation spreads it.
+        runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
+    }
+
+    @Test
+    fun `schema-sdl rejects a standalone named fragment referencing an unknown field`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "FragmentDefs.json").writeText(
+            """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment UserFields on User { notAField }"}]}""",
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
+        val exception = assertThrows<IllegalStateException> {
+            runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
+        }
+        assertTrue(exception.message!!.contains("@GraphQLFragment validation failed"), exception.message)
+        assertTrue(exception.message!!.contains("notAField"), exception.message)
+    }
+
+    @Test
+    fun `schema-sdl rejects a standalone named fragment on an unknown type`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "FragmentDefs.json").writeText(
+            """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment BogusFields on Bogus { id }"}]}""",
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
+        val exception = assertThrows<IllegalStateException> {
+            runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
+        }
+        assertTrue(exception.message!!.contains("@GraphQLFragment validation failed"), exception.message)
+    }
+
+    @Test
+    fun `schema-sdl validates a standalone named fragment spreading a cross-leaf named fragment`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Outer.json").writeText(
+            """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment OuterFields on User { ...InnerFields }"}]}""",
+        )
+        File(descriptors, "Inner.json").writeText(
+            """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment InnerFields on User { id name }"}]}""",
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
+        // Should not throw — the sibling fragment is resolved during validation.
+        runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
+    }
+
+    @Test
+    fun `schema-sdl rejects named fragment whose GRT type argument differs from its type condition`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "FragmentDefs.json").writeText(
+            """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment UserFields on User { id }","grtTypeName":"Query"}]}""",
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
+        val exception = assertThrows<IllegalStateException> {
+            runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
+        }
+        assertTrue(exception.message!!.contains("@GraphQLFragment validation failed"), exception.message)
+        assertTrue(exception.message!!.contains("FragmentFromAnnotation<Query>"), exception.message)
+        assertTrue(exception.message!!.contains("on type 'User'"), exception.message)
+    }
+
+    @Test
+    fun `schema-sdl accepts named fragment whose GRT type argument matches its type condition`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "FragmentDefs.json").writeText(
+            """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment UserFields on User { id }","grtTypeName":"User"}]}""",
+        )
+        val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
+        // Should not throw — GRT matches the type condition.
+        runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
+    }
+
+    @Test
     fun `schema-sdl validates a named operation spreading a cross-leaf named fragment`() {
         val descriptors = descriptorDir()
         File(descriptors, "Operations.json").writeText(
@@ -975,7 +1056,7 @@ class AssembleTenantModuleConfigFileTest {
             """.trimIndent(),
         )
         File(descriptors, "FragmentDefs.json").writeText(
-            """{"nodes":[],"fields":[],"namedFragments":["fragment UserFields on User { id name }"]}""",
+            """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment UserFields on User { id name }"}]}""",
         )
         val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
         // Should not throw — the external fragment is resolved during validation.

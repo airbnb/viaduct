@@ -61,6 +61,20 @@ enum class OperationKind {
     MUTATION,
 }
 
+/**
+ * A named fragment extracted from a `@GraphQLFragment` object.
+ *
+ * [grtTypeName] is the simple name of the `FragmentFromAnnotation<T>` type argument (the GRT the
+ * fragment object is declared on, e.g. `User`). It is used at assembly time to verify the GRT
+ * matches the fragment text's `on <Type>` condition. It is nullable because the type argument can't
+ * always be resolved (e.g. `CompositeOutput.NotComposite`, or a producer that doesn't emit it); a
+ * null value skips the GRT-vs-type-condition check but still allows standalone schema validation.
+ */
+data class NamedFragmentDescriptor(
+    val text: String,
+    val grtTypeName: String? = null,
+)
+
 /** An operation extracted from a @GraphQLOperation object. [kind] reflects its base class. */
 data class OperationDescriptor(
     val text: String,
@@ -75,8 +89,8 @@ data class PerSourceDescriptorFile(
     val fields: List<ResolverParams.Field> = emptyList(),
     val grtPackagePrefix: String? = null,
     val bootstrapClass: String? = null,
-    /** Fragment definition strings extracted from @GraphQLFragment objects in this source file. */
-    val namedFragments: List<String> = emptyList(),
+    /** Named fragments extracted from @GraphQLFragment objects in this source file. */
+    val namedFragments: List<NamedFragmentDescriptor> = emptyList(),
     /**
      * Operations extracted from @GraphQLOperation objects in this source file. We extract these so
      * we can validate them against the collected named fragments; they do not need to go into the

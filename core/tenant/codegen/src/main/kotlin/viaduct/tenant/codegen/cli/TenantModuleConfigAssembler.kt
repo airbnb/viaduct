@@ -85,6 +85,7 @@ internal object TenantModuleConfigAssembler {
                     "--schema-binary is required when --schema-sdl is provided for tenant-local RSS ownership validation"
                 },
             )
+            validateAssembledNamedFragments(descriptors, fragmentsByName, schema)
             validateAssembledRss(descriptors, fragmentsByName, schema, viaductSchema, tenantModuleName)
             validateAssembledOperations(descriptors, fragmentsByName, schema)
         }
@@ -114,9 +115,9 @@ internal object TenantModuleConfigAssembler {
     private fun buildFragmentsByName(descriptors: List<PerSourceDescriptorFile>): Map<String, String> {
         val byName = mutableMapOf<String, String>()
         val errors = mutableListOf<String>()
-        descriptors.flatMap { it.namedFragments }.forEach { fragmentText ->
-            val name = parseFragmentName(fragmentText)
-            if (byName.put(name, fragmentText) != null) {
+        descriptors.flatMap { it.namedFragments }.forEach { fragment ->
+            val name = parseFragmentName(fragment.text)
+            if (byName.put(name, fragment.text) != null) {
                 errors.add("Duplicate @GraphQLFragment name '$name': fragment names must be unique across all leaves in a tenant module.")
             }
         }
@@ -149,6 +150,27 @@ internal object TenantModuleConfigAssembler {
         }
         if (errors.isNotEmpty()) {
             error("RSS fragment name conflicts with @GraphQLFragment names:\n" + errors.joinToString("\n"))
+        }
+    }
+
+    /**
+     * Validates every @GraphQLFragment against the schema via [NamedFragmentValidator], independently
+     * of whether a resolver or operation spreads it.
+     */
+    private fun validateAssembledNamedFragments(
+        descriptors: List<PerSourceDescriptorFile>,
+        fragmentsByName: Map<String, String>,
+        schema: graphql.schema.GraphQLSchema,
+    ) {
+        val fragments = descriptors.flatMap { it.namedFragments }
+        if (fragments.isEmpty()) return
+
+        val validator = NamedFragmentValidator(schema)
+        val errors = mutableListOf<String>()
+        fragments.forEach { validator.validate(it, fragmentsByName, errors) }
+
+        if (errors.isNotEmpty()) {
+            error("@GraphQLFragment validation failed at assembly:\n" + errors.joinToString("\n"))
         }
     }
 

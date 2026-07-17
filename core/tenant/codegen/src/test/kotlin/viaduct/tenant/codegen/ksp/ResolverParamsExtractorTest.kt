@@ -9,6 +9,7 @@ import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSName
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSTypeArgument
 import com.google.devtools.ksp.symbol.KSTypeReference
 import com.google.devtools.ksp.symbol.KSValueArgument
 import com.google.devtools.ksp.symbol.Location
@@ -17,6 +18,7 @@ import java.lang.reflect.Proxy
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.api.documents.FragmentFromAnnotation
 import viaduct.api.documents.GraphQLFragment
 import viaduct.api.documents.GraphQLOperation
 import viaduct.api.documents.MutationFromAnnotation
@@ -430,7 +432,62 @@ class ResolverParamsExtractorTest {
         assertEquals(1, result.size)
         val descriptor = result.values.single()
         assertEquals(1, descriptor.namedFragments.size)
-        assertEquals("fragment UserCoreFields on User { id name }", descriptor.namedFragments.single())
+        assertEquals("fragment UserCoreFields on User { id name }", descriptor.namedFragments.single().text)
+        assertTrue(logger.errors.isEmpty(), "Expected no errors: ${logger.errors}")
+    }
+
+    @Test
+    fun `extractByFile captures the FragmentFromAnnotation GRT type name`() {
+        val logger = RecordingKspLogger()
+
+        val userGrt = ksClassDeclaration(
+            qualifiedName = "viaduct.api.grts.User",
+            simpleName = "User",
+            packageName = "viaduct.api.grts",
+            containingFile = null,
+        )
+        val fragmentBase = ksClassDeclaration(
+            qualifiedName = requireNotNull(FragmentFromAnnotation::class.qualifiedName),
+            simpleName = "FragmentFromAnnotation",
+            packageName = "viaduct.api.documents",
+            containingFile = null,
+        )
+
+        val fragmentFile = ksFile(
+            packageName = "com.example.feature.fragments",
+            fileName = "UserFragments.kt",
+        )
+        val fragmentDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.fragments.UserCoreFieldsFragment",
+            simpleName = "UserCoreFieldsFragment",
+            packageName = "com.example.feature.fragments",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "GraphQLFragment",
+                    args = mapOf("value" to "fragment UserCoreFields on User { id name }"),
+                ),
+            ),
+            superTypeReferences = listOf(ksTypeReference(fragmentBase, typeArguments = listOf(userGrt))),
+            containingFile = fragmentFile,
+            classKind = ClassKind.OBJECT,
+            location = NonExistLocation,
+        )
+        val fileWithFragment = ksFile(
+            packageName = "com.example.feature.fragments",
+            fileName = "UserFragments.kt",
+            declarations = listOf(fragmentDeclaration),
+        )
+
+        val resolver = ksResolver(
+            files = listOf(fileWithFragment),
+            fragmentAnnotated = listOf(fragmentDeclaration),
+        )
+
+        val result = ResolverParamsExtractor(resolver = resolver, logger = logger).extractByFile()
+
+        val fragment = result.values.single().namedFragments.single()
+        assertEquals("fragment UserCoreFields on User { id name }", fragment.text)
+        assertEquals("User", fragment.grtTypeName)
         assertTrue(logger.errors.isEmpty(), "Expected no errors: ${logger.errors}")
     }
 
@@ -738,8 +795,8 @@ class ResolverParamsExtractorTest {
         assertEquals(1, result.size)
         val fragments = result.values.single().namedFragments
         assertEquals(2, fragments.size)
-        assertEquals("fragment AFields on AType { id }", fragments[0])
-        assertEquals("fragment ZFields on ZType { id }", fragments[1])
+        assertEquals("fragment AFields on AType { id }", fragments[0].text)
+        assertEquals("fragment ZFields on ZType { id }", fragments[1].text)
     }
 
     @Test
@@ -843,6 +900,7 @@ private fun ksClassDeclaration(
     packageName: String,
     annotations: List<KSAnnotation> = emptyList(),
     superDeclarations: List<KSClassDeclaration> = emptyList(),
+    superTypeReferences: List<KSTypeReference> = emptyList(),
     containingFile: KSFile?,
     declarations: List<KSDeclaration> = emptyList(),
     classKind: ClassKind = ClassKind.CLASS,
@@ -851,7 +909,7 @@ private fun ksClassDeclaration(
     val qualifiedNameValue = ksName(qualifiedName)
     val simpleNameValue = ksName(simpleName)
     val packageNameValue = ksName(packageName)
-    val superTypes = superDeclarations.map { ksTypeReference(it) }
+    val superTypes = superDeclarations.map { ksTypeReference(it) } + superTypeReferences
 
     return proxy(KSClassDeclaration::class.java) { method, _ ->
         when (method.name) {
@@ -904,10 +962,15 @@ private fun ksValueArgument(
     }
 }
 
-private fun ksTypeReference(declaration: KSClassDeclaration): KSTypeReference {
+private fun ksTypeReference(
+    declaration: KSClassDeclaration,
+    typeArguments: List<KSClassDeclaration> = emptyList(),
+): KSTypeReference {
+    val arguments = typeArguments.map { ksTypeArgument(it) }
     val type = proxy(KSType::class.java) { method, _ ->
         when (method.name) {
             "getDeclaration" -> declaration
+            "getArguments" -> arguments
             "toString" -> declaration.toString()
             else -> unsupported("KSType.${method.name}")
         }
@@ -918,6 +981,17 @@ private fun ksTypeReference(declaration: KSClassDeclaration): KSTypeReference {
             "resolve" -> type
             "toString" -> declaration.toString()
             else -> unsupported("KSTypeReference.${method.name}")
+        }
+    }
+}
+
+private fun ksTypeArgument(declaration: KSClassDeclaration): KSTypeArgument {
+    val typeReference = ksTypeReference(declaration)
+    return proxy(KSTypeArgument::class.java) { method, _ ->
+        when (method.name) {
+            "getType" -> typeReference
+            "toString" -> declaration.toString()
+            else -> unsupported("KSTypeArgument.${method.name}")
         }
     }
 }

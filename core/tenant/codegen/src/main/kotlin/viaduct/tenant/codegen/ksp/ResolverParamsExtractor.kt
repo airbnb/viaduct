@@ -5,14 +5,21 @@ import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFile
+import viaduct.api.documents.FragmentFromAnnotation
 import viaduct.api.documents.GraphQLFragment
 import viaduct.api.documents.GraphQLOperation
 import viaduct.api.documents.MutationFromAnnotation
 import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.resolver.Resolver as ResolverAnnotation
+import viaduct.api.types.CompositeOutput
 import viaduct.service.api.spi.TenantBootstrapper
 
 private val RESOLVER_ANNOTATION = requireNotNull(ResolverAnnotation::class.qualifiedName)
+private val FRAGMENT_FROM_ANNOTATION_FQN = requireNotNull(FragmentFromAnnotation::class.qualifiedName)
+
+// FragmentFromAnnotation<CompositeOutput.NotComposite> is the "unset" type argument used by
+// fragments that don't bind a concrete GRT; a NotComposite arg carries no type to check against.
+private val NOT_COMPOSITE_FQN = requireNotNull(CompositeOutput.NotComposite::class.qualifiedName)
 
 /**
  * Extracts file-scoped resolver descriptors from the current KSP compilation unit.
@@ -30,7 +37,7 @@ internal class ResolverParamsExtractor(
     fun extractByFile(): Map<KSFile, PerSourceDescriptorFile> {
         val groupedNodesByFile = mutableMapOf<KSFile, MutableList<ResolverParams.Node>>()
         val groupedFieldsByFile = mutableMapOf<KSFile, MutableList<ResolverParams.Field>>()
-        val groupedFragmentsByFile = mutableMapOf<KSFile, MutableList<String>>()
+        val groupedFragmentsByFile = mutableMapOf<KSFile, MutableList<NamedFragmentDescriptor>>()
         val groupedOperationsByFile = mutableMapOf<KSFile, MutableList<OperationDescriptor>>()
 
         resolver
@@ -79,7 +86,7 @@ internal class ResolverParamsExtractor(
                     .sortedWith(compareBy({ it.typeName }, { it.fieldName }, { it.implFqn })),
                 grtPackagePrefix = extractGrtPackagePrefix(classesInFile),
                 bootstrapClass = bootstrapClassByFile[file],
-                namedFragments = groupedFragmentsByFile[file].orEmpty().sorted(),
+                namedFragments = groupedFragmentsByFile[file].orEmpty().sortedBy { it.text },
                 namedOperations = groupedOperationsByFile[file].orEmpty().sortedBy { it.implFqn },
             )
         }.toSortedMap(compareBy { file -> file.filePath })
@@ -148,7 +155,7 @@ internal class ResolverParamsExtractor(
 
     private fun collectNamedFragment(
         declaration: KSClassDeclaration,
-        groupedFragmentsByFile: MutableMap<KSFile, MutableList<String>>,
+        groupedFragmentsByFile: MutableMap<KSFile, MutableList<NamedFragmentDescriptor>>,
     ) {
         if (declaration.classKind != ClassKind.OBJECT) {
             logger.errorRegistryExtractor(
@@ -182,7 +189,25 @@ internal class ResolverParamsExtractor(
             return
         }
 
-        groupedFragmentsByFile.getOrPut(containingFile) { mutableListOf() }.add(fragmentText.trim())
+        groupedFragmentsByFile.getOrPut(containingFile) { mutableListOf() }.add(
+            NamedFragmentDescriptor(text = fragmentText.trim(), grtTypeName = declaration.fragmentGrtTypeName()),
+        )
+    }
+
+    /**
+     * Resolves the simple name of the `FragmentFromAnnotation<T>` type argument (the GRT the fragment
+     * object is declared on, e.g. `User`). Returns null when there is no such supertype or the type
+     * argument can't be resolved, in which case the assembly-time GRT-vs-type-condition check is skipped.
+     */
+    private fun KSClassDeclaration.fragmentGrtTypeName(): String? {
+        val fragmentFromAnnotation = superTypes
+            .map { it.resolve() }
+            .firstOrNull { it.declaration.qualifiedName?.asString() == FRAGMENT_FROM_ANNOTATION_FQN }
+            ?: return null
+
+        val grtDeclaration = fragmentFromAnnotation.arguments.firstOrNull()?.type?.resolve()?.declaration ?: return null
+        if (grtDeclaration.qualifiedName?.asString() == NOT_COMPOSITE_FQN) return null
+        return grtDeclaration.simpleName.asString()
     }
 
     private fun collectNamedOperation(
