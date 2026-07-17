@@ -229,6 +229,14 @@ val ViaductSchema.TypeDef.hasReflectedType: Boolean
     // scalar types do not support reflection because they are outside the GRT model
     get() = this !is ViaductSchema.Scalar
 
+/** True if this type emits a `Fields` object (only records and unions have one). */
+val ViaductSchema.TypeDef.hasFieldsObject: Boolean
+    get() = this is ViaductSchema.Union || this is ViaductSchema.Record
+
+/** The fields that get a reflected [viaduct.api.reflect.Field] descriptor: only [ViaductSchema.Record]s have them. */
+val ViaductSchema.TypeDef.reflectedFields: Iterable<ViaductSchema.HasDefaultValue>
+    get() = (this as? ViaductSchema.Record)?.fields ?: emptyList()
+
 /**
  * True if a field on a root type should emit [RootObjectField] instead of [CompositeField].
  * Requires: the containing type is a root type, the field's return type is an object type

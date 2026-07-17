@@ -39,9 +39,10 @@ internal fun GRTClassFilesBuilder.fieldArgumentsInputGen(field: ViaductSchema.Fi
     if (field.args.none()) return
 
     val connectionArgsInfo = ConnectionArgumentsInfo.from(field)
+    val argumentsSimpleName = cfg.argumentTypeName(field)
 
     val builder = makeInputClass(
-        cfg.argumentTypeName(field).kmFQN(pkg),
+        argumentsSimpleName.kmFQN(pkg),
         field.args,
         cfg.ARGUMENTS_GRT.asKmName,
         overrideFieldNames = connectionArgsInfo.overrideFieldNames,
@@ -50,6 +51,12 @@ internal fun GRTClassFilesBuilder.fieldArgumentsInputGen(field: ViaductSchema.Fi
 
     // If the field returns a Connection type, add appropriate ConnectionArguments interface
     connectionArgsInfo.interfaceToAdd?.let { builder.addSupertype(it.asType()) }
+
+    // Arguments GRTs have no backing TypeDef, but still get Reflection + Fields blocks generated
+    // from their field-argument list so `SomeArguments.Fields.<arg>` descriptors exist for the
+    // public Field.isPresent API.
+    reflectedTypeGen(argumentsSimpleName, builder)
+    fieldsObjectGen(argumentsSimpleName, field.args, builder)
 }
 
 private fun GRTClassFilesBuilder.makeInputClass(

@@ -100,6 +100,10 @@ public abstract interface class viaduct/api/reflect/Field {
 	public abstract fun getName ()Ljava/lang/String;
 }
 
+public final class viaduct/api/reflect/FieldKt {
+	public static final fun isPresent (Lviaduct/api/types/InputLike;Lviaduct/api/reflect/Field;)Z
+}
+
 public abstract interface class viaduct/api/reflect/Type {
 	public static final field Companion Lviaduct/api/reflect/Type$Companion;
 	public abstract fun getKcls ()Lkotlin/reflect/KClass;

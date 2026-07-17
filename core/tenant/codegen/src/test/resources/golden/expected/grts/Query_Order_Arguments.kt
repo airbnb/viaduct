@@ -54,4 +54,18 @@ class Query_Order_Arguments internal constructor(
         final override fun build(): Query_Order_Arguments = TODO()
     }
 
+    @OptIn(viaduct.apiannotations.InternalApi::class)
+    object Reflection : viaduct.api.reflect.Type<viaduct.api.grts.Query_Order_Arguments> {
+        override final val name = "Query_Order_Arguments"
+        override final val kcls = viaduct.api.grts.Query_Order_Arguments::class
+    }
+    object Fields : viaduct.api.reflect.TypeFields<viaduct.api.grts.Query_Order_Arguments> {
+            final val __typename: viaduct.api.reflect.Field<viaduct.api.grts.Query_Order_Arguments> =
+                viaduct.api.internal.FieldImpl("__typename", viaduct.api.grts.Query_Order_Arguments.Reflection)
+
+            final val id: viaduct.api.reflect.Field<viaduct.api.grts.Query_Order_Arguments> =
+                viaduct.api.internal.FieldImpl("id", viaduct.api.grts.Query_Order_Arguments.Reflection)
+
+    }
+
 }

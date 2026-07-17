@@ -16,6 +16,7 @@ import viaduct.api.globalid.GlobalID
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
 import viaduct.api.mocks.testGlobalId
+import viaduct.api.reflect.isPresent
 import viaduct.api.testschema.ApiTestSchema
 import viaduct.api.testschema.E1
 import viaduct.api.testschema.Input1
@@ -70,8 +71,8 @@ class InputLikeBaseTest {
         }
 
         // verify that fields with default values, which were not provided at construction time, are materialized by the grt getters
-        assertFalse(inp.isPresent("enumFieldWithDefault"))
-        assertFalse(inp.isPresent("nonNullEnumFieldWithDefault"))
+        assertFalse(inp.isPresent(Input1.Fields.enumFieldWithDefault))
+        assertFalse(inp.isPresent(Input1.Fields.nonNullEnumFieldWithDefault))
         assertEquals(E1.A, inp.enumFieldWithDefault)
         assertEquals(E1.A, inp.nonNullEnumFieldWithDefault)
     }
@@ -124,12 +125,12 @@ class InputLikeBaseTest {
 
         // enumFieldWithDefault was set with a value that overrides the default
         // `isPresent` should return true because it was set, and the getter should return the set value
-        assertTrue(input.isPresent("enumFieldWithDefault"))
+        assertTrue(input.isPresent(Input1.Fields.enumFieldWithDefault))
         assertEquals(E1.B, input.enumFieldWithDefault)
 
         // nonNullEnumFieldWithDefault was not set, so the default is applied
         // `isPresent` should return false because it was not set, and the getter should return the set value
-        assertFalse(input.isPresent("nonNullEnumFieldWithDefault"))
+        assertFalse(input.isPresent(Input1.Fields.nonNullEnumFieldWithDefault))
         assertEquals(E1.A, input.nonNullEnumFieldWithDefault)
     }
 
@@ -141,20 +142,20 @@ class InputLikeBaseTest {
             .build()
 
         // verify default values
-        assertFalse(input.isPresent("enumFieldWithDefault"))
-        assertFalse(input.isPresent("nonNullEnumFieldWithDefault"))
+        assertFalse(input.isPresent(Input1.Fields.enumFieldWithDefault))
+        assertFalse(input.isPresent(Input1.Fields.nonNullEnumFieldWithDefault))
         assertEquals(E1.A, input.enumFieldWithDefault)
         assertEquals(E1.A, input.nonNullEnumFieldWithDefault)
         // verify set values
         assertEquals("test", input.nonNullStringField)
         assertEquals(1, input.intField)
         // verify default null values
-        assertFalse(input.isPresent("stringField"))
+        assertFalse(input.isPresent(Input1.Fields.stringField))
         assertNull(input.stringField)
-        assertFalse(input.isPresent("listField"))
+        assertFalse(input.isPresent(Input1.Fields.listField))
         assertNull(input.listField)
         // verify set null values
-        assertTrue(input.isPresent("inputField"))
+        assertTrue(input.isPresent(Input1.Fields.inputField))
         assertNull(input.inputField)
     }
 
@@ -168,14 +169,14 @@ class InputLikeBaseTest {
             .stringField("test toBuilder")
             .build()
         // stringField is unchanged
-        assertFalse(input1.isPresent("stringField"))
+        assertFalse(input1.isPresent(Input1.Fields.stringField))
         // verify input2 fields
-        assertTrue(input2.isPresent("stringField"))
+        assertTrue(input2.isPresent(Input1.Fields.stringField))
         assertEquals("test toBuilder", input2.stringField)
-        assertTrue(input2.isPresent("intField"))
+        assertTrue(input2.isPresent(Input1.Fields.intField))
         assertEquals(1, input2.intField)
         assertEquals("test", input2.nonNullStringField)
-        assertTrue(input2.isPresent("inputField"))
+        assertTrue(input2.isPresent(Input1.Fields.inputField))
         assertNull(input2.inputField)
     }
 
@@ -194,15 +195,15 @@ class InputLikeBaseTest {
         assertEquals(E1.B, input.enumFieldWithDefault)
         assertEquals(E1.B, input.nonNullEnumFieldWithDefault)
         assertEquals("test", input.nonNullStringField)
-        assertTrue(input.isPresent("stringField"))
+        assertTrue(input.isPresent(Input1.Fields.stringField))
         assertEquals("test", input.stringField)
-        assertTrue(input.isPresent("intField"))
+        assertTrue(input.isPresent(Input1.Fields.intField))
         assertEquals(1, input.intField)
 
         // verify unset values
-        assertFalse(input.isPresent("listField"))
+        assertFalse(input.isPresent(Input1.Fields.listField))
         assertNull(input.listField)
-        assertFalse(input.isPresent("nestedListField"))
+        assertFalse(input.isPresent(Input1.Fields.nestedListField))
         assertNull(input.inputField)
     }
 
@@ -261,11 +262,12 @@ class InputLikeBaseTest {
         )
         val argumentsInput = mk<O2_ArgumentedField_Arguments>(args, inputObject)
 
-        // check field presence
-        inputObject.fields.forEach { f ->
-            val expectPresent = f.name in args
-            assertEquals(expectPresent, argumentsInput.isPresent(f.name), f.name)
-        }
+        // check field presence via the public InputLike.isPresent API: provided args report present,
+        // unset args (intArgWithDefault, idArg) report absent.
+        assertTrue(argumentsInput.isPresent(O2_ArgumentedField_Arguments.Fields.stringArg))
+        assertTrue(argumentsInput.isPresent(O2_ArgumentedField_Arguments.Fields.inputArg))
+        assertFalse(argumentsInput.isPresent(O2_ArgumentedField_Arguments.Fields.intArgWithDefault))
+        assertFalse(argumentsInput.isPresent(O2_ArgumentedField_Arguments.Fields.idArg))
 
         assertEquals("test", argumentsInput.stringArg)
         assertEquals(1, argumentsInput.intArgWithDefault)

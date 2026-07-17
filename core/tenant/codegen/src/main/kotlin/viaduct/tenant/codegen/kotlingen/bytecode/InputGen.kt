@@ -25,6 +25,19 @@ fun KotlinGRTFilesBuilder.inputKotlinGen(
     field: ViaductSchema.Field? = null
 ): STContents {
     val connectionInfo = ConnectionArgumentsInfo.from(field)
+    // Input types carry a backing TypeDef (desc.def); Arguments types do not, but still get a
+    // Reflection + Fields block generated from their field-argument list so that
+    // `SomeArguments.Fields.<arg>` descriptors exist for the public Field.isPresent API.
+    val reflectedType = when {
+        desc.def != null -> reflectedTypeGen(desc.def)
+        desc.containingField != null -> reflectedTypeGenForArguments(desc.className, desc.fields)
+        else -> null
+    }
+    val fieldsObject = when {
+        desc.def != null -> fieldsObjectGen(desc.def)
+        desc.containingField != null -> fieldsObjectGenForArguments(desc.className, desc.fields)
+        else -> null
+    }
     return STContents(
         inputSTGroup,
         InputModelImpl(
@@ -32,8 +45,8 @@ fun KotlinGRTFilesBuilder.inputKotlinGen(
             desc.className,
             desc.fields,
             taggingInterface,
-            desc.def?.let(::reflectedTypeGen),
-            desc.def?.let(::fieldsObjectGen),
+            reflectedType,
+            fieldsObject,
             baseTypeMapper,
             connectionArgumentsSupertype = connectionInfo.interfaceToAdd?.let { ", ${it.asJavaName}" } ?: "",
             overrideFieldNames = connectionInfo.overrideFieldNames,

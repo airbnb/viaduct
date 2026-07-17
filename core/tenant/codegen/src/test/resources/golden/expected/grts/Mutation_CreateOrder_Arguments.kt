@@ -54,4 +54,18 @@ class Mutation_CreateOrder_Arguments internal constructor(
         final override fun build(): Mutation_CreateOrder_Arguments = TODO()
     }
 
+    @OptIn(viaduct.apiannotations.InternalApi::class)
+    object Reflection : viaduct.api.reflect.Type<viaduct.api.grts.Mutation_CreateOrder_Arguments> {
+        override final val name = "Mutation_CreateOrder_Arguments"
+        override final val kcls = viaduct.api.grts.Mutation_CreateOrder_Arguments::class
+    }
+    object Fields : viaduct.api.reflect.TypeFields<viaduct.api.grts.Mutation_CreateOrder_Arguments> {
+            final val __typename: viaduct.api.reflect.Field<viaduct.api.grts.Mutation_CreateOrder_Arguments> =
+                viaduct.api.internal.FieldImpl("__typename", viaduct.api.grts.Mutation_CreateOrder_Arguments.Reflection)
+
+            final val input: viaduct.api.reflect.CompositeField<viaduct.api.grts.Mutation_CreateOrder_Arguments, viaduct.api.grts.CreateOrderInput> =
+                viaduct.api.internal.CompositeFieldImpl("input", viaduct.api.grts.Mutation_CreateOrder_Arguments.Reflection, viaduct.api.grts.CreateOrderInput.Reflection)
+
+    }
+
 }

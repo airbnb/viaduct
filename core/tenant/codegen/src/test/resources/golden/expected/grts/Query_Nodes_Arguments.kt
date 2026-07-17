@@ -54,4 +54,18 @@ class Query_Nodes_Arguments internal constructor(
         final override fun build(): Query_Nodes_Arguments = TODO()
     }
 
+    @OptIn(viaduct.apiannotations.InternalApi::class)
+    object Reflection : viaduct.api.reflect.Type<viaduct.api.grts.Query_Nodes_Arguments> {
+        override final val name = "Query_Nodes_Arguments"
+        override final val kcls = viaduct.api.grts.Query_Nodes_Arguments::class
+    }
+    object Fields : viaduct.api.reflect.TypeFields<viaduct.api.grts.Query_Nodes_Arguments> {
+            final val __typename: viaduct.api.reflect.Field<viaduct.api.grts.Query_Nodes_Arguments> =
+                viaduct.api.internal.FieldImpl("__typename", viaduct.api.grts.Query_Nodes_Arguments.Reflection)
+
+            final val ids: viaduct.api.reflect.Field<viaduct.api.grts.Query_Nodes_Arguments> =
+                viaduct.api.internal.FieldImpl("ids", viaduct.api.grts.Query_Nodes_Arguments.Reflection)
+
+    }
+
 }

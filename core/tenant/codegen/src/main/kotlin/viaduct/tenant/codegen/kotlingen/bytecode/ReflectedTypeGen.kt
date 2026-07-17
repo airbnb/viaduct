@@ -10,19 +10,39 @@ import viaduct.codegen.st.stTemplate
 import viaduct.codegen.utils.JavaName
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
+import viaduct.tenant.codegen.bytecode.config.hasFieldsObject
 import viaduct.tenant.codegen.bytecode.config.hasReflectedType
 import viaduct.tenant.codegen.bytecode.config.isRootObjectFieldEligible
 import viaduct.tenant.codegen.bytecode.config.kmType
 import viaduct.tenant.codegen.bytecode.config.pathFromQueryRoot
+import viaduct.tenant.codegen.bytecode.config.reflectedFields
 
 @VisibleForTest
-fun KotlinGRTFilesBuilder.reflectedTypeGen(def: ViaductSchema.TypeDef): STContents = STContents(stGroup, ReflectedTypeModelImpl(pkg, def, baseTypeMapper))
+fun KotlinGRTFilesBuilder.reflectedTypeGen(def: ViaductSchema.TypeDef): STContents =
+    STContents(stGroup, ReflectedTypeModelImpl(pkg, def.name, def.reflectedFields, def.hasFieldsObject, baseTypeMapper))
 
 @VisibleForTest
 fun KotlinGRTFilesBuilder.fieldsObjectGen(def: ViaductSchema.TypeDef): STContents {
     val pathToParentObject = def.pathFromQueryRoot(reverseSchema, schema.queryTypeDef)
-    return STContents(fieldsSTGroup, ReflectedTypeModelImpl(pkg, def, baseTypeMapper, pathToParentObject))
+    return STContents(fieldsSTGroup, ReflectedTypeModelImpl(pkg, def.name, def.reflectedFields, def.hasFieldsObject, baseTypeMapper, pathToParentObject))
 }
+
+/**
+ * Reflection generation for Arguments GRTs, which have no backing [ViaductSchema.TypeDef] — only a
+ * name and a field-argument list. Arguments always get a Fields object, and no argument can be a
+ * root-object field, so [pathToParentObject] is always null.
+ */
+@VisibleForTest
+fun KotlinGRTFilesBuilder.reflectedTypeGenForArguments(
+    className: String,
+    fields: Iterable<ViaductSchema.HasDefaultValue>
+): STContents = STContents(stGroup, ReflectedTypeModelImpl(pkg, className, fields, typeHasFieldsObject = true, baseTypeMapper))
+
+@VisibleForTest
+fun KotlinGRTFilesBuilder.fieldsObjectGenForArguments(
+    className: String,
+    fields: Iterable<ViaductSchema.HasDefaultValue>
+): STContents = STContents(fieldsSTGroup, ReflectedTypeModelImpl(pkg, className, fields, typeHasFieldsObject = true, baseTypeMapper, pathToParentObject = null))
 
 private interface ReflectedTypeModel {
     /** GraphQL name of this type */
@@ -138,19 +158,19 @@ private val fieldsSTGroup = fieldsST + fieldST
 
 private class ReflectedTypeModelImpl(
     val pkg: String,
-    val def: ViaductSchema.TypeDef,
+    override val name: String,
+    val defFields: Iterable<ViaductSchema.HasDefaultValue>,
+    override val typeHasFieldsObject: Boolean,
     val baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
     val pathToParentObject: List<String>? = null
 ) : ReflectedTypeModel {
-    override val name: String = def.name
     override val grtFqName: String = "$pkg.$name"
-    override val reflectedTypeFqName: String = "$pkg.${def.name}.${cfg.REFLECTION_NAME}"
-    override val typeHasFieldsObject: Boolean = def is ViaductSchema.Union || def is ViaductSchema.Record
+    override val reflectedTypeFqName: String = "$pkg.$name.${cfg.REFLECTION_NAME}"
     override val fields: List<ReflectedFieldModel>
         get() {
-            val defFields = ((def as? ViaductSchema.Record)?.fields ?: emptyList())
+            val fieldModels = defFields
                 .map { ReflectedFieldModelImpl(pkg, this, it, baseTypeMapper, pathToParentObject) }
-            return listOf(__typename(this)) + defFields
+            return listOf(__typename(this)) + fieldModels
         }
 }
 
@@ -169,11 +189,15 @@ private class __typename(override val containingType: ReflectedTypeModel) : Refl
 private class ReflectedFieldModelImpl(
     pkg: String,
     override val containingType: ReflectedTypeModel,
-    field: ViaductSchema.Field,
+    field: ViaductSchema.HasDefaultValue,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
     pathToParentObject: List<String>?
 ) : ReflectedFieldModel {
     private val kmPkg = JavaName(pkg).asKmName
+
+    // Root-object fields exist only for output-object fields (ViaductSchema.Field). Argument
+    // "fields" (FieldArg) are never root-object fields, so this stays null for Arguments GRTs.
+    private val outputField: ViaductSchema.Field? = field as? ViaductSchema.Field
 
     override val name: String = field.name
     override val escapedName: String = getEscapedFieldName(field.name)
@@ -191,13 +215,15 @@ private class ReflectedFieldModelImpl(
             null
         }
 
-    override val isRootObjectField: Boolean =
-        field.isRootObjectFieldEligible(pathToParentObject)
+    // A root-object field is always an output field, so this is non-null exactly when
+    // [isRootObjectField] is true.
+    private val rootObjectField: ViaductSchema.Field? =
+        outputField?.takeIf { it.isRootObjectFieldEligible(pathToParentObject) }
 
-    override val argumentsTypeFqName: String? = when {
-        !isRootObjectField -> null
-        field.hasArgs -> "$pkg.${cfg.argumentTypeName(field)}"
-        else -> cfg.ARGUMENTS_NO_ARGUMENTS.toString().replace('$', '.')
+    override val isRootObjectField: Boolean = rootObjectField != null
+
+    override val argumentsTypeFqName: String? = rootObjectField?.let {
+        if (it.hasArgs) "$pkg.${cfg.argumentTypeName(it)}" else cfg.ARGUMENTS_NO_ARGUMENTS.toString().replace('$', '.')
     }
 
     override val rootFieldPathLiteral: String? =

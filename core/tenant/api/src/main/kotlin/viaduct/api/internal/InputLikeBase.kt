@@ -3,6 +3,7 @@ package viaduct.api.internal
 import graphql.language.Value
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLTypeUtil
+import viaduct.api.types.FieldPresenceProbe
 import viaduct.api.types.InputLike
 import viaduct.apiannotations.Attribution
 import viaduct.apiannotations.AttributionContext
@@ -18,7 +19,7 @@ import viaduct.mapping.graphql.IR
  */
 @InternalApi
 @Suppress("UNCHECKED_CAST")
-abstract class InputLikeBase : InputLike {
+abstract class InputLikeBase : InputLike, FieldPresenceProbe {
     protected abstract val context: InternalContext
     abstract val inputData: Map<String, Any?>
     abstract val graphQLInputObjectType: GraphQLInputObjectType
@@ -32,7 +33,7 @@ abstract class InputLikeBase : InputLike {
         }
     }
 
-    fun isPresent(fieldName: String): Boolean = inputData.containsKey(fieldName)
+    override fun isFieldPresent(fieldName: String): Boolean = inputData.containsKey(fieldName)
 
     protected fun <T> get(fieldName: String): T =
         handleFrameworkErrors("InputLikeBase.get failed for ${graphQLInputObjectType.name}.$fieldName") {
@@ -48,7 +49,7 @@ abstract class InputLikeBase : InputLike {
             "Field $fieldName not found on type ${graphQLInputObjectType.name}"
         )
 
-        val irValue: IR.Value = if (isPresent(fieldName)) {
+        val irValue: IR.Value = if (isFieldPresent(fieldName)) {
             val conv = EngineValueConv(context.schema, fieldDefinition.type, null)
             conv(inputData[fieldName])
         } else if (fieldDefinition.hasSetDefaultValue()) {

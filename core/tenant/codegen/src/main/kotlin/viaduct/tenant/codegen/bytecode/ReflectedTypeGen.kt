@@ -16,20 +16,16 @@ import viaduct.codegen.utils.name
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.baseTypeKmType
 import viaduct.tenant.codegen.bytecode.config.cfg
+import viaduct.tenant.codegen.bytecode.config.hasFieldsObject
 import viaduct.tenant.codegen.bytecode.config.hasReflectedType
 import viaduct.tenant.codegen.bytecode.config.isRootObjectFieldEligible
 import viaduct.tenant.codegen.bytecode.config.pathFromQueryRoot
+import viaduct.tenant.codegen.bytecode.config.reflectedFields
 
 internal fun GRTClassFilesBuilder.reflectedTypeGen(
     def: ViaductSchema.TypeDef,
     container: CustomClassBuilder
-) {
-    ReflectedTypeBuilder(
-        this,
-        def,
-        container.nestedClassBuilder(JavaIdName(cfg.REFLECTION_NAME), kind = ClassKind.OBJECT)
-    ).build()
-}
+) = reflectedTypeGen(def.name, container)
 
 internal fun GRTClassFilesBuilder.reflectedTypeGen(
     def: ViaductSchema.TypeDef,
@@ -37,20 +33,37 @@ internal fun GRTClassFilesBuilder.reflectedTypeGen(
 ) {
     ReflectedTypeBuilder(
         this,
-        def,
+        def.name,
+        container.nestedClassBuilder(JavaIdName(cfg.REFLECTION_NAME), kind = ClassKind.OBJECT)
+    ).build()
+}
+
+/**
+ * Reflection generation from a simple GRT class name ([typeName]). Used directly for Arguments GRTs
+ * (e.g. `Query_Order_Arguments`), which have no backing [ViaductSchema.TypeDef].
+ */
+internal fun GRTClassFilesBuilder.reflectedTypeGen(
+    typeName: String,
+    container: CustomClassBuilder
+) {
+    ReflectedTypeBuilder(
+        this,
+        typeName,
         container.nestedClassBuilder(JavaIdName(cfg.REFLECTION_NAME), kind = ClassKind.OBJECT)
     ).build()
 }
 
 private class ReflectedTypeBuilder(
     override val grtClassFilesBuilder: GRTClassFilesBuilder,
-    private val def: ViaductSchema.TypeDef,
+    private val typeName: String,
     private val typeBuilder: CustomClassBuilder,
 ) : MirrorUtils {
+    private val grtType: KmType = typeName.kmFQN(grtClassFilesBuilder.pkg).asType()
+
     init {
         typeBuilder.addSupertype(
             cfg.REFLECTED_TYPE.asKmName.asType().also {
-                it.arguments += KmTypeProjection(KmVariance.INVARIANT, def.grtType)
+                it.arguments += KmTypeProjection(KmVariance.INVARIANT, grtType)
             }
         )
     }
@@ -76,7 +89,7 @@ private class ReflectedTypeBuilder(
                 it.hasConstantValue(true)
                 it.propertyModality(Modality.FINAL)
                 it.getterBody(
-                    """{return "${def.name}";}"""
+                    """{return "$typeName";}"""
                 )
             }
         )
@@ -84,7 +97,7 @@ private class ReflectedTypeBuilder(
 
     private fun buildKclsProperty() {
         Km.KCLASS.asType().also {
-            it.arguments += KmTypeProjection(KmVariance.INVARIANT, def.grtType)
+            it.arguments += KmTypeProjection(KmVariance.INVARIANT, grtType)
         }.let { type ->
             typeBuilder.addProperty(
                 KmPropertyBuilder(
@@ -100,7 +113,7 @@ private class ReflectedTypeBuilder(
                         buildString {
                             append("{")
                             append("return kotlin.jvm.internal.Reflection.getOrCreateKotlinClass(")
-                            append(def.grtType.name.asJavaBinaryName)
+                            append(grtType.name.asJavaBinaryName)
                             append(".class")
                             append(");")
                             append("}")
@@ -116,18 +129,47 @@ internal fun GRTClassFilesBuilder.fieldsObjectGen(
     def: ViaductSchema.TypeDef,
     container: CustomClassBuilder,
 ) {
-    if (def is ViaductSchema.Record || def is ViaductSchema.Union) {
-        FieldsObjectBuilder(this, container, def).build()
+    if (def.hasFieldsObject) {
+        FieldsObjectBuilder(
+            this,
+            container,
+            grtType = def.name.kmFQN(this.pkg).asType(),
+            containingInstanceExpr = reflectionInstanceExpr(reflectedTypeKmNameForDef(def)),
+            fields = def.reflectedFields,
+            pathToParentObject = def.pathFromQueryRoot(reverseSchema, schema.queryTypeDef),
+        ).build()
     }
+}
+
+/**
+ * Fields-object generation for an Arguments GRT, driven by its simple class name
+ * ([argumentsSimpleName]) and its field-argument list. Arguments always get a Fields object; no
+ * argument is a root-object field, so [pathToParentObject] is null.
+ */
+internal fun GRTClassFilesBuilder.fieldsObjectGen(
+    argumentsSimpleName: String,
+    fields: Iterable<ViaductSchema.HasDefaultValue>,
+    container: CustomClassBuilder,
+) {
+    val reflectionKmName = argumentsSimpleName.kmFQN(this.pkg).append(".${cfg.REFLECTION_NAME}")
+    FieldsObjectBuilder(
+        this,
+        container,
+        grtType = argumentsSimpleName.kmFQN(this.pkg).asType(),
+        containingInstanceExpr = reflectionInstanceExpr(reflectionKmName),
+        fields = fields,
+        pathToParentObject = null,
+    ).build()
 }
 
 private class FieldsObjectBuilder(
     override val grtClassFilesBuilder: GRTClassFilesBuilder,
     container: CustomClassBuilder,
-    private val def: ViaductSchema.TypeDef,
+    private val grtType: KmType,
+    private val containingInstanceExpr: String,
+    private val fields: Iterable<ViaductSchema.HasDefaultValue>,
+    private val pathToParentObject: List<String>?,
 ) : MirrorUtils {
-    private val pathToParentObject: List<String>? =
-        def.pathFromQueryRoot(grtClassFilesBuilder.reverseSchema, grtClassFilesBuilder.schema.queryTypeDef)
     private val fieldsBuilder =
         container.nestedClassBuilder(
             simpleName = JavaIdName("Fields"),
@@ -136,29 +178,30 @@ private class FieldsObjectBuilder(
             // Fields implements TypeFields<T>
             it.addSupertype(
                 cfg.REFLECTED_TYPE_FIELDS.asKmName.asType().also { type ->
-                    type.arguments += KmTypeProjection(KmVariance.INVARIANT, def.grtType)
+                    type.arguments += KmTypeProjection(KmVariance.INVARIANT, grtType)
                 }
             )
         }
 
     fun build() {
         buildSimpleFieldProperty("__typename")
-        if (def is ViaductSchema.Record) {
-            def.fields.forEach { f ->
-                grtClassFilesBuilder.addSchemaGRTReference(f.type.baseTypeDef)
+        fields.forEach { f ->
+            grtClassFilesBuilder.addSchemaGRTReference(f.type.baseTypeDef)
 
-                val unwrappedType = f.baseTypeKmType(grtClassFilesBuilder.pkg, grtClassFilesBuilder.baseTypeMapper).apply {
-                    isNullable = false
-                }
-                val reflectedType = f.type.baseTypeDef.takeIf { it.hasReflectedType }
+            val unwrappedType = f.baseTypeKmType(grtClassFilesBuilder.pkg, grtClassFilesBuilder.baseTypeMapper).apply {
+                isNullable = false
+            }
+            val reflectedType = f.type.baseTypeDef.takeIf { it.hasReflectedType }
+            // Root-object fields exist only for output-object fields (ViaductSchema.Field); argument
+            // "fields" (FieldArg) are never root-object fields.
+            val outputField = f as? ViaductSchema.Field
 
-                if (reflectedType != null && f.isRootObjectFieldEligible(pathToParentObject)) {
-                    buildRootObjectFieldProperty(f, unwrappedType, reflectedType)
-                } else if (reflectedType != null) {
-                    buildCompositeFieldProperty(f.name, unwrappedType, reflectedType)
-                } else {
-                    buildSimpleFieldProperty(f.name)
-                }
+            if (reflectedType != null && outputField?.isRootObjectFieldEligible(pathToParentObject) == true) {
+                buildRootObjectFieldProperty(outputField, unwrappedType, reflectedType)
+            } else if (reflectedType != null) {
+                buildCompositeFieldProperty(f.name, unwrappedType, reflectedType)
+            } else {
+                buildSimpleFieldProperty(f.name)
             }
         }
     }
@@ -167,7 +210,7 @@ private class FieldsObjectBuilder(
     private fun buildSimpleFieldProperty(name: String) {
         val fieldType = cfg.REFLECTED_FIELD.asKmName.asType().also {
             // Field<Parent: GRT>
-            it.arguments += KmTypeProjection(KmVariance.INVARIANT, def.grtType)
+            it.arguments += KmTypeProjection(KmVariance.INVARIANT, grtType)
         }
         fieldsBuilder.addProperty(
             KmPropertyBuilder(
@@ -188,7 +231,7 @@ private class FieldsObjectBuilder(
                         // name
                         append("\"${name}\",")
                         // containingType
-                        append(def.instanceExpr)
+                        append(containingInstanceExpr)
                         append(");\n")
                         append("}")
                     }
@@ -205,7 +248,7 @@ private class FieldsObjectBuilder(
     ) {
         val fieldType = cfg.REFLECTED_COMPOSITE_FIELD.asKmName.asType().also {
             // CompositeField<Parent: GRT, UnwrappedType: GRT>
-            it.arguments += KmTypeProjection(KmVariance.INVARIANT, def.grtType)
+            it.arguments += KmTypeProjection(KmVariance.INVARIANT, grtType)
             it.arguments += KmTypeProjection(KmVariance.INVARIANT, unwrappedFieldType)
         }
         fieldsBuilder.addProperty(
@@ -228,7 +271,7 @@ private class FieldsObjectBuilder(
                         // name
                         append("\"${name}\",\n")
                         // containingType
-                        append(def.instanceExpr)
+                        append(containingInstanceExpr)
                         append(",\n")
                         // type
                         append(reflectedType.instanceExpr)
@@ -254,7 +297,7 @@ private class FieldsObjectBuilder(
 
         val fieldType = cfg.REFLECTED_ROOT_OBJECT_FIELD.asKmName.asType().also {
             // RootObjectField<Parent: GRT, UnwrappedType: Object, A: Arguments>
-            it.arguments += KmTypeProjection(KmVariance.INVARIANT, def.grtType)
+            it.arguments += KmTypeProjection(KmVariance.INVARIANT, grtType)
             it.arguments += KmTypeProjection(KmVariance.INVARIANT, unwrappedFieldType)
             it.arguments += KmTypeProjection(KmVariance.INVARIANT, argsKmType)
         }
@@ -278,7 +321,7 @@ private class FieldsObjectBuilder(
                         // name
                         append("\"${field.name}\",\n")
                         // containingType
-                        append(def.instanceExpr)
+                        append(containingInstanceExpr)
                         append(",\n")
                         // type
                         append(reflectedType.instanceExpr)
@@ -297,7 +340,26 @@ private class FieldsObjectBuilder(
 private fun GRTClassFilesBuilder.reflectedTypeKmNameForDef(def: ViaductSchema.TypeDef): KmName =
     def.asTypeExpr().baseTypeKmType(this.pkg, this.baseTypeMapper, null, false).name.append(".${cfg.REFLECTION_NAME}")
 
-private fun GRTClassFilesBuilder.reflectedTypeForDef(def: ViaductSchema.TypeDef): KmType = reflectedTypeKmNameForDef(def).asType()
+/**
+ * Returns an expression that points to the object instance of the reflective type named by
+ * [reflectionKmName].
+ *
+ * A more straight-forward way of doing this would be `DefName$Reflection.INSTANCE`. That fails when
+ * the type is in another build shard, in which case the class for `ViaductMirror$DefName` will be
+ * an external class that allows some compilation but does not allow access to its members, such as
+ * the `INSTANCE` field.
+ *
+ * This works around it by loading the kclass via kotlin Reflection, which provides a
+ * `getObjectInstance` method that works for types in any build shard.
+ */
+private fun reflectionInstanceExpr(reflectionKmName: KmName): String =
+    buildString {
+        append("(${cfg.REFLECTED_TYPE}) ") // cast objectInstance to a ReflectedType
+        append("kotlin.jvm.internal.Reflection.getOrCreateKotlinClass(")
+        append(reflectionKmName.asType().name.asJavaBinaryName)
+        append(".class")
+        append(").getObjectInstance()")
+    }
 
 private interface MirrorUtils {
     val grtClassFilesBuilder: GRTClassFilesBuilder
@@ -306,23 +368,5 @@ private interface MirrorUtils {
         get() = name.kmFQN(grtClassFilesBuilder.pkg).asType()
 
     val ViaductSchema.TypeDef.instanceExpr: String
-        get() = let { def ->
-            // This getter returns an expression that points to the object instance of the reflective type for
-            // the provided Def.
-            // A more straight-forward way of doing this would be:
-            //   DefName$Reflection.INSTANCE
-            // This fails when Def is in another build shard, in which case the class for ViaductMirror$DefName
-            // will be an external class that allows some compilation but does not allow access to its members,
-            // such as the `INSTANCE field`
-            //
-            // This getter works around this by loading the kclass via kotlin Reflection, which provides a
-            // `getObjectInstance` method that should work for types in any build shard
-            buildString {
-                append("(${cfg.REFLECTED_TYPE}) ") // cast objectInstance to a ReflectedType
-                append("kotlin.jvm.internal.Reflection.getOrCreateKotlinClass(")
-                append(grtClassFilesBuilder.reflectedTypeForDef(def).name.asJavaBinaryName)
-                append(".class")
-                append(").getObjectInstance()")
-            }
-        }
+        get() = reflectionInstanceExpr(grtClassFilesBuilder.reflectedTypeKmNameForDef(this))
 }
