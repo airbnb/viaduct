@@ -113,8 +113,8 @@ class AccessCheckRunner(
                     typeCheckParameters,
                     childPlan,
                     env,
-                    ExecutionParameters.ChildPlanTarget.FieldType(
-                        parentResult = fieldResolutionResult.engineResult as ObjectEngineResultImpl,
+                    ChildQueryPlanTarget.ResolvedFieldObjectResult(
+                        objectResult = fieldResolutionResult.engineResult as ObjectEngineResultImpl,
                         source = fieldResolutionResult.originalSource,
                     ),
                 )

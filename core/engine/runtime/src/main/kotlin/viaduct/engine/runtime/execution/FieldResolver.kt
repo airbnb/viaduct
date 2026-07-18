@@ -281,9 +281,9 @@ class FieldResolver(
                 debug("Launching child plan for field ${field.fieldName} at path ${parameters.path}, selection set: ${childQueryPlan.selectionSet}")
             }
             val target = when (childPlan.requiredSelectionSetId) {
-                objectSelectionSetId -> ExecutionParameters.ChildPlanTarget.ExplicitObjectResult(parameters.currentObjectEngineResult)
-                querySelectionSetId -> ExecutionParameters.ChildPlanTarget.ExplicitObjectResult(parameters.queryEngineResult)
-                else -> ExecutionParameters.ChildPlanTarget.FromContext
+                objectSelectionSetId -> ChildQueryPlanTarget.CurrentObjectResult
+                querySelectionSetId -> ChildQueryPlanTarget.CurrentQueryResult
+                else -> parameters.targetForChildPlan(childQueryPlan)
             }
             launchQueryPlan(
                 parameters,
@@ -324,7 +324,7 @@ class FieldResolver(
         parameters: ExecutionParameters,
         plan: QueryPlan,
         executionConditionEnv: DataFetchingEnvironment? = null,
-        target: ExecutionParameters.ChildPlanTarget = ExecutionParameters.ChildPlanTarget.FromContext,
+        target: ChildQueryPlanTarget,
         seenRssIds: Set<RequiredSelectionSet.Id> = emptySet(),
     ) {
         val requiredSelectionSetId = plan.requiredSelectionSetId
@@ -349,9 +349,9 @@ class FieldResolver(
             }
             val childPlan = FieldExecutionHelpers.findRssQueryPlan(childPlanId, parameters)
             val childTarget = when (target) {
-                is ExecutionParameters.ChildPlanTarget.FieldType -> target
-                is ExecutionParameters.ChildPlanTarget.IsolatedRootResult -> target
-                else -> ExecutionParameters.ChildPlanTarget.FromContext
+                is ChildQueryPlanTarget.ResolvedFieldObjectResult -> target
+                is ChildQueryPlanTarget.IsolatedRootResults -> target
+                else -> parameters.targetForChildPlan(childPlan)
             }
             launchQueryPlan(parameters, childPlan, executionConditionEnv, childTarget, seenRssIds)
             accSeenRssIds + childPlanId
@@ -369,7 +369,7 @@ class FieldResolver(
                 parameters.executionContext.locale,
             )
             val planParameters = parameters.forChildPlan(plan, variables, target)
-            val objectType = plan.parentType as GraphQLObjectType
+            val objectType = planParameters.currentObjectEngineResult.type
             if (isMutationNamespace(planParameters, objectType)) {
                 fetchObjectSerially(objectType, planParameters)
             } else {

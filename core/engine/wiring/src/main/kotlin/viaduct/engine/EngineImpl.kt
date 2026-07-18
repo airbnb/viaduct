@@ -38,6 +38,7 @@ import viaduct.engine.runtime.SubqueryInstrumentationEngine
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.execution.AccessCheckRunner
+import viaduct.engine.runtime.execution.ChildQueryPlanTarget
 import viaduct.engine.runtime.execution.ExecutionParameters
 import viaduct.engine.runtime.execution.ExecutionSelections
 import viaduct.engine.runtime.execution.FieldCompleter
@@ -247,9 +248,9 @@ class EngineImpl(
                 Engine.OperationType.MUTATION -> ObjectEngineResultImpl.newForType(fullSchema.schema.queryType)
             }
             parentParams.forChildPlan(
-                queryPlan,
-                CoercedVariables.of(selectionSet.variables),
-                ExecutionParameters.ChildPlanTarget.IsolatedRootResult(
+                childPlan = queryPlan,
+                variables = CoercedVariables.of(selectionSet.variables),
+                target = ChildQueryPlanTarget.IsolatedRootResults(
                     rootResult = targetOER,
                     queryResult = queryOER,
                 ),
@@ -341,11 +342,11 @@ class EngineImpl(
 
             val target = if (options.isFieldTypePlan) {
                 checkNotNull(targetOER) { "targetResult is required when isFieldTypePlan is true" }
-                ExecutionParameters.ChildPlanTarget.FieldType(targetOER, parentParamsWithQueryPlanIndex.source)
+                ChildQueryPlanTarget.ResolvedFieldObjectResult(targetOER, parentParamsWithQueryPlanIndex.source)
             } else if (targetOER != null) {
-                ExecutionParameters.ChildPlanTarget.ExplicitObjectResult(targetOER)
+                ChildQueryPlanTarget.ExplicitObjectResult(targetOER)
             } else {
-                ExecutionParameters.ChildPlanTarget.FromContext
+                parentParamsWithQueryPlanIndex.targetForChildPlan(queryPlan)
             }
 
             parentParamsWithQueryPlanIndex.forChildPlan(queryPlan, variables, target)

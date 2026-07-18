@@ -32,6 +32,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
@@ -87,9 +88,10 @@ class ExecutionParametersTest {
     private val defaultLocalContext: CompositeLocalContext = createLocalContext(viaductSchema)
 
     @Test
-    fun `forChildPlan uses active query engine result for query plans`() {
+    fun `forChildPlan derives CurrentQueryResult and uses active query engine result for query plans`() {
         val parentSource = mapOf("viewer" to "parent")
         val rootValue = mapOf("viewer" to "root")
+        val parentPlan = queryPlanFor(type = queryType)
         val childPlan = queryPlanFor(
             type = queryType,
             attribution = ExecutionAttribution.fromOperation("RootQuery")
@@ -100,27 +102,35 @@ class ExecutionParametersTest {
                 .type(queryType)
                 .path(ResultPath.rootPath())
                 .build(),
-            queryPlan = childPlan,
+            queryPlan = parentPlan,
             currentObjectEngineResult = ObjectEngineResultImpl.newForType(fooType),
             rootValue = rootValue
         )
 
-        val result = parameters.forChildPlan(childPlan, emptyVariables)
+        val target = parameters.targetForChildPlan(childPlan)
+        val result = parameters.forChildPlan(childPlan, emptyVariables, target)
 
-        assertSame(ExecutionParameters.Parent.Unparented, parameters.parent)
+        assertSame(ExecutionOrigin.Root, parameters.executionOrigin)
+        assertSame(parentPlan, parameters.queryPlan)
+        assertSame(childPlan, result.queryPlan)
+        assertNotSame(parameters.queryPlan, result.queryPlan)
+        assertSame(ChildQueryPlanTarget.CurrentQueryResult, target)
         assertSame(parameters.queryEngineResult, result.currentObjectEngineResult)
         assertSame(parameters.queryEngineResult, result.queryEngineResult)
         assertEquals(rootValue, result.source)
         assertEquals(queryType, result.executionStepInfo.type)
         assertEquals(ResultPath.rootPath(), result.executionStepInfo.path)
         assertEquals(childPlan.attribution, result.attribution)
-        assertSame(parameters, (result.parent as ExecutionParameters.Parent.PlanParent).parameters)
+        val origin = result.executionOrigin as ExecutionOrigin.ChildQueryPlan
+        assertSame(parameters, origin.parameters)
+        assertSame(target, origin.target)
     }
 
     @Test
-    fun `forChildPlan reuses field context for object plans`() {
+    fun `forChildPlan derives CurrentObjectResult and reuses field context for object plans`() {
         val parentSource = mapOf("viewer" to "parent")
         val childAst = selectionSet("name")
+        val parentPlan = queryPlanFor(type = fooType)
         val childPlan = queryPlanFor(
             type = fooType,
             astSelectionSet = childAst,
@@ -133,23 +143,55 @@ class ExecutionParametersTest {
         val parameters = createExecutionParameters(
             source = parentSource,
             executionStepInfo = idStepInfo,
-            queryPlan = childPlan,
+            queryPlan = parentPlan,
             currentObjectEngineResult = ObjectEngineResultImpl.newForType(fooType)
         )
 
-        val result = parameters.forChildPlan(childPlan, emptyVariables)
+        val target = parameters.targetForChildPlan(childPlan)
+        val result = parameters.forChildPlan(childPlan, emptyVariables, target)
 
+        assertSame(ChildQueryPlanTarget.CurrentObjectResult, target)
+        assertSame(parentPlan, parameters.queryPlan)
+        assertSame(childPlan, result.queryPlan)
+        assertNotSame(parameters.queryPlan, result.queryPlan)
         assertSame(parameters.currentObjectEngineResult, result.currentObjectEngineResult)
         assertEquals(parentSource, result.source)
         assertEquals(fooType, result.executionStepInfo.type)
         assertEquals(ResultPath.rootPath().segment("foo"), result.executionStepInfo.path)
         assertEquals(childAst, result.executionStepInfo.field.singleField.selectionSet)
         assertEquals(childPlan.attribution, result.attribution)
-        assertSame(parameters, (result.parent as ExecutionParameters.Parent.PlanParent).parameters)
+        val origin = result.executionOrigin as ExecutionOrigin.ChildQueryPlan
+        assertSame(parameters, origin.parameters)
+        assertSame(target, origin.target)
     }
 
     @Test
-    fun `forChildPlan with FieldType target switches to field engine result for object plans`() {
+    fun `ExplicitObjectResult target uses supplied result without replacing query context`() {
+        val explicitObjectResult = ObjectEngineResultImpl.newForType(fooType)
+        val childPlan = queryPlanFor(type = fooType)
+        val fooStepInfo = executionStepInfoForField(mergedField("foo", selectionSet("id")))
+        val parameters = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = executionStepInfoForField(mergedField("id"), fooType, fooStepInfo),
+            queryPlan = childPlan,
+            currentObjectEngineResult = ObjectEngineResultImpl.newForType(fooType),
+        )
+
+        val target = ChildQueryPlanTarget.ExplicitObjectResult(explicitObjectResult)
+        val result = parameters.forChildPlan(
+            childPlan,
+            emptyVariables,
+            target,
+        )
+
+        assertSame(explicitObjectResult, result.currentObjectEngineResult)
+        assertSame(parameters.queryEngineResult, result.queryEngineResult)
+        assertSame(parameters.rootEngineResult, result.rootEngineResult)
+        assertEquals(target, (result.executionOrigin as ExecutionOrigin.ChildQueryPlan).target)
+    }
+
+    @Test
+    fun `forChildPlan with ResolvedFieldObjectResult target switches to field engine result for object plans`() {
         val parentSource = mapOf("viewer" to "parent")
         val childSelection = selectionSet("name")
         val childPlan = queryPlanFor(
@@ -171,17 +213,21 @@ class ExecutionParametersTest {
             currentObjectEngineResult = ObjectEngineResultImpl.newForType(fooType)
         )
 
+        val target =
+            ChildQueryPlanTarget.ResolvedFieldObjectResult(fieldEngineResult, fieldResolutionResult.originalSource)
         val result = parameters.forChildPlan(
             childPlan,
             emptyVariables,
-            ExecutionParameters.ChildPlanTarget.FieldType(fieldEngineResult, fieldResolutionResult.originalSource),
+            target,
         )
 
         assertSame(fieldEngineResult, result.currentObjectEngineResult)
         assertEquals(fieldResolutionResult.originalSource, result.source)
         assertEquals(fooType, result.executionStepInfo.type)
         assertEquals(childSelection, result.executionStepInfo.field.singleField.selectionSet)
-        assertSame(parameters, (result.parent as ExecutionParameters.Parent.PlanParent).parameters)
+        val origin = result.executionOrigin as ExecutionOrigin.ChildQueryPlan
+        assertSame(parameters, origin.parameters)
+        assertSame(target, origin.target)
     }
 
     @Test
@@ -227,7 +273,11 @@ class ExecutionParametersTest {
             attribution = ExecutionAttribution.fromResolver("FooInterfaceResolver")
         )
 
-        val result = fooFieldParameters.forChildPlan(childPlan, emptyVariables)
+        val result = fooFieldParameters.forChildPlan(
+            childPlan,
+            emptyVariables,
+            ChildQueryPlanTarget.CurrentObjectResult,
+        )
 
         val selectionSet = checkNotNull(result.executionStepInfo.field?.singleField?.selectionSet) {
             "Expected selection set on field to be present"
@@ -238,7 +288,7 @@ class ExecutionParametersTest {
     }
 
     @Test
-    fun `forChildPlan with FieldType target uses active query engine result for root query plans`() {
+    fun `forChildPlan with ResolvedFieldObjectResult target uses active query engine result for root query plans`() {
         val parentSource = mapOf("viewer" to "parent")
         val childPlan = queryPlanFor(
             type = queryType,
@@ -258,12 +308,12 @@ class ExecutionParametersTest {
             originalSource = Any()
         )
 
-        // For Query-typed plans, the FieldType target's OER and source are ignored —
+        // For Query-typed plans, the ResolvedFieldObjectResult target's OER and source are ignored —
         // the engine always uses the active queryEngineResult and the execution root.
         val result = parameters.forChildPlan(
             childPlan,
             emptyVariables,
-            ExecutionParameters.ChildPlanTarget.FieldType(
+            ChildQueryPlanTarget.ResolvedFieldObjectResult(
                 ObjectEngineResultImpl.newForType(queryType),
                 fieldResolutionResult.originalSource,
             ),
@@ -275,11 +325,11 @@ class ExecutionParametersTest {
         assertEquals(ResultPath.rootPath(), result.executionStepInfo.path)
         assertEquals(queryType, result.executionStepInfo.type)
         assertEquals(childPlan.attribution, result.attribution)
-        assertSame(parameters, (result.parent as ExecutionParameters.Parent.PlanParent).parameters)
+        assertSame(parameters, (result.executionOrigin as ExecutionOrigin.ChildQueryPlan).parameters)
     }
 
     @Test
-    fun `forChildPlan with IsolatedRootResult replaces root and query constants for object plans`() {
+    fun `forChildPlan with IsolatedRootResults replaces root and query constants for object plans`() {
         val childPlan = queryPlanFor(
             type = fooType,
             astSelectionSet = selectionSet("name"),
@@ -300,7 +350,7 @@ class ExecutionParametersTest {
         val result = parameters.forChildPlan(
             childPlan,
             emptyVariables,
-            ExecutionParameters.ChildPlanTarget.IsolatedRootResult(
+            ChildQueryPlanTarget.IsolatedRootResults(
                 rootResult = isolatedRootResult,
                 queryResult = isolatedQueryResult,
             ),
@@ -310,11 +360,11 @@ class ExecutionParametersTest {
         assertSame(isolatedRootResult, result.rootEngineResult)
         assertSame(isolatedQueryResult, result.queryEngineResult)
         assertEquals(defaultRootValue, result.source)
-        assertSame(parameters, (result.parent as ExecutionParameters.Parent.PlanParent).parameters)
+        assertSame(parameters, (result.executionOrigin as ExecutionOrigin.ChildQueryPlan).parameters)
     }
 
     @Test
-    fun `forChildPlan with IsolatedRootResult uses isolated query result for root query plans`() {
+    fun `forChildPlan with IsolatedRootResults uses isolated query result for root query plans`() {
         val childPlan = queryPlanFor(
             type = queryType,
             astSelectionSet = emptyAstSelectionSet,
@@ -332,7 +382,7 @@ class ExecutionParametersTest {
         val result = parameters.forChildPlan(
             childPlan,
             emptyVariables,
-            ExecutionParameters.ChildPlanTarget.IsolatedRootResult(
+            ChildQueryPlanTarget.IsolatedRootResults(
                 rootResult = isolatedRootResult,
                 queryResult = isolatedQueryResult,
             ),
@@ -343,7 +393,7 @@ class ExecutionParametersTest {
         assertSame(isolatedQueryResult, result.queryEngineResult)
         assertEquals(defaultRootValue, result.source)
         assertEquals(ResultPath.rootPath(), result.executionStepInfo.path)
-        assertSame(parameters, (result.parent as ExecutionParameters.Parent.PlanParent).parameters)
+        assertSame(parameters, (result.executionOrigin as ExecutionOrigin.ChildQueryPlan).parameters)
     }
 
     @Test
@@ -365,12 +415,16 @@ class ExecutionParametersTest {
         val subqueryParameters = parameters.forChildPlan(
             childPlan,
             emptyVariables,
-            ExecutionParameters.ChildPlanTarget.IsolatedRootResult(
+            ChildQueryPlanTarget.IsolatedRootResults(
                 rootResult = isolatedRootResult,
                 queryResult = isolatedQueryResult,
             ),
         )
-        val nestedQueryParameters = subqueryParameters.forChildPlan(childPlan, emptyVariables)
+        val nestedQueryParameters = subqueryParameters.forChildPlan(
+            childPlan,
+            emptyVariables,
+            subqueryParameters.targetForChildPlan(childPlan),
+        )
 
         assertSame(isolatedQueryResult, nestedQueryParameters.currentObjectEngineResult)
         assertSame(isolatedRootResult, nestedQueryParameters.rootEngineResult)
@@ -378,7 +432,7 @@ class ExecutionParametersTest {
         assertEquals(defaultRootValue, nestedQueryParameters.source)
         assertEquals(ResultPath.rootPath(), nestedQueryParameters.executionStepInfo.path)
         assertEquals(queryType, nestedQueryParameters.executionStepInfo.type)
-        assertSame(subqueryParameters, (nestedQueryParameters.parent as ExecutionParameters.Parent.PlanParent).parameters)
+        assertSame(subqueryParameters, (nestedQueryParameters.executionOrigin as ExecutionOrigin.ChildQueryPlan).parameters)
     }
 
     @Test
@@ -400,7 +454,11 @@ class ExecutionParametersTest {
             currentObjectEngineResult = ObjectEngineResultImpl.newForType(fooType)
         )
 
-        val result = parameters.forChildPlan(childPlan, emptyVariables)
+        val result = parameters.forChildPlan(
+            childPlan,
+            emptyVariables,
+            ChildQueryPlanTarget.CurrentObjectResult,
+        )
 
         // The child plan's query plan should carry the resolver attribution, which
         // flows to FieldExecutionScope.attribution via FieldExecutionHelpers
@@ -419,7 +477,11 @@ class ExecutionParametersTest {
             queryPlan = queryPlanFor(type = fooType),
         )
 
-        val result = parameters.forChildPlan(dynamicPlan, emptyVariables)
+        val result = parameters.forChildPlan(
+            dynamicPlan,
+            emptyVariables,
+            ChildQueryPlanTarget.CurrentQueryResult,
+        )
 
         assertNull(parameters.queryPlanIndex.find(rss.id))
         assertSame(indexedPlan, result.queryPlanIndex.find(rss.id))
@@ -442,6 +504,7 @@ class ExecutionParametersTest {
 
         val result = baseParameters.forField(queryType, collectedField)
 
+        assertSame(baseParameters.queryPlan, result.queryPlan)
         assertSame(baseParameters.currentObjectEngineResult, result.currentObjectEngineResult)
         assertSame(collectedField, result.field)
         assertEquals(ResultPath.rootPath().segment("foo"), result.executionStepInfo.path)
@@ -449,7 +512,7 @@ class ExecutionParametersTest {
         assertSame(queryType, result.executionStepInfo.objectType)
         assertSame(mergedField, result.executionStepInfo.field)
         assertEquals(argumentValue, result.executionStepInfo.arguments["id"])
-        assertSame(baseParameters, (result.parent as ExecutionParameters.Parent.ObjectParent).parameters)
+        assertSame(baseParameters, (result.executionOrigin as ExecutionOrigin.Field).parameters)
     }
 
     @Test
@@ -474,6 +537,7 @@ class ExecutionParametersTest {
 
         val result = fieldParameters.forObjectTraversal(collectedField, nextEngineResult, updatedLocalContext, childSource)
 
+        assertSame(fieldParameters.queryPlan, result.queryPlan)
         assertSame(fieldParameters.field, result.field)
         assertSame(nextEngineResult, result.currentObjectEngineResult)
         assertSame(updatedLocalContext, result.localContext)
@@ -481,7 +545,7 @@ class ExecutionParametersTest {
         assertSame(collectedField.selectionSet, result.selectionSet)
         assertEquals(fieldParameters.executionStepInfo.path, result.executionStepInfo.path)
         assertEquals(nextEngineResult.type, unwrapNonNull(result.executionStepInfo.type))
-        assertSame(fieldParameters, (result.parent as ExecutionParameters.Parent.ObjectTraversalParent).parameters)
+        assertSame(fieldParameters, (result.executionOrigin as ExecutionOrigin.ObjectTraversal).parameters)
     }
 
     @Test
@@ -540,12 +604,16 @@ class ExecutionParametersTest {
         )
 
         assertThrows<IllegalArgumentException> {
-            parameters.forChildPlan(interfacePlan, emptyVariables)
+            parameters.forChildPlan(
+                interfacePlan,
+                emptyVariables,
+                ChildQueryPlanTarget.CurrentObjectResult,
+            )
         }
     }
 
     @Test
-    fun `forChildPlan with FieldType throws when plan type is not an object`() {
+    fun `forChildPlan with ResolvedFieldObjectResult throws when plan type is not an object`() {
         val interfacePlan = queryPlanFor(
             type = GraphQLInterfaceType.newInterface()
                 .name("Node")
@@ -569,7 +637,7 @@ class ExecutionParametersTest {
             parameters.forChildPlan(
                 interfacePlan,
                 emptyVariables,
-                ExecutionParameters.ChildPlanTarget.FieldType(
+                ChildQueryPlanTarget.ResolvedFieldObjectResult(
                     fieldResolutionResult.engineResult as ObjectEngineResultImpl,
                     fieldResolutionResult.originalSource,
                 ),

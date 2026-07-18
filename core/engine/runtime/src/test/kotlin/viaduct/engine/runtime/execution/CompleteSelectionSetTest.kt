@@ -30,7 +30,7 @@ import viaduct.engine.runtime.ObjectEngineResultImpl
  */
 class CompleteSelectionSetTest {
     // ==================== Object-typed completions (non-Query) ====================
-    // These exercise the forChildPlan path where isRootQueryQueryPlan=false,
+    // These exercise child-plan parameter creation where isRootQueryQueryPlan=false,
     // which uses currentObjectEngineResult. This is the primary production path for
     // DFP shims (ClassicDerivedFieldResolverExecutor) and checker execution.
 
@@ -295,7 +295,7 @@ class CompleteSelectionSetTest {
     }
 
     // ==================== Query-typed completions ====================
-    // These exercise the forChildPlan path where isRootQueryQueryPlan=true,
+    // These exercise child-plan parameter creation where isRootQueryQueryPlan=true,
     // which uses queryEngineResult. Some DFPs have querySelections that follow this path.
 
     @Test

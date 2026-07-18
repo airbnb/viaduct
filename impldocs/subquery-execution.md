@@ -157,7 +157,7 @@ This method:
 1. Recovers the parent `ExecutionParameters` from the handle via `asExecutionParameters()`
 2. Looks up the root type (`queryType` or `mutationType`) from `fullSchema`
 3. Builds a `QueryPlan` from the provided `EngineSelectionSet`
-4. Calls `parentParams.forChildPlan(..., ChildPlanTarget.IsolatedRootResult(...))` to build child execution parameters
+4. Calls `parentParams.forChildPlan(..., ChildQueryPlanTarget.IsolatedRootResults(...))` to build child execution parameters
 5. Runs the field-resolution pipeline and wraps the result
 
 The `ExecutionHandle` is deliberately opaque -- tenant code sees `EngineExecutionContext.ExecutionHandle`, not `ExecutionParameters`. A handle is tied to the engine instance and request that created it; it cannot be reused across requests or engine instances.
@@ -172,7 +172,7 @@ Inside the runtime module, `asExecutionParameters()` bridges that gap. If someon
 
 ## Step 5: Building Child Execution Parameters
 
-The core of subquery execution is the `QueryPlanFactory.buildFromSelections()` plus `ExecutionParameters.forChildPlan()` handoff. The wiring layer builds `QueryPlan.Parameters` using `fullSchema`, creates the plan from the provided `EngineSelectionSet`, then asks `forChildPlan()` to derive the execution state for the child plan.
+The core of subquery execution is the `QueryPlanFactory.buildFromSelections()` plus `ExecutionParameters.forChildPlan()` handoff. The wiring layer builds `QueryPlan.Parameters` using `fullSchema`, creates the plan from the provided `EngineSelectionSet`, then asks the parent execution parameters to derive execution state for the child plan.
 
 ### Schema Choice
 
@@ -195,14 +195,16 @@ The `targetResult` option controls memoization. `ObjectEngineResultImpl` holds r
 - Fresh `ObjectEngineResultImpl` → fresh root result for this selection execution
 - Existing `ObjectEngineResultImpl` → reuse that root result for this selection execution
 
-Selection executions also get an isolated root/query result boundary via `ChildPlanTarget.IsolatedRootResult`. This is separate from the root `targetResult` itself:
+Selection executions also get an isolated root/query result boundary via `ChildQueryPlanTarget.IsolatedRootResults`. This is separate from the root `targetResult` itself:
 
 - `ctx.query()` uses the target Query result as both the root result and query result.
 - `ctx.mutation()` uses the target Mutation result as the root result and creates a fresh Query result for any `querySelections` or Query-typed child plans launched inside the sub-mutation.
 
 This matters for parallel subqueries. Without an isolated query result, two parallel `ctx.mutation()` calls can share the parent request's Query-root memoization, so a `querySelections` child plan such as `Query.node(id:)` can accidentally reuse a lazy node source resolved for a sibling sub-mutation. The lower-level `EEC.resolveSelectionSet()` with custom `targetResult` can still reuse a root result for advanced use cases, but it does not reuse the parent request's root/query results implicitly.
 
-`completeSelectionSet()` has different semantics: when it receives an explicit `targetResult`, it uses `ChildPlanTarget.ExplicitParentResult`, which changes only the immediate parent result and preserves the surrounding root/query execution constants.
+`completeSelectionSet()` has different semantics: when it receives an explicit `targetResult`, it uses `ChildQueryPlanTarget.ExplicitObjectResult`, which changes only the current object result and preserves the surrounding root/query execution constants.
+
+Normal child plans use semantic targets derived from their parent type: `CurrentObjectResult` executes against the current object result, while `CurrentQueryResult` executes against the active Query result. Specialized paths use `ResolvedFieldObjectResult`, `ExplicitObjectResult`, or `IsolatedRootResults`; there is no context-dependent default target.
 
 ### Building the QueryPlan
 
@@ -212,7 +214,7 @@ Plan caching keys on selection text, document key, and schema hash. Variables ar
 
 **Key files:**
 
-- `engine/runtime/.../execution/ExecutionParameters.kt` — `forChildPlan()` and `ChildPlanTarget`
+- `engine/runtime/.../execution/ExecutionParameters.kt` - child-plan parameter derivation and semantic targets
 - `engine/runtime/.../execution/QueryPlanFactory.kt` — `buildFromSelections()`
 
 ## Step 6: Field Resolution
