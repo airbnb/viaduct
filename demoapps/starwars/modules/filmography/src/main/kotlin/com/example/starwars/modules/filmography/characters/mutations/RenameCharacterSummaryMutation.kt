@@ -4,6 +4,7 @@ package com.example.starwars.modules.filmography.characters.mutations
 
 import com.example.starwars.filmography.resolverbases.MutationResolvers
 import com.example.starwars.modules.filmography.characters.operations.RenameCharacterOperation
+import io.micronaut.context.annotation.Prototype
 import viaduct.api.resolver.Resolver
 import viaduct.apiannotations.ExperimentalApi
 
@@ -19,6 +20,7 @@ import viaduct.apiannotations.ExperimentalApi
  */
 // tag::mutation_operation_consumer[17] Executing a @GraphQLOperation with ctx.mutation
 @Resolver
+@Prototype
 class RenameCharacterSummaryMutation : MutationResolvers.RenameCharacterSummary() {
     override suspend fun resolve(ctx: Context): String? {
         val result = ctx.mutation(

@@ -3,6 +3,7 @@ package com.example.starwars.modules.universe.species.queries
 import com.example.starwars.modules.universe.species.models.SpeciesBuilder
 import com.example.starwars.modules.universe.species.models.SpeciesRepository
 import com.example.starwars.universe.resolverbases.QueryResolvers
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.grts.Species
 import viaduct.api.resolver.Resolver
@@ -15,6 +16,7 @@ const val DEFAULT_PAGE_SIZE = 10
  * This resolver fetches a list of species, limited by the provided argument or a default page size.
  */
 @Resolver
+@Prototype
 class AllSpeciesQueryResolver
     @Inject
     constructor(

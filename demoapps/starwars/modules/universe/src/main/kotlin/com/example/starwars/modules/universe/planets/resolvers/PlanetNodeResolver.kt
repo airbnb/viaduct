@@ -3,6 +3,7 @@ package com.example.starwars.modules.universe.planets.resolvers
 import com.example.starwars.modules.universe.planets.models.PlanetBuilder
 import com.example.starwars.modules.universe.planets.models.PlanetsRepository
 import com.example.starwars.universe.resolverbases.NodeResolvers
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.FieldValue
 import viaduct.api.grts.Planet
@@ -12,6 +13,7 @@ import viaduct.api.resolver.Resolver
  * Node resolver for fetching a single planet node by its ID.
  */
 @Resolver
+@Prototype
 class PlanetNodeResolver
     @Inject
     constructor(

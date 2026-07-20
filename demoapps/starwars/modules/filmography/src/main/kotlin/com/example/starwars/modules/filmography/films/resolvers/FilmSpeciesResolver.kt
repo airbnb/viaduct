@@ -3,6 +3,7 @@ package com.example.starwars.modules.filmography.films.resolvers
 import com.example.starwars.filmography.resolverbases.FilmResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import com.example.starwars.modules.filmography.films.models.FilmCharactersRepository
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.context.globalIDFor
 import viaduct.api.grts.Species
@@ -16,6 +17,7 @@ import viaduct.api.resolver.Resolver
  * @resolver("fragment _ on Film { id }"): Fragment syntax for accessing film ID
  */
 @Resolver("id")
+@Prototype
 class FilmSpeciesResolver
     @Inject
     constructor(

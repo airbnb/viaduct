@@ -2,6 +2,7 @@ package com.example.starwars.modules.universe.planets.queries
 
 import com.example.starwars.modules.universe.planets.models.PlanetsFilmsRepository
 import com.example.starwars.universe.resolverbases.PlanetResolvers
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.context.nodeRef
 import viaduct.api.grts.Film
@@ -11,6 +12,7 @@ import viaduct.api.resolver.Resolver
  * Resolver to fetch films associated with a specific planet.
  */
 @Resolver("id")
+@Prototype
 class PlanetFilmsQueryResolver
     @Inject
     constructor(

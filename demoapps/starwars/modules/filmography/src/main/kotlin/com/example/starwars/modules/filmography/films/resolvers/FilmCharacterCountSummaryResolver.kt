@@ -2,6 +2,7 @@ package com.example.starwars.modules.filmography.films.resolvers
 
 import com.example.starwars.filmography.resolverbases.FilmResolvers
 import com.example.starwars.modules.filmography.films.models.FilmCastData
+import io.micronaut.context.annotation.Prototype
 import viaduct.api.resolver.Resolver
 
 /**
@@ -21,6 +22,7 @@ import viaduct.api.resolver.Resolver
     }
     """
 )
+@Prototype
 class FilmCharacterCountSummaryResolver : FilmResolvers.CharacterCountSummary() {
     override suspend fun resolve(ctx: Context): String? {
         val film = ctx.getObjectValue()

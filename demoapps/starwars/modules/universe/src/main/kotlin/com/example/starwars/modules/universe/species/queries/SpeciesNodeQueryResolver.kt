@@ -3,6 +3,7 @@ package com.example.starwars.modules.universe.species.queries
 import com.example.starwars.modules.universe.species.models.SpeciesBuilder
 import com.example.starwars.modules.universe.species.models.SpeciesRepository
 import com.example.starwars.universe.resolverbases.NodeResolvers
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.FieldValue
 import viaduct.api.grts.Species
@@ -14,6 +15,7 @@ import viaduct.api.resolver.Resolver
  * This resolver handles fetching a Species by its global ID.
  */
 @Resolver
+@Prototype
 class SpeciesNodeQueryResolver
     @Inject
     constructor(

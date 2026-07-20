@@ -4,6 +4,7 @@ import com.example.starwars.modules.universe.planets.models.PlanetBuilder
 import com.example.starwars.modules.universe.planets.models.PlanetsRepository
 import com.example.starwars.modules.universe.species.queries.DEFAULT_PAGE_SIZE
 import com.example.starwars.universe.resolverbases.QueryResolvers
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.grts.Planet
 import viaduct.api.resolver.Resolver
@@ -15,6 +16,7 @@ import viaduct.api.resolver.Resolver
  * the implementation for resolving all planets with an optional limit.
  */
 @Resolver
+@Prototype
 class AllPlanetsQueryResolver
     @Inject
     constructor(

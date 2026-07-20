@@ -3,6 +3,7 @@ package com.example.starwars.modules.universe.starships.resolvers
 import com.example.starwars.modules.universe.starships.models.StarshipBuilder
 import com.example.starwars.modules.universe.starships.models.StarshipsRepository
 import com.example.starwars.universe.resolverbases.NodeResolvers
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.grts.Starship
 import viaduct.api.resolver.Resolver
@@ -13,6 +14,7 @@ import viaduct.api.resolver.Resolver
  * This resolver handles fetching a Starship by its global ID.
  */
 @Resolver
+@Prototype
 class StarshipNodeResolver
     @Inject
     constructor(

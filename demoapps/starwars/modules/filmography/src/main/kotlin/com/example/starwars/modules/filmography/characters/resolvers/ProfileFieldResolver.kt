@@ -1,6 +1,7 @@
 package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
+import io.micronaut.context.annotation.Prototype
 import viaduct.api.resolver.Resolver
 import viaduct.api.resolver.Variable
 
@@ -67,6 +68,7 @@ import viaduct.api.resolver.Variable
     """,
     variables = [Variable("includeDetails", fromArgument = "includeDetails")]
 )
+@Prototype
 class ProfileFieldResolver : CharacterResolvers.CharacterProfile() {
     override suspend fun resolve(ctx: Context): String? {
         val character = ctx.getObjectValue()

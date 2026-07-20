@@ -3,6 +3,7 @@ package com.example.starwars.modules.filmography.characters.queries
 import com.example.starwars.filmography.resolverbases.QueryResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterBuilder
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.grts.Character
 import viaduct.api.resolver.Resolver
@@ -14,6 +15,7 @@ private const val DEFAULT_PAGE_SIZE = 10
  */
 // tag::resolver_example[16] Example of a query resolver with pagination
 @Resolver
+@Prototype
 class AllCharactersQueryResolver
     @Inject
     constructor(

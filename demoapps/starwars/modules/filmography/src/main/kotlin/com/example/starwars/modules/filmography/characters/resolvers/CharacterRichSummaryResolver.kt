@@ -3,6 +3,7 @@ package com.example.starwars.modules.filmography.characters.resolvers
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterFilmsRepository
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.FieldValue
 import viaduct.api.resolver.Resolver
@@ -22,6 +23,7 @@ import viaduct.api.resolver.Resolver
  * this resolver needs for its batch lookups. Other data is fetched through batch operations.
  */
 @Resolver(objectValueFragment = "fragment _ on Character { id ...CharacterIdentityFields }")
+@Prototype
 class CharacterRichSummaryResolver
     @Inject
     constructor(

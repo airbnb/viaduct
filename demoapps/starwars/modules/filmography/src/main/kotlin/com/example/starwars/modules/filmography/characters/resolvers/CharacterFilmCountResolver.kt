@@ -2,6 +2,7 @@ package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterFilmsRepository
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.FieldValue
 import viaduct.api.resolver.Resolver
@@ -41,6 +42,7 @@ import viaduct.api.resolver.Resolver
  */
 // tag::film_count_batch_resolver[25] FilmCountBatchResolver
 @Resolver(objectValueFragment = "fragment _ on Character { id }")
+@Prototype
 class CharacterFilmCountResolver
     @Inject
     constructor(

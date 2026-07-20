@@ -3,6 +3,7 @@ package com.example.starwars.modules.filmography.films.queries
 import com.example.starwars.filmography.resolverbases.QueryResolvers
 import com.example.starwars.modules.filmography.films.models.FilmBuilder
 import com.example.starwars.modules.filmography.films.models.FilmsRepository
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.grts.FilmsConnection
 import viaduct.api.resolver.Resolver
@@ -37,6 +38,7 @@ import viaduct.apiannotations.ExperimentalApi
  */
 @OptIn(ExperimentalApi::class)
 @Resolver
+@Prototype
 class AllFilmsConnectionQueryResolver
     @Inject
     constructor(

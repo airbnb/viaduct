@@ -5,6 +5,7 @@ import com.example.starwars.filmography.resolverbases.MutationResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterFilmsRepository
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import com.example.starwars.modules.filmography.films.models.FilmCharactersRepository
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.resolver.Resolver
 
@@ -15,6 +16,7 @@ import viaduct.api.resolver.Resolver
  * to specific tenants or contexts. All resolvers here are scoped to "starwars".
  */
 @Resolver
+@Prototype
 class DeleteCharacterMutation
     @Inject
     constructor(

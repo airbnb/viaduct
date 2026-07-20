@@ -81,6 +81,12 @@ type Film implements Node @scope(to: ["default"]) @resolver {
   Character count summary (demonstrates relationship computation)
   """
   characterCountSummary: String @resolver
+
+  """
+  Identifies which backing data source produced this Film (demonstrates per-tenant
+  dependency injection: this tenant's resolver is bound to its own ExternalDataClient).
+  """
+  dataSource: String @resolver
   """
   Main characters in this film (batch resolver example)
   """

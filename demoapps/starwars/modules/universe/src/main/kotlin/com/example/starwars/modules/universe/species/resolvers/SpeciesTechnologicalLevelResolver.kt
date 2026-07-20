@@ -2,6 +2,7 @@ package com.example.starwars.modules.universe.species.resolvers
 
 import com.example.starwars.modules.universe.species.models.SpeciesRepository
 import com.example.starwars.universe.resolverbases.SpeciesResolvers
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.resolver.Resolver
 
@@ -11,6 +12,7 @@ import viaduct.api.resolver.Resolver
  * Returns the technological level of the species, or null if none exists.
  */
 @Resolver("id")
+@Prototype
 class SpeciesTechnologicalLevelResolver
     @Inject
     constructor(

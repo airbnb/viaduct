@@ -1,6 +1,7 @@
 package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
+import io.micronaut.context.annotation.Prototype
 import viaduct.api.resolver.Resolver
 
 /**
@@ -13,6 +14,7 @@ import viaduct.api.resolver.Resolver
  */
 // tag::named_fragment_consumer[5] Spreading a named fragment in objectValueFragment
 @Resolver("fragment _ on Character { ...CharacterIdentityFields }")
+@Prototype
 class CharacterDisplaySummaryResolver : CharacterResolvers.DisplaySummary() {
     override suspend fun resolve(ctx: Context): String? {
         val character = ctx.getObjectValue()

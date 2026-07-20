@@ -3,6 +3,7 @@ package com.example.starwars.modules.filmography.characters.queries
 import com.example.starwars.filmography.resolverbases.QueryResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterBuilder
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.resolver.Resolver
 
@@ -22,6 +23,7 @@ import viaduct.api.resolver.Resolver
  */
 // tag::id_of_example[24] Example of idOF usage
 @Resolver
+@Prototype
 class SearchCharacterQueryResolver
     @Inject
     constructor(

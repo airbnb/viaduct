@@ -4,6 +4,7 @@ import com.example.starwars.common.SecurityAccessContext
 import com.example.starwars.filmography.resolverbases.MutationResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterBuilder
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.grts.Character
 import viaduct.api.resolver.Resolver
@@ -16,6 +17,7 @@ import viaduct.api.resolver.Resolver
  */
 // tag::update-character-name-resolver[25] Example of mutation resolver
 @Resolver
+@Prototype
 class UpdateCharacterNameMutation
     @Inject
     constructor(

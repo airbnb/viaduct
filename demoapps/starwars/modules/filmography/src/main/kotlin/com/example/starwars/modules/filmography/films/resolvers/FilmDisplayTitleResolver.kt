@@ -1,6 +1,7 @@
 package com.example.starwars.modules.filmography.films.resolvers
 
 import com.example.starwars.filmography.resolverbases.FilmResolvers
+import io.micronaut.context.annotation.Prototype
 import viaduct.api.resolver.Resolver
 
 /**
@@ -10,6 +11,7 @@ import viaduct.api.resolver.Resolver
  *                   This resolver will automatically fetch the "title" field and return its value.
  */
 @Resolver("title")
+@Prototype
 class FilmDisplayTitleResolver : FilmResolvers.DisplayTitle() {
     override suspend fun resolve(ctx: Context) = ctx.getObjectValue().getTitle()
 }

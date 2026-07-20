@@ -1,6 +1,7 @@
 package com.example.starwars.modules.filmography.films.resolvers
 
 import com.example.starwars.filmography.resolverbases.FilmResolvers
+import io.micronaut.context.annotation.Prototype
 import viaduct.api.resolver.Resolver
 
 /**
@@ -12,6 +13,7 @@ import viaduct.api.resolver.Resolver
  */
 // tag::resolver_example[10] Example of a computed field resolver
 @Resolver("title episodeID director")
+@Prototype
 class FilmSummaryResolver : FilmResolvers.Summary() {
     override suspend fun resolve(ctx: Context): String? {
         // Access the source Film from the context

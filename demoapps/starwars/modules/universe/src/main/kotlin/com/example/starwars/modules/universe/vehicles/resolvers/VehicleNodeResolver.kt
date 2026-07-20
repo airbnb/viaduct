@@ -3,6 +3,7 @@ package com.example.starwars.modules.universe.vehicles.resolvers
 import com.example.starwars.modules.universe.vehicles.models.VehicleBuilder
 import com.example.starwars.modules.universe.vehicles.models.VehiclesRepository
 import com.example.starwars.universe.resolverbases.NodeResolvers
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.grts.Vehicle
 import viaduct.api.resolver.Resolver
@@ -14,6 +15,7 @@ import viaduct.api.resolver.Resolver
  * the implementation for resolving a specific vehicle node.
  */
 @Resolver
+@Prototype
 class VehicleNodeResolver
     @Inject
     constructor(

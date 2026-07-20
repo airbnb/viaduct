@@ -1,6 +1,7 @@
 package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
+import io.micronaut.context.annotation.Prototype
 import viaduct.api.resolver.Resolver
 
 /**
@@ -18,6 +19,7 @@ import viaduct.api.resolver.Resolver
     }
     """
 )
+@Prototype
 class CharacterIsAdultResolver : CharacterResolvers.IsAdult() {
     override suspend fun resolve(ctx: Context): Boolean? {
         // Example rule: consider adults those older than 21 years

@@ -4,6 +4,7 @@ import com.example.starwars.common.SecurityAccessContext
 import com.example.starwars.filmography.resolverbases.MutationResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterBuilder
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.grts.Character
 import viaduct.api.resolver.Resolver
@@ -16,6 +17,7 @@ import viaduct.api.resolver.Resolver
  */
 // tag::create_example[50] Example of a mutation resolver with scoped access
 @Resolver
+@Prototype
 class CreateCharacterMutation
     @Inject
     constructor(

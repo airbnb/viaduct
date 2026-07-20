@@ -3,6 +3,7 @@ package com.example.starwars.modules.filmography.films.queries
 import com.example.starwars.filmography.resolverbases.QueryResolvers
 import com.example.starwars.modules.filmography.films.models.FilmBuilder
 import com.example.starwars.modules.filmography.films.models.FilmsRepository
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.grts.Film
 import viaduct.api.resolver.Resolver
@@ -15,6 +16,7 @@ private const val DEFAULT_PAGE_SIZE = 10
  * This resolver fetches a list of films, limited by the provided argument or a default page size.
  */
 @Resolver
+@Prototype
 class AllFilmsQueryResolver
     @Inject
     constructor(

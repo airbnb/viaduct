@@ -7,22 +7,21 @@ import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 
 /**
- * Shared Micronaut-backed bootstrapper for the Starwars demo.
+ * Micronaut-backed [SharedTenantModuleInjectorFactory] for the Starwars demo.
  *
- * TODO(https://app.asana.com/1/150975571430/project/1207604899751448/task/1214588083266281?focus=true):
- * demonstrate tenant-specific injector configuration once the dispatcher registry supports
- * distinct per-tenant injectors.
+ * Every tenant resolver class is itself a Micronaut bean (`@Prototype`, so the [BeanContext]
+ * builds a fresh instance per call), so [BeanContext.getBean] alone can construct any of them.
+ * Per-tenant bindings, like the `ExternalDataClient` each of `FilmDataSourceResolver` and
+ * `PlanetDataSourceResolver` requires, are declared as `@Named`-qualified constructor parameters
+ * and resolved against `@Named`-qualified implementations (`FilmArchiveClient`,
+ * `UniverseCatalogClient`) registered directly in the shared [BeanContext]. No tenant-aware
+ * lookup logic is needed here: every tenant gets the same [BeanContext]-backed injector.
  */
 @Singleton
 class MicronautTenantModuleInjectorFactory(
     beanContext: BeanContext,
-) : SharedTenantModuleInjectorFactory(MicronautCodeInjector(beanContext)) {
-    private class MicronautCodeInjector(private val beanContext: BeanContext) : CodeInjector {
-        override fun <T> getProvider(clazz: Class<T>): Provider<T> =
-            Provider {
-                beanContext.findBean(clazz).orElseGet {
-                    clazz.getDeclaredConstructor().newInstance()
-                }
-            }
-    }
-}
+) : SharedTenantModuleInjectorFactory(
+        object : CodeInjector {
+            override fun <T> getProvider(clazz: Class<T>): Provider<T> = Provider { beanContext.getBean(clazz) }
+        }
+    )

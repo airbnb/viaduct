@@ -3,6 +3,7 @@ package com.example.starwars.modules.filmography.films.resolvers
 import com.example.starwars.filmography.resolverbases.NodeResolvers
 import com.example.starwars.modules.filmography.films.models.FilmBuilder
 import com.example.starwars.modules.filmography.films.models.FilmsRepository
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.resolver.Resolver
 
@@ -13,6 +14,7 @@ import viaduct.api.resolver.Resolver
  */
 // tag::node_resolver_example[15] Example of a node resolver
 @Resolver
+@Prototype
 class FilmNodeResolver
     @Inject
     constructor(

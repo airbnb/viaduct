@@ -2,6 +2,7 @@ package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.FieldValue
 import viaduct.api.context.globalIDFor
@@ -49,6 +50,7 @@ import viaduct.api.resolver.Resolver
 @Resolver(
     objectValueFragment = "fragment _ on Character { id }"
 )
+@Prototype
 class CharacterHomeworldResolver
     @Inject
     constructor(

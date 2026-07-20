@@ -1,6 +1,7 @@
 package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
+import io.micronaut.context.annotation.Prototype
 import viaduct.api.resolver.Resolver
 
 /**
@@ -32,6 +33,7 @@ import viaduct.api.resolver.Resolver
     }
     """
 )
+@Prototype
 class CharacterStatsResolver : CharacterResolvers.CharacterStats() {
     override suspend fun resolve(ctx: Context): String? {
         val character = ctx.getObjectValue()

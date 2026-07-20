@@ -3,6 +3,7 @@ package com.example.starwars.modules.universe.starships.queries
 import com.example.starwars.modules.universe.starships.models.StarshipBuilder
 import com.example.starwars.modules.universe.starships.models.StarshipsRepository
 import com.example.starwars.universe.resolverbases.QueryResolvers
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.grts.StarshipsConnection
 import viaduct.api.resolver.Resolver
@@ -50,6 +51,7 @@ import viaduct.apiannotations.ExperimentalApi
  */
 @OptIn(ExperimentalApi::class)
 @Resolver
+@Prototype
 class AllStarshipsConnectionQueryResolver
     @Inject
     constructor(

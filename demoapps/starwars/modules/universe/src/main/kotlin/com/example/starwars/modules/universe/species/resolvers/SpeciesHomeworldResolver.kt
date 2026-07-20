@@ -2,6 +2,7 @@ package com.example.starwars.modules.universe.species.resolvers
 
 import com.example.starwars.modules.universe.species.models.SpeciesRepository
 import com.example.starwars.universe.resolverbases.SpeciesResolvers
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.context.globalIDFor
 import viaduct.api.grts.Planet
@@ -13,6 +14,7 @@ import viaduct.api.resolver.Resolver
  * Returns the planet that is the homeworld of this species, or null if none exists.
  */
 @Resolver("id")
+@Prototype
 class SpeciesHomeworldResolver
     @Inject
     constructor(

@@ -3,6 +3,7 @@ package com.example.starwars.modules.universe.vehicles.queries
 import com.example.starwars.modules.universe.vehicles.models.VehicleBuilder
 import com.example.starwars.modules.universe.vehicles.models.VehiclesRepository
 import com.example.starwars.universe.resolverbases.QueryResolvers
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.grts.Vehicle
 import viaduct.api.resolver.Resolver
@@ -16,6 +17,7 @@ const val DEFAULT_PAGE_SIZE = 10
  * the implementation for resolving all vehicles with an optional limit.
  */
 @Resolver
+@Prototype
 class AllVehiclesQueryResolver
     @Inject
     constructor(

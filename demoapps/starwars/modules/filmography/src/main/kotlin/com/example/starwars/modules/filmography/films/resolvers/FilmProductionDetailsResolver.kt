@@ -1,6 +1,7 @@
 package com.example.starwars.modules.filmography.films.resolvers
 
 import com.example.starwars.filmography.resolverbases.FilmResolvers
+import io.micronaut.context.annotation.Prototype
 import viaduct.api.resolver.Resolver
 
 /**
@@ -20,6 +21,7 @@ import viaduct.api.resolver.Resolver
     }
     """
 )
+@Prototype
 class FilmProductionDetailsResolver : FilmResolvers.ProductionDetails() {
     override suspend fun resolve(ctx: Context): String? {
         // Access the source Film from the context

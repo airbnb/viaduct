@@ -4,6 +4,7 @@ import com.example.starwars.filmography.resolverbases.FilmResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterBuilder
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import com.example.starwars.modules.filmography.films.models.FilmCastData
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.grts.Character
 import viaduct.api.resolver.Resolver
@@ -18,6 +19,7 @@ import viaduct.api.resolver.Resolver
  */
 // tag::backing_data_consumer[15]
 @Resolver(objectValueFragment = "fragment _ on Film { castData }")
+@Prototype
 class FilmCharactersResolver
     @Inject
     constructor(

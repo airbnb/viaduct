@@ -3,6 +3,7 @@ package com.example.starwars.modules.universe.planets.queries
 import com.example.starwars.modules.universe.planets.models.PlanetBuilder
 import com.example.starwars.modules.universe.planets.models.PlanetsRepository
 import com.example.starwars.universe.resolverbases.QueryResolvers
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.grts.PlanetsConnection
 import viaduct.api.resolver.Resolver
@@ -44,6 +45,7 @@ import viaduct.apiannotations.ExperimentalApi
  */
 @OptIn(ExperimentalApi::class)
 @Resolver
+@Prototype
 class AllPlanetsConnectionQueryResolver
     @Inject
     constructor(

@@ -4,6 +4,7 @@ package com.example.starwars.modules.filmography.characters.queries
 
 import com.example.starwars.filmography.resolverbases.QueryResolvers
 import com.example.starwars.modules.filmography.characters.operations.CharacterByNameOperation
+import io.micronaut.context.annotation.Prototype
 import viaduct.api.resolver.Resolver
 import viaduct.apiannotations.ExperimentalApi
 
@@ -18,6 +19,7 @@ import viaduct.apiannotations.ExperimentalApi
  */
 // tag::query_operation_consumer[11] Executing a @GraphQLOperation with ctx.query
 @Resolver
+@Prototype
 class CharacterSummaryByNameQueryResolver : QueryResolvers.CharacterSummaryByName() {
     override suspend fun resolve(ctx: Context): String? {
         val result = ctx.query(CharacterByNameOperation, mapOf("name" to ctx.arguments.name))

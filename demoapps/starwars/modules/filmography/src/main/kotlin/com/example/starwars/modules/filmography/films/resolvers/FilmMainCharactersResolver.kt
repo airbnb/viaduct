@@ -4,6 +4,7 @@ import com.example.starwars.filmography.resolverbases.FilmResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterBuilder
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
 import com.example.starwars.modules.filmography.films.models.FilmCharactersRepository
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.FieldValue
 import viaduct.api.resolver.Resolver
@@ -23,6 +24,7 @@ import viaduct.api.resolver.Resolver
  * This prevents rebuilding the same character objects for multiple films.
  */
 @Resolver(objectValueFragment = "fragment _ on Film { id }")
+@Prototype
 class FilmMainCharactersResolver
     @Inject
     constructor(

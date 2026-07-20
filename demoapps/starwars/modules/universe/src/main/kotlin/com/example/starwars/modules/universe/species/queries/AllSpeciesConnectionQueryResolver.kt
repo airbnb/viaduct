@@ -3,6 +3,7 @@ package com.example.starwars.modules.universe.species.queries
 import com.example.starwars.modules.universe.species.models.SpeciesBuilder
 import com.example.starwars.modules.universe.species.models.SpeciesRepository
 import com.example.starwars.universe.resolverbases.QueryResolvers
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.grts.SpeciesConnection
 import viaduct.api.grts.SpeciesEdge
@@ -60,6 +61,7 @@ import viaduct.apiannotations.ExperimentalApi
  */
 @OptIn(ExperimentalApi::class)
 @Resolver
+@Prototype
 class AllSpeciesConnectionQueryResolver
     @Inject
     constructor(

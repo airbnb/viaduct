@@ -75,6 +75,12 @@ type Planet implements Node @scope(to: ["default"]) @resolver(isBatching: true) 
   The films that this planet has appeared in.
   """
   films(limit: Int): [Film!] @resolver
+
+  """
+  Identifies which backing data source produced this Planet (demonstrates per-tenant
+  dependency injection: this tenant's resolver is bound to its own ExternalDataClient).
+  """
+  dataSource: String @resolver
 }
 
 extend type Query @scope(to: ["default"]) {

@@ -8,6 +8,7 @@ import com.example.starwars.modules.filmography.characters.models.CharacterRepos
 import com.example.starwars.modules.filmography.films.models.FilmBuilder
 import com.example.starwars.modules.filmography.films.models.FilmCharactersRepository
 import com.example.starwars.modules.filmography.films.models.FilmsRepository
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.grts.AddCharacterToFilmPayload
 import viaduct.api.resolver.Resolver
@@ -19,6 +20,7 @@ import viaduct.api.resolver.Resolver
  * to specific tenants or contexts. All resolvers here are scoped to "starwars".
  */
 @Resolver
+@Prototype
 class AddCharacterToFilmMutation
     @Inject
     constructor(

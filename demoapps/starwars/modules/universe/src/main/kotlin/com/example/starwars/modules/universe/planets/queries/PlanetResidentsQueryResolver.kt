@@ -2,6 +2,7 @@ package com.example.starwars.modules.universe.planets.queries
 
 import com.example.starwars.modules.universe.planets.models.PlanetsResidentsRepository
 import com.example.starwars.universe.resolverbases.PlanetResolvers
+import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
 import viaduct.api.context.nodeRef
 import viaduct.api.grts.Character
@@ -12,6 +13,7 @@ import viaduct.api.resolver.Resolver
  * It retrieves characters whose homeworld matches the planet's ID.
  */
 @Resolver("id")
+@Prototype
 class PlanetResidentsQueryResolver
     @Inject
     constructor(

@@ -1,6 +1,7 @@
 package com.example.starwars.modules.filmography.characters.resolvers
 
 import com.example.starwars.filmography.resolverbases.CharacterResolvers
+import io.micronaut.context.annotation.Prototype
 import viaduct.api.resolver.Resolver
 
 /**
@@ -18,6 +19,7 @@ import viaduct.api.resolver.Resolver
     }
     """
 )
+@Prototype
 class CharacterAppearanceDescriptionResolver : CharacterResolvers.AppearanceDescription() {
     override suspend fun resolve(ctx: Context): String? {
         // Gets the character from the context with the data specified in the @Resolver
