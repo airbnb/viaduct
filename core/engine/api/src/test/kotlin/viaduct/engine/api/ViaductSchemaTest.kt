@@ -95,7 +95,7 @@ class ViaductSchemaTest {
     }
 
     @Test
-    fun `parent field helper supports fields declared on interfaces`() {
+    fun `parent directive is not inherited from implemented interface`() {
         val schema = mkSchema(
             """
             extend type Query { user: User }
@@ -105,8 +105,7 @@ class ViaductSchemaTest {
             """.trimIndent()
         )
 
-        assertTrue(schema.isParentField("Entity", "parent"))
-        assertEquals("Company", schema.parentFieldType("Entity", "parent")?.let { (GraphQLTypeUtil.unwrapAll(it) as GraphQLNamedType).name })
+        assertFalse(schema.isParentField("User", "parent"))
     }
 
     private fun mkSchema(sdl: String): ViaductSchema {

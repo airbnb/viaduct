@@ -10,7 +10,8 @@ import viaduct.graphql.utils.DefaultSchemaFactory.DefaultDirective
 /**
  * Validates correct usage of fields marked with @parent.
  *
- * Parent fields are resolved by the engine from execution ancestry, so they cannot also have
+ * Parent fields are resolved by the engine from execution ancestry. They must be declared directly
+ * on object types because field directives are not inherited from interfaces, and they cannot have
  * explicit resolver semantics, argument/list shapes that imply normal data fetching, or ambiguous
  * schema parentage.
  */
@@ -19,7 +20,7 @@ class ParentFieldConstraintsRule(
     private val resolverDirectiveName: String = DefaultDirective.RESOLVER.directiveName,
 ) : ValidationRule(
         id = "ParentFieldConstraints",
-        description = "@$DIRECTIVE_NAME fields must be no-arg, non-list composite fields without resolver directives, selective parent producers, or ambiguous parent producers"
+        description = "@$DIRECTIVE_NAME fields must be declared on object types and be no-arg, non-list composite fields without resolver directives, selective parent producers, or ambiguous parent producers"
     ) {
     override fun visitField(
         ctx: ValidationContext,
@@ -35,7 +36,16 @@ class ParentFieldConstraintsRule(
         if (!parentType.isOutput) {
             ctx.reportError(
                 code = ValidationErrorCodes.PARENT_FIELD_ON_NON_OUTPUT_TYPE,
-                message = "Field $parentTypeName.$fieldName is marked @$DIRECTIVE_NAME, but parent fields can only be declared on object or interface types.",
+                message = "Field $parentTypeName.$fieldName is marked @$DIRECTIVE_NAME, but parent fields can only be declared on object types.",
+                location = SchemaLocation.ofField(parentTypeName, fieldName).withSourceLocation(field.sourceLocation)
+            )
+        }
+
+        if (parentType is ViaductSchema.Interface) {
+            ctx.reportError(
+                code = ValidationErrorCodes.PARENT_FIELD_ON_INTERFACE,
+                message = "Field $parentTypeName.$fieldName is marked @$DIRECTIVE_NAME, but parent fields cannot be declared on interfaces. " +
+                    "Declare @$DIRECTIVE_NAME directly on each implementing object field.",
                 location = SchemaLocation.ofField(parentTypeName, fieldName).withSourceLocation(field.sourceLocation)
             )
         }

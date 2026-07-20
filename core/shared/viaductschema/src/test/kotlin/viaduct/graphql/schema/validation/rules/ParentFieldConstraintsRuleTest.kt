@@ -95,6 +95,23 @@ class ParentFieldConstraintsRuleTest {
     }
 
     @Test
+    fun `invalid - parent field cannot be declared on interface`() {
+        val errors = validate(
+            """
+            type Query { company: Company @resolver }
+            type Company { user: User }
+            interface UserInterface { parent: Company @parent }
+            type User implements UserInterface { parent: Company }
+            """.trimIndent()
+        )
+
+        errors shouldHaveSize 1
+        errors[0].code shouldBe ValidationErrorCodes.PARENT_FIELD_ON_INTERFACE
+        errors[0].message shouldContain "UserInterface.parent"
+        errors[0].message shouldContain "Declare @parent directly on each implementing object field"
+    }
+
+    @Test
     fun `invalid - parent field cannot have resolver directive`() {
         val errors = validate(
             """
