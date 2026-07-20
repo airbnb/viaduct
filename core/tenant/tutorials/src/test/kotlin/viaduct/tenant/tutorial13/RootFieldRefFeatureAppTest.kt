@@ -11,6 +11,9 @@ import viaduct.graphql.test.assertEquals
 import viaduct.tenant.tutorial13.resolverbases.ProductFactoryResolvers
 import viaduct.tenant.tutorial13.resolverbases.QueryResolvers
 
+/**
+ * NEXT: [viaduct.tenant.tutorial14.NamedFragmentsFeatureAppTest]
+ */
 class RootFieldRefFeatureAppTest : RootFieldRefContractTest() {
     @Resolver
     class productFactoryCreateResolver : ProductFactoryResolvers.Create() {

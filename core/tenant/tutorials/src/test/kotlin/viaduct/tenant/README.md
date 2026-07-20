@@ -17,11 +17,11 @@ A comprehensive, hands-on tutorial series that teaches you how to build GraphQL 
 
 ## Tutorial Series Overview
 
-This series consists of 12 progressive tutorials, each demonstrating core Viaduct concepts through working code examples and tests. Follow them in order for the best learning experience.
+This series consists of a set of progressive tutorials, each demonstrating core Viaduct concepts through working code examples and tests. Follow them in order for the best learning experience.
 
 ## How to Use the Tutorials
 
-Start with Tutorial 1 and work your way through to Tutorial 12. Each tutorial builds on concepts from previous ones.
+Start with Tutorial 1 and work your way through the series in order. Each tutorial builds on concepts from previous ones.
 
 ### Navigation Within Files
 Each tutorial file includes navigation comments:
@@ -201,6 +201,46 @@ Each tutorial follows a consistent format:
 - Designing rich schemas with `@connection`, `@edge`, and `PageInfo`
 
 **Key concepts:** Relay Connection spec, OffsetCursor encoding, PageInfo, cursor-based pagination
+
+---
+
+### 13. Root Field References
+**File:** [RootFieldRefFeatureAppTest.kt](tutorial13/RootFieldRefFeatureAppTest.kt)
+
+**What you'll learn:**
+
+- Referencing root fields from a resolver with `ctx.rootFieldRef()`
+- Organizing root fields into namespace types using the `@namespaceType` directive
+- Resolving a field by delegating to another root field on a namespace type
+
+**Key concepts:** Root field references, namespace types, resolver delegation
+
+---
+
+### 14. Named Fragments
+**File:** [NamedFragmentsFeatureAppTest.kt](tutorial14/NamedFragmentsFeatureAppTest.kt)
+
+**What you'll learn:**
+
+- Defining reusable GraphQL fragments in Kotlin with `@GraphQLFragment`
+- Spreading a named fragment (`...FragmentName`) inside a resolver's `objectValueFragment`
+- Composing fragments by nesting one named fragment inside another
+
+**Key concepts:** Fragment reuse across resolvers, fragment composition, module-scoped fragment discovery
+
+---
+
+### 15. GraphQL Operations
+**File:** [GraphQLOperationsFeatureAppTest.kt](tutorial15/GraphQLOperationsFeatureAppTest.kt)
+
+**What you'll learn:**
+
+- Declaring reusable GraphQL operations with `@GraphQLOperation`
+- Running query operations with and without variables via `ctx.query(operation)`
+- Running operations that spread a named fragment
+- Running mutation operations with variables via `ctx.mutation(operation, variables)`
+
+**Key concepts:** Declare-once/execute-many operations, compile-time document validation, operation variables, fragment reuse in operations
 
 ---
 
