@@ -20,7 +20,7 @@ Viaduct calls `getProvider(resolverClass).get()` before each resolver invocation
 ```kotlin
 interface TenantModuleInjectorFactory {
     suspend fun bootstrap(tenantName: String, tenantBootstrapClass: Class<*>?): CodeInjector
-    suspend fun finalize() = Unit
+    suspend fun onBootstrapComplete()
 }
 ```
 
@@ -34,6 +34,21 @@ val viaduct: Viaduct = ViaductBuilder()
 ```
 
 ({{ kdoc("viaduct.service.BasicViaductFactory.create") }} also lets you set an injector factory).
+
+### Implementing from Java
+
+`TenantModuleInjectorFactory`'s hooks are `suspend` functions. Java tenants implement the SPI by extending {{ kdoc("viaduct.service.api.spi.JavaTenantModuleInjectorFactory") }} and overriding `bootstrapBlocking` (and, if needed, `onBootstrapCompleteBlocking`):
+
+```java
+public final class MyInjectorFactory extends JavaTenantModuleInjectorFactory {
+    @Override
+    public CodeInjector bootstrapBlocking(String tenantName, Class<?> tenantBootstrapClass) {
+        return ...; // build this tenant's injector (may block)
+    }
+}
+```
+
+The base class runs your method on an `Executor` — defaulting to `ForkJoinPool.commonPool()`, or one you pass to the constructor — so blocking work such as file IO never blocks the framework's coroutine thread.
 
 ## SharedTenantModuleInjectorFactory
 
@@ -79,7 +94,7 @@ It is up to the Service Engineer to define the expectation for this bootstrap cl
 
 Most DI frameworks have a mechanism for creating child injectors. A common design would be to create a parent injector for bindings that are shared across all tenants, and use the bindings from {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.bootstrap") }} to create per-module child injectors.
 
-Service Engineers might want to collect bindings from across all tenant modules before creating any injectors. The {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.finalize") }} function supports this pattern. After {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.bootstrap") }} is called for all tenant modules, Viaduct will call {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.finalize") }}. The {{ kdoc("viaduct.service.api.spi.CodeInjector") }} instances returned by {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.bootstrap") }} will _not_ be used until after {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.finalize") }} is called. The intended pattern is for the results of {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.bootstrap") }} to be lazily initialized objects, and for {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.finalize") }} to initialize them.
+Service Engineers might want to collect bindings from across all tenant modules before creating any injectors. The {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.onBootstrapComplete") }} function supports this pattern. After {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.bootstrap") }} is called for all tenant modules, Viaduct will call {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.onBootstrapComplete") }}. The {{ kdoc("viaduct.service.api.spi.CodeInjector") }} instances returned by {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.bootstrap") }} will _not_ be used until after {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.onBootstrapComplete") }} is called. The intended pattern is for the results of {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.bootstrap") }} to be lazily initialized objects, and for {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.onBootstrapComplete") }} to initialize them.
 
 See [`starwars`](https://github.com/viaduct-dev/starwars) for an example of using {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory") }} to configure per-tenant injectors.
 

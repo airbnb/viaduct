@@ -29,6 +29,7 @@ import viaduct.service.api.spi.InputStreamSource;
 import viaduct.service.api.spi.NaiveTenantModuleInjectorFactory;
 import viaduct.service.api.spi.ResolverErrorBuilder;
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory;
+import viaduct.service.spi.ExampleJavaTenantModuleInjectorFactory;
 import viaduct.service.spi.JavaCodeInjector;
 import viaduct.service.spi.JavaErrorReporter;
 import viaduct.service.spi.JavaFlagManager;
@@ -130,9 +131,10 @@ class ServiceApiJavaCoverageTest {
         InputStreamSource.fromString(
             "hi", "greeting")); // already @JvmStatic — clean, no .Companion
 
-    // TenantModuleInjectorFactory.bootstrap/finalize are suspend
-    // TODO: add a direct Java implementation once suspend is dropped. Until then the concrete
-    //       subclasses are Java-usable and cover the type:
+    final var tenantFactory = new ExampleJavaTenantModuleInjectorFactory();
+    final CodeInjector tenantInjector = tenantFactory.bootstrapBlocking("tenant", null);
+    assertNotNull(tenantInjector);
+
     final var shared = new SharedTenantModuleInjectorFactory(CodeInjector.Companion.getNaive());
     assertNotNull(shared);
     assertNotNull(NaiveTenantModuleInjectorFactory.INSTANCE);

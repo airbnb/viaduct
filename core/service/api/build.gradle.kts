@@ -24,6 +24,7 @@ dependencies {
     /** External dependencies **/
     implementation(libs.guice)
     implementation(libs.graphql.java)
+    implementation(libs.kotlinx.coroutines.core)
 
     /** Viaduct dependencies **/
     api(libs.viaduct.shared.apiannotations)

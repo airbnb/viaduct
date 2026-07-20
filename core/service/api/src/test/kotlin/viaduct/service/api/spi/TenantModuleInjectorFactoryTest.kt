@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 
 class TenantModuleInjectorFactoryTest {
     @Test
-    fun `default finalize is a no-op`() =
+    fun `default onBootstrapComplete is a no-op`() =
         runBlocking {
             val bootstrapper = object : TenantModuleInjectorFactory {
                 override suspend fun bootstrap(
@@ -19,7 +19,7 @@ class TenantModuleInjectorFactoryTest {
             }
 
             assertSame(CodeInjector.Naive, bootstrapper.bootstrap("tenant", null))
-            assertEquals(Unit, bootstrapper.finalize())
+            assertEquals(Unit, bootstrapper.onBootstrapComplete())
         }
 
     @Test
@@ -33,7 +33,7 @@ class TenantModuleInjectorFactoryTest {
 
             assertSame(sharedInjector, bootstrapper.bootstrap("tenant-a", null))
             assertSame(sharedInjector, bootstrapper.bootstrap("tenant-b", String::class.java))
-            assertEquals(Unit, bootstrapper.finalize())
+            assertEquals(Unit, bootstrapper.onBootstrapComplete())
         }
 
     @Test
@@ -41,6 +41,20 @@ class TenantModuleInjectorFactoryTest {
         runBlocking {
             assertSame(CodeInjector.Naive, NaiveTenantModuleInjectorFactory.bootstrap("tenant-a", null))
             assertSame(CodeInjector.Naive, NaiveTenantModuleInjectorFactory.bootstrap("tenant-b", String::class.java))
-            assertEquals(Unit, NaiveTenantModuleInjectorFactory.finalize())
+            assertEquals(Unit, NaiveTenantModuleInjectorFactory.onBootstrapComplete())
+        }
+
+    @Test
+    fun `java adapter runs bootstrapBlocking for bootstrap and defaults onBootstrapComplete to a no-op`() =
+        runBlocking {
+            val factory = object : JavaTenantModuleInjectorFactory() {
+                override fun bootstrapBlocking(
+                    tenantName: String,
+                    tenantBootstrapClass: Class<*>?,
+                ): CodeInjector = CodeInjector.Naive
+            }
+
+            assertSame(CodeInjector.Naive, factory.bootstrap("tenant", null))
+            assertEquals(Unit, factory.onBootstrapComplete())
         }
 }

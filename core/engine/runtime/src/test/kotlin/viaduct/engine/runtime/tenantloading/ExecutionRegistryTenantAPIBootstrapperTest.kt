@@ -260,7 +260,7 @@ private class FinalizingTenantModuleInjectorFactory : TenantModuleInjectorFactor
         return FinalizingCodeInjector().also(injectors::add)
     }
 
-    override suspend fun finalize() {
+    override suspend fun onBootstrapComplete() {
         events.add("finalize")
         injectors.forEach { it.finalized = true }
     }
@@ -278,7 +278,7 @@ private class ThrowingTenantModuleInjectorFactory : TenantModuleInjectorFactory 
         throw IllegalStateException("boom")
     }
 
-    override suspend fun finalize() {
+    override suspend fun onBootstrapComplete() {
         finalizeCalls += 1
     }
 }

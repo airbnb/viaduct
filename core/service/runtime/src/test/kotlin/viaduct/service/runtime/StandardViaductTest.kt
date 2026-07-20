@@ -406,7 +406,7 @@ private fun makeSchema(schema: String): ViaductSchema {
     )
 }
 
-/** Records whether [finalize] was invoked; used to verify the file-based bootstrap path fires. */
+/** Records whether [onBootstrapComplete] was invoked; used to verify the file-based bootstrap path fires. */
 private class RecordingFinalizingTenantModuleInjectorFactory : TenantModuleInjectorFactory {
     var finalized: Boolean = false
 
@@ -415,7 +415,7 @@ private class RecordingFinalizingTenantModuleInjectorFactory : TenantModuleInjec
         tenantBootstrapClass: Class<*>?
     ): CodeInjector = CodeInjector.Naive
 
-    override suspend fun finalize() {
+    override suspend fun onBootstrapComplete() {
         finalized = true
     }
 }
