@@ -1,5 +1,6 @@
 package viaduct.engine
 
+import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.errors.SchemaProblem
 import io.kotest.matchers.string.shouldContain
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -28,6 +29,27 @@ class SchemaFactoryTest {
 
             assertNotNull(schema)
             assertEquals("Query", schema.schema.queryType?.name)
+        }
+
+        @Test
+        fun `test prebuilt registry does not add duplicate default components`() {
+            val registry = SchemaParser().parse(
+                """
+                directive @resolver on FIELD_DEFINITION
+
+                type Query {
+                    hello: String @resolver
+                }
+                """.trimIndent()
+            )
+
+            val schema = schemaFactory.fromPrebuiltTypeDefinitionRegistry(registry)
+
+            val hello = schema.schema.queryType.getFieldDefinition("hello")
+            assertNotNull(hello)
+            assertNotNull(schema.schema.getDirective("resolver"))
+            assertNotNull(hello.getAppliedDirective("resolver"))
+            assertNull(hello.getDirective("resolver"))
         }
 
         @Test

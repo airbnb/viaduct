@@ -7,6 +7,7 @@ import graphql.schema.idl.FastSchemaGenerator
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
+import graphql.schema.idl.TypeDefinitionRegistry
 import graphql.schema.idl.errors.SchemaProblem
 import io.github.classgraph.ClassGraph
 import kotlin.jvm.optionals.getOrNull
@@ -28,6 +29,19 @@ class SchemaFactory(
 
     fun fromSdl(sdl: String): ViaductSchema {
         return schemaFromSdl(sdl, coroutineInterop)
+    }
+
+    /**
+     * Builds a schema from a registry that already contains Viaduct's default schema components.
+     */
+    fun fromPrebuiltTypeDefinitionRegistry(typeRegistry: TypeDefinitionRegistry): ViaductSchema {
+        return schemaFromTypeDefinitionRegistry(
+            typeRegistry,
+            coroutineInterop,
+            customScalars = null,
+            addDefaultSchemaComponents = false,
+            useAppliedDirectivesOnly = true,
+        )
     }
 
     fun fromResources(
@@ -147,14 +161,31 @@ class SchemaFactory(
             )
         }
 
-        // Add default Viaduct schema components
-        try {
-            DefaultSchemaFactory.addDefaults(tdr)
-        } catch (e: Exception) {
-            throw ViaductSchemaLoadException(
-                "Failed to add default schema components.",
-                e
-            )
+        return schemaFromTypeDefinitionRegistry(
+            tdr,
+            coroutineInterop,
+            customScalars,
+            addDefaultSchemaComponents = true,
+            useAppliedDirectivesOnly = false,
+        )
+    }
+
+    private fun schemaFromTypeDefinitionRegistry(
+        typeRegistry: TypeDefinitionRegistry,
+        coroutineInterop: CoroutineInterop,
+        customScalars: List<GraphQLScalarType>?,
+        addDefaultSchemaComponents: Boolean,
+        useAppliedDirectivesOnly: Boolean,
+    ): ViaductSchema {
+        if (addDefaultSchemaComponents) {
+            try {
+                DefaultSchemaFactory.addDefaults(typeRegistry)
+            } catch (e: Exception) {
+                throw ViaductSchemaLoadException(
+                    "Failed to add default schema components.",
+                    e
+                )
+            }
         }
 
         val definedScalars = DefaultSchemaFactory.defaultScalars() + (customScalars ?: emptySet())
@@ -166,11 +197,15 @@ class SchemaFactory(
         // Let SchemaProblem and other GraphQL validation errors pass through
         // FastSchemaGenerator does not preserve schema-level directives/extensions. Fall back to
         // SchemaGenerator for compatibility when that metadata is present.
+        val options =
+            SchemaGenerator.Options
+                .defaultOptions()
+                .useAppliedDirectivesOnly(useAppliedDirectivesOnly)
         val schema =
-            if (hasSchemaLevelMetadata(tdr)) {
-                SchemaGenerator().makeExecutableSchema(tdr, wiring)
+            if (hasSchemaLevelMetadata(typeRegistry)) {
+                SchemaGenerator().makeExecutableSchema(options, typeRegistry, wiring)
             } else {
-                FastSchemaGenerator().makeExecutableSchema(tdr, wiring)
+                FastSchemaGenerator().makeExecutableSchema(options, typeRegistry, wiring)
             }
         return ViaductSchema(schema)
     }
