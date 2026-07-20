@@ -465,6 +465,426 @@ class RequiredSelectionsTest {
     }
 
     @Test
+    fun `parent field accesses already requested parent fields through named fragment`() {
+        EngineTestModule(
+            """
+            extend type Query { company: Company }
+            type Company { companyName: String, user: User }
+            type User { parent: Company @parent, parentCompanyName: String }
+            """.trimIndent()
+        ) {
+            field("Query" to "company") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Company"),
+                            mapOf("companyName" to "Airbnb")
+                        )
+                    }
+                }
+            }
+            field("Company" to "user") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(schema.schema.getObjectType("User"), emptyMap())
+                    }
+                }
+            }
+            field("User" to "parentCompanyName") {
+                resolver {
+                    objectSelections("parent { companyName }")
+                    fn { _, obj, _, _, _ ->
+                        obj.fetchAs<EngineObjectData>("parent").fetchAs<String>("companyName")
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQuery(
+                """
+                query {
+                  company {
+                    companyName
+                    user {
+                      ...UserNameFields
+                    }
+                  }
+                }
+
+                fragment UserNameFields on User {
+                  parentCompanyName
+                }
+                """.trimIndent()
+            ).assertJson("""{"data": {"company": {"companyName": "Airbnb", "user": {"parentCompanyName": "Airbnb"}}}}""")
+        }
+    }
+
+    @Test
+    fun `nested parent field accesses already requested grandparent fields`() {
+        EngineTestModule(
+            """
+            extend type Query { organization: Organization }
+            type Organization { name: String, company: Company }
+            type Company { parent: Organization @parent, user: User }
+            type User { parent: Company @parent, parentOrganizationName: String }
+            """.trimIndent()
+        ) {
+            field("Query" to "organization") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Organization"),
+                            mapOf("name" to "Engineering")
+                        )
+                    }
+                }
+            }
+            field("Organization" to "company") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(schema.schema.getObjectType("Company"), emptyMap())
+                    }
+                }
+            }
+            field("Company" to "user") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(schema.schema.getObjectType("User"), emptyMap())
+                    }
+                }
+            }
+            field("User" to "parentOrganizationName") {
+                resolver {
+                    objectSelections("parent { parent { name } }")
+                    fn { _, obj, _, _, _ ->
+                        obj.fetchAs<EngineObjectData>("parent")
+                            .fetchAs<EngineObjectData>("parent")
+                            .fetchAs<String>("name")
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ organization { name company { user { parentOrganizationName } } } }")
+                .assertJson("""{"data": {"organization": {"name": "Engineering", "company": {"user": {"parentOrganizationName": "Engineering"}}}}}""")
+        }
+    }
+
+    @Test
+    fun `parent field with resolver argument variables runs child plan`() {
+        val resolvedNameLocales = ConcurrentHashMap.newKeySet<String>()
+
+        EngineTestModule(
+            """
+            extend type Query { company: Company }
+            type Company { name(locale: String): String, user: User }
+            type User { parent: Company @parent, localizedCompanyName(locale: String!): String }
+            """.trimIndent()
+        ) {
+            field("Query" to "company") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(schema.schema.getObjectType("Company"), emptyMap())
+                    }
+                }
+            }
+            field("Company" to "name") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        val locale = args["locale"] as String
+                        resolvedNameLocales.add(locale)
+                        "Airbnb-$locale"
+                    }
+                }
+            }
+            field("Company" to "user") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(schema.schema.getObjectType("User"), emptyMap())
+                    }
+                }
+            }
+            field("User" to "localizedCompanyName") {
+                resolver {
+                    objectSelections("parent { name(locale: ${'$'}locale) }") {
+                        variables("locale") { ctx, _ ->
+                            mapOf("locale" to ctx.arguments["locale"])
+                        }
+                    }
+                    fn { _, obj, _, _, _ ->
+                        obj.fetchAs<EngineObjectData>("parent").fetchAs<String>("name")
+                    }
+                }
+            }
+        }.runFeatureTest {
+            val result = runQuery("{ company { user { localizedCompanyName(locale: \"en\") } } }")
+
+            // name(locale: $locale) is resolved by the RSS child plan after
+            // User.localizedCompanyName's argument exists.
+            assertEquals(
+                mapOf(
+                    "company" to mapOf(
+                        "user" to mapOf("localizedCompanyName" to "Airbnb-en"),
+                    )
+                ),
+                result.getData()
+            )
+            assertEquals(0, result.errors.size)
+        }
+
+        assertEquals(setOf("en"), resolvedNameLocales)
+    }
+
+    @Test
+    fun `parent field with child object field variables runs child plan`() {
+        val resolvedNameLocales = ConcurrentHashMap.newKeySet<String>()
+
+        EngineTestModule(
+            """
+            extend type Query { company: Company }
+            type Company { name(locale: String): String, user: User }
+            type User { locale: String!, parent: Company @parent, localizedCompanyName: String }
+            """.trimIndent()
+        ) {
+            field("Query" to "company") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(schema.schema.getObjectType("Company"), emptyMap())
+                    }
+                }
+            }
+            field("Company" to "name") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        val locale = args["locale"] as String
+                        resolvedNameLocales.add(locale)
+                        "Airbnb-$locale"
+                    }
+                }
+            }
+            field("Company" to "user") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("User"),
+                            mapOf("locale" to "de")
+                        )
+                    }
+                }
+            }
+            field("User" to "localizedCompanyName") {
+                resolver {
+                    objectSelections("locale parent { name(locale: ${'$'}locale) }") {
+                        variables("locale", rss = createRSS("User", "locale")) { ctx, _ ->
+                            mapOf("locale" to ctx.objectData.fetchAs<String>("locale"))
+                        }
+                    }
+                    fn { _, obj, _, _, _ ->
+                        obj.fetchAs<EngineObjectData>("parent").fetchAs<String>("name")
+                    }
+                }
+            }
+        }.runFeatureTest {
+            val result = runQuery("{ company { user { localizedCompanyName } } }")
+
+            // name(locale: $locale) is resolved by the RSS child plan after Company.user has
+            // produced the User object that owns the locale field.
+            assertEquals(
+                mapOf(
+                    "company" to mapOf(
+                        "user" to mapOf("localizedCompanyName" to "Airbnb-de"),
+                    )
+                ),
+                result.getData()
+            )
+            assertEquals(0, result.errors.size)
+        }
+
+        assertEquals(setOf("de"), resolvedNameLocales)
+    }
+
+    @Test
+    fun `parent field in checker required selection is available to checker`() {
+        val checkedCompanyNames = ConcurrentHashMap.newKeySet<String>()
+
+        EngineTestModule(
+            """
+            extend type Query { company: Company }
+            type Company { companyName: String, user: User }
+            type User { parent: Company @parent, sensitiveProfile: String }
+            """.trimIndent()
+        ) {
+            field("Query" to "company") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(schema.schema.getObjectType("Company"), emptyMap())
+                    }
+                }
+            }
+            field("Company" to "companyName") {
+                resolver {
+                    fn { _, _, _, _, _ -> "Airbnb" }
+                }
+            }
+            field("Company" to "user") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(schema.schema.getObjectType("User"), emptyMap())
+                    }
+                }
+            }
+            field("User" to "sensitiveProfile") {
+                value("allowed")
+                checker {
+                    objectSelections("company", "parent { companyName }")
+                    fn { _, objectDataMap ->
+                        checkedCompanyNames.add(
+                            objectDataMap["company"]!!
+                                .fetchAs<EngineObjectData>("parent")
+                                .fetchAs<String>("companyName")
+                        )
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ company { user { sensitiveProfile } } }")
+                .assertJson("""{"data": {"company": {"user": {"sensitiveProfile": "allowed"}}}}""")
+        }
+
+        assertEquals(setOf("Airbnb"), checkedCompanyNames)
+    }
+
+    @Test
+    fun `parent field in variable resolver required selection is available to variables resolver`() {
+        val resolvedNameLocales = ConcurrentHashMap.newKeySet<String>()
+        val variableLocales = ConcurrentHashMap.newKeySet<String>()
+
+        EngineTestModule(
+            """
+            extend type Query { company: Company }
+            type Company { locale: String!, name(locale: String): String, user: User }
+            type User { parent: Company @parent, localizedCompanyName: String }
+            """.trimIndent()
+        ) {
+            field("Query" to "company") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(schema.schema.getObjectType("Company"), emptyMap())
+                    }
+                }
+            }
+            field("Company" to "locale") {
+                resolver {
+                    fn { _, _, _, _, _ -> "fr" }
+                }
+            }
+            field("Company" to "name") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        val locale = args["locale"] as String
+                        resolvedNameLocales.add(locale)
+                        "Airbnb-$locale"
+                    }
+                }
+            }
+            field("Company" to "user") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(schema.schema.getObjectType("User"), emptyMap())
+                    }
+                }
+            }
+            field("User" to "localizedCompanyName") {
+                resolver {
+                    objectSelections("parent { name(locale: ${'$'}locale) }") {
+                        variables("locale", rss = createRSS("User", "parent { locale }")) { ctx, _ ->
+                            val locale = ctx.objectData
+                                .fetchAs<EngineObjectData>("parent")
+                                .fetchAs<String>("locale")
+                            variableLocales.add(locale)
+                            mapOf("locale" to locale)
+                        }
+                    }
+                    fn { _, obj, _, _, _ ->
+                        obj.fetchAs<EngineObjectData>("parent").fetchAs<String>("name")
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ company { user { localizedCompanyName } } }")
+                .assertJson("""{"data": {"company": {"user": {"localizedCompanyName": "Airbnb-fr"}}}}""")
+        }
+
+        assertEquals(setOf("fr"), variableLocales)
+        assertEquals(setOf("fr"), resolvedNameLocales)
+    }
+
+    @Test
+    fun `parent field selections honor conditional directives`() {
+        val companyNameCount = AtomicInteger()
+
+        EngineTestModule(
+            """
+            extend type Query { company: Company }
+            type Company { companyName: String, users: [User] }
+            type User { includeParentName: Boolean!, parent: Company @parent, parentCompanyName: String }
+            """.trimIndent()
+        ) {
+            field("Query" to "company") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(schema.schema.getObjectType("Company"), emptyMap())
+                    }
+                }
+            }
+            field("Company" to "companyName") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        companyNameCount.incrementAndGet()
+                        "Airbnb"
+                    }
+                }
+            }
+            field("Company" to "users") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        listOf(
+                            createEngineObjectData(
+                                schema.schema.getObjectType("User"),
+                                mapOf("includeParentName" to true)
+                            ),
+                            createEngineObjectData(
+                                schema.schema.getObjectType("User"),
+                                mapOf("includeParentName" to false)
+                            )
+                        )
+                    }
+                }
+            }
+            field("User" to "parentCompanyName") {
+                resolver {
+                    objectSelections("includeParentName parent { companyName @include(if: ${'$'}includeParentName) }") {
+                        variables("includeParentName", rss = createRSS("User", "includeParentName")) { ctx, _ ->
+                            mapOf("includeParentName" to ctx.objectData.fetchAs<Boolean>("includeParentName"))
+                        }
+                    }
+                    fn { _, obj, _, _, _ ->
+                        val parent = obj.fetchAs<EngineObjectData>("parent")
+                        if (obj.fetchAs<Boolean>("includeParentName")) {
+                            parent.fetchAs<String>("companyName")
+                        } else {
+                            "skipped"
+                        }
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ company { users { parentCompanyName } } }")
+                .assertJson("""{"data": {"company": {"users": [{"parentCompanyName": "Airbnb"}, {"parentCompanyName": "skipped"}]}}}""")
+        }
+
+        assertEquals(1, companyNameCount.get())
+    }
+
+    @Test
     fun `disabling selective resolver keys causes required selections to reuse client selection shape`() {
         val detailsCount = AtomicInteger()
         val detailsSelections = ConcurrentHashMap.newKeySet<String>()

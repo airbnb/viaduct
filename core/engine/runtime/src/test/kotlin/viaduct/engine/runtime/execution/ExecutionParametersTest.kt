@@ -167,7 +167,7 @@ class ExecutionParametersTest {
 
     @Test
     fun `ExplicitObjectResult target uses supplied result without replacing query context`() {
-        val explicitObjectResult = ObjectEngineResultImpl.newForType(fooType)
+        val completionResult = ObjectEngineResultImpl.newForType(fooType)
         val childPlan = queryPlanFor(type = fooType)
         val fooStepInfo = executionStepInfoForField(mergedField("foo", selectionSet("id")))
         val parameters = createExecutionParameters(
@@ -177,14 +177,14 @@ class ExecutionParametersTest {
             currentObjectEngineResult = ObjectEngineResultImpl.newForType(fooType),
         )
 
-        val target = ChildQueryPlanTarget.ExplicitObjectResult(explicitObjectResult)
+        val target = ChildQueryPlanTarget.ExplicitObjectResult(completionResult)
         val result = parameters.forChildPlan(
             childPlan,
             emptyVariables,
             target,
         )
 
-        assertSame(explicitObjectResult, result.currentObjectEngineResult)
+        assertSame(completionResult, result.currentObjectEngineResult)
         assertSame(parameters.queryEngineResult, result.queryEngineResult)
         assertSame(parameters.rootEngineResult, result.rootEngineResult)
         assertEquals(target, (result.executionOrigin as ExecutionOrigin.ChildQueryPlan).target)
@@ -329,7 +329,7 @@ class ExecutionParametersTest {
     }
 
     @Test
-    fun `forChildPlan with IsolatedRootResults replaces root and query constants for object plans`() {
+    fun `forChildPlan with IsolatedRootResult replaces root and query constants for object plans`() {
         val childPlan = queryPlanFor(
             type = fooType,
             astSelectionSet = selectionSet("name"),
@@ -364,7 +364,7 @@ class ExecutionParametersTest {
     }
 
     @Test
-    fun `forChildPlan with IsolatedRootResults uses isolated query result for root query plans`() {
+    fun `forChildPlan with IsolatedRootResult uses isolated query result for root query plans`() {
         val childPlan = queryPlanFor(
             type = queryType,
             astSelectionSet = emptyAstSelectionSet,
@@ -516,7 +516,21 @@ class ExecutionParametersTest {
     }
 
     @Test
-    fun `forObjectTraversal updates engine result local context and type`() {
+    fun `nearestObjectAncestor returns null from request root`() {
+        val rootParameters = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo()
+                .type(queryType)
+                .path(ResultPath.rootPath())
+                .build(),
+            queryPlan = queryPlanFor(type = queryType),
+        )
+
+        assertNull(rootParameters.nearestObjectAncestor())
+    }
+
+    @Test
+    fun `forObjectTraversal updates state and preserves field execution origin`() {
         val baseParameters = createExecutionParameters(
             source = defaultRootValue,
             executionStepInfo = ExecutionStepInfo.newExecutionStepInfo()
@@ -546,6 +560,117 @@ class ExecutionParametersTest {
         assertEquals(fieldParameters.executionStepInfo.path, result.executionStepInfo.path)
         assertEquals(nextEngineResult.type, unwrapNonNull(result.executionStepInfo.type))
         assertSame(fieldParameters, (result.executionOrigin as ExecutionOrigin.ObjectTraversal).parameters)
+        assertSame(baseParameters, result.nearestObjectAncestor())
+    }
+
+    @Test
+    fun `forObjectTraversal requires field execution parameters`() {
+        val rootParameters = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo()
+                .type(queryType)
+                .path(ResultPath.rootPath())
+                .build(),
+            queryPlan = queryPlanFor(type = queryType),
+        )
+        val fooField = collectedFooField(mergedField("foo", selectionSet("id")))
+
+        assertThrows<IllegalStateException> {
+            rootParameters.forObjectTraversal(
+                fooField,
+                ObjectEngineResultImpl.newForType(fooType),
+                rootParameters.localContext,
+                mapOf("id" to "foo-1"),
+            )
+        }
+    }
+
+    @Test
+    fun `nearestObjectAncestor skips field execution scope`() {
+        val rootParameters = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo()
+                .type(queryType)
+                .path(ResultPath.rootPath())
+                .build(),
+            queryPlan = queryPlanFor(type = queryType),
+        )
+        val fooField = collectedFooField(mergedField("foo", selectionSet("id")))
+        val fooFieldParameters = rootParameters.forField(queryType, fooField)
+        val fooParameters = fooFieldParameters.forObjectTraversal(
+            fooField,
+            ObjectEngineResultImpl.newForType(fooType),
+            fooFieldParameters.localContext,
+            mapOf("id" to "foo-1"),
+        )
+        val nestedField = collectedField("foo", mergedField("foo"))
+        val nestedFieldParameters = fooParameters.forField(fooType, nestedField)
+
+        assertSame(rootParameters, nestedFieldParameters.nearestObjectAncestor())
+    }
+
+    @Test
+    fun `nearestObjectAncestor skips child QueryPlan scope`() {
+        val rootParameters = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo()
+                .type(queryType)
+                .path(ResultPath.rootPath())
+                .build(),
+            queryPlan = queryPlanFor(type = queryType),
+        )
+        val fooField = collectedFooField(mergedField("foo", selectionSet("id")))
+        val fooFieldParameters = rootParameters.forField(queryType, fooField)
+        val fooParameters = fooFieldParameters.forObjectTraversal(
+            fooField,
+            ObjectEngineResultImpl.newForType(fooType),
+            fooFieldParameters.localContext,
+            mapOf("id" to "foo-1"),
+        )
+        val nestedField = collectedField("foo", mergedField("foo"))
+        val nestedFieldParameters = fooParameters.forField(fooType, nestedField)
+        val childPlanParameters = nestedFieldParameters.forChildPlan(
+            queryPlanFor(type = fooType),
+            emptyVariables,
+            ChildQueryPlanTarget.CurrentObjectResult,
+        )
+        val fieldInChildPlanParameters = childPlanParameters.forField(fooType, nestedField)
+
+        assertSame(rootParameters, fieldInChildPlanParameters.nearestObjectAncestor())
+    }
+
+    @Test
+    fun `forParentFieldTraversal reuses nearest object ancestor execution origin`() {
+        val baseParameters = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo()
+                .type(queryType)
+                .path(ResultPath.rootPath())
+                .build(),
+            queryPlan = queryPlanFor(type = queryType)
+        )
+        val collectedField = collectedFooField(mergedField("foo", selectionSet("id")))
+        val fieldParameters = baseParameters.forField(queryType, collectedField)
+        val childEngineResult = ObjectEngineResultImpl.newForType(fooType)
+        val childSource = mapOf("id" to "foo-1")
+        val childParameters = fieldParameters.forObjectTraversal(
+            collectedField,
+            childEngineResult,
+            fieldParameters.localContext,
+            childSource
+        )
+        val parentFieldParameters = childParameters.forField(fooType, collectedField)
+        val ancestor = requireNotNull(parentFieldParameters.nearestObjectAncestor())
+
+        val result = parentFieldParameters.forParentFieldTraversal(
+            collectedField,
+            ancestor,
+            childParameters.localContext,
+        )
+
+        assertSame(ancestor.currentObjectEngineResult, result.currentObjectEngineResult)
+        assertSame(ancestor.source, result.source)
+        assertEquals(ancestor.executionOrigin, result.executionOrigin)
     }
 
     @Test

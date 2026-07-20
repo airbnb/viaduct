@@ -243,6 +243,47 @@ data class ExecutionParameters(
     fun launchOnRootScope(block: suspend CoroutineScope.() -> Unit) = constants.launchOnRootScope(block)
 
     /**
+     * Returns the nearest object execution scope above this scope.
+     *
+     * This intentionally excludes the object that contains the current field. For example,
+     * while executing a field on `Query.viewer.address`, the nearest object ancestor of
+     * `address` is `viewer`, not `address` itself.
+     *
+     * An [ExecutionOrigin.Field] stays on the same object, so it does not add an ancestor.
+     * An [ExecutionOrigin.ObjectTraversal] enters the object returned by a field. Most
+     * [ExecutionOrigin.ChildQueryPlan] origins do not change object ancestry, but a non-Query
+     * [ChildQueryPlanTarget.ResolvedFieldObjectResult] enters the object returned by the current
+     * field and therefore has the field's containing object as its nearest ancestor.
+     */
+    fun nearestObjectAncestor(): ExecutionParameters? =
+        when (val origin = executionOrigin) {
+            // Executing a field does not enter a new object. Continue from the object
+            // containing the field while still excluding that object from the result.
+            is ExecutionOrigin.Field -> origin.parameters.nearestObjectAncestor()
+
+            // The current object was produced by a field, so return the object that owns it.
+            is ExecutionOrigin.ObjectTraversal ->
+                (origin.parameters.executionOrigin as? ExecutionOrigin.Field)?.parameters
+                    ?: error("Expected object traversal to start from field execution parameters")
+
+            is ExecutionOrigin.ChildQueryPlan ->
+                if (origin.target is ChildQueryPlanTarget.ResolvedFieldObjectResult &&
+                    queryPlan.parentType != graphQLSchema.queryType
+                ) {
+                    // The child plan executes against the object returned by the current field.
+                    // Its nearest ancestor is the object that owns that field.
+                    (origin.parameters.executionOrigin as? ExecutionOrigin.Field)?.parameters
+                        ?: error("Expected resolved field child plan to start from field execution parameters")
+                } else {
+                    // Replacing the active QueryPlan does not change the runtime object ancestry.
+                    origin.parameters.nearestObjectAncestor()
+                }
+
+            // The request root has no object above it.
+            ExecutionOrigin.Root -> null
+        }
+
+    /**
      * Creates ExecutionParameters for executing a specific field.
      *
      * @param objectType The GraphQLObjectType that owns the field definition
@@ -478,7 +519,10 @@ data class ExecutionParameters(
     )
 
     /**
-     * Creates ExecutionParameters for traversing into an object's selections in the active [queryPlan].
+     * Creates ExecutionParameters for normal traversal into a field's returned object.
+     *
+     * Parent fields use [forParentFieldTraversal] because they return an existing ancestor
+     * rather than introducing a new child object.
      *
      * @param field The field containing the selection set to traverse
      * @param engineResult The ObjectEngineResult for the current object
@@ -492,8 +536,11 @@ data class ExecutionParameters(
         localContext: CompositeLocalContext,
         source: Any?,
         resolutionPolicy: ResolutionPolicy = this.resolutionPolicy,
-    ): ExecutionParameters =
-        copy(
+    ): ExecutionParameters {
+        check(executionOrigin is ExecutionOrigin.Field) {
+            "Expected object traversal to start from field execution parameters"
+        }
+        return copy(
             currentObjectEngineResult = engineResult,
             coercedVariables = coercedVariables,
             // ExecutionStepInfo.type is initially set to an abstract type like Node
@@ -503,6 +550,30 @@ data class ExecutionParameters(
             source = source,
             selectionSet = checkNotNull(field.selectionSet) { "Expected selection set to be non-null." },
             executionOrigin = ExecutionOrigin.ObjectTraversal(this),
+            resolutionPolicy = resolutionPolicy,
+        )
+    }
+
+    /**
+     * Creates ExecutionParameters for traversing into an object returned by a @parent field.
+     *
+     * Unlike normal object traversal, the returned object is already an existing ancestor
+     * of the current object. Preserve that ancestor's own execution origin so nested
+     * parent fields keep walking upward through the original object chain.
+     */
+    fun forParentFieldTraversal(
+        field: QueryPlan.CollectedField,
+        parentParameters: ExecutionParameters,
+        localContext: CompositeLocalContext,
+        resolutionPolicy: ResolutionPolicy = this.resolutionPolicy,
+    ): ExecutionParameters =
+        copy(
+            currentObjectEngineResult = parentParameters.currentObjectEngineResult,
+            executionStepInfo = executionStepInfo.changeTypeWithPreservedNonNull(parentParameters.currentObjectEngineResult.type),
+            localContext = localContext,
+            source = parentParameters.source,
+            selectionSet = checkNotNull(field.selectionSet) { "Expected selection set to be non-null." },
+            executionOrigin = parentParameters.executionOrigin,
             resolutionPolicy = resolutionPolicy,
         )
 

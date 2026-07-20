@@ -615,7 +615,6 @@ class FieldCompleter(
      *
      * @param field The field whose value is an object.
      * @param parameters The modern execution parameters.
-     * @param resolvedObjectType The resolved object type.
      * @param result The result to complete.
      * @return The [Value] of [FieldCompletionResult] representing the object value.
      */
@@ -623,14 +622,25 @@ class FieldCompleter(
         field: QueryPlan.CollectedField,
         parameters: ExecutionParameters,
         result: FieldResolutionResult,
-    ): Value<FieldCompletionResult> =
-        completeObject(
-            parameters.forObjectTraversal(
-                field,
-                result.engineResult as? ObjectEngineResultImpl
-                    ?: throw IllegalStateException("Invariant: Expected ObjectEngineResultImpl for object completion"),
-                result.localContext,
-                result.originalSource
-            )
-        )
+    ): Value<FieldCompletionResult> {
+        val traversalParameters = when (val originalSource = result.originalSource) {
+            is ParentFieldValue ->
+                parameters.forParentFieldTraversal(
+                    field,
+                    originalSource.parameters,
+                    result.localContext,
+                    result.resolutionPolicy,
+                )
+            else ->
+                parameters.forObjectTraversal(
+                    field,
+                    result.engineResult as? ObjectEngineResultImpl
+                        ?: throw IllegalStateException("Invariant: Expected ObjectEngineResultImpl for object completion"),
+                    result.localContext,
+                    originalSource,
+                    result.resolutionPolicy,
+                )
+        }
+        return completeObject(traversalParameters)
+    }
 }

@@ -17,6 +17,7 @@ import graphql.language.VariableReference
 import graphql.schema.GraphQLNamedOutputType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
+import graphql.schema.GraphQLSchema
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.graphql.asDocument
 import viaduct.arbitrary.graphql.asSchema
+import viaduct.engine.SchemaFactory
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FromObjectFieldVariable
@@ -315,6 +317,80 @@ class QueryPlanTest {
                 }
                 .toSet()
             assertEquals(setOf("y", "z"), rssSelectedFieldNames)
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- parent fields stay in current RSS plan`() {
+        val sdl =
+            """
+                extend type Query { company: Company }
+                type Company { companyName: String, user: User }
+                type User { parent: Company @parent, displayName: String }
+            """.trimIndent()
+
+        Fixture(
+            sdl = sdl,
+            requiredSelectionSetRegistry = MockRequiredSelectionSetRegistry.builder()
+                .fieldResolverEntry(
+                    "User" to "displayName",
+                    "parent { companyName }"
+                )
+                .build(),
+            schema = SchemaFactory().fromSdl(sdl).schema
+        ) {
+            val plan = buildPlan("{ company { user { displayName } } }")
+            val companyField = plan.selectionSet.selections.single() as Field
+            val userField = companyField.selectionSet!!.selections.single() as Field
+            val displayNameField = userField.selectionSet!!.selections.single() as Field
+
+            displayNameField.childPlans.shouldHaveSize(1)
+            assertEquals(schema.getObjectType("User"), plan.planFor(displayNameField.childPlans[0]).parentType)
+            assertEquals("parent", (plan.planFor(displayNameField.childPlans[0]).selectionSet.selections.single() as Field).resultKey)
+
+            val companySelectionNames = companyField.selectionSet!!
+                .selections
+                .filterIsInstance<Field>()
+                .map { it.resultKey }
+                .toSet()
+            assertEquals(setOf("user"), companySelectionNames)
+        }
+    }
+
+    @Test
+    fun `QueryPlanBuilder -- cycle prevention for parent field required selection`() {
+        val sdl =
+            """
+                extend type Query { company: Company }
+                type Company { user: User }
+                type User { parent: Company @parent, parentCompanyName: String }
+            """.trimIndent()
+
+        Fixture(
+            sdl = sdl,
+            requiredSelectionSetRegistry = MockRequiredSelectionSetRegistry.builder()
+                .fieldResolverEntry(
+                    "User" to "parentCompanyName",
+                    "parent { user { parentCompanyName } }"
+                )
+                .build(),
+            schema = SchemaFactory().fromSdl(sdl).schema
+        ) {
+            val plan = buildPlan("{ company { user { parentCompanyName } } }")
+            val companyField = plan.selectionSet.selections.single() as Field
+            val userField = companyField.selectionSet!!.selections.single() as Field
+            val parentCompanyNameField = userField.selectionSet!!.selections.single() as Field
+            val rssPlan = plan.planFor(parentCompanyNameField.childPlans.single())
+            val parentField = rssPlan.selectionSet.selections.single() as Field
+            val parentUserField = parentField.selectionSet!!.selections.single() as Field
+            val nestedParentCompanyNameField = parentUserField.selectionSet!!.selections.single() as Field
+
+            assertEquals("parent", parentField.resultKey)
+            assertEquals("user", parentUserField.resultKey)
+            assertEquals("parentCompanyName", nestedParentCompanyNameField.resultKey)
+            val backEdgeChildPlan = nestedParentCompanyNameField.childPlans.single()
+            assertEquals(parentCompanyNameField.childPlans.single().requiredSelectionSetId, backEdgeChildPlan.requiredSelectionSetId)
+            assertEquals("User" to "parentCompanyName", backEdgeChildPlan.originCoordinate)
         }
     }
 
@@ -1695,9 +1771,9 @@ class QueryPlanTest {
     private class Fixture(
         sdl: String,
         val requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty,
+        val schema: GraphQLSchema = sdl.asSchema,
         fn: Fixture.() -> Unit
     ) {
-        val schema = sdl.asSchema
         val query: GraphQLObjectType = schema.queryType
 
         init {

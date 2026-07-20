@@ -96,6 +96,60 @@ class LocalContextFeatureTest {
         }
 
     @Test
+    fun `parent fields propagate ancestor local context to sub fields`() =
+        runExecutionTest {
+            data class TestContext(val value: String)
+
+            val result = executeViaductModernGraphQL(
+                """
+                    directive @parent on FIELD_DEFINITION
+                    type Query { company: Company }
+                    type Company { contextValue: String, user: User }
+                    type User { parent: Company @parent }
+                """.trimIndent(),
+                mapOf(
+                    "Query" to mapOf(
+                        "company" to DataFetcher {
+                            val context = it.getLocalContext<CompositeLocalContext>()!!
+                                .addOrUpdate(TestContext("company"))
+                            DataFetcherResult.newResult<Map<String, Any?>>()
+                                .data(emptyMap())
+                                .localContext(context)
+                                .build()
+                        }
+                    ),
+                    "Company" to mapOf(
+                        "user" to DataFetcher {
+                            val context = it.getLocalContext<CompositeLocalContext>()!!
+                                .addOrUpdate(TestContext("user"))
+                            DataFetcherResult.newResult<Map<String, Any?>>()
+                                .data(emptyMap())
+                                .localContext(context)
+                                .build()
+                        },
+                        "contextValue" to DataFetcher {
+                            it.getLocalContextForType<TestContext>()!!.value
+                        }
+                    )
+                ),
+                "{ company { user { parent { contextValue } } } }"
+            )
+
+            assertEquals(
+                mapOf(
+                    "data" to mapOf(
+                        "company" to mapOf(
+                            "user" to mapOf(
+                                "parent" to mapOf("contextValue" to "company")
+                            )
+                        )
+                    )
+                ),
+                result.toSpecification(),
+            )
+        }
+
+    @Test
     fun `throw on field resolvers that return non-CompositeLocalContext localContext`() =
         runExecutionTest {
             val result = executeViaductModernGraphQL(

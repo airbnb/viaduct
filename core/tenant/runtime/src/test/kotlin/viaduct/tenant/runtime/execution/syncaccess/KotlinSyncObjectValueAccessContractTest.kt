@@ -4,14 +4,27 @@ package viaduct.tenant.runtime.execution.syncaccess
 
 import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.syncaccess.resolverbases.BarResolvers
+import viaduct.tenant.runtime.execution.syncaccess.resolverbases.CompanyResolvers
 import viaduct.tenant.runtime.execution.syncaccess.resolverbases.ContainerResolvers
+import viaduct.tenant.runtime.execution.syncaccess.resolverbases.OrganizationResolvers
 import viaduct.tenant.runtime.execution.syncaccess.resolverbases.QueryResolvers
+import viaduct.tenant.runtime.execution.syncaccess.resolverbases.UserResolvers
 import viaduct.tenant.runtime.execution.syncaccess.resolverbases.WidgetResolvers
 
 class KotlinSyncObjectValueAccessContractTest : SyncObjectValueAccessContractTest() {
     @Resolver
     class Query_WidgetResolver : QueryResolvers.Widget() {
         override suspend fun resolve(ctx: Context): Widget = Widget.Builder(ctx).id(ctx.globalIDFor(Widget.Reflection, "w1")).x(42).build()
+    }
+
+    @Resolver
+    class Query_CompanyResolver : QueryResolvers.Company() {
+        override suspend fun resolve(ctx: Context): Company = Company.Builder(ctx).companyName("Airbnb").build()
+    }
+
+    @Resolver
+    class Query_OrganizationResolver : QueryResolvers.Organization() {
+        override suspend fun resolve(ctx: Context): Organization = Organization.Builder(ctx).name("Engineering").build()
     }
 
     @Resolver
@@ -73,5 +86,39 @@ class KotlinSyncObjectValueAccessContractTest : SyncObjectValueAccessContractTes
     @Resolver
     class Bar_ValueResolver : BarResolvers.Value() {
         override suspend fun resolve(ctx: Context): String? = "NestedValue"
+    }
+
+    @Resolver
+    class Company_UserResolver : CompanyResolvers.User() {
+        override suspend fun resolve(ctx: Context): User = User.Builder(ctx).build()
+    }
+
+    @Resolver
+    class Organization_CompanyResolver : OrganizationResolvers.Company() {
+        override suspend fun resolve(ctx: Context): Company = Company.Builder(ctx).companyName("Airbnb").build()
+    }
+
+    @Resolver(
+        objectValueFragment =
+            """
+            fragment _ on User {
+              parent { companyName }
+            }
+            """
+    )
+    class User_ParentCompanyNameResolver : UserResolvers.ParentCompanyName() {
+        override suspend fun resolve(ctx: Context): String = ctx.getObjectValue().getParent()!!.getCompanyName()
+    }
+
+    @Resolver(
+        objectValueFragment =
+            """
+            fragment _ on User {
+              parent { parent { name } }
+            }
+            """
+    )
+    class User_ParentOrganizationNameResolver : UserResolvers.ParentOrganizationName() {
+        override suspend fun resolve(ctx: Context): String = ctx.getObjectValue().getParent()!!.getParent()!!.getName()
     }
 }

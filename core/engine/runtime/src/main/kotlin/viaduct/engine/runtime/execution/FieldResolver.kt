@@ -1,5 +1,6 @@
 package viaduct.engine.runtime.execution
 
+import graphql.execution.DataFetcherResult
 import graphql.execution.FetchedValue
 import graphql.execution.ResolveType
 import graphql.execution.instrumentation.FieldFetchingInstrumentationContext
@@ -45,6 +46,11 @@ import viaduct.engine.runtime.execution.FieldExecutionHelpers.executionStepInfoF
 import viaduct.utils.slf4j.ifDebug
 import viaduct.utils.slf4j.logger
 
+/** Carries an ancestor's execution scope through parent-field fetching and completion. */
+internal data class ParentFieldValue(
+    val parameters: ExecutionParameters,
+)
+
 /**
  * A core component of the Viaduct execution engine responsible for resolving GraphQL field values and managing the
  * execution of data fetchers (https://spec.graphql.org/draft/#sec-Value-Resolution).
@@ -83,8 +89,8 @@ class FieldResolver(
     /**
      * The values a field's fetch produces: its raw resolution result and its access-check result.
      *
-     * @property result The [FieldResolutionResult] produced by the data fetcher.
-     * @property checkerResult The combined field + type access-check outcome.
+     * @property result The [FieldResolutionResult] produced for the field.
+     * @property checkerResult The field's access-check outcome, including its return type when applicable.
      */
     private data class FieldFetchResult(
         val result: Value<FieldResolutionResult>,
@@ -399,19 +405,23 @@ class FieldResolver(
         // We're fetching an individual field; the current engine result will always be an ObjectEngineResult
         val currentOER = parameters.currentObjectEngineResult
         val executionStepInfoForField = parameters.executionStepInfo
-
-        val fieldInstrumentationCtx = nonNullCtx(
-            parameters.instrumentation.beginFieldExecution(
-                InstrumentationFieldParameters(parameters.executionContextWithLocalContext) { executionStepInfoForField },
-                parameters.executionContext.instrumentationState
-            )
-        )
-
         val dataFetchingEnvironmentProvider =
             FpKit.intraThreadMemoize { buildDataFetchingEnvironment(parameters, field, currentOER) }
         val oerKey = buildOERKeyForField(parameters, field)
+        val isParentField = executionStepInfoForField.fieldDefinition.isParentField()
+        val fieldInstrumentationCtx =
+            if (isParentField) {
+                null
+            } else {
+                nonNullCtx(
+                    parameters.instrumentation.beginFieldExecution(
+                        InstrumentationFieldParameters(parameters.executionContextWithLocalContext) { executionStepInfoForField },
+                        parameters.executionContext.instrumentationState
+                    )
+                )
+            }
 
-        fieldInstrumentationCtx.onDispatched()
+        fieldInstrumentationCtx?.onDispatched()
 
         // Check if the field is already being fetched, and if so, we can await the pending and return the result
         val fieldResolutionResultValue: Value<FieldResolutionResult> = currentOER.computeIfAbsent(oerKey) { slotSetter ->
@@ -419,13 +429,17 @@ class FieldResolver(
                 debug("Field @ {} with OER key: {} is not being fetched, fetching now...", parameters.path, oerKey)
             }
             launchFieldChildPlans(parameters, field)
-            val fieldFetchResult = fetchField(field, parameters, dataFetchingEnvironmentProvider)
+            val fieldFetchResult = if (isParentField) {
+                fetchParentField(field, parameters, dataFetchingEnvironmentProvider)
+            } else {
+                fetchField(field, parameters, dataFetchingEnvironmentProvider)
+            }
             slotSetter.setRawValue(fieldFetchResult.result)
             slotSetter.setCheckerValue(fieldFetchResult.checkerResult)
         } as Value<FieldResolutionResult>
 
         val overall = fieldResolutionResultValue.thenCompose { v, e ->
-            fieldInstrumentationCtx.onCompletedNullable(v, e)
+            fieldInstrumentationCtx?.onCompletedNullable(v, e)
             if (e != null) {
                 // if the field resolution failed, don't attempt to fetch lazy data or nested objects
                 // and mark this field as completed
@@ -446,6 +460,25 @@ class FieldResolver(
         return FieldDispatch(
             immediate = fieldResolutionResultValue,
             overall = overall
+        )
+    }
+
+    private fun fetchParentField(
+        field: QueryPlan.CollectedField,
+        parameters: ExecutionParameters,
+        dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
+    ): FieldFetchResult {
+        val fieldCheckerResult = accessCheckRunner.fieldCheck(parameters, dataFetchingEnvironmentProvider)
+        val result = fieldResolutionResultFromDataFetcherResult(
+            field,
+            parameters,
+            parameters.executionStepInfo.unwrappedNonNullType,
+            parentFieldValue(parameters),
+            dataFetchingEnvironmentProvider,
+        )
+        return FieldFetchResult(
+            result = result,
+            checkerResult = fieldCheckerResult,
         )
     }
 
@@ -489,6 +522,15 @@ class FieldResolver(
         // If the type has a non-null wrapper, unwrap one level and recurse
         if (GraphQLTypeUtil.isNonNull(fieldType)) {
             return buildFieldResolutionResult(parameters, GraphQLTypeUtil.unwrapNonNullAs(fieldType), fetchedValue, effectiveResolutionPolicy, dataFetchingEnvironmentProvider)
+        }
+
+        if (effectiveData is ParentFieldValue) {
+            return syncFieldResolutionResult(
+                effectiveData.parameters.currentObjectEngineResult,
+                fetchedValue,
+                effectiveResolutionPolicy,
+                originalSource = effectiveData,
+            )
         }
 
         // When it's a list, wrap each item in the list
@@ -663,7 +705,14 @@ class FieldResolver(
             else -> {
                 // if engineResult is a scalar or simple value, then no nesting is possible and we can return
                 val oer = fieldResolutionResult.engineResult as? ObjectEngineResultImpl ?: return Value.fromValue(Unit)
-                val traversalParameters = parameters.forObjectTraversal(field, oer, fieldResolutionResult.localContext, fieldResolutionResult.originalSource, fieldResolutionResult.resolutionPolicy)
+                val traversalParameters =
+                    if (parameters.executionStepInfo.fieldDefinition.isParentField()) {
+                        val parentFieldValue = fieldResolutionResult.originalSource as? ParentFieldValue
+                            ?: throw IllegalStateException("Expected ParentFieldValue but got ${fieldResolutionResult.originalSource}")
+                        parameters.forParentFieldTraversal(field, parentFieldValue.parameters, fieldResolutionResult.localContext, fieldResolutionResult.resolutionPolicy)
+                    } else {
+                        parameters.forObjectTraversal(field, oer, fieldResolutionResult.localContext, fieldResolutionResult.originalSource, fieldResolutionResult.resolutionPolicy)
+                    }
                 if (isMutationNamespace(parameters, oer.type)) {
                     fetchObjectSerially(oer.type, traversalParameters)
                 } else {
@@ -757,31 +806,13 @@ class FieldResolver(
                     dataFetcher,
                 )
             }
-            val rawValue = dataFetcherResult.thenCompose { value, error ->
-                FieldExecutionHelpers.dataFetcherResultToValue(
-                    field,
-                    parameters,
-                    value,
-                    error,
-                )
-            }
-
-            val result: Value<FieldResolutionResult> = rawValue
-                .flatMap { fv ->
-                    buildFieldResolutionResult(parameters, fieldType, fv, parameters.resolutionPolicy, dataFetchingEnvironmentProvider)
-                }.recover { e ->
-                    // handle any errors that occurred during building FieldResolutionResult
-                    val wrappedException = when (e) {
-                        is FieldFetchingException -> e
-                        is InternalEngineException -> e
-                        else -> InternalEngineException.wrapWithPathAndLocation(
-                            e,
-                            parameters.path,
-                            field.sourceLocation
-                        )
-                    }
-                    Value.fromThrowable(wrappedException)
-                }
+            val result: Value<FieldResolutionResult> = fieldResolutionResultFromDataFetcherResult(
+                field,
+                parameters,
+                fieldType,
+                dataFetcherResult,
+                dataFetchingEnvironmentProvider,
+            )
 
             val combinedCheckerResult = accessCheckRunner.combineWithTypeCheck(
                 parameters,
@@ -834,6 +865,44 @@ class FieldResolver(
                 checkerResult = Value.fromThrowable(error)
             )
         }
+
+    private fun fieldResolutionResultFromDataFetcherResult(
+        field: QueryPlan.CollectedField,
+        parameters: ExecutionParameters,
+        fieldType: GraphQLOutputType,
+        dataFetcherResult: Value<out Any?>,
+        dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
+    ): Value<FieldResolutionResult> {
+        val rawValue = dataFetcherResult.thenCompose { value, error ->
+            FieldExecutionHelpers.dataFetcherResultToValue(field, parameters, value, error)
+        }
+        return rawValue
+            .flatMap { fv ->
+                buildFieldResolutionResult(parameters, fieldType, fv, parameters.resolutionPolicy, dataFetchingEnvironmentProvider)
+            }.recover { e ->
+                // handle any errors that occurred during building FieldResolutionResult
+                val wrappedException = when (e) {
+                    is FieldFetchingException -> e
+                    is InternalEngineException -> e
+                    else -> InternalEngineException.wrapWithPathAndLocation(
+                        e,
+                        parameters.path,
+                        field.sourceLocation
+                    )
+                }
+                Value.fromThrowable(wrappedException)
+            }
+    }
+
+    private fun parentFieldValue(parameters: ExecutionParameters): Value<Any?> {
+        val ancestor = parameters.nearestObjectAncestor() ?: return Value.fromValue(null)
+        return Value.fromValue(
+            DataFetcherResult.newResult<ParentFieldValue>()
+                .data(ParentFieldValue(parameters = ancestor))
+                .localContext(ancestor.localContext)
+                .build()
+        )
+    }
 
     private fun shouldExecuteCheckerSequentially(parameters: ExecutionParameters): Boolean {
         val parentType = parameters.executionStepInfo.objectType
