@@ -13,7 +13,7 @@ import viaduct.remote.registry.FieldExecutorRegistry
 
 class RemoteResolverInitializerTest {
     private fun cfg(
-        enabled: Boolean,
+        enabled: Boolean = true,
         fieldProxyingEnabled: Boolean = true,
         remoteFields: Set<String> = emptySet(),
     ) = RemoteResolverConfig(
@@ -36,7 +36,7 @@ class RemoteResolverInitializerTest {
 
     @Test
     fun `enabled config produces a non-NO_OP factory`() {
-        val initializer = RemoteResolverInitializer(cfg(enabled = true))
+        val initializer = RemoteResolverInitializer(cfg())
         try {
             assertTrue(initializer.initialize() !== ProxyResolverFactory.NO_OP)
         } finally {
@@ -46,7 +46,7 @@ class RemoteResolverInitializerTest {
 
     @Test
     fun `repeat initialize returns the same factory`() {
-        val initializer = RemoteResolverInitializer(cfg(enabled = true))
+        val initializer = RemoteResolverInitializer(cfg())
         try {
             assertSame(initializer.initialize(), initializer.initialize())
         } finally {
@@ -56,7 +56,7 @@ class RemoteResolverInitializerTest {
 
     @Test
     fun `initialize after close throws IllegalStateException`() {
-        val initializer = RemoteResolverInitializer(cfg(enabled = true))
+        val initializer = RemoteResolverInitializer(cfg())
         initializer.initialize()
         initializer.close()
         assertThrows<IllegalStateException> { initializer.initialize() }
@@ -64,7 +64,7 @@ class RemoteResolverInitializerTest {
 
     @Test
     fun `close before initialize still terminates the instance`() {
-        val initializer = RemoteResolverInitializer(cfg(enabled = true))
+        val initializer = RemoteResolverInitializer(cfg())
         initializer.close()
         assertThrows<IllegalStateException> { initializer.initialize() }
     }
@@ -74,7 +74,7 @@ class RemoteResolverInitializerTest {
         // With no explicit VIADUCT_REMOTE_RESOLVER_FIELDS, the default predicate proxies tenant field
         // resolvers but excludes the engine's built-ins (Query.node/nodes, @namespaceType) — those are
         // in-JVM framework ops that shouldn't take a gRPC hop. An explicit list can still opt them in.
-        val initializer = RemoteResolverInitializer(cfg(enabled = true))
+        val initializer = RemoteResolverInitializer(cfg())
         try {
             val factory = initializer.initialize()
             assertNull(
@@ -95,7 +95,7 @@ class RemoteResolverInitializerTest {
     fun `disabled field proxying never proxies any field`() {
         // fieldProxyingEnabled = false is the field-only off switch: even a plain tenant field the
         // default predicate would proxy runs locally (returns null). Node proxying is unaffected.
-        val initializer = RemoteResolverInitializer(cfg(enabled = true, fieldProxyingEnabled = false))
+        val initializer = RemoteResolverInitializer(cfg(fieldProxyingEnabled = false))
         try {
             val factory = initializer.initialize()
             assertNull(
@@ -112,7 +112,7 @@ class RemoteResolverInitializerTest {
     fun `explicit remoteFields opts a built-in in and excludes unlisted tenant fields`() {
         // A non-empty whitelist keys solely on resolverId: only listed coordinates proxy (even engine
         // built-ins like Query.node), and every unlisted field — including tenant fields — is skipped.
-        val initializer = RemoteResolverInitializer(cfg(enabled = true, remoteFields = setOf("Query.node")))
+        val initializer = RemoteResolverInitializer(cfg(remoteFields = setOf("Query.node")))
         try {
             val factory = initializer.initialize()
             assertNotNull(
@@ -134,7 +134,7 @@ class RemoteResolverInitializerTest {
         // Every name in BUILT_IN_FIELD_RESOLVER_NAMES (Query.node/nodes, @namespaceType) is an in-JVM
         // framework op, so the default predicate excludes each by ResolverMetadata.name — the coordinate
         // is irrelevant, only the built-in name matters.
-        val initializer = RemoteResolverInitializer(cfg(enabled = true))
+        val initializer = RemoteResolverInitializer(cfg())
         try {
             val factory = initializer.initialize()
             for (builtInName in listOf("query-node-resolver", "query-nodes-resolver", "namespace-type-resolver")) {

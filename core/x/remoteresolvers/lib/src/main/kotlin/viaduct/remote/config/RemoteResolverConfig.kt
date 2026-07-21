@@ -11,8 +11,9 @@ fun interface EnvLookup {
 }
 
 /**
- * Configuration for remote resolver execution. Use [fromEnvironment] for the standard
- * env-driven flow, or the primary constructor for explicit wiring.
+ * Configuration for remote resolver execution. Use [fromEnvironment] for environment-backed
+ * resolver details and supply [enabled] from the caller, or use the primary constructor for
+ * explicit wiring.
  */
 data class RemoteResolverConfig(
     val enabled: Boolean,
@@ -25,7 +26,6 @@ data class RemoteResolverConfig(
     val callbackPort: Int = DEFAULT_CALLBACK_PORT,
 ) {
     companion object {
-        const val ENV_ENABLED = "VIADUCT_REMOTE_RESOLVER_ENABLED"
         const val ENV_TYPES = "VIADUCT_REMOTE_RESOLVER_TYPES"
         const val ENV_FIELDS = "VIADUCT_REMOTE_RESOLVER_FIELDS"
         const val ENV_RRS_HOST = "VIADUCT_RRS_HOST"
@@ -40,11 +40,14 @@ data class RemoteResolverConfig(
         // the first-class rollback for the default-on flip, distinct from empty (= all fields).
         private val FIELDS_OFF_SENTINELS = setOf("none", "off", "-")
 
-        fun fromEnvironment(env: EnvLookup = EnvLookup.SYSTEM): RemoteResolverConfig {
+        fun fromEnvironment(
+            env: EnvLookup = EnvLookup.SYSTEM,
+            enabled: Boolean = false,
+        ): RemoteResolverConfig {
             val fieldsRaw = env.get(ENV_FIELDS)
             val fieldProxyingOff = fieldsRaw?.trim()?.lowercase() in FIELDS_OFF_SENTINELS
             return RemoteResolverConfig(
-                enabled = parseEnabled(env.get(ENV_ENABLED)),
+                enabled = enabled,
                 remoteTypes = parseTypes(env.get(ENV_TYPES)),
                 remoteFields = if (fieldProxyingOff) emptySet() else parseTypes(fieldsRaw),
                 fieldProxyingEnabled = !fieldProxyingOff,
@@ -53,10 +56,6 @@ data class RemoteResolverConfig(
                 callbackPort = env.get(ENV_CALLBACK_PORT)?.toIntOrNull() ?: DEFAULT_CALLBACK_PORT,
             )
         }
-
-        // Strict-boolean parse: `"1"` / `"yes"` / blank / unparseable all fall through to
-        // `false`, so opt-in requires the literal `"true"`.
-        private fun parseEnabled(raw: String?): Boolean = raw?.takeIf { it.isNotBlank() }?.toBooleanStrictOrNull() ?: false
 
         private fun parseTypes(raw: String?): Set<String> =
             raw?.split(",")

@@ -39,7 +39,9 @@ both the main server and the remote server process so they meet on the wire.
 Build a `RemoteResolverInitializer` from a `RemoteResolverConfig`, call
 `initialize()` once at startup to get a `ProxyResolverFactory`, hand that
 factory to `BasicViaductFactory.create`, and call `close()` on the initializer
-at shutdown.
+at shutdown. If `RemoteResolverConfig.enabled` is false, `initialize()` returns
+a no-op factory.
+Viaduct uses the `viaduct_remote_resolver` AirParam to gate the rollout.
 
 For a worked example with Micronaut beans, see
 [`main-server/.../ViaductConfiguration.kt`](starwars/main-server/src/main/kotlin/com/example/main/service/viaduct/ViaductConfiguration.kt).
@@ -135,8 +137,8 @@ independent — each defaults to *all* and can be narrowed on its own.
   selection set (or another cross-process representation).
 - **Default-on (semantic note):** an empty `VIADUCT_REMOTE_RESOLVER_FIELDS` now means *all* field
   resolvers — it previously meant *none*. To turn field proxying off while keeping node proxying, set
-  `VIADUCT_REMOTE_RESOLVER_FIELDS=none` (or `off`/`-`); to disable the whole feature (nodes too) use
-  `VIADUCT_REMOTE_RESOLVER_ENABLED=false`. Or list only the coordinates you want.
+  `VIADUCT_REMOTE_RESOLVER_FIELDS=none` (or `off`/`-`); to disable the whole feature (nodes too),
+  set `RemoteResolverConfig.enabled=false`. Or list only the coordinates you want.
 - Node and field resolvers are both proxied by default. A proxied field result carries scalars,
   `null`, node references, resolved objects, and lists thereof; a field returning an arbitrary
   non-JSON, non-`EngineObjectData` value (or a `Map`/list-leaf containing one) is rejected at

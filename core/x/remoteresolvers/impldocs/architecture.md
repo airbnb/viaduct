@@ -59,7 +59,8 @@ The implementation has four important ownership rules:
 
 ### Transport lifecycle
 
-`RemoteResolverConfig.fromEnvironment()` reads the feature switch, node and field allowlists, RRS endpoint, and callback port. `RemoteResolverInitializer.initialize()` then:
+`RemoteResolverConfig.fromEnvironment()` accepts an explicit enablement value and reads the node and
+field allowlists, RRS endpoint, and callback port. `RemoteResolverInitializer.initialize()` then:
 
 1. Returns `ProxyResolverFactory.NO_OP` when remote execution is disabled.
 2. Creates one shaded-Netty `ManagedChannel` to the configured RRS endpoint.

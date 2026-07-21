@@ -12,25 +12,9 @@ class RemoteResolverConfigTest {
     }
 
     @Test
-    fun `defaults to disabled when env is empty`() {
-        val cfg = RemoteResolverConfig.fromEnvironment(envOf())
-        assertFalse(cfg.enabled)
-        assertEquals(emptySet<String>(), cfg.remoteTypes)
-    }
-
-    @Test
-    fun `enabled only when value is exactly 'true'`() {
-        assertTrue(RemoteResolverConfig.fromEnvironment(envOf(RemoteResolverConfig.ENV_ENABLED to "true")).enabled)
-        assertFalse(RemoteResolverConfig.fromEnvironment(envOf(RemoteResolverConfig.ENV_ENABLED to "false")).enabled)
-    }
-
-    @Test
-    fun `non-strict-boolean values stay disabled`() {
-        // toBooleanStrictOrNull rejects "1" / "yes" / blank / garbage; default is false.
-        for (raw in listOf("1", "0", "yes", "no", "TRUE", "True", "", " ", "maybe")) {
-            val cfg = RemoteResolverConfig.fromEnvironment(envOf(RemoteResolverConfig.ENV_ENABLED to raw))
-            assertFalse(cfg.enabled, "value=$raw should leave proxy disabled")
-        }
+    fun `enabled defaults to false and accepts an explicit value`() {
+        assertFalse(RemoteResolverConfig.fromEnvironment(envOf()).enabled)
+        assertTrue(RemoteResolverConfig.fromEnvironment(envOf(), enabled = true).enabled)
     }
 
     @Test

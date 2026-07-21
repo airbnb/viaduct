@@ -24,8 +24,8 @@ class ViaductConfiguration(
     @Singleton
     @Bean(preDestroy = "close")
     fun remoteResolverInitializer(): RemoteResolverInitializer =
-        // Force enabled=true; main-server always runs with the proxy on.
-        RemoteResolverInitializer(RemoteResolverConfig.fromEnvironment().copy(enabled = true))
+        // The sample always runs with the proxy enabled.
+        RemoteResolverInitializer(RemoteResolverConfig.fromEnvironment(enabled = true))
 
     @OptIn(ExperimentalApi::class)
     @Bean
