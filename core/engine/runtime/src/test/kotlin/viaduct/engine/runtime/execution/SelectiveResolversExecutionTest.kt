@@ -8,14 +8,12 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.fail
+import viaduct.arbitrary.common.CheckedArb
 import viaduct.arbitrary.common.Config
-import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.arbitrary.common.DeepArbSuite
 import viaduct.arbitrary.common.withCheck
 import viaduct.arbitrary.graphql.FieldCheckerWeight
 import viaduct.arbitrary.graphql.FieldResolverExceptionWeight
@@ -41,10 +39,15 @@ import viaduct.service.api.ExecutionInput
 import viaduct.service.api.ExecutionResult
 import viaduct.service.api.Viaduct
 
-class SelectiveResolversExecutionTest : KotestPropertyBase(iterations = 100) {
+class SelectiveResolversExecutionTest {
     @Nested
-    inner class ArbSelectiveFieldResolvers {
-        private val arb = arbitrary {
+    inner class ArbSelectiveFieldResolvers : DeepArbSuite<Pair<Viaduct, ExecutionInput>>(
+        iterations = 100,
+        minViolationIterations = 10_000,
+    ) {
+        override val comparator = ViaductAndInputComparator
+
+        override val checkedArb: CheckedArb<Pair<Viaduct, ExecutionInput>> = arbitrary {
             val schema = """
                 type Foo { x:Int, y:Int, z:Int }
                 extend type Query { a:Int, b:Int, foo:Foo }
@@ -67,30 +70,6 @@ class SelectiveResolversExecutionTest : KotestPropertyBase(iterations = 100) {
             assertTrue(v.runQueryWithTimeout(inp).errors.isEmpty()) {
                 (v to inp).dump()
             }
-        }
-
-        @Test
-        fun `selective field resolvers`() {
-            arb.checkAll(iterations)
-        }
-
-        // This test will check many more samples, returning the "simplest" failure that it finds.
-        // Manually run this to find the next issue to fix when the system is believed to contain at least 1 bug
-        @Test
-        @Disabled
-        fun `min violation`() {
-            arb.minViolation(ViaductAndInputComparator, randomSource, iterations * 100)
-                ?.let { violation ->
-                    fail(violation.err.toString())
-                }
-        }
-
-        // This test will run forever until it finds an error.
-        // Manually run this to search for issues when the system is believed to have no bugs.
-        @Test
-        @Disabled
-        fun `seed march`() {
-            assertNull(arb.seedMarch())
         }
     }
 

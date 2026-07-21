@@ -25,11 +25,11 @@ import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.mocks.MockType
 import viaduct.api.mocks.testGlobalId
 import viaduct.api.types.Object
-import viaduct.arbitrary.common.NormalizedValue
-import viaduct.arbitrary.common.normalizedVariables
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.errors.TenantUsageException
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
+import viaduct.tenant.runtime.testing.NormalizedValue
+import viaduct.tenant.runtime.testing.normalizedVariables
 
 class TenantApiValueNormalizerTest {
     private val globalIDCodec = GlobalIDCodecDefault

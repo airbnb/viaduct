@@ -2,21 +2,25 @@
 
 package viaduct.engine.runtime.execution
 
+import graphql.schema.GraphQLSchema
 import graphql.schema.idl.SchemaPrinter
 import io.kotest.property.Arb
-import io.kotest.property.RandomSource
+import io.kotest.property.arbitrary.arbitrary
+import io.kotest.property.arbitrary.bind
+import io.kotest.property.arbitrary.long
 import io.kotest.property.arbitrary.map
-import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.take
 import kotlin.math.sqrt
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import viaduct.arbitrary.common.CheckedArb
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
+import viaduct.arbitrary.common.DeepArbSuite
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.flatten
+import viaduct.arbitrary.common.withCheck
 import viaduct.arbitrary.graphql.EnumTypeSize
 import viaduct.arbitrary.graphql.FragmentSpreadWeight
 import viaduct.arbitrary.graphql.GenInterfaceStubsIfNeeded
@@ -242,70 +246,29 @@ class ArbitraryConformanceTest : KotestPropertyBase() {
         }
     }
 
-    @Test
-    fun `arb arb arb`(): Unit =
-        runBlocking {
-            /** test execution of arbitrary requests against arbitrary schemas that use arbitrary wiring */
+    @Nested
+    inner class ArbArbArb : DeepArbSuite<Pair<GraphQLSchema, Long>>(
+        iterations = sqrt(this@ArbitraryConformanceTest.iterations.toDouble()).toInt(),
+    ) {
+        private val deepConfig = cfg +
+            (SchemaSize to 20) +
+            (ObjectTypeSize to 1..5) +
+            (EnumTypeSize to 1..5) +
+            (InputObjectTypeSize to 1..5) +
+            (ListValueSize to 0..2) +
+            (GenInterfaceStubsIfNeeded to true)
 
-            // use the default config, but tune it down to create smaller schemas
-            val cfg = cfg +
-                (SchemaSize to 20) +
-                (ObjectTypeSize to 1..5) +
-                (EnumTypeSize to 1..5) +
-                (InputObjectTypeSize to 1..5) +
-                (ListValueSize to 0..2) +
-                (GenInterfaceStubsIfNeeded to true)
-
-            val dim = sqrt(iterations.toDouble()).toInt()
-            Arb.graphQLSchema(cfg).checkAll(dim) { schema ->
-                Conformer(SchemaPrinter().print(schema)) {
-                    Arb.viaductExecutionInput(this.schema).checkAll(dim)
-                    markSuccess()
-                }
-            }
+        override val comparator = compareBy<Pair<GraphQLSchema, Long>> {
+            SchemaPrinter().print(it.first).length
         }
 
-    /**
-     * This test can be un-disabled and run to check a test case using an infinite sequence.
-     * of seed values.
-     * This allows running a large number of test cases to find low-probability conformance bugs.
-     *
-     * This test has the potential to run forever and should not be enabled in master.
-     */
-    @Test
-    @Disabled
-    fun `debug -- seed march`(): Unit =
-        runBlocking {
-            // Runs `arb arb arb` across an ascending sequence of seed values to find
-            // low-probability conformance bugs. Each seed gets a single iteration.
-            //
-            // To use: un-disable, run, and wait for a failure. The printed seed can
-            // then be passed to `KotestPropertyBase(seed = ...)` in the class declaration
-            // to reproduce the failure.
-            //
-            // This test has the potential to run forever and should not be enabled in master.
-
-            val cfg = cfg +
-                (SchemaSize to 20) +
-                (ObjectTypeSize to 1..5) +
-                (EnumTypeSize to 1..5) +
-                (InputObjectTypeSize to 1..5) +
-                (ListValueSize to 0..2) +
-                (GenInterfaceStubsIfNeeded to true)
-
-            var seed = 0L
-            while (true) {
-                if (seed.mod(100) == 0) {
-                    println("SEED: $seed")
+        override val checkedArb: CheckedArb<Pair<GraphQLSchema, Long>> =
+            arbitrary {
+                Arb.graphQLSchema(deepConfig).bind() to Arb.long().bind()
+            }.withCheck { (schema, conformerSeed) ->
+                Conformer(SchemaPrinter().print(schema), seed = conformerSeed) {
+                    Arb.viaductExecutionInput(this.schema).checkAll(iterations)
                 }
-                val rs = RandomSource.seeded(seed)
-                val schema = Arb.graphQLSchema(cfg).next(rs)
-                val sdl = SchemaPrinter().print(schema)
-                Conformer(sdl, seed = seed) {
-                    Arb.viaductExecutionInput(this.schema).checkAll(1)
-                }
-
-                seed += 1
             }
-        }
+    }
 }

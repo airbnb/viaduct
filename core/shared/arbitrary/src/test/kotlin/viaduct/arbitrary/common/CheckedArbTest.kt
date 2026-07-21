@@ -15,23 +15,16 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 
 class CheckedArbTest : KotestPropertyBase() {
     @Test
-    fun `checkAll -- succeeds`() {
-        Arb.constant(1).withCheck({}).checkAll()
-    }
+    fun `check evaluates the value`() {
+        var checkedValue: Int? = null
+        val checkedArb = Arb.constant(1).withCheck { checkedValue = it }
 
-    @Test
-    fun `checkAll -- fails`() {
-        val err = RuntimeException()
-        val thrown = assertThrows<AssertionError> {
-            Arb.constant(1)
-                .withCheck { throw err }
-                .checkAll()
-        }
-        assertEquals(err, thrown.cause)
+        checkedArb.check(2)
+
+        assertEquals(2, checkedValue)
     }
 
     @Test

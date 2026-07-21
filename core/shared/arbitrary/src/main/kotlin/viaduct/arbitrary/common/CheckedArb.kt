@@ -3,33 +3,19 @@
 package viaduct.arbitrary.common
 
 import io.kotest.property.Arb
-import io.kotest.property.PropertyContext
 import io.kotest.property.PropertyTesting
 import io.kotest.property.RandomSource
-import io.kotest.property.Sample
 import io.kotest.property.arbitrary.next
-import io.kotest.property.checkAll
 import java.io.PrintStream
-import kotlinx.coroutines.runBlocking
 
 /**
  * An Arb combined with an assertion, providing a common interface for checking all values,
  * finding the minimum violating value, and seed marching
  */
 class CheckedArb<T>(
-    private val underlying: Arb<T>,
-    private val check: (T) -> Unit
-) : Arb<T>() {
-    override fun edgecase(rs: RandomSource): T? = underlying.edgecase(rs)?.also { check(it) }
-
-    override fun sample(rs: RandomSource): Sample<T> = underlying.sample(rs).also { check(it.value) }
-
-    /** Apply [check] to every sample within [iterations] samples. */
-    fun checkAll(iterations: Int = PropertyTesting.defaultIterationCount): PropertyContext =
-        runBlocking {
-            underlying.checkAll(iterations) { check(it) }
-        }
-
+    val arb: Arb<T>,
+    val check: (T) -> Unit
+) {
     /** Return the minimum [Violation] within [iter] samples, if one exists */
     fun minViolation(
         comparator: Comparator<T>,
@@ -38,7 +24,7 @@ class CheckedArb<T>(
         printEvery: Int = 1_000,
         out: PrintStream = System.out
     ): Violation<T>? =
-        underlying.asSequence(rs)
+        arb.asSequence(rs)
             .take(iter)
             .foldIndexed(null as Violation<T>?) { i, acc, t ->
                 if (printEvery > 0 && i.mod(printEvery) == 0) {
@@ -79,7 +65,7 @@ class CheckedArb<T>(
             }
             var t: T? = null
             try {
-                val sample = underlying.next(RandomSource.seeded(seed))
+                val sample = arb.next(RandomSource.seeded(seed))
                 t = sample
                 check(sample)
             } catch (e: Throwable) {
@@ -94,5 +80,5 @@ class CheckedArb<T>(
 /** [value] is null when generation fails before a sample is produced. */
 data class Violation<T>(val value: T?, val err: Throwable, val seed: Long)
 
-/** return a [CheckedArb] that applies [check] to every sample */
+/** Return a [CheckedArb] that combines this arb with [check]. */
 fun <T> Arb<T>.withCheck(check: (T) -> Unit): CheckedArb<T> = CheckedArb(this, check)

@@ -1,4 +1,4 @@
-package viaduct.arbitrary.common
+package viaduct.tenant.runtime.testing
 
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.choice

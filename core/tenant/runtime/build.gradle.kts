@@ -73,6 +73,7 @@ dependencies {
     testFixturesImplementation(libs.viaduct.tenant.wiring)
     testFixturesApi(testFixtures(libs.viaduct.tenant.api))
     testFixturesImplementation(libs.graphql.java)
+    testFixturesApi(libs.kotest.property.jvm)
     testFixturesImplementation(libs.kotlin.reflect)
     testFixturesImplementation(libs.kotlinx.coroutines.core)
     testFixturesImplementation(libs.kotlinx.coroutines.jdk8)

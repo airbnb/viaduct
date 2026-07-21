@@ -19,8 +19,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.arbitrary.common.NormalizedValue
-import viaduct.arbitrary.common.normalizedVariables
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.errors.TenantUsageException
 import viaduct.java.api.internal.InputBase
@@ -29,6 +27,8 @@ import viaduct.java.api.types.GraphQLEnum
 import viaduct.java.api.types.GraphQLObject
 import viaduct.java.api.types.NodeObject
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
+import viaduct.tenant.runtime.testing.NormalizedValue
+import viaduct.tenant.runtime.testing.normalizedVariables
 
 class JavaTenantApiValueNormalizerTest {
     private val engineContext = mockk<EngineExecutionContext> {
