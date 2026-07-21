@@ -16,7 +16,6 @@ import graphql.execution.ResultPath
 import graphql.execution.ValuesResolver
 import graphql.execution.directives.QueryDirectivesImpl
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
-import graphql.language.Argument
 import graphql.language.SelectionSet as GJSelectionSet
 import graphql.language.VariableDefinition
 import graphql.normalized.ExecutableNormalizedField
@@ -25,7 +24,6 @@ import graphql.schema.DataFetchingEnvironment
 import graphql.schema.DataFetchingEnvironmentImpl
 import graphql.schema.DataFetchingFieldSelectionSetImpl
 import graphql.schema.FieldCoordinates
-import graphql.schema.GraphQLArgument
 import graphql.schema.GraphQLCodeRegistry
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLFieldDefinition
@@ -62,6 +60,17 @@ import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.exceptions.FieldFetchingException
 import viaduct.engine.runtime.observability.ExecutionObservabilityContext
 import viaduct.graphql.utils.ParsedSelections
+
+internal fun QueryPlan.CollectedField.oerKey(
+    arguments: Map<String, Any?>,
+    selections: ObjectEngineResult.Selections? = null,
+): ObjectEngineResult.Key =
+    ObjectEngineResult.Key(
+        name = fieldName,
+        alias = alias,
+        arguments = arguments,
+        selectionSet = selections,
+    )
 
 object FieldExecutionHelpers {
     val executionStepInfoFactory = ExecutionStepInfoFactory()
@@ -215,11 +224,9 @@ object FieldExecutionHelpers {
             null
         }
 
-        return ObjectEngineResult.Key(
-            field.fieldName,
-            field.alias,
-            parameters.executionStepInfo.arguments,
-            selectionSet
+        return field.oerKey(
+            arguments = parameters.executionStepInfo.arguments,
+            selections = selectionSet,
         )
     }
 
@@ -383,6 +390,18 @@ object FieldExecutionHelpers {
         fieldContainer: GraphQLObjectType?,
     ): ExecutionStepInfo {
         val fieldType = fieldDefinition.type
+        val arguments: Supplier<ImmutableMapWithNullValues<String, Any>> =
+            if (fieldDefinition.arguments.isEmpty()) {
+                Supplier { ImmutableMapWithNullValues.emptyMap() }
+            } else {
+                getArgumentValues(
+                    codeRegistry,
+                    executionContext,
+                    coercedVariables,
+                    fieldDefinition,
+                    field,
+                )
+            }
 
         return ExecutionStepInfo.newExecutionStepInfo()
             .type(fieldType)
@@ -391,43 +410,50 @@ object FieldExecutionHelpers {
             .field(field)
             .path(path)
             .parentInfo(parentExecutionStepInfo)
-            .arguments {
-                if (fieldDefinition.arguments.isNotEmpty()) {
-                    val v = getArgumentValues(
-                        codeRegistry,
-                        executionContext,
-                        coercedVariables,
-                        fieldDefinition.arguments,
-                        field.arguments
-                    ).get()
-                    ImmutableMapWithNullValues.copyOf(v)
-                } else {
-                    ImmutableMapWithNullValues.emptyMap()
-                }
-            }
+            .arguments(arguments)
             .build()
     }
+
+    internal fun resolveFieldArguments(
+        codeRegistry: GraphQLCodeRegistry,
+        fieldDefinition: GraphQLFieldDefinition,
+        field: MergedField,
+        coercedVariables: CoercedVariables,
+        graphQLContext: GraphQLContext,
+        locale: Locale,
+    ): ImmutableMapWithNullValues<String, Any> =
+        if (fieldDefinition.arguments.isEmpty()) {
+            ImmutableMapWithNullValues.emptyMap()
+        } else {
+            ImmutableMapWithNullValues.copyOf(
+                ValuesResolver.getArgumentValues(
+                    codeRegistry,
+                    fieldDefinition.arguments,
+                    field.arguments,
+                    coercedVariables,
+                    graphQLContext,
+                    locale,
+                )
+            )
+        }
 
     private fun getArgumentValues(
         codeRegistry: GraphQLCodeRegistry,
         executionContext: ExecutionContext,
         coercedVariables: CoercedVariables,
-        argDefs: List<GraphQLArgument>,
-        args: List<Argument>
-    ): Supplier<ImmutableMapWithNullValues<String, Any>> {
-        val argValuesSupplier = Supplier {
-            val resolvedValues = ValuesResolver.getArgumentValues(
+        fieldDefinition: GraphQLFieldDefinition,
+        field: MergedField,
+    ): Supplier<ImmutableMapWithNullValues<String, Any>> =
+        FpKit.intraThreadMemoize {
+            resolveFieldArguments(
                 codeRegistry,
-                argDefs,
-                args,
+                fieldDefinition,
+                field,
                 coercedVariables,
                 executionContext.graphQLContext,
-                executionContext.locale
+                executionContext.locale,
             )
-            ImmutableMapWithNullValues.copyOf(resolvedValues)
         }
-        return FpKit.intraThreadMemoize(argValuesSupplier)
-    }
 
     private fun getNormalizedField(
         executionContext: ExecutionContext,

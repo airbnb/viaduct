@@ -511,7 +511,9 @@ class ExecutionParametersTest {
         assertSame(fooFieldDefinition, result.executionStepInfo.fieldDefinition)
         assertSame(queryType, result.executionStepInfo.objectType)
         assertSame(mergedField, result.executionStepInfo.field)
-        assertEquals(argumentValue, result.executionStepInfo.arguments["id"])
+        val arguments = result.executionStepInfo.arguments
+        assertEquals(argumentValue, arguments["id"])
+        assertSame(arguments, result.executionStepInfo.arguments)
         assertSame(baseParameters, (result.executionOrigin as ExecutionOrigin.Field).parameters)
     }
 

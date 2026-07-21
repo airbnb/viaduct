@@ -64,6 +64,28 @@ class KeyTree(
         return KeyTree(result)
     }
 
+    /** Returns the selections shared by this [KeyTree] and [other]. */
+    fun intersect(other: KeyTree): KeyTree {
+        if (this === other) return this
+        if (isEmpty() || other.isEmpty()) return empty
+        if (this == other) return this
+        val result = mutableMapOf<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>>()
+        for ((type, fields) in byType) {
+            val otherFields = other.byType[type] ?: continue
+            val commonFields = mutableMapOf<ObjectEngineResult.Key, KeyTree>()
+            for ((key, children) in fields) {
+                val otherChildren = otherFields[key] ?: continue
+                commonFields[key] = if (children.isEmpty() || otherChildren.isEmpty()) {
+                    empty
+                } else {
+                    children.intersect(otherChildren)
+                }
+            }
+            if (commonFields.isNotEmpty()) result[type] = commonFields
+        }
+        return if (result.isEmpty()) empty else KeyTree(result)
+    }
+
     /** Returns the child subtree under the exact field [key]. */
     fun subtreeForKey(
         type: GraphQLObjectType,

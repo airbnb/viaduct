@@ -2,6 +2,7 @@ package viaduct.engine.runtime.mat
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -216,6 +217,218 @@ class KeyTreeTest {
                 },
                 a + b
             )
+        }
+    }
+
+    @Nested
+    inner class Intersect {
+        @Test
+        fun empty() {
+            val foo = KeyTree.build(schema) {
+                field("Foo", key("x"))
+            }
+
+            assertEquals(KeyTree.empty, KeyTree.empty.intersect(KeyTree.empty))
+            assertEquals(KeyTree.empty, foo.intersect(KeyTree.empty))
+            assertEquals(KeyTree.empty, KeyTree.empty.intersect(foo))
+        }
+
+        @Test
+        fun `typed empty is canonical empty when intersected`() {
+            val typedEmpty = KeyTree(mapOf(fooType to emptyMap()))
+            val foo = KeyTree.build(schema) {
+                field("Foo", key("x"))
+            }
+
+            assertEquals(KeyTree.empty, typedEmpty.intersect(KeyTree.empty))
+            assertEquals(KeyTree.empty, typedEmpty.intersect(foo))
+            assertEquals(KeyTree.empty, foo.intersect(typedEmpty))
+        }
+
+        @Test
+        fun self() {
+            val tree = KeyTree.build(schema) {
+                field("Foo", key("a"))
+                field("Foo", key("x")) {
+                    field("Bar", key("b"))
+                }
+            }
+
+            assertSame(tree, tree.intersect(tree))
+        }
+
+        @Test
+        fun `equal trees reuse the receiver`() {
+            val tree = KeyTree.build(schema) {
+                field("Foo", key("a"))
+                field("Foo", key("x")) {
+                    field("Bar", key("b"))
+                }
+            }
+            val equalTree = KeyTree.build(schema) {
+                field("Foo", key("a"))
+                field("Foo", key("x")) {
+                    field("Bar", key("b"))
+                }
+            }
+
+            assertSame(tree, tree.intersect(equalTree))
+        }
+
+        @Test
+        fun disjoint() {
+            val a = KeyTree.build(schema) {
+                field("Foo", key("a"))
+            }
+            val b = KeyTree.build(schema) {
+                field("Foo", key("b"))
+            }
+
+            assertEquals(KeyTree.empty, a.intersect(b))
+        }
+
+        @Test
+        fun overlapping() {
+            val a = KeyTree.build(schema) {
+                field("Foo", key("a"))
+                field("Foo", key("b"))
+            }
+            val b = KeyTree.build(schema) {
+                field("Foo", key("a"))
+                field("Foo", key("c"))
+            }
+
+            assertEquals(
+                KeyTree.build(schema) {
+                    field("Foo", key("a"))
+                },
+                a.intersect(b),
+            )
+        }
+
+        @Test
+        fun aliased() {
+            val a = KeyTree.build(schema) {
+                field("Foo", key("x", alias = "a"))
+            }
+            val b = KeyTree.build(schema) {
+                field("Foo", key("x", alias = "b"))
+            }
+
+            assertEquals(KeyTree.empty, a.intersect(b))
+        }
+
+        @Test
+        fun argumented() {
+            val a = KeyTree.build(schema) {
+                field("Foo", key("x", arguments = mapOf("id" to 1)))
+            }
+            val b = KeyTree.build(schema) {
+                field("Foo", key("x", arguments = mapOf("id" to 2)))
+            }
+
+            assertEquals(KeyTree.empty, a.intersect(b))
+        }
+
+        @Test
+        fun `fields are scoped by concrete type`() {
+            val a = KeyTree.build(schema) {
+                field("Foo", key("a"))
+                field("Bar", key("a"))
+            }
+            val b = KeyTree.build(schema) {
+                field("Foo", key("b"))
+                field("Bar", key("a"))
+            }
+
+            assertEquals(
+                KeyTree.build(schema) {
+                    field("Bar", key("a"))
+                },
+                a.intersect(b),
+            )
+        }
+
+        @Test
+        fun `nested overlapping`() {
+            val a = KeyTree.build(schema) {
+                field("Foo", key("x")) {
+                    field("Bar", key("a"))
+                    field("Bar", key("b"))
+                }
+            }
+            val b = KeyTree.build(schema) {
+                field("Foo", key("x")) {
+                    field("Bar", key("b"))
+                    field("Bar", key("c"))
+                }
+            }
+
+            assertEquals(
+                KeyTree.build(schema) {
+                    field("Foo", key("x")) {
+                        field("Bar", key("b"))
+                    }
+                },
+                a.intersect(b),
+            )
+        }
+
+        @Test
+        fun `common parent with disjoint children`() {
+            val a = KeyTree.build(schema) {
+                field("Foo", key("x")) {
+                    field("Bar", key("a"))
+                }
+            }
+            val b = KeyTree.build(schema) {
+                field("Foo", key("x")) {
+                    field("Bar", key("b"))
+                }
+            }
+            val expected = KeyTree.build(schema) {
+                field("Foo", key("x"))
+            }
+
+            assertEquals(expected, a.intersect(b))
+            assertEquals(expected, b.intersect(a))
+        }
+
+        @Test
+        fun `common leaf excludes children`() {
+            val leaf = KeyTree.build(schema) {
+                field("Foo", key("x"))
+            }
+            val nested = KeyTree.build(schema) {
+                field("Foo", key("x")) {
+                    field("Bar", key("a"))
+                }
+            }
+
+            assertEquals(leaf, leaf.intersect(nested))
+            assertEquals(leaf, nested.intersect(leaf))
+        }
+
+        @Test
+        fun commutative() {
+            val a = KeyTree.build(schema) {
+                field("Foo", key("a"))
+                field("Foo", key("x")) {
+                    field("Bar", key("a"))
+                    field("Bar", key("b"))
+                }
+                field("Bar", key("c"))
+            }
+            val b = KeyTree.build(schema) {
+                field("Foo", key("b"))
+                field("Foo", key("x")) {
+                    field("Bar", key("b"))
+                    field("Bar", key("c"))
+                }
+                field("Bar", key("c"))
+            }
+
+            assertEquals(a.intersect(b), b.intersect(a))
         }
     }
 
