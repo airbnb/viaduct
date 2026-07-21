@@ -143,8 +143,8 @@ class ClassDiff(
 
             // Compare methods using ClassFinder
             compareMethodInfos(
-                classFinder.getMethodSignatures(expected),
-                classFinder.getMethodSignatures(actual),
+                classFinder.getMethodSignatures(expected).withoutSyntheticEnumEntries(expected),
+                classFinder.getMethodSignatures(actual).withoutSyntheticEnumEntries(actual),
                 "METHOD"
             )
 
@@ -306,6 +306,13 @@ class ClassDiff(
         }
     }
 
+    /**
+     * The Kotlin compiler synthesizes an enum `entries` accessor (`getEntries()`) on enums compiled
+     * at language version >= 1.9. Viaduct's codegen intentionally doesn't emit it, so we drop it from
+     * the comparison on both the expected and actual sides.
+     */
+    private fun List<MethodInfo>.withoutSyntheticEnumEntries(cls: Class<*>): List<MethodInfo> = if (cls.isEnum) filterNot { it.signature.startsWith("getEntries ") } else this
+
     private fun FailureCollector.typeNamesAreEqual(
         expected: Type,
         actual: Type,
@@ -332,7 +339,9 @@ class ClassDiff(
 val Class<*>.fieldsToCompare
     get() = this.declaredFields
         .filter {
-            it.name != "this\$0" && !it.name.startsWith("\$jacoco")
+            // `$ENTRIES` is the compiler-synthesized backing field for the enum `entries` property
+            // (Kotlin language >= 1.9), which Viaduct codegen intentionally doesn't emit.
+            it.name != "this\$0" && !it.name.startsWith("\$jacoco") && it.name != "\$ENTRIES"
         }.toTypedArray()
 
 val Class<*>.methodsToCompare

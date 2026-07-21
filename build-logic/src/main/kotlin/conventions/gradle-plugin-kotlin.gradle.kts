@@ -3,7 +3,7 @@
  *
  * This replaces `conventions.kotlin` for plugin-authoring projects. It deliberately omits
  * the Treehouse-constrained settings that `conventions.kotlin` applies:
- *   - No apiVersion / languageVersion pinning to 1.8
+ *   - No apiVersion / languageVersion pinning
  *   - No `idea` plugin
  *
  * It DOES opt in to `viaduct.apiannotations.InternalApi`: the gradle-plugins sources mark their

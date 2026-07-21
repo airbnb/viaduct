@@ -116,7 +116,14 @@ class KmMetadataDiff(
         diffs.isEqualTo(expected.isExpect, actual.isExpect, "KM_CLASS_IS_EXPECT_AGREES")
         diffs.isEqualTo(expected.isValue, actual.isValue, "KM_CLASS_IS_VALUE_AGREES")
         diffs.isEqualTo(expected.isFunInterface, actual.isFunInterface, "KM_CLASS_IS_FUN_INTERFACE_AGREES")
-        diffs.isEqualTo(expected.hasEnumEntries, actual.hasEnumEntries, "KM_CLASS_HAS_ENUM_ENTRIES_AGREES")
+        // The Kotlin compiler synthesizes enum `entries` support (the `hasEnumEntries` flag, the
+        // `$ENTRIES` field, and the `getEntries()` accessor) for enums compiled at language version
+        // >= 1.9. Viaduct's codegen intentionally does not emit these, so we tolerate the reference
+        // (expected) declaring enum entries while the generated (actual) class omits them. We still
+        // flag the reverse case, where the generated class declares entries the reference lacks.
+        if (actual.hasEnumEntries && !expected.hasEnumEntries) {
+            diffs.isEqualTo(expected.hasEnumEntries, actual.hasEnumEntries, "KM_CLASS_HAS_ENUM_ENTRIES_AGREES")
+        }
         diffs.isEqualTo(expected.hasAnnotations, actual.hasAnnotations, "KM_CLASS_HAS_ANNOTATIONS_AGREES")
 
         diffs.isEqualTo(expected.name.replace(expectedPkgKm, actualPkgKm), actual.name, "KM_CLASS_NAMES_AGREE")

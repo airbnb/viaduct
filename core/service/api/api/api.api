@@ -207,6 +207,7 @@ public final class viaduct/service/api/spi/FlagManager$Flags : java/lang/Enum, v
 	public static final field ENABLE_SELECTIVE_OER_KEYS Lviaduct/service/api/spi/FlagManager$Flags;
 	public static final field KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING Lviaduct/service/api/spi/FlagManager$Flags;
 	public static final field KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH Lviaduct/service/api/spi/FlagManager$Flags;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public fun getFlagName ()Ljava/lang/String;
 	public static fun valueOf (Ljava/lang/String;)Lviaduct/service/api/spi/FlagManager$Flags;
 	public static fun values ()[Lviaduct/service/api/spi/FlagManager$Flags;

@@ -142,7 +142,7 @@ object TestDomain1 : Domain<TestDomain1.Value.Object> {
             // Imagine that this hard-coded fieldname check is a standin for having done that check, and it
             // determined that a field that was represented as an Int in IR should actually be a Char in this
             // domain
-            fieldName == "charField" && ir is IR.Value.Number -> Value.Char(ir.value.toChar())
+            fieldName == "charField" && ir is IR.Value.Number -> Value.Char(ir.value.toInt().toChar())
 
             ir is IR.Value.Number -> Value.Int(ir.value.toInt())
             else -> Value.Str(ir.toString())
