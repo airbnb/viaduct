@@ -38,6 +38,9 @@ message BatchResolveNodeRequest {
 
   // Endpoint the remote service dials for re-entrant callbacks, in "host:port" form.
   string callback_endpoint = 4;
+
+  // Opaque host-defined context captured for this node resolver batch.
+  EncodedRemoteContext remote_context = 5;
 }
 
 // A single node to be resolved
@@ -84,6 +87,21 @@ message BatchResolveFieldRequest {
 
   // Endpoint the remote service dials for re-entrant callbacks, in "host:port" form.
   string callback_endpoint = 4;
+
+  // Opaque host-defined context captured for this field resolver batch.
+  EncodedRemoteContext remote_context = 5;
+}
+
+// A transport-neutral context envelope. The remote-resolver framework does not interpret payload.
+message EncodedRemoteContext {
+  // Host-defined payload format identifier.
+  string format = 1;
+
+  // Host-defined payload format version.
+  uint32 version = 2;
+
+  // Encoded host context.
+  bytes payload = 3;
 }
 
 // A serialized EngineSelectionSet — carries a field's sub-selections over the wire so the remote

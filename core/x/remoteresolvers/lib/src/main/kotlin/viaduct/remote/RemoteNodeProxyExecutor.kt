@@ -8,6 +8,8 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.remote.api.RemoteResolverContextCaptureInput
+import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
 import viaduct.remote.grpc.BatchResolveNodeRequest
 import viaduct.remote.grpc.RemoteResolverServiceGrpcKt
 import viaduct.remote.grpc.Selector as ProtoSelector
@@ -27,7 +29,9 @@ class RemoteNodeProxyExecutor(
     private val executorId: String,
     rrsChannel: ManagedChannel,
     private val callbackEndpoint: String,
-    private val requestDeadline: Duration? = null
+    private val requestDeadline: Duration? = null,
+    private val contextCapturerProvider: RemoteResolverContextCapturerProvider =
+        RemoteResolverContextCapturerProvider.NO_OP,
 ) : NodeResolverExecutor {
     init {
         // Selective resolvers can batch multiple selectors with the same node id but different
@@ -65,6 +69,8 @@ class RemoteNodeProxyExecutor(
         selectors: List<NodeResolverExecutor.Selector>,
         context: EngineExecutionContext
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
+        val capturedContext =
+            contextCapturerProvider.get().capture(RemoteResolverContextCaptureInput.EMPTY)
         log.debug("Proxying {} resolver(s) for type '{}' to remote execution", selectors.size, typeName)
 
         val contextHandle = ContextRegistry.register(context)
@@ -82,6 +88,7 @@ class RemoteNodeProxyExecutor(
             .addAllSelectors(protoSelectors)
             .setContextHandle(contextHandle)
             .setCallbackEndpoint(callbackEndpoint)
+            .apply { capturedContext?.let { setRemoteContext(it.toWire()) } }
             .build()
 
         // Handles are valid only for the duration of this RPC — unregister in finally

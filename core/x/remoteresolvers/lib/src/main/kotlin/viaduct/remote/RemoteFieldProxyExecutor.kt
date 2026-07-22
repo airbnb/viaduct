@@ -12,6 +12,8 @@ import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.remote.api.RemoteResolverContextCaptureInput
+import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
 import viaduct.remote.grpc.BatchResolveFieldRequest
 import viaduct.remote.grpc.FieldSelector as ProtoFieldSelector
 import viaduct.remote.grpc.RemoteResolverServiceGrpcKt
@@ -33,7 +35,9 @@ class RemoteFieldProxyExecutor(
     private val executorId: String,
     rrsChannel: ManagedChannel,
     private val callbackEndpoint: String,
-    private val requestDeadline: Duration? = null
+    private val requestDeadline: Duration? = null,
+    private val contextCapturerProvider: RemoteResolverContextCapturerProvider =
+        RemoteResolverContextCapturerProvider.NO_OP,
 ) : FieldResolverExecutor {
     init {
         // Selective field resolvers vary their result by the requested sub-selections, which the
@@ -135,11 +139,14 @@ class RemoteFieldProxyExecutor(
             // Every selector failed to serialize — return their failures without an RPC.
             if (sent.isEmpty()) return preFailed
 
+            val capturedContext =
+                contextCapturerProvider.get().capture(RemoteResolverContextCaptureInput.EMPTY)
             val request = BatchResolveFieldRequest.newBuilder()
                 .setExecutorId(executorId)
                 .addAllSelectors(protoSelectors)
                 .setContextHandle(contextHandle)
                 .setCallbackEndpoint(callbackEndpoint)
+                .apply { capturedContext?.let { setRemoteContext(it.toWire()) } }
                 .build()
 
             val stub = requestDeadline?.let { rrsStub.withDeadlineAfter(it.toMillis(), TimeUnit.MILLISECONDS) } ?: rrsStub

@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory
 import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.remote.EngineCallbackServiceImpl
 import viaduct.remote.RemoteProxyResolverFactory
+import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
 
 /**
  * Lifecycle manager for the experimental remote-resolver feature.
@@ -18,7 +19,11 @@ import viaduct.remote.RemoteProxyResolverFactory
  * [initialize] is thread-safe and idempotent. Once [close] runs the instance is
  * terminal — a subsequent [initialize] throws [IllegalStateException].
  */
-class RemoteResolverInitializer(private val config: RemoteResolverConfig) : AutoCloseable {
+class RemoteResolverInitializer(
+    private val config: RemoteResolverConfig,
+    private val contextCapturerProvider: RemoteResolverContextCapturerProvider =
+        RemoteResolverContextCapturerProvider.NO_OP,
+) : AutoCloseable {
     private val log = LoggerFactory.getLogger(RemoteResolverInitializer::class.java)
 
     private var callbackServer: Server? = null
@@ -121,7 +126,8 @@ class RemoteResolverInitializer(private val config: RemoteResolverConfig) : Auto
                         (config.remoteFields.isEmpty() && it.metadata.name !in BUILT_IN_FIELD_RESOLVER_NAMES) ||
                             it.resolverId in config.remoteFields
                     )
-            }
+            },
+            contextCapturerProvider = contextCapturerProvider,
         )
 
     private fun logEnabled() {

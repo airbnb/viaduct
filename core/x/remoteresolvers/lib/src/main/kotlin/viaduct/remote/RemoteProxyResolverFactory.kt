@@ -5,6 +5,7 @@ import java.time.Duration
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.ProxyResolverFactory
+import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
 import viaduct.remote.registry.FieldExecutorRegistry
 import viaduct.remote.registry.NodeExecutorRegistry
 
@@ -29,13 +30,17 @@ import viaduct.remote.registry.NodeExecutorRegistry
  * @param shouldProxyField Predicate to opt specific field resolvers in or out of proxying.
  *   Defaults to proxying every field resolver (mirroring nodes). Selective resolvers are always
  *   skipped regardless of this predicate — [RemoteFieldProxyExecutor] rejects them at construction.
+ * @param contextCapturerProvider Host hook that resolves the capturer associated with the active
+ *   top-level request.
  */
 class RemoteProxyResolverFactory(
     private val rrsChannel: ManagedChannel,
     private val callbackEndpoint: String,
     private val requestDeadline: Duration? = null,
     private val shouldProxyNode: (NodeResolverExecutor) -> Boolean = { true },
-    private val shouldProxyField: (FieldResolverExecutor) -> Boolean = { true }
+    private val shouldProxyField: (FieldResolverExecutor) -> Boolean = { true },
+    private val contextCapturerProvider: RemoteResolverContextCapturerProvider =
+        RemoteResolverContextCapturerProvider.NO_OP,
 ) : ProxyResolverFactory {
     override fun proxyNode(executor: NodeResolverExecutor): NodeResolverExecutor? {
         // Skip selective resolvers before registering (see class KDoc).
@@ -47,7 +52,8 @@ class RemoteProxyResolverFactory(
             executorId = executorId,
             rrsChannel = rrsChannel,
             callbackEndpoint = callbackEndpoint,
-            requestDeadline = requestDeadline
+            requestDeadline = requestDeadline,
+            contextCapturerProvider = contextCapturerProvider,
         )
     }
 
@@ -61,7 +67,8 @@ class RemoteProxyResolverFactory(
             executorId = executorId,
             rrsChannel = rrsChannel,
             callbackEndpoint = callbackEndpoint,
-            requestDeadline = requestDeadline
+            requestDeadline = requestDeadline,
+            contextCapturerProvider = contextCapturerProvider,
         )
     }
 

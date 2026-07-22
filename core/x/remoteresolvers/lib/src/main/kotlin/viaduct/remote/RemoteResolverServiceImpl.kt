@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.remote.api.RemoteResolverContextException
+import viaduct.remote.api.spi.RemoteResolverContextApplier
 import viaduct.remote.grpc.BatchResolveFieldRequest
 import viaduct.remote.grpc.BatchResolveFieldResponse
 import viaduct.remote.grpc.BatchResolveNodeRequest
@@ -34,14 +36,21 @@ import viaduct.remote.registry.SelectionsRegistry
  * handle is absent from the local registry, the service falls back to a stub context
  * fed by [SchemaRegistry] and an empty selection set.
  */
-open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolverServiceCoroutineImplBase() {
+open class RemoteResolverServiceImpl(
+    private val contextApplier: RemoteResolverContextApplier = RemoteResolverContextApplier.NO_OP,
+) : RemoteResolverServiceGrpcKt.RemoteResolverServiceCoroutineImplBase() {
     private val log = LoggerFactory.getLogger(RemoteResolverServiceImpl::class.java)
 
     // Persistent per-endpoint channel — a fresh ManagedChannel per request would spin up a
     // Netty thread pool each time.
     private val callbackChannelCache = ConcurrentHashMap<String, ManagedChannel>()
 
-    override suspend fun batchResolveNode(request: BatchResolveNodeRequest): BatchResolveNodeResponse {
+    final override suspend fun batchResolveNode(request: BatchResolveNodeRequest): BatchResolveNodeResponse =
+        runWithRemoteContext(request.hasRemoteContext(), request.remoteContext) {
+            batchResolveNodeInternal(request)
+        }
+
+    private suspend fun batchResolveNodeInternal(request: BatchResolveNodeRequest): BatchResolveNodeResponse {
         log.debug("Received batchResolveNode request (executorId={}, contextHandle={})", request.executorId, request.contextHandle)
 
         val executor = NodeExecutorRegistry.get(request.executorId)
@@ -95,7 +104,12 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
             .build()
     }
 
-    override suspend fun batchResolveField(request: BatchResolveFieldRequest): BatchResolveFieldResponse {
+    final override suspend fun batchResolveField(request: BatchResolveFieldRequest): BatchResolveFieldResponse =
+        runWithRemoteContext(request.hasRemoteContext(), request.remoteContext) {
+            batchResolveFieldInternal(request)
+        }
+
+    private suspend fun batchResolveFieldInternal(request: BatchResolveFieldRequest): BatchResolveFieldResponse {
         log.debug("Received batchResolveField request (executorId={}, contextHandle={})", request.executorId, request.contextHandle)
 
         val executor = FieldExecutorRegistry.get(request.executorId)
@@ -288,6 +302,26 @@ open class RemoteResolverServiceImpl : RemoteResolverServiceGrpcKt.RemoteResolve
                     .build()
             )
             .build()
+
+    private suspend fun <T> runWithRemoteContext(
+        hasRemoteContext: Boolean,
+        wireContext: viaduct.remote.grpc.EncodedRemoteContext,
+        block: suspend () -> T,
+    ): T {
+        var blockStarted = false
+        try {
+            return contextApplier.apply(wireContext.takeIf { hasRemoteContext }?.fromWire()) {
+                blockStarted = true
+                block()
+            }
+        } catch (e: RemoteResolverContextException) {
+            if (blockStarted) throw e
+            throw Status.INVALID_ARGUMENT
+                .withDescription(e.message)
+                .withCause(e)
+                .asRuntimeException()
+        }
+    }
 
     /** Creates the network channel used for re-entrant callbacks. Tests may override the transport. */
     protected open fun createCallbackChannel(endpoint: String): ManagedChannel {
