@@ -32,6 +32,7 @@ object SchemaAnalysis {
     private const val ID_OF_DIRECTIVE = "idOf"
     private const val CONNECTION_DIRECTIVE = "connection"
     private const val EDGE_DIRECTIVE = "edge"
+    private const val ONE_OF_DIRECTIVE = "oneOf"
 
     // ---- Node / ID -------------------------------------------------------------------------
 
@@ -141,6 +142,12 @@ object SchemaAnalysis {
 
     /** True iff [typeDef] carries the `@edge` directive. */
     fun hasEdgeDirective(typeDef: ViaductSchema.TypeDef): Boolean = typeDef is ViaductSchema.Object && typeDef.hasAppliedDirective(EDGE_DIRECTIVE)
+
+    /**
+     * True iff [typeDef] is an input object carrying the `@oneOf` directive (exactly one field must
+     * be set). Shared so the Java and Kotlin codegens detect `@oneOf` the same way.
+     */
+    fun hasOneOfDirective(typeDef: ViaductSchema.TypeDef): Boolean = typeDef is ViaductSchema.Input && typeDef.hasAppliedDirective(ONE_OF_DIRECTIVE)
 
     /**
      * For an `@edge` object, the name of its `node` field's base type. Throws if there is no `node`

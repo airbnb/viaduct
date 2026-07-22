@@ -47,4 +47,45 @@ public class JavaTempOneOfViolationContractTest extends TempOneOfViolationContra
       return CompletableFuture.completedFuture(ctx.getArguments().getArg().toString());
     }
   }
+
+  // Builds a @oneOf input with two supplied keys (one null) via the generated Builder. build() must
+  // fail fast: graphql-java counts supplied keys, not non-null values.
+  @Resolver(objectValueFragment = "fragment _ on Query { intermediary(arg: $oneofVar) }")
+  public static class FromBuilderTwoKeysOneNullResolver
+      extends QueryResolvers.FromBuilderTwoKeysOneNull {
+    @Override
+    public CompletableFuture<String> resolve(Context ctx) {
+      return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediary());
+    }
+
+    @Variables(types = {"oneofVar: OneofInput!"})
+    public static class TwoKeysOneNullProvider implements VariablesProvider<Arguments.None> {
+      @Override
+      public CompletableFuture<Map<String, Object>> provide(
+          VariablesProviderContext<Arguments.None> ctx) {
+        return CompletableFuture.completedFuture(
+            Map.of("oneofVar", OneofInput.builder(ctx).stringValue("test").intValue(null).build()));
+      }
+    }
+  }
+
+  // Builds a @oneOf input with a single supplied key whose value is null. build() must fail fast.
+  @Resolver(objectValueFragment = "fragment _ on Query { intermediary(arg: $oneofVar) }")
+  public static class FromBuilderSingleNullKeyResolver
+      extends QueryResolvers.FromBuilderSingleNullKey {
+    @Override
+    public CompletableFuture<String> resolve(Context ctx) {
+      return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediary());
+    }
+
+    @Variables(types = {"oneofVar: OneofInput!"})
+    public static class SingleNullKeyProvider implements VariablesProvider<Arguments.None> {
+      @Override
+      public CompletableFuture<Map<String, Object>> provide(
+          VariablesProviderContext<Arguments.None> ctx) {
+        return CompletableFuture.completedFuture(
+            Map.of("oneofVar", OneofInput.builder(ctx).stringValue(null).build()));
+      }
+    }
+  }
 }

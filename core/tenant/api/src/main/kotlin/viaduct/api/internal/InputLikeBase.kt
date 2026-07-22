@@ -120,6 +120,27 @@ private fun validateInputData(
     graphQLInputObjectType: GraphQLInputObjectType,
     inputData: Map<String, Any?>
 ) {
+    if (graphQLInputObjectType.isOneOf) {
+        // @oneOf: exactly one field must be supplied, and that field's value must be non-null. This
+        // mirrors graphql-java's ValuesResolverOneOfValidation, which first checks key cardinality
+        // and then, separately, rejects a null value for the single supplied key. Fail fast here so
+        // tenants learn of the violation when they build the input, rather than only at graphql-java
+        // coercion time. graphql-java remains the execution-time backstop.
+        val presentFields = graphQLInputObjectType.fields
+            .map { it.name }
+            .filter { inputData.containsKey(it) }
+        if (presentFields.size != 1) {
+            throw IllegalStateException(
+                "Exactly one field must be set for @oneOf type ${graphQLInputObjectType.name}, but ${presentFields.size} were: $presentFields"
+            )
+        }
+        val onlyField = presentFields.first()
+        if (inputData[onlyField] == null) {
+            throw IllegalStateException(
+                "Field '$onlyField' for @oneOf type ${graphQLInputObjectType.name} must have a non-null value"
+            )
+        }
+    }
     graphQLInputObjectType.fields.forEach { f ->
         if (!inputData.containsKey(f.name)) {
             if (!f.hasSetDefaultValue() && GraphQLTypeUtil.isNonNull(f.type)) {

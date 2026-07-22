@@ -54,6 +54,81 @@ class InputLikeBaseTest {
         return ctor.newInstance(internalContext, map, resolvedGqlType) as T
     }
 
+    // ===== @oneOf validation =====
+
+    /** A @oneOf GraphQLInputObjectType named [name] with String fields [a] and [b]. */
+    private fun oneOfType(
+        name: String,
+        a: String = "byId",
+        b: String = "byName"
+    ): GraphQLInputObjectType =
+        GraphQLInputObjectType.Builder()
+            .name(name)
+            .field(GraphQLInputObjectField.Builder().name(a).type(graphql.Scalars.GraphQLString).build())
+            .field(GraphQLInputObjectField.Builder().name(b).type(graphql.Scalars.GraphQLString).build())
+            .withDirective(graphql.Directives.OneOfDirective)
+            .build()
+
+    /** Minimal InputLikeBase exposing the framework-error validation entry point. */
+    private inner class OneOfTestInput(
+        override val inputData: Map<String, Any?>,
+        override val graphQLInputObjectType: GraphQLInputObjectType
+    ) : InputLikeBase() {
+        override val context: InternalContext = internalContext
+
+        fun validate() = validateInputDataAndThrowAsFrameworkError()
+    }
+
+    @Test
+    fun `oneOf -- passes with exactly one field set`() {
+        assertDoesNotThrow {
+            OneOfTestInput(mapOf("byId" to "1"), oneOfType("Filter")).validate()
+        }
+    }
+
+    @Test
+    fun `oneOf -- throws when no field set`() {
+        val e = assertThrows<FrameworkException> {
+            OneOfTestInput(emptyMap(), oneOfType("Filter")).validate()
+        }
+        assertTrue(e.message!!.contains("Exactly one field must be set"))
+    }
+
+    @Test
+    fun `oneOf -- throws when more than one field set`() {
+        val e = assertThrows<FrameworkException> {
+            OneOfTestInput(mapOf("byId" to "1", "byName" to "x"), oneOfType("Filter")).validate()
+        }
+        assertTrue(e.message!!.contains("Exactly one field must be set"))
+    }
+
+    @Test
+    fun `oneOf -- throws when two keys supplied even if all values are null`() {
+        val e = assertThrows<FrameworkException> {
+            OneOfTestInput(mapOf("byId" to null, "byName" to null), oneOfType("Filter")).validate()
+        }
+        assertTrue(e.message!!.contains("Exactly one field must be set"))
+    }
+
+    @Test
+    fun `oneOf -- throws when one non-null and one explicit-null key supplied`() {
+        // graphql-java counts supplied keys, not non-null values, so two keys is a violation even
+        // though only one value is non-null.
+        val e = assertThrows<FrameworkException> {
+            OneOfTestInput(mapOf("byId" to "1", "byName" to null), oneOfType("Filter")).validate()
+        }
+        assertTrue(e.message!!.contains("Exactly one field must be set"))
+    }
+
+    @Test
+    fun `oneOf -- throws when the single supplied key has a null value`() {
+        val e = assertThrows<FrameworkException> {
+            OneOfTestInput(mapOf("byId" to null), oneOfType("Filter")).validate()
+        }
+        assertTrue(e.message!!.contains("must have a non-null value"))
+        assertTrue(e.message!!.contains("byId"))
+    }
+
     @Test
     fun `test init via Builder -- throws when missing non-nullable fields without default value`() {
         assertThrows<TenantUsageException> {

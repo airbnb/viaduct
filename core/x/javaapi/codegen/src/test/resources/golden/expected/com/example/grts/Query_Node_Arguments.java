@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.OffsetTime;
 import java.util.List;
 import java.util.Map;
+import viaduct.apiannotations.InternalApi;
 import viaduct.java.api.types.Arguments;
 import viaduct.java.api.internal.InputBase;
 import viaduct.java.api.internal.InternalContext;
@@ -14,6 +15,10 @@ import viaduct.java.api.internal.InternalContext;
 /** Generated arguments class for resolver field. */
 public class Query_Node_Arguments extends InputBase implements Arguments {
 
+    // Public because the framework constructs arguments reflectively across packages
+    // (JavaFieldResolverExecutorImpl, VariablesProviderExecutorImpl, etc.). @InternalApi
+    // marks it as not-for-tenant-use, mirroring Kotlin's `internal constructor`.
+    @InternalApi
     public Query_Node_Arguments(InternalContext context, Map<String, Object> data, GraphQLInputObjectType graphQLInputObjectType) {
         super(context, data, graphQLInputObjectType);
     }

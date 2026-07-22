@@ -14,6 +14,8 @@ description = "Java Tenant API interfaces"
 
 dependencies {
     api(libs.viaduct.engine.api)
+    // Exposed transitively so generated Arguments GRTs can reference @InternalApi.
+    api(libs.viaduct.shared.apiannotations)
 
     compileOnly(libs.jspecify)
 

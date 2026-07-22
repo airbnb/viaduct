@@ -10,7 +10,7 @@ import viaduct.java.api.internal.InternalContext;
 /** A simple input with basic fields. */
 public class SimpleInput extends InputBase {
 
-  public SimpleInput(
+  SimpleInput(
       InternalContext context,
       Map<String, Object> data,
       GraphQLInputObjectType graphQLInputObjectType) {

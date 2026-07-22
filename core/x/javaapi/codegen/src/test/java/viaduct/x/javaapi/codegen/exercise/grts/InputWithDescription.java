@@ -10,7 +10,7 @@ import viaduct.java.api.internal.InternalContext;
 /** An input with a description to test Javadoc generation. */
 public class InputWithDescription extends InputBase {
 
-  public InputWithDescription(
+  InputWithDescription(
       InternalContext context,
       Map<String, Object> data,
       GraphQLInputObjectType graphQLInputObjectType) {

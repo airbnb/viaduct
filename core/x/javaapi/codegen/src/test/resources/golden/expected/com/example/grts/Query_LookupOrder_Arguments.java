@@ -13,18 +13,18 @@ import viaduct.java.api.internal.InputBase;
 import viaduct.java.api.internal.InternalContext;
 
 /** Generated arguments class for resolver field. */
-public class Query_Nodes_Arguments extends InputBase implements Arguments {
+public class Query_LookupOrder_Arguments extends InputBase implements Arguments {
 
     // Public because the framework constructs arguments reflectively across packages
     // (JavaFieldResolverExecutorImpl, VariablesProviderExecutorImpl, etc.). @InternalApi
     // marks it as not-for-tenant-use, mirroring Kotlin's `internal constructor`.
     @InternalApi
-    public Query_Nodes_Arguments(InternalContext context, Map<String, Object> data, GraphQLInputObjectType graphQLInputObjectType) {
+    public Query_LookupOrder_Arguments(InternalContext context, Map<String, Object> data, GraphQLInputObjectType graphQLInputObjectType) {
         super(context, data, graphQLInputObjectType);
     }
 
-        public List<String> getIds() {
-            return getScalarList("ids");
+        public OrderLookupInput getFilter() {
+            return getInput("filter", OrderLookupInput::new);
         }
 
 }

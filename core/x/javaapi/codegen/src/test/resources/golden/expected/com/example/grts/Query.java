@@ -43,6 +43,10 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
             return fetchObject("ordersConnection", OrderConnection::new);
         }
 
+        public Order getLookupOrder() {
+            return fetchObject("lookupOrder", Order::new);
+        }
+
         public Node getNode() {
             return fetchAbstractObject("node", Node.class);
         }
@@ -86,6 +90,11 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
 
                 public Builder ordersConnection(OrderConnection ordersConnection) {
                     data.put("ordersConnection", ordersConnection);
+        return this;
+                }
+
+                public Builder lookupOrder(Order lookupOrder) {
+                    data.put("lookupOrder", lookupOrder);
         return this;
                 }
 

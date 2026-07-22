@@ -4,7 +4,20 @@ import java.util.List;
 
 /** Model representing a GraphQL input type for code generation. */
 public record InputModel(
-    String packageName, String className, List<FieldModel> fields, String description) {
+    String packageName,
+    String className,
+    List<FieldModel> fields,
+    String description,
+    boolean isOneOf) {
+
+  /**
+   * Legacy constructor for non-{@code @oneOf} inputs. Kept so existing call sites and tests
+   * continue to compile.
+   */
+  public InputModel(
+      String packageName, String className, List<FieldModel> fields, String description) {
+    this(packageName, className, fields, description, false);
+  }
 
   // ST (StringTemplate) requires JavaBean-style getters
   public String getPackageName() {
@@ -25,5 +38,9 @@ public record InputModel(
 
   public boolean getHasDescription() {
     return description != null && !description.isEmpty();
+  }
+
+  public boolean getIsOneOf() {
+    return isOneOf;
   }
 }

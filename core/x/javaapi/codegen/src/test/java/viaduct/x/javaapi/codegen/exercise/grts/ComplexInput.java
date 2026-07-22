@@ -11,7 +11,7 @@ import viaduct.java.api.internal.InternalContext;
 /** An input with enum and list fields. */
 public class ComplexInput extends InputBase {
 
-  public ComplexInput(
+  ComplexInput(
       InternalContext context,
       Map<String, Object> data,
       GraphQLInputObjectType graphQLInputObjectType) {

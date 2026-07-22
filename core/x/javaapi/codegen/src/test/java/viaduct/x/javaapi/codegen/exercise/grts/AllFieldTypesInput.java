@@ -11,7 +11,7 @@ import viaduct.java.api.internal.InternalContext;
 /** An input with all field types. */
 public class AllFieldTypesInput extends InputBase {
 
-  public AllFieldTypesInput(
+  AllFieldTypesInput(
       InternalContext context,
       Map<String, Object> data,
       GraphQLInputObjectType graphQLInputObjectType) {

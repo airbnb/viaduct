@@ -24,10 +24,15 @@ class InputGeneratorTest {
     assertTrue(generated.contains("package com.example.types;"));
     assertTrue(generated.contains("public class CreateUserInput extends InputBase"));
     assertTrue(!generated.contains("implements GraphQLInput"));
+    // The raw-map constructor is package-private on plain inputs: tenants must go through the
+    // validating Builder, so an invalid @oneOf input cannot bypass fail-fast construction.
     assertTrue(
         generated.contains(
-            "public CreateUserInput(InternalContext context, Map<String, Object> data,"
+            "CreateUserInput(InternalContext context, Map<String, Object> data,"
                 + " GraphQLInputObjectType graphQLInputObjectType)"));
+    assertTrue(
+        !generated.contains("public CreateUserInput(InternalContext context"),
+        "Expected package-private (non-public) input constructor, got:\n" + generated);
     assertTrue(generated.contains("private final Map<String, Object> data = new LinkedHashMap<>"));
     assertTrue(generated.contains("public String getName()"));
     assertTrue(generated.contains("return get(\"name\")"));
@@ -174,5 +179,41 @@ class InputGeneratorTest {
     assertTrue(generated.contains("public Builder name(String name)"));
     assertTrue(generated.contains("public Builder age(Integer age)"));
     assertTrue(generated.contains("public CreateUserInput build()"));
+  }
+
+  @Test
+  void oneOfInputBuildValidates() {
+    InputModel model =
+        new InputModel(
+            "com.example.types",
+            "SearchFilterInput",
+            List.of(
+                FieldModel.simple("byId", "String", true),
+                FieldModel.simple("byName", "String", true)),
+            null,
+            /* isOneOf= */ true);
+
+    String generated = JavaGRTGenerator.InputGenerator.generate(model);
+
+    assertTrue(
+        generated.contains("InputBase.validateOneOf(\"SearchFilterInput\", data);"),
+        "Expected build() to validate the @oneOf constraint, got:\n" + generated);
+  }
+
+  @Test
+  void nonOneOfInputBuildDoesNotValidate() {
+    InputModel model =
+        new InputModel(
+            "com.example.types",
+            "PlainInput",
+            List.of(FieldModel.simple("value", "String", true)),
+            null,
+            /* isOneOf= */ false);
+
+    String generated = JavaGRTGenerator.InputGenerator.generate(model);
+
+    assertTrue(
+        !generated.contains("validateOneOf"),
+        "Expected no @oneOf validation on a plain input, got:\n" + generated);
   }
 }

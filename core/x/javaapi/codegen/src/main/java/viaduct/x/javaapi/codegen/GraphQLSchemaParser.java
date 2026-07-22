@@ -178,7 +178,8 @@ public class GraphQLSchemaParser {
           fields.add(createFieldModel(field, typeMapper, inputDef));
         }
 
-        inputs.add(new InputModel(packageName, name, fields, getDescription(inputDef)));
+        boolean isOneOf = SchemaAnalysis.INSTANCE.hasOneOfDirective(inputDef);
+        inputs.add(new InputModel(packageName, name, fields, getDescription(inputDef), isOneOf));
       }
     }
 

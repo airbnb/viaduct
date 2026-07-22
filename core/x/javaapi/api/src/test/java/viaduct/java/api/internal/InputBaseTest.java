@@ -40,6 +40,7 @@ class InputBaseTest {
       super(context, data, null);
     }
 
+    // Matches the InputConstructor functional interface (used as TestInput::new for nested inputs).
     TestInput(
         @Nullable InternalContext context,
         Map<String, Object> data,
@@ -330,5 +331,59 @@ class InputBaseTest {
 
     FrameworkException e = assertThrows(FrameworkException.class, () -> input.globalIdList("ids"));
     assertTrue(e.getMessage().contains("Expected List"));
+  }
+
+  // ===== @oneOf validation (builder path: InputBase.validateOneOf) =====
+  //
+  // @oneOf is enforced eagerly at the builder level via validateOneOf; graphql-java re-validates at
+  // execution time before resolver input GRTs are materialized. There is no construction-time
+  // @oneOf backstop on this class (nested inputs are constructed with a null
+  // GraphQLInputObjectType),
+  // so all @oneOf coverage here drives the builder helper.
+
+  @Test
+  void validateOneOf_passesWithExactlyOneField() {
+    InputBase.validateOneOf("Filter", map("byId", "1"));
+  }
+
+  @Test
+  void validateOneOf_throwsWhenNoFieldSet() {
+    TenantUsageException e =
+        assertThrows(TenantUsageException.class, () -> InputBase.validateOneOf("Filter", map()));
+    assertTrue(e.getMessage().contains("Exactly one field must be set"));
+    assertTrue(e.getMessage().contains("Filter"));
+  }
+
+  @Test
+  void validateOneOf_throwsWhenMoreThanOneFieldSet() {
+    TenantUsageException e =
+        assertThrows(
+            TenantUsageException.class,
+            () -> InputBase.validateOneOf("Filter", map("byId", "1", "byName", "x")));
+    assertTrue(e.getMessage().contains("Exactly one field must be set"));
+  }
+
+  @Test
+  void validateOneOf_throwsWhenOneNonNullAndOneExplicitNullKeySupplied() {
+    Map<String, Object> data = map("byId", "1");
+    data.put("byName", null);
+
+    // Two keys are supplied. graphql-java counts supplied keys, not non-null values, so this is a
+    // @oneOf violation even though only one value is non-null.
+    TenantUsageException e =
+        assertThrows(TenantUsageException.class, () -> InputBase.validateOneOf("Filter", data));
+    assertTrue(e.getMessage().contains("Exactly one field must be set"));
+  }
+
+  @Test
+  void validateOneOf_throwsWhenSingleSuppliedKeyIsNull() {
+    Map<String, Object> data = new HashMap<>();
+    data.put("byId", null);
+
+    // Exactly one key is supplied, but its value is null: graphql-java rejects this too.
+    TenantUsageException e =
+        assertThrows(TenantUsageException.class, () -> InputBase.validateOneOf("Filter", data));
+    assertTrue(e.getMessage().contains("must have a non-null value"));
+    assertTrue(e.getMessage().contains("byId"));
   }
 }

@@ -12,29 +12,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class CreateOrderInput extends InputBase {
+public class OrderLookupInput extends InputBase {
 
     // Package-private: input GRTs are constructed only through the validating Builder or
     // by sibling GRTs in this package (nested-input wrapping). Tenants cannot construct
     // one directly, so a @oneOf input cannot bypass the builder's fail-fast validation.
-    CreateOrderInput(InternalContext context, Map<String, Object> data, GraphQLInputObjectType graphQLInputObjectType) {
+    OrderLookupInput(InternalContext context, Map<String, Object> data, GraphQLInputObjectType graphQLInputObjectType) {
         super(context, data, graphQLInputObjectType);
     }
 
-        public String getBuyerId() {
-            return get("buyerId");
+        public String getById() {
+            return get("byId");
         }
 
-        public Color getColor() {
-            return getEnum("color", Color.class);
-        }
-
-        public List<Double> getAmounts() {
-            return getScalarList("amounts");
-        }
-
-        public String getNote() {
-            return get("note");
+        public String getByNote() {
+            return get("byNote");
         }
 
 
@@ -50,29 +42,20 @@ public class CreateOrderInput extends InputBase {
             this.__context = __context;
         }
 
-                public Builder buyerId(String buyerId) {
-                    data.put("buyerId", buyerId);
+                public Builder byId(String byId) {
+                    data.put("byId", byId);
         return this;
                 }
 
-                public Builder color(Color color) {
-                    data.put("color", color);
-        return this;
-                }
-
-                public Builder amounts(List<Double> amounts) {
-                    data.put("amounts", amounts);
-        return this;
-                }
-
-                public Builder note(String note) {
-                    data.put("note", note);
+                public Builder byNote(String byNote) {
+                    data.put("byNote", byNote);
         return this;
                 }
 
 
-        public CreateOrderInput build() {
-            return new CreateOrderInput(__context, new LinkedHashMap<>(data), null);
+        public OrderLookupInput build() {
+            InputBase.validateOneOf("OrderLookupInput", data);
+            return new OrderLookupInput(__context, new LinkedHashMap<>(data), null);
         }
     }
 }

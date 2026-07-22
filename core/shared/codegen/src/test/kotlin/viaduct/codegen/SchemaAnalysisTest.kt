@@ -35,6 +35,7 @@ class SchemaAnalysisTest {
         directive @idOf(type: String!) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION
         directive @connection on OBJECT
         directive @edge on OBJECT
+        directive @oneOf on INPUT_OBJECT
 
         interface Node { id: ID! }
 
@@ -85,6 +86,7 @@ class SchemaAnalysisTest {
 
         enum Color { RED }
         input Filter { term: String }
+        input OneOfFilter @oneOf { byId: ID, byName: String }
         union Searchable = Entity | Plain
 
         type Query { entity: Entity }
@@ -264,6 +266,13 @@ class SchemaAnalysisTest {
         assertTrue(SchemaAnalysis.hasEdgeDirective(schema.type("WidgetEdge")))
         assertFalse(SchemaAnalysis.hasEdgeDirective(schema.type("WidgetConnection")))
         assertFalse(SchemaAnalysis.hasEdgeDirective(schema.type("Plain")))
+    }
+
+    @Test
+    fun `hasOneOfDirective is true only for an input carrying oneOf`() {
+        assertTrue(SchemaAnalysis.hasOneOfDirective(schema.type("OneOfFilter")))
+        assertFalse(SchemaAnalysis.hasOneOfDirective(schema.type("Filter")))
+        assertFalse(SchemaAnalysis.hasOneOfDirective(schema.type("Plain")))
     }
 
     // ---------------------------------------------------------------------------------------------

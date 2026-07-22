@@ -45,4 +45,50 @@ class TempOneOfViolationFeatureAppTest : TempOneOfViolationContractTest() {
     class Query_FromArgumentFieldResolver : QueryResolvers.FromArgumentField() {
         override suspend fun resolve(ctx: Context): String = ctx.arguments.arg.toString()
     }
+
+    // Builds a @oneOf input with two supplied keys (one null) via the generated Builder. The build()
+    // must fail fast: graphql-java counts supplied keys, not non-null values.
+    @Resolver(
+        """
+        fragment _ on Query {
+            intermediary(arg: ${'$'}oneofVar)
+        }
+        """
+    )
+    class Query_FromBuilderTwoKeysOneNullResolver : QueryResolvers.FromBuilderTwoKeysOneNull() {
+        override suspend fun resolve(ctx: Context): String? = ctx.getObjectValue().getIntermediary()
+
+        @Variables("oneofVar: OneofInput!")
+        class TwoKeysOneNullVars : VariablesProvider<Arguments> {
+            override suspend fun provide(context: VariablesProviderContext<Arguments>): Map<String, Any?> =
+                mapOf(
+                    "oneofVar" to OneofInput.Builder(context)
+                        .stringValue("test")
+                        .intValue(null)
+                        .build()
+                )
+        }
+    }
+
+    // Builds a @oneOf input with a single supplied key whose value is null. build() must fail fast.
+    @Resolver(
+        """
+        fragment _ on Query {
+            intermediary(arg: ${'$'}oneofVar)
+        }
+        """
+    )
+    class Query_FromBuilderSingleNullKeyResolver : QueryResolvers.FromBuilderSingleNullKey() {
+        override suspend fun resolve(ctx: Context): String? = ctx.getObjectValue().getIntermediary()
+
+        @Variables("oneofVar: OneofInput!")
+        class SingleNullKeyVars : VariablesProvider<Arguments> {
+            override suspend fun provide(context: VariablesProviderContext<Arguments>): Map<String, Any?> =
+                mapOf(
+                    "oneofVar" to OneofInput.Builder(context)
+                        .stringValue(null)
+                        .build()
+                )
+        }
+    }
 }

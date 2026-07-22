@@ -227,7 +227,10 @@ public final class JavaGRTGenerator {
             <endif>
             public class <mdl.className> extends InputBase {
 
-                public <mdl.className>(InternalContext context, Map\\<String, Object> data, GraphQLInputObjectType graphQLInputObjectType) {
+                // Package-private: input GRTs are constructed only through the validating Builder or
+                // by sibling GRTs in this package (nested-input wrapping). Tenants cannot construct
+                // one directly, so a @oneOf input cannot bypass the builder's fail-fast validation.
+                <mdl.className>(InternalContext context, Map\\<String, Object> data, GraphQLInputObjectType graphQLInputObjectType) {
                     super(context, data, graphQLInputObjectType);
                 }
 
@@ -259,6 +262,9 @@ public final class JavaGRTGenerator {
                     }; separator="\\n">
 
                     public <mdl.className> build() {
+                        <if(mdl.isOneOf)>
+                        InputBase.validateOneOf("<mdl.className>", data);
+                        <endif>
                         return new <mdl.className>(__context, new LinkedHashMap\\<>(data), null);
                     }
                 }
@@ -361,6 +367,7 @@ public final class JavaGRTGenerator {
             import java.time.OffsetTime;
             import java.util.List;
             import java.util.Map;
+            import viaduct.apiannotations.InternalApi;
             import viaduct.java.api.types.Arguments;
             import viaduct.java.api.internal.InputBase;
             import viaduct.java.api.internal.InternalContext;
@@ -368,6 +375,10 @@ public final class JavaGRTGenerator {
             /** Generated arguments class for resolver field. */
             public class <mdl.className> extends InputBase implements Arguments {
 
+                // Public because the framework constructs arguments reflectively across packages
+                // (JavaFieldResolverExecutorImpl, VariablesProviderExecutorImpl, etc.). @InternalApi
+                // marks it as not-for-tenant-use, mirroring Kotlin's `internal constructor`.
+                @InternalApi
                 public <mdl.className>(InternalContext context, Map\\<String, Object> data, GraphQLInputObjectType graphQLInputObjectType) {
                     super(context, data, graphQLInputObjectType);
                 }

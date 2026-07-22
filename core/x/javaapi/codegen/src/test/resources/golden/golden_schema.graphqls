@@ -121,6 +121,13 @@ input CreateOrderInput {
   note: String
 }
 
+# @oneOf input: exactly one field must be set. Exercises the generated build()
+# fail-fast validation (InputBase.validateOneOf).
+input OrderLookupInput @oneOf {
+  byId: ID
+  byNote: String
+}
+
 # ---------------------------------------------------------------------------
 # Root types and resolvers in every variant
 # ---------------------------------------------------------------------------
@@ -136,6 +143,8 @@ extend type Query {
   trendingUsers: [User!]! @resolver(isSelective: true, isBatching: true)
   # Connection field resolver.
   ordersConnection(first: Int!, after: String): OrderConnection @resolver
+  # Field resolver taking a @oneOf input argument.
+  lookupOrder(filter: OrderLookupInput!): Order @resolver
 }
 
 extend type Mutation {

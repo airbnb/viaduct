@@ -21,6 +21,17 @@ import viaduct.java.api.types.NodeCompositeOutput;
  * <p>Field access reads directly from the backing map. For nested input types, the map value is
  * wrapped using the provided constructor function (like Kotlin's {@code
  * grtConvFactory.createForInputField()}).
+ *
+ * <p><b>{@code @oneOf} inputs:</b> the "exactly one field must be set" constraint is enforced at
+ * the builder level — a generated {@code build()} on a {@code @oneOf} input calls {@link
+ * #validateOneOf} and throws a {@code TenantUsageException} if more or fewer than one field is set.
+ * This fails fast so tenants learn of a violation when they build the input rather than only at
+ * execution time. graphql-java remains the execution-time backstop, re-validating during input
+ * coercion (its {@code ValuesResolverOneOfValidation}) before resolver input GRTs are ever
+ * materialized. Unlike Kotlin's {@code InputLikeBase} — whose GRT constructor always receives the
+ * schema type and re-runs {@code validateInputData} — this class is handed a null {@code
+ * GraphQLInputObjectType} on the nested-input construction path, so there is no separate
+ * construction-time {@code @oneOf} check here; the builder plus graphql-java cover every path.
  */
 public abstract class InputBase implements GraphQLInput {
 
@@ -75,6 +86,41 @@ public abstract class InputBase implements GraphQLInput {
   /** Returns the backing input data map. Used by the bridge layer to extract data. */
   public Map<String, Object> getInputData() {
     return Collections.unmodifiableMap(inputData);
+  }
+
+  /**
+   * Validates the {@code @oneOf} constraint for an input type: exactly one field must be present
+   * with a non-null value. Throws a {@code TenantUsageException} otherwise. Called from the
+   * generated {@code build()} of {@code @oneOf} inputs so violations fail fast at construction
+   * time, mirroring the {@code @oneOf} check in Kotlin's {@code InputLikeBase.validateInputData}.
+   *
+   * @param typeName the input type's GraphQL name, used in the error message
+   * @param data the builder's accumulated field data
+   */
+  public static void validateOneOf(String typeName, Map<String, Object> data) {
+    // Mirror graphql-java's ValuesResolverOneOfValidation: first require exactly one supplied key,
+    // then require that key's value to be non-null. Counting supplied keys (not non-null values)
+    // means {byId: "1", byName: null} is rejected as two keys, matching execution-time coercion.
+    if (data.size() != 1) {
+      sneakyThrowTenantUsage(
+          "Exactly one field must be set for @oneOf type "
+              + typeName
+              + ", but "
+              + data.size()
+              + " were: "
+              + new ArrayList<>(data.keySet()),
+          null);
+    }
+    Map.Entry<String, Object> only = data.entrySet().iterator().next();
+    if (only.getValue() == null) {
+      sneakyThrowTenantUsage(
+          "Field '"
+              + only.getKey()
+              + "' for @oneOf type "
+              + typeName
+              + " must have a non-null value",
+          null);
+    }
   }
 
   /** Gets a scalar field value from the input data map. Like Kotlin: {@code get(fieldName)}. */
