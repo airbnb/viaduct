@@ -1,6 +1,7 @@
 package viaduct.x.javaapi.codegen;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import graphql.schema.idl.SchemaParser;
 import java.io.IOException;
@@ -569,6 +570,63 @@ class GraphQLSchemaParserTest {
     ResolverModel userResolver = resolversByType.get("Query").get(0);
     assertThat(userResolver.gqlFieldName()).isEqualTo("user");
     assertThat(userResolver.isSelective()).isTrue();
+  }
+
+  @Test
+  void rejectsSelectiveOnMutationNamespaceFields() throws IOException {
+    // A selective resolver on a @namespaceType object reachable from the mutation root must be
+    // rejected at codegen time, matching the Kotlin codegen (mutations execute on the root type
+    // and its reachable namespace types).
+    ViaductSchema schema =
+        parser.parse(
+            new StringReader(
+                """
+                directive @resolver(isSelective: Boolean! = false) on OBJECT | FIELD_DEFINITION
+                directive @namespaceType on OBJECT
+
+                type Query {
+                  placeholder: Int
+                }
+
+                type Mutation {
+                  stayFoo: StayFooMutations
+                }
+
+                type StayFooMutations @namespaceType {
+                  doThing(id: ID!): String @resolver(isSelective: true)
+                }
+                """));
+
+    assertThatThrownBy(() -> parser.extractResolvers(schema, "com.example.types", "Mutation"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("StayFooMutations.doThing");
+  }
+
+  @Test
+  void rejectsBatchingOnMutationNamespaceFields() throws IOException {
+    ViaductSchema schema =
+        parser.parse(
+            new StringReader(
+                """
+                directive @resolver(isBatching: Boolean! = false) on OBJECT | FIELD_DEFINITION
+                directive @namespaceType on OBJECT
+
+                type Query {
+                  placeholder: Int
+                }
+
+                type Mutation {
+                  stayFoo: StayFooMutations
+                }
+
+                type StayFooMutations @namespaceType {
+                  doThing(id: ID!): String @resolver(isBatching: true)
+                }
+                """));
+
+    assertThatThrownBy(() -> parser.extractResolvers(schema, "com.example.types", "Mutation"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("StayFooMutations.doThing");
   }
 
   @Test

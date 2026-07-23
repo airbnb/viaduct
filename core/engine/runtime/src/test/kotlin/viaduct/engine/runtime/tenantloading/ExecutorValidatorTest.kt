@@ -54,6 +54,33 @@ class ExecutorValidatorTest {
     }
 
     @Test
+    fun `default set rejects selective resolver on a mutation namespace field`() {
+        val mutationSchema = MockSchema.mk(
+            """
+            extend type Query { empty: Int }
+            extend type Mutation { stayFoo: StayFooMutations }
+            type StayFooMutations @namespaceType { doThing(id: ID!): String }
+            """.trimIndent()
+        )
+        val bootstrap = MockTenantModuleBootstrapper(
+            fieldResolverExecutors = listOf(
+                "StayFooMutations" to "doThing" to MockFieldUnbatchedResolverExecutor(
+                    isSelective = true,
+                    resolverId = "StayFooMutations.doThing",
+                )
+            ),
+            fullSchema = mutationSchema,
+        )
+        assertThrows<Exception> {
+            DispatcherRegistryFactory(
+                MockTenantAPIBootstrapper(listOf(bootstrap)),
+                ExecutorValidator(mutationSchema),
+                MockCheckerExecutorFactory()
+            ).create(mutationSchema)
+        }
+    }
+
+    @Test
     fun `fails on node resolver validator failure`() {
         assertThrows<IllegalArgumentException> {
             test(nodeResolverValidator = Validator.Invalid)

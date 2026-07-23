@@ -20,7 +20,10 @@ class ExecutorValidator(
     // defaults from schema
     constructor(schema: ViaductSchema) : this(
         nodeResolverValidator = Validator.Unvalidated,
-        fieldResolverExecutorValidator = ResolverSelectionSetsAreProperlyTyped(schema),
+        fieldResolverExecutorValidator = listOf(
+            ResolverSelectionSetsAreProperlyTyped(schema),
+            SelectiveResolverNotAllowedOnMutations(schema),
+        ).flatten(),
         requiredSelectionsValidator = listOf(
             RequiredSelectionsAreSchematicallyValid(schema),
             RequiredSelectionsAreAcyclic(schema),

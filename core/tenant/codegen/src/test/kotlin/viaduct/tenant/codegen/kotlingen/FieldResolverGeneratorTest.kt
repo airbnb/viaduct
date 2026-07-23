@@ -10,6 +10,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
+import viaduct.tenant.codegen.bytecode.config.mutationNamespaceTypeNames
 
 // This test suite is useful for inspecting the results of resolver generation.
 // While each test case makes only a small number of assertions, they are useful places
@@ -325,6 +326,108 @@ class FieldResolverGeneratorTest {
         val type = schema.types["CustomMutation"] as ViaductSchema.Record
         assertThrows<IllegalArgumentException> {
             genResolver("CustomMutation", type.fields, "pkg.tenant", "viaduct.api.grts", ViaductBaseTypeMapper(schema), "CustomQuery", "CustomMutation")
+        }
+    }
+
+    @Test
+    fun `errors when isSelective is true on a standard Mutation field`() {
+        val schema = mkSchema(
+            """
+                directive @resolver(isSelective: Boolean! = false) on FIELD_DEFINITION
+                type Query { placeholder: Int }
+                type Mutation { field(x: Int!): Int! @resolver(isSelective: true) }
+            """.trimIndent()
+        )
+        val type = schema.types["Mutation"] as ViaductSchema.Record
+        assertThrows<IllegalArgumentException> {
+            genResolver("Mutation", type.fields, "pkg.tenant", "viaduct.api.grts", ViaductBaseTypeMapper(schema), "Query", "Mutation")
+        }
+    }
+
+    @Test
+    fun `errors when isSelective is true on a custom mutation type field`() {
+        val sdl = """
+            schema { query: CustomQuery mutation: CustomMutation }
+            directive @resolver(isSelective: Boolean! = false) on FIELD_DEFINITION
+            type CustomQuery { placeholder: Int }
+            type CustomMutation { field(x: Int!): Int! @resolver(isSelective: true) }
+        """.trimIndent()
+        val schema = mkSchema(sdl)
+        val type = schema.types["CustomMutation"] as ViaductSchema.Record
+        assertThrows<IllegalArgumentException> {
+            genResolver("CustomMutation", type.fields, "pkg.tenant", "viaduct.api.grts", ViaductBaseTypeMapper(schema), "CustomQuery", "CustomMutation")
+        }
+    }
+
+    @Test
+    fun `errors when isSelective is true on a mutation namespace-type field`() {
+        val sdl = """
+            directive @resolver(isSelective: Boolean! = false) on FIELD_DEFINITION
+            directive @namespaceType on OBJECT
+            type Query { placeholder: Int }
+            type Mutation { stayFoo: StayFooMutations }
+            type StayFooMutations @namespaceType { field(x: Int!): Int! @resolver(isSelective: true) }
+        """.trimIndent()
+        val schema = mkSchema(sdl)
+        val namespaceNames = schema.mutationNamespaceTypeNames()
+        val type = schema.types["StayFooMutations"] as ViaductSchema.Record
+        assertThrows<IllegalArgumentException> {
+            genResolver("StayFooMutations", type.fields, "pkg.tenant", "viaduct.api.grts", ViaductBaseTypeMapper(schema), "Query", "Mutation", namespaceNames)
+        }
+    }
+
+    @Test
+    fun `errors when isBatching is true on a mutation namespace-type field`() {
+        val sdl = """
+            directive @resolver(isBatching: Boolean! = false) on FIELD_DEFINITION
+            directive @namespaceType on OBJECT
+            type Query { placeholder: Int }
+            type Mutation { stayFoo: StayFooMutations }
+            type StayFooMutations @namespaceType { field(x: Int!): Int! @resolver(isBatching: true) }
+        """.trimIndent()
+        val schema = mkSchema(sdl)
+        val namespaceNames = schema.mutationNamespaceTypeNames()
+        val type = schema.types["StayFooMutations"] as ViaductSchema.Record
+        assertThrows<IllegalArgumentException> {
+            genResolver("StayFooMutations", type.fields, "pkg.tenant", "viaduct.api.grts", ViaductBaseTypeMapper(schema), "Query", "Mutation", namespaceNames)
+        }
+    }
+
+    @Test
+    fun `allows isSelective on a query namespace-type field`() {
+        // A query namespace type also carries @namespaceType, but is not reachable from the mutation
+        // root, so it must not be caught by the mutation ban.
+        val sdl = """
+            directive @resolver(isSelective: Boolean! = false) on FIELD_DEFINITION
+            directive @namespaceType on OBJECT
+            type Query { stayFoo: StayFooQueries }
+            type Mutation { placeholder: Int }
+            type StayFooQueries @namespaceType { foo: Foo @resolver(isSelective: true) }
+            type Foo { id: ID! }
+        """.trimIndent()
+        val schema = mkSchema(sdl)
+        val namespaceNames = schema.mutationNamespaceTypeNames()
+        assertTrue(namespaceNames.isEmpty(), "Query namespace must not be treated as a mutation namespace")
+        val type = schema.types["StayFooQueries"] as ViaductSchema.Record
+        val contents = assertDoesNotThrow {
+            genResolver("StayFooQueries", type.fields, "pkg.tenant", "viaduct.api.grts", ViaductBaseTypeMapper(schema), "Query", "Mutation", namespaceNames)
+                .toString().replace("\r\n", "\n")
+        }
+        assertTrue(contents.contains("isSelective = true"))
+    }
+
+    @Test
+    fun `errors when the legacy selective alias is true on a Mutation field`() {
+        val schema = mkSchema(
+            """
+                directive @resolver(selective: Boolean! = false) on FIELD_DEFINITION
+                type Query { placeholder: Int }
+                type Mutation { field(x: Int!): Int! @resolver(selective: true) }
+            """.trimIndent()
+        )
+        val type = schema.types["Mutation"] as ViaductSchema.Record
+        assertThrows<IllegalArgumentException> {
+            genResolver("Mutation", type.fields, "pkg.tenant", "viaduct.api.grts", ViaductBaseTypeMapper(schema), "Query", "Mutation")
         }
     }
 

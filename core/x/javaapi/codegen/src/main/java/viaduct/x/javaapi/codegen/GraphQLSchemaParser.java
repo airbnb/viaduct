@@ -1,10 +1,13 @@
 package viaduct.x.javaapi.codegen;
 
+import static viaduct.tenant.codegen.bytecode.config.ViaductSchemaExtensionsKt.mutationNamespaceTypeNames;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -357,6 +360,10 @@ public class GraphQLSchemaParser {
     TypeMapper typeMapper = new TypeMapper(grtPackage);
     Map<String, List<ResolverModel>> result = new java.util.LinkedHashMap<>();
 
+    // Names of @namespaceType objects reachable from the mutation root. Reuses the same helper as
+    // the Kotlin codegen so both paths reject selective/batching resolvers on namespaced mutations.
+    Set<String> mutationNamespaceNames = mutationNamespaceTypeNames(schema);
+
     for (ViaductSchema.TypeDef typeDef : schema.getTypes().values()) {
       if (!(typeDef instanceof ViaductSchema.Object objectDef)) {
         continue;
@@ -371,7 +378,13 @@ public class GraphQLSchemaParser {
           if (member instanceof ViaductSchema.Field field) {
             if (field.hasAppliedDirective("resolver")) {
               ResolverModel model =
-                  createResolverModel(field, typeName, grtPackage, typeMapper, mutationTypeName);
+                  createResolverModel(
+                      field,
+                      typeName,
+                      grtPackage,
+                      typeMapper,
+                      mutationTypeName,
+                      mutationNamespaceNames);
               resolvers.add(model);
             }
           }
@@ -394,6 +407,7 @@ public class GraphQLSchemaParser {
    * @param grtPackage the GRT package name
    * @param typeMapper the type mapper
    * @param mutationTypeName the mutation type name
+   * @param mutationNamespaceNames names of @namespaceType objects reachable from the mutation root
    * @return the resolver model
    */
   private ResolverModel createResolverModel(
@@ -401,7 +415,8 @@ public class GraphQLSchemaParser {
       String typeName,
       String grtPackage,
       TypeMapper typeMapper,
-      String mutationTypeName) {
+      String mutationTypeName,
+      Set<String> mutationNamespaceNames) {
     String fieldName = field.getName();
     String resolverClassName = SchemaAnalysis.INSTANCE.resolverClassName(fieldName);
 
@@ -431,8 +446,10 @@ public class GraphQLSchemaParser {
         isCompositeOutput
             ? grtPackage + "." + field.getType().getBaseTypeDef().getName()
             : "CompositeOutput.None";
-    boolean isSelective = isSelectiveResolver(field);
-    boolean isBatching = isBatchingResolver(field, typeName, mutationTypeName);
+    boolean isSelective =
+        isSelectiveResolver(field, typeName, mutationTypeName, mutationNamespaceNames);
+    boolean isBatching =
+        isBatchingResolver(field, typeName, mutationTypeName, mutationNamespaceNames);
 
     return new ResolverModel(
         typeName,
@@ -451,13 +468,50 @@ public class GraphQLSchemaParser {
   }
 
   private boolean isBatchingResolver(
-      ViaductSchema.Def def, String typeName, String mutationTypeName) {
-    if (typeName.equals(mutationTypeName)) return false;
-    return SchemaAnalysis.INSTANCE.isBatchingResolver(def);
+      ViaductSchema.Def def,
+      String typeName,
+      String mutationTypeName,
+      Set<String> mutationNamespaceNames) {
+    boolean isBatching = SchemaAnalysis.INSTANCE.isBatchingResolver(def);
+    if (isMutationSideType(typeName, mutationTypeName, mutationNamespaceNames)) {
+      if (isBatching) {
+        throw new IllegalArgumentException(
+            "@resolver(isBatching: true) is not supported on mutation field "
+                + typeName
+                + "."
+                + def.getName());
+      }
+      return false;
+    }
+    return isBatching;
   }
 
-  private boolean isSelectiveResolver(ViaductSchema.Def def) {
-    return SchemaAnalysis.INSTANCE.isSelectiveResolver(def);
+  private boolean isSelectiveResolver(
+      ViaductSchema.Def def,
+      String typeName,
+      String mutationTypeName,
+      Set<String> mutationNamespaceNames) {
+    boolean isSelective = SchemaAnalysis.INSTANCE.isSelectiveResolver(def);
+    if (isMutationSideType(typeName, mutationTypeName, mutationNamespaceNames)) {
+      if (isSelective) {
+        throw new IllegalArgumentException(
+            "@resolver(isSelective: true) is not supported on mutation field "
+                + typeName
+                + "."
+                + def.getName());
+      }
+      return false;
+    }
+    return isSelective;
+  }
+
+  /**
+   * A field executes as a mutation if it lives on the root mutation type or on a @namespaceType
+   * object reachable from it. Mirrors the Kotlin codegen's {@code isMutationSideType}.
+   */
+  private boolean isMutationSideType(
+      String typeName, String mutationTypeName, Set<String> mutationNamespaceNames) {
+    return typeName.equals(mutationTypeName) || mutationNamespaceNames.contains(typeName);
   }
 
   /**
@@ -488,8 +542,11 @@ public class GraphQLSchemaParser {
 
       if (!ownershipFilter.test(objectDef)) continue;
 
-      boolean isBatching = isBatchingResolver(objectDef, objectDef.getName(), null);
-      boolean isSelective = isSelectiveResolver(objectDef);
+      // Nodes are never a mutation type or namespace, so the mutation namespace set is empty.
+      boolean isBatching =
+          isBatchingResolver(objectDef, objectDef.getName(), null, Collections.emptySet());
+      boolean isSelective =
+          isSelectiveResolver(objectDef, objectDef.getName(), null, Collections.emptySet());
 
       nodeResolvers.add(
           new NodeResolverModel(

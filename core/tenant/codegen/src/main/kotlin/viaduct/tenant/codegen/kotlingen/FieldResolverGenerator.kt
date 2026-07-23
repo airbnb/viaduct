@@ -11,6 +11,7 @@ import viaduct.tenant.codegen.bytecode.config.hasConnectionDirective
 import viaduct.tenant.codegen.bytecode.config.isBatchingResolver
 import viaduct.tenant.codegen.bytecode.config.isSelectiveResolver
 import viaduct.tenant.codegen.bytecode.config.kmType
+import viaduct.tenant.codegen.bytecode.config.mutationNamespaceTypeNames
 import viaduct.tenant.codegen.bytecode.config.tenantModule
 
 private const val RESOLVER_DIRECTIVE = "resolver"
@@ -47,10 +48,12 @@ private class FieldResolverGenerator(
             typeDef.name to tenantResolverFields(typeDef)
         }
 
+        val mutationNamespaceNames = schema.mutationNamespaceTypeNames()
+
         for ((typeName, fields) in typeToFields) {
             if (fields.isNullOrEmpty()) continue
 
-            val contents = genResolver(typeName, fields, tenantPackage, grtPackage, baseTypeMapper, queryTypeName, mutationTypeName)
+            val contents = genResolver(typeName, fields, tenantPackage, grtPackage, baseTypeMapper, queryTypeName, mutationTypeName, mutationNamespaceNames)
             val file = File(resolverGeneratedDir, "${typeName}Resolvers.kt")
             contents.write(file)
         }
@@ -99,8 +102,9 @@ internal fun genResolver(
     grtPackage: String,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
     queryTypeName: String?,
-    mutationTypeName: String?
-): STContents = STContents(stGroup, ResolversModelImpl(tenantPackage, grtPackage, typeName, fields, baseTypeMapper, queryTypeName, mutationTypeName))
+    mutationTypeName: String?,
+    mutationNamespaceNames: Set<String> = emptySet()
+): STContents = STContents(stGroup, ResolversModelImpl(tenantPackage, grtPackage, typeName, fields, baseTypeMapper, queryTypeName, mutationTypeName, mutationNamespaceNames))
 
 private interface ResolversModel {
     val pkg: String
@@ -131,10 +135,11 @@ private class ResolversModelImpl(
     fields: Collection<ViaductSchema.Field>,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
     queryTypeName: String?,
-    mutationTypeName: String?
+    mutationTypeName: String?,
+    mutationNamespaceNames: Set<String>
 ) : ResolversModel {
     override val pkg: String = tenantPackage
-    override val resolvers: List<ResolverModel> = fields.map { ResolverModelImpl(it, grtPackage, baseTypeMapper, queryTypeName, mutationTypeName) }
+    override val resolvers: List<ResolverModel> = fields.map { ResolverModelImpl(it, grtPackage, baseTypeMapper, queryTypeName, mutationTypeName, mutationNamespaceNames) }
 }
 
 private class ResolverModelImpl(
@@ -142,14 +147,30 @@ private class ResolverModelImpl(
     val grtPackage: String,
     val baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
     val queryTypeName: String?,
-    val mutationTypeName: String?
+    val mutationTypeName: String?,
+    val mutationNamespaceNames: Set<String>
 ) : ResolverModel {
     override val gqlTypeName: String = this.field.containingDef.name
     override val gqlFieldName: String = this.field.name
     override val resolverName: String = SchemaAnalysis.resolverClassName(gqlFieldName)
-    override val selective: Boolean = field.isSelectiveResolver
+
+    /**
+     * A field executes as a mutation if it lives on the root mutation type or on a
+     * `@namespaceType` object reachable from it. Selective and batching resolvers are both
+     * unsupported on such fields (a re-execution would re-run the side effects).
+     */
+    private fun isMutationSideType(name: String): Boolean = name == (mutationTypeName ?: "Mutation") || name in mutationNamespaceNames
+
+    override val selective: Boolean = if (isMutationSideType(field.containingDef.name)) {
+        require(!field.isSelectiveResolver) {
+            "@resolver(isSelective: true) is not supported on mutation field ${field.containingDef.name}.${field.name}"
+        }
+        false
+    } else {
+        field.isSelectiveResolver
+    }
     override val selectiveLiteral: String = selective.toString()
-    override val batching: Boolean = if (field.containingDef.name == (mutationTypeName ?: "Mutation")) {
+    override val batching: Boolean = if (isMutationSideType(field.containingDef.name)) {
         require(!field.isBatchingResolver) {
             "@resolver(isBatching: true) is not supported on mutation field ${field.containingDef.name}.${field.name}"
         }

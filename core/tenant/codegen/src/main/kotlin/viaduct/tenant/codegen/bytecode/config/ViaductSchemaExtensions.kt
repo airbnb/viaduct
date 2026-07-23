@@ -12,6 +12,7 @@ import viaduct.codegen.utils.KmName
 import viaduct.codegen.utils.name
 import viaduct.graphql.schema.ViaductReverseSchema
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.utils.DefaultSchemaFactory
 
 // Utilities expressed as extension functions go here.  Constants and
 // other utility functions go in Config.kt
@@ -273,6 +274,38 @@ fun ViaductSchema.TypeDef.pathFromQueryRoot(
         current = parentField.containingDef
     }
     return fields.reversed()
+}
+
+/**
+ * Collects the names of `@namespaceType` object types reachable from the mutation root — i.e. the
+ * types whose fields execute as mutations. Mutations are organized under namespace types: the root
+ * mutation type only holds pointers, and the real side-effecting leaf resolvers live on the
+ * namespace types.
+ *
+ * Detection walks from the mutation root rather than checking the `@namespaceType` directive
+ * locally, because query namespaces carry the same directive — only reachability from the mutation
+ * root distinguishes a mutation namespace. Mirrors the engine's
+ * `viaduct.engine.api.ViaductSchema.isMutationNamespaceType` walk, but over the schema abstraction
+ * rather than graphql-java.
+ */
+fun ViaductSchema.mutationNamespaceTypeNames(): Set<String> {
+    val root = mutationTypeDef ?: return emptySet()
+    val namespaceTypeDirective = DefaultSchemaFactory.DefaultDirective.NAMESPACE_TYPE.directiveName
+    val result = mutableSetOf<String>()
+
+    fun walk(parent: ViaductSchema.Object) {
+        for (field in parent.fields) {
+            val base = field.type.baseTypeDef
+            if (base is ViaductSchema.Object &&
+                base.hasAppliedDirective(namespaceTypeDirective) &&
+                result.add(base.name)
+            ) {
+                walk(base)
+            }
+        }
+    }
+    walk(root)
+    return result
 }
 
 val ViaductSchema.SourceLocation.tenantModule: String?
