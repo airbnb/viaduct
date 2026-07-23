@@ -15,13 +15,12 @@ import viaduct.graphql.utils.DefaultSchemaFactory.DefaultDirective
  * 3. Namespace types must not appear as members of any union.
  * 4. There can not be more than 1 namespace field with the same type.
  * 5. Namespace fields can only appear in the root query/mutation type or other namespace types.
- * 6. Fields returning a namespace type must not carry directives that bind, install, or override field resolution,
- *    since the engine auto-registers a synthetic resolver for fields returning a namespace type.
+ * 6. Fields returning a namespace type must not carry directives that conflict with the synthetic resolver
+ *    registered by the engine for fields returning a namespace type.
  *
  * @param conflictingFieldDirectives
- *   Raw directive names (no `@` prefix) that override field resolution and therefore
- *   collide with the synthetic namespace resolver registered by the engine for any field returning a
- *   `@namespaceType` type.
+ *   Raw directive names (no `@` prefix) that conflict with the synthetic namespace resolver registered
+ *   by the engine for any field returning a `@namespaceType` type.
  */
 class NamespaceTypeConstraintsRule(
     internal val conflictingFieldDirectives: Set<String> = setOf(DefaultDirective.RESOLVER.directiveName),
@@ -88,9 +87,10 @@ class NamespaceTypeConstraintsRule(
             ctx.reportError(
                 code = ValidationErrorCodes.NAMESPACE_TYPE_FIELD_HAS_CONFLICTING_RESOLVER,
                 message = "Field $parentTypeName.$fieldName has @$DIRECTIVE_NAME type '${baseTypeDef.name}' " +
-                    "but also carries directive(s) that override field resolution: $names. " +
-                    "Remove the explicit resolver directive — fields returning a namespace type are resolved by an " +
-                    "engine-registered synthetic namespace resolver.",
+                    "but also carries directive(s) that conflict with synthetic namespace resolution: $names. " +
+                    "Remove the conflicting directive(s) — fields returning a namespace type are resolved by an " +
+                    "engine-registered synthetic namespace resolver. Apply these directives to a concrete child " +
+                    "field instead.",
                 location = SchemaLocation.ofField(parentTypeName, fieldName).withSourceLocation(field.sourceLocation)
             )
         }
