@@ -95,6 +95,127 @@ class ScopeDirectivesRuleTest {
     }
 
     @Test
+    fun `invalid - interface must have a field in every declared scope`() {
+        val errors = validate(
+            """
+            type Query @scope(to: ["viaduct"]) {
+                value: String
+            }
+
+            interface IPresentationContainer
+                @scope(to: ["viaduct", "viaduct:public", "viaduct:internal-tools"])
+
+            extend interface IPresentationContainer @scope(to: ["viaduct"]) {
+                data: String
+            }
+            """.trimIndent()
+        )
+
+        errors.map { it.code } shouldContainExactly listOf(
+            ValidationErrorCodes.OBJECT_OR_INTERFACE_SCOPE_WITHOUT_FIELDS,
+            ValidationErrorCodes.OBJECT_OR_INTERFACE_SCOPE_WITHOUT_FIELDS
+        )
+        errors.map { it.message } shouldContainExactly listOf(
+            "interface IPresentationContainer declares scope viaduct:public but has no fields in that scope",
+            "interface IPresentationContainer declares scope viaduct:internal-tools but has no fields in that scope"
+        )
+    }
+
+    @Test
+    fun `invalid - object must have a field in every declared scope`() {
+        val errors = validate(
+            """
+            type Query @scope(to: ["viaduct"]) {
+                object: O1
+            }
+
+            type O1 @scope(to: ["viaduct", "viaduct:public"])
+
+            extend type O1 @scope(to: ["viaduct"]) {
+                viaductOnly: String
+            }
+            """.trimIndent()
+        )
+
+        errors.map { it.code } shouldContainExactly listOf(
+            ValidationErrorCodes.OBJECT_OR_INTERFACE_SCOPE_WITHOUT_FIELDS
+        )
+        errors.map { it.message } shouldContainExactly listOf(
+            "type O1 declares scope viaduct:public but has no fields in that scope"
+        )
+    }
+
+    @Test
+    fun `invalid - tenant-local fields do not satisfy scoped field requirement`() {
+        val errors = validate(
+            """
+            type Query @scope(to: ["viaduct"]) {
+                object: O1
+            }
+
+            type O1 @scope(to: ["viaduct", "viaduct:public"]) {
+                internalOnly: String @tenantLocal
+            }
+
+            extend type O1 @scope(to: ["viaduct"]) {
+                viaductOnly: String
+            }
+            """.trimIndent()
+        )
+
+        errors.map { it.code } shouldContainExactly listOf(
+            ValidationErrorCodes.OBJECT_OR_INTERFACE_SCOPE_WITHOUT_FIELDS
+        )
+        errors.map { it.message } shouldContainExactly listOf(
+            "type O1 declares scope viaduct:public but has no fields in that scope"
+        )
+    }
+
+    @Test
+    fun `valid - fields with out-of-scope return types satisfy scoped field requirement`() {
+        val errors = validate(
+            """
+            type Query @scope(to: ["viaduct"]) {
+                parent: Parent
+            }
+
+            type Child @scope(to: ["viaduct"]) {
+                value: String
+            }
+
+            type Parent @scope(to: ["viaduct", "viaduct:public"]) {
+                child: Child
+            }
+            """.trimIndent()
+        )
+
+        errors.shouldBeEmpty()
+    }
+
+    @Test
+    fun `valid - implements-only extension does not need to declare fields`() {
+        val errors = validate(
+            """
+            type Query @scope(to: ["viaduct"]) {
+                object: O1
+            }
+
+            interface I1 @scope(to: ["viaduct"]) {
+                name: String
+            }
+
+            type O1 @scope(to: ["viaduct", "viaduct:public"]) {
+                name: String
+            }
+
+            extend type O1 implements I1 @scope(to: ["viaduct"])
+            """.trimIndent()
+        )
+
+        errors.shouldBeEmpty()
+    }
+
+    @Test
     fun `invalid - union extension scopes must match union and member intersection`() {
         val errors = validate(
             """

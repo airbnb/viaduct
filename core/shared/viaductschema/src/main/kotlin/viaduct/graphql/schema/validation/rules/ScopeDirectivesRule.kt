@@ -85,6 +85,7 @@ class ScopeDirectivesRule : ValidationRule(
     ) {
         val baseExtension = outputRecord.extensions.firstOrNull { it.isBase } ?: return
         val outputRecordScopes = baseExtension.expandedScopes
+        validateOutputRecordHasFieldsInEveryScope(ctx, outputRecord, baseExtension)
 
         for (extension in outputRecord.extensions.filterNot { it.isBase }) {
             validateScopedMembersDeclareScope(ctx, outputRecord, extension)
@@ -112,6 +113,28 @@ class ScopeDirectivesRule : ValidationRule(
                     outputRecord,
                     superInterface,
                     extensionScopes
+                )
+            }
+        }
+    }
+
+    private fun validateOutputRecordHasFieldsInEveryScope(
+        ctx: ValidationContext,
+        outputRecord: ViaductSchema.OutputRecord,
+        baseExtension: ViaductSchema.ExtensionWithSupers<*, ViaductSchema.Field>
+    ) {
+        for (scope in baseExtension.scopes.orEmpty().distinct()) {
+            val hasFieldDeclaredInScope = outputRecord.fields.any {
+                !it.hasAppliedDirective(TENANT_LOCAL_DIRECTIVE_NAME) &&
+                    it.containingExtension.appliedDirectives.includesScope(scope)
+            }
+            if (!hasFieldDeclaredInScope) {
+                ctx.reportError(
+                    code = ValidationErrorCodes.OBJECT_OR_INTERFACE_SCOPE_WITHOUT_FIELDS,
+                    message = "${outputRecord.typeKeyword} ${outputRecord.name} declares scope $scope " +
+                        "but has no fields in that scope",
+                    location = SchemaLocation.ofType(outputRecord.name)
+                        .withSourceLocation(baseExtension.sourceLocation)
                 )
             }
         }
