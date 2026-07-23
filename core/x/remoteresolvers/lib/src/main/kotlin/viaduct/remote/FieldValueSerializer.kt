@@ -71,7 +71,14 @@ object FieldValueSerializer {
             // A NodeReference is *also* an EngineObjectData (NodeEngineObjectDataImpl), so check it
             // first: ship the reference as {id, type} rather than eagerly resolving its fields.
             is NodeReference -> mapOf(KIND to KIND_NODEREF, TYPE to value.type.name, ID to value.id)
-            is EngineObjectData -> mapOf(KIND to KIND_OBJECT, TYPE to value.type.name, VALUE to EngineObjectDataSerializer.serializeToMap(value))
+            is EngineObjectData.Sync -> mapOf(KIND to KIND_OBJECT, TYPE to value.type.name, VALUE to EngineObjectDataSerializer.serializeToMap(value))
+            // Any other unresolved reference (e.g. a RootFieldReference) has no dedicated wire
+            // representation here — unlike NodeReference, it can't be shipped lazily, and recursing
+            // into it would await a resolution that never happens on the serialize path.
+            is EngineObjectData -> throw UnsupportedOperationException(
+                "Remote field resolvers cannot serialize an unresolved reference of type '${value.type.name}' " +
+                    "(other than a node reference, which ships as {id, type}); resolve it before returning it."
+            )
             // A map (e.g. a custom-scalar payload) ships as a JSON leaf, but its contents must be
             // JSON-friendly — map values aren't tagged, so an object nested in a map is unsupported.
             is Map<*, *> -> {

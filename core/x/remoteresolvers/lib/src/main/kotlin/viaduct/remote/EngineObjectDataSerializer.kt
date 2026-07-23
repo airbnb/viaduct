@@ -13,7 +13,7 @@ import viaduct.engine.api.ResolvedEngineObjectData
  * scalar/enum encoding. Nested objects and lists of objects are reconstructed
  * structurally: any JSON object value is re-wrapped into a [ResolvedEngineObjectData]
  * under a placeholder type so downstream consumers that walk the result with
- * [EngineObjectData.fetchOrNull] get the expected interface at every depth.
+ * [EngineObjectData.Sync.getOrNull] get the expected interface at every depth.
  */
 object EngineObjectDataSerializer {
     private val objectMapper = jacksonObjectMapper()
@@ -23,7 +23,20 @@ object EngineObjectDataSerializer {
     private val NESTED_OBJECT_TYPE: GraphQLObjectType =
         GraphQLObjectType.newObject().name("RemoteNestedObject").build()
 
-    suspend fun serialize(data: EngineObjectData): ByteArray = objectMapper.writeValueAsBytes(serializeToMap(data))
+    suspend fun serialize(data: EngineObjectData): ByteArray {
+        // This should never happen: a node resolver's result is unwrapped by
+        // NodeUnbatchedResolverExecutorImpl.unwrapNodeResolverResult before it ever reaches here, and
+        // that unwrap already rejects an unresolved NodeReference. If this throws, it means that
+        // check let something else unresolved through — an invariant violation, not a normal mistake
+        // this call site could correct.
+        val sync = data as? EngineObjectData.Sync
+            ?: throw UnsupportedOperationException(
+                "Invariant violation: received an unresolved EngineObjectData (type '${data.type.name}') " +
+                    "to serialize. Node resolvers must return fully resolved data (via a GRT builder), " +
+                    "not an unresolved NodeReference or RootFieldReference."
+            )
+        return objectMapper.writeValueAsBytes(serializeToMap(sync))
+    }
 
     suspend fun deserialize(
         jsonBytes: ByteArray,
@@ -34,27 +47,31 @@ object EngineObjectDataSerializer {
         return buildFromMap(dataMap, graphQLObjectType)
     }
 
-    /** Serializes an [EngineObjectData] to a JSON-friendly field map; nested objects and lists recurse. */
-    internal suspend fun serializeToMap(data: EngineObjectData): Map<String, Any?> {
-        val selections = data.fetchSelections()
+    /** Serializes a resolved [EngineObjectData.Sync] to a JSON-friendly field map; nested objects and lists recurse. */
+    internal suspend fun serializeToMap(data: EngineObjectData.Sync): Map<String, Any?> {
         val dataMap = mutableMapOf<String, Any?>()
-        for (selection in selections) {
-            dataMap[selection] = serializeChild(data.fetchOrNull(selection))
+        for (selection in data.getSelections()) {
+            dataMap[selection] = serializeChild(data.getOrNull(selection))
         }
         return dataMap
     }
 
-    // A nested NodeReference can't be serialized here: NodeEngineObjectDataImpl implements both
-    // NodeReference and EngineObjectData, so recursing into serializeToMap would await a resolution
-    // that never happens on the serialize path (it hangs until the request deadline). Fail fast — the
-    // caller isolates it to a per-selector/-node error rather than hanging the whole batch.
+    // A nested unresolved reference (NodeReference or RootFieldReference) can't be serialized here:
+    // both are also EngineObjectData (e.g. NodeEngineObjectDataImpl, ObjectRootFieldReference), so
+    // recursing into serializeToMap would await a resolution that never happens on the serialize
+    // path (it hangs until the request deadline). Fail fast — the caller isolates it to a
+    // per-selector/-node error rather than hanging the whole batch.
     private suspend fun serializeChild(value: Any?): Any? =
         when (value) {
             is NodeReference -> throw UnsupportedOperationException(
                 "Cannot serialize a nested NodeReference (type '${value.type.name}'); " +
                     "resolve the reference before returning it."
             )
-            is EngineObjectData -> serializeToMap(value)
+            is EngineObjectData.Sync -> serializeToMap(value)
+            is EngineObjectData -> throw UnsupportedOperationException(
+                "Cannot serialize a nested unresolved EngineObjectData (type '${value.type.name}'); " +
+                    "resolve it before returning it."
+            )
             is List<*> -> value.map { serializeChild(it) }
             else -> value
         }

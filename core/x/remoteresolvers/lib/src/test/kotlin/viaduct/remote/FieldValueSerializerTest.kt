@@ -202,6 +202,33 @@ class FieldValueSerializerTest {
     }
 
     @Test
+    fun `an unresolved root field reference is rejected, not hung`() {
+        // Regression for the same class of bug as the nested-NodeReference case, but for
+        // RootFieldReference: ObjectRootFieldReference is also an EngineObjectData, but unlike
+        // NodeReference it has no dedicated wire representation here, so it must be rejected
+        // synchronously rather than awaiting a resolution that never completes on the serialize path.
+        val ref = context.createRootFieldReference(listOf("test"), objectType("Species"), emptyMap())
+        val ex = assertThrows<UnsupportedOperationException> {
+            runBlocking { FieldValueSerializer.serializeValue(ref) }
+        }
+        ex.message.shouldContain("unresolved reference")
+    }
+
+    @Test
+    fun `a returned object holding a nested root field reference is rejected, not hung`() {
+        // Same regression, nested: a Character whose `species` selection is an unresolved
+        // RootFieldReference must fail fast rather than hang.
+        val character = ResolvedEngineObjectData.Builder(objectType("Character"))
+            .put("name", "Luke")
+            .put("species", context.createRootFieldReference(listOf("test"), objectType("Species"), emptyMap()))
+            .build()
+        val ex = assertThrows<UnsupportedOperationException> {
+            runBlocking { FieldValueSerializer.serializeValue(character) }
+        }
+        ex.message.shouldContain("nested unresolved EngineObjectData")
+    }
+
+    @Test
     fun `a returned object with a nested object child round-trips`() {
         val character = ResolvedEngineObjectData.Builder(objectType("Character"))
             .put("name", "Luke")
