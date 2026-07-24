@@ -1,3 +1,4 @@
 extend type Query {
   greeting: String @resolver
+  secretGreeting: String @tenantLocal @resolver
 }

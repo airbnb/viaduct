@@ -13,6 +13,46 @@ class ViaductModulePluginModuleConfigExecutionTest {
     lateinit var projectDir: File
 
     @Test
+    fun `module config is generated when schema file collection is empty`() {
+        writeStatefulExecutionProject()
+        File(projectDir, "build.gradle.kts").appendText(
+            """
+
+            tasks.named<viaduct.gradle.task.AssembleTenantModuleConfigFileTask>(
+                "assembleViaductModuleConfigFile"
+            ) {
+                centralSchemaFiles.setFrom(emptyList<Any>())
+            }
+            """.trimIndent()
+        )
+
+        runModuleConfigBuild(skipKsp = false)
+
+        val moduleConfigFile = File(
+            projectDir,
+            "build/generated-resources/viaduct-registry/" +
+                "META-INF/viaduct/modules/com.example.test.resolvers.json",
+        )
+        assertTrue(moduleConfigFile.exists(), "Expected module config JSON to be generated")
+        moduleConfigFile.readText() shouldContain "GreetingResolver"
+    }
+
+    @Test
+    fun `module config rejects tenant-local selections owned by another module`() {
+        writeCrossTenantLocalExecutionProject()
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withPluginClasspath(combinedPluginClasspath())
+            .withArguments(":alpha:assembleViaductModuleConfigFile")
+            .buildAndFail()
+
+        result.output shouldContain "RSS validation failed at assembly"
+        result.output shouldContain "Query.privateGreeting"
+        result.output shouldContain "owned by beta"
+    }
+
+    @Test
     fun `module config is updated as resolver descriptor files are added and removed`() {
         writeStatefulExecutionProject()
 
@@ -108,14 +148,7 @@ class ViaductModulePluginModuleConfigExecutionTest {
 
     private fun writeStatefulExecutionProject() {
         val publicationsDir = findOssRoot().resolve("publications")
-        File(projectDir, "gradle.properties").writeText(
-            """
-            org.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=1g
-            kotlin.daemon.jvmargs=-Xmx2g
-            org.gradle.workers.max=1
-            org.gradle.configuration-cache=true
-            """.trimIndent()
-        )
+        writeGradleProperties()
         File(projectDir, "settings.gradle.kts").writeViaductSettings(
             modules = mapOf(":" to "resolvers"),
             includedBuilds = listOf(publicationsDir),
@@ -149,6 +182,97 @@ class ViaductModulePluginModuleConfigExecutionTest {
               greeting: String @resolver
               author: String @resolver
             }
+            """.trimIndent()
+        )
+    }
+
+    private fun writeCrossTenantLocalExecutionProject() {
+        val publicationsDir = findOssRoot().resolve("publications")
+        writeGradleProperties()
+        File(projectDir, "settings.gradle.kts").writeViaductSettings(
+            modules = linkedMapOf(
+                ":alpha" to "alpha",
+                ":beta" to "beta",
+            ),
+            includedBuilds = listOf(publicationsDir),
+        )
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                `java-library`
+                id("com.airbnb.viaduct.application-gradle-plugin")
+            }
+
+            repositories {
+                mavenCentral()
+            }
+            """.trimIndent()
+        )
+
+        listOf("alpha", "beta").forEach { module ->
+            val moduleDir = File(projectDir, module).also { it.mkdirs() }
+            File(moduleDir, "build.gradle.kts").writeText(
+                """
+                plugins {
+                    kotlin("jvm")
+                    id("com.airbnb.viaduct.module-gradle-plugin")
+                    id("com.google.devtools.ksp")
+                }
+
+                repositories {
+                    mavenCentral()
+                }
+
+                dependencies {
+                    implementation("com.airbnb.viaduct:api")
+                }
+                """.trimIndent()
+            )
+        }
+
+        val alphaResolverDir = File(
+            projectDir,
+            "alpha/src/main/kotlin/com/example/test/alpha",
+        ).also { it.mkdirs() }
+        File(alphaResolverDir, "GreetingResolver.kt").writeText(
+            """
+            package com.example.test.alpha
+
+            import com.example.test.alpha.resolverbases.QueryResolvers
+            import viaduct.api.resolver.Resolver
+
+            @Resolver(queryValueFragment = "fragment _ on Query { privateGreeting }")
+            class GreetingResolver : QueryResolvers.Greeting() {
+                override suspend fun resolve(ctx: Context) = "hello"
+            }
+            """.trimIndent()
+        )
+
+        val alphaSchemaDir = File(projectDir, "alpha/src/main/viaduct/schema").also { it.mkdirs() }
+        File(alphaSchemaDir, "schema.graphqls").writeText(
+            """
+            extend type Query {
+              greeting: String @resolver
+            }
+            """.trimIndent()
+        )
+        val betaSchemaDir = File(projectDir, "beta/src/main/viaduct/schema").also { it.mkdirs() }
+        File(betaSchemaDir, "schema.graphqls").writeText(
+            """
+            extend type Query {
+              privateGreeting: String @tenantLocal @resolver
+            }
+            """.trimIndent()
+        )
+    }
+
+    private fun writeGradleProperties() {
+        File(projectDir, "gradle.properties").writeText(
+            """
+            org.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=1g
+            kotlin.daemon.jvmargs=-Xmx2g
+            org.gradle.workers.max=1
+            org.gradle.configuration-cache=true
             """.trimIndent()
         )
     }

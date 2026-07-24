@@ -42,6 +42,7 @@ class PluginExecutionSmokeTest {
         )
 
         assertTrue(alphaPartitionSchemaFile.readText().contains("greeting: String"))
+        assertTrue(alphaPartitionSchemaFile.readText().contains("secretGreeting: String @tenantLocal"))
         assertTrue(betaPartitionSchemaFile.readText().contains("author: String"))
         assertTrue(betaPartitionSchemaFile.readText().contains("echo(message: String!): String"))
     }
@@ -61,6 +62,8 @@ class PluginExecutionSmokeTest {
         assertExists(betaConfigFile)
 
         assertTrue(alphaConfigFile.readText().contains("GreetingResolver"))
+        assertTrue(alphaConfigFile.readText().contains("SecretGreetingResolver"))
+        assertTrue(alphaConfigFile.readText().contains("secretGreeting"))
         val betaContents = betaConfigFile.readText()
         assertTrue(betaContents.contains("AuthorResolver"))
         assertTrue(betaContents.contains("EchoMutationResolver"))

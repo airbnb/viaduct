@@ -5,6 +5,7 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
 import java.nio.file.Files
@@ -27,8 +28,10 @@ class AssembleTenantModuleConfigJar : CliktCommand(
 
     private val tenantPackagePrefix: String? by option("--tenant-package-prefix")
 
-    private val schemaSdl: File? by option("--schema-sdl")
+    private val schemaFiles: List<File> by option("--schema-files")
         .file(mustExist = true, canBeDir = false)
+        .split(",")
+        .default(emptyList())
 
     private val schemaBinary: File? by option("--schema-binary")
         .file(mustExist = true, canBeDir = false)
@@ -71,8 +74,8 @@ class AssembleTenantModuleConfigJar : CliktCommand(
                 executorFactory = executorFactory,
                 tenantPackage = tenantPackage,
                 tenantPackagePrefix = tenantPackagePrefix,
-                schemaSdl = schemaSdl?.readText(),
                 schemaBinary = schemaBinary,
+                schemaFiles = schemaFiles,
                 outputDir = outputDir,
             )
 

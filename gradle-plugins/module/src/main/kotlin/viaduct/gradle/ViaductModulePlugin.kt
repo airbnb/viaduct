@@ -43,7 +43,7 @@ class ViaductModulePlugin : Plugin<Project> {
                 ViaductModulePluginSupport.setupIncomingConfigurationForCentralSchema(this, viaductApplication)
             val generateResolverBasesTask = setupGenerateResolverBasesTask(moduleLayout, centralSchemaIncomingCfg)
 
-            setupKspRegistryExtractor(moduleLayout, generateResolverBasesTask)
+            setupKspRegistryExtractor(moduleLayout, generateResolverBasesTask, centralSchemaIncomingCfg)
 
             ViaductModulePluginSupport.wireToTopologyApplicationProject(
                 this,
@@ -85,6 +85,7 @@ class ViaductModulePlugin : Plugin<Project> {
     private fun Project.setupKspRegistryExtractor(
         moduleLayout: ViaductModulePackageLayout,
         generateResolverBasesTask: TaskProvider<GenerateResolverBasesTask>,
+        centralSchemaIncomingCfg: Configuration,
     ) {
         val version = pluginVersion(ViaductModulePlugin::class.java)
         val codegenClasspath = createOrGetCodegenClasspath(version)
@@ -134,6 +135,11 @@ class ViaductModulePlugin : Plugin<Project> {
                 descriptorDir.set(layout.buildDirectory.dir("intermediates/viaduct-registry-descriptors"))
                 executorFactory.set(AssembleTenantModuleConfigFileTask.EXECUTOR_FACTORY)
                 this.codegenClasspath.from(codegenClasspath)
+                centralSchemaFiles.from(
+                    centralSchemaIncomingCfg.incoming.artifactView {}.files.asFileTree.matching {
+                        include("**/*.graphqls")
+                    }
+                )
                 outputDir.set(
                     project.layout.buildDirectory.dir("generated-resources/viaduct-registry")
                 )

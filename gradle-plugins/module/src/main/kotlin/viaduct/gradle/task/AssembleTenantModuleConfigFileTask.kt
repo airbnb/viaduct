@@ -64,6 +64,14 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
     @get:Classpath
     abstract val codegenClasspath: ConfigurableFileCollection
 
+    /**
+     * Source-preserving central schema files used to validate resolver selections and determine
+     * tenant-local field ownership.
+     */
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val centralSchemaFiles: ConfigurableFileCollection
+
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
 
@@ -129,6 +137,14 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
             args.add("--tenant-package-prefix")
             args.add(prefix)
         }
+        centralSchemaFiles.files
+            .map(File::getAbsolutePath)
+            .sorted()
+            .takeIf(List<String>::isNotEmpty)
+            ?.let { schemaFiles ->
+                args.add("--schema-files")
+                args.add(schemaFiles.joinToString(","))
+            }
 
         workerExecutor.runCodegen(
             codegenClasspath,

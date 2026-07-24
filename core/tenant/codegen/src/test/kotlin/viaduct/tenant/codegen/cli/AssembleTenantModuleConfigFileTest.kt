@@ -24,8 +24,8 @@ class AssembleTenantModuleConfigFileTest {
         tenantPackagePrefix: String? = "com.example",
         executorFactory: String = "com.example.feature.ExampleExecutorFactory",
         out: File = outputDir(),
-        schemaSdl: File? = null,
         schemaBinary: File? = null,
+        schemaFiles: List<File> = emptyList(),
     ) {
         val args = mutableListOf(
             "--descriptor-dir",
@@ -40,11 +40,11 @@ class AssembleTenantModuleConfigFileTest {
         if (tenantPackagePrefix != null) {
             args += listOf("--tenant-package-prefix", tenantPackagePrefix)
         }
-        if (schemaSdl != null) {
-            args += listOf("--schema-sdl", schemaSdl.absolutePath)
-        }
         if (schemaBinary != null) {
             args += listOf("--schema-binary", schemaBinary.absolutePath)
+        }
+        if (schemaFiles.isNotEmpty()) {
+            args += listOf("--schema-files", schemaFiles.joinToString(",") { it.absolutePath })
         }
         AssembleTenantModuleConfigFile().main(args)
     }
@@ -65,6 +65,58 @@ class AssembleTenantModuleConfigFileTest {
             ViaductSchema.fromTypeDefinitionRegistry(schemaFiles.toList()).toBinaryFile(binarySchema)
         }
 
+    private fun crossTenantLocalDescriptor(): File =
+        descriptorDir().also { descriptors ->
+            File(descriptors, "Resolver.json").writeText(
+                """
+                {
+                  "nodes": [],
+                  "fields": [ {
+                    "attribution": "NameResolver",
+                    "implFqn": "com.example.feature.resolvers.NameResolver",
+                    "isBatching": false,
+                    "isSelective": false,
+                    "resolverBaseClass": "com.example.feature.resolverbases.Name",
+                    "typeName": "User",
+                    "fieldName": "name",
+                    "objectSelections": {
+                      "selections": "fragment _ on User { tenantLocalFromOther }",
+                      "variablesProviders": []
+                    }
+                  } ],
+                  "grtPackagePrefix": "viaduct.api.grts"
+                }
+                """.trimIndent(),
+            )
+        }
+
+    private fun tenantLocalSourceSchemas(): List<File> =
+        listOf(
+            sourceSchemaFile(
+                "build/viaduct/centralSchema/partition/feature/graphql/schema.graphqls",
+                """
+                directive @tenantLocal on FIELD_DEFINITION
+
+                type Query {
+                    viewer: User
+                }
+
+                type User {
+                    id: ID
+                    name: String
+                }
+                """.trimIndent(),
+            ),
+            sourceSchemaFile(
+                "build/viaduct/centralSchema/partition/other/graphql/schema.graphqls",
+                """
+                extend type User {
+                    tenantLocalFromOther: String @tenantLocal
+                }
+                """.trimIndent(),
+            ),
+        )
+
     private fun runCliWithSchema(
         descriptors: File,
         out: File,
@@ -73,7 +125,7 @@ class AssembleTenantModuleConfigFileTest {
         runCli(
             descriptors = descriptors,
             out = out,
-            schemaSdl = schema,
+            schemaFiles = listOf(schema),
             schemaBinary = schemaBinaryFile(schema),
         )
     }
@@ -525,7 +577,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl validates RSS object selections against schema - valid fields pass`() {
+    fun `schema-files validate RSS object selections against schema - valid fields pass`() {
         val descriptors = descriptorDir()
         File(descriptors, "Resolver.json").writeText(
             """
@@ -553,7 +605,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl without schema-binary fails clearly`() {
+    fun `schema-files validate without schema-binary`() {
         val descriptors = descriptorDir()
         File(descriptors, "Resolver.json").writeText(
             """
@@ -578,15 +630,11 @@ class AssembleTenantModuleConfigFileTest {
         )
         val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
 
-        val exception = assertThrows<IllegalArgumentException> {
-            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema)
-        }
-
-        assertTrue(exception.message!!.contains("--schema-binary is required"), exception.message)
+        runCli(descriptors = descriptors, out = outputDir(), schemaFiles = listOf(schema))
     }
 
     @Test
-    fun `schema-sdl rejects RSS object selections referencing unknown field`() {
+    fun `schema-files reject RSS object selections referencing unknown field`() {
         val descriptors = descriptorDir()
         File(descriptors, "Resolver.json").writeText(
             """
@@ -621,69 +669,17 @@ class AssembleTenantModuleConfigFileTest {
 
     @Test
     fun `schema-binary rejects RSS object selections referencing tenant-local field from another tenant`() {
-        val descriptors = descriptorDir()
-        File(descriptors, "Resolver.json").writeText(
-            """
-            {
-              "nodes": [],
-              "fields": [ {
-                "attribution": "NameResolver",
-                "implFqn": "com.example.feature.resolvers.NameResolver",
-                "isBatching": false,
-                "isSelective": false,
-                "resolverBaseClass": "com.example.feature.resolverbases.Name",
-                "typeName": "User",
-                "fieldName": "name",
-                "objectSelections": {
-                  "selections": "fragment _ on User { tenantLocalFromOther }",
-                  "variablesProviders": []
-                }
-              } ],
-              "grtPackagePrefix": "viaduct.api.grts"
-            }
-            """.trimIndent(),
-        )
-        val featureSchemaSdl = """
-            directive @tenantLocal on FIELD_DEFINITION
-
-            type Query {
-                viewer: User
-            }
-
-            type User {
-                id: ID
-                name: String
-            }
-        """.trimIndent()
-        val otherSchemaSdl = """
-            extend type User {
-                tenantLocalFromOther: String @tenantLocal
-            }
-        """.trimIndent()
-        val schema = schemaFile(
-            """
-            directive @tenantLocal on FIELD_DEFINITION
-
-            type Query {
-                viewer: User
-            }
-
-            type User {
-                id: ID
-                name: String
-            }
-
-            extend type User {
-                tenantLocalFromOther: String @tenantLocal
-            }
-            """.trimIndent(),
-        )
-        val schemaBinary = schemaBinaryFile(
-            sourceSchemaFile("build/viaduct/centralSchema/partition/feature/graphql/schema.graphqls", featureSchemaSdl),
-            sourceSchemaFile("build/viaduct/centralSchema/partition/other/graphql/schema.graphqls", otherSchemaSdl),
-        )
+        val descriptors = crossTenantLocalDescriptor()
+        val sourceSchemas = tenantLocalSourceSchemas()
+        val schema = schemaFile(sourceSchemas.joinToString("\n", transform = File::readText))
+        val schemaBinary = schemaBinaryFile(*sourceSchemas.toTypedArray())
         val exception = assertThrows<IllegalStateException> {
-            runCli(descriptors = descriptors, out = outputDir(), schemaSdl = schema, schemaBinary = schemaBinary)
+            runCli(
+                descriptors = descriptors,
+                out = outputDir(),
+                schemaBinary = schemaBinary,
+                schemaFiles = listOf(schema),
+            )
         }
         assertTrue(exception.message!!.contains("RSS validation failed"), exception.message)
         assertTrue(exception.message!!.contains("User.tenantLocalFromOther"), exception.message)
@@ -691,7 +687,21 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl validates cross-leaf named fragment spread after assembly`() {
+    fun `schema-files reject RSS object selections referencing tenant-local field from another tenant`() {
+        val exception = assertThrows<IllegalStateException> {
+            runCli(
+                descriptors = crossTenantLocalDescriptor(),
+                out = outputDir(),
+                schemaFiles = tenantLocalSourceSchemas(),
+            )
+        }
+        assertTrue(exception.message!!.contains("RSS validation failed"), exception.message)
+        assertTrue(exception.message!!.contains("User.tenantLocalFromOther"), exception.message)
+        assertTrue(exception.message!!.contains("owned by other"), exception.message)
+    }
+
+    @Test
+    fun `schema-files validate cross-leaf named fragment spread after assembly`() {
         val descriptors = descriptorDir()
         File(descriptors, "FieldResolvers.json").writeText(
             """
@@ -726,7 +736,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl rejects cross-leaf named fragment that references unknown field`() {
+    fun `schema-files reject cross-leaf named fragment that references unknown field`() {
         val descriptors = descriptorDir()
         File(descriptors, "FieldResolvers.json").writeText(
             """
@@ -763,7 +773,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl rejects objectValueFragment on the wrong parent type`() {
+    fun `schema-files reject objectValueFragment on the wrong parent type`() {
         val descriptors = descriptorDir()
         File(descriptors, "Resolver.json").writeText(
             """
@@ -794,7 +804,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl rejects queryValueFragment not on the root query type`() {
+    fun `schema-files reject queryValueFragment not on the root query type`() {
         val descriptors = descriptorDir()
         File(descriptors, "Resolver.json").writeText(
             """
@@ -825,7 +835,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl rejects mutation resolver that sets objectValueFragment`() {
+    fun `schema-files reject mutation resolver that sets objectValueFragment`() {
         val descriptors = descriptorDir()
         File(descriptors, "Resolver.json").writeText(
             """
@@ -858,7 +868,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl accepts valid object and query fragments on the correct types`() {
+    fun `schema-files accept valid object and query fragments on the correct types`() {
         val descriptors = descriptorDir()
         File(descriptors, "Resolver.json").writeText(
             """
@@ -890,7 +900,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `omitting schema-sdl skips schema validation even for invalid selections`() {
+    fun `omitting schema-files skips schema validation even for invalid selections`() {
         val descriptors = descriptorDir()
         File(descriptors, "Resolver.json").writeText(
             """
@@ -917,7 +927,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl validates a valid named operation`() {
+    fun `schema-files validate a valid named operation`() {
         val descriptors = descriptorDir()
         File(descriptors, "Operations.json").writeText(
             """
@@ -932,7 +942,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl fails a named operation with an unknown field`() {
+    fun `schema-files fail a named operation with an unknown field`() {
         val descriptors = descriptorDir()
         File(descriptors, "Operations.json").writeText(
             """
@@ -950,7 +960,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl fails a mutation operation declared as a query`() {
+    fun `schema-files fail a mutation operation declared as a query`() {
         val descriptors = descriptorDir()
         File(descriptors, "Operations.json").writeText(
             """
@@ -968,7 +978,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl validates a standalone named fragment that nothing spreads`() {
+    fun `schema-files validate a standalone named fragment that nothing spreads`() {
         val descriptors = descriptorDir()
         File(descriptors, "FragmentDefs.json").writeText(
             """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment UserFields on User { id name }"}]}""",
@@ -979,7 +989,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl rejects a standalone named fragment referencing an unknown field`() {
+    fun `schema-files reject a standalone named fragment referencing an unknown field`() {
         val descriptors = descriptorDir()
         File(descriptors, "FragmentDefs.json").writeText(
             """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment UserFields on User { notAField }"}]}""",
@@ -993,7 +1003,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl rejects a standalone named fragment on an unknown type`() {
+    fun `schema-files reject a standalone named fragment on an unknown type`() {
         val descriptors = descriptorDir()
         File(descriptors, "FragmentDefs.json").writeText(
             """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment BogusFields on Bogus { id }"}]}""",
@@ -1006,7 +1016,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl validates a standalone named fragment spreading a cross-leaf named fragment`() {
+    fun `schema-files validate a standalone named fragment spreading a cross-leaf named fragment`() {
         val descriptors = descriptorDir()
         File(descriptors, "Outer.json").writeText(
             """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment OuterFields on User { ...InnerFields }"}]}""",
@@ -1020,7 +1030,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl rejects named fragment whose GRT type argument differs from its type condition`() {
+    fun `schema-files reject named fragment whose GRT type argument differs from its type condition`() {
         val descriptors = descriptorDir()
         File(descriptors, "FragmentDefs.json").writeText(
             """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment UserFields on User { id }","grtTypeName":"Query"}]}""",
@@ -1035,7 +1045,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl accepts named fragment whose GRT type argument matches its type condition`() {
+    fun `schema-files accept named fragment whose GRT type argument matches its type condition`() {
         val descriptors = descriptorDir()
         File(descriptors, "FragmentDefs.json").writeText(
             """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment UserFields on User { id }","grtTypeName":"User"}]}""",
@@ -1046,7 +1056,7 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `schema-sdl validates a named operation spreading a cross-leaf named fragment`() {
+    fun `schema-files validate a named operation spreading a cross-leaf named fragment`() {
         val descriptors = descriptorDir()
         File(descriptors, "Operations.json").writeText(
             """

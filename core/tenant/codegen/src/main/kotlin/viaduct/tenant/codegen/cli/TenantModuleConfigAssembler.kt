@@ -7,7 +7,6 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import graphql.language.Field
 import graphql.language.FragmentDefinition
 import graphql.language.SelectionSet
-import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
 import java.io.File
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
@@ -19,6 +18,8 @@ import viaduct.engine.api.bootstrap.executionregistry.VariableProviderEntryConfi
 import viaduct.engine.api.parse.DocumentParser
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.binary.extensions.fromBinaryFile
+import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
+import viaduct.graphql.schema.graphqljava.readTypesFromFiles
 import viaduct.graphql.utils.SelectionsParserUtils
 import viaduct.tenant.codegen.ksp.PerSourceDescriptorFile
 import viaduct.tenant.codegen.ksp.ResolverParams
@@ -41,8 +42,8 @@ internal object TenantModuleConfigAssembler {
         tenantPackage: String,
         tenantPackagePrefix: String? = null,
         outputDir: File,
-        schemaSdl: String? = null,
         schemaBinary: File? = null,
+        schemaFiles: List<File> = emptyList(),
     ) {
         writeRegistryFromDescriptors(
             descriptors = descriptorJsons.map(codec::decode),
@@ -50,8 +51,8 @@ internal object TenantModuleConfigAssembler {
             tenantPackage = tenantPackage,
             tenantPackagePrefix = tenantPackagePrefix,
             outputDir = outputDir,
-            schemaSdl = schemaSdl,
             schemaBinary = schemaBinary,
+            schemaFiles = schemaFiles,
         )
     }
 
@@ -61,8 +62,8 @@ internal object TenantModuleConfigAssembler {
         tenantPackage: String,
         tenantPackagePrefix: String?,
         outputDir: File,
-        schemaSdl: String? = null,
         schemaBinary: File? = null,
+        schemaFiles: List<File> = emptyList(),
     ) {
         val bootstrapClasses = descriptors.mapNotNull { it.bootstrapClass }
         if (bootstrapClasses.size > 1) {
@@ -77,17 +78,16 @@ internal object TenantModuleConfigAssembler {
 
         val tenantModuleName = tenantModuleNameFromPackage(tenantPackage, tenantPackagePrefix)
 
-        if (schemaSdl != null) {
-            val typeDefinitionRegistry = SchemaParser().parse(schemaSdl)
+        require(schemaFiles.isNotEmpty() || schemaBinary == null) {
+            "Schema files are required when a binary schema is provided"
+        }
+
+        if (schemaFiles.isNotEmpty()) {
+            val typeDefinitionRegistry = readTypesFromFiles(schemaFiles.sortedBy(File::getAbsolutePath))
             val schema = UnExecutableSchemaGenerator.makeUnExecutableSchema(typeDefinitionRegistry)
-            val viaductSchema = ViaductSchema.fromBinaryFile(
-                requireNotNull(schemaBinary) {
-                    "--schema-binary is required when --schema-sdl is provided for tenant-local RSS ownership validation"
-                },
-            )
-            validateAssembledNamedFragments(descriptors, fragmentsByName, schema)
-            validateAssembledRss(descriptors, fragmentsByName, schema, viaductSchema, tenantModuleName)
-            validateAssembledOperations(descriptors, fragmentsByName, schema)
+            val viaductSchema = schemaBinary?.let(ViaductSchema::fromBinaryFile)
+                ?: ViaductSchema.fromTypeDefinitionRegistry(typeDefinitionRegistry)
+            validateAgainstSchema(descriptors, fragmentsByName, schema, viaductSchema, tenantModuleName)
         }
 
         val outputFile = outputDir.resolve(REGISTRY_RESOURCE_PATH).resolve("$tenantPackage.json")
@@ -105,6 +105,18 @@ internal object TenantModuleConfigAssembler {
                 bootstrapClass = bootstrapClasses.singleOrNull(),
             ),
         )
+    }
+
+    private fun validateAgainstSchema(
+        descriptors: List<PerSourceDescriptorFile>,
+        fragmentsByName: Map<String, String>,
+        schema: graphql.schema.GraphQLSchema,
+        viaductSchema: ViaductSchema,
+        tenantModuleName: String,
+    ) {
+        validateAssembledNamedFragments(descriptors, fragmentsByName, schema)
+        validateAssembledRss(descriptors, fragmentsByName, schema, viaductSchema, tenantModuleName)
+        validateAssembledOperations(descriptors, fragmentsByName, schema)
     }
 
     /**

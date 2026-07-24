@@ -1,5 +1,6 @@
 package viaduct.gradle
 
+import java.lang.reflect.InvocationTargetException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
@@ -26,7 +27,11 @@ abstract class CodegenWorkAction : WorkAction<CodegenWorkAction.Params> {
         val cls = Class.forName(parameters.mainClass.get())
         val method = cls.getMethod("main", Array<String>::class.java)
         method.isAccessible = true
-        method.invoke(null, parameters.args.get().toTypedArray())
+        try {
+            method.invoke(null, parameters.args.get().toTypedArray())
+        } catch (exception: InvocationTargetException) {
+            throw exception.targetException
+        }
     }
 
     object MainClasses {

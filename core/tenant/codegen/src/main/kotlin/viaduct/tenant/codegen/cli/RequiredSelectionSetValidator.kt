@@ -23,13 +23,15 @@ import viaduct.tenant.codegen.ksp.ResolverParams
 
 /**
  * Validates a resolver's required selection sets against the tenant compilation schema. This
- * validator expects the per-tenant build-time schema produced by `CompilationSchemaInfo.schema_sdl`,
- * not the runtime base schema and not the runtime internal full schema.
+ * validator receives the per-tenant build-time schema produced by
+ * `CompilationSchemaInfo.schema_sdl` in Bazel builds and the source-preserving application central
+ * schema in OSS Gradle builds. It does not consume the runtime base schema.
  *
  * The runtime base schema filters out tenant-local fields, so it would reject valid same-tenant
- * tenant-local RSS selections. The runtime internal full schema may include fields outside this
- * tenant's compilation surface, so it would miss compilation-schema gaps. The tenant compilation
- * schema is the contract for what this tenant's generated resolver code can select.
+ * tenant-local RSS selections. Bazel's tenant compilation schema is the contract for what that
+ * tenant's generated resolver code can select. OSS Gradle does not build a filtered per-tenant
+ * schema, so its central schema establishes GraphQL validity and tenant-local ownership but cannot
+ * detect fields outside a narrower tenant compilation surface.
  *
  * Runs at assembly scope (successor to the per-leaf KSP `ValidateResolverFragments`), where the
  * schema is loaded once per tenant and cross-leaf `@GraphQLFragment` spreads are already resolved,
