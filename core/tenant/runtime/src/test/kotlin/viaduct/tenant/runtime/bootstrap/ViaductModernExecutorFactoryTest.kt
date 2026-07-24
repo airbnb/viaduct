@@ -15,6 +15,7 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
 import viaduct.api.types.Query
+import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.ProviderVariablesAPIData
@@ -24,7 +25,6 @@ import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.service.api.spi.CodeInjector
-import viaduct.service.api.spi.InputStreamSource
 
 @Suppress("USELESS_IS_CHECK", "UNCHECKED_CAST")
 class ViaductModernExecutorFactoryTest {
@@ -90,7 +90,7 @@ class ViaductModernExecutorFactoryTest {
         ViaductModernExecutorFactory(
             codeInjector = CodeInjector.Naive,
             grtPackagePrefix = "viaduct.api.bootstrap.test.grts",
-            configSource = InputStreamSource.fromString("{}", name = "test"),
+            registry = ExecutionRegistryConfigFile(version = "1", executorFactory = ViaductModernExecutorFactory::class.java.name),
         )
 
     private fun fieldEntry(

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.spi.ExecutorFactory
@@ -105,7 +106,7 @@ class ExecutionRegistryBootstrapperFactoryTest {
 
 class WiringTestExecutorFactory(
     injector: CodeInjector,
-    @Suppress("UNUSED_PARAMETER") configSource: InputStreamSource,
+    @Suppress("UNUSED_PARAMETER") registry: ExecutionRegistryConfigFile,
 ) : ExecutorFactory {
     init {
         lastInjector = injector

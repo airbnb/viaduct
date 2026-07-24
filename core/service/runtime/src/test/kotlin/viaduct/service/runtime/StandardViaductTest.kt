@@ -23,6 +23,7 @@ import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.GraphQLBuildError
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
@@ -447,7 +448,7 @@ private fun generatedRegistryConfigSource(value: String): InputStreamSource =
 
 class GeneratedRegistryTestExecutorFactory(
     @Suppress("UNUSED_PARAMETER") injector: CodeInjector,
-    @Suppress("UNUSED_PARAMETER") configSource: InputStreamSource,
+    @Suppress("UNUSED_PARAMETER") registry: ExecutionRegistryConfigFile,
 ) : ExecutorFactory {
     override fun createFieldResolverExecutor(
         configData: FieldEntryConfig,

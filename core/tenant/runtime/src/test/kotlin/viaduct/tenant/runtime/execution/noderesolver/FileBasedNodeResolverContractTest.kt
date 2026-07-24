@@ -9,7 +9,6 @@ import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryTenantModuleBootstrapper
-import viaduct.service.api.spi.InputStreamSource
 import viaduct.tenant.runtime.bootstrap.GuiceCodeInjector
 import viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory
 
@@ -111,7 +110,7 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
         val factory = ViaductModernExecutorFactory(
             codeInjector = GuiceCodeInjector(injector),
             grtPackagePrefix = "viaduct.tenant.runtime.execution.noderesolver",
-            configSource = InputStreamSource.fromString("{}", name = "test"),
+            registry = registry,
         )
         val bootstrapper = ExecutionRegistryTenantModuleBootstrapper(
             registry = registry,

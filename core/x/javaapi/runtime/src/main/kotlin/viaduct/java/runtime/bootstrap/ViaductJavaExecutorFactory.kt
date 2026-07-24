@@ -7,6 +7,7 @@ import java.util.concurrent.CompletableFuture
 import javax.inject.Provider
 import org.slf4j.LoggerFactory
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.spi.ExecutorFactory
@@ -25,7 +26,6 @@ import viaduct.java.runtime.bridge.JavaNodeResolverExecutorImpl
 import viaduct.java.runtime.bridge.NodeBatchResolverExecutorImpl
 import viaduct.java.runtime.bridge.RequiredSelectionSetFactory
 import viaduct.service.api.spi.CodeInjector
-import viaduct.service.api.spi.InputStreamSource
 
 /**
  * [ExecutorFactory] for Java resolvers, built from a file-based [ExecutionRegistry].
@@ -33,7 +33,7 @@ import viaduct.service.api.spi.InputStreamSource
  * This is the Java twin of [viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory]. The
  * engine (via [viaduct.engine.runtime.tenantloading.ExecutionRegistryTenantAPIBootstrapper])
  * instantiates this class reflectively using the 3-arg constructor
- * `(CodeInjector, String grtPackagePrefix, InputStreamSource configSource)` named in each
+ * `(CodeInjector, String grtPackagePrefix, ExecutionRegistryConfigFile registry)` named in each
  * `META-INF/viaduct/modules/<pkg>.json` registry file, then calls
  * [createFieldResolverExecutor] / [createNodeResolverExecutor] once per entry.
  *
@@ -51,7 +51,7 @@ import viaduct.service.api.spi.InputStreamSource
 class ViaductJavaExecutorFactory(
     private val codeInjector: CodeInjector,
     private val grtPackagePrefix: String,
-    @Suppress("UNUSED_PARAMETER") configSource: InputStreamSource,
+    @Suppress("UNUSED_PARAMETER") registry: ExecutionRegistryConfigFile,
 ) : ExecutorFactory {
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory()
 

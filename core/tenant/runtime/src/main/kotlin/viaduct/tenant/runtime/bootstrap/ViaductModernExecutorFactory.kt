@@ -1,6 +1,5 @@
 package viaduct.tenant.runtime.bootstrap
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import graphql.language.FragmentDefinition
 import kotlin.reflect.KClass
 import kotlin.reflect.full.declaredMemberFunctions
@@ -14,6 +13,7 @@ import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.RequiredSelectionSetSupport
@@ -24,7 +24,6 @@ import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.service.api.spi.CodeInjector
-import viaduct.service.api.spi.InputStreamSource
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 import viaduct.tenant.runtime.execution.FieldBatchResolverExecutorImpl
@@ -37,10 +36,10 @@ import viaduct.utils.slf4j.logger
 class ViaductModernExecutorFactory(
     private val codeInjector: CodeInjector,
     private val grtPackagePrefix: String,
-    private val configSource: InputStreamSource,
+    private val registry: ExecutionRegistryConfigFile,
 ) : ExecutorFactory {
     /** Production constructor — GRT package sourced from the compile-time constant. */
-    constructor(codeInjector: CodeInjector, configSource: InputStreamSource) : this(codeInjector, GRT_PACKAGE_PREFIX, configSource)
+    constructor(codeInjector: CodeInjector, registry: ExecutionRegistryConfigFile) : this(codeInjector, GRT_PACKAGE_PREFIX, registry)
 
     private val grtConvFactory = DefaultGRTConvFactory
     private val reflectionLoader = ReflectionLoaderImpl { name ->
@@ -51,9 +50,7 @@ class ViaductModernExecutorFactory(
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory(reflectionLoader)
 
     private val namedFragments: Map<String, FragmentDefinition> by lazy {
-        val root = configSource.openStream().use { objectMapper.readTree(it) }
-        root.path("namedFragments")
-            .mapNotNull { it.takeIf { node -> node.isTextual }?.asText() }
+        registry.namedFragments
             .flatMap { CachedDocumentParser.parseDocument(it).getDefinitionsOfType(FragmentDefinition::class.java) }
             .associateBy { it.name }
     }
@@ -222,6 +219,5 @@ class ViaductModernExecutorFactory(
 
     companion object {
         private val log by logger()
-        private val objectMapper = jacksonObjectMapper()
     }
 }

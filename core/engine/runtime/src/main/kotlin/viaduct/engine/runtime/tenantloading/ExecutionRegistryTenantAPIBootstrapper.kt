@@ -19,7 +19,7 @@ import viaduct.utils.slf4j.logger
  * of registry JSON [InputStreamSource]s.
  *
  * For each source, deserializes the [ExecutionRegistryConfigFile], instantiates the [ExecutorFactory] FQN
- * via the 2-arg constructor (CodeInjector, configSource), and creates executors
+ * via the 2-arg constructor (CodeInjector, ExecutionRegistryConfigFile), and creates executors
  * for each entry in the registry.
  *
  * The framework calls [tenantModuleInjectorFactory] once per tenant with the tenant name and the
@@ -52,7 +52,6 @@ class ExecutionRegistryTenantAPIBootstrapper(
                     val registry = source.openStream().use { objectMapper.readValue<ExecutionRegistryConfigFile>(it) }
                     ParsedRegistry(
                         registry = registry,
-                        configSource = source,
                         tenantName = registry.tenantName
                             ?: throw IllegalArgumentException("Execution registry config source must include tenantName: $source"),
                         bootstrapClass = registry.bootstrapClass?.let { Class.forName(it) },
@@ -77,7 +76,7 @@ class ExecutionRegistryTenantAPIBootstrapper(
                 async {
                     val executorFactory = instantiateExecutorFactory(
                         fqn = parsedRegistry.registry.executorFactory,
-                        configSource = parsedRegistry.configSource,
+                        registry = parsedRegistry.registry,
                         codeInjector = codeInjector,
                     )
                     ExecutionRegistryTenantModuleBootstrapper(parsedRegistry.registry, executorFactory)
@@ -88,7 +87,7 @@ class ExecutionRegistryTenantAPIBootstrapper(
 
     private fun instantiateExecutorFactory(
         fqn: String,
-        configSource: InputStreamSource,
+        registry: ExecutionRegistryConfigFile,
         codeInjector: CodeInjector,
     ): ExecutorFactory {
         val clazz = Class.forName(fqn)
@@ -100,15 +99,15 @@ class ExecutionRegistryTenantAPIBootstrapper(
             val ctor = clazz.getDeclaredConstructor(
                 CodeInjector::class.java,
                 String::class.java,
-                InputStreamSource::class.java,
+                ExecutionRegistryConfigFile::class.java,
             )
-            ctor.newInstance(codeInjector, grtPackagePrefix, configSource) as ExecutorFactory
+            ctor.newInstance(codeInjector, grtPackagePrefix, registry) as ExecutorFactory
         } else {
             val ctor = clazz.getDeclaredConstructor(
                 CodeInjector::class.java,
-                InputStreamSource::class.java,
+                ExecutionRegistryConfigFile::class.java,
             )
-            ctor.newInstance(codeInjector, configSource) as ExecutorFactory
+            ctor.newInstance(codeInjector, registry) as ExecutorFactory
         }
     }
 
@@ -120,7 +119,6 @@ class ExecutionRegistryTenantAPIBootstrapper(
 
 private data class ParsedRegistry(
     val registry: ExecutionRegistryConfigFile,
-    val configSource: InputStreamSource,
     val tenantName: String,
     val bootstrapClass: Class<*>?,
 )

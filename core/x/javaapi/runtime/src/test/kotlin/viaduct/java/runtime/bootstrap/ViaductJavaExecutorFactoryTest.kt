@@ -18,6 +18,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
@@ -38,7 +39,6 @@ import viaduct.java.api.types.CompositeOutput
 import viaduct.java.api.types.NodeObject
 import viaduct.java.api.types.Query
 import viaduct.service.api.spi.CodeInjector
-import viaduct.service.api.spi.InputStreamSource
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 /**
@@ -74,7 +74,7 @@ class ViaductJavaExecutorFactoryTest {
         ViaductJavaExecutorFactory(
             codeInjector = CodeInjector.Naive,
             grtPackagePrefix = "viaduct.java.api.grts.nonexistent",
-            configSource = InputStreamSource.fromString("{}", name = "test"),
+            registry = ExecutionRegistryConfigFile(version = "1", executorFactory = ViaductJavaExecutorFactory::class.java.name),
         )
 
     // ── Test fixtures ───────────────────────────────────────────────────────
