@@ -195,3 +195,98 @@ message QueryResponse {
   // EngineObjectData serialized as JSON
   bytes object_data_json = 1;
 }
+
+// --- Bidirectional-streaming transport (additive) ---
+//
+// The main server (RRP) opens one bidirectional stream per resolver batch on a process-wide
+// channel. Re-entrant ctx.query()/ctx.mutation() callbacks travel as CallbackRequest/
+// CallbackResponse messages on that same stream, instead of through EngineCallbackService.
+// There is no callback server on the main-server side, and no context_handle/callback_endpoint
+// to resolve across processes: the callback's selection set travels as content
+// (SerializedSelectionSet), and the main server answers each callback against the real, local
+// EngineExecutionContext bound to the stream it opened.
+//
+// This service is added alongside RemoteResolverService/EngineCallbackService above, which are
+// untouched. Node and field resolvers get separate streaming RPCs, mirroring the existing
+// unary split. This split is provisional and may be unified into a single stream type later.
+service RemoteResolverStreamService {
+  // Execute a batch of node resolver invocations, with re-entrant callbacks multiplexed onto
+  // the same stream.
+  rpc ResolveNodeBatch(stream ViaductServiceMessage) returns (stream RemoteResolverServiceMessage);
+
+  // Execute a batch of field resolver invocations, with re-entrant callbacks multiplexed onto
+  // the same stream.
+  rpc ResolveFieldBatch(stream ViaductServiceFieldMessage) returns (stream RemoteResolverServiceFieldMessage);
+}
+
+// RRP -> RRS, on the node-resolve stream. The first message on the stream is always
+// resolve_request; any number of callback_response messages may follow, one per
+// callback_request received from RRS.
+message ViaductServiceMessage {
+  oneof payload {
+    BatchResolveNodeRequest resolve_request = 1;
+    CallbackResponse callback_response = 2;
+  }
+}
+
+// RRS -> RRP, on the node-resolve stream. Any number of callback_request messages may be sent
+// (including zero, and including several concurrently in flight for different selectors in
+// the batch); resolve_response is always the last message, after which the stream completes.
+message RemoteResolverServiceMessage {
+  oneof payload {
+    CallbackRequest callback_request = 1;
+    BatchResolveNodeResponse resolve_response = 2;
+  }
+}
+
+// RRP -> RRS, on the field-resolve stream. Same lifecycle as ViaductServiceMessage.
+message ViaductServiceFieldMessage {
+  oneof payload {
+    BatchResolveFieldRequest resolve_request = 1;
+    CallbackResponse callback_response = 2;
+  }
+}
+
+// RRS -> RRP, on the field-resolve stream. Same lifecycle as RemoteResolverServiceMessage.
+message RemoteResolverServiceFieldMessage {
+  oneof payload {
+    CallbackRequest callback_request = 1;
+    BatchResolveFieldResponse resolve_response = 2;
+  }
+}
+
+// A re-entrant ctx.query()/ctx.mutation() call, sent by RRS on the stream it received the
+// original resolve_request on. Carries the selection set's content, not a handle -- the
+// receiving side (RRP) has no way to resolve a reference into RRS's process-local registry, so
+// the actual selections travel on the wire.
+message CallbackRequest {
+  // Correlates this request with its CallbackResponse; scoped to one stream. A batch may have
+  // several of these in flight concurrently (independent selectors calling ctx.query() at
+  // overlapping times), so this must be unique per outstanding call within the stream, not
+  // globally.
+  string correlation_id = 1;
+
+  // The query/mutation's selection set, in the same wire form field selectors already use for
+  // their own sub-selections.
+  SerializedSelectionSet selections = 2;
+
+  // Resolver ID, for instrumentation on the RRP side (mirrors QueryRequest.resolver_id above).
+  string resolver_id = 3;
+
+  // True for ctx.mutation(), false for ctx.query().
+  bool is_mutation = 4;
+}
+
+// RRP's answer to a CallbackRequest, sent back on the same stream, tagged with the same
+// correlation_id.
+message CallbackResponse {
+  string correlation_id = 1;
+
+  oneof result {
+    // Success: EngineObjectData serialized as JSON.
+    bytes object_data_json = 2;
+
+    // Failure: error information.
+    ErrorInfo error = 3;
+  }
+}
