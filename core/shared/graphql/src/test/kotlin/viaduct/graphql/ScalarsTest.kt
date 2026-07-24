@@ -3,17 +3,20 @@ package viaduct.graphql
 import graphql.GraphQLContext
 import graphql.execution.CoercedVariables
 import graphql.language.BooleanValue
+import graphql.language.FloatValue
 import graphql.language.IntValue
 import graphql.language.StringValue
 import graphql.scalars.ExtendedScalars
 import graphql.schema.CoercingParseLiteralException
 import graphql.schema.CoercingParseValueException
 import graphql.schema.CoercingSerializeException
+import java.math.BigDecimal
 import java.math.BigInteger
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -114,6 +117,35 @@ class ScalarsTest {
     @Nested
     inner class GraphQLLongTest {
         private val coercing = Scalars.GraphQLLong.coercing
+        private val validInputs =
+            listOf(
+                "42" to 42L,
+                "42.0000" to 42L,
+                42.0000 to 42L,
+                42 to 42L,
+                "-1" to -1L,
+                BigInteger.valueOf(42) to 42L,
+                BigDecimal("42") to 42L,
+                42.0f to 42L,
+                42.toByte() to 42L,
+                42.toShort() to 42L,
+                AtomicInteger(42) to 42L,
+                12345678910L to 12345678910L,
+                Long.MAX_VALUE to Long.MAX_VALUE,
+                Long.MIN_VALUE to Long.MIN_VALUE,
+                42345784398534785L to 42345784398534785L
+            )
+        private val invalidInputs: List<Any> =
+            listOf(
+                "",
+                "not a number ",
+                "42.3",
+                42.3,
+                42.3f,
+                BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE),
+                BigInteger.valueOf(Long.MIN_VALUE).subtract(BigInteger.ONE),
+                Any()
+            )
 
         @Nested
         inner class SerializeTest {
@@ -164,6 +196,23 @@ class ScalarsTest {
                 }
                 assertTrue(exception.message!!.contains("Expected type 'Long'"))
             }
+
+            @Test
+            fun `serialize supported Long values to strings`() {
+                validInputs.forEach { (input, expected) ->
+                    assertEquals(expected.toString(), coercing.serialize(input, ctx, locale))
+                }
+            }
+
+            @Test
+            fun `serialize rejects unsupported Long values`() {
+                invalidInputs.forEach { input ->
+                    val exception = assertThrows(CoercingSerializeException::class.java) {
+                        coercing.serialize(input, ctx, locale)
+                    }
+                    assertTrue(exception.message!!.contains("Expected type 'Long'"))
+                }
+            }
         }
 
         @Nested
@@ -201,6 +250,23 @@ class ScalarsTest {
                 }
                 assertTrue(exception.message!!.contains("Expected type 'Long'"))
             }
+
+            @Test
+            fun `parseValue supports standard Long values`() {
+                validInputs.forEach { (input, expected) ->
+                    assertEquals(expected, coercing.parseValue(input, ctx, locale))
+                }
+            }
+
+            @Test
+            fun `parseValue rejects unsupported Long values`() {
+                invalidInputs.forEach { input ->
+                    val exception = assertThrows(CoercingParseValueException::class.java) {
+                        coercing.parseValue(input, ctx, locale)
+                    }
+                    assertTrue(exception.message!!.contains("Expected type 'Long'"))
+                }
+            }
         }
 
         @Nested
@@ -210,6 +276,13 @@ class ScalarsTest {
                 val stringValue = StringValue.newStringValue("12345").build()
                 val result = coercing.parseLiteral(stringValue, coercedVariables, ctx, locale)
                 assertEquals(12345L, result)
+            }
+
+            @Test
+            fun `parseLiteral negative StringValue returns Long`() {
+                val stringValue = StringValue.newStringValue("-1").build()
+                val result = coercing.parseLiteral(stringValue, coercedVariables, ctx, locale)
+                assertEquals(-1L, result)
             }
 
             @Test
@@ -263,12 +336,60 @@ class ScalarsTest {
             }
 
             @Test
+            fun `parseLiteral FloatValue throws exception`() {
+                val floatValue = FloatValue.newFloatValue(BigDecimal("42.3")).build()
+                val exception = assertThrows(CoercingParseLiteralException::class.java) {
+                    coercing.parseLiteral(floatValue, coercedVariables, ctx, locale)
+                }
+                assertTrue(exception.message!!.contains("Expected AST type 'IntValue' or 'StringValue'"))
+            }
+
+            @Test
             fun `parseLiteral unsupported type throws exception`() {
                 val boolValue = BooleanValue.newBooleanValue(true).build()
                 val exception = assertThrows(CoercingParseLiteralException::class.java) {
                     coercing.parseLiteral(boolValue, coercedVariables, ctx, locale)
                 }
                 assertTrue(exception.message!!.contains("Expected AST type 'IntValue' or 'StringValue'"))
+            }
+        }
+
+        @Nested
+        inner class ValueToLiteralTest {
+            @Test
+            fun `valueToLiteral returns IntValue`() {
+                val result = coercing.valueToLiteral(Long.MIN_VALUE, ctx, locale)
+
+                assertTrue(result is IntValue)
+                assertEquals(BigInteger.valueOf(Long.MIN_VALUE), (result as IntValue).value)
+            }
+
+            @Test
+            fun `valueToLiteral accepts values supported by serialize`() {
+                validInputs.forEach { (input, expected) ->
+                    val result = coercing.valueToLiteral(input, ctx, locale)
+
+                    assertTrue(result is IntValue)
+                    assertEquals(BigInteger.valueOf(expected), (result as IntValue).value)
+                }
+            }
+
+            @Test
+            fun `valueToLiteral accepts null context and locale`() {
+                val result = coercing.valueToLiteral(Long.MAX_VALUE, null, null)
+
+                assertTrue(result is IntValue)
+                assertEquals(BigInteger.valueOf(Long.MAX_VALUE), (result as IntValue).value)
+            }
+
+            @Test
+            fun `valueToLiteral rejects invalid values`() {
+                invalidInputs.forEach { input ->
+                    val exception = assertThrows(CoercingSerializeException::class.java) {
+                        coercing.valueToLiteral(input, ctx, locale)
+                    }
+                    assertTrue(exception.message!!.contains("Expected type 'Long'"))
+                }
             }
         }
 

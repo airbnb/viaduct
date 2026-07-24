@@ -189,6 +189,19 @@ object Scalars {
                             else -> fail("Expected AST type 'IntValue' or 'StringValue' but was '${typeName(input)}'.")
                         }
                     }
+
+                    override fun valueToLiteral(
+                        input: Any,
+                        ctx: GraphQLContext?,
+                        locale: Locale?
+                    ): Value<*> {
+                        val result =
+                            convertImpl(input)
+                                ?: throw CoercingSerializeException(
+                                    "Expected type 'Long' but was '" + typeName(input) + "'."
+                                )
+                        return IntValue.newIntValue(BigInteger.valueOf(result)).build()
+                    }
                 }
             ).build()
 
