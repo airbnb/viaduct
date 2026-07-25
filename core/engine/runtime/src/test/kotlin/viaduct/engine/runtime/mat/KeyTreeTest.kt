@@ -1,5 +1,8 @@
 package viaduct.engine.runtime.mat
 
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
+import io.kotest.matchers.maps.shouldBeEmpty as shouldBeEmptyMap
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
@@ -53,6 +56,24 @@ class KeyTreeTest {
     }
 
     @Nested
+    inner class StringRepresentation {
+        @Test
+        fun `uses type names and preserves nested keys`() {
+            val tree = KeyTree.build(schema) {
+                field("Foo", key("c", alias = "result", arguments = mapOf("a" to 1))) {
+                    field("Bar", key("b"))
+                }
+            }
+
+            assertEquals(
+                "KeyTree(Foo={Key(name='c', alias='result', arguments=a=1, selections=null)=" +
+                    "KeyTree(Bar={Key(name='b', alias='null', arguments=, selections=null)=KeyTree()})})",
+                tree.toString(),
+            )
+        }
+    }
+
+    @Nested
     inner class Construction {
         @Test
         fun `snapshots caller-owned outer map`() {
@@ -67,7 +88,7 @@ class KeyTreeTest {
 
             assertEquals(expected, tree)
             assertEquals(originalHashCode, tree.hashCode())
-            assertEquals(setOf("a"), tree.responseKeysForType(fooType))
+            tree.responseKeysForType(fooType).shouldContainExactlyInAnyOrder("a")
         }
 
         @Test
@@ -82,7 +103,7 @@ class KeyTreeTest {
 
             assertEquals(expected, tree)
             assertEquals(originalHashCode, tree.hashCode())
-            assertEquals(setOf("a"), tree.responseKeysForType(fooType))
+            tree.responseKeysForType(fooType).shouldContainExactlyInAnyOrder("a")
         }
 
         @Test
@@ -123,7 +144,57 @@ class KeyTreeTest {
 
             assertEquals(KeyTree.empty, typedEmpty)
             assertEquals(KeyTree.empty.hashCode(), typedEmpty.hashCode())
-            assertTrue(typedEmpty.keysByType().isEmpty())
+            typedEmpty.keysByType().shouldBeEmptyMap()
+        }
+    }
+
+    @Nested
+    inner class SubtreeAt {
+        @Test
+        fun `root path returns the complete tree`() {
+            val tree = KeyTree.build(schema) {
+                field("Foo", key("a"))
+                field("Foo", key("b")) {
+                    field("Bar", key("a"))
+                }
+            }
+
+            assertEquals(tree, tree.subtreeAt(MatPath(fooType)))
+        }
+
+        @Test
+        fun `nested path returns the terminal subtree`() {
+            val pathSchema =
+                """
+                | type Root { child: Child }
+                | type Child { grandchild: Grandchild }
+                | type Grandchild { value: String }
+                """.trimMargin().asViaductSchema
+            val rootType = checkNotNull(pathSchema.schema.getObjectType("Root"))
+            val childType = checkNotNull(pathSchema.schema.getObjectType("Child"))
+            val grandchildType = checkNotNull(pathSchema.schema.getObjectType("Grandchild"))
+            val childKey = ObjectEngineResult.Key("child")
+            val grandchildKey = ObjectEngineResult.Key("grandchild")
+            val expected = KeyTree.build(pathSchema) {
+                field("Grandchild", key("value"))
+            }
+            val tree = KeyTree.build(pathSchema) {
+                field("Root", childKey) {
+                    field("Child", grandchildKey) {
+                        field("Grandchild", key("value"))
+                    }
+                }
+            }
+            val path =
+                MatPath(
+                    rootType,
+                    listOf(
+                        MatPath.Segment(childType, childKey),
+                        MatPath.Segment(grandchildType, grandchildKey),
+                    ),
+                )
+
+            assertEquals(expected, tree.subtreeAt(path))
         }
     }
 
@@ -566,42 +637,33 @@ class KeyTreeTest {
     inner class ResponseKeysForType {
         @Test
         fun empty() {
-            assertEquals(
-                emptySet<String>(),
-                KeyTree.empty.responseKeysForType(fooType)
-            )
+            KeyTree.empty.responseKeysForType(fooType).shouldBeEmpty()
         }
 
         @Test
         fun `simple`() {
-            assertEquals(
-                setOf("a", "b"),
-                KeyTree.build(schema) {
-                    field("Foo", key("a"))
-                    field("Foo", key("b"))
-                }.responseKeysForType(fooType)
-            )
+            KeyTree.build(schema) {
+                field("Foo", key("a"))
+                field("Foo", key("b"))
+            }.responseKeysForType(fooType)
+                .shouldContainExactlyInAnyOrder("a", "b")
         }
 
         @Test
         fun `aliased`() {
-            assertEquals(
-                setOf("b", "c"),
-                KeyTree.build(schema) {
-                    field("Foo", key("a", alias = "b"))
-                    field("Foo", key("b", alias = "c"))
-                }.responseKeysForType(fooType)
-            )
+            KeyTree.build(schema) {
+                field("Foo", key("a", alias = "b"))
+                field("Foo", key("b", alias = "c"))
+            }.responseKeysForType(fooType)
+                .shouldContainExactlyInAnyOrder("b", "c")
         }
 
         @Test
         fun `argumented`() {
-            assertEquals(
-                setOf("c"),
-                KeyTree.build(schema) {
-                    field("Foo", key("c", arguments = mapOf("a" to 1)))
-                }.responseKeysForType(fooType)
-            )
+            KeyTree.build(schema) {
+                field("Foo", key("c", arguments = mapOf("a" to 1)))
+            }.responseKeysForType(fooType)
+                .shouldContainExactlyInAnyOrder("c")
         }
     }
 
@@ -658,6 +720,15 @@ class KeyTreeTest {
                 },
                 a.filter(dropA),
             )
+        }
+
+        @Test
+        fun KeepAll() {
+            val a = KeyTree.build(schema) {
+                field("Foo", key("a"))
+            }
+            val filtered = a.filter(viaduct.engine.runtime.mat.KeyTreeFilter.KeepAll)
+            assertSame(a, filtered)
         }
 
         @Test

@@ -14,14 +14,13 @@ import graphql.language.SelectionSet as GJSelectionSet
 import graphql.language.SourceLocation
 import graphql.language.TypeName as GJTypeName
 import graphql.language.VariableReference
+import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLNamedOutputType
 import graphql.schema.GraphQLObjectType
-import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLSchema
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -66,9 +65,9 @@ class QueryPlanTest {
             checkEquals(
                 mkQueryPlan(
                     SelectionSet(
+                        query,
                         mkField("x", typeConstraint(query))
-                    ),
-                    parentType = query
+                    )
                 ),
                 buildPlan("{x}"),
             )
@@ -87,13 +86,13 @@ class QueryPlanTest {
             checkEquals(
                 mkQueryPlan(
                     SelectionSet(
+                        query,
                         mkField(
                             "x",
                             Constraints(listOf(skipDir), possibleTypes = setOf(query)),
                             GJField.newField("x").directive(skipDir).build()
                         )
-                    ),
-                    parentType = query
+                    )
                 ),
                 plan,
             )
@@ -108,6 +107,7 @@ class QueryPlanTest {
             checkEquals(
                 mkQueryPlan(
                     SelectionSet(
+                        query,
                         mkField(
                             "q",
                             Constraints(emptyList(), possibleTypes = setOf(query)),
@@ -116,11 +116,11 @@ class QueryPlanTest {
                                 GJSelectionSet(listOf(GJField("__typename")))
                             ),
                             SelectionSet(
+                                query,
                                 mkField("__typename", typeConstraint(query))
                             )
                         )
-                    ),
-                    parentType = query
+                    )
                 ),
                 buildPlan("{ q { __typename } }"),
             )
@@ -133,14 +133,15 @@ class QueryPlanTest {
             checkEquals(
                 mkQueryPlan(
                     SelectionSet(
+                        query,
                         InlineFragment(
                             SelectionSet(
+                                query,
                                 mkField("x", typeConstraint(query))
                             ),
                             Constraints(emptyList(), possibleTypes = setOf(query)),
                         )
-                    ),
-                    parentType = query
+                    )
                 ),
                 buildPlan("{ ... { x } }"),
             )
@@ -159,12 +160,14 @@ class QueryPlanTest {
             checkEquals(
                 mkQueryPlan(
                     SelectionSet(
+                        query,
                         FragmentSpread("F", Constraints(emptyList(), possibleTypes = setOf(query))),
                     ),
                     fragments = Fragments(
                         mapOf(
                             "F" to FragmentDefinition(
                                 SelectionSet(
+                                    query,
                                     mkField("x", typeConstraint(query))
                                 ),
                                 GJFragmentDefinition.newFragmentDefinition()
@@ -180,8 +183,7 @@ class QueryPlanTest {
                                 index = QueryPlanIndex.empty(),
                             )
                         )
-                    ),
-                    parentType = query
+                    )
                 ),
                 plan,
             )
@@ -234,13 +236,13 @@ class QueryPlanTest {
             checkEquals(
                 mkQueryPlan(
                     SelectionSet(
+                        query,
                         mkField(
                             "x",
                             typeConstraint(query),
                             childPlans = mkFieldChildPlans("Query", "x", buildPlan("{y}")),
                         )
-                    ),
-                    parentType = query
+                    )
                 ),
                 plan,
             )
@@ -480,6 +482,7 @@ class QueryPlanTest {
             checkEquals(
                 mkQueryPlan(
                     SelectionSet(
+                        query,
                         mkField(
                             "x",
                             typeConstraint(query),
@@ -488,6 +491,7 @@ class QueryPlanTest {
                                 "x",
                                 mkQueryPlan(
                                     SelectionSet(
+                                        query,
                                         mkField(
                                             "y",
                                             typeConstraint(query),
@@ -500,15 +504,13 @@ class QueryPlanTest {
                                         )
                                     ),
                                     variablesResolvers = varResolvers,
-                                    parentType = query,
                                     childPlans = listOf(
                                         buildPlan("{z}")
                                     )
                                 )
                             )
                         )
-                    ),
-                    parentType = query
+                    )
                 ),
                 plan,
             )
@@ -951,6 +953,7 @@ class QueryPlanTest {
             checkEquals(
                 mkQueryPlan(
                     SelectionSet(
+                        query,
                         mkField(
                             resultKey = "x",
                             constraints = typeConstraint(query),
@@ -961,6 +964,7 @@ class QueryPlanTest {
                                 )
                             ),
                             selectionSet = SelectionSet(
+                                objectX,
                                 mkField("y", typeConstraint(objectX))
                             ),
                             childPlans = emptyList(),
@@ -968,15 +972,14 @@ class QueryPlanTest {
                                 objectX to listOf(
                                     mkQueryPlan(
                                         SelectionSet(
+                                            objectX,
                                             mkField("z", typeConstraint(objectX))
-                                        ),
-                                        parentType = objectX
+                                        )
                                     )
                                 )
                             )
                         )
-                    ),
-                    parentType = query
+                    )
                 ),
                 buildPlan("{x{y}}"),
             )
@@ -1009,12 +1012,14 @@ class QueryPlanTest {
                 .typeCheckerEntry("ObjectY", "z")
                 .build()
         ) {
+            val node = schema.getType("Node") as GraphQLCompositeType
             val objectX = schema.getObjectType("ObjectX")!!
             val objectY = schema.getObjectType("ObjectY")!!
 
             checkEquals(
                 mkQueryPlan(
                     SelectionSet(
+                        query,
                         mkField(
                             resultKey = "node",
                             constraints = Constraints(emptyList(), listOf(query)),
@@ -1025,6 +1030,7 @@ class QueryPlanTest {
                                 )
                             ),
                             selectionSet = SelectionSet(
+                                node,
                                 mkField(
                                     "y",
                                     Constraints(emptyList(), listOf(objectX, objectY))
@@ -1035,23 +1041,22 @@ class QueryPlanTest {
                                 objectX to listOf(
                                     mkQueryPlan(
                                         SelectionSet(
+                                            objectX,
                                             mkField("id", typeConstraint(objectX))
-                                        ),
-                                        parentType = objectX
+                                        )
                                     )
                                 ),
                                 objectY to listOf(
                                     mkQueryPlan(
                                         SelectionSet(
+                                            objectY,
                                             mkField("z", typeConstraint(objectY))
-                                        ),
-                                        parentType = objectY
+                                        )
                                     )
                                 ),
                             )
                         )
-                    ),
-                    parentType = query
+                    )
                 ),
                 buildPlan("{node{y}}"),
             )
@@ -1507,6 +1512,7 @@ class QueryPlanTest {
             checkEquals(
                 mkQueryPlan(
                     SelectionSet(
+                        query,
                         mkField(
                             "x",
                             typeConstraint(query),
@@ -1515,6 +1521,7 @@ class QueryPlanTest {
                                 "x",
                                 mkQueryPlan(
                                     SelectionSet(
+                                        query,
                                         mkField(
                                             "y",
                                             typeConstraint(query),
@@ -1527,28 +1534,27 @@ class QueryPlanTest {
                                         )
                                     ),
                                     variablesResolvers = varResolvers,
-                                    parentType = query,
                                     childPlans = listOf(
                                         mkQueryPlan(
                                             SelectionSet(
+                                                query,
                                                 mkField("z", typeConstraint(query))
                                             ),
-                                            parentType = query,
                                             // Both resolver and checker RSSes for z are now included
                                             childPlans = listOf(
                                                 // Resolver RSS for z: selects zz
                                                 mkQueryPlan(
                                                     SelectionSet(
+                                                        query,
                                                         mkField("zz", typeConstraint(query))
-                                                    ),
-                                                    parentType = query
+                                                    )
                                                 ),
                                                 // Checker RSS for z: selects x, but x has no child plans (cycle broken)
                                                 mkQueryPlan(
                                                     SelectionSet(
+                                                        query,
                                                         mkField("x", typeConstraint(query))
-                                                    ),
-                                                    parentType = query
+                                                    )
                                                 )
                                             )
                                         )
@@ -1556,8 +1562,7 @@ class QueryPlanTest {
                                 )
                             )
                         )
-                    ),
-                    parentType = query
+                    )
                 ),
                 plan,
             )
@@ -1574,6 +1579,7 @@ class QueryPlanTest {
             checkEquals(
                 mkQueryPlan(
                     SelectionSet(
+                        query,
                         mkField(
                             "x",
                             typeConstraint(query),
@@ -1583,14 +1589,13 @@ class QueryPlanTest {
                                 // Checker RSS for x selects x, but x has no child plans (cycle broken)
                                 mkQueryPlan(
                                     SelectionSet(
+                                        query,
                                         mkField("x", typeConstraint(query))
-                                    ),
-                                    parentType = query
+                                    )
                                 )
                             )
                         )
-                    ),
-                    parentType = query
+                    )
                 ),
                 plan,
             )
@@ -1614,6 +1619,7 @@ class QueryPlanTest {
             checkEquals(
                 mkQueryPlan(
                     SelectionSet(
+                        query,
                         mkField(
                             resultKey = "x",
                             constraints = typeConstraint(query),
@@ -1624,6 +1630,7 @@ class QueryPlanTest {
                                 )
                             ),
                             selectionSet = SelectionSet(
+                                objectX,
                                 mkField("z", typeConstraint(objectX))
                             ),
                             childPlans = emptyList(),
@@ -1632,6 +1639,7 @@ class QueryPlanTest {
                                     // Type checker for ObjectX selects y (type ObjectX)
                                     mkQueryPlan(
                                         SelectionSet(
+                                            objectX,
                                             mkField(
                                                 resultKey = "y",
                                                 constraints = typeConstraint(objectX),
@@ -1641,14 +1649,12 @@ class QueryPlanTest {
                                                 // y's type is ObjectX, but ObjectX is already in seen set (cycle broken)
                                                 fieldTypeChildPlans = emptyMap()
                                             )
-                                        ),
-                                        parentType = objectX
+                                        )
                                     )
                                 )
                             )
                         )
-                    ),
-                    parentType = query
+                    )
                 ),
                 plan,
             )
@@ -1944,10 +1950,9 @@ internal fun buildPlan(
     }
 
 internal fun mkQueryPlan(
-    selectionSet: SelectionSet = SelectionSet(emptyList()),
+    selectionSet: SelectionSet,
     fragments: Fragments = Fragments.empty,
     variablesResolvers: List<VariablesResolver> = emptyList(),
-    parentType: GraphQLOutputType,
     childPlans: List<QueryPlan> = emptyList(),
     attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
 ): QueryPlan {
@@ -1956,10 +1961,8 @@ internal fun mkQueryPlan(
         selectionSet = selectionSet,
         fragments = fragments,
         variablesResolvers = variablesResolvers,
-        parentType = parentType,
         childPlanIds = indexedChildPlans.map { requireNotNull(it.requiredSelectionSetId) },
         baseIndex = indexedChildPlans.fold(QueryPlanIndex.empty()) { index, plan -> plan.index.merge(index) },
-        astSelectionSet = mockk(),
         attribution = attribution,
         executionCondition = ALWAYS_EXECUTE,
         variableDefinitions = emptyList()

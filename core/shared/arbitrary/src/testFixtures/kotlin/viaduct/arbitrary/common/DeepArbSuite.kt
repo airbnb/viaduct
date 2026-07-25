@@ -10,6 +10,17 @@ import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 
+/**
+ * Base class for progressively finding regressions using a [CheckedArb]
+ *
+ * This suite defines multiple junit test cases that represent different run
+ * modes. These test cases each support a specific kind of use case for
+ * verifying the correctness of [checkedArb]. See kdocs on each method for more.
+ *
+ * @see `check all`
+ * @see `min violation`
+ * @see `seed march`
+ */
 abstract class DeepArbSuite<T>(
     seed: Long = Random.nextLong(),
     iterations: Int = 1_000,
@@ -20,6 +31,12 @@ abstract class DeepArbSuite<T>(
 
     protected abstract val comparator: Comparator<T>
 
+    /**
+     * This method will run for a relatively small number of iterations. It runs by
+     * default in all settings, making it an economical ongoing correctness checker
+     *
+     * @see iterations
+     */
     @Test
     fun `check all`() {
         runBlocking {

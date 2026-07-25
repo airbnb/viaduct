@@ -11,9 +11,6 @@ import viaduct.engine.runtime.ObjectEngineResult
  * objects nested under it. The ledger hides which materialization result supplied each field.
  */
 interface MatLedger {
-    /** Adds [result] to this ledger. */
-    suspend fun appendResult(result: MatResult)
-
     /** Ensures that [requested] is materialized. */
     suspend fun ensureCoverage(
         requested: KeyTree,

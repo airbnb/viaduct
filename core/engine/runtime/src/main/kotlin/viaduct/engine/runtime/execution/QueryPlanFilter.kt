@@ -2,12 +2,7 @@ package viaduct.engine.runtime.execution
 
 import graphql.GraphQLContext
 import graphql.execution.CoercedVariables
-import graphql.execution.MergedField
-import graphql.language.Field as GJField
-import graphql.language.FragmentSpread as GJFragmentSpread
 import graphql.language.InlineFragment as GJInlineFragment
-import graphql.language.Selection as GJSelection
-import graphql.language.SelectionSet as GJSelectionSet
 import graphql.language.TypeName as GJTypeName
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
@@ -29,22 +24,19 @@ import viaduct.utils.collections.MaskedSet
  * widened to every implementation of the interface or union.
  *
  * @param shape is the field shape to keep.
- * @param source is a detached selection set and the GraphQL type that owns its fields. When null,
- * the plan's root selection set and parent type are used.
+ * @param source is a detached selection set. When null, the plan's root selection set is used.
+ * @param projectionType restricts [source] to one concrete runtime type. The filtered selection
+ * set is then owned by that type.
  */
 internal fun QueryPlan.filterTo(
     shape: KeyTree,
     context: QueryPlanFilterCtx,
-    source: TypedSelectionSet? = null,
+    source: QueryPlan.SelectionSet? = null,
+    projectionType: GraphQLObjectType? = null,
 ): QueryPlan {
-    val effectiveSource = source ?: TypedSelectionSet(
-        selectionSet = selectionSet,
-        parentType = requireNotNull(GraphQLTypeUtil.unwrapAll(parentType) as? GraphQLCompositeType) {
-            "QueryPlan parent type `$parentType` is not composite"
-        },
-    )
+    val effectiveSource = source ?: selectionSet
     val filtered = QueryPlanFilter(this, shape, context)
-        .filter(effectiveSource)
+        .filter(effectiveSource, projectionType)
     val newVariablesResolvers = variablesResolvers
         .filter { vr -> vr.variableNames.any { it in filtered.activeVariableNames } }
     val newChildPlanIds = newVariablesResolvers
@@ -55,17 +47,10 @@ internal fun QueryPlan.filterTo(
         selectionSet = filtered.selectionSet,
         fragments = QueryPlan.Fragments.empty,
         variablesResolvers = newVariablesResolvers,
-        parentType = effectiveSource.parentType,
         childPlanIds = newChildPlanIds,
-        astSelectionSet = filtered.astSelectionSet,
         variableDefinitions = variableDefinitions.filter { it.name in filtered.activeVariableNames },
     )
 }
-
-internal data class TypedSelectionSet(
-    val selectionSet: QueryPlan.SelectionSet,
-    val parentType: GraphQLCompositeType,
-)
 
 internal data class QueryPlanFilterCtx(
     val schema: GraphQLSchema,
@@ -91,12 +76,16 @@ private class QueryPlanFilter(
     private val shape: KeyTree,
     private val context: QueryPlanFilterCtx,
 ) {
-    fun filter(source: TypedSelectionSet): FilteredQueryPlan {
-        val filtered = projectSelectionSet(source, shape)
-        val activeVariableNames = filtered.astSelectionSet.collectVariableReferences()
+    fun filter(
+        source: QueryPlan.SelectionSet,
+        projectionType: GraphQLObjectType?,
+    ): FilteredQueryPlan {
+        val filtered = projectSelectionSet(source, shape, projectionType)
+        val activeVariableNames = filtered.selectionSet
+            .toAstSelectionSet()
+            .collectVariableReferences()
         return FilteredQueryPlan(
             selectionSet = filtered.selectionSet,
-            astSelectionSet = filtered.astSelectionSet,
             activeVariableNames = activeVariableNames,
             // Field child plans stay attached to their fields. Top-level child plan IDs are rebuilt
             // from active variable resolvers after filtering, so there is no value to carry here.
@@ -104,30 +93,31 @@ private class QueryPlanFilter(
     }
 
     private fun projectSelectionSet(
-        source: TypedSelectionSet,
+        source: QueryPlan.SelectionSet,
         shape: KeyTree,
+        projectionType: GraphQLObjectType? = null,
     ): FilteredSelectionSet {
         val selections = mutableListOf<QueryPlan.Selection>()
         val fieldsByType = shape.keysByType()
 
-        if (source.parentType is GraphQLObjectType) {
-            check(fieldsByType.keys.all { it == source.parentType }) {
-                "Selection set on `${source.parentType.name}` cannot be projected to another concrete type"
+        val concreteSourceType = projectionType ?: (source.parentType as? GraphQLObjectType)
+        if (concreteSourceType != null) {
+            check(fieldsByType.keys.all { it == concreteSourceType }) {
+                "Selection set on `${concreteSourceType.name}` cannot be projected to another concrete type"
             }
-            val fields = fieldsByType[source.parentType].orEmpty()
+            val fields = fieldsByType[concreteSourceType].orEmpty()
             if (fields.isNotEmpty()) {
-                val branch = projectForType(source.selectionSet, source.parentType, fields)
+                val branch = projectForType(source, concreteSourceType, fields)
                 selections += branch.selectionSet.selections
             }
         } else {
             for ((concreteType, fields) in fieldsByType) {
                 if (fields.isEmpty()) continue
-                val branch = projectForType(source.selectionSet, concreteType, fields)
+                val branch = projectForType(source, concreteType, fields)
                 if (branch.selectionSet.selections.isEmpty()) continue
 
                 val inlineAst = GJInlineFragment.newInlineFragment()
                     .typeCondition(GJTypeName(concreteType.name))
-                    .selectionSet(branch.astSelectionSet)
                     .build()
                 selections += QueryPlan.InlineFragment(
                     selectionSet = branch.selectionSet,
@@ -139,9 +129,10 @@ private class QueryPlanFilter(
 
         return FilteredSelectionSet(
             selectionSet = QueryPlan.SelectionSet(
+                parentType = concreteSourceType ?: source.parentType,
                 selections = selections,
-                enclosingVariableReferences = source.selectionSet.enclosingVariableReferences,
-                conditionallyExcludedCoordinates = source.selectionSet.conditionallyExcludedCoordinates,
+                enclosingVariableReferences = source.enclosingVariableReferences,
+                conditionallyExcludedCoordinates = source.conditionallyExcludedCoordinates,
             ),
         )
     }
@@ -199,6 +190,7 @@ private class QueryPlanFilter(
 
         return FilteredSelectionSet(
             selectionSet = QueryPlan.SelectionSet(
+                parentType = concreteType,
                 selections = selections,
                 enclosingVariableReferences = selectionSet.enclosingVariableReferences,
                 conditionallyExcludedCoordinates = selectionSet.conditionallyExcludedCoordinates,
@@ -220,21 +212,14 @@ private class QueryPlanFilter(
                 null
             } else {
                 sourceField.selectionSet
-                    ?.let {
-                        projectSelectionSet(
-                            TypedSelectionSet(selectionSet = it, parentType = childType),
-                            childShape,
-                        )
-                    }
+                    ?.let { projectSelectionSet(it, childShape) }
                     ?.takeUnless {
                         !childShape.isEmpty() && it.selectionSet.selections.isEmpty()
                     }
                     ?: continue
             }
-            val projectedField = sourceField.field.withSelectionSet(childProjection?.astSelectionSet)
             selections += sourceField.copy(
-                constraints = Constraints.Unconstrained.withDirectives(projectedField.directives),
-                field = projectedField,
+                constraints = Constraints.Unconstrained.withDirectives(sourceField.field.directives),
                 selectionSet = childProjection?.selectionSet,
                 childPlans = field.childPlans,
                 fieldTypeChildPlans = field.fieldTypeChildPlans,
@@ -242,11 +227,8 @@ private class QueryPlanFilter(
             )
         }
 
-        check(selections.isNotEmpty()) {
-            "Projection omitted requested child selections for `${concreteType.name}.${field.fieldName}`"
-        }
         return FilteredSelectionSet(
-            selectionSet = QueryPlan.SelectionSet(selections),
+            selectionSet = QueryPlan.SelectionSet(concreteType, selections),
         )
     }
 
@@ -263,23 +245,24 @@ private class QueryPlanFilter(
                 "Composite field `${concreteType.name}.${field.fieldName}` has no selection set"
             }
             projectSelectionSet(
-                TypedSelectionSet(selectionSet = childSelectionSet, parentType = childType),
+                childSelectionSet,
                 childShape,
-            ).also {
-                check(childShape.isEmpty() || it.selectionSet.selections.isNotEmpty()) {
-                    "Projection omitted requested child selections for `${concreteType.name}.${field.fieldName}`"
-                }
-            }
+            )
         }
-        val mergedField = when (childProjection) {
-            null -> field.mergedField.withoutSelectionSet()
-            else -> field.mergedField.withSelectionSet(childProjection.astSelectionSet)
+        if (
+            childProjection != null &&
+            !childShape.isEmpty() &&
+            childProjection.selectionSet.selections.isEmpty()
+        ) {
+            return FilteredSelectionSet(
+                selectionSet = QueryPlan.SelectionSet.empty(concreteType),
+            )
         }
         return FilteredSelectionSet(
             selectionSet = QueryPlan.SelectionSet(
+                concreteType,
                 field.copy(
                     selectionSet = childProjection?.selectionSet,
-                    mergedField = mergedField,
                 )
             ),
         )
@@ -323,44 +306,9 @@ private class QueryPlanFilter(
 
 private data class FilteredQueryPlan(
     val selectionSet: QueryPlan.SelectionSet,
-    val astSelectionSet: GJSelectionSet,
     val activeVariableNames: Set<String>,
 )
 
 private class FilteredSelectionSet(
     val selectionSet: QueryPlan.SelectionSet,
-) {
-    val astSelectionSet: GJSelectionSet = selectionSet.toProjectedAstSelectionSet()
-}
-
-// Projection synchronizes each selection's AST as it is built, so assembling the result only
-// needs the AST nodes at this level.
-private fun QueryPlan.SelectionSet.toProjectedAstSelectionSet(): GJSelectionSet =
-    GJSelectionSet.newSelectionSet()
-        .selections(selections.flatMap { it.toProjectedAstSelections() })
-        .build()
-
-private fun QueryPlan.Selection.toProjectedAstSelections(): List<GJSelection<*>> =
-    when (this) {
-        is QueryPlan.CollectedField -> mergedField.fields
-        is QueryPlan.Field -> listOf(field)
-        is QueryPlan.InlineFragment -> listOf(
-            inlineFragment
-                ?: GJInlineFragment.newInlineFragment()
-                    .selectionSet(selectionSet.toProjectedAstSelectionSet())
-                    .build()
-        )
-        is QueryPlan.FragmentSpread ->
-            listOf(fragmentSpread ?: GJFragmentSpread.newFragmentSpread(name).build())
-    }
-
-private fun MergedField.withSelectionSet(selectionSet: GJSelectionSet): MergedField = withTransformedFields { it.withSelectionSet(selectionSet) }
-
-private fun MergedField.withoutSelectionSet(): MergedField = withTransformedFields { field -> field.withSelectionSet(null) }
-
-private fun MergedField.withTransformedFields(transform: (GJField) -> GJField): MergedField =
-    MergedField.newMergedField(fields.map(transform))
-        .addDeferredExecutions(deferredExecutions)
-        .build()
-
-private fun GJField.withSelectionSet(selectionSet: GJSelectionSet?): GJField = transform { it.selectionSet(selectionSet) }
+)

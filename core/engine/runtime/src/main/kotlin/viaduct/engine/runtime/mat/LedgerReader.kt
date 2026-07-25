@@ -1,0 +1,67 @@
+package viaduct.engine.runtime.mat
+
+import viaduct.engine.runtime.ObjectEngineResult
+
+/** Reads exact field keys prepared for one Mat-backed object traversal. */
+internal sealed interface LedgerReader {
+    fun canFetch(key: ObjectEngineResult.Key): Boolean
+
+    suspend fun fetchOrNull(key: ObjectEngineResult.Key): Any?
+
+    /**
+     * Reads fields from the materialization in [ledger] that covers each exact key.
+     *
+     * For example, the key for `displayName: name` selects the matching materialization and reads
+     * `name` from the object returned by that materialization.
+     */
+    private class Impl(
+        private val ledger: MatLedger,
+        private val path: MatPath,
+        requestedShape: KeyTree,
+        private val rootNodeId: String? = null,
+    ) : LedgerReader {
+        private val fetchableKeys =
+            requestedShape
+                .subtreeAt(path)
+                .keysByType()[path.terminalType]
+                ?.keys
+                .orEmpty()
+
+        override fun canFetch(key: ObjectEngineResult.Key): Boolean = intrinsicRootNodeId(key) != null || key in fetchableKeys
+
+        override suspend fun fetchOrNull(key: ObjectEngineResult.Key): Any? {
+            intrinsicRootNodeId(key)?.let { return it }
+            return ledger.resolveSource(path, key)?.fetchOrNull(key.name)
+        }
+
+        private fun intrinsicRootNodeId(key: ObjectEngineResult.Key): String? =
+            rootNodeId?.takeIf {
+                key.name == "id" && path.segments.isEmpty()
+            }
+    }
+
+    private class Failed(private val error: Throwable) : LedgerReader {
+        override fun canFetch(key: ObjectEngineResult.Key): Boolean = true
+
+        override suspend fun fetchOrNull(key: ObjectEngineResult.Key): Nothing = throw error
+    }
+
+    companion object {
+        /**
+         * Creates a reader backed by [ledger].
+         *
+         * @param path identifies the object being read.
+         * @param requestedShape identifies the fields owned by the ledger.
+         * @param rootNodeId is the intrinsic id of the ledger root when it represents a node reference.
+         */
+        operator fun invoke(
+            ledger: MatLedger,
+            path: MatPath,
+            requestedShape: KeyTree,
+            rootNodeId: String? = null,
+        ): LedgerReader = Impl(ledger, path, requestedShape, rootNodeId)
+
+        /** Creates a reader that reports [error] from every attempted field read. */
+        fun failed(error: Throwable): LedgerReader = Failed(error)
+    }
+}

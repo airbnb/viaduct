@@ -37,6 +37,7 @@ class CollectFieldsTest {
         checkEquals(
             collected,
             SelectionSet(
+                schema.queryType,
                 listOf(
                     CollectedField(
                         "x",
@@ -66,7 +67,7 @@ class CollectFieldsTest {
 
         checkEquals(
             collected,
-            SelectionSet(emptyList())
+            SelectionSet.empty(schema.queryType)
         )
     }
 
@@ -89,6 +90,7 @@ class CollectFieldsTest {
         checkEquals(
             collected,
             SelectionSet(
+                schema.queryType,
                 listOf(
                     CollectedField(
                         "x",
@@ -124,6 +126,7 @@ class CollectFieldsTest {
         checkEquals(
             collected,
             SelectionSet(
+                schema.queryType,
                 listOf(
                     CollectedField(
                         "x",
@@ -161,6 +164,7 @@ class CollectFieldsTest {
         checkEquals(
             collected,
             SelectionSet(
+                schema.queryType,
                 listOf(
                     CollectedField(
                         "x",

@@ -465,7 +465,6 @@ private class QueryPlanBuilder(
 
     private data class State(
         val selectionSet: QueryPlan.SelectionSet,
-        val parentType: GraphQLCompositeType,
         val constraints: Constraints,
         val childPlanIds: List<RequiredSelectionSet.Id>,
         val indexBuilder: Index.Builder<RequiredSelectionSet.Id, QueryPlan>,
@@ -477,7 +476,9 @@ private class QueryPlanBuilder(
         val resolvedByCoordinate: Coordinate? = null,
         val conditionallyExcludedCoordinates: Set<Coordinate> = emptySet(),
         val spreadFragments: Set<String> = emptySet(),
-    )
+    ) {
+        val parentType: GraphQLCompositeType get() = selectionSet.parentType
+    }
 
     // Builders may cache results that are only valid for the specific input they were
     // created for, and are likely unsafe to reuse.
@@ -497,8 +498,7 @@ private class QueryPlanBuilder(
         val state = buildState(
             selectionSet,
             State(
-                selectionSet = QueryPlan.SelectionSet.empty,
-                parentType = parentType,
+                selectionSet = QueryPlan.SelectionSet.empty(parentType),
                 constraints = Constraints.Unconstrained
                     .narrowTypes(parameters.schema.rels.possibleObjectTypes(parentType)),
                 childPlanIds = emptyList(),
@@ -523,10 +523,8 @@ private class QueryPlanBuilder(
             selectionSet = state.selectionSet,
             fragments = plannedFragments,
             variablesResolvers = activeVariablesResolvers,
-            parentType = parentType,
             childPlanIds = state.childPlanIds,
             baseIndex = state.indexBuilder.build(),
-            astSelectionSet = selectionSet,
             attribution = attribution,
             executionCondition = executionCondition,
             variableDefinitions = variableDefinitions,
@@ -549,6 +547,7 @@ private class QueryPlanBuilder(
             }
         return result.copy(
             selectionSet = QueryPlan.SelectionSet(
+                parentType = result.selectionSet.parentType,
                 selections = result.selectionSet.selections,
                 enclosingVariableReferences = state.selectionSetEnclosingVariableReferences,
                 conditionallyExcludedCoordinates = result.conditionallyExcludedCoordinates,
@@ -783,8 +782,7 @@ private class QueryPlanBuilder(
         val fragState = buildState(
             gjdef.selectionSet,
             State(
-                selectionSet = QueryPlan.SelectionSet.empty,
-                parentType = fragType,
+                selectionSet = QueryPlan.SelectionSet.empty(fragType),
                 constraints = Constraints.Unconstrained
                     .narrowTypes(parameters.schema.rels.possibleObjectTypes(fragType)),
                 childPlanIds = emptyList(),
@@ -827,7 +825,7 @@ private class QueryPlanBuilder(
             selectionSet,
             state.copy(
                 constraints = newConstraints,
-                parentType = typeCondition,
+                selectionSet = state.selectionSet.copy(parentType = typeCondition),
             ),
         )
     }
@@ -884,8 +882,7 @@ private class QueryPlanBuilder(
                 buildState(
                     ss,
                     State(
-                        selectionSet = QueryPlan.SelectionSet.empty,
-                        parentType = fieldType,
+                        selectionSet = QueryPlan.SelectionSet.empty(fieldType),
                         constraints = subSelectionConstraints,
                         childPlanIds = emptyList(),
                         indexBuilder = indexBuilder,
@@ -954,8 +951,7 @@ private class QueryPlanBuilder(
                 sel.selectionSet,
                 typeConditionName,
                 State(
-                    selectionSet = QueryPlan.SelectionSet.empty,
-                    parentType = state.parentType,
+                    selectionSet = QueryPlan.SelectionSet.empty(state.parentType),
                     constraints = newConstraints,
                     childPlanIds = emptyList(),
                     indexBuilder = indexBuilder,

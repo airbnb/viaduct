@@ -11,7 +11,6 @@ import graphql.execution.ResultPath
 import graphql.execution.values.InputInterceptor
 import graphql.execution.values.legacycoercing.LegacyCoercingInputInterceptor
 import graphql.language.Field as GJField
-import graphql.language.SelectionSet as GJSelectionSet
 import graphql.schema.GraphQLObjectType
 import io.mockk.every
 import io.mockk.mockk
@@ -168,13 +167,11 @@ class ResolverDataFetcherTest {
             fieldTypeChildPlans = FieldTypeChildPlans.empty,
         )
         private val currentQueryPlan = QueryPlan(
-            selectionSet = QueryPlan.SelectionSet(currentField),
+            selectionSet = QueryPlan.SelectionSet(testTypeObject, currentField),
             fragments = QueryPlan.Fragments.empty,
             variablesResolvers = emptyList(),
-            parentType = testTypeObject,
             childPlanIds = emptyList(),
             baseIndex = QueryPlanIndex.empty(),
-            astSelectionSet = GJSelectionSet(emptyList()),
             executionCondition = QueryPlanExecutionCondition.ALWAYS_EXECUTE,
             variableDefinitions = emptyList(),
         )

@@ -17,6 +17,7 @@ import graphql.language.InlineFragment as GJInlineFragment
 import graphql.language.SelectionSet as GJSelectionSet
 import graphql.language.StringValue as GJStringValue
 import graphql.language.TypeName as GJTypeName
+import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
@@ -50,6 +51,7 @@ import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.context.getLocalContextForType
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createLocalContext
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createSchema
+import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.engine.runtime.observability.ExecutionObservabilityContext
 
 class ExecutionParametersTest {
@@ -84,7 +86,6 @@ class ExecutionParametersTest {
     private val fooFieldDefinition = requireNotNull(queryType.getFieldDefinition("foo"))
     private val emptyVariables = CoercedVariables.of(emptyMap<String, Any?>())
     private val defaultRootValue = mapOf("viewerId" to "root")
-    private val emptyAstSelectionSet: GJSelectionSet = GJSelectionSet.newSelectionSet().build()
     private val defaultLocalContext: CompositeLocalContext = createLocalContext(viaductSchema)
 
     @Test
@@ -129,11 +130,11 @@ class ExecutionParametersTest {
     @Test
     fun `forChildPlan derives CurrentObjectResult and reuses field context for object plans`() {
         val parentSource = mapOf("viewer" to "parent")
-        val childAst = selectionSet("name")
+        val childSelection = queryPlanSelectionSet(fooType, "name")
         val parentPlan = queryPlanFor(type = fooType)
         val childPlan = queryPlanFor(
             type = fooType,
-            astSelectionSet = childAst,
+            selectionSet = childSelection,
             attribution = ExecutionAttribution.fromResolver("FooResolver")
         )
         val fooMergedField = mergedField("foo", selectionSet("id"))
@@ -158,11 +159,40 @@ class ExecutionParametersTest {
         assertEquals(parentSource, result.source)
         assertEquals(fooType, result.executionStepInfo.type)
         assertEquals(ResultPath.rootPath().segment("foo"), result.executionStepInfo.path)
-        assertEquals(childAst, result.executionStepInfo.field.singleField.selectionSet)
+        assertEquals(
+            childSelection.toAstSelectionSet().selections,
+            result.executionStepInfo.field.singleField.selectionSet.selections,
+        )
         assertEquals(childPlan.attribution, result.attribution)
         val origin = result.executionOrigin as ExecutionOrigin.ChildQueryPlan
         assertSame(parameters, origin.parameters)
         assertSame(target, origin.target)
+    }
+
+    @Test
+    fun `forChildPlan clears the parent plan field`() {
+        val rootParameters = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo()
+                .type(queryType)
+                .path(ResultPath.rootPath())
+                .build(),
+            queryPlan = queryPlanFor(type = queryType),
+        )
+        val fieldParameters = rootParameters.forField(
+            queryType,
+            collectedFooField(mergedField("foo", selectionSet("id"))),
+        )
+        val childPlan = queryPlanFor(type = queryType)
+
+        val result = fieldParameters.forChildPlan(
+            childPlan,
+            emptyVariables,
+            ChildQueryPlanTarget.CurrentQueryResult,
+        )
+
+        assertNull(result.field)
+        assertSame(fieldParameters, (result.executionOrigin as ExecutionOrigin.ChildQueryPlan).parameters)
     }
 
     @Test
@@ -193,10 +223,10 @@ class ExecutionParametersTest {
     @Test
     fun `forChildPlan with ResolvedFieldObjectResult target switches to field engine result for object plans`() {
         val parentSource = mapOf("viewer" to "parent")
-        val childSelection = selectionSet("name")
+        val childSelection = queryPlanSelectionSet(fooType, "name")
         val childPlan = queryPlanFor(
             type = fooType,
-            astSelectionSet = childSelection
+            selectionSet = childSelection,
         )
         val fieldEngineResult = ObjectEngineResultImpl.newForType(fooType)
         val fieldResolutionResult = FieldResolutionResult(
@@ -224,7 +254,10 @@ class ExecutionParametersTest {
         assertSame(fieldEngineResult, result.currentObjectEngineResult)
         assertEquals(fieldResolutionResult.originalSource, result.source)
         assertEquals(fooType, result.executionStepInfo.type)
-        assertEquals(childSelection, result.executionStepInfo.field.singleField.selectionSet)
+        assertEquals(
+            childSelection.toAstSelectionSet().selections,
+            result.executionStepInfo.field.singleField.selectionSet.selections,
+        )
         val origin = result.executionOrigin as ExecutionOrigin.ChildQueryPlan
         assertSame(parameters, origin.parameters)
         assertSame(target, origin.target)
@@ -252,7 +285,12 @@ class ExecutionParametersTest {
             )
             .build()
         val nodeMergedField = mergedField("node", nodeSelectionSet)
-        val nodeCollectedField = collectedField("node", nodeMergedField, QueryPlan.SelectionSet.empty)
+        val nodeType = schema.getType("Node") as GraphQLCompositeType
+        val nodeCollectedField = collectedField(
+            "node",
+            nodeMergedField,
+            QueryPlan.SelectionSet.empty(nodeType),
+        )
         val nodeFieldParameters = baseParameters.forField(queryType, nodeCollectedField)
         val nodeEngineResult = ObjectEngineResultImpl.newForType(fooType)
         val nodeTraversalParameters = nodeFieldParameters.forObjectTraversal(
@@ -266,10 +304,10 @@ class ExecutionParametersTest {
         val fooCollectedField = collectedField("foo", fooMergedField)
         val fooFieldParameters = nodeTraversalParameters.forField(fooType, fooCollectedField)
 
-        val childSelection = selectionSet("fooSpecific")
+        val childSelection = queryPlanSelectionSet(fooType, "fooSpecific")
         val childPlan = queryPlanFor(
             type = fooType,
-            astSelectionSet = childSelection,
+            selectionSet = childSelection,
             attribution = ExecutionAttribution.fromResolver("FooInterfaceResolver")
         )
 
@@ -284,7 +322,7 @@ class ExecutionParametersTest {
         }
         val inlineFragment = selectionSet.selections.single() as GJInlineFragment
         assertEquals("Foo", inlineFragment.typeCondition?.name)
-        assertEquals(childSelection, inlineFragment.selectionSet)
+        assertEquals(childSelection.toAstSelectionSet().selections, inlineFragment.selectionSet.selections)
     }
 
     @Test
@@ -292,7 +330,6 @@ class ExecutionParametersTest {
         val parentSource = mapOf("viewer" to "parent")
         val childPlan = queryPlanFor(
             type = queryType,
-            astSelectionSet = emptyAstSelectionSet,
             attribution = ExecutionAttribution.fromOperation("RootChild")
         )
         val parameters = createExecutionParameters(
@@ -332,7 +369,7 @@ class ExecutionParametersTest {
     fun `forChildPlan with IsolatedRootResult replaces root and query constants for object plans`() {
         val childPlan = queryPlanFor(
             type = fooType,
-            astSelectionSet = selectionSet("name"),
+            selectionSet = queryPlanSelectionSet(fooType, "name"),
         )
         val isolatedRootResult = ObjectEngineResultImpl.newForType(fooType)
         val isolatedQueryResult = ObjectEngineResultImpl.newForType(queryType)
@@ -367,7 +404,6 @@ class ExecutionParametersTest {
     fun `forChildPlan with IsolatedRootResult uses isolated query result for root query plans`() {
         val childPlan = queryPlanFor(
             type = queryType,
-            astSelectionSet = emptyAstSelectionSet,
         )
         val isolatedRootResult = ObjectEngineResultImpl.newForType(queryType)
         val isolatedQueryResult = ObjectEngineResultImpl.newForType(queryType)
@@ -400,7 +436,6 @@ class ExecutionParametersTest {
     fun `forChildPlan reuses isolated query engine result for later root query plans`() {
         val childPlan = queryPlanFor(
             type = queryType,
-            astSelectionSet = emptyAstSelectionSet,
             attribution = ExecutionAttribution.fromOperation("RootChild")
         )
         val isolatedRootResult = ObjectEngineResultImpl.newForType(queryType)
@@ -440,7 +475,7 @@ class ExecutionParametersTest {
         val resolverAttribution = ExecutionAttribution.fromResolver("ChildResolver")
         val childPlan = queryPlanFor(
             type = fooType,
-            astSelectionSet = selectionSet("name"),
+            selectionSet = queryPlanSelectionSet(fooType, "name"),
             attribution = resolverAttribution
         )
         val fooMergedField = mergedField("foo", selectionSet("id"))
@@ -828,23 +863,40 @@ class ExecutionParametersTest {
 
     private fun queryPlanFor(
         type: GraphQLOutputType,
-        astSelectionSet: GJSelectionSet = emptyAstSelectionSet,
+        selectionSet: QueryPlan.SelectionSet =
+            QueryPlan.SelectionSet.empty(type as GraphQLCompositeType),
         attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
         childPlans: List<QueryPlan> = emptyList(),
         requiredSelectionSetId: RequiredSelectionSet.Id? = null,
     ): QueryPlan =
         QueryPlan(
-            selectionSet = QueryPlan.SelectionSet.empty,
+            selectionSet = selectionSet,
             fragments = QueryPlan.Fragments.empty,
             variablesResolvers = emptyList(),
-            parentType = type,
             childPlanIds = childPlans.map { requireNotNull(it.requiredSelectionSetId) },
             baseIndex = childPlans.fold(QueryPlanIndex.empty()) { index, plan -> plan.index.merge(index) },
-            astSelectionSet = astSelectionSet,
             attribution = attribution,
             executionCondition = QueryPlanExecutionCondition.ALWAYS_EXECUTE,
             variableDefinitions = emptyList(),
             requiredSelectionSetId = requiredSelectionSetId,
+        )
+
+    private fun queryPlanSelectionSet(
+        type: GraphQLCompositeType,
+        vararg fields: String,
+    ): QueryPlan.SelectionSet =
+        QueryPlan.SelectionSet(
+            type,
+            fields.map { fieldName ->
+                QueryPlan.Field(
+                    resultKey = fieldName,
+                    constraints = Constraints.Unconstrained,
+                    field = GJField.newField(fieldName).build(),
+                    selectionSet = null,
+                    childPlans = emptyList(),
+                    fieldTypeChildPlans = FieldTypeChildPlans.empty,
+                )
+            },
         )
 
     private fun executionStepInfoForField(
@@ -899,7 +951,7 @@ class ExecutionParametersTest {
 
     private fun collectedFooField(
         mergedField: MergedField,
-        selectionSet: QueryPlan.SelectionSet = QueryPlan.SelectionSet.empty
+        selectionSet: QueryPlan.SelectionSet = QueryPlan.SelectionSet.empty(fooType)
     ): QueryPlan.CollectedField =
         QueryPlan.CollectedField(
             responseKey = mergedField.name,

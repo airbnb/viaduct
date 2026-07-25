@@ -460,12 +460,12 @@ data class ExecutionParameters(
                                 GJInlineFragment
                                     .newInlineFragment()
                                     .typeCondition(GJTypeName(objectType.name))
-                                    .selectionSet(childPlan.astSelectionSet)
+                                    .selectionSet(childPlan.selectionSet.toAstSelectionSet())
                                     .build()
                             )
                             .build()
                     } else {
-                        childPlan.astSelectionSet
+                        childPlan.selectionSet.toAstSelectionSet()
                     }
 
                 val updatedFields = parentMergedField.fields.map { field ->
@@ -506,6 +506,9 @@ data class ExecutionParameters(
             queryEngineResult = newQueryEngineResult,
             localContext = localContext,
             source = source,
+            // A child-plan root is an object scope, not an execution of the parent plan's field.
+            // The originating field remains available through ExecutionOrigin.ChildQueryPlan.
+            field = null,
             executionOrigin = ExecutionOrigin.ChildQueryPlan(this, target),
             attribution = childPlan.attribution,
         )

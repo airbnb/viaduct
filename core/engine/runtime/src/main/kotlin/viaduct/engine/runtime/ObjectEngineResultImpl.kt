@@ -43,6 +43,7 @@ import viaduct.engine.api.CheckerResult
 class ObjectEngineResultImpl private constructor(
     override val type: GraphQLObjectType,
     val pending: Boolean = false,
+    val matSource: MatSource? = null,
 ) : ObjectEngineResult {
     private val storage = ConcurrentHashMap<ObjectEngineResult.Key, Cell>()
 
@@ -260,11 +261,17 @@ class ObjectEngineResultImpl private constructor(
         /**
          * Creates a new ObjectEngineResult for the given type in the Resolved state.
          */
-        fun newForType(type: GraphQLObjectType) = ObjectEngineResultImpl(type)
+        fun newForType(
+            type: GraphQLObjectType,
+            matSource: MatSource? = null
+        ) = ObjectEngineResultImpl(type, matSource = matSource)
 
         /**
          * Creates a new ObjectEngineResult for the given type in the Pending state.
          */
-        fun newPendingForType(type: GraphQLObjectType) = ObjectEngineResultImpl(type, pending = true)
+        fun newPendingForType(
+            type: GraphQLObjectType,
+            matSource: MatSource? = null
+        ) = ObjectEngineResultImpl(type, pending = true, matSource = matSource)
     }
 }

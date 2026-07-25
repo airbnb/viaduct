@@ -5,7 +5,6 @@ package viaduct.engine.runtime.execution
 import graphql.execution.ExecutionStepInfo
 import graphql.execution.MergedField
 import graphql.language.Field as GJField
-import graphql.language.SelectionSet as GJSelectionSet
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import io.mockk.every
@@ -56,16 +55,14 @@ class FieldResolverExecutionConditionTest {
         ).engineExecutionContext
         val field = GJField.newField("id").build()
         val childRss = createRSS("HiveTable", "id")
-        val childSelectionSet = QueryPlan.SelectionSet(emptyList())
+        val childSelectionSet = QueryPlan.SelectionSet.empty(runtimeType)
         val childFragments = QueryPlan.Fragments.empty
         val childPlan = QueryPlan(
             selectionSet = childSelectionSet,
             fragments = childFragments,
             variablesResolvers = emptyList(),
-            parentType = runtimeType,
             childPlanIds = emptyList(),
             baseIndex = QueryPlanIndex.empty(),
-            astSelectionSet = GJSelectionSet.newSelectionSet().build(),
             attribution = null,
             executionCondition = ALWAYS_EXECUTE,
             variableDefinitions = emptyList(),

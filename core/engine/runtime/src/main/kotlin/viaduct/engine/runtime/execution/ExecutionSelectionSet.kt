@@ -34,7 +34,6 @@ import viaduct.graphql.utils.SelectionsParserUtils.EntryPointFragmentName
 /** An [EngineSelectionSet] projection of a [QueryPlan] */
 internal data class ExecutionSelectionSet(
     private val ctx: Ctx,
-    private val baseType: GraphQLCompositeType,
     private val projectionType: GraphQLCompositeType,
     private val source: QueryPlan.SelectionSet,
     private val requestsBaseType: Boolean,
@@ -57,7 +56,7 @@ internal data class ExecutionSelectionSet(
     override val type: String get() = projectionType.name
 
     private val projection: ProjectedSelectionSet by lazy {
-        collectSelectionSet(source, baseType, emptySet(), requestsBaseType)
+        collectSelectionSet(source, source.parentType, emptySet(), requestsBaseType)
     }
     private val fieldSelections: List<FieldSelection> by lazy {
         projection.fields.filter { it.isSpreadableTo(projectionType) }
@@ -119,9 +118,8 @@ internal data class ExecutionSelectionSet(
         val queryType = schema.schema.queryType
         if (isEmpty()) {
             return copy(
-                baseType = queryType,
                 projectionType = queryType,
-                source = QueryPlan.SelectionSet.empty,
+                source = QueryPlan.SelectionSet.empty(queryType),
                 requestsBaseType = false,
             )
         }
@@ -134,25 +132,25 @@ internal data class ExecutionSelectionSet(
             resultKey = nodeFieldName,
             constraints = Constraints.Unconstrained,
             field = nodeField,
-            selectionSet = toTypedSelectionSet(),
+            selectionSet = toQueryPlanSelectionSet(),
             childPlans = emptyList(),
             fieldTypeChildPlans = FieldTypeChildPlans.empty,
         )
         return copy(
-            baseType = queryType,
             projectionType = queryType,
-            source = QueryPlan.SelectionSet(nodeSelection),
+            source = QueryPlan.SelectionSet(queryType, nodeSelection),
             requestsBaseType = true,
         )
     }
 
-    private fun toTypedSelectionSet(): QueryPlan.SelectionSet =
+    private fun toQueryPlanSelectionSet(): QueryPlan.SelectionSet =
         QueryPlan.SelectionSet(
+            parentType = projectionType,
             selections = fieldSelections
                 .groupBy { it.typeCondition }
                 .map { (type, selections) ->
                     QueryPlan.InlineFragment(
-                        selectionSet = QueryPlan.SelectionSet(selections.map { it.selection }),
+                        selectionSet = QueryPlan.SelectionSet(type, selections.map { it.selection }),
                         constraints = Constraints.Unconstrained.narrowToImpls(type, schema),
                         inlineFragment = GJInlineFragment.newInlineFragment()
                             .typeCondition(TypeName(type.name))
@@ -378,6 +376,7 @@ internal data class ExecutionSelectionSet(
             .filter { match(it) && it.isSelectableOn(selectionType) }
         val childSelectionSets = childSelections.mapNotNull { it.selectionSet }
         val childSelectionSet = QueryPlan.SelectionSet(
+            parentType = subselectionType,
             selections = childSelectionSets.flatMap { it.selections },
             enclosingVariableReferences = childSelectionSets.flatMap { it.enclosingVariableReferences }.distinct(),
             conditionallyExcludedCoordinates = childSelectionSets.flatMapTo(mutableSetOf()) {
@@ -385,7 +384,6 @@ internal data class ExecutionSelectionSet(
             },
         )
         return copy(
-            baseType = subselectionType,
             projectionType = subselectionType,
             source = childSelectionSet,
             requestsBaseType = childSelections.isNotEmpty(),
@@ -506,7 +504,7 @@ internal data class ExecutionSelectionSet(
             return create(
                 schema = schema,
                 typeName = compositeType.name,
-                selectionSet = selectionSet ?: QueryPlan.SelectionSet(emptyList()),
+                selectionSet = selectionSet ?: QueryPlan.SelectionSet.empty(compositeType),
                 fragments = fragments,
                 variables = variables,
                 graphQLContext = graphQLContext,
@@ -521,7 +519,10 @@ internal data class ExecutionSelectionSet(
             variables: Map<String, Any?> = emptyMap(),
             graphQLContext: GraphQLContext = GraphQLContext.getDefault(),
         ): EngineSelectionSet {
-            val type = schema.schema.getTypeAs<GraphQLCompositeType>(typeName)
+            val projectionType = schema.schema.getTypeAs<GraphQLCompositeType>(typeName)
+            require(schema.rels.isSpreadable(selectionSet.parentType, projectionType)) {
+                "Selections on `${selectionSet.parentType.name}` cannot be projected to `${projectionType.name}`"
+            }
             return ExecutionSelectionSet(
                 ctx = Ctx(
                     schema = schema,
@@ -529,8 +530,7 @@ internal data class ExecutionSelectionSet(
                     variables = variables,
                     graphQLContext = graphQLContext,
                 ),
-                baseType = type,
-                projectionType = type,
+                projectionType = projectionType,
                 source = selectionSet,
                 requestsBaseType = true,
             )

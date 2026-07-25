@@ -40,7 +40,8 @@ object CollectFields {
                 pending = selectionSet.selections,
                 spreadFragments = emptySet(),
                 fragments = fragments,
-                constraintsCtx = Constraints.Ctx(variables, MaskedSet(listOf(parentType)))
+                constraintsCtx = Constraints.Ctx(variables, MaskedSet(listOf(parentType))),
+                parentType = parentType,
             ),
             fieldRssOriginFilteringKillSwitchEnabled = fieldRssOriginFilteringKillSwitchEnabled,
         )
@@ -55,10 +56,11 @@ object CollectFields {
         val spreadFragments: Set<String>,
         val fragments: Fragments,
         val constraintsCtx: Constraints.Ctx,
+        val parentType: GraphQLObjectType,
     ) {
         fun fragmentDef(name: String): FragmentDefinition = requireNotNull(fragments[name]) { "Fragment `$name` is not defined" }
 
-        fun asSelectionSet(): SelectionSet = SelectionSet(acc)
+        fun asSelectionSet(): SelectionSet = SelectionSet(parentType, acc)
 
         fun constrainedTypes() = constraintsCtx.parentTypes?.toSet()
     }

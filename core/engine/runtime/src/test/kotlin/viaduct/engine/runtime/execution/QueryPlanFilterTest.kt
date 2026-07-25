@@ -62,7 +62,7 @@ class QueryPlanFilterTest {
             )
 
             filtered.variableDefinitions.map { it.name }.shouldContainExactlyInAnyOrder("includeY", "yArg")
-            val fooAst = filtered.astSelectionSet.selections.single() as GJField
+            val fooAst = filtered.selectionSet.toAstSelectionSet().selections.single() as GJField
             val yAst = fooAst.selectionSet.selections.single() as GJField
             assertEquals("aliasY", yAst.alias)
             yAst.arguments.map { it.name }.shouldContainExactly("arg")
@@ -97,7 +97,7 @@ class QueryPlanFilterTest {
                 }
             )
 
-            filtered.astSelectionSet.selections
+            filtered.selectionSet.toAstSelectionSet().selections
                 .filterIsInstance<GJField>()
                 .associate { field ->
                     val tagValue = (field.directives.single().arguments.single().value as IntValue)
@@ -110,6 +110,68 @@ class QueryPlanFilterTest {
                         2 to listOf("y"),
                     ),
                 )
+        }
+    }
+
+    @Test
+    fun `filterTo skips overlapping field without requested descendants`() {
+        Fixture(
+            """
+                type Query { foo:Foo }
+                type Foo { next:Foo }
+            """.trimIndent()
+        ) {
+            val plan = buildPlan(
+                """
+                    {
+                      foo {
+                        next { next { __typename } }
+                        next { next { next { __typename } } }
+                      }
+                    }
+                """.trimIndent()
+            )
+            val fooSelectionSet = (plan.selectionSet.selections.single() as QueryPlan.Field).selectionSet!!
+
+            val filtered = plan.filterTo(
+                KeyTree.build(viaductSchema) {
+                    field("Foo", key("next")) {
+                        field("Foo", key("next")) {
+                            field("Foo", key("next"))
+                        }
+                    }
+                },
+                source = fooSelectionSet,
+            )
+
+            val first = filtered.selectionSet.fieldSelectionSet("next")!!
+            val second = first.fieldSelectionSet("next")!!
+            second.fieldSelectionSet("next").shouldNotBe(null)
+        }
+    }
+
+    @Test
+    fun `filterTo ignores requested field missing from source`() {
+        Fixture(
+            """
+                type Query { foo:Foo }
+                type Foo { x:Int, y:Int }
+            """.trimIndent()
+        ) {
+            val plan = buildPlan("{ foo { x } }")
+
+            val filtered = plan.filterTo(
+                KeyTree.build(viaductSchema) {
+                    field("Query", key("foo")) {
+                        field("Foo", key("x"))
+                        field("Foo", key("y"))
+                    }
+                }
+            )
+
+            filtered.selectionSet.fieldSelectionSet("foo")!!
+                .fieldResultKeys()
+                .shouldContainExactly("x")
         }
     }
 
@@ -153,7 +215,7 @@ class QueryPlanFilterTest {
             fooSelectionSet.fieldSelectionSet("z")!!.fieldResultKeys().shouldContainExactly("y")
             filtered.fragments.keys.shouldBeEmpty()
 
-            val fooAst = filtered.astSelectionSet.selections.single() as GJField
+            val fooAst = filtered.selectionSet.toAstSelectionSet().selections.single() as GJField
             fooAst.selectionSet.fieldNames().shouldContainExactlyInAnyOrder("x", "z")
             val zAst = fooAst.selectionSet.selections.filterIsInstance<GJField>().single { it.name == "z" }
             zAst.selectionSet.fieldNames().shouldContainExactly("y")
@@ -182,7 +244,7 @@ class QueryPlanFilterTest {
 
             filtered.selectionSet.fieldSelectionSet("foo")!!.fieldResultKeys().shouldContainExactly("x")
 
-            val fooAst = filtered.astSelectionSet.selections.single() as GJField
+            val fooAst = filtered.selectionSet.toAstSelectionSet().selections.single() as GJField
             fooAst.selectionSet.fieldNames().shouldContainExactly("x")
         }
     }
@@ -419,14 +481,11 @@ class QueryPlanFilterTest {
                     field("Impl1", key("x"))
                     field("Impl2", key("y"))
                 },
-                source = TypedSelectionSet(
-                    selectionSet = checkNotNull(valueField.selectionSet),
-                    parentType = abstractType,
-                ),
+                source = checkNotNull(valueField.selectionSet),
             )
 
             assertEquals(abstractType, filtered.parentType)
-            val selectionsByType = filtered.astSelectionSet.selections
+            val selectionsByType = filtered.selectionSet.toAstSelectionSet().selections
                 .filterIsInstance<GJInlineFragment>()
                 .associate { fragment ->
                     fragment.typeCondition.name to fragment.selectionSet.fieldNames()
@@ -461,7 +520,7 @@ class QueryPlanFilterTest {
 
             filtered.selectionSet.fieldSelectionSet("foo")!!.fieldResultKeys().shouldContainExactly("y")
 
-            val fooAst = filtered.astSelectionSet.selections.single() as GJField
+            val fooAst = filtered.selectionSet.toAstSelectionSet().selections.single() as GJField
             fooAst.selectionSet.fieldNames().shouldContainExactly("y")
         }
     }
@@ -520,7 +579,7 @@ class QueryPlanFilterTest {
             fooSelectionSet.fieldResultKeys().shouldContainExactly("y")
             filtered.fragments.keys.shouldBeEmpty()
 
-            val fooAst = filtered.astSelectionSet.selections.single() as GJField
+            val fooAst = filtered.selectionSet.toAstSelectionSet().selections.single() as GJField
             fooAst.selectionSet.selections.shouldHaveSize(1)
             fooAst.selectionSet.fieldNames().shouldContainExactly("y")
         }
@@ -567,7 +626,7 @@ class QueryPlanFilterTest {
             filtered.variableDefinitions.map { it.name }.shouldContainExactlyInAnyOrder("xArg")
 
             filtered.selectionSet.fieldSelectionSet("foo")!!.fieldResultKeys().shouldContainExactly("x")
-            val fooAst = filtered.astSelectionSet.selections.single() as GJField
+            val fooAst = filtered.selectionSet.toAstSelectionSet().selections.single() as GJField
             fooAst.selectionSet.fieldNames().shouldContainExactly("x")
         }
     }
@@ -667,15 +726,12 @@ class QueryPlanFilterTest {
                 KeyTree.build(viaductSchema) {
                     field("Foo", key("x"))
                 },
-                source = TypedSelectionSet(
-                    selectionSet = fooField.selectionSet!!,
-                    parentType = foo,
-                ),
+                source = fooField.selectionSet!!,
             )
 
             assertEquals(foo, filtered.parentType)
             filtered.selectionSet.fieldResultKeys().shouldContainExactly("x")
-            filtered.astSelectionSet.fieldNames().shouldContainExactly("x")
+            filtered.selectionSet.toAstSelectionSet().fieldNames().shouldContainExactly("x")
         }
     }
 
@@ -703,18 +759,14 @@ class QueryPlanFilterTest {
                         field("Foo", key("x"))
                     }
                 },
-                source = TypedSelectionSet(
-                    selectionSet = collected,
-                    parentType = query,
-                ),
+                source = collected,
             )
 
             val filteredFoo = filtered.selectionSet.selections.single() as QueryPlan.CollectedField
             filteredFoo.selectionSet!!.fieldResultKeys().shouldContainExactly("x")
 
-            val fooAst = filtered.astSelectionSet.selections.single() as GJField
+            val fooAst = filtered.selectionSet.toAstSelectionSet().selections.single() as GJField
             fooAst.selectionSet.fieldNames().shouldContainExactly("x")
-            filteredFoo.mergedField.singleField.selectionSet.fieldNames().shouldContainExactly("x")
         }
     }
 
@@ -735,7 +787,7 @@ class QueryPlanFilterTest {
             )
 
             filtered.selectionSet.fieldSelectionSet("foo").shouldNotBe(null)
-            val fooAst = filtered.astSelectionSet.selections.single() as GJField
+            val fooAst = filtered.selectionSet.toAstSelectionSet().selections.single() as GJField
             fooAst.selectionSet.shouldNotBe(null)
         }
     }
@@ -769,7 +821,7 @@ class QueryPlanFilterTest {
 
         fun QueryPlan.filterTo(
             shape: KeyTree,
-            source: TypedSelectionSet? = null,
+            source: QueryPlan.SelectionSet? = null,
             variables: Map<String, Any?> = emptyMap(),
         ): QueryPlan {
             val context = QueryPlanFilterCtx(

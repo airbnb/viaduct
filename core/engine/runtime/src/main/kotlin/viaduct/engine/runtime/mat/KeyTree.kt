@@ -123,7 +123,13 @@ class KeyTree(
     ): KeyTree = KeyTree(mapOf(type to mapOf(key to this)))
 
     /** Return a [KeyTree] that has been recursively filtered by [filter] */
-    fun filter(filter: KeyTreeFilter): KeyTree = filterInternal(filter, true)
+    fun filter(filter: KeyTreeFilter): KeyTree =
+        when (filter) {
+            // simple optimizations for known filters
+            KeyTreeFilter.KeepAll -> this
+            KeyTreeFilter.DropAll -> empty
+            else -> filterInternal(filter, true)
+        }
 
     private fun filterInternal(
         filter: KeyTreeFilter,
@@ -149,6 +155,19 @@ class KeyTree(
 
     override fun hashCode(): Int = byType.hashCode()
 
+    override fun toString(): String =
+        byType.entries.joinToString(
+            prefix = "KeyTree(",
+            postfix = ")",
+        ) { (type, fields) ->
+            fields.entries.joinToString(
+                prefix = "${type.name}={",
+                postfix = "}",
+            ) { (key, children) ->
+                "$key=$children"
+            }
+        }
+
     companion object {
         /** An empty [KeyTree] */
         val empty: KeyTree = KeyTree(emptyMap())
@@ -163,6 +182,17 @@ class KeyTree(
             return Collections.unmodifiableMap(snapshot)
         }
     }
+}
+
+/** Returns the subtree at [path]. */
+internal fun KeyTree.subtreeAt(path: MatPath): KeyTree {
+    var subtree = this
+    var parentType = path.rootType
+    for (segment in path.segments) {
+        subtree = subtree.subtreeForKey(parentType, segment.key)
+        parentType = segment.type
+    }
+    return subtree
 }
 
 /**

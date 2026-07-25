@@ -28,7 +28,7 @@ class IndexTest {
 
     private fun queryPlan(
         childPlans: List<QueryPlan> = emptyList(),
-        selectionSet: QueryPlan.SelectionSet = QueryPlan.SelectionSet.empty,
+        selectionSet: QueryPlan.SelectionSet = QueryPlan.SelectionSet.empty(parentType),
         fragments: QueryPlan.Fragments = QueryPlan.Fragments.empty,
         baseIndex: QueryPlanIndex = indexOf(childPlans),
         requiredSelectionSetId: viaduct.engine.api.RequiredSelectionSet.Id? = null,
@@ -37,10 +37,8 @@ class IndexTest {
             selectionSet = selectionSet,
             fragments = fragments,
             variablesResolvers = emptyList(),
-            parentType = parentType,
             childPlanIds = childPlans.map { requireNotNull(it.requiredSelectionSetId) },
             baseIndex = baseIndex,
-            astSelectionSet = emptyAst,
             attribution = ExecutionAttribution.DEFAULT,
             executionCondition = ALWAYS_EXECUTE,
             variableDefinitions = emptyList(),
@@ -208,6 +206,7 @@ class IndexTest {
             var evaluatedFieldTypeChildPlans = false
             val rootPlan = queryPlan(
                 selectionSet = QueryPlan.SelectionSet(
+                    parentType,
                     QueryPlan.Field(
                         resultKey = "poly",
                         constraints = Constraints.Unconstrained,
@@ -239,12 +238,14 @@ class IndexTest {
             val fragmentName = "QueryFragment"
             val rootPlan = queryPlan(
                 selectionSet = QueryPlan.SelectionSet(
+                    parentType,
                     QueryPlan.FragmentSpread(fragmentName, Constraints.Unconstrained),
                 ),
                 fragments = QueryPlan.Fragments(
                     mapOf(
                         fragmentName to QueryPlan.FragmentDefinition(
                             QueryPlan.SelectionSet(
+                                parentType,
                                 QueryPlan.Field(
                                     resultKey = "poly",
                                     constraints = Constraints.Unconstrained,
@@ -295,6 +296,7 @@ class IndexTest {
                 childPlans = listOf(materializedChildPlan),
                 baseIndex = indexOf(materializedChildPlan, fieldMaterializedChildPlan),
                 selectionSet = QueryPlan.SelectionSet(
+                    parentType,
                     QueryPlan.Field(
                         resultKey = "poly",
                         constraints = Constraints.Unconstrained,
