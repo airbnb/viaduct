@@ -25,6 +25,7 @@ import viaduct.engine.api.GraphQLBuildError
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
+import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
@@ -421,29 +422,31 @@ private class RecordingFinalizingTenantModuleInjectorFactory : TenantModuleInjec
     }
 }
 
-private fun generatedRegistryConfigSource(value: String): InputStreamSource =
-    InputStreamSource.fromString(
-        """
-        {
-          "version": "1",
-          "tenantName": "generatedregistrytest",
-          "executorFactory": "${GeneratedRegistryTestExecutorFactory::class.java.name}",
-          "nodes": [],
-          "fields": [
+private fun generatedRegistryConfigSource(value: String): ModuleConfigSource =
+    ModuleConfigSource.from(
+        InputStreamSource.fromString(
+            """
             {
-              "typeName": "Query",
-              "fieldName": "generatedRegistryTestField",
-              "isBatching": false,
-              "isSelective": false,
-              "attribution": "generated-registry-test",
-              "tenantAPIData": {
-                "value": "$value"
-              }
+              "version": "1",
+              "tenantName": "generatedregistrytest",
+              "executorFactory": "${GeneratedRegistryTestExecutorFactory::class.java.name}",
+              "nodes": [],
+              "fields": [
+                {
+                  "typeName": "Query",
+                  "fieldName": "generatedRegistryTestField",
+                  "isBatching": false,
+                  "isSelective": false,
+                  "attribution": "generated-registry-test",
+                  "tenantAPIData": {
+                    "value": "$value"
+                  }
+                }
+              ]
             }
-          ]
-        }
-        """.trimIndent(),
-        name = "generated-registry-$value",
+            """.trimIndent(),
+            name = "generated-registry-$value",
+        ),
     )
 
 class GeneratedRegistryTestExecutorFactory(

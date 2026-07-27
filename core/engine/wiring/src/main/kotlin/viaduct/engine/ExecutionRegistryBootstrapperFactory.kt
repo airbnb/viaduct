@@ -2,9 +2,9 @@
 
 package viaduct.engine
 
+import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryTenantAPIBootstrapper
-import viaduct.service.api.spi.InputStreamSource
 import viaduct.service.api.spi.TenantModuleInjectorFactory
 
 /**
@@ -18,12 +18,12 @@ object BootstrapperFactory {
      */
     fun fromConfigSources(
         tenantModuleInjectorFactory: TenantModuleInjectorFactory,
-        executorRegistryConfigSources: List<InputStreamSource>,
+        moduleConfigSources: List<ModuleConfigSource>,
         grtPackagePrefix: String? = null,
     ): TenantAPIBootstrapper =
         ExecutionRegistryTenantAPIBootstrapper(
             tenantModuleInjectorFactory = tenantModuleInjectorFactory,
-            executorRegistryConfigSources = executorRegistryConfigSources,
+            moduleConfigSources = moduleConfigSources,
             grtPackagePrefix = grtPackagePrefix,
         )
 }

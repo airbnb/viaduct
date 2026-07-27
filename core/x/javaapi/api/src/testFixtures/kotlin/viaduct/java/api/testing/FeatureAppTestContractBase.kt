@@ -37,7 +37,7 @@ abstract class FeatureAppTestContractBase : AbstractFeatureAppTestContractBase()
             override fun create() =
                 BootstrapperFactory.fromConfigSources(
                     tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(CodeInjector.Naive),
-                    executorRegistryConfigSources = ExecutionRegistryConfigSourceCollector.fromResources(featureAppPackagePrefix()),
+                    moduleConfigSources = ExecutionRegistryConfigSourceCollector.fromResources(featureAppPackagePrefix()),
                 )
         }
 }

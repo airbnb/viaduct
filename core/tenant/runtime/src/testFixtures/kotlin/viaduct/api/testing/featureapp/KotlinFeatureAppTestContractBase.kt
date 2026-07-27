@@ -78,7 +78,7 @@ abstract class KotlinFeatureAppTestContractBase : AbstractFeatureAppTestContract
             override fun create() =
                 BootstrapperFactory.fromConfigSources(
                     tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(guiceCodeInjector),
-                    executorRegistryConfigSources = ExecutionRegistryConfigSourceCollector.fromResources(derivedClassPackagePrefix),
+                    moduleConfigSources = ExecutionRegistryConfigSourceCollector.fromResources(derivedClassPackagePrefix),
                     grtPackagePrefix = derivedClassPackagePrefix,
                 )
         }

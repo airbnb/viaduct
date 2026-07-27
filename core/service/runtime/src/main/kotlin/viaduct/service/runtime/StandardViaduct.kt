@@ -25,6 +25,7 @@ import viaduct.engine.EngineImpl
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.GraphQLBuildError
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.CoroutineInterop
@@ -46,7 +47,6 @@ import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
-import viaduct.service.api.spi.InputStreamSource
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.TenantModuleInjectorFactory
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
@@ -126,7 +126,7 @@ class StandardViaduct
             private var tenantNameResolver: TenantNameResolver = TenantNameResolver()
             private var tenantAPIBootstrapperBuilders: List<TenantAPIBootstrapperBuilder> = emptyList()
             private var tenantModuleInjectorFactory: TenantModuleInjectorFactory? = null
-            private var executorRegistryConfigSources: List<InputStreamSource>? = null
+            private var executorRegistryConfigSources: List<ModuleConfigSource>? = null
             private var executorRegistryGrtPackagePrefix: String? = null
             private var chainInstrumentationWithDefaults: Boolean = false
             private var defaultQueryNodeResolversEnabled: Boolean = true
@@ -183,7 +183,7 @@ class StandardViaduct
 
             @VisibleForTest
             fun withExecutorRegistryConfigSources(
-                executorRegistryConfigSources: List<InputStreamSource>,
+                executorRegistryConfigSources: List<ModuleConfigSource>,
                 grtPackagePrefix: String? = null,
             ): Builder =
                 apply {

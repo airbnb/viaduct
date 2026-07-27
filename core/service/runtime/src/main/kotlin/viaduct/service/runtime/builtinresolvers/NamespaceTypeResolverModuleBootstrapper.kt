@@ -23,50 +23,62 @@ import viaduct.graphql.utils.DefaultSchemaFactory
  */
 class NamespaceTypeResolverModuleBootstrapper : TenantModuleBootstrapper {
     override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> =
-        buildList {
-            val graphQLSchema = schema.schema
-            val visited = mutableSetOf<String>()
-            walkNamespaceFields(graphQLSchema.queryType, this, visited)
-            graphQLSchema.mutationType?.let { walkNamespaceFields(it, this, visited) }
+        namespaceFieldCoordinates(schema).map { coord ->
+            val parent = schema.schema.getObjectType(coord.first)
+            val baseType = GraphQLTypeUtil.unwrapAll(parent.getFieldDefinition(coord.second).type) as GraphQLObjectType
+            coord to NamespaceTypeFieldResolver(coord.first, coord.second, baseType)
         }
-
-    /**
-     * Starting from [parent], register a synthetic resolver for each field whose type
-     * has `@namespaceType`, then recurse into that namespace type to find further nested ones.
-     * [visited] tracks already-processed type names to guard against cycles.
-     */
-    private fun walkNamespaceFields(
-        parent: GraphQLObjectType,
-        result: MutableList<Pair<Coordinate, FieldResolverExecutor>>,
-        visited: MutableSet<String>
-    ) {
-        for (field in parent.fieldDefinitions) {
-            val baseType = GraphQLTypeUtil.unwrapAll(field.type)
-            if (
-                baseType is GraphQLObjectType &&
-                baseType.hasAppliedDirective(DefaultSchemaFactory.DefaultDirective.NAMESPACE_TYPE.directiveName)
-            ) {
-                check(!GraphQLTypeUtil.isWrapped(field.type)) {
-                    "Field '${parent.name}.${field.name}' has wrapped namespace type ${baseType.name}"
-                }
-                result.add(
-                    Coordinate(parent.name, field.name) to
-                        NamespaceTypeFieldResolver(parent.name, field.name, baseType)
-                )
-                if (visited.add(baseType.name)) {
-                    walkNamespaceFields(baseType, result, visited)
-                }
-            }
-        }
-    }
 
     override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> = emptyList()
 }
 
 /**
+ * Enumerates the coordinates of all fields returning a `@namespaceType` object type, reachable from
+ * the Query and Mutation roots.
+ *
+ * This is the single source of truth for namespace-field discovery, shared by
+ * [NamespaceTypeResolverModuleBootstrapper] (legacy path) and
+ * [NamespaceTypeModuleConfigFactory] (file-based path), so both produce identical coordinates.
+ */
+internal fun namespaceFieldCoordinates(schema: ViaductSchema): List<Coordinate> =
+    buildList {
+        val graphQLSchema = schema.schema
+        val visited = mutableSetOf<String>()
+        walkNamespaceFields(graphQLSchema.queryType, this, visited)
+        graphQLSchema.mutationType?.let { walkNamespaceFields(it, this, visited) }
+    }
+
+/**
+ * Starting from [parent], record the coordinate of each field whose type has `@namespaceType`, then
+ * recurse into that namespace type to find further nested ones. [visited] tracks already-processed
+ * type names to guard against cycles.
+ */
+private fun walkNamespaceFields(
+    parent: GraphQLObjectType,
+    result: MutableList<Coordinate>,
+    visited: MutableSet<String>
+) {
+    for (field in parent.fieldDefinitions) {
+        val baseType = GraphQLTypeUtil.unwrapAll(field.type)
+        if (
+            baseType is GraphQLObjectType &&
+            baseType.hasAppliedDirective(DefaultSchemaFactory.DefaultDirective.NAMESPACE_TYPE.directiveName)
+        ) {
+            check(!GraphQLTypeUtil.isWrapped(field.type)) {
+                "Field '${parent.name}.${field.name}' has wrapped namespace type ${baseType.name}"
+            }
+            result.add(Coordinate(parent.name, field.name))
+            if (visited.add(baseType.name)) {
+                walkNamespaceFields(baseType, result, visited)
+            }
+        }
+    }
+}
+
+/**
  * A synthetic field resolver that returns an empty [ResolvedEngineObjectData] for a namespace type.
  */
-private class NamespaceTypeFieldResolver(
+internal class NamespaceTypeFieldResolver(
     parentTypeName: String,
     fieldName: String,
     private val namespaceType: GraphQLObjectType

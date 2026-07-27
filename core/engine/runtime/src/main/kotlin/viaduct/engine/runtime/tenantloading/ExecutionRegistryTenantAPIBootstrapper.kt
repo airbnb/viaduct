@@ -6,40 +6,43 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
+import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.CodeInjector
-import viaduct.service.api.spi.InputStreamSource
 import viaduct.service.api.spi.TenantModuleInjectorFactory
 import viaduct.utils.slf4j.logger
 
 /**
  * Engine-owned bootstrapper that creates [TenantModuleBootstrapper]s from a pre-collected list
- * of registry JSON [InputStreamSource]s.
+ * of [ModuleConfigSource]s.
  *
- * For each source, deserializes the [ExecutionRegistryConfigFile], instantiates the [ExecutorFactory] FQN
- * via the 2-arg constructor (CodeInjector, ExecutionRegistryConfigFile), and creates executors
- * for each entry in the registry.
+ * Resource discovery and tenant-name resolution happen upstream (in
+ * [ExecutionRegistryConfigSourceCollector]); this class is concerned only with bootstrap
+ * orchestration. For each source, it deserializes the [ExecutionRegistryConfigFile], instantiates
+ * the [ExecutorFactory] FQN via the 2-arg constructor (CodeInjector, ExecutionRegistryConfigFile),
+ * and creates executors for each entry in the registry.
  *
- * The framework calls [tenantModuleInjectorFactory] once per tenant with the tenant name and the
- * bootstrap class from the registry (or null) to obtain a per-tenant [CodeInjector]. Once all
- * tenants have been bootstrapped, the framework calls [TenantModuleInjectorFactory.onBootstrapComplete]
- * before constructing executor factories so stateful implementations can complete cross-tenant setup.
- * Registry reads and executor factory construction are concurrent; bootstrapping is
- * intentionally sequential to keep the [TenantModuleInjectorFactory] contract simple.
+ * The framework calls [tenantModuleInjectorFactory] once per tenant with the tenant name (taken
+ * from the [ModuleConfigSource]) and the bootstrap class from the registry (or null) to obtain a
+ * per-tenant [CodeInjector]. Once all tenants have been bootstrapped, the framework calls
+ * [TenantModuleInjectorFactory.onBootstrapComplete] before constructing executor factories so
+ * stateful implementations can complete cross-tenant setup. Registry reads and executor factory
+ * construction are concurrent; bootstrapping is intentionally sequential to keep the
+ * [TenantModuleInjectorFactory] contract simple.
  *
- * If [executorRegistryConfigSources] is null, registry resources are discovered from
+ * If [moduleConfigSources] is null, registry resources are discovered from
  * `META-INF/viaduct/modules` on the current classpath for compatibility with the original
  * file-based bootstrap path.
  */
 class ExecutionRegistryTenantAPIBootstrapper(
     private val tenantModuleInjectorFactory: TenantModuleInjectorFactory,
-    private val executorRegistryConfigSources: List<InputStreamSource>? = null,
+    private val moduleConfigSources: List<ModuleConfigSource>? = null,
     private val grtPackagePrefix: String? = null,
 ) : TenantAPIBootstrapper {
     override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> {
-        val configSources = executorRegistryConfigSources
+        val configSources = moduleConfigSources
             ?: ExecutionRegistryConfigSourceCollector.fromResources()
 
         if (configSources.isEmpty()) {
@@ -47,13 +50,13 @@ class ExecutionRegistryTenantAPIBootstrapper(
         }
 
         val parsedRegistries = coroutineScope {
-            configSources.map { source ->
+            configSources.map { moduleConfigSource ->
                 async {
-                    val registry = source.openStream().use { objectMapper.readValue<ExecutionRegistryConfigFile>(it) }
+                    val registry = moduleConfigSource.source.openStream()
+                        .use { objectMapper.readValue<ExecutionRegistryConfigFile>(it) }
                     ParsedRegistry(
                         registry = registry,
-                        tenantName = registry.tenantName
-                            ?: throw IllegalArgumentException("Execution registry config source must include tenantName: $source"),
+                        tenantName = moduleConfigSource.tenantName,
                         bootstrapClass = registry.bootstrapClass?.let { Class.forName(it) },
                     )
                 }

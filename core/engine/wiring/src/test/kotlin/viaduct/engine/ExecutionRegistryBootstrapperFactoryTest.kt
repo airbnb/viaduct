@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
+import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -24,7 +25,7 @@ class ExecutionRegistryBootstrapperFactoryTest {
         runTest {
             val bootstrapper = BootstrapperFactory.fromConfigSources(
                 tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
-                executorRegistryConfigSources = ExecutionRegistryConfigSourceCollector.fromResources(),
+                moduleConfigSources = ExecutionRegistryConfigSourceCollector.fromResources(),
             )
             val count = bootstrapper.tenantModuleBootstrappers().toList().size
             assert(count >= 3) { "Expected at least 3 bootstrappers (alpha, beta, gamma), got $count" }
@@ -35,7 +36,7 @@ class ExecutionRegistryBootstrapperFactoryTest {
         runTest {
             val bootstrapper = BootstrapperFactory.fromConfigSources(
                 tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
-                executorRegistryConfigSources = ExecutionRegistryConfigSourceCollector.fromResources("com.example"),
+                moduleConfigSources = ExecutionRegistryConfigSourceCollector.fromResources("com.example"),
             )
             assertEquals(2, bootstrapper.tenantModuleBootstrappers().toList().size)
         }
@@ -45,7 +46,7 @@ class ExecutionRegistryBootstrapperFactoryTest {
         runTest {
             val bootstrapper = BootstrapperFactory.fromConfigSources(
                 tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
-                executorRegistryConfigSources = ExecutionRegistryConfigSourceCollector.fromResources("com.example.alpha"),
+                moduleConfigSources = ExecutionRegistryConfigSourceCollector.fromResources("com.example.alpha"),
             )
             assertEquals(1, bootstrapper.tenantModuleBootstrappers().toList().size)
         }
@@ -55,7 +56,7 @@ class ExecutionRegistryBootstrapperFactoryTest {
         runTest {
             val bootstrapper = BootstrapperFactory.fromConfigSources(
                 tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
-                executorRegistryConfigSources = ExecutionRegistryConfigSourceCollector.fromResources("com.nomatch"),
+                moduleConfigSources = ExecutionRegistryConfigSourceCollector.fromResources("com.nomatch"),
             )
             assertEquals(0, bootstrapper.tenantModuleBootstrappers().toList().size)
         }
@@ -65,18 +66,20 @@ class ExecutionRegistryBootstrapperFactoryTest {
         runTest {
             val bootstrapper = BootstrapperFactory.fromConfigSources(
                 tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(injector),
-                executorRegistryConfigSources = listOf(
-                    InputStreamSource.fromString(
-                        """
-                            {
-                              "version": "1",
-                              "tenantName": "inline",
-                              "executorFactory": "viaduct.engine.WiringTestExecutorFactory",
-                              "nodes": [],
-                              "fields": []
-                            }
-                        """.trimIndent(),
-                        name = "com.example.inline",
+                moduleConfigSources = listOf(
+                    ModuleConfigSource.from(
+                        InputStreamSource.fromString(
+                            """
+                                {
+                                  "version": "1",
+                                  "tenantName": "inline",
+                                  "executorFactory": "viaduct.engine.WiringTestExecutorFactory",
+                                  "nodes": [],
+                                  "fields": []
+                                }
+                            """.trimIndent(),
+                            name = "com.example.inline",
+                        ),
                     ),
                 ),
             )
@@ -95,7 +98,7 @@ class ExecutionRegistryBootstrapperFactoryTest {
 
             val bootstrapper = BootstrapperFactory.fromConfigSources(
                 tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(customInjector),
-                executorRegistryConfigSources = ExecutionRegistryConfigSourceCollector.fromResources("com.example.alpha"),
+                moduleConfigSources = ExecutionRegistryConfigSourceCollector.fromResources("com.example.alpha"),
             )
 
             bootstrapper.tenantModuleBootstrappers()

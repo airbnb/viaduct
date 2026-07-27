@@ -1,17 +1,14 @@
 package viaduct.engine.runtime.tenantloading
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 
 class ExecutionRegistryConfigSourceCollectorTest {
     @Test
-    fun `fromResources returns matching registry config sources`() {
+    fun `fromResources returns matching module config sources`() {
         val tenantNames = ExecutionRegistryConfigSourceCollector.fromResources("com.example")
-            .map { source -> source.openStream().use { objectMapper.readValue<ExecutionRegistryConfigFile>(it).tenantName } }
+            .map { it.tenantName }
             .toSet()
 
         assertEquals(
@@ -25,9 +22,8 @@ class ExecutionRegistryConfigSourceCollectorTest {
     }
 
     @Test
-    fun `fromResources without prefix returns registry config sources`() {
-        val tenantNames = ExecutionRegistryConfigSourceCollector.fromResources()
-            .mapNotNull { source -> source.openStream().use { objectMapper.readValue<ExecutionRegistryConfigFile>(it).tenantName } }
+    fun `fromResources without prefix returns module config sources`() {
+        val tenantNames = ExecutionRegistryConfigSourceCollector.fromResources().map { it.tenantName }
 
         assertTrue("test" in tenantNames)
     }
@@ -35,9 +31,5 @@ class ExecutionRegistryConfigSourceCollectorTest {
     @Test
     fun `fromResources returns empty list for unmatched prefix`() {
         assertEquals(emptyList<String>(), ExecutionRegistryConfigSourceCollector.fromResources("com.nomatch"))
-    }
-
-    companion object {
-        private val objectMapper = jacksonObjectMapper()
     }
 }
