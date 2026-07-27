@@ -70,3 +70,8 @@ fun ViaductSchema.toTypeExpr(
     val baseNullable = (wrappers.last() == '?')
     return ViaductSchema.TypeExpr(baseTypeDef, baseNullable, listNullable)
 }
+
+/** True iff this type definition is or transitively implements the `Node` interface. */
+val ViaductSchema.TypeDef.isNode: Boolean
+    get() = (name == "Node" && this is ViaductSchema.Interface) ||
+        (this is ViaductSchema.OutputRecord && supers.any { it.isNode })

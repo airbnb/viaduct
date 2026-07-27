@@ -1,6 +1,7 @@
 package viaduct.graphql.schema.validation.rules
 
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.isNode
 import viaduct.graphql.schema.validation.SchemaLocation
 import viaduct.graphql.schema.validation.ValidationContext
 import viaduct.graphql.schema.validation.ValidationErrorCodes
@@ -53,7 +54,7 @@ class IdOfTypeValidationRule : ValidationRule(
                 message = "@idOf(type: \"$typeName\") references undefined type `$typeName`",
                 location = location
             )
-        } else if (!isNode(typeDef)) {
+        } else if (!typeDef.isNode) {
             ctx.reportError(
                 code = ValidationErrorCodes.ID_OF_TYPE_NOT_NODE,
                 message = "@idOf(type: \"$typeName\") references non-Node type `$typeName`",
@@ -64,14 +65,5 @@ class IdOfTypeValidationRule : ValidationRule(
 
     companion object {
         private const val ID_OF_DIRECTIVE = "idOf"
-
-        /**
-         * Checks whether the given type definition implements the Node interface.
-         * Inlined here because the canonical `isNode` extension lives in tenant/codegen
-         * which this module cannot depend on.
-         */
-        private fun isNode(typeDef: ViaductSchema.TypeDef): Boolean =
-            (typeDef.name == "Node" && typeDef is ViaductSchema.Interface) ||
-                (typeDef is ViaductSchema.OutputRecord && typeDef.supers.any { isNode(it) })
     }
 }

@@ -26,6 +26,7 @@ import viaduct.graphql.schema.validation.SchemaValidator
  * - [CrossModuleExtensionFieldsResolverRule]: Fields added by cross-module extend type must have @resolver
  * - [NoResolverOnInterfaceFieldsRule]: Interface fields cannot declare @resolver
  * - [PageInfoLocationRule]: PageInfo must not be defined inside a module partition
+ * - [NodeInterfaceIdConsistencyRule]: Interfaces with an id field implemented alongside Node must implement Node
  *
  * When [strictMode] is true, also enforces [StrictConnectionPageInfoRule]: PageInfo must not implement
  * interfaces or be a union member.
@@ -55,6 +56,7 @@ class DefaultSchemaValidator(strictMode: Boolean = false) {
                 add(CrossModuleExtensionFieldsResolverRule(modulePartitionPathPrefix))
                 add(NoResolverOnInterfaceFieldsRule())
                 add(PageInfoLocationRule(modulePartitionPathPrefix))
+                add(NodeInterfaceIdConsistencyRule())
             }
         )
     )

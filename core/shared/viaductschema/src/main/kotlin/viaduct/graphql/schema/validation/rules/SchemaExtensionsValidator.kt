@@ -35,6 +35,7 @@ object SchemaExtensionsValidator {
                 ConnectionArgumentsNullabilityRule(),
                 StructuralDirectivesOnBaseTypeRule(),
                 NoResolverOnInterfaceFieldsRule(),
+                NodeInterfaceIdConsistencyRule(),
             )
         )
     )

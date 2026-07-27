@@ -3,6 +3,7 @@ package viaduct.graphql.schema.validation.rules
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
@@ -79,5 +80,23 @@ class SchemaExtensionsValidatorTest {
         val errors = SchemaExtensionsValidator.validate(schema)
 
         errors.shouldBeEmpty()
+    }
+
+    @Test
+    fun `NodeInterfaceIdConsistencyRule is applied in extensions mode`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            interface Node { id: ID! }
+            interface Foo { id: ID! }
+            type A implements Foo { id: ID! }
+            extend type A implements Node
+            type Query { placeholder: String }
+            """.trimIndent()
+        )
+
+        val errors = SchemaExtensionsValidator.validate(schema)
+
+        errors shouldHaveSize 1
+        errors[0].code shouldBe ValidationErrorCodes.NODE_INTERFACE_ID_INCONSISTENT
     }
 }
