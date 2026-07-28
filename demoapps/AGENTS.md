@@ -1,20 +1,12 @@
 This directory contains a number of end-to-end examples of services that embed Viaduct, with `starwars/` in particular being the most complete such example (using almost every feature of Viaduct).  These demo applications serve two purposes: they serve as illustrative to help newcommers to Viaduct (including agents) to better understand how Viaduct applications work, and they serve as important integration tests, not just for the Viaduct runtime but for it's build- and publishing tooling as well.
 
-In this role as integration tests, the demoapps can be run of two ways.  The simplest is to run them as included builds.  To do this, from the top-level Viaduct OSS directory, simply run:
-```shell
-./gradlew :ktor-starter
-```
-for the `ktor` starter app or
-```shell
-./gradlew :starwars
-```
-for the starwars app, and so forth.
+In this role as integration tests, the demoapps are run standalone against an isolated Maven local repository.  This is the canonical, repo-driven way to test a demoapp: it is a true end-to-end test of Viaduct, confirming that applications **outside** of the Viaduct monorepo can consume our published artifacts and build successfully using them.  It is also what CI runs, via the root `demoappsStandaloneTest` Gradle task (which `check` depends on).
 
-We also often run the demoapps using the Maven local cache, which is a true end-to-end test of Viaduct: confirming that applications **outside** of the Viaduct monorepo can consume our published artifacts and build successfully using them.  When performing these tests, we do **not** use the default Maven local cache location (`~/.m2`), for two reasons: (1) we often run multiple agents on the same host, and we want to make sure they don't interfere with each other, and (2) we have often been tricked by stale cache results into thinking a test passed when it fact something (typically in the publication chain) is broken.
+When performing these tests, we do **not** use the default Maven local cache location (`~/.m2`), for two reasons: (1) we often run multiple agents on the same host, and we want to make sure they don't interfere with each other, and (2) we have often been tricked by stale cache results into thinking a test passed when it fact something (typically in the publication chain) is broken.
 
 Thus, we use the `maven.repo.local` flag to create a fresh cache for each end-to-end test run.  In particular, we use directories named `/tmp/mlc/m2-blah/` for this purpose, where "blah" is actually a **random**, four-character identifier drawn from the characters `[0-9a-z]`.  This random identifier is important to avoid conflicts.
 
-## Running isolated Maven-local tests
+## Running isolated Maven-local tests (primary path)
 
 ### Step 1: Create a fresh, isolated local repository
 
@@ -103,6 +95,21 @@ Caused by: java.lang.ClassNotFoundException: com.github.ajalt.clikt.core.CliktCo
 ```
 
 The last `Caused by` line is the actual root cause.
+
+## Running as included builds (secondary, source-substitution mode)
+
+The demoapps also participate in the root composite build as included builds, which is useful for quick local iteration since it substitutes Viaduct source directly, skipping the publish step. From the top-level Viaduct OSS directory:
+
+```shell
+./gradlew :ktor-starter
+```
+for the `ktor` starter app or
+```shell
+./gradlew :starwars
+```
+for the starwars app, and so forth.
+
+This mode does **not** exercise the published-artifact path, so it can pass even when publication is broken. It is not the canonical demoapp test and is not what CI or root `check` runs — use it only for fast local iteration, and confirm with the isolated Maven-local workflow above before treating a change as verified.
 
 # Demo Applications
 
