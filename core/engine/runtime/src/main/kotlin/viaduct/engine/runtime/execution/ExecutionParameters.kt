@@ -138,6 +138,9 @@ sealed interface ExecutionOrigin {
  * @property field Field currently being executed, if any
  * @property bypassChecksDuringCompletion If execution is in the context of an access check
  * @property resolutionPolicy The resolution policy to use for this execution step
+ * @property matBatchDepth The number of field Mat re-runs leading to this execution. Each re-run
+ *   increments the depth so it uses a separate batch from the call waiting for it. Mats started
+ *   together keep the same depth and can still share a batch.
  */
 data class ExecutionParameters(
     @Suppress("ConstructorParameterNaming")
@@ -158,6 +161,7 @@ data class ExecutionParameters(
     val bypassChecksDuringCompletion: Boolean = false,
     val resolutionPolicy: ResolutionPolicy = ResolutionPolicy.STANDARD,
     val attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
+    val matBatchDepth: Int = 0,
 ) : EngineExecutionContext.ExecutionHandle {
     // Each ExecutionParameters gets its own EEC copy to prevent cross-contamination
     // between different execution contexts (e.g., parent vs child field resolution).
@@ -166,7 +170,8 @@ data class ExecutionParameters(
     // the correct handle.
     init {
         _engineExecutionContext = _engineExecutionContext.copy(
-            fieldScopeSupplier = fieldExecutionScopeSupplier()
+            fieldScopeSupplier = fieldExecutionScopeSupplier(),
+            matBatchDepth = matBatchDepth,
         )
         _engineExecutionContext.setExecutionHandle(this)
     }

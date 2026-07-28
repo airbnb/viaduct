@@ -179,7 +179,7 @@ class ViaductExecutionStrategy internal constructor(
     }
 
     private val fieldCompleter = FieldCompleter(dataFetcherExceptionHandler, airbnbBypassPolicyCheckDuringCompletion)
-    private val fieldResolver = FieldResolver(accessCheckRunner)
+    private val fieldResolver = FieldResolver(accessCheckRunner, coroutineInterop)
 
     /**
      * Executes a GraphQL operation according to the GraphQL specification §6.2.

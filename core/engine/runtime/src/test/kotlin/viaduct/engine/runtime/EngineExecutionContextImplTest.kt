@@ -35,16 +35,11 @@ class EngineExecutionContextImplTest {
     }
 
     @Test
-    fun `field selectivity provider contributes to resolver selectivity when selective OER keys are enabled`() {
-        val enabledContext =
-            engineExecutionContext(
-                flagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_SELECTIVE_OER_KEYS)
-            )
-        val disabledContext = engineExecutionContext(flagManager = MockFlagManager.Disabled)
+    fun `field selectivity provider determines resolver selectivity`() {
+        val context = engineExecutionContext(flagManager = MockFlagManager.Disabled)
 
-        assertTrue(enabledContext.isResolverSelective(selectiveCoordinate))
-        assertFalse(enabledContext.isResolverSelective(otherCoordinate))
-        assertFalse(disabledContext.isResolverSelective(selectiveCoordinate))
+        assertTrue(context.isResolverSelective(selectiveCoordinate))
+        assertFalse(context.isResolverSelective(otherCoordinate))
     }
 
     @Test

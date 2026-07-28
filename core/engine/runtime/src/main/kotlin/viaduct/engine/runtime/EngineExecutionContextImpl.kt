@@ -50,16 +50,8 @@ class EngineExecutionContextFactory(
         scopedSchema: ViaductSchema,
         requestContext: Any?
     ): EngineExecutionContext {
-        val selectiveOERKeysEnabled = flagManager.isEnabled(FlagManager.Flags.ENABLE_SELECTIVE_OER_KEYS)
         val matResolutionEnabled = flagManager.isEnabled(FlagManager.Flags.ENABLE_MAT_RESOLUTION)
-        val isResolverSelective =
-            if (selectiveOERKeysEnabled) {
-                IsResolverSelective
-                    .fromRegistry(dispatcherRegistry, selectiveOERKeysEnabled)
-                    .or(fieldSelectivity)
-            } else {
-                IsResolverSelective.Never
-            }
+        val isResolverSelective = fieldSelectivity
 
         return EngineExecutionContextImpl(
             fullSchema,
@@ -68,9 +60,9 @@ class EngineExecutionContextFactory(
             engineSelectionSetFactory,
             dispatcherRegistry,
             resolverInstrumentation,
-            ConcurrentHashMap<String, FieldDataLoader>(),
+            ConcurrentHashMap<FieldDataLoaderKey, FieldDataLoader>(),
             ConcurrentHashMap<String, NodeDataLoader>(),
-            selectiveOERKeysEnabled,
+            selectiveOERKeysEnabled = false,
             flagManager.isEnabled(FlagManager.Flags.KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING),
             matResolutionEnabled,
             engine,
@@ -103,14 +95,14 @@ class EngineExecutionContextFactory(
  * @see EngineExecutionContextFactory for creation
  * @see EngineExecutionContextExtensions for extension functions
  */
-class EngineExecutionContextImpl(
+class EngineExecutionContextImpl internal constructor(
     override val fullSchema: ViaductSchema,
     override val scopedSchema: ViaductSchema,
     override val requestContext: Any?,
     override val engineSelectionSetFactory: EngineSelectionSet.Factory,
     val dispatcherRegistry: DispatcherRegistry,
     val resolverInstrumentation: Instrumentation,
-    internal val fieldDataLoaders: ConcurrentHashMap<String, FieldDataLoader>,
+    internal val fieldDataLoaders: ConcurrentHashMap<FieldDataLoaderKey, FieldDataLoader>,
     internal val nodeDataLoaders: ConcurrentHashMap<String, NodeDataLoader>,
     val selectiveOERKeysEnabled: Boolean,
     val fieldRssOriginFilteringKillSwitchEnabled: Boolean,
@@ -123,6 +115,7 @@ class EngineExecutionContextImpl(
     override val activeSchema: ViaductSchema = fullSchema,
     internal val fieldScopeSupplier: Supplier<out EngineExecutionContext.FieldExecutionScope> = FpKit.intraThreadMemoize { FieldExecutionScopeImpl() },
     executionHandle: EngineExecutionContext.ExecutionHandle? = null,
+    internal val matBatchDepth: Int = 0,
 ) : InternalEngineExecutionContext {
     public override val impl: EngineExecutionContextImpl get() = this
 
@@ -263,7 +256,7 @@ class EngineExecutionContextImpl(
      * lifecycle as the [EngineExecutionContext].
      */
     internal fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader =
-        fieldDataLoaders.computeIfAbsent(resolver.resolverId) {
+        fieldDataLoaders.computeIfAbsent(FieldDataLoaderKey(resolver.resolverId, matBatchDepth)) {
             FieldDataLoader(resolver)
         }
 
@@ -301,6 +294,7 @@ class EngineExecutionContextImpl(
         selectiveOERKeysEnabled: Boolean = this.selectiveOERKeysEnabled,
         fieldRssOriginFilteringKillSwitchEnabled: Boolean = this.fieldRssOriginFilteringKillSwitchEnabled,
         matResolutionEnabled: Boolean = this.matResolutionEnabled,
+        matBatchDepth: Int? = null,
     ): EngineExecutionContextImpl {
         return EngineExecutionContextImpl(
             fullSchema = this.fullSchema,
@@ -322,6 +316,17 @@ class EngineExecutionContextImpl(
             dataFetchingEnvironment = dataFetchingEnvironment,
             fieldScopeSupplier = fieldScopeSupplier,
             executionHandle = this._executionHandle,
+            matBatchDepth = matBatchDepth ?: this.matBatchDepth,
         )
     }
 }
+
+/**
+ * Identifies the field loader for one resolver and Mat depth within a request.
+ *
+ * Including the depth keeps a Mat re-run in a separate batch from the call waiting for it.
+ */
+internal data class FieldDataLoaderKey(
+    val resolverId: String,
+    val matBatchDepth: Int,
+)

@@ -4,10 +4,6 @@ package viaduct.engine.runtime.execution
 
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
-import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.future.await
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -28,7 +24,6 @@ import viaduct.arbitrary.graphql.viaduct
 import viaduct.arbitrary.graphql.viaductExecutionInput
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.mocks.EngineTestModule
-import viaduct.engine.api.mocks.FeatureTest
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
@@ -36,7 +31,6 @@ import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.service.api.ExecutionInput
-import viaduct.service.api.ExecutionResult
 import viaduct.service.api.Viaduct
 
 class SelectiveResolversExecutionTest {
@@ -427,48 +421,6 @@ class SelectiveResolversExecutionTest {
                 """.trimIndent()
             ).assertJson("{data: {b: 2}}")
         }
-    }
-}
-
-private fun Viaduct.runQueryWithTimeout(
-    input: ExecutionInput,
-    timeout: kotlin.time.Duration = 2.seconds
-): ExecutionResult {
-    return runBlocking {
-        withTimeout(timeout) {
-            executeAsync(input).await()
-        }
-    }
-}
-
-private fun FeatureTest.runQueryWithTimeout(
-    query: String,
-    variables: Map<String, Any?> = emptyMap(),
-    timeout: kotlin.time.Duration = 2.seconds
-): graphql.ExecutionResult {
-    val input = viaduct.engine.api.ExecutionInput(
-        operationText = query,
-        variables = variables,
-        requestContext = Any(),
-    )
-
-    return runBlocking {
-        withTimeout(timeout) {
-            DefaultCoroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
-                engine.execute(input)
-            }.await()
-        }
-    }
-}
-
-object ViaductAndInputComparator : Comparator<Pair<Viaduct, ExecutionInput>> {
-    override fun compare(
-        o1: Pair<Viaduct, ExecutionInput>,
-        o2: Pair<Viaduct, ExecutionInput>
-    ): Int {
-        val len1 = o1.first.dump().length + o1.second.operationText.length
-        val len2 = o2.first.dump().length + o2.second.operationText.length
-        return len1.compareTo(len2)
     }
 }
 

@@ -491,7 +491,7 @@ class AccessCheckRunnerTest {
                 mockk<Job>(relaxed = true)
             }
         }
-        val fieldResolver = FieldResolver(runner)
+        val fieldResolver = FieldResolver(runner, DefaultCoroutineInterop)
 
         val result = runner.typeCheck(
             params,

@@ -107,7 +107,7 @@ class EngineImpl(
 
     private val accessCheckRunner = AccessCheckRunner(coroutineInterop)
 
-    private val fieldResolver = FieldResolver(accessCheckRunner)
+    private val fieldResolver = FieldResolver(accessCheckRunner, coroutineInterop)
 
     private val fieldCompleter = FieldCompleter(dataFetcherExceptionHandler, airbnbBypassPolicyCheckDuringCompletion)
 

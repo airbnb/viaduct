@@ -98,6 +98,8 @@ internal data class MatParameters(
                     queryPlan = parameters.queryPlan,
                     queryPlanIndex = parameters.queryPlanIndex,
                     selectionSet = selectionSet,
+                    // Rebuilding the parent path does not start another Mat, so keep the current depth.
+                    matBatchDepth = terminalParameters.matBatchDepth,
                 )
             }
 

@@ -1375,7 +1375,7 @@ class RequiredSelectionsTest {
         }
 
         assertEquals(1, checkerCount.get())
-        assertEquals(4, detailsCount.get())
+        assertEquals(2, detailsCount.get())
         assertEquals(setOf("a", "b"), detailsSelections)
     }
 
@@ -1448,7 +1448,7 @@ class RequiredSelectionsTest {
         }
 
         assertEquals(1, checkerCount.get())
-        assertEquals(3, detailsCount.get())
+        assertEquals(2, detailsCount.get())
         assertEquals(setOf("a", "b"), detailsSelections)
     }
 
@@ -1843,7 +1843,7 @@ class RequiredSelectionsTest {
             )
         }
 
-        assertEquals(2, middleCount.get())
+        assertEquals(1, middleCount.get())
         assertEquals(2, nodeCount.get())
     }
 

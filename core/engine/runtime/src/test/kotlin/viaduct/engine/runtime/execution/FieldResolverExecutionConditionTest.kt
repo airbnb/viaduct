@@ -83,7 +83,10 @@ class FieldResolverExecutionConditionTest {
         every { parameters.executionStepInfo } returns executionStepInfo
 
         val exception = assertThrows<IllegalStateException> {
-            FieldResolver(AccessCheckRunner(DefaultCoroutineInterop)).resolveField(parameters, collectedField)
+            FieldResolver(
+                AccessCheckRunner(DefaultCoroutineInterop),
+                DefaultCoroutineInterop,
+            ).resolveField(parameters, collectedField)
         }
 
         assertTrue(exception.message!!.contains("OtherNode"))

@@ -71,11 +71,13 @@ object EngineExecutionContextExtensions {
         activeSchema: ViaductSchema = this.activeSchema,
         fieldScopeSupplier: Supplier<out EngineExecutionContext.FieldExecutionScope> = asImpl().fieldScopeSupplier,
         dataFetchingEnvironment: DataFetchingEnvironment? = asImpl().dataFetchingEnvironment,
+        matBatchDepth: Int? = null,
     ): EngineExecutionContextImpl {
         return asImpl().copy(
             activeSchema = activeSchema,
             fieldScopeSupplier = fieldScopeSupplier,
             dataFetchingEnvironment = dataFetchingEnvironment,
+            matBatchDepth = matBatchDepth,
         )
     }
 

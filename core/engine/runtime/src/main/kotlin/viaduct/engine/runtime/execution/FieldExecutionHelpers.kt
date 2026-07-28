@@ -16,7 +16,9 @@ import graphql.execution.ResultPath
 import graphql.execution.ValuesResolver
 import graphql.execution.directives.QueryDirectivesImpl
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
+import graphql.language.InlineFragment as GJInlineFragment
 import graphql.language.SelectionSet as GJSelectionSet
+import graphql.language.TypeName as GJTypeName
 import graphql.language.VariableDefinition
 import graphql.normalized.ExecutableNormalizedField
 import graphql.schema.DataFetcher
@@ -84,17 +86,13 @@ object FieldExecutionHelpers {
         return (objectType.name to fieldName).gj
     }
 
-    /** Builds the data fetcher and instrumentation parameters for [field]. */
-    internal fun buildFieldDataFetcher(
+    /** Prepares a selected data fetcher and its instrumentation parameters. */
+    internal fun prepareFieldDataFetcher(
         parameters: ExecutionParameters,
-        field: QueryPlan.CollectedField,
         dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
+        dataFetcher: DataFetcher<*>,
     ): FieldDataFetcher {
         val fieldDefinition = parameters.executionStepInfo.fieldDefinition
-        val dataFetcher = parameters.graphQLSchema.codeRegistry.getDataFetcher(
-            coordinateOfField(parameters, field),
-            fieldDefinition,
-        )
         return FieldDataFetcher(
             fieldDefinition = fieldDefinition,
             dataFetcher = dataFetcher,
@@ -193,6 +191,104 @@ object FieldExecutionHelpers {
             is StandardResolutionValue -> UnwrappedResolutionValue(data.value, ResolutionPolicy.STANDARD)
             else -> UnwrappedResolutionValue(data, resolutionPolicy)
         }
+
+    /**
+     * Returns a copy of [originalField] for rerunning its resolver with [selectionSet].
+     *
+     * The original field still contains the child selections from its first run. A materialization
+     * may request different child fields, so this updates both stored forms of those selections
+     * while keeping the field's name, arguments, directives, and other details.
+     */
+    internal fun withMaterializationSelectionSet(
+        originalField: QueryPlan.CollectedField,
+        originalParameters: ExecutionParameters,
+        selectionSet: QueryPlan.SelectionSet,
+    ): QueryPlan.CollectedField =
+        originalField.copy(
+            selectionSet = selectionSet,
+            mergedField =
+                originalField.mergedField.withSelectionSet(
+                    materializationSelectionSet(originalParameters, selectionSet)
+                ),
+        )
+
+    private fun materializationSelectionSet(
+        originalParameters: ExecutionParameters,
+        selectionSet: QueryPlan.SelectionSet,
+    ): GJSelectionSet {
+        val renderedSelectionSet = selectionSet.toAstSelectionSet()
+        val fieldType = GraphQLTypeUtil.unwrapAll(originalParameters.executionStepInfo.fieldDefinition.type)
+        return if (fieldType is GraphQLObjectType) {
+            renderedSelectionSet
+        } else {
+            GJSelectionSet
+                .newSelectionSet()
+                .selection(
+                    GJInlineFragment
+                        .newInlineFragment()
+                        .typeCondition(GJTypeName(selectionSet.parentType.name))
+                        .selectionSet(renderedSelectionSet)
+                        .build()
+                ).build()
+        }
+    }
+
+    internal fun toMaterializedObjectData(
+        parameters: ExecutionParameters,
+        data: Any?,
+        memberIndices: List<Int> = emptyList(),
+    ): EngineObjectData? =
+        when (
+            val effectiveData =
+                memberSource(
+                    unwrapResolutionValue(data, ResolutionPolicy.STANDARD).value,
+                    memberIndices,
+                    parameters,
+                )
+        ) {
+            null -> null
+            is EngineObjectData -> effectiveData
+            else ->
+                throw materializationException(
+                    "materialization for ${parameters.fieldCoordinate()} returned " +
+                        "${effectiveData::class.simpleName} instead of EngineObjectData",
+                    parameters,
+                )
+        }
+
+    private fun memberSource(
+        source: Any?,
+        memberIndices: List<Int>,
+        parameters: ExecutionParameters,
+    ): Any? {
+        var current = source
+        for (index in memberIndices) {
+            if (current == null) return null
+            val values =
+                when (current) {
+                    is List<*> -> current
+                    is Iterable<*> -> current.toList()
+                    else -> throw materializationException(
+                        "materialization for ${parameters.fieldCoordinate()} returned " +
+                            "${current::class.simpleName} instead of Iterable",
+                        parameters,
+                    )
+                }
+            if (index >= values.size) {
+                throw materializationException(
+                    "materialization for ${parameters.fieldCoordinate()} returned " +
+                        "${values.size} items, expected index $index",
+                    parameters,
+                )
+            }
+            val item = toFetchedValueOrThrow(parameters, values[index])
+            parameters.errorAccumulator.addAll(item.errors)
+            current = item.fetchedValue
+        }
+        return current
+    }
+
+    private fun ExecutionParameters.fieldCoordinate(): String = "${executionStepInfo.objectType.name}.${executionStepInfo.fieldDefinition.name}"
 
     /**
      * Builds the key for the [ObjectEngineResultImpl] for a given field.
