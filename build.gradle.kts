@@ -106,6 +106,9 @@ val demoappsStandaloneTest by tasks.registering {
         // maven.repo.local alone only isolates published artifacts. (No --project-cache-dir here:
         // the root gradlew wrapper already injects one, and Gradle rejects a duplicate.)
         val publishGradleHome = File(runRoot, "gradle-home-publish").apply { mkdirs() }
+        // Override the wrapper's shared -Dviaduct.distDir so this nested build's output
+        // can't collide with the outer invocation's build/ dirs.
+        val publishDistDir = File(runRoot, "dist-publish").apply { mkdirs() }
         try {
             // clean must run as its own invocation, separate from publish: combining them in one
             // Gradle call causes race conditions where clean removes outputs needed by later
@@ -116,6 +119,7 @@ val demoappsStandaloneTest by tasks.registering {
                 commandLine(
                     "./gradlew", "clean",
                     "--gradle-user-home", publishGradleHome.absolutePath,
+                    "-Dviaduct.distDir=${publishDistDir.absolutePath}",
                     "--no-build-cache", "--no-daemon"
                 )
             }
@@ -126,6 +130,7 @@ val demoappsStandaloneTest by tasks.registering {
                     "./gradlew", "publishToMavenLocal", "-PpublishMinimal", "-PexcludeDemoApps",
                     "-Dmaven.repo.local=${mavenLocalRepo.absolutePath}",
                     "--gradle-user-home", publishGradleHome.absolutePath,
+                    "-Dviaduct.distDir=${publishDistDir.absolutePath}",
                     "--no-build-cache", "--no-daemon"
                 )
             }
@@ -181,4 +186,8 @@ fun Project.copyDemoappSources(
         source.copyTo(target)
         target.setExecutable(source.canExecute())
     }
+}
+
+tasks.named("check") {
+    dependsOn(demoappsStandaloneTest)
 }
