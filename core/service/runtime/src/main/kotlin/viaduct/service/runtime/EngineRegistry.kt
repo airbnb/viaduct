@@ -55,6 +55,8 @@ class EngineRegistry private constructor(
 
     companion object {
         private val log by logger()
+
+        private object InternalFullSchemaId : SchemaId("INTERNAL_FULL_SCHEMA")
     }
 
     class Factory
@@ -292,7 +294,7 @@ class EngineRegistry private constructor(
     }
 
     private fun createFullSchemaEngine(): Engine {
-        val documentProvider = documentProviderFactory.create(SchemaId.Base, fullSchema)
+        val documentProvider = documentProviderFactory.create(InternalFullSchemaId, fullSchema)
         return engineFactory.create(fullSchema, documentProvider, fullSchema)
     }
 }

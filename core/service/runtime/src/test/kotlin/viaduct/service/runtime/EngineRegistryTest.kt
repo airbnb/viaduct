@@ -351,6 +351,27 @@ class EngineRegistryTest {
         assertTrue(fullResult.errors.isEmpty(), fullResult.errors.toString())
     }
 
+    @Test
+    fun `getFullSchemaEngine - uses a distinct document provider schema ID`() {
+        val providersBySchemaId = mutableMapOf<SchemaId, NoOpPreparsedDocumentProvider>()
+        val documentProviderFactory = DocumentProviderFactory { schemaId, _ ->
+            providersBySchemaId.getOrPut(schemaId) { NoOpPreparsedDocumentProvider() }
+        }
+        val registry = EngineRegistry.Factory(
+            createSchemaFactory(),
+            documentProviderFactory,
+        ).create(SchemaConfiguration.fromSdl(SIMPLE_SDL))
+        registry.setEngineFactory(createEngineFactory())
+
+        registry.getEngine(SchemaId.Base)
+        registry.getFullSchemaEngine()
+
+        assertEquals(2, providersBySchemaId.size)
+        val baseProvider = providersBySchemaId.getValue(SchemaId.Base)
+        val fullSchemaProvider = providersBySchemaId.entries.single { it.key != SchemaId.Base }.value
+        assertNotSame(baseProvider, fullSchemaProvider)
+    }
+
     private fun executionInputFor(
         query: String,
         engine: EngineImpl
