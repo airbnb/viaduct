@@ -1,7 +1,6 @@
 package viaduct.graphql.scopes
 
 import graphql.Directives
-import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLNamedSchemaElement
 import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLSchemaElement
@@ -11,6 +10,7 @@ import viaduct.graphql.scopes.utils.ScopeDirectiveParser
 import viaduct.graphql.scopes.utils.StubRoot
 import viaduct.graphql.scopes.utils.buildSchemaTraverser
 import viaduct.graphql.scopes.utils.getChildrenForElement
+import viaduct.graphql.scopes.utils.isTenantLocalEquivalentField
 import viaduct.graphql.scopes.visitors.CompositeVisitor
 import viaduct.graphql.scopes.visitors.FilterChildrenVisitor
 import viaduct.graphql.scopes.visitors.FilterTenantLocalFieldsVisitor
@@ -19,7 +19,6 @@ import viaduct.graphql.scopes.visitors.TransformationsVisitor
 import viaduct.graphql.scopes.visitors.TypeRemovalVisitor
 import viaduct.graphql.scopes.visitors.ValidateRequiredScopesVisitor
 import viaduct.graphql.scopes.visitors.ValidateScopesVisitor
-import viaduct.graphql.utils.DefaultSchemaFactory
 
 typealias AdditionalVisitorConstructor = (
     GraphQLSchema,
@@ -32,10 +31,6 @@ internal class SchemaScopeTransformer(
     private val validScopes: Set<String>,
     private val additionalVisitorConstructors: List<AdditionalVisitorConstructor>
 ) {
-    private companion object {
-        val TENANT_LOCAL_DIRECTIVE_NAME = DefaultSchemaFactory.DefaultDirective.TENANT_LOCAL.directiveName
-    }
-
     fun applyScopes(
         inputSchema: GraphQLSchema,
         appliedScopes: Set<String>,
@@ -119,6 +114,7 @@ internal class SchemaScopeTransformer(
                     // inspect the scope information for this type or its extensions and save it's modified children
                     // in `elementChildren`
                     FilterChildrenVisitor(
+                        schema = schema,
                         appliedScopes = appliedScopes,
                         scopeDirectiveParser = scopeDirectiveParser,
                         elementChildren = elementChildren,
@@ -176,7 +172,7 @@ internal class SchemaScopeTransformer(
     private fun hasTenantLocalFields(schema: GraphQLSchema): Boolean =
         schema.allTypesAsList.any { element ->
             getChildrenForElement(element)?.any { child ->
-                child is GraphQLFieldDefinition && child.hasAppliedDirective(TENANT_LOCAL_DIRECTIVE_NAME)
+                isTenantLocalEquivalentField(child)
             } == true
         }
 }
