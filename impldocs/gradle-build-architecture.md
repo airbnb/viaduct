@@ -6,9 +6,7 @@ Viaduct's Gradle build is organized as a **composite build** — a set of indepe
 
 - **Encapsulate the development inner loop.** Most contributors work on engine, tenant, service, or shared code. The build should let them run tests on that code without waiting on plugin publishing, publication wiring, or demoapp configuration.
 
-- **Catch downstream breakage early.** Demoapps are real consumers of Viaduct's plugins and libraries. Keeping them in the composite build gives developers immediate signal when a change breaks something downstream, before anything is published.
-
-- **Verify publication correctness.** Publication is fragile — a project can compile fine under composite source substitution but produce broken published artifacts. The build should support testing demoapps against actual published artifacts, exercising the same dependency graph an external consumer would see.
+- **Verify publication correctness.** Publication is fragile — a project can compile fine under composite source substitution but produce broken published artifacts. Demoapps are real consumers of Viaduct's plugins and libraries, so the canonical way to catch downstream breakage is to run them standalone against actual published artifacts, exercising the same dependency graph an external consumer would see. This is what root `check` and CI run (`demoappsStandaloneTest`), not composite source substitution.
 
 - **Decouple internal module structure from the public API surface.** External consumers should depend on a small set of stable coordinates. Internal modules should be free to split, merge, or reorganize without breaking downstream builds.
 
@@ -103,6 +101,6 @@ pluginManagement {
 
 This dual-mode design serves two purposes:
 
-- **Composite mode** (inner-loop development): developers get source substitution for everything — plugins, core libraries, and publications. Changes to core code are immediately visible in demoapp test runs, giving early signal when something breaks downstream.
+- **Composite mode** (fast local iteration): developers get source substitution for everything — plugins, core libraries, and publications, without a publish step. Useful for quick manual checks, but it does not exercise the published-artifact path, so it is not a substitute for standalone testing.
 
-- **Standalone mode** (publication testing): demoapps resolve all dependencies from published artifacts (Maven Local or Maven Central), exercising the exact dependency graph a real external consumer would see. This matters because publication is fragile — a project can compile fine under composite substitution but produce broken published artifacts. The standalone tests catch that.
+- **Standalone mode** (the canonical demoapp test): demoapps resolve all dependencies from published artifacts (Maven Local or Maven Central), exercising the exact dependency graph a real external consumer would see. This is the mode root `check` and CI run (`demoappsStandaloneTest`) — it is what actually catches downstream breakage, since publication is fragile enough that a project can compile fine under composite substitution but still produce broken published artifacts.
