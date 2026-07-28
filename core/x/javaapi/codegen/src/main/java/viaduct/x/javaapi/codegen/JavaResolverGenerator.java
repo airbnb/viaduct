@@ -25,6 +25,9 @@ public final class JavaResolverGenerator {
           package <mdl.packageName>.resolverbases;
 
           import java.util.List;
+          <if(mdl.hasBatchingResolvers)>
+          import java.util.IdentityHashMap;
+          <endif>
           import java.util.Map;
           import java.util.concurrent.CompletableFuture;
           import viaduct.engine.api.ViaductSchema;
@@ -33,6 +36,12 @@ public final class JavaResolverGenerator {
           import viaduct.java.api.context.SelectiveFieldExecutionContext;
           import viaduct.java.api.globalid.GlobalID;
           import viaduct.java.api.internal.InternalContext;
+          <if(mdl.hasBatchingResolvers)>
+          import viaduct.java.api.internal.BaseBatchedFieldResolver;
+          <endif>
+          <if(mdl.hasUnbatchedResolvers)>
+          import viaduct.java.api.internal.BaseUnbatchedFieldResolver;
+          <endif>
           import viaduct.java.api.internal.ResolverClassFinder;
           import viaduct.java.api.reflect.Type;
           import viaduct.java.api.resolvers.FieldResolverBase;
@@ -55,7 +64,7 @@ public final class JavaResolverGenerator {
               <mdl.resolvers:{r |
               @ResolverFor(typeName = "<r.gqlTypeName>", fieldName = "<r.gqlFieldName>", isSelective = <r.selectiveLiteral>, isBatching = <r.batchingLiteral>)
               public abstract static class <r.resolverClassName>
-                  implements <r.fieldResolverBaseType> {
+                  implements <r.fieldResolverBaseType><if(r.isBatching)>, BaseBatchedFieldResolver<else>, BaseUnbatchedFieldResolver<endif> {
 
                   /**
                    * Context for <r.gqlTypeName>.<r.gqlFieldName> resolver.
@@ -174,6 +183,13 @@ public final class JavaResolverGenerator {
                    * @return a future that completes with the resolved value
                    */
                   public abstract <r.resolveFutureType> resolve(Context ctx);
+
+                  @Override
+                  @SuppressWarnings("unchecked")
+                  public final CompletableFuture\\<?> invokeFieldResolver(
+                      FieldExecutionContext\\<?, ?, ?, ?> context) {
+                      return resolve(new Context((<r.fieldExecutionContextType>) context));
+                  \\}
                   <endif>
                   <if(r.isBatching)>
                   /**
@@ -184,6 +200,42 @@ public final class JavaResolverGenerator {
                    * @return a future that completes with a map from Context to resolved value
                    */
                   public abstract <r.batchResolveFutureType> batchResolve(<r.batchResolveContextListType> contexts);
+
+                  @Override
+                  @SuppressWarnings("unchecked")
+                  public final <r.batchInvokerFutureType> invokeFieldBatchResolver(
+                      <r.batchInvokerContextListType> contexts) {
+                      <r.batchInvokerWrappedToOriginalMapType> wrappedToOriginal =
+                          new IdentityHashMap\\<>();
+                      List\\<Context> wrappedContexts =
+                          contexts.stream()
+                              .map(
+                                  context -> {
+                                      Context wrapped =
+                                          new Context((<r.fieldExecutionContextType>) context);
+                                      wrappedToOriginal.put(wrapped, context);
+                                      return wrapped;
+                                  \\})
+                              .toList();
+
+                      return batchResolve(wrappedContexts)
+                          .thenCompose(
+                              results -> {
+                                  <r.batchInvokerResultMapType> translatedResults =
+                                      new IdentityHashMap\\<>();
+                                  for (var result : results.entrySet()) {
+                                      Context wrappedContext = result.getKey();
+                                      <r.batchInvokerContextType> originalContext =
+                                          wrappedToOriginal.get(wrappedContext);
+                                      if (originalContext == null) {
+                                          return BaseBatchedFieldResolver.failedForUnknownContext(
+                                              wrappedContext);
+                                      \\}
+                                      translatedResults.put(originalContext, result.getValue());
+                                  \\}
+                                  return CompletableFuture.completedFuture(translatedResults);
+                              \\});
+                  \\}
                   <endif>
               \\}
               }; separator="\\n">

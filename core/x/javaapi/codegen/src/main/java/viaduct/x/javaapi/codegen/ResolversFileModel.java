@@ -32,4 +32,12 @@ public record ResolversFileModel(
   public List<ResolverModel> getResolvers() {
     return resolvers;
   }
+
+  public boolean getHasBatchingResolvers() {
+    return resolvers.stream().anyMatch(ResolverModel::isBatching);
+  }
+
+  public boolean getHasUnbatchedResolvers() {
+    return resolvers.stream().anyMatch(resolver -> !resolver.isBatching());
+  }
 }

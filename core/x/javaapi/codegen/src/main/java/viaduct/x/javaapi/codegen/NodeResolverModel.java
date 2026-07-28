@@ -70,4 +70,12 @@ public record NodeResolverModel(
   public String getBatchResolveFutureType() {
     return "CompletableFuture<List<FieldValue<" + getGrtType() + ">>>";
   }
+
+  public String getBatchInvokerFutureType() {
+    return "CompletableFuture<?>";
+  }
+
+  public String getBatchInvokerContextListType() {
+    return "List<NodeExecutionContext<?>>";
+  }
 }

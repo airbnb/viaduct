@@ -252,7 +252,7 @@ private val resolverST = stTemplate(
     "resolver(mdl)",
     """
     @ResolverFor(typeName = "<mdl.gqlTypeName>", fieldName = "<mdl.gqlFieldName>", isSelective = <mdl.selectiveLiteral>, isBatching = <mdl.batchingLiteral>)
-    abstract class <mdl.resolverName> : <mdl.resolverBaseGeneric>, <mdl.resolverBase> {
+    abstract class <mdl.resolverName> : <mdl.resolverBaseGeneric>, <mdl.resolverBase><if(mdl.batching)>, viaduct.api.internal.BaseBatchedFieldResolver<else>, viaduct.api.internal.BaseUnbatchedFieldResolver<endif> {
         class Context(
             private val inner: <mdl.ctxInterface>
         ) : <mdl.ctxInterface> by inner<if(mdl.selective)>, <mdl.selectiveCtxInterface><endif>, InternalContext by (inner as InternalContext) {
@@ -264,9 +264,19 @@ private val resolverST = stTemplate(
         }
         <if(!mdl.batching)>
         abstract suspend fun resolve(ctx: Context): <mdl.typeSpecifier>
+
+        @Suppress("UNCHECKED_CAST")
+        final override suspend fun invokeFieldResolver(
+            context: viaduct.api.context.BaseFieldExecutionContext\<*, *, *>
+        ): Any? = resolve(Context(context as <mdl.ctxInterface>))
         <endif>
         <if(mdl.batching)>
         abstract suspend fun batchResolve(contexts: List\<Context>): List\<FieldValue\<<mdl.typeSpecifier>\>>
+
+        @Suppress("UNCHECKED_CAST")
+        final override suspend fun invokeFieldBatchResolver(
+            contexts: List\<viaduct.api.context.BaseFieldExecutionContext\<*, *, *\>>
+        ): Any? = batchResolve(contexts.map { Context(it as <mdl.ctxInterface>) })
         <endif>
     }
     """

@@ -1,6 +1,7 @@
 package com.example.tenant.resolverbases;
 
 import java.util.List;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import viaduct.engine.api.ViaductSchema;
@@ -9,6 +10,8 @@ import viaduct.java.api.context.FieldExecutionContext;
 import viaduct.java.api.context.SelectiveFieldExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
+import viaduct.java.api.internal.BaseBatchedFieldResolver;
+import viaduct.java.api.internal.BaseUnbatchedFieldResolver;
 import viaduct.java.api.internal.ResolverClassFinder;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.resolvers.FieldResolverBase;
@@ -30,7 +33,7 @@ public final class QueryResolvers {
 
         @ResolverFor(typeName = "Query", fieldName = "order", isSelective = false, isBatching = false)
         public abstract static class Order
-            implements FieldResolverBase<com.example.grts.Order, com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_Order_Arguments, com.example.grts.Order> {
+            implements FieldResolverBase<com.example.grts.Order, com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_Order_Arguments, com.example.grts.Order>, BaseUnbatchedFieldResolver {
 
             /**
              * Context for Query.order resolver.
@@ -139,11 +142,18 @@ public final class QueryResolvers {
              * @return a future that completes with the resolved value
              */
             public abstract CompletableFuture<com.example.grts.Order> resolve(Context ctx);
+
+            @Override
+            @SuppressWarnings("unchecked")
+            public final CompletableFuture<?> invokeFieldResolver(
+                FieldExecutionContext<?, ?, ?, ?> context) {
+                return resolve(new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_Order_Arguments, com.example.grts.Order>) context));
+            }
         }
 
         @ResolverFor(typeName = "Query", fieldName = "topUser", isSelective = true, isBatching = false)
         public abstract static class TopUser
-            implements FieldResolverBase<com.example.grts.User, com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.User> {
+            implements FieldResolverBase<com.example.grts.User, com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.User>, BaseUnbatchedFieldResolver {
 
             /**
              * Context for Query.topUser resolver.
@@ -257,11 +267,18 @@ public final class QueryResolvers {
              * @return a future that completes with the resolved value
              */
             public abstract CompletableFuture<com.example.grts.User> resolve(Context ctx);
+
+            @Override
+            @SuppressWarnings("unchecked")
+            public final CompletableFuture<?> invokeFieldResolver(
+                FieldExecutionContext<?, ?, ?, ?> context) {
+                return resolve(new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.User>) context));
+            }
         }
 
         @ResolverFor(typeName = "Query", fieldName = "popularOrders", isSelective = false, isBatching = true)
         public abstract static class PopularOrders
-            implements FieldResolverBase<List<com.example.grts.Order>, com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.Order> {
+            implements FieldResolverBase<List<com.example.grts.Order>, com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.Order>, BaseBatchedFieldResolver {
 
             /**
              * Context for Query.popularOrders resolver.
@@ -370,11 +387,47 @@ public final class QueryResolvers {
              * @return a future that completes with a map from Context to resolved value
              */
             public abstract CompletableFuture<Map<Context, List<com.example.grts.Order>>> batchResolve(List<Context> contexts);
+
+            @Override
+            @SuppressWarnings("unchecked")
+            public final CompletableFuture<Map<FieldExecutionContext<?, ?, ?, ?>, Object>> invokeFieldBatchResolver(
+                List<FieldExecutionContext<?, ?, ?, ?>> contexts) {
+                IdentityHashMap<Context, FieldExecutionContext<?, ?, ?, ?>> wrappedToOriginal =
+                    new IdentityHashMap<>();
+                List<Context> wrappedContexts =
+                    contexts.stream()
+                        .map(
+                            context -> {
+                                Context wrapped =
+                                    new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.Order>) context);
+                                wrappedToOriginal.put(wrapped, context);
+                                return wrapped;
+                            })
+                        .toList();
+
+                return batchResolve(wrappedContexts)
+                    .thenCompose(
+                        results -> {
+                            Map<FieldExecutionContext<?, ?, ?, ?>, Object> translatedResults =
+                                new IdentityHashMap<>();
+                            for (var result : results.entrySet()) {
+                                Context wrappedContext = result.getKey();
+                                FieldExecutionContext<?, ?, ?, ?> originalContext =
+                                    wrappedToOriginal.get(wrappedContext);
+                                if (originalContext == null) {
+                                    return BaseBatchedFieldResolver.failedForUnknownContext(
+                                        wrappedContext);
+                                }
+                                translatedResults.put(originalContext, result.getValue());
+                            }
+                            return CompletableFuture.completedFuture(translatedResults);
+                        });
+            }
         }
 
         @ResolverFor(typeName = "Query", fieldName = "trendingUsers", isSelective = true, isBatching = true)
         public abstract static class TrendingUsers
-            implements FieldResolverBase<List<com.example.grts.User>, com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.User> {
+            implements FieldResolverBase<List<com.example.grts.User>, com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.User>, BaseBatchedFieldResolver {
 
             /**
              * Context for Query.trendingUsers resolver.
@@ -488,11 +541,47 @@ public final class QueryResolvers {
              * @return a future that completes with a map from Context to resolved value
              */
             public abstract CompletableFuture<Map<Context, List<com.example.grts.User>>> batchResolve(List<Context> contexts);
+
+            @Override
+            @SuppressWarnings("unchecked")
+            public final CompletableFuture<Map<FieldExecutionContext<?, ?, ?, ?>, Object>> invokeFieldBatchResolver(
+                List<FieldExecutionContext<?, ?, ?, ?>> contexts) {
+                IdentityHashMap<Context, FieldExecutionContext<?, ?, ?, ?>> wrappedToOriginal =
+                    new IdentityHashMap<>();
+                List<Context> wrappedContexts =
+                    contexts.stream()
+                        .map(
+                            context -> {
+                                Context wrapped =
+                                    new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.User>) context);
+                                wrappedToOriginal.put(wrapped, context);
+                                return wrapped;
+                            })
+                        .toList();
+
+                return batchResolve(wrappedContexts)
+                    .thenCompose(
+                        results -> {
+                            Map<FieldExecutionContext<?, ?, ?, ?>, Object> translatedResults =
+                                new IdentityHashMap<>();
+                            for (var result : results.entrySet()) {
+                                Context wrappedContext = result.getKey();
+                                FieldExecutionContext<?, ?, ?, ?> originalContext =
+                                    wrappedToOriginal.get(wrappedContext);
+                                if (originalContext == null) {
+                                    return BaseBatchedFieldResolver.failedForUnknownContext(
+                                        wrappedContext);
+                                }
+                                translatedResults.put(originalContext, result.getValue());
+                            }
+                            return CompletableFuture.completedFuture(translatedResults);
+                        });
+            }
         }
 
         @ResolverFor(typeName = "Query", fieldName = "ordersConnection", isSelective = false, isBatching = false)
         public abstract static class OrdersConnection
-            implements FieldResolverBase<com.example.grts.OrderConnection, com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_OrdersConnection_Arguments, com.example.grts.OrderConnection> {
+            implements FieldResolverBase<com.example.grts.OrderConnection, com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_OrdersConnection_Arguments, com.example.grts.OrderConnection>, BaseUnbatchedFieldResolver {
 
             /**
              * Context for Query.ordersConnection resolver.
@@ -601,11 +690,18 @@ public final class QueryResolvers {
              * @return a future that completes with the resolved value
              */
             public abstract CompletableFuture<com.example.grts.OrderConnection> resolve(Context ctx);
+
+            @Override
+            @SuppressWarnings("unchecked")
+            public final CompletableFuture<?> invokeFieldResolver(
+                FieldExecutionContext<?, ?, ?, ?> context) {
+                return resolve(new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_OrdersConnection_Arguments, com.example.grts.OrderConnection>) context));
+            }
         }
 
         @ResolverFor(typeName = "Query", fieldName = "lookupOrder", isSelective = false, isBatching = false)
         public abstract static class LookupOrder
-            implements FieldResolverBase<com.example.grts.Order, com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_LookupOrder_Arguments, com.example.grts.Order> {
+            implements FieldResolverBase<com.example.grts.Order, com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_LookupOrder_Arguments, com.example.grts.Order>, BaseUnbatchedFieldResolver {
 
             /**
              * Context for Query.lookupOrder resolver.
@@ -714,11 +810,18 @@ public final class QueryResolvers {
              * @return a future that completes with the resolved value
              */
             public abstract CompletableFuture<com.example.grts.Order> resolve(Context ctx);
+
+            @Override
+            @SuppressWarnings("unchecked")
+            public final CompletableFuture<?> invokeFieldResolver(
+                FieldExecutionContext<?, ?, ?, ?> context) {
+                return resolve(new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_LookupOrder_Arguments, com.example.grts.Order>) context));
+            }
         }
 
         @ResolverFor(typeName = "Query", fieldName = "node", isSelective = false, isBatching = false)
         public abstract static class Node
-            implements FieldResolverBase<com.example.grts.Node, com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_Node_Arguments, com.example.grts.Node> {
+            implements FieldResolverBase<com.example.grts.Node, com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_Node_Arguments, com.example.grts.Node>, BaseUnbatchedFieldResolver {
 
             /**
              * Context for Query.node resolver.
@@ -827,11 +930,18 @@ public final class QueryResolvers {
              * @return a future that completes with the resolved value
              */
             public abstract CompletableFuture<com.example.grts.Node> resolve(Context ctx);
+
+            @Override
+            @SuppressWarnings("unchecked")
+            public final CompletableFuture<?> invokeFieldResolver(
+                FieldExecutionContext<?, ?, ?, ?> context) {
+                return resolve(new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_Node_Arguments, com.example.grts.Node>) context));
+            }
         }
 
         @ResolverFor(typeName = "Query", fieldName = "nodes", isSelective = false, isBatching = false)
         public abstract static class Nodes
-            implements FieldResolverBase<List<com.example.grts.Node>, com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_Nodes_Arguments, com.example.grts.Node> {
+            implements FieldResolverBase<List<com.example.grts.Node>, com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_Nodes_Arguments, com.example.grts.Node>, BaseUnbatchedFieldResolver {
 
             /**
              * Context for Query.nodes resolver.
@@ -940,6 +1050,13 @@ public final class QueryResolvers {
              * @return a future that completes with the resolved value
              */
             public abstract CompletableFuture<List<com.example.grts.Node>> resolve(Context ctx);
+
+            @Override
+            @SuppressWarnings("unchecked")
+            public final CompletableFuture<?> invokeFieldResolver(
+                FieldExecutionContext<?, ?, ?, ?> context) {
+                return resolve(new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_Nodes_Arguments, com.example.grts.Node>) context));
+            }
         }
 
 }

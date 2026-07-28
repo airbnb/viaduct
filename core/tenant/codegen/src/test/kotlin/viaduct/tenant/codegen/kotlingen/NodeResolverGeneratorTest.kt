@@ -32,11 +32,26 @@ class NodeResolverGeneratorTest {
 
         assertTrue(contents.contains("package pkg.tenant.resolverbases"))
         assertTrue(contents.contains("NodeResolverFor(typeName = \"Foo\", isSelective = false, isBatching = false)"))
-        assertTrue(contents.contains("abstract class Foo : viaduct.api.ResolverBase<pkg.grts.Foo>, NodeResolverBase<pkg.grts.Foo>"))
+        assertTrue(contents.contains("abstract class Foo : viaduct.api.ResolverBase<pkg.grts.Foo>, NodeResolverBase<pkg.grts.Foo>, viaduct.api.internal.BaseUnbatchedNodeResolver"))
+        assertTrue(contents.contains("final override suspend fun invokeNodeResolver("))
+        assertTrue(contents.contains("Context(context as viaduct.api.context.NodeExecutionContext<pkg.grts.Foo>)"))
         assertTrue(contents.contains("NodeResolverFor(typeName = \"Bar\", isSelective = true, isBatching = false)"))
-        assertTrue(contents.contains("abstract class Bar : viaduct.api.ResolverBase<pkg.grts.Bar>, NodeResolverBase<pkg.grts.Bar>"))
+        assertTrue(contents.contains("abstract class Bar : viaduct.api.ResolverBase<pkg.grts.Bar>, NodeResolverBase<pkg.grts.Bar>, viaduct.api.internal.BaseUnbatchedNodeResolver"))
         assertTrue(contents.contains("viaduct.api.context.SelectiveNodeExecutionContext<pkg.grts.Bar>"))
         assertTrue(contents.contains("override fun selections(): SelectionSet<pkg.grts.Bar> = inner.selections()"))
+    }
+
+    @Test
+    fun `generates direct adapter for batching node resolver`() {
+        val contents = gen(Triple("Foo", false, true))
+
+        assertNotNull(contents)
+        contents!!
+
+        assertTrue(contents.contains("viaduct.api.internal.BaseBatchedNodeResolver"))
+        assertTrue(contents.contains("abstract suspend fun batchResolve(contexts: List<Context>)"))
+        assertTrue(contents.contains("final override suspend fun invokeNodeBatchResolver("))
+        assertTrue(contents.contains("contexts.map { Context(it as viaduct.api.context.NodeExecutionContext<pkg.grts.Foo>) }"))
     }
 
     @Test
@@ -71,9 +86,9 @@ class NodeResolverGeneratorTest {
 
         assertTrue(contents.contains("package pkg.tenant.resolverbases"))
         assertTrue(contents.contains("NodeResolverFor(typeName = \"Foo\", isSelective = false, isBatching = false)"))
-        assertTrue(contents.contains("abstract class Foo : viaduct.api.ResolverBase<pkg.grts.Foo>, NodeResolverBase<pkg.grts.Foo>"))
+        assertTrue(contents.contains("abstract class Foo : viaduct.api.ResolverBase<pkg.grts.Foo>, NodeResolverBase<pkg.grts.Foo>, viaduct.api.internal.BaseUnbatchedNodeResolver"))
         assertTrue(contents.contains("NodeResolverFor(typeName = \"Bar\", isSelective = false, isBatching = false)"))
-        assertTrue(contents.contains("abstract class Bar : viaduct.api.ResolverBase<pkg.grts.Bar>, NodeResolverBase<pkg.grts.Bar>"))
+        assertTrue(contents.contains("abstract class Bar : viaduct.api.ResolverBase<pkg.grts.Bar>, NodeResolverBase<pkg.grts.Bar>, viaduct.api.internal.BaseUnbatchedNodeResolver"))
     }
 
     private fun mockTypeDef(name: String): ViaductSchema.TypeDef {

@@ -77,7 +77,10 @@ class FieldResolverGeneratorTest {
         assertFalse(contents.contains("MutationExecutionContext"))
         assertTrue(contents.contains("object SubjectResolvers "))
         assertTrue(contents.contains("class Field "))
+        assertTrue(contents.contains("viaduct.api.internal.BaseUnbatchedFieldResolver"))
         assertTrue(contents.contains("abstract suspend fun resolve(ctx: Context)"))
+        assertTrue(contents.contains("final override suspend fun invokeFieldResolver("))
+        assertTrue(contents.contains("resolve(Context(context as viaduct.api.context.FieldExecutionContext"))
         assertFalse(contents.contains("batchResolve"))
     }
 
@@ -97,7 +100,10 @@ class FieldResolverGeneratorTest {
         )
 
         assertTrue(contents.contains("@ResolverFor(typeName = \"Subject\", fieldName = \"field\", isSelective = false, isBatching = true)"))
-        assertTrue(contents.contains("batchResolve"))
+        assertTrue(contents.contains("viaduct.api.internal.BaseBatchedFieldResolver"))
+        assertTrue(contents.contains("abstract suspend fun batchResolve(contexts: List<Context>)"))
+        assertTrue(contents.contains("final override suspend fun invokeFieldBatchResolver("))
+        assertTrue(contents.contains("contexts.map { Context(it as viaduct.api.context.FieldExecutionContext"))
         assertFalse(contents.contains("abstract suspend fun resolve(ctx: Context)"))
     }
 

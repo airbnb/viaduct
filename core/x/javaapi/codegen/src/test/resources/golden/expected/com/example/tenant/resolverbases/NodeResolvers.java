@@ -9,6 +9,7 @@ import viaduct.java.api.context.NodeExecutionContext;
 import viaduct.java.api.context.SelectiveNodeExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
+import viaduct.java.api.internal.BaseUnbatchedNodeResolver;
 import viaduct.java.api.internal.ResolverClassFinder;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.resolvers.FieldValue;
@@ -26,7 +27,7 @@ public final class NodeResolvers {
     private NodeResolvers() {}
 
         @NodeResolverFor(typeName = "User", isBatching = false, isSelective = false)
-        public abstract static class User implements NodeResolverBase<com.example.grts.User> {
+        public abstract static class User implements NodeResolverBase<com.example.grts.User>, BaseUnbatchedNodeResolver {
 
             /**
              * Context for User node resolver.
@@ -102,6 +103,12 @@ public final class NodeResolvers {
             }
 
             public abstract CompletableFuture<com.example.grts.User> resolve(Context ctx);
+
+            @Override
+            public final CompletableFuture<?> invokeNodeResolver(
+                NodeExecutionContext<?> context) {
+                return resolve(new Context((NodeExecutionContext<?>) context));
+            }
         }
 
 }

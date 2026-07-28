@@ -139,12 +139,26 @@ private val nodeSt = stTemplate(
     "node(mdl)",
     """
         @NodeResolverFor(typeName = "<mdl.typeName>", isSelective = <mdl.selectiveLiteral>, isBatching = <mdl.batchingLiteral>)
-        abstract class <mdl.typeName> : viaduct.api.ResolverBase\<<mdl.grtPackage>.<mdl.typeName>\>, NodeResolverBase\<<mdl.grtPackage>.<mdl.typeName>\> {
+        abstract class <mdl.typeName> : viaduct.api.ResolverBase\<<mdl.grtPackage>.<mdl.typeName>\>, NodeResolverBase\<<mdl.grtPackage>.<mdl.typeName>\><if(mdl.batching)>, viaduct.api.internal.BaseBatchedNodeResolver<else>, viaduct.api.internal.BaseUnbatchedNodeResolver<endif> {
             <if(!mdl.batching)>
             abstract suspend fun resolve(ctx: Context): <mdl.grtPackage>.<mdl.typeName>
+
+            @Suppress("UNCHECKED_CAST")
+            final override suspend fun invokeNodeResolver(
+                context: viaduct.api.context.NodeExecutionContext\<*>
+            ): Any? = resolve(
+                Context(context as <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\>)
+            )
             <endif>
             <if(mdl.batching)>
             abstract suspend fun batchResolve(contexts: List\<Context>): List\<FieldValue\<<mdl.grtPackage>.<mdl.typeName>\>>
+
+            @Suppress("UNCHECKED_CAST")
+            final override suspend fun invokeNodeBatchResolver(
+                contexts: List\<viaduct.api.context.NodeExecutionContext\<*\>>
+            ): Any? = batchResolve(
+                contexts.map { Context(it as <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\>) }
+            )
             <endif>
 
             class Context(

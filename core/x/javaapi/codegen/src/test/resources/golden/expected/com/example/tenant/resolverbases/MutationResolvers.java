@@ -9,6 +9,7 @@ import viaduct.java.api.context.FieldExecutionContext;
 import viaduct.java.api.context.SelectiveFieldExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
+import viaduct.java.api.internal.BaseUnbatchedFieldResolver;
 import viaduct.java.api.internal.ResolverClassFinder;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.resolvers.FieldResolverBase;
@@ -30,7 +31,7 @@ public final class MutationResolvers {
 
         @ResolverFor(typeName = "Mutation", fieldName = "createOrder", isSelective = false, isBatching = false)
         public abstract static class CreateOrder
-            implements FieldResolverBase<com.example.grts.Order, com.example.grts.Mutation, com.example.grts.Query, com.example.grts.Mutation_CreateOrder_Arguments, com.example.grts.Order> {
+            implements FieldResolverBase<com.example.grts.Order, com.example.grts.Mutation, com.example.grts.Query, com.example.grts.Mutation_CreateOrder_Arguments, com.example.grts.Order>, BaseUnbatchedFieldResolver {
 
             /**
              * Context for Mutation.createOrder resolver.
@@ -139,6 +140,13 @@ public final class MutationResolvers {
              * @return a future that completes with the resolved value
              */
             public abstract CompletableFuture<com.example.grts.Order> resolve(Context ctx);
+
+            @Override
+            @SuppressWarnings("unchecked")
+            public final CompletableFuture<?> invokeFieldResolver(
+                FieldExecutionContext<?, ?, ?, ?> context) {
+                return resolve(new Context((FieldExecutionContext<com.example.grts.Mutation, com.example.grts.Query, com.example.grts.Mutation_CreateOrder_Arguments, com.example.grts.Order>) context));
+            }
         }
 
 }

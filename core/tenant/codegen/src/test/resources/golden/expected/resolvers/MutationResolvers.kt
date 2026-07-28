@@ -13,11 +13,16 @@ import viaduct.api.FieldValue
 @OptIn(InternalApi::class, ExperimentalApi::class)
 object MutationResolvers {
     @ResolverFor(typeName = "Mutation", fieldName = "createOrder", isSelective = false, isBatching = false)
-    abstract class CreateOrder : viaduct.api.ResolverBase<viaduct.api.grts.Order?>, viaduct.api.MutationResolverBase<viaduct.api.grts.Query, viaduct.api.grts.Mutation, viaduct.api.grts.Mutation_CreateOrder_Arguments, viaduct.api.grts.Order?> {
+    abstract class CreateOrder : viaduct.api.ResolverBase<viaduct.api.grts.Order?>, viaduct.api.MutationResolverBase<viaduct.api.grts.Query, viaduct.api.grts.Mutation, viaduct.api.grts.Mutation_CreateOrder_Arguments, viaduct.api.grts.Order?>, viaduct.api.internal.BaseUnbatchedFieldResolver {
         class Context(
             private val inner: viaduct.api.context.MutationFieldExecutionContext<viaduct.api.grts.Query, viaduct.api.grts.Mutation, viaduct.api.grts.Mutation_CreateOrder_Arguments, viaduct.api.grts.Order>
         ) : viaduct.api.context.MutationFieldExecutionContext<viaduct.api.grts.Query, viaduct.api.grts.Mutation, viaduct.api.grts.Mutation_CreateOrder_Arguments, viaduct.api.grts.Order> by inner, InternalContext by (inner as InternalContext) {
         }
         abstract suspend fun resolve(ctx: Context): viaduct.api.grts.Order?
+
+        @Suppress("UNCHECKED_CAST")
+        final override suspend fun invokeFieldResolver(
+            context: viaduct.api.context.BaseFieldExecutionContext<*, *, *>
+        ): Any? = resolve(Context(context as viaduct.api.context.MutationFieldExecutionContext<viaduct.api.grts.Query, viaduct.api.grts.Mutation, viaduct.api.grts.Mutation_CreateOrder_Arguments, viaduct.api.grts.Order>))
     }
 }

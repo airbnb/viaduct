@@ -32,6 +32,14 @@ public final class JavaNodeResolverGenerator {
     public List<NodeResolverModel> getNodeResolvers() {
       return nodeResolvers;
     }
+
+    public boolean getHasBatchingResolvers() {
+      return nodeResolvers.stream().anyMatch(NodeResolverModel::isBatching);
+    }
+
+    public boolean getHasUnbatchedResolvers() {
+      return nodeResolvers.stream().anyMatch(resolver -> !resolver.isBatching());
+    }
   }
 
   private static final String MAIN_TEMPLATE =
@@ -48,6 +56,12 @@ public final class JavaNodeResolverGenerator {
           import viaduct.java.api.context.SelectiveNodeExecutionContext;
           import viaduct.java.api.globalid.GlobalID;
           import viaduct.java.api.internal.InternalContext;
+          <if(mdl.hasBatchingResolvers)>
+          import viaduct.java.api.internal.BaseBatchedNodeResolver;
+          <endif>
+          <if(mdl.hasUnbatchedResolvers)>
+          import viaduct.java.api.internal.BaseUnbatchedNodeResolver;
+          <endif>
           import viaduct.java.api.internal.ResolverClassFinder;
           import viaduct.java.api.reflect.Type;
           import viaduct.java.api.resolvers.FieldValue;
@@ -66,7 +80,7 @@ public final class JavaNodeResolverGenerator {
 
               <mdl.nodeResolvers:{nr |
               @NodeResolverFor(typeName = "<nr.typeName>", isBatching = <nr.batchingLiteral>, isSelective = <nr.selectiveLiteral>)
-              public abstract static class <nr.typeName> implements NodeResolverBase\\<<nr.grtType>\\> {
+              public abstract static class <nr.typeName> implements NodeResolverBase\\<<nr.grtType>\\><if(nr.isBatching)>, BaseBatchedNodeResolver<else>, BaseUnbatchedNodeResolver<endif> {
 
                   /**
                    * Context for <nr.typeName> node resolver.
@@ -150,9 +164,24 @@ public final class JavaNodeResolverGenerator {
 
                   <if(!nr.isBatching)>
                   public abstract CompletableFuture\\<<nr.grtType>\\> resolve(Context ctx);
+
+                  @Override
+                  public final CompletableFuture\\<?> invokeNodeResolver(
+                      NodeExecutionContext\\<?> context) {
+                      return resolve(new Context((<nr.ctxInterface>\\<?>) context));
+                  \\}
                   <endif>
                   <if(nr.isBatching)>
                   public abstract <nr.batchResolveFutureType> batchResolve(List\\<Context> contexts);
+
+                  @Override
+                  public final <nr.batchInvokerFutureType> invokeNodeBatchResolver(
+                      <nr.batchInvokerContextListType> contexts) {
+                      return batchResolve(
+                          contexts.stream()
+                              .map(context -> new Context((<nr.ctxInterface>\\<?>) context))
+                              .toList());
+                  \\}
                   <endif>
               \\}
               }; separator="\\n">

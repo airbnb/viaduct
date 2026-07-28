@@ -62,6 +62,12 @@ class JavaNodeResolverGeneratorTest {
     assertTrue(
         generated.contains(
             "public abstract CompletableFuture<com.example.types.User> resolve(Context ctx)"));
+    assertTrue(
+        generated.contains(
+            "implements NodeResolverBase<com.example.types.User>, BaseUnbatchedNodeResolver"));
+    assertTrue(generated.contains("public final CompletableFuture<?> invokeNodeResolver("));
+    assertTrue(
+        generated.contains("return resolve(new Context((NodeExecutionContext<?>) context))"));
     assertTrue(!generated.contains("batchResolve"));
   }
 
@@ -75,6 +81,13 @@ class JavaNodeResolverGeneratorTest {
         generated.contains(
             "public abstract CompletableFuture<List<FieldValue<com.example.types.Booking>>>"
                 + " batchResolve(List<Context> contexts)"));
+    assertTrue(
+        generated.contains(
+            "implements NodeResolverBase<com.example.types.Booking>, BaseBatchedNodeResolver"));
+    assertTrue(generated.contains("invokeNodeBatchResolver("));
+    assertTrue(generated.contains("List<NodeExecutionContext<?>> contexts"));
+    assertTrue(
+        generated.contains(".map(context -> new Context((NodeExecutionContext<?>) context))"));
     assertTrue(
         !generated.contains("CompletableFuture<com.example.types.Booking> resolve(Context ctx)"));
   }
@@ -102,6 +115,18 @@ class JavaNodeResolverGeneratorTest {
                 + " SelectiveNodeExecutionContext<com.example.types.User>,"
                 + " NodeResolverBase.Context<com.example.types.User>"));
     assertTrue(generated.contains("public Object selections()"));
+    assertTrue(
+        generated.contains(
+            "return resolve(new Context((SelectiveNodeExecutionContext<?>) context))"));
+  }
+
+  @Test
+  void generate_castsBatchInvokerContext_whenSelective() {
+    String generated = JavaNodeResolverGenerator.generate(fileModel(resolver("User", true, true)));
+
+    assertTrue(
+        generated.contains(
+            ".map(context -> new Context((SelectiveNodeExecutionContext<?>) context))"));
   }
 
   @Test
