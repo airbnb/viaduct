@@ -7,13 +7,16 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.gradle.task.AssembleCentralSchemaTask
+import viaduct.service.api.scoping.SchemaScoping
 
 /**
  * Tests for ViaductApplicationPlugin base schema functionality.
@@ -21,6 +24,7 @@ import viaduct.gradle.task.AssembleCentralSchemaTask
  * These tests focus on the AssembleCentralSchemaTask's ability to discover and process
  * base schema files from src/main/viaduct/schemabase directory.
  */
+@OptIn(ExperimentalApi::class)
 class ViaductApplicationPluginTest {
     @TempDir
     lateinit var tempDir: Path
@@ -46,6 +50,34 @@ class ViaductApplicationPluginTest {
     fun `task should be created successfully`() {
         assertNotNull(task)
         assertTrue(task is AssembleCentralSchemaTask)
+    }
+
+    @Test
+    fun `task defaults to disabled schema scoping`() {
+        assertEquals(SchemaScoping.EMPTY, task.schemaScoping.get())
+        assertFalse(task.schemaScoping.get().isScoped)
+    }
+
+    @Test
+    fun `application plugin passes declared schema scoping to assembly task`() {
+        val rootDir = tempDir.resolve("scoped").toFile().apply { mkdirs() }
+        val root = ProjectBuilder.builder()
+            .withName("root")
+            .withProjectDir(rootDir)
+            .build()
+        root.pluginManager.apply("java-library")
+        root.registerViaductTopology(":")
+
+        root.pluginManager.apply(ViaductApplicationPlugin::class.java)
+        root.extensions.getByType(ViaductApplicationExtension::class.java).declareScoping {
+            scopes("public")
+        }
+
+        val assembleTask = root.tasks.named(
+            "assembleViaductCentralSchema",
+            AssembleCentralSchemaTask::class.java,
+        ).get()
+        assertEquals(setOf("public"), assembleTask.schemaScoping.get().scopeUniverse)
     }
 
     @Test

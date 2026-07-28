@@ -16,6 +16,8 @@ import viaduct.graphql.schema.validation.ValidationErrorCodes
 
 class ScopeDirectivesRuleTest {
     private val preamble = """
+        scalar BackingData
+        directive @backingData(class: String!) on FIELD_DEFINITION
         directive @namespaceType on OBJECT
         directive @scope(to: [String!]!) repeatable on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
         directive @tenantLocal on FIELD_DEFINITION
@@ -66,6 +68,159 @@ class ScopeDirectivesRuleTest {
         )
 
         errors.shouldBeEmpty()
+    }
+
+    @Test
+    fun `valid - tenant-local fields may return scalars or BackingData`() {
+        val errors = validate(
+            """
+            type Query @scope(to: ["viaduct"]) {
+                visible: String
+                nullableScalar: String @tenantLocal
+                nonNullScalar: Int! @tenantLocal
+                scalarList: [Boolean!]! @tenantLocal
+                backingData: BackingData @backingData(class: "MyData") @tenantLocal
+            }
+            """.trimIndent()
+        )
+
+        errors.shouldBeEmpty()
+    }
+
+    @Test
+    fun `invalid - tenant-local fields may not return non-scalar types`() {
+        val errors = validate(
+            """
+            type Query @scope(to: ["viaduct"]) {
+                visible: String
+                objectValue: ObjectValue @tenantLocal
+                interfaceValue: InterfaceValue @tenantLocal
+                unionValue: UnionValue @tenantLocal
+                enumValue: EnumValue @tenantLocal
+            }
+
+            type ObjectValue {
+                value: String
+            }
+
+            interface InterfaceValue {
+                value: String
+            }
+
+            type InterfaceImplementation implements InterfaceValue {
+                value: String
+            }
+
+            union UnionValue = ObjectValue | InterfaceImplementation
+
+            enum EnumValue {
+                VALUE
+            }
+            """.trimIndent()
+        )
+
+        errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
+            ValidationErrorCodes.TENANT_LOCAL_FIELD_TYPE_NOT_SCALAR,
+            ValidationErrorCodes.TENANT_LOCAL_FIELD_TYPE_NOT_SCALAR,
+            ValidationErrorCodes.TENANT_LOCAL_FIELD_TYPE_NOT_SCALAR,
+            ValidationErrorCodes.TENANT_LOCAL_FIELD_TYPE_NOT_SCALAR
+        )
+        errors.map { it.message } shouldContainExactlyInAnyOrder listOf(
+            "Field Query.objectValue has @tenantLocal but returns non-scalar type ObjectValue. " +
+                "@tenantLocal fields may only return scalar or BackingData types.",
+            "Field Query.interfaceValue has @tenantLocal but returns non-scalar type InterfaceValue. " +
+                "@tenantLocal fields may only return scalar or BackingData types.",
+            "Field Query.unionValue has @tenantLocal but returns non-scalar type UnionValue. " +
+                "@tenantLocal fields may only return scalar or BackingData types.",
+            "Field Query.enumValue has @tenantLocal but returns non-scalar type EnumValue. " +
+                "@tenantLocal fields may only return scalar or BackingData types."
+        )
+    }
+
+    @Test
+    fun `invalid - interface fields may not be tenant-local`() {
+        val errors = validate(
+            """
+            interface Named @scope(to: ["viaduct"]) {
+                name: String @tenantLocal
+                description: String
+            }
+
+            type Query @scope(to: ["viaduct"]) {
+                user: User
+            }
+
+            type User implements Named @scope(to: ["viaduct"]) {
+                id: ID
+                name: String
+                description: String
+            }
+            """.trimIndent()
+        )
+
+        errors.map { it.code } shouldContainExactly listOf(
+            ValidationErrorCodes.TENANT_LOCAL_INTERFACE_FIELD
+        )
+        errors.single().message shouldBe
+            "Field Named.name has @tenantLocal but is declared on an interface. " +
+            "@tenantLocal is not allowed on interface fields."
+    }
+
+    @Test
+    fun `invalid - object fields inherited from interfaces may not be tenant-local`() {
+        val errors = validate(
+            """
+            interface Named @scope(to: ["viaduct"]) {
+                name: String
+            }
+
+            type Query @scope(to: ["viaduct"]) {
+                user: User
+            }
+
+            type User implements Named @scope(to: ["viaduct"]) {
+                id: ID
+                name: String @tenantLocal
+            }
+            """.trimIndent()
+        )
+
+        errors.map { it.code } shouldContainExactly listOf(
+            ValidationErrorCodes.TENANT_LOCAL_IMPLEMENTED_INTERFACE_FIELD
+        )
+        errors.single().message shouldBe
+            "Field User.name has @tenantLocal but implements an interface field. " +
+            "@tenantLocal is not allowed on fields inherited from interfaces."
+    }
+
+    @Test
+    fun `invalid - child interface fields inherited from interfaces may not be tenant-local`() {
+        val errors = validate(
+            """
+            interface Node @scope(to: ["viaduct"]) {
+                id: ID
+            }
+
+            interface Resource implements Node @scope(to: ["viaduct"]) {
+                id: ID @tenantLocal
+                name: String
+            }
+
+            type Query @scope(to: ["viaduct"]) {
+                resource: Resource
+            }
+
+            type Image implements Resource & Node @scope(to: ["viaduct"]) {
+                id: ID
+                name: String
+            }
+            """.trimIndent()
+        )
+
+        errors.map { it.code } shouldContainExactly listOf(
+            ValidationErrorCodes.TENANT_LOCAL_INTERFACE_FIELD,
+            ValidationErrorCodes.TENANT_LOCAL_IMPLEMENTED_INTERFACE_FIELD
+        )
     }
 
     @Test
@@ -393,7 +548,7 @@ class ScopeDirectivesRuleTest {
             }
 
             extend type Query {
-                internalViewer: User @tenantLocal
+                internalViewerId: ID @tenantLocal
             }
 
             extend type User {
@@ -406,7 +561,7 @@ class ScopeDirectivesRuleTest {
     }
 
     @Test
-    fun `valid - tenant-local-only interface extensions do not require scope declarations`() {
+    fun `invalid - tenant-local interface extension fields and their object implementations are rejected`() {
         val errors = validate(
             """
             interface User @scope(to: ["viaduct"]) {
@@ -428,7 +583,10 @@ class ScopeDirectivesRuleTest {
             """.trimIndent()
         )
 
-        errors.shouldBeEmpty()
+        errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
+            ValidationErrorCodes.TENANT_LOCAL_INTERFACE_FIELD,
+            ValidationErrorCodes.TENANT_LOCAL_IMPLEMENTED_INTERFACE_FIELD
+        )
     }
 
     @Test
@@ -478,13 +636,11 @@ class ScopeDirectivesRuleTest {
 
             extend interface User {
                 displayName: String
-                internalOnly: String @tenantLocal
             }
 
             type Guest implements User @scope(to: ["viaduct"]) {
                 name: String
                 displayName: String
-                internalOnly: String @tenantLocal
             }
             """.trimIndent()
         )

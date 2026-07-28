@@ -17,7 +17,11 @@ import viaduct.graphql.schema.validation.SchemaValidationError
 import viaduct.graphql.schema.validation.rules.DefaultSchemaValidator
 import viaduct.graphql.schema.validation.rules.SchemaExtensionsValidator
 
-class ViaductSchemaValidator(private val logger: Logger, private val extensionsOnly: Boolean = false) {
+class ViaductSchemaValidator(
+    private val logger: Logger,
+    private val extensionsOnly: Boolean = false,
+    private val validateScopeConsistency: Boolean = false,
+) {
     /**
      * Validates a schema using both GraphQL-Java syntax validation and Viaduct-specific rules.
      * If syntax validation fails, Viaduct validation is skipped.
@@ -105,7 +109,10 @@ class ViaductSchemaValidator(private val logger: Logger, private val extensionsO
         val allErrors = if (extensionsOnly) {
             SchemaExtensionsValidator.validate(schema)
         } else {
-            DefaultSchemaValidator(strictMode = true).validate(schema)
+            DefaultSchemaValidator(
+                strictMode = true,
+                validateScopeConsistency = validateScopeConsistency,
+            ).validate(schema)
         }
 
         if (allErrors.isEmpty()) {

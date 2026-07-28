@@ -6,15 +6,55 @@ import viaduct.graphql.schema.validation.ValidationContext
 import viaduct.graphql.schema.validation.ValidationErrorCodes
 import viaduct.graphql.schema.validation.ValidationRule
 
-class ScopeDirectivesRule : ValidationRule(
-    id = "ScopeDirectives",
-    description = "Validates @scope directives and scoped schema membership consistency"
-) {
+class ScopeDirectivesRule(
+    private val validateScopeConsistency: Boolean = true,
+) : ValidationRule(
+        id = "ScopeDirectives",
+        description = "Validates @scope and @tenantLocal directives and scoped schema membership consistency"
+    ) {
+    override fun visitField(
+        ctx: ValidationContext,
+        field: ViaductSchema.Field
+    ) {
+        if (!field.hasAppliedDirective(TENANT_LOCAL_DIRECTIVE_NAME)) return
+
+        val typeName = field.containingDef.name
+        val location = SchemaLocation.ofField(typeName, field.name).withSourceLocation(field.sourceLocation)
+
+        if (field.containingDef is ViaductSchema.Interface) {
+            ctx.reportError(
+                code = ValidationErrorCodes.TENANT_LOCAL_INTERFACE_FIELD,
+                message = "Field $typeName.${field.name} has @$TENANT_LOCAL_DIRECTIVE_NAME but is declared on an " +
+                    "interface. @$TENANT_LOCAL_DIRECTIVE_NAME is not allowed on interface fields.",
+                location = location
+            )
+        }
+
+        if (field.isOverride) {
+            ctx.reportError(
+                code = ValidationErrorCodes.TENANT_LOCAL_IMPLEMENTED_INTERFACE_FIELD,
+                message = "Field $typeName.${field.name} has @$TENANT_LOCAL_DIRECTIVE_NAME but implements an " +
+                    "interface field. @$TENANT_LOCAL_DIRECTIVE_NAME is not allowed on fields inherited from interfaces.",
+                location = location
+            )
+        }
+
+        if (field.type.baseTypeDef !is ViaductSchema.Scalar) {
+            ctx.reportError(
+                code = ValidationErrorCodes.TENANT_LOCAL_FIELD_TYPE_NOT_SCALAR,
+                message = "Field $typeName.${field.name} has @$TENANT_LOCAL_DIRECTIVE_NAME but returns non-scalar type " +
+                    "${field.type.baseTypeDef.name}. @$TENANT_LOCAL_DIRECTIVE_NAME fields may only return scalar or " +
+                    "BackingData types.",
+                location = location
+            )
+        }
+    }
+
     override fun visitTypeDef(
         ctx: ValidationContext,
         typeDef: ViaductSchema.TypeDef
     ) {
-        if (typeDef.name.startsWith("__")) return
+        if (!validateScopeConsistency || typeDef.name.startsWith("__")) return
 
         validateExtensionScopeExpansion(ctx, typeDef)
         when (typeDef) {
@@ -124,6 +164,8 @@ class ScopeDirectivesRule : ValidationRule(
         baseExtension: ViaductSchema.ExtensionWithSupers<*, ViaductSchema.Field>
     ) {
         for (scope in baseExtension.scopes.orEmpty().distinct()) {
+            if (scope == WILDCARD_SCOPE) continue
+
             val hasFieldDeclaredInScope = outputRecord.fields.any {
                 !it.hasAppliedDirective(TENANT_LOCAL_DIRECTIVE_NAME) &&
                     it.containingExtension.appliedDirectives.includesScope(scope)

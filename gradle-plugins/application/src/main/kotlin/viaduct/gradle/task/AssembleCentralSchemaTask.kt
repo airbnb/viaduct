@@ -7,17 +7,21 @@ import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileSystemOperations
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.CacheableTask
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.slf4j.LoggerFactory
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.gradle.ViaductApplicationPlugin
 import viaduct.gradle.ViaductApplicationPlugin.Companion.BUILTIN_SCHEMA_FILE
 import viaduct.gradle.ViaductSchemaValidator
 import viaduct.graphql.utils.DefaultSchemaFactory
+import viaduct.service.api.scoping.SchemaScoping
 
 /**
  * This task gathers the various partitions of the schema and
@@ -25,6 +29,7 @@ import viaduct.graphql.utils.DefaultSchemaFactory
  * generates the complete default schema in SDL format as a String
  * and stores it in a file.
  */
+@OptIn(ExperimentalApi::class)
 @CacheableTask
 abstract class AssembleCentralSchemaTask
     @Inject
@@ -34,6 +39,7 @@ abstract class AssembleCentralSchemaTask
         init {
             group = "viaduct"
             description = "Merge and validate GraphQL schema files from all modules into a single central schema. Run this in CI to verify the complete schema is valid."
+            schemaScoping.convention(SchemaScoping.EMPTY)
         }
 
         /** Schema partition files from individual viaduct-module projects. */
@@ -72,6 +78,10 @@ abstract class AssembleCentralSchemaTask
         @get:OutputDirectory
         abstract val outputDirectory: DirectoryProperty
 
+        /** The application's schema-scoping declaration, or [SchemaScoping.EMPTY] when scoping is disabled. */
+        @get:Input
+        abstract val schemaScoping: Property<SchemaScoping>
+
         @TaskAction
         fun taskAction() {
             fileSystemOperations.sync {
@@ -109,7 +119,10 @@ abstract class AssembleCentralSchemaTask
             excludeFromViaductValidation: Collection<File> = emptyList()
         ) {
             val logger = LoggerFactory.getLogger(ViaductApplicationPlugin::class.java)
-            val validator = ViaductSchemaValidator(logger)
+            val validator = ViaductSchemaValidator(
+                logger,
+                validateScopeConsistency = schemaScoping.get().isScoped,
+            )
             val errors = validator.validateSchema(schemaFiles, excludeFromViaductValidation)
             if (errors.isNotEmpty()) {
                 errors.forEach { logger.error(it.message ?: it.toString()) }

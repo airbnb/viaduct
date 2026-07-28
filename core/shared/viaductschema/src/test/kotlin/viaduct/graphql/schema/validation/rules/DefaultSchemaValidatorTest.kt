@@ -228,4 +228,71 @@ class DefaultSchemaValidatorTest {
             ValidationErrorCodes.RESOLVER_ON_INTERFACE_FIELD
         )
     }
+
+    @Test
+    fun `should enforce tenant-local validation in the default OSS validator`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            directive @tenantLocal on FIELD_DEFINITION
+            interface Named {
+                name: String @tenantLocal
+            }
+            type User implements Named {
+                id: ID
+                name: String @tenantLocal
+            }
+            type Query {
+                user: User
+                invalidObject: User @tenantLocal
+            }
+            """.trimIndent()
+        )
+
+        val errors = DefaultSchemaValidator().validate(schema)
+
+        errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
+            ValidationErrorCodes.TENANT_LOCAL_INTERFACE_FIELD,
+            ValidationErrorCodes.TENANT_LOCAL_IMPLEMENTED_INTERFACE_FIELD,
+            ValidationErrorCodes.TENANT_LOCAL_FIELD_TYPE_NOT_SCALAR
+        )
+    }
+
+    @Test
+    fun `should skip scope consistency validation by default`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            directive @scope(to: [String!]!) repeatable on OBJECT
+            type Query @scope(to: ["*"]) {
+                frameworkField: String
+            }
+            extend type Query {
+                greeting: String
+            }
+            """.trimIndent()
+        )
+
+        val errors = DefaultSchemaValidator().validate(schema)
+
+        errors.shouldBeEmpty()
+    }
+
+    @Test
+    fun `should not treat wildcard as a concrete scope requiring a field`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            directive @scope(to: [String!]!) repeatable on OBJECT
+            directive @tenantLocal on FIELD_DEFINITION
+            type Query @scope(to: ["*"]) {
+                frameworkField: String @tenantLocal
+            }
+            extend type Query @scope(to: ["public"]) {
+                greeting: String
+            }
+            """.trimIndent()
+        )
+
+        val errors = DefaultSchemaValidator(validateScopeConsistency = true).validate(schema)
+
+        errors.shouldBeEmpty()
+    }
 }

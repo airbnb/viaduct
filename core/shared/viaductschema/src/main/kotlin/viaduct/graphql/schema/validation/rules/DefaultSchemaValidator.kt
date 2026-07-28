@@ -26,12 +26,17 @@ import viaduct.graphql.schema.validation.SchemaValidator
  * - [CrossModuleExtensionFieldsResolverRule]: Fields added by cross-module extend type must have @resolver
  * - [NoResolverOnInterfaceFieldsRule]: Interface fields cannot declare @resolver
  * - [PageInfoLocationRule]: PageInfo must not be defined inside a module partition
+ * - [ScopeDirectivesRule]: Validates @scope and @tenantLocal directives
  * - [NodeInterfaceIdConsistencyRule]: Interfaces with an id field implemented alongside Node must implement Node
  *
  * When [strictMode] is true, also enforces [StrictConnectionPageInfoRule]: PageInfo must not implement
- * interfaces or be a union member.
+ * interfaces or be a union member. [ScopeDirectivesRule]'s tenant-local checks always run; its
+ * schema-wide scope consistency checks run only when [validateScopeConsistency] is true.
  */
-class DefaultSchemaValidator(strictMode: Boolean = false) {
+class DefaultSchemaValidator(
+    strictMode: Boolean = false,
+    validateScopeConsistency: Boolean = false,
+) {
     private val allowedScalarNames = GraphQLBuiltIns.SCALARS + GraphQLBuiltIns.VIADUCT_SCALARS
     private val modulePartitionPathPrefix = "partition/"
 
@@ -56,6 +61,7 @@ class DefaultSchemaValidator(strictMode: Boolean = false) {
                 add(CrossModuleExtensionFieldsResolverRule(modulePartitionPathPrefix))
                 add(NoResolverOnInterfaceFieldsRule())
                 add(PageInfoLocationRule(modulePartitionPathPrefix))
+                add(ScopeDirectivesRule(validateScopeConsistency))
                 add(NodeInterfaceIdConsistencyRule())
             }
         )

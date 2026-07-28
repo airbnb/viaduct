@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.slf4j.LoggerFactory
 import viaduct.graphql.schema.validation.ValidationErrorCodes
+import viaduct.graphql.utils.DefaultSchemaFactory
 
 class ViaductSchemaValidatorTest {
     private val logger = LoggerFactory.getLogger(ViaductSchemaValidatorTest::class.java)
@@ -229,5 +230,48 @@ class ViaductSchemaValidatorTest {
         errors[0].message shouldContain "Internal framework error"
         errors[0].message shouldContain "CustomA"
         errors[0].message shouldNotContain "CustomB"
+    }
+
+    @Test
+    fun `generated roots allow unscoped extensions when scoping is disabled`() {
+        val userFile = tempDir.resolve("user.graphqls").toFile().apply {
+            writeText("extend type Query { greeting: String }\n")
+        }
+        val builtinFile = tempDir.resolve("BUILTIN_SCHEMA.graphqls").toFile().apply {
+            writeText(DefaultSchemaFactory.getDefaultSDL(existingSDLFiles = listOf(userFile)))
+        }
+
+        val errors = ViaductSchemaValidator(
+            logger,
+            validateScopeConsistency = false,
+        ).validateSchema(
+            schemaFiles = listOf(userFile, builtinFile),
+            excludeFromViaductValidation = listOf(builtinFile),
+        )
+
+        errors.shouldBeEmpty()
+    }
+
+    @Test
+    fun `generated roots require scoped extensions when scoping is enabled`() {
+        val userFile = tempDir.resolve("user.graphqls").toFile().apply {
+            writeText("extend type Query { greeting: String }\n")
+        }
+        val builtinFile = tempDir.resolve("BUILTIN_SCHEMA.graphqls").toFile().apply {
+            writeText(DefaultSchemaFactory.getDefaultSDL(existingSDLFiles = listOf(userFile)))
+        }
+
+        val errors = ViaductSchemaValidator(
+            logger,
+            validateScopeConsistency = true,
+        ).validateSchema(
+            schemaFiles = listOf(userFile, builtinFile),
+            excludeFromViaductValidation = listOf(builtinFile),
+        )
+
+        errors shouldHaveSize 1
+        errors[0].message shouldContain
+            "[${ValidationErrorCodes.OBJECT_OR_INTERFACE_EXTENSION_SCOPE_DIRECTIVE_MISSING}]"
+        errors[0].message shouldNotContain "Internal framework error"
     }
 }
