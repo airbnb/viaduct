@@ -39,7 +39,7 @@ class ExecutorValidatorTest {
         checkerExecutorValidator: Validator<CheckerExecutorValidationCtx> = Validator.Unvalidated
     ) {
         val validator = ExecutorValidator(nodeResolverValidator, resolverExecutorValidator, requiredSelectionSetValidator, checkerExecutorValidator)
-        DispatcherRegistryFactory(
+        TenantAPIBootstrapperDispatcherRegistryFactory(
             MockTenantAPIBootstrapper(bootstrappers),
             validator,
             checkerExecutorFactory
@@ -72,7 +72,7 @@ class ExecutorValidatorTest {
             fullSchema = mutationSchema,
         )
         assertThrows<Exception> {
-            DispatcherRegistryFactory(
+            TenantAPIBootstrapperDispatcherRegistryFactory(
                 MockTenantAPIBootstrapper(listOf(bootstrap)),
                 ExecutorValidator(mutationSchema),
                 MockCheckerExecutorFactory()
@@ -104,7 +104,7 @@ class ExecutorValidatorTest {
     @Test
     fun `fails on requiredSelectionSet validator failure for field checker`() {
         val validator = ExecutorValidator(Validator.Unvalidated, Validator.Invalid, Validator.Unvalidated, Validator.Unvalidated)
-        DispatcherRegistryFactory(
+        TenantAPIBootstrapperDispatcherRegistryFactory(
             MockTenantAPIBootstrapper(),
             validator,
             MockCheckerExecutorFactory(
@@ -120,7 +120,7 @@ class ExecutorValidatorTest {
     @Test
     fun `fails on requiredSelectionSet validator failure for type checker`() {
         val validator = ExecutorValidator(Validator.Unvalidated, Validator.Invalid, Validator.Unvalidated, Validator.Unvalidated)
-        DispatcherRegistryFactory(
+        TenantAPIBootstrapperDispatcherRegistryFactory(
             MockTenantAPIBootstrapper(),
             validator,
             MockCheckerExecutorFactory(

@@ -104,7 +104,7 @@ The StarWars `TenantBootstrapper` demonstrates the remote process bootstrap:
 2. `SchemaRegistry` publishes that schema for schema-only remote execution contexts.
 3. `ExecutionRegistryConfigSourceCollector.fromResources()` finds tenant manifests under `META-INF/viaduct/modules/<package>.json`.
 4. `BootstrapperFactory` and `SharedTenantModuleInjectorFactory` construct tenant module bootstrappers using the remote process's `CodeInjector`.
-5. `ViaductBuiltInResolversBootstrapper` adds built-in node and field resolvers that are not present in tenant manifests.
+5. `builtinModuleConfigSources(...)` generates the built-in node and field resolver configs (`Query.node`/`Query.nodes` and `@namespaceType`) that are not present in tenant manifests, and they are bootstrapped through the same `BootstrapperFactory` path.
 6. Node and field executors are registered by stable ID in `NodeExecutorRegistry` and `FieldExecutorRegistry`.
 
 The schema filters which manifest entries are realized and supports field selection-set reconstruction. The remote process does not create a full `Viaduct` engine just to execute resolver executors.

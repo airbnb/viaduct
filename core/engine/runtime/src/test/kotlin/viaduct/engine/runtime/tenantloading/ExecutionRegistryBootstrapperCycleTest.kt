@@ -93,7 +93,7 @@ class ExecutionRegistryBootstrapperCycleTest {
             fields = listOf(fieldEntry("foo"), fieldEntry("bar")),
         )
         assertThrows<RequiredSelectionsCycleException> {
-            DispatcherRegistryFactory(
+            TenantAPIBootstrapperDispatcherRegistryFactory(
                 tenantAPIBootstrapper = MockTenantAPIBootstrapper(listOf(bootstrapper(registry))),
                 validator = ExecutorValidator(schema),
                 checkerExecutorFactory = MockCheckerExecutorFactory(),

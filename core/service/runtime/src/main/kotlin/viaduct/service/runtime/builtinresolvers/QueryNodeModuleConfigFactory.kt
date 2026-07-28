@@ -1,6 +1,5 @@
 package viaduct.service.runtime.builtinresolvers
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigFactory
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
@@ -16,7 +15,6 @@ import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
  */
 class QueryNodeModuleConfigFactory(
     private val fullSchema: ViaductSchema,
-    private val objectMapper: ObjectMapper = builtinModuleConfigObjectMapper,
 ) : ModuleConfigFactory {
     override fun moduleConfigSource(): ModuleConfigSource? {
         val queryType = fullSchema.schema.queryType
@@ -30,7 +28,6 @@ class QueryNodeModuleConfigFactory(
             tenantName = TENANT_NAME,
             executorFactoryName = QueryNodeExecutorFactory::class.java.name,
             fields = fields,
-            objectMapper = objectMapper,
         )
     }
 

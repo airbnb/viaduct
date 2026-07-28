@@ -19,11 +19,12 @@ import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.execution.QueryPlanFactory
 import viaduct.engine.runtime.execution.TenantNameResolver
-import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
 import viaduct.engine.runtime.tenantloading.ExecutorValidator
 import viaduct.engine.runtime.tenantloading.MissingResolverValidationCtx
 import viaduct.engine.runtime.tenantloading.MissingResolverValidator
+import viaduct.engine.runtime.tenantloading.StandardDispatcherRegistryFactory
 import viaduct.engine.runtime.validation.Validator
+import viaduct.service.runtime.builtinresolvers.builtinModuleConfigSources
 import viaduct.utils.slf4j.logger
 
 internal class SchemaScopedModule(
@@ -107,7 +108,8 @@ internal class SchemaScopedModule(
         validator: ExecutorValidator,
         checkerExecutorFactory: CheckerExecutorFactory,
         schema: ViaductSchema,
-        tenantBootstrapper: TenantAPIBootstrapper,
+        moduleBootstrapConfiguration: ModuleBootstrapConfiguration,
+        compatBootstrapper: TenantAPIBootstrapper,
         proxyResolverFactory: ProxyResolverFactory,
         resolverInstrumentation: ViaductResolverInstrumentation,
         @Named("lenientResolverValidation") lenientResolverValidation: Boolean,
@@ -122,10 +124,25 @@ internal class SchemaScopedModule(
                 MissingResolverValidator(schema)
             }
 
-        val dispatcherRegistry = DispatcherRegistryFactory(
-            tenantBootstrapper,
-            validator,
-            checkerExecutorFactory,
+        // Generated built-in configs are schema-derived, so they are assembled from the schema
+        // rather than at builder time. They flow through the same file-based bootstrap path as
+        // resource-backed tenant modules but are passed separately so they bootstrap last and win
+        // coordinate dedup over any tenant-supplied resolver at the same coordinate. Generation is
+        // deferred (a provider) so that schema-validation failures surface inside the factory's
+        // create() and are unwrapped into a friendly build error rather than a raw Guice failure.
+        val dispatcherRegistry = StandardDispatcherRegistryFactory(
+            moduleConfigSources = moduleBootstrapConfiguration.moduleConfigSources,
+            tenantModuleInjectorFactory = moduleBootstrapConfiguration.tenantModuleInjectorFactory,
+            validator = validator,
+            checkerExecutorFactory = checkerExecutorFactory,
+            compatBootstrapper = compatBootstrapper,
+            builtinModuleConfigSourcesProvider = {
+                builtinModuleConfigSources(
+                    schema = schema,
+                    defaultQueryNodeResolversEnabled = moduleBootstrapConfiguration.defaultQueryNodeResolversEnabled,
+                )
+            },
+            grtPackagePrefix = moduleBootstrapConfiguration.grtPackagePrefix,
             resolverInstrumentation = resolverInstrumentation,
             proxyResolverFactory = proxyResolverFactory,
             missingResolverValidator = missingResolverValidator,

@@ -19,7 +19,6 @@ import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.future.await
 import viaduct.apiannotations.VisibleForTest
-import viaduct.engine.BootstrapperFactory
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineImpl
 import viaduct.engine.api.EngineExecutionContext
@@ -36,7 +35,7 @@ import viaduct.engine.api.spi.flatten
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
-import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
+import viaduct.engine.runtime.tenantloading.AbstractDispatcherRegistryFactory
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryConfigSourceCollector
 import viaduct.engine.runtime.tenantloading.MissingResolversException
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
@@ -47,10 +46,10 @@ import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.service.api.spi.NaiveTenantModuleInjectorFactory
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.TenantModuleInjectorFactory
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
-import viaduct.service.runtime.builtinresolvers.ViaductBuiltInResolversBootstrapper
 
 /**
  * An immutable implementation of Viaduct interface, it configures and executes queries against the Viaduct runtime
@@ -359,28 +358,30 @@ class StandardViaduct
                     )
                 }
 
-                // Build tenant bootstrapper from builders
-                val tenantBootstrappers = buildList {
-                    // Generated registry resources are a static baseline. Builder-supplied bootstrappers
-                    // may be hotswap-aware and should be able to override stale generated metadata.
-                    tenantModuleInjectorFactory?.let { injectorFactory ->
-                        add(
-                            BootstrapperFactory.fromConfigSources(
-                                injectorFactory,
-                                executorRegistryConfigSources
-                                    ?: ExecutionRegistryConfigSourceCollector.fromResources(),
-                                executorRegistryGrtPackagePrefix,
-                            )
-                        )
-                    }
-                    addAll(tenantAPIBootstrapperBuilders.map { it.create() })
-                    if (defaultQueryNodeResolversEnabled) {
-                        add(ViaductBuiltInResolversBootstrapper.Builder().create())
-                    }
-                }.flatten()
+                // Primary path: resource-backed module configs are bootstrapped in-engine using the
+                // service-supplied injector factory. Generated built-ins (Query.node/nodes,
+                // @namespaceType) are appended later in schema scope. When no injector factory is
+                // configured, no config sources are bootstrapped through this path.
+                val moduleBootstrapConfiguration = ModuleBootstrapConfiguration(
+                    moduleConfigSources = if (tenantModuleInjectorFactory != null) {
+                        executorRegistryConfigSources
+                            ?: ExecutionRegistryConfigSourceCollector.fromResources()
+                    } else {
+                        emptyList()
+                    },
+                    tenantModuleInjectorFactory = tenantModuleInjectorFactory ?: NaiveTenantModuleInjectorFactory,
+                    grtPackagePrefix = executorRegistryGrtPackagePrefix,
+                    defaultQueryNodeResolversEnabled = defaultQueryNodeResolversEnabled,
+                )
+
+                // Compatibility path: tenant APIs that are not expressed as config sources (classic
+                // wiring, remote resolvers, test fixtures) still contribute through a
+                // TenantAPIBootstrapper.
+                val compatBootstrapper = tenantAPIBootstrapperBuilders.map { it.create() }.flatten()
 
                 val parentModule = StandardViaductModule(
-                    tenantBootstrapper = tenantBootstrappers,
+                    moduleBootstrapConfiguration = moduleBootstrapConfiguration,
+                    compatBootstrapper = compatBootstrapper,
                     engineConfiguration = engineConfiguration,
                     tenantNameResolver = tenantNameResolver,
                     checkerExecutorFactory = checkerExecutorFactory,
@@ -408,8 +409,13 @@ class StandardViaduct
                             }
                         }
                 } catch (e: ProvisionException) {
+                    // Match the factory class itself as well as its synthetic nested frames (e.g. the
+                    // `runBlocking { tenantModuleBootstrappers() }` lambda compiles to
+                    // AbstractDispatcherRegistryFactory$create$...), which is where schema-derived
+                    // config generation throws.
+                    val factoryClassName = AbstractDispatcherRegistryFactory::class.java.name
                     val isCausedByDispatcherRegistryFactory = e.cause?.stackTrace?.any {
-                        it.className == DispatcherRegistryFactory::class.java.name
+                        it.className == factoryClassName || it.className.startsWith("$factoryClassName\$")
                     } ?: false
 
                     if (isCausedByDispatcherRegistryFactory) {

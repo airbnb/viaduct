@@ -14,7 +14,6 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.service.api.spi.CodeInjector
-import viaduct.service.api.spi.InputStreamSource
 
 class QueryNodeBuiltInFactoriesTest {
     private val objectMapper = jacksonObjectMapper()
@@ -24,7 +23,13 @@ class QueryNodeBuiltInFactoriesTest {
         return ViaductSchema(UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(esdl)))
     }
 
-    private fun executorFactory() = QueryNodeExecutorFactory(CodeInjector.Naive, InputStreamSource.fromString("{}", "test"))
+    private fun testRegistry() =
+        ExecutionRegistryConfigFile(
+            version = "1",
+            executorFactory = QueryNodeExecutorFactory::class.java.name,
+        )
+
+    private fun executorFactory() = QueryNodeExecutorFactory(CodeInjector.Naive, testRegistry())
 
     @Test
     fun `config factory returns null when schema has neither node nor nodes`() {
@@ -62,11 +67,11 @@ class QueryNodeBuiltInFactoriesTest {
         val schema = mkSchema("type Query { node(id: ID!): Node, nodes(ids: [ID!]!): [Node]! }")
 
         assertSame(
-            ViaductQueryNodeResolverModuleBootstrapper.queryNodeResolver,
+            QueryNodeExecutorFactory.queryNodeResolver,
             factory.createFieldResolverExecutor(fieldEntry("node"), schema),
         )
         assertSame(
-            ViaductQueryNodeResolverModuleBootstrapper.queryNodesResolver,
+            QueryNodeExecutorFactory.queryNodesResolver,
             factory.createFieldResolverExecutor(fieldEntry("nodes"), schema),
         )
     }
@@ -76,6 +81,22 @@ class QueryNodeBuiltInFactoriesTest {
         assertThrows<IllegalArgumentException> {
             executorFactory().createFieldResolverExecutor(fieldEntry("bogus"), mkSchema("type Query { i: Int }"))
         }
+    }
+
+    @Test
+    fun `executor factory exposes the GRT-prefix constructor used by the bootstrap path`() {
+        // ModuleConfigBootstrapper requests this 3-arg constructor when a grtPackagePrefix override
+        // is in effect; without it, GRT-prefixed builds fail with NoSuchMethodException at startup.
+        val ctor = QueryNodeExecutorFactory::class.java.getDeclaredConstructor(
+            CodeInjector::class.java,
+            String::class.java,
+            ExecutionRegistryConfigFile::class.java,
+        )
+        val factory = ctor.newInstance(CodeInjector.Naive, "com.example.grt", testRegistry())
+        assertSame(
+            QueryNodeExecutorFactory.queryNodeResolver,
+            factory.createFieldResolverExecutor(fieldEntry("node"), mkSchema("type Query { node(id: ID!): Node }")),
+        )
     }
 
     private fun fieldEntry(fieldName: String) =

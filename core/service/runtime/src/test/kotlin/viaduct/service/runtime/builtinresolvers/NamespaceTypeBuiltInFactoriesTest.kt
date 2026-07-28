@@ -14,7 +14,6 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.service.api.spi.CodeInjector
-import viaduct.service.api.spi.InputStreamSource
 
 class NamespaceTypeBuiltInFactoriesTest {
     private val objectMapper = jacksonObjectMapper()
@@ -24,7 +23,13 @@ class NamespaceTypeBuiltInFactoriesTest {
         return ViaductSchema(UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(fullSdl)))
     }
 
-    private fun executorFactory() = NamespaceTypeExecutorFactory(CodeInjector.Naive, InputStreamSource.fromString("{}", "test"))
+    private fun testRegistry() =
+        ExecutionRegistryConfigFile(
+            version = "1",
+            executorFactory = NamespaceTypeExecutorFactory::class.java.name,
+        )
+
+    private fun executorFactory() = NamespaceTypeExecutorFactory(CodeInjector.Naive, testRegistry())
 
     @Test
     fun `config factory returns null when schema has no namespace fields`() {
@@ -67,7 +72,7 @@ class NamespaceTypeBuiltInFactoriesTest {
     }
 
     @Test
-    fun `file-based factory pair matches legacy bootstrapper coordinates`() {
+    fun `config factory selects only namespace-typed fields`() {
         val schema = mkSchema(
             """
             type Inner @namespaceType { value: String }
@@ -76,14 +81,82 @@ class NamespaceTypeBuiltInFactoriesTest {
             """.trimIndent()
         )
 
-        val legacyCoords = NamespaceTypeResolverModuleBootstrapper()
-            .fieldResolverExecutors(schema).map { it.first }.toSet()
-
         val config = NamespaceTypeModuleConfigFactory(schema).moduleConfigSource()!!
             .source.openStream().use { objectMapper.readValue<ExecutionRegistryConfigFile>(it) }
         val fileBasedCoords = config.fields.map { Coordinate(it.typeName, it.fieldName) }.toSet()
 
-        assertEquals(legacyCoords, fileBasedCoords)
+        // Only fields returning a @namespaceType object are included; scalar fields (count, name)
+        // are excluded.
+        assertEquals(setOf(Coordinate("Query", "outer"), Coordinate("Outer", "inner")), fileBasedCoords)
+    }
+
+    @Test
+    fun `config factory throws on a wrapped namespace-type field`() {
+        // A namespace type reached through a list/non-null wrapper is invalid; discovery must fail
+        // fast rather than emit a resolver for a wrapped coordinate.
+        val schema = mkSchema(
+            """
+            type Listings @namespaceType { availableRoomTypes: [String] }
+            type Query { listings: Listings! }
+            """.trimIndent()
+        )
+
+        assertThrows<IllegalStateException> {
+            NamespaceTypeModuleConfigFactory(schema).moduleConfigSource()
+        }
+    }
+
+    @Test
+    fun `config factory discovers namespace fields under the mutation root`() {
+        val schema = mkSchema(
+            """
+            type Query { name: String }
+            type Mutation { listings: Listings }
+            type Listings @namespaceType { pricing: ListingsPricing }
+            type ListingsPricing @namespaceType { setCurrency: String }
+            """.trimIndent()
+        )
+
+        val config = NamespaceTypeModuleConfigFactory(schema).moduleConfigSource()!!
+            .source.openStream().use { objectMapper.readValue<ExecutionRegistryConfigFile>(it) }
+        val coords = config.fields.map { Coordinate(it.typeName, it.fieldName) }.toSet()
+
+        assertEquals(setOf(Coordinate("Mutation", "listings"), Coordinate("Listings", "pricing")), coords)
+    }
+
+    @Test
+    fun `config factory discovers namespace fields under both query and mutation roots`() {
+        val schema = mkSchema(
+            """
+            type Query { queryListings: QueryListings }
+            type QueryListings @namespaceType { search: String }
+            type Mutation { mutationListings: MutationListings }
+            type MutationListings @namespaceType { createListing: String }
+            """.trimIndent()
+        )
+
+        val config = NamespaceTypeModuleConfigFactory(schema).moduleConfigSource()!!
+            .source.openStream().use { objectMapper.readValue<ExecutionRegistryConfigFile>(it) }
+        val coords = config.fields.map { Coordinate(it.typeName, it.fieldName) }.toSet()
+
+        assertEquals(
+            setOf(Coordinate("Query", "queryListings"), Coordinate("Mutation", "mutationListings")),
+            coords,
+        )
+    }
+
+    @Test
+    fun `config factory handles a schema with no mutation type`() {
+        val schema = mkSchema(
+            """
+            type Query { listings: Listings }
+            type Listings @namespaceType { count: Int }
+            """.trimIndent()
+        )
+
+        val config = NamespaceTypeModuleConfigFactory(schema).moduleConfigSource()!!
+            .source.openStream().use { objectMapper.readValue<ExecutionRegistryConfigFile>(it) }
+        assertEquals(listOf(Coordinate("Query", "listings")), config.fields.map { Coordinate(it.typeName, it.fieldName) })
     }
 
     @Test
@@ -109,5 +182,28 @@ class NamespaceTypeBuiltInFactoriesTest {
                 mkSchema("type Query { name: String }"),
             )
         }
+    }
+
+    @Test
+    fun `executor factory exposes the GRT-prefix constructor used by the bootstrap path`() {
+        // ModuleConfigBootstrapper requests this 3-arg constructor when a grtPackagePrefix override
+        // is in effect; without it, GRT-prefixed builds fail with NoSuchMethodException at startup.
+        val ctor = NamespaceTypeExecutorFactory::class.java.getDeclaredConstructor(
+            CodeInjector::class.java,
+            String::class.java,
+            ExecutionRegistryConfigFile::class.java,
+        )
+        val factory = ctor.newInstance(CodeInjector.Naive, "com.example.grt", testRegistry())
+        val schema = mkSchema(
+            """
+            type Listings @namespaceType { count: Int }
+            type Query { listings: Listings }
+            """.trimIndent()
+        )
+        val executor = factory.createFieldResolverExecutor(
+            FieldEntryConfig("Query", "listings", isBatching = false, isSelective = false, attribution = "namespace-type-resolver", tenantAPIData = emptyMap()),
+            schema,
+        )
+        assertEquals("Query.listings", executor.resolverId)
     }
 }

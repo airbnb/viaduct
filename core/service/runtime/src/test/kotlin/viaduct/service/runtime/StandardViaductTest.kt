@@ -260,6 +260,29 @@ class StandardViaductTest {
     }
 
     @Test
+    fun `build should throw GraphQLBuildError when a namespace-type field is wrapped`() {
+        // Built-in @namespaceType config generation runs during registry construction. A wrapped
+        // (list/non-null) namespace field makes that generation throw; the failure must surface as a
+        // GraphQLBuildError rather than leaking a raw Guice ProvisionException to the caller.
+        val sdl = """
+            type Listings @namespaceType {
+                name: String
+            }
+            extend type Query {
+                listings: [Listings]
+            }
+        """.trimIndent()
+        val schemaConfiguration = SchemaConfiguration.fromSdl(sdl)
+
+        assertThrows<GraphQLBuildError> {
+            StandardViaduct.Builder()
+                .withNoTenantAPIBootstrapper()
+                .withSchemaConfiguration(schemaConfiguration)
+                .build()
+        }
+    }
+
+    @Test
     fun `build should validate tenant-local resolver fields against full schema`() {
         val sdl = """
             extend type Query {

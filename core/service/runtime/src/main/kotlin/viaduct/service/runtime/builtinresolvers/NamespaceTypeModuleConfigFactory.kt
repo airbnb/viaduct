@@ -1,6 +1,5 @@
 package viaduct.service.runtime.builtinresolvers
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigFactory
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
@@ -17,7 +16,6 @@ import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
  */
 class NamespaceTypeModuleConfigFactory(
     private val fullSchema: ViaductSchema,
-    private val objectMapper: ObjectMapper = builtinModuleConfigObjectMapper,
 ) : ModuleConfigFactory {
     override fun moduleConfigSource(): ModuleConfigSource? {
         val fields = namespaceFieldCoordinates(fullSchema).map { (typeName, fieldName) ->
@@ -29,7 +27,6 @@ class NamespaceTypeModuleConfigFactory(
             tenantName = TENANT_NAME,
             executorFactoryName = NamespaceTypeExecutorFactory::class.java.name,
             fields = fields,
-            objectMapper = objectMapper,
         )
     }
 

@@ -37,9 +37,12 @@ import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantModuleException
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedNodeResolverDispatcher
-import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
 import viaduct.engine.runtime.tenantloading.ExecutorValidatorContext
+import viaduct.engine.runtime.tenantloading.StandardDispatcherRegistryFactory
+import viaduct.engine.runtime.tenantloading.TenantAPIBootstrapperDispatcherRegistryFactory
 import viaduct.engine.runtime.validation.Validator
+import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.TenantModuleInjectorFactory
 
 @ExperimentalCoroutinesApi
 class DispatcherRegistryTest {
@@ -78,7 +81,8 @@ class DispatcherRegistryTest {
         )
     }
 
-    private fun createDispatcherRegistry() = DispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, checkerExecutorFactory).create(Samples.testSchema) as DispatcherRegistry.Impl
+    private fun createDispatcherRegistry() =
+        TenantAPIBootstrapperDispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, checkerExecutorFactory).create(Samples.testSchema) as DispatcherRegistry.Impl
 
     @Test
     fun `test successful injection of dispatcher`(): Unit =
@@ -190,7 +194,7 @@ class DispatcherRegistryTest {
     fun `invokes validator`() {
         val bootstrapper = MockTenantAPIBootstrapper(emptyList())
         MockValidator().let { validator ->
-            DispatcherRegistryFactory(bootstrapper, validator, MockCheckerExecutorFactory()).create(Samples.testSchema)
+            TenantAPIBootstrapperDispatcherRegistryFactory(bootstrapper, validator, MockCheckerExecutorFactory()).create(Samples.testSchema)
             assertNotNull(validator.arg)
         }
     }
@@ -229,7 +233,7 @@ class DispatcherRegistryTest {
 
         val bootstrapper = MockTenantAPIBootstrapper(listOf(emptyModule, moduleWithResolvers))
         val wiring = MockValidator().let {
-            DispatcherRegistryFactory(bootstrapper, it, MockCheckerExecutorFactory()).create(Samples.testSchema) as DispatcherRegistry.Impl
+            TenantAPIBootstrapperDispatcherRegistryFactory(bootstrapper, it, MockCheckerExecutorFactory()).create(Samples.testSchema) as DispatcherRegistry.Impl
         }
         assertEquals(5, wiring.fieldResolverDispatchers.size)
     }
@@ -314,7 +318,7 @@ class DispatcherRegistryTest {
 
         val bootstrapper = MockTenantAPIBootstrapper(listOf(throwingModule, workingModule))
         val checkerExecutorFactory = MockCheckerExecutorFactory()
-        val registry = DispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, checkerExecutorFactory)
+        val registry = TenantAPIBootstrapperDispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, checkerExecutorFactory)
             .create(Samples.testSchema) as DispatcherRegistry.Impl
 
         // Should still have resolvers from working module
@@ -339,7 +343,7 @@ class DispatcherRegistryTest {
         }
 
         val bootstrapper = MockTenantAPIBootstrapper(listOf(module1, module2))
-        val registry = DispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, MockCheckerExecutorFactory())
+        val registry = TenantAPIBootstrapperDispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, MockCheckerExecutorFactory())
             .create(Samples.testSchema) as DispatcherRegistry.Impl
 
         assertEquals(1, registry.fieldResolverDispatchers.size)
@@ -359,7 +363,7 @@ class DispatcherRegistryTest {
         )
 
         val bootstrapper = MockTenantAPIBootstrapper(listOf(Samples.mockTenantModule))
-        val registry = DispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, checkerFactory)
+        val registry = TenantAPIBootstrapperDispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, checkerFactory)
             .create(Samples.testSchema)
 
         // Should not have checker executors for non-existent resolvers
@@ -374,7 +378,7 @@ class DispatcherRegistryTest {
     fun `batch resolver wrapping in NodeResolverDispatcherImpl`() {
         val bootstrapper = MockTenantAPIBootstrapper(listOf(Samples.mockTenantModule))
         val checkerExecutorFactory = MockCheckerExecutorFactory()
-        val registry = DispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, checkerExecutorFactory)
+        val registry = TenantAPIBootstrapperDispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, checkerExecutorFactory)
             .create(Samples.testSchema)
 
         val batchResolver = registry.getNodeResolverDispatcher("TestBatchNode")
@@ -387,7 +391,7 @@ class DispatcherRegistryTest {
     @Test
     fun `empty tenant modules handling`() {
         val bootstrapper = MockTenantAPIBootstrapper(emptyList())
-        val registry = DispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, MockCheckerExecutorFactory())
+        val registry = TenantAPIBootstrapperDispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, MockCheckerExecutorFactory())
             .create(Samples.testSchema) as DispatcherRegistry.Impl
 
         assertEquals(0, registry.fieldResolverDispatchers.size)
@@ -433,7 +437,7 @@ class DispatcherRegistryTest {
         }
 
         val bootstrapper = MockTenantAPIBootstrapper(listOf(module1, module2))
-        val registry = DispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, MockCheckerExecutorFactory())
+        val registry = TenantAPIBootstrapperDispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, MockCheckerExecutorFactory())
             .create(Samples.testSchema) as DispatcherRegistry.Impl
 
         // Should have both field resolvers
@@ -480,7 +484,7 @@ class DispatcherRegistryTest {
         }
 
         val bootstrapper = MockTenantAPIBootstrapper(listOf(moduleWithBoth))
-        val registry = DispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, MockCheckerExecutorFactory())
+        val registry = TenantAPIBootstrapperDispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, MockCheckerExecutorFactory())
             .create(Samples.testSchema)
 
         // Should have both resolvers
@@ -496,7 +500,7 @@ class DispatcherRegistryTest {
         val checkerFactory = MockCheckerExecutorFactory()
 
         val bootstrapper = MockTenantAPIBootstrapper(listOf(Samples.mockTenantModule))
-        val registry = DispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, checkerFactory)
+        val registry = TenantAPIBootstrapperDispatcherRegistryFactory(bootstrapper, Validator.Unvalidated, checkerFactory)
             .create(Samples.testSchema)
 
         // Introspection type and fields should not have checkers registered
@@ -519,7 +523,7 @@ class DispatcherRegistryTest {
             override fun proxyNode(executor: NodeResolverExecutor): NodeResolverExecutor? = null
         }
 
-        val registry = DispatcherRegistryFactory(
+        val registry = TenantAPIBootstrapperDispatcherRegistryFactory(
             bootstrapper,
             Validator.Unvalidated,
             checkerExecutorFactory,
@@ -541,7 +545,7 @@ class DispatcherRegistryTest {
                 }
         }
 
-        val registry = DispatcherRegistryFactory(
+        val registry = TenantAPIBootstrapperDispatcherRegistryFactory(
             bootstrapper,
             Validator.Unvalidated,
             checkerExecutorFactory,
@@ -550,5 +554,38 @@ class DispatcherRegistryTest {
 
         assertTrue(registry.nodeResolverDispatchers.values.isNotEmpty())
         assertTrue(registry.nodeResolverDispatchers.values.all { it.resolverMetadata.name.startsWith("proxied:") })
+    }
+
+    @Test
+    fun `StandardDispatcherRegistryFactory finalizes the injector factory even with no config sources`() {
+        val injectorFactory = RecordingTenantModuleInjectorFactory()
+
+        StandardDispatcherRegistryFactory(
+            moduleConfigSources = emptyList(),
+            tenantModuleInjectorFactory = injectorFactory,
+            validator = Validator.Unvalidated,
+            checkerExecutorFactory = checkerExecutorFactory,
+        ).create(Samples.testSchema)
+
+        assertEquals(0, injectorFactory.bootstrapCalls)
+        assertEquals(1, injectorFactory.onBootstrapCompleteCalls)
+    }
+}
+
+/** Records lifecycle calls so tests can assert the [TenantModuleInjectorFactory] SPI contract. */
+private class RecordingTenantModuleInjectorFactory : TenantModuleInjectorFactory {
+    var bootstrapCalls: Int = 0
+    var onBootstrapCompleteCalls: Int = 0
+
+    override suspend fun bootstrap(
+        tenantName: String,
+        tenantBootstrapClass: Class<*>?,
+    ): CodeInjector {
+        bootstrapCalls += 1
+        return CodeInjector.Naive
+    }
+
+    override suspend fun onBootstrapComplete() {
+        onBootstrapCompleteCalls += 1
     }
 }

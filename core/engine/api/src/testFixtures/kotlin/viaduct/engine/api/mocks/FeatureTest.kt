@@ -11,15 +11,15 @@ import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionInput
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.spi.flatten
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
-import viaduct.engine.runtime.tenantloading.DispatcherRegistryFactory
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryTenantModuleBootstrapper
 import viaduct.engine.runtime.tenantloading.ExecutorValidator
+import viaduct.engine.runtime.tenantloading.StandardDispatcherRegistryFactory
 import viaduct.graphql.test.assertJson as realAssertJson
 import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder
+import viaduct.service.api.spi.NaiveTenantModuleInjectorFactory
 import viaduct.service.api.spi.mocks.MockFlagManager
-import viaduct.service.runtime.builtinresolvers.ViaductBuiltInResolversBootstrapper
+import viaduct.service.runtime.builtinresolvers.builtinModuleConfigSources
 
 /**
  * Test harness for the Viaduct engine configured with in-memory resolvers.
@@ -79,9 +79,9 @@ fun MockTenantModuleBootstrapper.runFeatureTest(
  *
  * This extension constructs [ExecutionRegistryTenantModuleBootstrapper] directly from the
  * [EngineTestModule], wraps it in [MockTenantAPIBootstrapper], and builds the engine through
- * the same [DispatcherRegistryFactory] path as the legacy extension.
+ * the same [StandardDispatcherRegistryFactory] path as the legacy extension.
  */
-@Suppress("OPT_IN_USAGE") // DispatcherRegistryFactory is experimental
+@Suppress("OPT_IN_USAGE") // StandardDispatcherRegistryFactory is experimental
 fun EngineTestModule.runFeatureTest(
     withoutDefaultQueryNodeResolvers: Boolean = false,
     schema: ViaductSchema? = null,
@@ -93,12 +93,8 @@ fun EngineTestModule.runFeatureTest(
     val executorFactory = EngineTestModuleExecutorFactory()
     val executionRegistryModule = ExecutionRegistryTenantModuleBootstrapper(registry, executorFactory)
 
-    val tenantAPIBootstrapper = buildList {
-        add(MockTenantAPIBootstrapperBuilder(MockTenantAPIBootstrapper(listOf(executionRegistryModule))))
-        if (!withoutDefaultQueryNodeResolvers) {
-            add(ViaductBuiltInResolversBootstrapper.Builder())
-        }
-    }.map { it.create() }.flatten()
+    val compatBootstrapper =
+        MockTenantAPIBootstrapperBuilder(MockTenantAPIBootstrapper(listOf(executionRegistryModule))).create()
 
     val config = engineConfig ?: EngineConfiguration.featureTestDefault
     val checkerExecutorFactory = MockCheckerExecutorFactory(
@@ -106,10 +102,18 @@ fun EngineTestModule.runFeatureTest(
         typeCheckerExecutors = typeCheckerExecutors,
     )
     val validator = ExecutorValidator(fullSchema)
-    val dispatcherRegistry = DispatcherRegistryFactory(
-        tenantAPIBootstrapper,
-        validator,
-        checkerExecutorFactory,
+    val dispatcherRegistry = StandardDispatcherRegistryFactory(
+        moduleConfigSources = emptyList(),
+        tenantModuleInjectorFactory = NaiveTenantModuleInjectorFactory,
+        validator = validator,
+        checkerExecutorFactory = checkerExecutorFactory,
+        compatBootstrapper = compatBootstrapper,
+        builtinModuleConfigSourcesProvider = {
+            builtinModuleConfigSources(
+                schema = fullSchema,
+                defaultQueryNodeResolversEnabled = !withoutDefaultQueryNodeResolvers,
+            )
+        },
         resolverInstrumentation = config.resolverInstrumentation,
     ).create(fullSchema)
     val engine = EngineFactory(config, dispatcherRegistry).create(executableSchema, fullSchema = fullSchema)
@@ -132,18 +136,13 @@ val EngineConfiguration.Companion.featureTestDefault: EngineConfiguration
  *
  * and an [EngineConfiguration] constructed with MockFlagManager.Enabled.
  */
-@Suppress("OPT_IN_USAGE") // DispatcherRegistryFactory is experimental
+@Suppress("OPT_IN_USAGE") // StandardDispatcherRegistryFactory is experimental
 private fun MockTenantModuleBootstrapper.toEngineFactory(
     withoutDefaultQueryNodeResolvers: Boolean,
     engineConfig: EngineConfiguration?
 ): EngineFactory {
     val mods = listOf(this)
-    val tenantAPIBootstrapper = buildList {
-        add(MockTenantAPIBootstrapperBuilder(MockTenantAPIBootstrapper(mods)))
-        if (!withoutDefaultQueryNodeResolvers) {
-            add(ViaductBuiltInResolversBootstrapper.Builder())
-        }
-    }.map { it.create() }.flatten()
+    val compatBootstrapper = MockTenantAPIBootstrapperBuilder(MockTenantAPIBootstrapper(mods)).create()
 
     val config = engineConfig ?: EngineConfiguration.featureTestDefault
     val checkerExecutorFactory = MockCheckerExecutorFactory(
@@ -151,10 +150,18 @@ private fun MockTenantModuleBootstrapper.toEngineFactory(
         typeCheckerExecutors = typeCheckerExecutors
     )
     val validator = ExecutorValidator(fullSchema)
-    val dispatcherRegistry = DispatcherRegistryFactory(
-        tenantAPIBootstrapper,
-        validator,
-        checkerExecutorFactory,
+    val dispatcherRegistry = StandardDispatcherRegistryFactory(
+        moduleConfigSources = emptyList(),
+        tenantModuleInjectorFactory = NaiveTenantModuleInjectorFactory,
+        validator = validator,
+        checkerExecutorFactory = checkerExecutorFactory,
+        compatBootstrapper = compatBootstrapper,
+        builtinModuleConfigSourcesProvider = {
+            builtinModuleConfigSources(
+                schema = fullSchema,
+                defaultQueryNodeResolversEnabled = !withoutDefaultQueryNodeResolvers,
+            )
+        },
         resolverInstrumentation = config.resolverInstrumentation,
     ).create(fullSchema)
     return EngineFactory(config, dispatcherRegistry)

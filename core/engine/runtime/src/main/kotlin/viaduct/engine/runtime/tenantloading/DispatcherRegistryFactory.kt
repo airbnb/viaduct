@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory.getLogger
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CheckerExecutorFactory
@@ -15,6 +16,7 @@ import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.engine.api.spi.TenantAPIBootstrapper
+import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantModuleException
 import viaduct.engine.runtime.CheckerDispatcher
 import viaduct.engine.runtime.CheckerDispatcherImpl
@@ -26,21 +28,53 @@ import viaduct.engine.runtime.NodeResolverDispatcherImpl
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedCheckerDispatcher
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedNodeResolverDispatcher
 import viaduct.engine.runtime.validation.Validator
+import viaduct.service.api.spi.NaiveTenantModuleInjectorFactory
+import viaduct.service.api.spi.TenantModuleInjectorFactory
 
-class DispatcherRegistryFactory(
-    private val tenantAPIBootstrapper: TenantAPIBootstrapper,
+/**
+ * Builds a validated [DispatcherRegistry] from tenant module contributions.
+ *
+ * There are two implementations, differing only in how they obtain their
+ * [TenantModuleBootstrapper]s:
+ *
+ * - [StandardDispatcherRegistryFactory] is the primary, file-based path: it bootstraps a list of
+ *   [ModuleConfigSource]s in-engine via [ModuleConfigBootstrapper].
+ * - [TenantAPIBootstrapperDispatcherRegistryFactory] is the compatibility path for tenant APIs that
+ *   do not express themselves as config sources (classic wiring, remote resolvers, and mock/test
+ *   fixtures): it delegates to a [TenantAPIBootstrapper].
+ *
+ * Both share the executor-assembly, checker-registration and validation logic in
+ * [AbstractDispatcherRegistryFactory].
+ */
+interface DispatcherRegistryFactory {
+    /** create and return a validated [DispatcherRegistry] */
+    fun create(schema: ViaductSchema): DispatcherRegistry
+}
+
+/**
+ * Shared implementation of the [DispatcherRegistry] assembly algorithm.
+ *
+ * Subclasses supply the [TenantModuleBootstrapper]s (via [tenantModuleBootstrappers]); this base
+ * concatenates their executors into dispatchers, registers access checkers, and runs validation.
+ */
+abstract class AbstractDispatcherRegistryFactory(
     private val validator: Validator<ExecutorValidatorContext>,
     private val checkerExecutorFactory: CheckerExecutorFactory,
     private val resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
     private val proxyResolverFactory: ProxyResolverFactory = ProxyResolverFactory.NO_OP,
     private val missingResolverValidator: Validator<MissingResolverValidationCtx> = Validator.Unvalidated,
-) {
+) : DispatcherRegistryFactory {
     companion object {
         private fun log() = getLogger(this::class.java.name.substringBefore("\$Companion"))
     }
 
-    /** create and return a validated DispatcherRegistry */
-    fun create(schema: ViaductSchema): DispatcherRegistry {
+    /**
+     * Produce the tenant module bootstrappers whose executors are assembled into the registry.
+     * Runs on [Dispatchers.Default] inside a `runBlocking` scope during [create].
+     */
+    protected abstract suspend fun tenantModuleBootstrappers(): List<TenantModuleBootstrapper>
+
+    final override fun create(schema: ViaductSchema): DispatcherRegistry {
         val fieldResolverDispatchers = mutableMapOf<Coordinate, FieldResolverDispatcher>()
         val nodeResolverDispatchers = mutableMapOf<String, NodeResolverDispatcher>()
         val fieldCheckerDispatchers = mutableMapOf<Coordinate, CheckerDispatcher>()
@@ -53,7 +87,7 @@ class DispatcherRegistryFactory(
         val typeCheckerExecutorsToValidate = mutableMapOf<String, CheckerExecutor>()
 
         val tenantModuleBootstrappers = runBlocking(Dispatchers.Default) {
-            tenantAPIBootstrapper.tenantModuleBootstrappers()
+            tenantModuleBootstrappers()
         }
 
         // Concatenate resolvers from all bootstrappers into a single list.
@@ -130,4 +164,84 @@ class DispatcherRegistryFactory(
 
         return dispatcherRegistry
     }
+}
+
+/**
+ * The primary, file-based [DispatcherRegistryFactory].
+ *
+ * [moduleConfigSources] (resource-backed tenant modules) are bootstrapped in-place via
+ * [ModuleConfigBootstrapper] using [tenantModuleInjectorFactory]. Tenant APIs that do not express
+ * themselves as config sources (classic wiring, remote resolvers) may still be folded in through the
+ * optional [compatBootstrapper]; its [TenantModuleBootstrapper]s are concatenated after those built
+ * from the config sources.
+ *
+ * Generated built-in resolvers (`Query.node`/`Query.nodes` and `@namespaceType`) are supplied via
+ * [builtinModuleConfigSourcesProvider] and are bootstrapped **last**, after both the resource-backed
+ * and compat contributions. Resolver coordinates are deduped with the later registration winning, so
+ * bootstrapping the built-ins last guarantees they take precedence over any tenant-supplied resolver
+ * registered at the same coordinate — matching the pre-file-bootstrap ordering. Because built-in
+ * executor factories are schema-independent and ignore both the code injector and the GRT prefix,
+ * they are bootstrapped in their own pass with a [NaiveTenantModuleInjectorFactory]; this also keeps
+ * the service-supplied [tenantModuleInjectorFactory]'s `onBootstrapComplete` contract to a single
+ * invocation.
+ *
+ * [builtinModuleConfigSourcesProvider] is a provider rather than a precomputed list so that
+ * schema-derived generation (which can throw for an invalid schema, e.g. a wrapped `@namespaceType`
+ * field) runs inside [create], keeping such failures within the startup error boundary that
+ * `StandardViaduct` unwraps into a friendly build error.
+ */
+class StandardDispatcherRegistryFactory(
+    private val moduleConfigSources: List<ModuleConfigSource>,
+    private val tenantModuleInjectorFactory: TenantModuleInjectorFactory,
+    validator: Validator<ExecutorValidatorContext>,
+    checkerExecutorFactory: CheckerExecutorFactory,
+    private val compatBootstrapper: TenantAPIBootstrapper? = null,
+    private val builtinModuleConfigSourcesProvider: () -> List<ModuleConfigSource> = { emptyList() },
+    private val grtPackagePrefix: String? = null,
+    resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
+    proxyResolverFactory: ProxyResolverFactory = ProxyResolverFactory.NO_OP,
+    missingResolverValidator: Validator<MissingResolverValidationCtx> = Validator.Unvalidated,
+) : AbstractDispatcherRegistryFactory(
+        validator = validator,
+        checkerExecutorFactory = checkerExecutorFactory,
+        resolverInstrumentation = resolverInstrumentation,
+        proxyResolverFactory = proxyResolverFactory,
+        missingResolverValidator = missingResolverValidator,
+    ) {
+    override suspend fun tenantModuleBootstrappers(): List<TenantModuleBootstrapper> {
+        val fromConfigSources: List<TenantModuleBootstrapper> =
+            ModuleConfigBootstrapper(
+                tenantModuleInjectorFactory = tenantModuleInjectorFactory,
+                grtPackagePrefix = grtPackagePrefix,
+            ).bootstrap(moduleConfigSources)
+        val fromCompat = compatBootstrapper?.tenantModuleBootstrappers() ?: emptyList()
+        val fromBuiltins: List<TenantModuleBootstrapper> =
+            ModuleConfigBootstrapper(
+                tenantModuleInjectorFactory = NaiveTenantModuleInjectorFactory,
+                grtPackagePrefix = grtPackagePrefix,
+            ).bootstrap(builtinModuleConfigSourcesProvider())
+        return fromConfigSources + fromCompat + fromBuiltins
+    }
+}
+
+/**
+ * The compatibility [DispatcherRegistryFactory] for callers that only have a [TenantAPIBootstrapper]
+ * (classic wiring, remote resolvers, and mock/test fixtures). Tenant contributions come entirely
+ * from [tenantAPIBootstrapper].
+ */
+class TenantAPIBootstrapperDispatcherRegistryFactory(
+    private val tenantAPIBootstrapper: TenantAPIBootstrapper,
+    validator: Validator<ExecutorValidatorContext>,
+    checkerExecutorFactory: CheckerExecutorFactory,
+    resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
+    proxyResolverFactory: ProxyResolverFactory = ProxyResolverFactory.NO_OP,
+    missingResolverValidator: Validator<MissingResolverValidationCtx> = Validator.Unvalidated,
+) : AbstractDispatcherRegistryFactory(
+        validator = validator,
+        checkerExecutorFactory = checkerExecutorFactory,
+        resolverInstrumentation = resolverInstrumentation,
+        proxyResolverFactory = proxyResolverFactory,
+        missingResolverValidator = missingResolverValidator,
+    ) {
+    override suspend fun tenantModuleBootstrappers(): List<TenantModuleBootstrapper> = tenantAPIBootstrapper.tenantModuleBootstrappers().toList()
 }
