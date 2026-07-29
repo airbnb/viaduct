@@ -204,7 +204,6 @@ public abstract interface class viaduct/service/api/spi/FlagManager$Flag {
 
 public final class viaduct/service/api/spi/FlagManager$Flags : java/lang/Enum, viaduct/service/api/spi/FlagManager$Flag {
 	public static final field ENABLE_MAT_RESOLUTION Lviaduct/service/api/spi/FlagManager$Flags;
-	public static final field ENABLE_SELECTIVE_OER_KEYS Lviaduct/service/api/spi/FlagManager$Flags;
 	public static final field KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING Lviaduct/service/api/spi/FlagManager$Flags;
 	public static final field KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH Lviaduct/service/api/spi/FlagManager$Flags;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;

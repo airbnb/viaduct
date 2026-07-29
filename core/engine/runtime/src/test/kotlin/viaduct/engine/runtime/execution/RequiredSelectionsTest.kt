@@ -885,7 +885,7 @@ class RequiredSelectionsTest {
     }
 
     @Test
-    fun `disabling selective resolver keys causes required selections to reuse client selection shape`() {
+    fun `plain OER keys cause required selections to reuse client selection shape`() {
         val detailsCount = AtomicInteger()
         val detailsSelections = ConcurrentHashMap.newKeySet<String>()
         val engineConfig = EngineConfiguration.featureTestDefault.copy(flagManager = MockFlagManager.Disabled)
@@ -1453,7 +1453,7 @@ class RequiredSelectionsTest {
     }
 
     @Test
-    fun `selective required selection through interface inline fragment uses concrete runtime keying`() {
+    fun `selective required selection through interface inline fragment uses concrete runtime type`() {
         val detailsCount = AtomicInteger()
 
         EngineTestModule(

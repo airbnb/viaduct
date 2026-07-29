@@ -1455,7 +1455,7 @@ abstract class SubqueryExecutionTestCases(
     }
 
     @Test
-    fun `ctx query preserves selective resolver keying in returned EngineObjectData`() {
+    fun `ctx query preserves selective resolver materialization in returned EngineObjectData`() {
         EngineTestModule(
             """
             extend type Query {
@@ -1530,7 +1530,7 @@ abstract class SubqueryExecutionTestCases(
     }
 
     @Test
-    fun `ctx query preserves selective resolver keying for merged root selections in returned EngineObjectData`() {
+    fun `ctx query preserves selective resolver materialization for merged root selections in returned EngineObjectData`() {
         EngineTestModule(
             """
             extend type Query {

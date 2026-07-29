@@ -18,7 +18,6 @@ import viaduct.engine.runtime.CheckerDispatcher
 import viaduct.engine.runtime.CheckerSyncEngineObjectData
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
-import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
 import viaduct.engine.runtime.EngineObjectDataFactory
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
@@ -281,18 +280,8 @@ class AccessCheckRunner(
                         locale = parameters.executionContext.locale,
                         instrumentationContext = instrumentationContext,
                     )
-                    val oerSelections = FieldExecutionHelpers.createOERSelections(
-                        variables,
-                        baseExecutionContext,
-                        queryPlan,
-                    )
-                    Pair(
-                        baseExecutionContext.engineSelectionSetFactory.engineSelectionSet(it.selections, variables.toMap()),
-                        oerSelections,
-                    )
+                    baseExecutionContext.engineSelectionSetFactory.engineSelectionSet(it.selections, variables.toMap())
                 }
-                val visibleEngineSelectionSet = selectionData?.first
-                val oerSelections = selectionData?.second
                 val oerToWrap = if (rss != null && rss.selections.typeName == parameters.graphQLSchema.queryType.name) {
                     parameters.queryEngineResult
                 } else {
@@ -301,9 +290,7 @@ class AccessCheckRunner(
                 CheckerSyncEngineObjectData.resolve(
                     oerToWrap,
                     "missing from checker RSS",
-                    visibleEngineSelectionSet,
-                    isResolverSelective = baseExecutionContext.isResolverSelective,
-                    selections = oerSelections,
+                    selectionData,
                     instrumentationContext = instrumentationContext,
                 )
             }

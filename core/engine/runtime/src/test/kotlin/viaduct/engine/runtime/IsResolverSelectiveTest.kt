@@ -59,32 +59,14 @@ class IsResolverSelectiveTest {
     fun `from registry returns true for selective resolver`() {
         val dispatcherRegistry = dispatcherRegistryWithFieldResolver(isSelective = true)
 
-        val isResolverSelective = IsResolverSelective.fromRegistry(
-            dispatcherRegistry,
-            selectiveResolverOerKeyingEnabled = true,
-        )
+        val isResolverSelective = IsResolverSelective.fromRegistry(dispatcherRegistry)
 
         assertTrue(isResolverSelective(coordinate))
     }
 
     @Test
     fun `from registry returns false when resolver is missing`() {
-        val isResolverSelective = IsResolverSelective.fromRegistry(
-            DispatcherRegistry.Empty,
-            selectiveResolverOerKeyingEnabled = true,
-        )
-
-        assertFalse(isResolverSelective(coordinate))
-    }
-
-    @Test
-    fun `from registry returns false when selective resolver keying is disabled`() {
-        val dispatcherRegistry = dispatcherRegistryWithFieldResolver(isSelective = true)
-
-        val isResolverSelective = IsResolverSelective.fromRegistry(
-            dispatcherRegistry,
-            selectiveResolverOerKeyingEnabled = false,
-        )
+        val isResolverSelective = IsResolverSelective.fromRegistry(DispatcherRegistry.Empty)
 
         assertFalse(isResolverSelective(coordinate))
     }
@@ -93,10 +75,7 @@ class IsResolverSelectiveTest {
     fun `from registry returns false for non-selective resolver`() {
         val dispatcherRegistry = dispatcherRegistryWithFieldResolver(isSelective = false)
 
-        val isResolverSelective = IsResolverSelective.fromRegistry(
-            dispatcherRegistry,
-            selectiveResolverOerKeyingEnabled = true,
-        )
+        val isResolverSelective = IsResolverSelective.fromRegistry(dispatcherRegistry)
 
         assertFalse(isResolverSelective(coordinate))
     }

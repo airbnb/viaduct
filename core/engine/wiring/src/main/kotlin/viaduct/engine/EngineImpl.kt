@@ -29,7 +29,6 @@ import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.DispatcherRegistry
-import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
 import viaduct.engine.runtime.EngineExecutionContextFactory
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.ObjectEngineResult
@@ -40,7 +39,6 @@ import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.execution.AccessCheckRunner
 import viaduct.engine.runtime.execution.ChildQueryPlanTarget
 import viaduct.engine.runtime.execution.ExecutionParameters
-import viaduct.engine.runtime.execution.ExecutionSelections
 import viaduct.engine.runtime.execution.FieldCompleter
 import viaduct.engine.runtime.execution.FieldExecutionHelpers
 import viaduct.engine.runtime.execution.FieldResolver
@@ -181,9 +179,7 @@ class EngineImpl(
         options: ResolveSelectionSetOptions,
         instrumentationContext: ResolverInstrumentationContext?,
     ): EngineObjectData.Sync {
-        val parentParams = executionHandle.asExecutionParameters()
         val subqueryExecution = executeSelectionSet(executionHandle, selectionSet, options)
-        val isResolverSelective = parentParams.engineExecutionContext.isResolverSelective
 
         val errorMessage = "add it to the selection set provided to Context.${options.operationType.name.lowercase()}() in order to access it from the result"
 
@@ -191,8 +187,6 @@ class EngineImpl(
             objectEngineResult = subqueryExecution.targetOER,
             errorMessage = errorMessage,
             selectionSet = selectionSet,
-            isResolverSelective = isResolverSelective,
-            selections = subqueryExecution.selections,
             instrumentationContext = instrumentationContext,
         )
     }
@@ -268,19 +262,10 @@ class EngineImpl(
             throw SubqueryExecutionException.fieldResolutionFailed(e)
         }
 
-        return SubqueryExecution(
-            targetOER = targetOER,
-            selections = ExecutionSelections.fromParameters(
-                schema = fullSchema.schema,
-                parameters = selectionParams,
-            ),
-        )
+        return SubqueryExecution(targetOER)
     }
 
-    private data class SubqueryExecution(
-        val targetOER: ObjectEngineResultImpl,
-        val selections: ObjectEngineResult.Selections,
-    )
+    private data class SubqueryExecution(val targetOER: ObjectEngineResultImpl)
 
     override suspend fun completeSelectionSet(
         executionHandle: EngineExecutionContext.ExecutionHandle,

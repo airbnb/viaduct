@@ -28,7 +28,7 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.dataFetchingEnvir
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
 import viaduct.engine.runtime.EngineExecutionContextExtensions.hasResolver
-import viaduct.engine.runtime.EngineExecutionContextExtensions.selectiveOERKeysEnabled
+import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
 import viaduct.engine.runtime.EngineExecutionContextExtensions.setExecutionHandle
 import viaduct.engine.runtime.execution.ExecutionTestHelpers
 import viaduct.engine.runtime.mocks.ContextMocks
@@ -248,7 +248,7 @@ class EngineExecutionContextExtensionsTest {
             override val scopedSchema: ViaductSchema get() = mockk()
             override val activeSchema: ViaductSchema get() = mockk()
             override val engineSelectionSetFactory get() = mockk<EngineSelectionSet.Factory>()
-            override val globalIDCodec: GlobalIDCodec get() = mockk<GlobalIDCodec>()
+            override val globalIDCodec: GlobalIDCodec get() = mockk()
             override val requestContext: Any? get() = null
             override val engine get() = mockk<Engine>()
             override val executionHandle: EngineExecutionContext.ExecutionHandle? get() = null
@@ -287,7 +287,7 @@ class EngineExecutionContextExtensionsTest {
         }
 
         val exception = assertThrows<IllegalStateException> {
-            fakeContext.selectiveOERKeysEnabled
+            fakeContext.isResolverSelective
         }
         assertTrue(exception.message!!.contains("Expected InternalEngineExecutionContext"))
     }

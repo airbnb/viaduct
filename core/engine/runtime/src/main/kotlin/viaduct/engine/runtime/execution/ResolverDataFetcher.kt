@@ -11,7 +11,6 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.instrumentation.ViaductTenantNameContext
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
-import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
 import viaduct.engine.runtime.EngineObjectDataFactory
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FieldResolverDispatcher
@@ -69,10 +68,9 @@ class ResolverDataFetcher(
         engineResults: EngineResults,
     ): Factories {
         val selectionSetFactory = localExecutionContext.engineSelectionSetFactory
-        val isResolverSelective = localExecutionContext.isResolverSelective
 
         val objectRss = fieldResolverDispatcher.objectSelectionSet
-        val objectRssData = objectRss?.let { rss ->
+        val objectEngineSelectionSet = objectRss?.let { rss ->
             val queryPlan = FieldExecutionHelpers.findRssQueryPlan(rss, localExecutionContext)
             val variables = resolveRSSVariables(
                 arguments = environment.arguments,
@@ -83,13 +81,8 @@ class ResolverDataFetcher(
                 environment.locale,
                 queryPlan = queryPlan,
             )
-            Pair(
-                selectionSetFactory.engineSelectionSet(rss.selections, variables.toMap()),
-                FieldExecutionHelpers.createOERSelections(variables, localExecutionContext, queryPlan)
-            )
+            selectionSetFactory.engineSelectionSet(rss.selections, variables.toMap())
         }
-        val objectEngineSelectionSet = objectRssData?.first
-        val objectOERSelections = objectRssData?.second
         val objectParentPath = environment.executionStepInfo.path.parent
         val objectErrorMessage = "add it to @Resolver's objectValueFragment before accessing it via Context.objectValue"
 
@@ -99,14 +92,12 @@ class ResolverDataFetcher(
                 objectErrorMessage,
                 objectEngineSelectionSet,
                 parentPath = objectParentPath,
-                isResolverSelective = isResolverSelective,
-                selections = objectOERSelections,
                 instrumentationContext = instrumentationContext,
             )
         }
 
         val queryRss = fieldResolverDispatcher.querySelectionSet
-        val queryRssData = queryRss?.let { rss ->
+        val queryEngineSelectionSet = queryRss?.let { rss ->
             val queryPlan = FieldExecutionHelpers.findRssQueryPlan(rss, localExecutionContext)
             val variables = resolveRSSVariables(
                 arguments = environment.arguments,
@@ -117,13 +108,8 @@ class ResolverDataFetcher(
                 environment.locale,
                 queryPlan = queryPlan,
             )
-            Pair(
-                selectionSetFactory.engineSelectionSet(rss.selections, variables.toMap()),
-                FieldExecutionHelpers.createOERSelections(variables, localExecutionContext, queryPlan)
-            )
+            selectionSetFactory.engineSelectionSet(rss.selections, variables.toMap())
         }
-        val queryEngineSelectionSet = queryRssData?.first
-        val queryOERSelections = queryRssData?.second
         val queryErrorMessage = "add it to @Resolver's queryValueFragment before accessing it via Context.queryValue"
 
         val queryValueFactory = EngineObjectDataFactory { instrumentationContext ->
@@ -132,8 +118,6 @@ class ResolverDataFetcher(
                 queryErrorMessage,
                 queryEngineSelectionSet,
                 parentPath = ResultPath.rootPath(),
-                isResolverSelective = isResolverSelective,
-                selections = queryOERSelections,
                 instrumentationContext = instrumentationContext,
             )
         }

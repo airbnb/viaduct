@@ -50,7 +50,6 @@ class EngineExecutionContextFactory(
         scopedSchema: ViaductSchema,
         requestContext: Any?
     ): EngineExecutionContext {
-        val matResolutionEnabled = flagManager.isEnabled(FlagManager.Flags.ENABLE_MAT_RESOLUTION)
         val isResolverSelective = fieldSelectivity
 
         return EngineExecutionContextImpl(
@@ -62,9 +61,8 @@ class EngineExecutionContextFactory(
             resolverInstrumentation,
             ConcurrentHashMap<FieldDataLoaderKey, FieldDataLoader>(),
             ConcurrentHashMap<String, NodeDataLoader>(),
-            selectiveOERKeysEnabled = false,
             flagManager.isEnabled(FlagManager.Flags.KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING),
-            matResolutionEnabled,
+            flagManager.isEnabled(FlagManager.Flags.ENABLE_MAT_RESOLUTION),
             engine,
             globalIDCodec,
             meterRegistry,
@@ -104,7 +102,6 @@ class EngineExecutionContextImpl internal constructor(
     val resolverInstrumentation: Instrumentation,
     internal val fieldDataLoaders: ConcurrentHashMap<FieldDataLoaderKey, FieldDataLoader>,
     internal val nodeDataLoaders: ConcurrentHashMap<String, NodeDataLoader>,
-    val selectiveOERKeysEnabled: Boolean,
     val fieldRssOriginFilteringKillSwitchEnabled: Boolean,
     val matResolutionEnabled: Boolean,
     override val engine: Engine,
@@ -291,7 +288,6 @@ class EngineExecutionContextImpl internal constructor(
         activeSchema: ViaductSchema = this.activeSchema,
         fieldScopeSupplier: Supplier<out EngineExecutionContext.FieldExecutionScope> = this.fieldScopeSupplier,
         dataFetchingEnvironment: DataFetchingEnvironment? = this.dataFetchingEnvironment,
-        selectiveOERKeysEnabled: Boolean = this.selectiveOERKeysEnabled,
         fieldRssOriginFilteringKillSwitchEnabled: Boolean = this.fieldRssOriginFilteringKillSwitchEnabled,
         matResolutionEnabled: Boolean = this.matResolutionEnabled,
         matBatchDepth: Int? = null,
@@ -306,7 +302,6 @@ class EngineExecutionContextImpl internal constructor(
             resolverInstrumentation = this.resolverInstrumentation,
             fieldDataLoaders = this.fieldDataLoaders,
             nodeDataLoaders = this.nodeDataLoaders,
-            selectiveOERKeysEnabled = selectiveOERKeysEnabled,
             fieldRssOriginFilteringKillSwitchEnabled = fieldRssOriginFilteringKillSwitchEnabled,
             matResolutionEnabled = matResolutionEnabled,
             engine = this.engine,

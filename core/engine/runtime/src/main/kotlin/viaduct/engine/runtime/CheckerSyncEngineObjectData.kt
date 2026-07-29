@@ -18,16 +18,12 @@ class CheckerSyncEngineObjectData(
             objectEngineResult: ObjectEngineResult,
             errorMessage: String,
             selectionSet: EngineSelectionSet?,
-            isResolverSelective: IsResolverSelective,
-            selections: ObjectEngineResult.Selections?,
             instrumentationContext: ResolverInstrumentationContext? = null,
         ): CheckerSyncEngineObjectData {
             val syncData = SyncEngineObjectDataFactory.resolve(
                 objectEngineResult,
                 errorMessage,
                 selectionSet,
-                isResolverSelective = isResolverSelective,
-                selections = selections,
                 skipAccessCheck = true,
                 instrumentationContext = instrumentationContext,
             )

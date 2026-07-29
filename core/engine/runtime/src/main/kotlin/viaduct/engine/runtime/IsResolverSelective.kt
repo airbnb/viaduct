@@ -22,24 +22,8 @@ fun interface IsResolverSelective {
         /** Creates an [IsResolverSelective] that always returns [value]. */
         fun const(value: Boolean): IsResolverSelective = IsResolverSelective { _ -> value }
 
-        /**
-         * Creates an [IsResolverSelective] backed by [dispatcherRegistry].
-         *
-         * When [selectiveResolverOerKeyingEnabled] is false, selective resolvers are treated as
-         * non-selective for OER keying and this always returns false.
-         *
-         * A resolver coordinate is selective when the registry contains a field resolver dispatcher
-         * for that coordinate and that dispatcher is marked selective.
-         */
-        fun fromRegistry(
-            dispatcherRegistry: DispatcherRegistry,
-            selectiveResolverOerKeyingEnabled: Boolean,
-        ): IsResolverSelective =
-            if (!selectiveResolverOerKeyingEnabled) {
-                Never
-            } else {
-                FromRegistry(dispatcherRegistry)
-            }
+        /** Creates an [IsResolverSelective] backed by [dispatcherRegistry]. */
+        fun fromRegistry(dispatcherRegistry: DispatcherRegistry): IsResolverSelective = FromRegistry(dispatcherRegistry)
     }
 
     private class FromRegistry(private val registry: DispatcherRegistry) : IsResolverSelective {

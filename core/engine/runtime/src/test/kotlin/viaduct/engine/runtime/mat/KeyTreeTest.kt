@@ -66,8 +66,8 @@ class KeyTreeTest {
             }
 
             assertEquals(
-                "KeyTree(Foo={Key(name='c', alias='result', arguments=a=1, selections=null)=" +
-                    "KeyTree(Bar={Key(name='b', alias='null', arguments=, selections=null)=KeyTree()})})",
+                "KeyTree(Foo={Key(name='c', alias='result', arguments=a=1)=" +
+                    "KeyTree(Bar={Key(name='b', alias='null', arguments=)=KeyTree()})})",
                 tree.toString(),
             )
         }

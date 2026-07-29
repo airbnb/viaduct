@@ -45,7 +45,6 @@ import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineObjectDataFactory
 import viaduct.engine.runtime.FieldResolutionResult
-import viaduct.engine.runtime.IsResolverSelective
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.getLocalContextForType
@@ -174,8 +173,6 @@ class AccessCheckRunnerTest {
                         every { fieldScopeSupplier } returns mockk()
                         every { dataFetchingEnvironment } returns null
                         every { copy(any(), any(), any(), any(), any()) } returns this
-                        every { selectiveOERKeysEnabled } returns false
-                        every { isResolverSelective } returns IsResolverSelective.Never
                     }
                 ).engineExecutionContext as? EngineExecutionContextImpl
                 val params = createMockExecutionParameters(context)
@@ -371,8 +368,6 @@ class AccessCheckRunnerTest {
                     every { fieldScopeSupplier } returns mockk()
                     every { dataFetchingEnvironment } returns null
                     every { copy(any(), any(), any(), any(), any()) } returns this
-                    every { selectiveOERKeysEnabled } returns false
-                    every { isResolverSelective } returns IsResolverSelective.Never
                 }
                 val params = createMockExecutionParameters(engineExecutionContext)
                 val typeCheckParameters = createMockExecutionParameters(engineExecutionContext)
@@ -445,8 +440,6 @@ class AccessCheckRunnerTest {
             every { fieldScopeSupplier } returns mockk()
             every { dataFetchingEnvironment } returns null
             every { copy(any(), any(), any(), any(), any()) } returns this
-            every { selectiveOERKeysEnabled } returns false
-            every { isResolverSelective } returns IsResolverSelective.Never
         }
         val oer = objectEngineResult {
             type = fooObjectType
@@ -516,8 +509,6 @@ class AccessCheckRunnerTest {
             every { fieldScopeSupplier } returns mockk()
             every { dataFetchingEnvironment } returns null
             every { copy(any(), any(), any(), any(), any()) } returns this
-            every { selectiveOERKeysEnabled } returns false
-            every { isResolverSelective } returns IsResolverSelective.Never
         }
         val oer = objectEngineResult {
             type = mockk { every { name } returns "Foo" }
@@ -554,8 +545,6 @@ class AccessCheckRunnerTest {
                 every { fieldScopeSupplier } returns mockk()
                 every { dataFetchingEnvironment } returns null
                 every { copy(any(), any(), any(), any(), any()) } returns this
-                every { selectiveOERKeysEnabled } returns false
-                every { isResolverSelective } returns IsResolverSelective.Never
             }
         ).engineExecutionContext as? EngineExecutionContextImpl
         val params = createMockExecutionParameters(context)

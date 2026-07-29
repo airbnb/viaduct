@@ -8,29 +8,12 @@ import graphql.schema.GraphQLObjectType
  */
 interface ObjectEngineResult {
     /**
-     * Selection context used for selective OER memoization and child traversal.
-     */
-    interface Selections {
-        /**
-         * Return the sub-selections for the field with the given [responseKey], or null if
-         * no such field exists or the field has no sub-selections.
-         *
-         * [parentType] is the concrete object type of the object whose field is being read.
-         */
-        fun selectionSetForSelection(
-            parentType: GraphQLObjectType,
-            responseKey: String
-        ): Selections?
-    }
-
-    /**
-     * A key for a field, including the field name and a simple map of argument names -> values.
+     * A key for a field, including the field name, response key, and coerced argument values.
      */
     class Key private constructor(
         val name: String,
         val alias: String? = null,
         val arguments: Map<String, Any?> = emptyMap(),
-        val selections: Selections? = null,
     ) {
         val responseKey: String
             get() = alias ?: name
@@ -40,7 +23,6 @@ interface ObjectEngineResult {
                 name: String,
                 alias: String? = null,
                 arguments: Map<String, Any?> = emptyMap(),
-                selectionSet: Selections? = null,
             ): Key =
                 // graphql field merging is done by result name, which means
                 // that in this selection set:
@@ -55,7 +37,6 @@ interface ObjectEngineResult {
                     // remove alias if it matches name
                     alias?.takeIf { it != name },
                     arguments,
-                    selectionSet
                 )
         }
 
@@ -68,7 +49,6 @@ interface ObjectEngineResult {
             if (name != other.name) return false
             if (alias != other.alias) return false
             if (arguments != other.arguments) return false
-            if (selections != other.selections) return false
 
             return true
         }
@@ -77,12 +57,11 @@ interface ObjectEngineResult {
             var result = name.hashCode()
             result = 31 * result + (alias?.hashCode() ?: 0)
             result = 31 * result + arguments.hashCode()
-            result = 31 * result + (selections?.hashCode() ?: 0)
             return result
         }
 
         override fun toString(): String {
-            return "Key(name='$name', alias='$alias', arguments=${arguments.entries.joinToString()}, selections=$selections)"
+            return "Key(name='$name', alias='$alias', arguments=${arguments.entries.joinToString()})"
         }
     }
 

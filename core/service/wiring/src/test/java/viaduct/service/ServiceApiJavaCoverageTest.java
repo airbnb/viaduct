@@ -114,8 +114,6 @@ class ServiceApiJavaCoverageTest {
     assertEquals("User", parts.getTypeName());
     assertEquals("42", parts.getLocalID());
 
-    final FlagManager flagManager = new JavaFlagManager();
-    flagManager.isEnabled(FlagManager.Flags.ENABLE_SELECTIVE_OER_KEYS);
     assertNotNull(FlagManager.Disabled.INSTANCE);
     assertNotNull(FlagManager.Default.INSTANCE);
 

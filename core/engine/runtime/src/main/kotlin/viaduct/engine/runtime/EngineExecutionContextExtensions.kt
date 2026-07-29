@@ -24,9 +24,6 @@ object EngineExecutionContextExtensions {
             ?: error("Expected InternalEngineExecutionContext but got ${this::class.qualifiedName}")
     }
 
-    val EngineExecutionContext.selectiveOERKeysEnabled: Boolean
-        get() = asImpl().selectiveOERKeysEnabled
-
     val EngineExecutionContext.matResolutionEnabled: Boolean
         get() = asImpl().matResolutionEnabled
 

@@ -51,7 +51,6 @@ import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContex
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
-import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
 import viaduct.engine.runtime.EngineExecutionContextExtensions.matResolutionEnabled
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FetchedValueWithExtensions
@@ -63,15 +62,11 @@ import viaduct.engine.runtime.exceptions.FieldFetchingException
 import viaduct.engine.runtime.observability.ExecutionObservabilityContext
 import viaduct.graphql.utils.ParsedSelections
 
-internal fun QueryPlan.CollectedField.oerKey(
-    arguments: Map<String, Any?>,
-    selections: ObjectEngineResult.Selections? = null,
-): ObjectEngineResult.Key =
+internal fun QueryPlan.CollectedField.oerKey(arguments: Map<String, Any?>): ObjectEngineResult.Key =
     ObjectEngineResult.Key(
         name = fieldName,
         alias = alias,
         arguments = arguments,
-        selectionSet = selections,
     )
 
 object FieldExecutionHelpers {
@@ -299,32 +294,7 @@ object FieldExecutionHelpers {
     fun buildOERKeyForField(
         parameters: ExecutionParameters,
         field: QueryPlan.CollectedField
-    ): ObjectEngineResult.Key {
-        val isResolverSelective = parameters.engineExecutionContext.isResolverSelective
-
-        val runtimeResolverCoordinate = parameters.executionStepInfo.objectType.name to field.fieldName
-        val includeSelectionsInKey = isResolverSelective(runtimeResolverCoordinate)
-
-        val selectionSet = if (includeSelectionsInKey) {
-            field.selectionSet?.let {
-                ExecutionSelections(
-                    parameters.graphQLSchema,
-                    it,
-                    parameters.queryPlan.fragments,
-                    parameters.coercedVariables,
-                    parameters.constants.collectCache,
-                    parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled,
-                )
-            }
-        } else {
-            null
-        }
-
-        return field.oerKey(
-            arguments = parameters.executionStepInfo.arguments,
-            selections = selectionSet,
-        )
-    }
+    ): ObjectEngineResult.Key = field.oerKey(parameters.executionStepInfo.arguments)
 
     internal fun engineSelectionSet(ctx: EngineExecutionContext): EngineSelectionSet? = engineSelectionSet(ctx.executionHandle!!.asExecutionParameters(), ctx)
 
@@ -443,23 +413,6 @@ object FieldExecutionHelpers {
         // without mutating the ExecutionParameters-owned context.
         val updatedEngineExecCtx = parameters.engineExecutionContext.copy()
         return ViaductDataFetchingEnvironmentImpl(dfe, updatedEngineExecCtx)
-    }
-
-    internal fun createOERSelections(
-        variables: CoercedVariables,
-        engineExecutionContext: EngineExecutionContext,
-        queryPlan: QueryPlan,
-    ): ObjectEngineResult.Selections {
-        val executionParameters = engineExecutionContext.executionHandle!!.asExecutionParameters()
-
-        return ExecutionSelections(
-            engineExecutionContext.fullSchema.schema,
-            queryPlan.selectionSet,
-            queryPlan.fragments,
-            variables,
-            executionParameters.constants.collectCache,
-            engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled,
-        )
     }
 
     internal fun findRssQueryPlan(
@@ -666,7 +619,6 @@ object FieldExecutionHelpers {
         instrumentationContext: ResolverInstrumentationContext? = null,
     ): CoercedVariables =
         variablesResolvers.fold(emptyMap<String, Any?>()) { acc, vr ->
-            val isResolverSelective = engineExecutionContext.isResolverSelective
             val variablesData: EngineObjectData.Sync = vr.requiredSelectionSet?.let { vrss ->
                 val childPlan = findRssQueryPlan(vrss, engineExecutionContext)
                 // VariablesResolvers may have required selection sets which have their own variables resolvers.
@@ -685,11 +637,6 @@ object FieldExecutionHelpers {
                     vrss.selections,
                     variables = innerVariables.toMap()
                 )
-                val selectionContext = createOERSelections(
-                    innerVariables,
-                    engineExecutionContext,
-                    childPlan,
-                )
 
                 val engineResult = if (vrss.selections.typeName == engineExecutionContext.fullSchema.schema.queryType.name) {
                     queryEngineData
@@ -703,15 +650,12 @@ object FieldExecutionHelpers {
                     engineResult,
                     "missing from variable RSS",
                     vss,
-                    isResolverSelective = isResolverSelective,
-                    selections = selectionContext,
                     skipAccessCheck = vrss.forChecker,
                     instrumentationContext = instrumentationContext,
                 )
             } ?: SyncEngineObjectDataFactory.resolve(
                 currentEngineData,
                 "missing from variable RSS",
-                isResolverSelective = isResolverSelective,
                 instrumentationContext = instrumentationContext,
             )
 

@@ -13,11 +13,6 @@ class FlagManagerTest {
     }
 
     @Test
-    fun `FlagManager_default returns false for selective oer keys`() {
-        assertFalse(FlagManager.Default.isEnabled(Flags.ENABLE_SELECTIVE_OER_KEYS))
-    }
-
-    @Test
     fun `FlagManager_default returns false for mat resolution`() {
         assertFalse(FlagManager.Default.isEnabled(Flags.ENABLE_MAT_RESOLUTION))
     }

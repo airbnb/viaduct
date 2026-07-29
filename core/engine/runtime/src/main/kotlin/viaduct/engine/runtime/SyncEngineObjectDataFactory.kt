@@ -31,7 +31,6 @@ object SyncEngineObjectDataFactory {
      * @param errorMessage The error message template for UnsetFieldException
      * @param selectionSet The caller-visible selections to resolve; if null, returns empty data.
      * @param parentPath Optional result path used for instrumentation/error attribution.
-     * @param isResolverSelective Indicates whether a field's OER key should include its subselections.
      * @return A [SyncProxyEngineObjectData] with all selections resolved
      */
     suspend fun resolve(
@@ -39,8 +38,6 @@ object SyncEngineObjectDataFactory {
         errorMessage: String,
         selectionSet: EngineSelectionSet? = null,
         parentPath: ResultPath? = null,
-        isResolverSelective: IsResolverSelective,
-        selections: ObjectEngineResult.Selections? = null,
         skipAccessCheck: Boolean = false,
         instrumentationContext: ResolverInstrumentationContext? = null,
     ): SyncProxyEngineObjectData {
@@ -56,7 +53,7 @@ object SyncEngineObjectDataFactory {
             "Expected ObjectEngineResultImpl, got ${objectEngineResult::class.qualifiedName}"
         }
 
-        return resolveImpl(objectEngineResult, errorMessage, selectionSet, parentPath, isResolverSelective, selections, skipAccessCheck, instrumentationContext)
+        return resolveImpl(objectEngineResult, errorMessage, selectionSet, parentPath, skipAccessCheck, instrumentationContext)
     }
 
     /**
@@ -78,8 +75,6 @@ object SyncEngineObjectDataFactory {
         errorMessage: String,
         selectionSet: EngineSelectionSet,
         parentPath: ResultPath? = null,
-        isResolverSelective: IsResolverSelective,
-        selections: ObjectEngineResult.Selections? = null,
         skipAccessCheck: Boolean = false,
         instrumentationContext: ResolverInstrumentationContext? = null,
     ): SyncProxyEngineObjectData {
@@ -122,8 +117,6 @@ object SyncEngineObjectDataFactory {
                     parentType = objectEngineResult.type,
                     selectionName = selectionName,
                     fieldName = engineSelection.fieldName,
-                    isResolverSelective = isResolverSelective,
-                    selections = selections,
                 )
             )
 
@@ -167,14 +160,11 @@ object SyncEngineObjectDataFactory {
 
         // Cell slots are now complete; unwrap() does not suspend for the Cell case.
         for (state in selectionStates) {
-            val fieldChildSelections = selections?.selectionSetForSelection(objectEngineResult.type, state.selectionName)
             data[state.selectionName] = unwrap(
                 state.cell,
                 state.subselections,
                 errorMessage,
                 state.selectionPath,
-                isResolverSelective,
-                fieldChildSelections,
                 skipAccessCheck,
                 state.fieldDirectives,
                 instrumentationContext,
@@ -210,8 +200,6 @@ object SyncEngineObjectDataFactory {
         subselections: EngineSelectionSet?,
         errorMessage: String,
         parentPath: ResultPath? = null,
-        isResolverSelective: IsResolverSelective,
-        childSelections: ObjectEngineResult.Selections? = null,
         skipAccessCheck: Boolean = false,
         fieldDirectives: FieldDirectives? = null,
         instrumentationContext: ResolverInstrumentationContext? = null,
@@ -228,8 +216,6 @@ object SyncEngineObjectDataFactory {
                     subselections,
                     errorMessage,
                     parentPath?.segment(index),
-                    isResolverSelective,
-                    childSelections,
                     skipAccessCheck,
                     fieldDirectives,
                     instrumentationContext,
@@ -246,7 +232,7 @@ object SyncEngineObjectDataFactory {
                 val nestedSelections = requireNotNull(subselections) {
                     "Expected subselections for nested ObjectEngineResultImpl"
                 }
-                resolveImpl(value, errorMessage, nestedSelections, parentPath, isResolverSelective, childSelections, skipAccessCheck, instrumentationContext)
+                resolveImpl(value, errorMessage, nestedSelections, parentPath, skipAccessCheck, instrumentationContext)
             }
 
             is FieldResolutionResult -> {
@@ -258,8 +244,6 @@ object SyncEngineObjectDataFactory {
                     subselections,
                     errorMessage,
                     parentPath,
-                    isResolverSelective,
-                    childSelections,
                     skipAccessCheck,
                     fieldDirectives,
                     instrumentationContext,
@@ -289,8 +273,6 @@ object SyncEngineObjectDataFactory {
                     subselections,
                     errorMessage,
                     parentPath,
-                    isResolverSelective,
-                    childSelections,
                     skipAccessCheck,
                     fieldDirectives,
                     instrumentationContext,
@@ -355,24 +337,13 @@ object SyncEngineObjectDataFactory {
         parentType: GraphQLObjectType,
         selectionName: String,
         fieldName: String,
-        isResolverSelective: IsResolverSelective,
-        selections: ObjectEngineResult.Selections?,
     ): ObjectEngineResult.Key {
         val engineSelection = selectionSet.resolveSelection(parentType.name, selectionName)
         val args = selectionSet.argumentsOfSelection(engineSelection.typeCondition, engineSelection.selectionName) ?: emptyMap()
-        val hasSelectiveResolver =
-            isResolverSelective(engineSelection.typeCondition to engineSelection.fieldName) ||
-                isResolverSelective(parentType.name to engineSelection.fieldName)
-        val oerKeySelections = if (hasSelectiveResolver) {
-            selections?.selectionSetForSelection(parentType, selectionName)
-        } else {
-            null
-        }
         return ObjectEngineResult.Key(
             fieldName,
             engineSelection.selectionName,
             args,
-            oerKeySelections
         )
     }
 }

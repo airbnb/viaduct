@@ -44,13 +44,6 @@ interface FlagManager {
     enum class Flags(
         override val flagName: String
     ) : Flag {
-        /**
-         * Controls whether selective resolvers use subselection-aware OER keys.
-         *
-         * When disabled, selective resolvers are effectively treated as non-selective for OER keying.
-         */
-        ENABLE_SELECTIVE_OER_KEYS("enable_selective_oer_keys"),
-
         /** Enables the Mat-based resolver workflow, which differentially executes resolvers */
         ENABLE_MAT_RESOLUTION("enable_mat_resolution"),
 

@@ -27,7 +27,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -40,13 +39,6 @@ import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 
 class ObjectEngineResultImplTest {
-    private class TestSelections : ObjectEngineResult.Selections {
-        override fun selectionSetForSelection(
-            parentType: GraphQLObjectType,
-            responseKey: String
-        ): ObjectEngineResult.Selections? = null
-    }
-
     private val testScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private val graphQLObjectType: GraphQLObjectType = mockk()
 
@@ -207,43 +199,6 @@ class ObjectEngineResultImplTest {
     fun `response key uses alias when present`() {
         assertEquals("test", ObjectEngineResult.Key("test").responseKey)
         assertEquals("alias", ObjectEngineResult.Key("test", "alias").responseKey)
-    }
-
-    @Test
-    fun `test fetch with selection set`() {
-        runBlocking {
-            val engine = newOER()
-            val selectionSet1 = TestSelections()
-            val selectionSet2 = TestSelections()
-            val key1 = ObjectEngineResult.Key("test", selectionSet = selectionSet1)
-            val key2 = ObjectEngineResult.Key("test", selectionSet = selectionSet2)
-
-            engine.computeIfAbsent(key1) { setter ->
-                setter.set(RAW_VALUE_SLOT, Value.fromValue("value1"))
-                setter.set(ACCESS_CHECK_SLOT, Value.fromValue(CheckerResult.Success))
-            }
-            engine.computeIfAbsent(key2) { setter ->
-                setter.set(RAW_VALUE_SLOT, Value.fromValue("value2"))
-                setter.set(ACCESS_CHECK_SLOT, Value.fromValue(CheckerResult.Success))
-            }
-
-            assertEquals("value1", engine.fetch(key1, RAW_VALUE_SLOT))
-            assertEquals("value2", engine.fetch(key2, RAW_VALUE_SLOT))
-        }
-    }
-
-    @Test
-    fun `test key equality with selection set -- referential equality`() {
-        val sharedSelections = TestSelections()
-        val key1 = ObjectEngineResult.Key("test", selectionSet = sharedSelections)
-        val key2 = ObjectEngineResult.Key("test", selectionSet = sharedSelections)
-        val key3 = ObjectEngineResult.Key("test", selectionSet = TestSelections())
-
-        // Same instance -> equal keys
-        assertEquals(key1, key2)
-        assertEquals(key1.hashCode(), key2.hashCode())
-        // Different instances -> different keys (referential equality)
-        assertNotEquals(key1, key3)
     }
 
     @Test
