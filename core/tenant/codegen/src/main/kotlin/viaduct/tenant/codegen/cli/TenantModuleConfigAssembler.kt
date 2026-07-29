@@ -25,6 +25,7 @@ import viaduct.tenant.codegen.ksp.PerSourceDescriptorFile
 import viaduct.tenant.codegen.ksp.ResolverParams
 import viaduct.tenant.codegen.ksp.ResolverParamsJsonCodec
 import viaduct.tenant.codegen.ksp.SelectionsBlock
+import viaduct.tenant.codegen.util.tenantModuleNameFromPackage
 
 internal object TenantModuleConfigAssembler {
     private const val REGISTRY_VERSION = "1"
@@ -305,25 +306,6 @@ internal object TenantModuleConfigAssembler {
             // Carried to runtime so ctx.query/ctx.mutation strings can resolve their fragment spreads.
             namedFragments = fragmentsByName.values.sorted(),
         )
-    }
-
-    internal fun tenantModuleNameFromPackage(
-        tenantPackage: String,
-        tenantPackagePrefix: String?,
-    ): String {
-        val packageName = tenantPackage.trim('.')
-        val prefix = tenantPackagePrefix?.trim('.')?.takeIf(String::isNotBlank)
-
-        val tenantModuleName = when {
-            prefix == null -> packageName.replace('.', '/')
-            packageName != prefix && !packageName.startsWith("$prefix.") -> packageName.replace('.', '/')
-            else -> packageName.removePrefix(prefix).removePrefix(".").replace('.', '/')
-        }
-
-        require(tenantModuleName.isNotEmpty()) {
-            "Tenant module name must not be empty: tenant package '$tenantPackage' must be a subpackage of tenant package prefix '$tenantPackagePrefix'."
-        }
-        return tenantModuleName
     }
 
     /**

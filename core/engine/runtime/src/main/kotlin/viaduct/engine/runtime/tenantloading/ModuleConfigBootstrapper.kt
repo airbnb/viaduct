@@ -57,6 +57,11 @@ class ModuleConfigBootstrapper(
             }.awaitAll()
         }
 
+        // A single tenant may contribute more than one source (e.g. a modern `<pkg>.json` and a
+        // classic `<pkg>.classic.json`), but the TenantModuleInjectorFactory SPI contract is to
+        // bootstrap each tenant exactly once. Group sources by tenant and bootstrap once per tenant,
+        // reusing the one CodeInjector across all of that tenant's sources.
+        //
         // Keep bootstrap calls sequential so service-owned TenantModuleInjectorFactory implementations
         // do not need to be thread-safe when accumulating cross-tenant state prior to onBootstrapComplete().
         val codeInjectorsByTenant = LinkedHashMap<String, CodeInjector>()
