@@ -438,7 +438,6 @@ class FilterChildrenVisitorTest {
                 .toMutableMap()
         val visitor =
             FilterChildrenVisitor(
-                schema = schema,
                 appliedScopes = setOf("test-scope"),
                 scopeDirectiveParser = mockScopeDirectiveParser,
                 elementChildren = elementChildren

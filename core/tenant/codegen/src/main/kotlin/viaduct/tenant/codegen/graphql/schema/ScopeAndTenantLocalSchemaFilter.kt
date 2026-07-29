@@ -8,7 +8,7 @@ import viaduct.graphql.utils.DefaultSchemaFactory
  * Filters the schema for scoped and base-schema codegen.
  *
  * Scoped mode keeps elements that are in at least one of the given scopes. Base-schema mode skips scope filtering.
- * Both modes filter tenant-local fields, parent fields, and BackingData fields.
+ * Both modes filter tenant-local fields.
  *
  * This assumes the directive argument values are graphql.language.Value types, which is the case
  * when constructing a GJSchemaRaw or GJSchema with the default ValueConverter.
@@ -18,8 +18,6 @@ class ScopeAndTenantLocalSchemaFilter private constructor(
     private val filterByScopes: Boolean,
 ) : SchemaFilter {
     companion object {
-        private const val BACKING_DATA_SCALAR_NAME = "BackingData"
-        private val PARENT_DIRECTIVE_NAME = DefaultSchemaFactory.DefaultDirective.PARENT.directiveName
         private val TENANT_LOCAL_DIRECTIVE_NAME = DefaultSchemaFactory.DefaultDirective.TENANT_LOCAL.directiveName
 
         fun baseSchema(): ScopeAndTenantLocalSchemaFilter = ScopeAndTenantLocalSchemaFilter(emptySet(), filterByScopes = false)
@@ -36,7 +34,7 @@ class ScopeAndTenantLocalSchemaFilter private constructor(
     }
 
     override fun includeField(field: ViaductSchema.Field): Boolean {
-        return !field.isTenantLocalEquivalentField() &&
+        return !field.hasAppliedDirective(TENANT_LOCAL_DIRECTIVE_NAME) &&
             (!filterByScopes || appliedScopes.any { field.isInScope(it) })
     }
 
@@ -56,9 +54,4 @@ class ScopeAndTenantLocalSchemaFilter private constructor(
         if ("*" in extensionScopes) return true
         return appliedScopes.any { it in extensionScopes && superInterface.isInScope(it) }
     }
-
-    private fun ViaductSchema.Field.isTenantLocalEquivalentField(): Boolean =
-        hasAppliedDirective(TENANT_LOCAL_DIRECTIVE_NAME) ||
-            hasAppliedDirective(PARENT_DIRECTIVE_NAME) ||
-            type.baseTypeDef.name == BACKING_DATA_SCALAR_NAME
 }

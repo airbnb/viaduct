@@ -327,38 +327,6 @@ class ScopeDirectivesRuleTest {
     }
 
     @Test
-    fun `invalid - parent fields do not satisfy scoped field requirement`() {
-        val errors = validate(
-            """
-            directive @parent on FIELD_DEFINITION
-
-            type Query @scope(to: ["viaduct"]) {
-                object: O1
-            }
-
-            type Parent @scope(to: ["viaduct", "viaduct:public"]) {
-                value: String
-            }
-
-            type O1 @scope(to: ["viaduct", "viaduct:public"]) {
-                parent: Parent @parent
-            }
-
-            extend type O1 @scope(to: ["viaduct"]) {
-                viaductOnly: String
-            }
-            """.trimIndent()
-        )
-
-        errors.map { it.code } shouldContainExactly listOf(
-            ValidationErrorCodes.OBJECT_OR_INTERFACE_SCOPE_WITHOUT_FIELDS
-        )
-        errors.map { it.message } shouldContainExactly listOf(
-            "type O1 declares scope viaduct:public but has no fields in that scope"
-        )
-    }
-
-    @Test
     fun `valid - fields with out-of-scope return types satisfy scoped field requirement`() {
         val errors = validate(
             """
@@ -396,33 +364,6 @@ class ScopeDirectivesRuleTest {
             }
 
             extend type O1 implements I1 @scope(to: ["viaduct"])
-            """.trimIndent()
-        )
-
-        errors.shouldBeEmpty()
-    }
-
-    @Test
-    fun `valid - parent-only extension does not need to declare scope`() {
-        val errors = validate(
-            """
-            directive @parent on FIELD_DEFINITION
-
-            type Query @scope(to: ["viaduct"]) {
-                object: O1
-            }
-
-            type Parent @scope(to: ["viaduct"]) {
-                value: String
-            }
-
-            type O1 @scope(to: ["viaduct"]) {
-                value: String
-            }
-
-            extend type O1 {
-                parent: Parent @parent
-            }
             """.trimIndent()
         )
 

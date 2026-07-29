@@ -10,8 +10,8 @@ import viaduct.graphql.test.assertEquals
  *
  * Defines the SDL and assertions for:
  * - Backing data resolved and available to dependent resolvers (expected: i=10, s="Hello, World!")
- * - Error when trying to subselect on a backing data scalar field (FieldUndefined)
- * - Error when querying a backing data field directly (FieldUndefined)
+ * - Error when trying to subselect on a backing data scalar field (SubselectionNotAllowed)
+ * - Error when querying a backing data field directly (serialize error)
  *
  * Note: This contract test is Kotlin-only because @backingData is not available
  * in the Java Tenant API.
@@ -64,7 +64,7 @@ abstract class BackingDataContractTest : KotlinFeatureAppTestContractBase() {
     }
 
     @Test
-    fun `Direct backing data field subselection is hidden from base schema`() {
+    fun `Resolver includes a backing data fields in its required selections validation error`() {
         execute(
             query = """
                     query TestQuery {
@@ -79,7 +79,8 @@ abstract class BackingDataContractTest : KotlinFeatureAppTestContractBase() {
         ).assertEquals {
             "errors" to arrayOf(
                 {
-                    "message" to "Validation error (FieldUndefined@[foo/backingDataValue]) : Field 'backingDataValue' in type 'Foo' is undefined"
+                    "message" to "Validation error (SubselectionNotAllowed@[foo/backingDataValue]) : Subselection not allowed on leaf type " +
+                        "'BackingData' of field 'backingDataValue'"
                     "locations" to arrayOf(
                         {
                             "line" to 3
@@ -96,7 +97,7 @@ abstract class BackingDataContractTest : KotlinFeatureAppTestContractBase() {
     }
 
     @Test
-    fun `Direct backing data field query is hidden from base schema`() {
+    fun `Resolver includes a backing data type in its required selections serialize error`() {
         execute(
             query = """
                     query TestQuery {
@@ -108,19 +109,24 @@ abstract class BackingDataContractTest : KotlinFeatureAppTestContractBase() {
         ).assertEquals {
             "errors" to arrayOf(
                 {
-                    "message" to "Validation error (FieldUndefined@[foo/backingDataValue]) : Field 'backingDataValue' in type 'Foo' is undefined"
+                    "message" to "serialize should not be called for BackingData scalar type. This is a no-op."
                     "locations" to arrayOf(
                         {
                             "line" to 3
                             "column" to 9
                         }
                     )
+                    "path" to listOf("foo", "backingDataValue")
                     "extensions" to {
-                        "classification" to "ValidationError"
+                        "classification" to "VIADUCT_INTERNAL_ENGINE_EXCEPTION"
                     }
                 }
             )
-            "data" to null
+            "data" to {
+                "foo" to {
+                    "backingDataValue" to null
+                }
+            }
         }
     }
 }
