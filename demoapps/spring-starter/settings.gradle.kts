@@ -11,6 +11,7 @@ pluginManagement {
             if (System.getenv("USE_VIADUCT_SNAPSHOT_REPO")?.toBoolean() == true) {
                 maven("https://central.sonatype.com/repository/maven-snapshots/")
             }
+            System.getenv("VIADUCT_ARTIFACTORY_MIRROR")?.let { maven { url = uri(it) } }
             gradlePluginPortal()
         }
     }
@@ -31,6 +32,7 @@ dependencyResolutionManagement {
         if (System.getenv("USE_VIADUCT_SNAPSHOT_REPO")?.toBoolean() == true) {
             maven("https://central.sonatype.com/repository/maven-snapshots/")
         }
+        System.getenv("VIADUCT_ARTIFACTORY_MIRROR")?.let { maven { url = uri(it) } }
         mavenCentral()
     }
     versionCatalogs {
