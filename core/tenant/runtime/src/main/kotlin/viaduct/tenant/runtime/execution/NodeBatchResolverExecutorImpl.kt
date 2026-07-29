@@ -1,10 +1,8 @@
 package viaduct.tenant.runtime.execution
 
 import javax.inject.Provider
-import kotlin.reflect.KFunction
 import viaduct.api.FieldValue
-import viaduct.api.NodeResolverBase
-import viaduct.api.internal.ReflectionLoader
+import viaduct.api.internal.BaseBatchedNodeResolver
 import viaduct.apiannotations.Attribution
 import viaduct.apiannotations.AttributionContext
 import viaduct.engine.api.EngineExecutionContext
@@ -23,10 +21,8 @@ import viaduct.errors.resultOfSuspend
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 
 class NodeBatchResolverExecutorImpl(
-    val resolver: Provider<out NodeResolverBase<*>>,
-    private val batchResolveFunction: KFunction<*>,
+    val resolver: Provider<out BaseBatchedNodeResolver>,
     override val typeName: String,
-    private val reflectionLoader: ReflectionLoader,
     private val factory: NodeExecutionContextFactory,
     private val resolverName: String,
     override val isSelective: Boolean,
@@ -44,7 +40,7 @@ class NodeBatchResolverExecutorImpl(
         }
         val resolver = resolver.get()
         val results: Any? = handleTenantErrorsSuspend(typeName) {
-            callResolver(batchResolveFunction, resolver, contexts)
+            resolver.invokeNodeBatchResolver(contexts)
         }
         if (results !is List<*>) {
             throw FrameworkException("Unexpected return value from batchResolve function for node $typeName: $results")

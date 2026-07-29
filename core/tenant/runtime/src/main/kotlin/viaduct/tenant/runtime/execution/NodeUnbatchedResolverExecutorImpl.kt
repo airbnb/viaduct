@@ -1,10 +1,8 @@
 package viaduct.tenant.runtime.execution
 
 import javax.inject.Provider
-import kotlin.reflect.KFunction
-import viaduct.api.NodeResolverBase
+import viaduct.api.internal.BaseUnbatchedNodeResolver
 import viaduct.api.internal.ObjectBase
-import viaduct.api.internal.ReflectionLoader
 import viaduct.apiannotations.Attribution
 import viaduct.apiannotations.AttributionContext
 import viaduct.engine.api.EngineExecutionContext
@@ -24,10 +22,8 @@ import viaduct.errors.resultOfSuspend
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 
 class NodeUnbatchedResolverExecutorImpl(
-    val resolver: Provider<out @JvmSuppressWildcards NodeResolverBase<*>>,
-    private val resolveFunction: KFunction<*>,
+    val resolver: Provider<out @JvmSuppressWildcards BaseUnbatchedNodeResolver>,
     override val typeName: String,
-    private val reflectionLoader: ReflectionLoader,
     private val factory: NodeExecutionContextFactory,
     private val resolverName: String,
     override val isSelective: Boolean,
@@ -57,7 +53,7 @@ class NodeUnbatchedResolverExecutorImpl(
         val ctx = factory(context, selections, context.requestContext, id)
         val resolver = resolver.get()
         val result: Any? = handleTenantErrorsSuspend(typeName) {
-            callResolver(resolveFunction, resolver, ctx)
+            resolver.invokeNodeResolver(ctx)
         }
         try {
             return unwrapNodeResolverResult(result)

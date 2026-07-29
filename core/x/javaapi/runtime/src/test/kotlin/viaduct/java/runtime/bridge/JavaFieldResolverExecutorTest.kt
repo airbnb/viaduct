@@ -6,6 +6,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
 import java.util.concurrent.CompletableFuture
+import javax.inject.Provider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -23,6 +24,7 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.errors.TenantResolverException
+import viaduct.java.api.internal.BaseUnbatchedFieldResolver
 
 class JavaFieldResolverExecutorTest {
     @Test
@@ -30,7 +32,7 @@ class JavaFieldResolverExecutorTest {
         runBlocking {
             // Wrap a simple resolve function in the bridge executor
             val executor = JavaFieldResolverExecutorImpl(
-                resolveFunction = { CompletableFuture.completedFuture("Hello, World!") },
+                resolver = fieldResolver { CompletableFuture.completedFuture("Hello, World!") },
                 resolverId = "Query.greeting",
                 resolverName = "GreetingResolver"
             )
@@ -63,7 +65,7 @@ class JavaFieldResolverExecutorTest {
     @Test
     fun `executor has correct metadata`() {
         val executor = JavaFieldResolverExecutorImpl(
-            resolveFunction = { CompletableFuture.completedFuture("test") },
+            resolver = fieldResolver { CompletableFuture.completedFuture("test") },
             resolverId = "Query.greeting",
             resolverName = "GreetingResolver"
         )
@@ -84,7 +86,7 @@ class JavaFieldResolverExecutorTest {
             failedFuture.completeExceptionally(RuntimeException("Test error"))
 
             val executor = JavaFieldResolverExecutorImpl(
-                resolveFunction = { failedFuture },
+                resolver = fieldResolver { failedFuture },
                 resolverId = "Query.failing",
                 resolverName = "FailingResolver"
             )
@@ -118,7 +120,7 @@ class JavaFieldResolverExecutorTest {
         val blockedFuture = CompletableFuture<Any?>()
 
         val executor = JavaFieldResolverExecutorImpl(
-            resolveFunction = { blockedFuture },
+            resolver = fieldResolver { blockedFuture },
             resolverId = "Query.cancelled",
             resolverName = "CancelledResolver"
         )
@@ -156,7 +158,7 @@ class JavaFieldResolverExecutorTest {
         )
 
         val executor = JavaFieldResolverExecutorImpl(
-            resolveFunction = { CompletableFuture.completedFuture("test") },
+            resolver = fieldResolver { CompletableFuture.completedFuture("test") },
             resolverId = "Person.fullName",
             resolverName = "FullNameResolver",
             objectSelectionSet = requiredSelectionSet
@@ -178,7 +180,7 @@ class JavaFieldResolverExecutorTest {
         )
 
         val executor = JavaFieldResolverExecutorImpl(
-            resolveFunction = { CompletableFuture.completedFuture("test") },
+            resolver = fieldResolver { CompletableFuture.completedFuture("test") },
             resolverId = "Person.greeting",
             resolverName = "GreetingResolver",
             querySelectionSet = requiredSelectionSet
@@ -209,7 +211,7 @@ class JavaFieldResolverExecutorTest {
         )
 
         val executor = JavaFieldResolverExecutorImpl(
-            resolveFunction = { CompletableFuture.completedFuture("test") },
+            resolver = fieldResolver { CompletableFuture.completedFuture("test") },
             resolverId = "Person.computed",
             resolverName = "ComputedResolver",
             objectSelectionSet = objectSelectionSet,
@@ -221,4 +223,9 @@ class JavaFieldResolverExecutorTest {
         assertNotNull(executor.querySelectionSet)
         assertEquals(querySelectionSet, executor.querySelectionSet)
     }
+
+    private fun fieldResolver(resolve: () -> CompletableFuture<*>): Provider<BaseUnbatchedFieldResolver> =
+        Provider {
+            BaseUnbatchedFieldResolver { resolve() }
+        }
 }

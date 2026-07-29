@@ -13,9 +13,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.FieldValue
-import viaduct.api.ResolverBase
 import viaduct.api.context.BaseFieldExecutionContext
-import viaduct.api.mocks.MockReflectionLoader
+import viaduct.api.internal.BaseBatchedFieldResolver
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineObjectData
@@ -103,10 +102,8 @@ class FieldBatchResolverExecutorImplTest {
             objectSelectionSet = null,
             querySelectionSet = null,
             isSelective = false,
-            resolver = Provider<ResolverBase<*>> { resolver },
-            batchResolveFn = TestBatchResolver::batchResolve,
+            resolver = Provider<BaseBatchedFieldResolver> { resolver },
             resolverId = "Query.batchedField",
-            reflectionLoader = MockReflectionLoader(),
             resolverContextFactory = resolverContextFactory,
             resolverName = "Query.batchedField",
         )
@@ -121,9 +118,8 @@ class FieldBatchResolverExecutorImplTest {
 
     class TestBatchResolver(
         private val result: Any?,
-    ) : ResolverBase<Any?> {
-        @Suppress("unused")
-        suspend fun batchResolve(contexts: List<Any?>): Any? {
+    ) : BaseBatchedFieldResolver {
+        override suspend fun invokeFieldBatchResolver(contexts: List<BaseFieldExecutionContext<*, *, *>>): Any? {
             return result
         }
     }

@@ -7,12 +7,12 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.NodeResolverBase
+import viaduct.api.FieldResolverBase
+import viaduct.api.MutationResolverBase
 import viaduct.api.ResolverBase
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.internal.DefaultGRTConvFactory
-import viaduct.api.internal.InternalContext
 import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.mocks.testGlobalId
 import viaduct.api.reflect.Type
@@ -30,14 +30,12 @@ import viaduct.tenant.runtime.FakeQuery
 
 /**
  * Tests for ResolverExecutionContextFactory - tests that the factory correctly constructs
- * context wrappers and validates nested Context classes.
+ * framework contexts and selects the correct field context kind.
  *
  * WHAT THESE TESTS ARE TESTING:
- * - NodeExecutionContextFactory constructor validation and wrapper creation
- * - FieldExecutionContextFactory.of() static method validation
- * - FieldExecutionContextFactory constructor validation
- * - Context wrapper class detection and wrapping
- * - Type safety of KFunction.call usage in wrap() method
+ * - NodeExecutionContextFactory context creation
+ * - FieldExecutionContextFactory.of() field-base validation
+ * - FieldExecutionContextFactory context creation
  *
  * WHAT THESE TESTS ARE NOT TESTING:
  * - Actual resolver execution (tested in behavioral tests)
@@ -88,7 +86,6 @@ class ResolverExecutionContextFactoryTest {
     fun `NodeExecutionContextFactory -- successful construction with valid resolver base`() {
         // Should successfully construct factory when resolver has valid nested Context class
         val factory = NodeExecutionContextFactory(
-            NodeExecutionContextFactory.FakeResolverBase::class.java,
             reflectionLoader,
             Type.ofClass(TestNode::class),
             DefaultGRTConvFactory
@@ -109,32 +106,6 @@ class ResolverExecutionContextFactoryTest {
         )
     }
 
-    @Test
-    fun `NodeExecutionContextFactory -- fails when no nested Context class exists`() {
-        // Should fail when resolver doesn't have a nested Context class
-        assertThrows<IllegalArgumentException> {
-            NodeExecutionContextFactory(
-                InvalidNodeResolverWithoutContext::class.java,
-                reflectionLoader,
-                Type.ofClass(TestNode::class),
-                DefaultGRTConvFactory
-            )
-        }
-    }
-
-    @Test
-    fun `NodeExecutionContextFactory -- fails when Context class is not correct type`() {
-        // Should fail when nested Context doesn't extend NodeExecutionContext
-        assertThrows<IllegalArgumentException> {
-            NodeExecutionContextFactory(
-                InvalidNodeResolverWrongContextType::class.java,
-                reflectionLoader,
-                Type.ofClass(TestNode::class),
-                DefaultGRTConvFactory
-            )
-        }
-    }
-
     // ============================================================================
     // FieldExecutionContextFactory.of() Tests
     // ============================================================================
@@ -145,7 +116,7 @@ class ResolverExecutionContextFactoryTest {
         // Disabled because it requires Query types with GRT primary constructors
         // The validation aspects are tested by the error case tests below
         val factory = FieldExecutionContextFactory.of(
-            FieldExecutionContextFactory.FakeResolverBase::class.java,
+            FakeFieldResolverBase::class.java,
             reflectionLoader,
             schema,
             "Query",
@@ -194,7 +165,7 @@ class ResolverExecutionContextFactoryTest {
         // Should fail when field doesn't exist in schema
         val exception = assertThrows<IllegalArgumentException> {
             FieldExecutionContextFactory.of(
-                FieldExecutionContextFactory.FakeResolverBase::class.java,
+                FakeFieldResolverBase::class.java,
                 reflectionLoader,
                 schema,
                 "Query",
@@ -208,26 +179,10 @@ class ResolverExecutionContextFactoryTest {
     }
 
     @Test
-    fun `FieldExecutionContextFactory_of -- fails when no nested Context class exists`() {
-        // Should fail when resolver doesn't have nested Context class
+    fun `FieldExecutionContextFactory_of -- fails for unsupported resolver base`() {
         assertThrows<IllegalArgumentException> {
             FieldExecutionContextFactory.of(
-                InvalidFieldResolverWithoutContext::class.java,
-                reflectionLoader,
-                schema,
-                "Query",
-                "testField",
-                DefaultGRTConvFactory
-            )
-        }
-    }
-
-    @Test
-    fun `FieldExecutionContextFactory_of -- fails when Context is wrong type`() {
-        // Should fail when nested Context doesn't extend FieldExecutionContext
-        assertThrows<IllegalArgumentException> {
-            FieldExecutionContextFactory.of(
-                InvalidFieldResolverWrongContextType::class.java,
+                UnsupportedFieldResolverBase::class.java,
                 reflectionLoader,
                 schema,
                 "Query",
@@ -243,10 +198,9 @@ class ResolverExecutionContextFactoryTest {
 
     @Test
     fun `FieldExecutionContextFactory constructor -- constructs FieldExecutionContext`() {
-        // Should successfully construct factory when resolver has valid nested Context class
+        // Should construct the requested framework context directly.
         @Suppress("UNCHECKED_CAST")
         val factory = FieldExecutionContextFactory(
-            FieldExecutionContextFactory.FakeResolverBase::class.java,
             FieldExecutionContext::class.java,
             reflectionLoader,
             Type.ofClass(CompositeOutput.NotComposite::class),
@@ -268,10 +222,9 @@ class ResolverExecutionContextFactoryTest {
 
     @Test
     fun `FieldExecutionContextFactory constructor -- constructs MutationFieldExecutionContext`() {
-        // Verify the ctor is set to MutationFieldExecutionContextImpl's primary constructor
+        // Verify mutation fields receive the mutation-specific framework context.
         @Suppress("UNCHECKED_CAST")
         val factory = FieldExecutionContextFactory(
-            FakeMutationResolverBase::class.java,
             MutationFieldExecutionContext::class.java,
             reflectionLoader,
             Type.ofClass(CompositeOutput.NotComposite::class),
@@ -292,45 +245,6 @@ class ResolverExecutionContextFactoryTest {
         result.shouldBeInstanceOf<MutationFieldExecutionContext<*, *, *, *>>()
     }
 
-    @Test
-    fun `FieldExecutionContextFactory constructor -- fails when no nested Context class exists`() {
-        // Should fail when resolver doesn't have nested Context class
-        @Suppress("UNCHECKED_CAST")
-        assertThrows<IllegalArgumentException> {
-            FieldExecutionContextFactory(
-                InvalidFieldResolverWithoutContext::class.java,
-                FieldExecutionContext::class.java,
-                reflectionLoader,
-                Type.ofClass(CompositeOutput.NotComposite::class),
-                Arguments.NoArguments::class as KClass<Arguments>,
-                FakeObject::class as KClass<Object>,
-                FakeQuery::class as KClass<Query>,
-                DefaultGRTConvFactory
-            )
-        }
-    }
-
-    @Test
-    fun `FieldExecutionContextFactory constructor -- fails when Context is wrong type`() {
-        // Should fail when nested Context doesn't extend FieldExecutionContext
-        @Suppress("UNCHECKED_CAST")
-        assertThrows<IllegalArgumentException> {
-            FieldExecutionContextFactory(
-                InvalidFieldResolverWrongContextType::class.java,
-                FieldExecutionContext::class.java,
-                reflectionLoader,
-                Type.ofClass(CompositeOutput.NotComposite::class),
-                Arguments.NoArguments::class as KClass<Arguments>,
-                FakeObject::class as KClass<Object>,
-                FakeQuery::class as KClass<Query>,
-                DefaultGRTConvFactory
-            )
-        }
-    }
-
-    // Note: invoke() tests for FieldExecutionContextFactory are covered by integration tests
-    // like FieldExecutionContextFactoryCtorBugTest which use MockTenantModuleBootstrapper
-
     // ============================================================================
     // Test Fixtures
     // ============================================================================
@@ -338,32 +252,11 @@ class ResolverExecutionContextFactoryTest {
     class TestNode(val internalId: String) : NodeObject
 
     // GRT test fixtures with proper primary constructors
-    private class InvalidNodeResolverWithoutContext : NodeResolverBase<TestNode> {
-        // Missing nested Context class
-    }
+    private abstract class FakeFieldResolverBase :
+        FieldResolverBase<FakeObject, FakeQuery, Arguments.NoArguments, String?>
 
-    private class InvalidNodeResolverWrongContextType : NodeResolverBase<TestNode> {
-        // Has a nested Context class but wrong type
-        class Context {
-            // Not extending NodeExecutionContext
-        }
-    }
+    private abstract class FakeMutationResolverBase :
+        MutationResolverBase<FakeQuery, FakeMutation, Arguments.NoArguments, String?>
 
-    private class InvalidFieldResolverWithoutContext : ResolverBase<Object> {
-        // Missing nested Context class
-    }
-
-    private class InvalidFieldResolverWrongContextType : ResolverBase<Object> {
-        // Has a nested Context class but wrong type
-        class Context {
-            // Not extending FieldExecutionContext
-        }
-    }
-
-    private class FakeMutationResolverBase : ResolverBase<CompositeOutput> {
-        @Suppress("UNCHECKED_CAST")
-        class Context(ctx: MutationFieldExecutionContext<*, *, *, *>) :
-            MutationFieldExecutionContext<Query, Mutation, Arguments, CompositeOutput> by (ctx as MutationFieldExecutionContext<Query, Mutation, Arguments, CompositeOutput>),
-            InternalContext by (ctx as InternalContext)
-    }
+    private abstract class UnsupportedFieldResolverBase : ResolverBase<Object>
 }

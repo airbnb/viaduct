@@ -1,10 +1,8 @@
 package viaduct.tenant.runtime.execution
 
 import javax.inject.Provider
-import kotlin.reflect.KFunction
 import viaduct.api.FieldValue
-import viaduct.api.ResolverBase
-import viaduct.api.internal.ReflectionLoader
+import viaduct.api.internal.BaseBatchedFieldResolver
 import viaduct.apiannotations.Attribution
 import viaduct.apiannotations.AttributionContext
 import viaduct.engine.api.EngineExecutionContext
@@ -34,10 +32,8 @@ class FieldBatchResolverExecutorImpl(
     override val objectSelectionSet: RequiredSelectionSet?,
     override val querySelectionSet: RequiredSelectionSet?,
     override val isSelective: Boolean,
-    internal val resolver: Provider<out @JvmSuppressWildcards ResolverBase<*>>, // internal for testing
-    private val batchResolveFn: KFunction<*>,
+    internal val resolver: Provider<out @JvmSuppressWildcards BaseBatchedFieldResolver>, // internal for testing
     override val resolverId: String,
-    private val reflectionLoader: ReflectionLoader,
     private val resolverContextFactory: FieldExecutionContextFactory,
     private val resolverName: String,
     private val tenantMetadata: TenantModuleMetadata? = null,
@@ -62,7 +58,7 @@ class FieldBatchResolverExecutorImpl(
         }
         val resolver = resolver.get()
         val results: Any? = handleTenantErrorsSuspend(resolverName) {
-            callResolver(batchResolveFn, resolver, contexts)
+            resolver.invokeFieldBatchResolver(contexts)
         }
         if (results !is List<*>) {
             throw FrameworkException("Unexpected return value from batchResolve function for field $resolverId: $results")

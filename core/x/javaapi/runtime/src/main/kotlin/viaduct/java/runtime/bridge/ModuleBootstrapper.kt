@@ -1,9 +1,5 @@
 package viaduct.java.runtime.bridge
 
-import java.lang.reflect.Method
-import java.lang.reflect.ParameterizedType
-import java.util.IdentityHashMap
-import java.util.concurrent.CompletableFuture
 import javax.inject.Provider
 import org.slf4j.LoggerFactory
 import viaduct.engine.api.ViaductSchema
@@ -14,8 +10,10 @@ import viaduct.engine.api.spi.TenantModuleException
 import viaduct.java.api.annotations.NodeResolverFor
 import viaduct.java.api.annotations.Resolver
 import viaduct.java.api.annotations.ResolverFor
-import viaduct.java.api.context.FieldExecutionContext
-import viaduct.java.api.context.NodeExecutionContext
+import viaduct.java.api.internal.BaseBatchedFieldResolver
+import viaduct.java.api.internal.BaseBatchedNodeResolver
+import viaduct.java.api.internal.BaseUnbatchedFieldResolver
+import viaduct.java.api.internal.BaseUnbatchedNodeResolver
 import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.resolvers.FieldResolverBase
 import viaduct.java.api.resolvers.NodeResolverBase
@@ -181,10 +179,12 @@ class ModuleBootstrapper(
             )
 
             val executor = if (resolverForAnnotation.isBatching) {
-                val batchResolveMethod = findResolveMethod(resolverClass, "batchResolve")
-                    ?: throw TenantModuleException(
-                        "Resolver class $resolverClass is annotated with isBatching=true but does not have a 'batchResolve' method"
-                    )
+                val batchResolverProvider = requireBaseResolver(
+                    resolverClass,
+                    resolverProvider,
+                    BaseBatchedFieldResolver::class.java,
+                    "Batch field resolver",
+                )
                 log.info(
                     "- Adding entry for batch resolver for '{}.{}' to {} via {}",
                     typeName,
@@ -193,7 +193,7 @@ class ModuleBootstrapper(
                     resolverClass.classLoader
                 )
                 FieldBatchResolverExecutorImpl(
-                    batchResolveFunction = { ctxList -> invokeBatchResolver(resolverProvider, batchResolveMethod, ctxList) },
+                    resolver = batchResolverProvider,
                     resolverId = resolverId,
                     resolverName = resolverName,
                     argumentsClass = argumentsClass,
@@ -206,10 +206,12 @@ class ModuleBootstrapper(
                     classFinder = classFinder,
                 )
             } else {
-                val resolveMethod = findResolveMethod(resolverClass)
-                    ?: throw TenantModuleException(
-                        "Resolver class $resolverClass does not have a 'resolve' method"
-                    )
+                val unbatchedResolverProvider = requireBaseResolver(
+                    resolverClass,
+                    resolverProvider,
+                    BaseUnbatchedFieldResolver::class.java,
+                    "Field resolver",
+                )
                 log.info(
                     "- Adding entry for resolver for '{}.{}' to {} via {}",
                     typeName,
@@ -218,7 +220,7 @@ class ModuleBootstrapper(
                     resolverClass.classLoader
                 )
                 JavaFieldResolverExecutorImpl(
-                    resolveFunction = { ctx -> invokeResolver(resolverProvider, resolveMethod, ctx) },
+                    resolver = unbatchedResolverProvider,
                     resolverId = resolverId,
                     resolverName = resolverName,
                     argumentsClass = argumentsClass,
@@ -335,13 +337,15 @@ class ModuleBootstrapper(
             val graphqlSchema = schema.schema
 
             val executor = if (nodeResolverForAnnotation.isBatching) {
-                val batchResolveMethod = findResolveMethod(resolverClass, "batchResolve")
-                    ?: throw TenantModuleException(
-                        "Node resolver class $resolverClass is annotated with isBatching=true but does not have a 'batchResolve' method"
-                    )
+                val batchResolverProvider = requireBaseResolver(
+                    resolverClass,
+                    resolverProvider,
+                    BaseBatchedNodeResolver::class.java,
+                    "Batch node resolver",
+                )
                 log.info("- Adding node batch resolver entry for '{}' to '{}'.", typeName, resolverName)
                 NodeBatchResolverExecutorImpl(
-                    batchResolveFunction = { ctxList -> invokeNodeBatchResolver(resolverProvider, batchResolveMethod, ctxList) },
+                    resolver = batchResolverProvider,
                     typeName = typeName,
                     resolverName = resolverName,
                     isSelective = nodeResolverForAnnotation.isSelective,
@@ -349,13 +353,15 @@ class ModuleBootstrapper(
                     classFinder = classFinder,
                 )
             } else {
-                val resolveMethod = findResolveMethod(resolverClass)
-                    ?: throw TenantModuleException(
-                        "Node resolver class $resolverClass does not have a 'resolve' method"
-                    )
+                val unbatchedResolverProvider = requireBaseResolver(
+                    resolverClass,
+                    resolverProvider,
+                    BaseUnbatchedNodeResolver::class.java,
+                    "Node resolver",
+                )
                 log.info("- Adding node resolver entry for '{}' to '{}'.", typeName, resolverName)
                 JavaNodeResolverExecutorImpl(
-                    resolveFunction = { ctx -> invokeNodeResolver(resolverProvider, resolveMethod, ctx) },
+                    resolver = unbatchedResolverProvider,
                     typeName = typeName,
                     resolverName = resolverName,
                     isSelective = nodeResolverForAnnotation.isSelective,
@@ -381,195 +387,19 @@ class ModuleBootstrapper(
             null
         }
 
-    /**
-     * Finds a named method on [resolverClass] that takes one parameter and returns CompletableFuture.
-     * Prefers declared methods to avoid bridge methods from generics erasure.
-     */
-    private fun findResolveMethod(
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> requireBaseResolver(
         resolverClass: Class<*>,
-        name: String = "resolve"
-    ): Method? {
-        val declared = resolverClass.declaredMethods.firstOrNull { m ->
-            m.name == name &&
-                m.parameterCount == 1 &&
-                CompletableFuture::class.java.isAssignableFrom(m.returnType) &&
-                !m.isBridge
-        }
-        if (declared != null) return declared
-        return resolverClass.methods.firstOrNull { m ->
-            m.name == name &&
-                m.parameterCount == 1 &&
-                CompletableFuture::class.java.isAssignableFrom(m.returnType) &&
-                !m.isBridge
-        }
-    }
-
-    /**
-     * Invokes the resolve method on a fresh resolver instance.
-     *
-     * Each invocation creates a new resolver instance via the provider, matching Viaduct's
-     * per-invocation instantiation model.
-     *
-     * The resolve method expects a resolver-specific Context class that wraps FieldExecutionContext.
-     * This method finds that Context class and creates an instance wrapping the provided context.
-     */
-    @Suppress("UNCHECKED_CAST")
-    private fun invokeResolver(
         provider: Provider<*>,
-        resolveMethod: Method,
-        context: FieldExecutionContext<*, *, *, *>,
-    ): CompletableFuture<Any?> {
-        return try {
-            val resolver = provider.get()
-            // The resolve method expects a Context class that wraps FieldExecutionContext
-            val contextType = resolveMethod.parameterTypes[0]
-            val wrappedContext = wrapContext(contextType, context)
-            resolveMethod.invoke(resolver, wrappedContext) as CompletableFuture<Any?>
-        } catch (e: Exception) {
-            CompletableFuture<Any?>().apply { completeExceptionally(e) }
+        baseResolverClass: Class<T>,
+        resolverDescription: String,
+    ): Provider<T> {
+        if (!baseResolverClass.isAssignableFrom(resolverClass)) {
+            throw TenantModuleException(
+                "$resolverDescription ${resolverClass.name} does not implement ${baseResolverClass.simpleName}; " +
+                    "its generated resolver base is out of date or incompatible with this runtime"
+            )
         }
-    }
-
-    /**
-     * Invokes the batchResolve method on a fresh resolver instance.
-     *
-     * Wraps each context in the resolver-specific Context class, then calls
-     * batchResolve(List<Context>). The method returns CompletableFuture<Map<Context, T>>.
-     * The Context keys are then remapped to their inner FieldExecutionContext so that the caller
-     * can do key-based lookup regardless of the Map type returned by the tenant (e.g. HashMap vs
-     * LinkedHashMap).
-     */
-    @Suppress("UNCHECKED_CAST")
-    private fun invokeBatchResolver(
-        provider: Provider<*>,
-        batchResolveMethod: Method,
-        contexts: List<FieldExecutionContext<*, *, *, *>>,
-    ): CompletableFuture<Map<FieldExecutionContext<*, *, *, *>, *>> {
-        return try {
-            val resolver = provider.get()
-            // Wrap each FieldExecutionContext in the resolver's inner Context.
-            // batchResolveMethod takes List<Context> — extract the Context class from generics.
-            val listParamElementType =
-                (batchResolveMethod.genericParameterTypes[0] as? ParameterizedType)
-                    ?.actualTypeArguments?.firstOrNull() as? Class<*>
-            val wrappedContexts = if (listParamElementType != null) {
-                contexts.map { wrapContext(listParamElementType, it) }
-            } else {
-                // Fallback: pass contexts unwrapped (should not happen with well-formed codegen)
-                contexts
-            }
-            // Build a reverse lookup: wrapped Context instance → original FieldExecutionContext.
-            // Uses IdentityHashMap to match by reference, not equals(), which is important since
-            // generated Context classes don't override equals().
-            val wrappedToOriginal = IdentityHashMap<Any, FieldExecutionContext<*, *, *, *>>()
-            wrappedContexts.zip(contexts).forEach { (wrapped, original) ->
-                wrappedToOriginal[wrapped] = original
-            }
-            val future = batchResolveMethod.invoke(resolver, wrappedContexts) as CompletableFuture<Map<*, *>>
-            future.thenApply { contextToValue ->
-                contextToValue.entries.associate { (wrappedCtx, value) ->
-                    val original = wrappedToOriginal[wrappedCtx]
-                        ?: throw TenantModuleException(
-                            "batchResolve returned a key that was not in the input context list: $wrappedCtx"
-                        )
-                    original to value
-                }
-            }
-        } catch (e: Exception) {
-            CompletableFuture<Map<FieldExecutionContext<*, *, *, *>, *>>().apply { completeExceptionally(e) }
-        }
-    }
-
-    /**
-     * Wraps a FieldExecutionContext in the resolver's Context class.
-     *
-     * Generated resolver base classes have an inner Context class that wraps FieldExecutionContext.
-     * This method creates an instance of that Context class with the provided context.
-     */
-    private fun wrapContext(
-        contextType: Class<*>,
-        context: FieldExecutionContext<*, *, *, *>
-    ): Any {
-        // Find the constructor that takes FieldExecutionContext
-        val constructor = contextType.constructors.firstOrNull { ctor ->
-            ctor.parameterCount == 1 &&
-                FieldExecutionContext::class.java.isAssignableFrom(ctor.parameterTypes[0])
-        } ?: throw IllegalStateException(
-            "Context class ${contextType.name} does not have a constructor taking FieldExecutionContext"
-        )
-
-        return constructor.newInstance(context)
-    }
-
-    /**
-     * Invokes the resolve method on a node resolver instance.
-     *
-     * The resolve method takes a Context wrapping NodeExecutionContext. If codegen wraps the
-     * context (via a generated inner Context class), the constructor is used to wrap it; otherwise
-     * the context is passed directly.
-     */
-    @Suppress("UNCHECKED_CAST")
-    private fun invokeNodeResolver(
-        provider: javax.inject.Provider<*>,
-        resolveMethod: Method,
-        context: NodeExecutionContext<*>,
-    ): CompletableFuture<Any?> {
-        return try {
-            val resolver = provider.get()
-            val contextType = resolveMethod.parameterTypes[0]
-            val arg = wrapNodeContext(contextType, context)
-            resolveMethod.invoke(resolver, arg) as CompletableFuture<Any?>
-        } catch (e: Exception) {
-            CompletableFuture<Any?>().apply { completeExceptionally(e) }
-        }
-    }
-
-    /**
-     * Invokes the batchResolve method on a node resolver instance.
-     *
-     * Wraps each NodeExecutionContext in the resolver's inner Context class if applicable, then
-     * calls batchResolve(List<Context>).
-     */
-    @Suppress("UNCHECKED_CAST")
-    private fun invokeNodeBatchResolver(
-        provider: javax.inject.Provider<*>,
-        batchResolveMethod: Method,
-        contexts: List<NodeExecutionContext<*>>,
-    ): CompletableFuture<Any?> {
-        return try {
-            val resolver = provider.get()
-            val listParamElementType =
-                (batchResolveMethod.genericParameterTypes[0] as? java.lang.reflect.ParameterizedType)
-                    ?.actualTypeArguments?.firstOrNull() as? Class<*>
-            val wrappedContexts = if (listParamElementType != null) {
-                contexts.map { wrapNodeContext(listParamElementType, it) }
-            } else {
-                contexts
-            }
-            batchResolveMethod.invoke(resolver, wrappedContexts) as CompletableFuture<Any?>
-        } catch (e: Exception) {
-            CompletableFuture<Any?>().apply { completeExceptionally(e) }
-        }
-    }
-
-    /**
-     * Wraps a NodeExecutionContext in the resolver's Context class (if one exists).
-     *
-     * If the contextType has a constructor taking NodeExecutionContext, creates an instance of it.
-     * Otherwise returns the context directly (for resolvers that use NodeExecutionContext directly).
-     */
-    private fun wrapNodeContext(
-        contextType: Class<*>,
-        context: NodeExecutionContext<*>,
-    ): Any {
-        val constructor = contextType.constructors.firstOrNull { ctor ->
-            ctor.parameterCount == 1 &&
-                NodeExecutionContext::class.java.isAssignableFrom(ctor.parameterTypes[0])
-        }
-        if (constructor != null) {
-            return constructor.newInstance(context)
-        }
-        // No wrapping constructor — pass the context directly
-        return context
+        return provider as Provider<T>
     }
 }

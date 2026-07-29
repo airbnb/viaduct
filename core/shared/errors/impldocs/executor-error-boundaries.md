@@ -4,7 +4,7 @@ The Viaduct engine calls tenant-written resolvers through a set of Executor SPI 
 
 `handleTenantErrorsSuspend` (and its synchronous equivalent) is used at direct call sites that cross from framework-owned executor code into tenant-written resolver code. Framework-owned code in these executors is not eagerly wrapped with `handleFrameworkErrors*`; later framework boundaries are expected to classify those failures.
 
-This document describes the exception hierarchy, the handler functions and their semantics, the direct tenant-boundary pattern, how `InvocationTargetException` is handled, and how attributed exceptions eventually surface in GraphQL error responses.
+This document describes the exception hierarchy, the handler functions and their semantics, the direct tenant-boundary pattern, and how attributed exceptions eventually surface in GraphQL error responses.
 
 ## Exception Hierarchy
 
@@ -69,19 +69,21 @@ This means:
 
 ## Direct Tenant Boundary Pattern
 
-Each reflective executor call site unwraps the `InvocationTargetException` added by Kotlin reflection, then lets `handleTenantErrorsSuspend` classify the underlying exception:
+Kotlin resolver bases contain generated adapters that create the resolver-specific contexts and call
+the tenant's `resolve` or `batchResolve` method directly. Executors call those adapters inside
+`handleTenantErrorsSuspend`:
 
+```kotlin
+val results = handleTenantErrorsSuspend(resolverName) {
+    resolver.invokeFieldBatchResolver(contexts)
+}
 ```
-// framework code: build contexts, get provider, etc.
-callResolverAndHandleTenantErrors(resolverName, reflectionCall, resolver, ctx)
-// framework code: unwrap results, validate batch sizes, etc.
-```
 
-This helper sequence still defines the direct framework-to-tenant boundary: the reflective call into tenant resolver code is wrapped by `handleTenantErrorsSuspend`, but the reflection-specific `InvocationTargetException` wrapper is stripped first at the call site. Any unexpected underlying exception from the tenant resolver, including `TenantException`, becomes a `TenantResolverException` carrying the resolver name.
+The same pattern applies to single-item and batched Kotlin field and node resolvers, and to Java
+batch adapters that return `CompletableFuture`. Kotlin resolver context construction and tenant
+invocation do not use reflection.
 
-The **inner** `handleTenantErrorsSuspend` boundary covers the reflective call into tenant resolver code. Any unexpected exception from the tenant resolver, including `TenantException`, becomes a `TenantResolverException` carrying the resolver name.
-
-The five executor implementations where this pattern applies:
+The four executor implementations with this tenant boundary are:
 
 | Executor | Resolver type |
 |---|---|
@@ -90,29 +92,11 @@ The five executor implementations where this pattern applies:
 | `NodeBatchResolverExecutorImpl` | Batched node resolvers |
 | `NodeUnbatchedResolverExecutorImpl` | Single-invocation node resolvers |
 
-`VariablesProviderExecutor` still uses `handleTenantErrorsSuspend`, but it does not need the reflection-specific unwrapping helper because it calls tenant code directly rather than through `KFunction.callSuspend`.
+`VariablesProviderExecutor` also uses `handleTenantErrorsSuspend` around its direct tenant call.
 
 ### Batch Result Unwrapping
 
 The batch executors (`FieldBatchResolverExecutorImpl`, `NodeBatchResolverExecutorImpl`) call tenant code that returns `List<FieldValue<T>>`. Each `FieldValue` can hold either a success or an error. The `unwrap()` helper calls `fieldValue.get()` to extract the value or rethrow the stored exception. If that rethrows a `TenantException`, the executor wraps it as `TenantResolverException` before returning `Result.failure(...)`, preserving tenant attribution while normalizing the executor surface.
-
-## `InvocationTargetException` Unwrapping
-
-Kotlin reflection (`KFunction.callSuspend`) wraps exceptions thrown by the callee in `InvocationTargetException`. Without unwrapping, the `InvocationTargetException` itself would arrive at `handleTenantErrorsSuspend` rather than the underlying tenant/framework exception. Since the wrapper is neither a `PassthroughException` nor a `TenantException`, it would be wrapped in `TenantResolverException` with the real cause buried one level deeper, making the passthrough checks on the inner exception irrelevant.
-
-The unwrapping is done surgically in the executor-side helper used by each reflection call site, rather than in the handler function itself:
-
-```kotlin
-handleTenantErrorsSuspend(resolverName) {
-    try {
-        resolveFn.callSuspend(resolver, ctx)
-    } catch (e: InvocationTargetException) {
-        throw e.targetException
-    }
-}
-```
-
-`e.targetException` is typed as `Throwable`. By rethrowing it directly, any `Exception` target is caught by `handleTenantErrorsSuspend`'s `catch (e: Exception)` and classified normally. Non-`Exception` throwables (e.g., `Error`) propagate past the handler unchanged.
 
 ## Exception Surface in GraphQL Responses
 
@@ -137,7 +121,6 @@ Note that field resolver errors are additionally wrapped by the engine in `Field
 - `core/tenant/runtime/src/main/kotlin/viaduct/tenant/runtime/execution/FieldUnbatchedResolverExecutorImpl.kt`
 - `core/tenant/runtime/src/main/kotlin/viaduct/tenant/runtime/execution/NodeBatchResolverExecutorImpl.kt`
 - `core/tenant/runtime/src/main/kotlin/viaduct/tenant/runtime/execution/NodeUnbatchedResolverExecutorImpl.kt`
-- `core/tenant/runtime/src/main/kotlin/viaduct/tenant/runtime/execution/TenantResolverInvocation.kt` — Shared helper for reflective resolver invocation plus `InvocationTargetException` unwrapping
 - `core/tenant/runtime/src/main/kotlin/viaduct/tenant/runtime/execution/VariablesProviderExecutor.kt`
 - `core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/ViaductDataFetcherExceptionHandler.kt` — Maps attributed exceptions to GraphQL errors
 - `core/tenant/api/src/main/kotlin/viaduct/api/internal/ObjectBase.kt` — Passthrough checks in `fetch()` / `get()` catch blocks

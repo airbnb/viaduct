@@ -2,9 +2,12 @@ package viaduct.tenant.runtime.bootstrap
 
 import graphql.language.FragmentDefinition
 import kotlin.reflect.KClass
-import kotlin.reflect.full.declaredMemberFunctions
 import viaduct.api.NodeResolverBase
 import viaduct.api.ResolverBase
+import viaduct.api.internal.BaseBatchedFieldResolver
+import viaduct.api.internal.BaseBatchedNodeResolver
+import viaduct.api.internal.BaseUnbatchedFieldResolver
+import viaduct.api.internal.BaseUnbatchedNodeResolver
 import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.internal.GRT_PACKAGE_PREFIX
 import viaduct.api.reflect.Type
@@ -62,13 +65,12 @@ class ViaductModernExecutorFactory(
     ): FieldResolverExecutor {
         val apiData = configData.tenantAPIData.toFieldAPIData()
         val resolverClass = loadClass<ResolverBase<*>>(apiData.resolverClass, "field ${configData.typeName}.${configData.fieldName}")
-        val resolverBaseClass = loadClass<ResolverBase<*>>(apiData.resolverBaseClass, "field resolver base for ${configData.typeName}.${configData.fieldName}")
 
         val provider = codeInjector.getProvider(resolverClass)
         val attribution = ExecutionAttribution.fromResolver(apiData.resolverClass)
 
         val contextFactory = FieldExecutionContextFactory.of(
-            resolverBaseClass = resolverBaseClass,
+            resolverClass = resolverClass,
             reflectionLoader = reflectionLoader,
             typeName = configData.typeName,
             fieldName = configData.fieldName,
@@ -91,32 +93,26 @@ class ViaductModernExecutorFactory(
         val resolverId = "${configData.typeName}.${configData.fieldName}"
 
         return if (configData.isBatching) {
-            val batchResolveFn = resolverKClass.declaredMemberFunctions.firstOrNull { it.name == "batchResolve" }
-                ?: error("Resolver ${apiData.resolverClass} is marked isBatching=true but does not declare 'batchResolve'")
+            requireBaseResolver(resolverClass, BaseBatchedFieldResolver::class.java, "Batch field resolver")
             log.info("- Adding batch field resolver for '{}.{}'", configData.typeName, configData.fieldName)
             FieldBatchResolverExecutorImpl(
                 objectSelectionSet = objectSelectionSet,
                 querySelectionSet = querySelectionSet,
                 isSelective = configData.isSelective,
-                resolver = provider,
-                batchResolveFn = batchResolveFn,
+                resolver = provider as javax.inject.Provider<BaseBatchedFieldResolver>,
                 resolverId = resolverId,
-                reflectionLoader = reflectionLoader,
                 resolverContextFactory = contextFactory,
                 resolverName = apiData.resolverClass,
             )
         } else {
-            val resolveFn = resolverKClass.declaredMemberFunctions.firstOrNull { fn -> fn.name == "resolve" }
-                ?: error("Resolver ${apiData.resolverClass} does not declare 'resolve'")
+            requireBaseResolver(resolverClass, BaseUnbatchedFieldResolver::class.java, "Field resolver")
             log.info("- Adding field resolver for '{}.{}'", configData.typeName, configData.fieldName)
             FieldUnbatchedResolverExecutorImpl(
                 objectSelectionSet = objectSelectionSet,
                 querySelectionSet = querySelectionSet,
                 isSelective = configData.isSelective,
-                resolver = provider,
-                resolveFn = resolveFn,
+                resolver = provider as javax.inject.Provider<BaseUnbatchedFieldResolver>,
                 resolverId = resolverId,
-                reflectionLoader = reflectionLoader,
                 resolverContextFactory = contextFactory,
                 resolverName = apiData.resolverClass,
             )
@@ -130,43 +126,33 @@ class ViaductModernExecutorFactory(
     ): NodeResolverExecutor {
         val apiData = configData.tenantAPIData.toNodeAPIData()
         val resolverClass = loadClass<NodeResolverBase<*>>(apiData.resolverClass, "node ${configData.typeName}")
-        val resolverBaseClass = loadClass<NodeResolverBase<*>>(apiData.resolverBaseClass, "node resolver base for ${configData.typeName}")
 
         val provider = codeInjector.getProvider(resolverClass)
 
         val reflectiveType = reflectionLoader.reflectionFor(configData.typeName) as Type<NodeObject>
         val contextFactory = NodeExecutionContextFactory(
-            resolverBaseClass = resolverBaseClass,
             reflectionLoader = reflectionLoader,
             resultType = reflectiveType,
             grtConvFactory = grtConvFactory,
             knownFragments = namedFragments,
         )
 
-        val resolverKClass = resolverClass.kotlin
-
         return if (configData.isBatching) {
-            val batchResolveFn = resolverKClass.declaredMemberFunctions.firstOrNull { fn -> fn.name == "batchResolve" }
-                ?: error("Resolver ${apiData.resolverClass} is marked isBatching=true but does not declare 'batchResolve'")
+            requireBaseResolver(resolverClass, BaseBatchedNodeResolver::class.java, "Batch node resolver")
             log.info("- Adding batch node resolver for '{}'", configData.typeName)
             NodeBatchResolverExecutorImpl(
-                resolver = provider,
-                batchResolveFunction = batchResolveFn,
+                resolver = provider as javax.inject.Provider<BaseBatchedNodeResolver>,
                 typeName = configData.typeName,
-                reflectionLoader = reflectionLoader,
                 factory = contextFactory,
                 resolverName = apiData.resolverClass,
                 isSelective = configData.isSelective,
             )
         } else {
-            val resolveFn = resolverKClass.declaredMemberFunctions.firstOrNull { fn -> fn.name == "resolve" }
-                ?: error("Resolver ${apiData.resolverClass} does not declare 'resolve'")
+            requireBaseResolver(resolverClass, BaseUnbatchedNodeResolver::class.java, "Node resolver")
             log.info("- Adding node resolver for '{}'", configData.typeName)
             NodeUnbatchedResolverExecutorImpl(
-                resolver = provider,
-                resolveFunction = resolveFn,
+                resolver = provider as javax.inject.Provider<BaseUnbatchedNodeResolver>,
                 typeName = configData.typeName,
-                reflectionLoader = reflectionLoader,
                 factory = contextFactory,
                 resolverName = apiData.resolverClass,
                 isSelective = configData.isSelective,
@@ -214,6 +200,17 @@ class ViaductModernExecutorFactory(
             return Class.forName(fqn) as Class<out T>
         } catch (e: ClassNotFoundException) {
             throw ClassNotFoundException("Cannot load class '$fqn' for $context", e)
+        }
+    }
+
+    private fun requireBaseResolver(
+        resolverClass: Class<*>,
+        baseResolverClass: Class<*>,
+        resolverDescription: String,
+    ) {
+        check(baseResolverClass.isAssignableFrom(resolverClass)) {
+            "$resolverDescription ${resolverClass.name} does not implement ${baseResolverClass.simpleName}; " +
+                "its generated resolver base is out of date or incompatible with this runtime"
         }
     }
 

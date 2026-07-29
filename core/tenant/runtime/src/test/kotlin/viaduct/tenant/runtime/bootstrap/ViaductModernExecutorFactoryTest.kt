@@ -2,13 +2,19 @@ package viaduct.tenant.runtime.bootstrap
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.api.FieldResolverBase
 import viaduct.api.FieldValue
 import viaduct.api.NodeResolverBase
 import viaduct.api.ResolverBase
 import viaduct.api.bootstrap.test.grts.TestBatchNode
 import viaduct.api.bootstrap.test.grts.TestNode
+import viaduct.api.context.BaseFieldExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
+import viaduct.api.internal.BaseBatchedFieldResolver
+import viaduct.api.internal.BaseBatchedNodeResolver
+import viaduct.api.internal.BaseUnbatchedFieldResolver
+import viaduct.api.internal.BaseUnbatchedNodeResolver
 import viaduct.api.internal.InternalContext
 import viaduct.api.resolver.Resolver
 import viaduct.api.types.Arguments
@@ -28,8 +34,14 @@ import viaduct.service.api.spi.CodeInjector
 
 @Suppress("USELESS_IS_CHECK", "UNCHECKED_CAST")
 class ViaductModernExecutorFactoryTest {
-    abstract class TestFieldResolverBase : ResolverBase<String> {
+    abstract class TestFieldResolverBase :
+        ResolverBase<String>,
+        FieldResolverBase<Object, Query, Arguments.NoArguments, String>,
+        BaseUnbatchedFieldResolver {
         abstract suspend fun resolve(ctx: Context): String
+
+        @Suppress("UNCHECKED_CAST")
+        final override suspend fun invokeFieldResolver(context: BaseFieldExecutionContext<*, *, *>): Any? = resolve(Context(context as FieldExecutionContext<*, *, *, *>))
 
         class Context(
             private val inner: FieldExecutionContext<*, *, *, *>,
@@ -42,8 +54,14 @@ class ViaductModernExecutorFactoryTest {
         override suspend fun resolve(ctx: Context): String = "hello"
     }
 
-    abstract class TestBatchFieldResolverBase : ResolverBase<String> {
+    abstract class TestBatchFieldResolverBase :
+        ResolverBase<String>,
+        FieldResolverBase<Object, Query, Arguments.NoArguments, String>,
+        BaseBatchedFieldResolver {
         abstract suspend fun batchResolve(ctxs: List<Context>): List<FieldValue<String>>
+
+        @Suppress("UNCHECKED_CAST")
+        final override suspend fun invokeFieldBatchResolver(contexts: List<BaseFieldExecutionContext<*, *, *>>): Any? = batchResolve(contexts.map { Context(it as FieldExecutionContext<*, *, *, *>) })
 
         class Context(
             private val inner: FieldExecutionContext<*, *, *, *>,
@@ -56,8 +74,11 @@ class ViaductModernExecutorFactoryTest {
         override suspend fun batchResolve(ctxs: List<Context>): List<FieldValue<String>> = emptyList()
     }
 
-    abstract class TestNodeResolverBase : NodeResolverBase<TestNode> {
+    abstract class TestNodeResolverBase : NodeResolverBase<TestNode>, BaseUnbatchedNodeResolver {
         abstract suspend fun resolve(ctx: Context): TestNode
+
+        @Suppress("UNCHECKED_CAST")
+        final override suspend fun invokeNodeResolver(context: NodeExecutionContext<*>): Any? = resolve(Context(context as NodeExecutionContext<TestNode>))
 
         class Context(
             private val inner: NodeExecutionContext<TestNode>,
@@ -69,8 +90,11 @@ class ViaductModernExecutorFactoryTest {
         override suspend fun resolve(ctx: Context): TestNode = TestNode()
     }
 
-    abstract class TestBatchNodeResolverBase : NodeResolverBase<TestBatchNode> {
+    abstract class TestBatchNodeResolverBase : NodeResolverBase<TestBatchNode>, BaseBatchedNodeResolver {
         abstract suspend fun batchResolve(ctxs: List<Context>): List<FieldValue<TestBatchNode>>
+
+        @Suppress("UNCHECKED_CAST")
+        final override suspend fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): Any? = batchResolve(contexts.map { Context(it as NodeExecutionContext<TestBatchNode>) })
 
         class Context(
             private val inner: NodeExecutionContext<TestBatchNode>,
@@ -174,6 +198,19 @@ class ViaductModernExecutorFactoryTest {
     }
 
     @Test
+    fun `createFieldResolverExecutor - non-batching field with batch adapter throws`() {
+        assertThrows<IllegalStateException> {
+            factory().createFieldResolverExecutor(
+                fieldEntry(
+                    resolverSimpleName = "TestBatchFieldResolver",
+                    resolverBaseSimpleName = "TestBatchFieldResolverBase",
+                ),
+                schema,
+            )
+        }
+    }
+
+    @Test
     fun `createFieldResolverExecutor - unknown resolverClass throws ClassNotFoundException`() {
         assertThrows<ClassNotFoundException> {
             factory().createFieldResolverExecutor(
@@ -247,6 +284,16 @@ class ViaductModernExecutorFactoryTest {
         assertThrows<IllegalStateException> {
             factory().createNodeResolverExecutor(
                 nodeEntry("TestNode", "TestNodeResolver", "TestNodeResolverBase", isBatching = true),
+                schema,
+            )
+        }
+    }
+
+    @Test
+    fun `createNodeResolverExecutor - non-batching node with batch adapter throws`() {
+        assertThrows<IllegalStateException> {
+            factory().createNodeResolverExecutor(
+                nodeEntry("TestBatchNode", "TestBatchNodeResolver", "TestBatchNodeResolverBase"),
                 schema,
             )
         }

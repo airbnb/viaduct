@@ -10,6 +10,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
+import java.util.IdentityHashMap
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -25,11 +26,16 @@ import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.TenantModuleException
 import viaduct.java.api.annotations.NodeResolverFor
 import viaduct.java.api.annotations.Resolver
 import viaduct.java.api.annotations.ResolverFor
 import viaduct.java.api.context.FieldExecutionContext
 import viaduct.java.api.context.NodeExecutionContext
+import viaduct.java.api.internal.BaseBatchedFieldResolver
+import viaduct.java.api.internal.BaseBatchedNodeResolver
+import viaduct.java.api.internal.BaseUnbatchedFieldResolver
+import viaduct.java.api.internal.BaseUnbatchedNodeResolver
 import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.resolvers.FieldResolverBase
 import viaduct.java.api.resolvers.FieldValue
@@ -49,8 +55,7 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
  *
  * The "invocation" tests drive the factory-built executor through its public
  * [FieldResolverExecutor.batchResolve] / [NodeResolverExecutor.resolve] entry points — exactly the
- * way the engine calls them — so the factory's reflective `resolveFunction` / `batchResolveFunction`
- * lambdas (context wrapping + resolver invocation) actually run.
+ * way the engine calls them, so both single-item and batch adapters actually run.
  */
 class ViaductJavaExecutorFactoryTest {
     private val schema = MockSchema.mk(
@@ -83,8 +88,11 @@ class ViaductJavaExecutorFactoryTest {
 
     @ResolverFor(typeName = "Query", fieldName = "testField", isSelective = false)
     abstract class TestFieldResolverBase :
-        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput> {
+        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>,
+        BaseUnbatchedFieldResolver {
         abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String>
+
+        final override fun invokeFieldResolver(context: FieldExecutionContext<*, *, *, *>): CompletableFuture<*> = resolve(uncheckedCast(context))
     }
 
     @Resolver
@@ -94,8 +102,11 @@ class ViaductJavaExecutorFactoryTest {
 
     @ResolverFor(typeName = "Person", fieldName = "fullName", isSelective = false)
     abstract class PersonFullNameResolverBase :
-        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput> {
+        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>,
+        BaseUnbatchedFieldResolver {
         abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String>
+
+        final override fun invokeFieldResolver(context: FieldExecutionContext<*, *, *, *>): CompletableFuture<*> = resolve(uncheckedCast(context))
     }
 
     @Resolver(objectValueFragment = "firstName lastName")
@@ -106,8 +117,10 @@ class ViaductJavaExecutorFactoryTest {
     class TestNodeObj : NodeObject
 
     @NodeResolverFor(typeName = "TestNodeType")
-    abstract class TestNodeResolverBase : NodeResolverBase<TestNodeObj> {
+    abstract class TestNodeResolverBase : NodeResolverBase<TestNodeObj>, BaseUnbatchedNodeResolver {
         abstract fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj>
+
+        final override fun invokeNodeResolver(context: NodeExecutionContext<*>): CompletableFuture<*> = resolve(uncheckedCast(context))
     }
 
     @Resolver
@@ -115,10 +128,7 @@ class ViaductJavaExecutorFactoryTest {
         override fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj> = CompletableFuture.completedFuture(TestNodeObj())
     }
 
-    // -- Fixtures whose resolve/batchResolve take a *concrete* Context class, mirroring what the
-    //    Java codegen emits. The factory's wrapContext / wrapNodeContext reflectively invoke the
-    //    one-arg (FieldExecutionContext / NodeExecutionContext) constructor of these classes, so a
-    //    concrete Context is required to exercise that wrapping path. --
+    // Fixtures whose resolve/batchResolve take a concrete Context class, mirroring Java codegen.
 
     /** Concrete field Context wrapping the engine-provided [FieldExecutionContext], as codegen emits. */
     class ConcreteFieldContext(
@@ -126,14 +136,13 @@ class ViaductJavaExecutorFactoryTest {
     ) : FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>
         by uncheckedCast(inner)
 
-    // Bases declare the single resolve/batchResolve method using the *concrete* Context, so each
-    // concrete resolver has exactly one matching method — mirroring real codegen and keeping
-    // findResolveMethod deterministic.
-
     @ResolverFor(typeName = "Query", fieldName = "testField", isSelective = false)
     abstract class ConcreteContextFieldResolverBase :
-        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput> {
+        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>,
+        BaseUnbatchedFieldResolver {
         abstract fun resolve(ctx: ConcreteFieldContext): CompletableFuture<String>
+
+        final override fun invokeFieldResolver(context: FieldExecutionContext<*, *, *, *>): CompletableFuture<*> = resolve(ConcreteFieldContext(context))
     }
 
     @Resolver
@@ -147,8 +156,19 @@ class ViaductJavaExecutorFactoryTest {
 
     @ResolverFor(typeName = "Query", fieldName = "testField", isSelective = false)
     abstract class BatchFieldResolverBase :
-        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput> {
+        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>,
+        BaseBatchedFieldResolver {
         abstract fun batchResolve(contexts: List<ConcreteFieldContext>): CompletableFuture<Map<ConcreteFieldContext, String>>
+
+        final override fun invokeFieldBatchResolver(contexts: List<FieldExecutionContext<*, *, *, *>>): CompletableFuture<Map<FieldExecutionContext<*, *, *, *>, Any>> {
+            val wrappedToOriginal = IdentityHashMap<ConcreteFieldContext, FieldExecutionContext<*, *, *, *>>()
+            val wrappedContexts = contexts.map { context ->
+                ConcreteFieldContext(context).also { wrappedToOriginal[it] = context }
+            }
+            return batchResolve(wrappedContexts).thenApply { results ->
+                results.entries.associate { (wrapped, value) -> wrappedToOriginal.getValue(wrapped) to value }
+            }
+        }
     }
 
     @Resolver
@@ -165,8 +185,10 @@ class ViaductJavaExecutorFactoryTest {
     ) : NodeResolverBase.Context<TestNodeObj> by uncheckedCast(inner)
 
     @NodeResolverFor(typeName = "TestNodeType")
-    abstract class ConcreteContextNodeResolverBase : NodeResolverBase<TestNodeObj> {
+    abstract class ConcreteContextNodeResolverBase : NodeResolverBase<TestNodeObj>, BaseUnbatchedNodeResolver {
         abstract fun resolve(ctx: ConcreteNodeContext): CompletableFuture<TestNodeGRT>
+
+        final override fun invokeNodeResolver(context: NodeExecutionContext<*>): CompletableFuture<*> = resolve(ConcreteNodeContext(context))
     }
 
     /**
@@ -188,8 +210,10 @@ class ViaductJavaExecutorFactoryTest {
     }
 
     @NodeResolverFor(typeName = "TestNodeType")
-    abstract class BatchNodeResolverBase : NodeResolverBase<TestNodeObj> {
+    abstract class BatchNodeResolverBase : NodeResolverBase<TestNodeObj>, BaseBatchedNodeResolver {
         abstract fun batchResolve(contexts: List<ConcreteNodeContext>): CompletableFuture<List<FieldValue<TestNodeGRT>>>
+
+        final override fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): CompletableFuture<*> = batchResolve(contexts.map(::ConcreteNodeContext))
     }
 
     @Resolver
@@ -326,6 +350,32 @@ class ViaductJavaExecutorFactoryTest {
     }
 
     @Test
+    fun `createFieldResolverExecutor rejects batching resolver with stale generated base`() {
+        val thrown = assertThrows<TenantModuleException> {
+            factory().createFieldResolverExecutor(
+                fieldEntry("Query", "testField", TestFieldResolver::class.java, TestFieldResolverBase::class.java, isBatching = true),
+                schema,
+            )
+        }
+
+        assertTrue(thrown.message!!.contains("does not implement BaseBatchedFieldResolver"))
+        assertTrue(thrown.message!!.contains("generated resolver base is out of date"))
+    }
+
+    @Test
+    fun `createFieldResolverExecutor rejects unbatched resolver with stale generated base`() {
+        val thrown = assertThrows<TenantModuleException> {
+            factory().createFieldResolverExecutor(
+                fieldEntry("Query", "testField", BatchFieldResolver::class.java, BatchFieldResolverBase::class.java),
+                schema,
+            )
+        }
+
+        assertTrue(thrown.message!!.contains("does not implement BaseUnbatchedFieldResolver"))
+        assertTrue(thrown.message!!.contains("generated resolver base is out of date"))
+    }
+
+    @Test
     fun `createNodeResolverExecutor builds a node executor`() {
         val executor = factory().createNodeResolverExecutor(
             nodeEntry("TestNodeType", TestNodeResolver::class.java, TestNodeResolverBase::class.java),
@@ -347,7 +397,33 @@ class ViaductJavaExecutorFactoryTest {
         executor.isBatching.shouldBeTrue()
     }
 
-    // ── Invocation tests (drive the factory's resolveFunction / batchResolveFunction) ──────────
+    @Test
+    fun `createNodeResolverExecutor rejects batching resolver with stale generated base`() {
+        val thrown = assertThrows<TenantModuleException> {
+            factory().createNodeResolverExecutor(
+                nodeEntry("TestNodeType", TestNodeResolver::class.java, TestNodeResolverBase::class.java, isBatching = true),
+                schema,
+            )
+        }
+
+        assertTrue(thrown.message!!.contains("does not implement BaseBatchedNodeResolver"))
+        assertTrue(thrown.message!!.contains("generated resolver base is out of date"))
+    }
+
+    @Test
+    fun `createNodeResolverExecutor rejects unbatched resolver with stale generated base`() {
+        val thrown = assertThrows<TenantModuleException> {
+            factory().createNodeResolverExecutor(
+                nodeEntry("TestNodeType", DataBoundBatchNodeResolver::class.java, BatchNodeResolverBase::class.java),
+                schema,
+            )
+        }
+
+        assertTrue(thrown.message!!.contains("does not implement BaseUnbatchedNodeResolver"))
+        assertTrue(thrown.message!!.contains("generated resolver base is out of date"))
+    }
+
+    // Invocation tests drive the factory's unbatched and batched resolver paths.
 
     @Test
     fun `built field executor invokes the resolver and returns its value`(): Unit =
@@ -395,12 +471,10 @@ class ViaductJavaExecutorFactoryTest {
         }
 
     @Test
-    fun `built node executor wraps a resolver taking the bare context interface`(): Unit =
+    fun `built node executor invokes a resolver taking the bare context interface`(): Unit =
         runBlocking {
-            // TestNodeResolver.resolve takes the NodeResolverBase.Context *interface*, which has no
-            // 1-arg constructor, exercising wrapNodeContext's "return context directly" fallback.
-            // The returned TestNodeObj is not an ObjectBase, so conversion fails downstream — but the
-            // factory's invokeNodeResolver / wrapNodeContext code still ran to produce that result.
+            // The generated-style adapter passes the engine context to the tenant resolver. The
+            // returned TestNodeObj is not an ObjectBase, so conversion fails downstream.
             val executor = factory().createNodeResolverExecutor(
                 nodeEntry("TestNodeType", TestNodeResolver::class.java, TestNodeResolverBase::class.java),
                 schema,

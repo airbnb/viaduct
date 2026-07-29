@@ -2,7 +2,7 @@ package viaduct.java.runtime.bridge
 
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLSchema
-import java.util.concurrent.CompletableFuture
+import javax.inject.Provider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.future.await
@@ -15,7 +15,7 @@ import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.handleFrameworkErrorsSuspend
 import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.errors.resultOfSuspend
-import viaduct.java.api.context.FieldExecutionContext
+import viaduct.java.api.internal.BaseUnbatchedFieldResolver
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.Arguments
@@ -29,7 +29,7 @@ import viaduct.java.api.types.Arguments
  * - Java FieldExecutionContext <-> Kotlin EngineExecutionContext
  * - Engine argument maps <-> Typed Java Arguments instances
  *
- * @param resolveFunction A function that takes a FieldExecutionContext and returns a CompletableFuture
+ * @param resolver Provider for the generated resolver adapter
  * @param resolverId Unique identifier for this resolver (e.g., "Query.greeting")
  * @param resolverName Human-readable resolver name for metadata
  * @param argumentsClass The Java Arguments class for this resolver, used to create typed instances
@@ -45,7 +45,7 @@ import viaduct.java.api.types.Arguments
  *        objects returned by resolvers back into EngineObjectData for the engine.
  */
 class JavaFieldResolverExecutorImpl(
-    private val resolveFunction: (FieldExecutionContext<*, *, *, *>) -> CompletableFuture<*>,
+    private val resolver: Provider<BaseUnbatchedFieldResolver>,
     override val resolverId: String,
     private val resolverName: String,
     private val argumentsClass: Class<out Arguments>? = null,
@@ -107,8 +107,7 @@ class JavaFieldResolverExecutorImpl(
 
         // ── Tenant→Framework boundary: resolver call ──
         val result = handleTenantErrorsSuspend(resolverId) {
-            val future = resolveFunction(javaContext)
-            future.await()
+            resolver.get().invokeFieldResolver(javaContext).await()
         }
 
         // ── Framework→Tenant boundary: result conversion ──

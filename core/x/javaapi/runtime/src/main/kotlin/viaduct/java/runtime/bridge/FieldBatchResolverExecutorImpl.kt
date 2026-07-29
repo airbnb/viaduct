@@ -2,7 +2,7 @@ package viaduct.java.runtime.bridge
 
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLSchema
-import java.util.concurrent.CompletableFuture
+import javax.inject.Provider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.future.await
@@ -17,6 +17,7 @@ import viaduct.errors.handleFrameworkErrorsSuspend
 import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.errors.resultOfSuspend
 import viaduct.java.api.context.FieldExecutionContext
+import viaduct.java.api.internal.BaseBatchedFieldResolver
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.Arguments
@@ -30,7 +31,7 @@ import viaduct.java.api.types.Arguments
  * to the engine's selector-keyed format.
  */
 class FieldBatchResolverExecutorImpl(
-    private val batchResolveFunction: (List<FieldExecutionContext<*, *, *, *>>) -> CompletableFuture<Map<FieldExecutionContext<*, *, *, *>, *>>,
+    private val resolver: Provider<BaseBatchedFieldResolver>,
     override val resolverId: String,
     private val resolverName: String,
     private val argumentsClass: Class<out Arguments>? = null,
@@ -76,12 +77,10 @@ class FieldBatchResolverExecutorImpl(
             )
         }
 
-        // Call the tenant's batchResolve; result is Map<FieldExecutionContext, T>
-        // invokeBatchResolver remaps Context keys to their inner FieldExecutionContext so we can do
-        // deterministic key-based lookup regardless of the Map type returned by the tenant.
+        // The generated adapter remaps Context keys to their inner FieldExecutionContext so lookup
+        // remains deterministic regardless of the Map type returned by the tenant.
         val rawResult: Map<FieldExecutionContext<*, *, *, *>, *> = handleTenantErrorsSuspend(resolverId) {
-            val future = batchResolveFunction(javaContexts)
-            future.await()
+            resolver.get().invokeFieldBatchResolver(javaContexts).await()
         }
 
         if (rawResult.size != selectors.size) {

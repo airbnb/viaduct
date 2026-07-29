@@ -1,11 +1,9 @@
 package viaduct.tenant.runtime.execution
 
 import javax.inject.Provider
-import kotlin.reflect.KFunction
-import viaduct.api.ResolverBase
 import viaduct.api.globalid.GlobalID
+import viaduct.api.internal.BaseUnbatchedFieldResolver
 import viaduct.api.internal.ObjectBase
-import viaduct.api.internal.ReflectionLoader
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
@@ -19,7 +17,7 @@ import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 
 /**
- * Executes a tenant-written field resolver's batchResolve function.
+ * Executes a tenant-written field resolver's resolve function.
  *
  * @param resolverId: Uniquely identifies a resolver function, e.g. "User.fullName" identifies
  * the field resolver for the "fullName" field on the "User" type. This is used for observability.
@@ -28,10 +26,8 @@ class FieldUnbatchedResolverExecutorImpl(
     override val objectSelectionSet: RequiredSelectionSet?,
     override val querySelectionSet: RequiredSelectionSet?,
     override val isSelective: Boolean,
-    val resolver: Provider<out @JvmSuppressWildcards ResolverBase<*>>,
-    private val resolveFn: KFunction<*>,
+    val resolver: Provider<out @JvmSuppressWildcards BaseUnbatchedFieldResolver>,
     override val resolverId: String,
-    private val reflectionLoader: ReflectionLoader,
     private val resolverContextFactory: FieldExecutionContextFactory,
     private val resolverName: String,
     private val tenantMetadata: TenantModuleMetadata? = null,
@@ -67,12 +63,12 @@ class FieldUnbatchedResolverExecutorImpl(
         )
         val resolver = mkResolver()
         val result: Any? = handleTenantErrorsSuspend(resolverName) {
-            callResolver(resolveFn, resolver, ctx)
+            resolver.invokeFieldResolver(ctx)
         }
         return unwrapFieldResolverResult(result, context.globalIDCodec)
     }
 
-    private fun mkResolver(): ResolverBase<*> = resolver.get()
+    private fun mkResolver(): BaseUnbatchedFieldResolver = resolver.get()
 
     companion object {
         internal fun unwrapFieldResolverResult(

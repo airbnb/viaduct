@@ -5,15 +5,10 @@ import kotlin.reflect.KClass
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.NodeResolverBase
-import viaduct.api.context.FieldExecutionContext
 import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.mocks.MockType
 import viaduct.api.mocks.mockReflectionLoader
-import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
-import viaduct.api.types.Object
-import viaduct.api.types.Query as QueryType
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.tenant.runtime.globalid.GlobalIdTestSchema
@@ -26,14 +21,10 @@ class ResolverExecutionContextFactoryBaseTest {
     private val contextMocks = ContextMocks(GlobalIdTestSchema.schema)
     private val reflectionLoader = mockReflectionLoader("viaduct.tenant.runtime.globalid")
 
-    @Suppress("UNCHECKED_CAST")
-    private val resolverBase =
-        NodeExecutionContextFactory.FakeResolverBase::class.java as Class<out NodeResolverBase<User>>
-
     @Test
     fun `NodeExecutionContextFactory with Composite type and null selections throws IllegalArgumentException`() {
         val type = MockType("User", User::class)
-        val nodeFactory = NodeExecutionContextFactory(resolverBase, reflectionLoader, type, DefaultGRTConvFactory)
+        val nodeFactory = NodeExecutionContextFactory(reflectionLoader, type, DefaultGRTConvFactory)
 
         val exception = assertThrows<IllegalArgumentException> {
             // Call the factory to trigger toSelectionSet validation
@@ -56,7 +47,7 @@ class ResolverExecutionContextFactoryBaseTest {
         @Suppress("UNCHECKED_CAST")
         val notCompositeType = MockType("FakeNotComposite", CompositeOutput.NotComposite::class as KClass<out User>)
 
-        val nodeFactory = NodeExecutionContextFactory(resolverBase, reflectionLoader, notCompositeType, DefaultGRTConvFactory)
+        val nodeFactory = NodeExecutionContextFactory(reflectionLoader, notCompositeType, DefaultGRTConvFactory)
 
         // Create a mock EngineSelectionSet (non-null) to trigger the validation
         val mockEngineSelectionSet = mockk<EngineSelectionSet>()
@@ -75,25 +66,5 @@ class ResolverExecutionContextFactoryBaseTest {
             exception.message?.contains(" non-null ") ?: false,
             "Error message should mention 'non-null': ${exception.message}"
         )
-    }
-
-    @Test
-    fun `NodeExecutionContextFactory with no Context in ResolverBase throws IllegalArgumentException`() {
-        val badResolverBase = BadResolverBase::class.java
-        val type = MockType("User", User::class)
-
-        val exception = assertThrows<IllegalArgumentException> {
-            NodeExecutionContextFactory(badResolverBase, reflectionLoader, type, DefaultGRTConvFactory)
-        }
-
-        assertTrue(
-            exception.message?.contains(" Context ") ?: false,
-            "Error message should mention 'Context': ${exception.message}"
-        )
-    }
-
-    class BadResolverBase : NodeResolverBase<User> {
-        class Context(ctx: FieldExecutionContext<Object, QueryType, Arguments.NoArguments, User>) :
-            FieldExecutionContext<Object, QueryType, Arguments.NoArguments, User> by ctx
     }
 }

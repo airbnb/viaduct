@@ -1,6 +1,6 @@
 package viaduct.java.runtime.bridge
 
-import java.util.concurrent.CompletableFuture
+import javax.inject.Provider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.future.await
@@ -13,7 +13,7 @@ import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
 import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.errors.resultOfSuspend
-import viaduct.java.api.context.NodeExecutionContext
+import viaduct.java.api.internal.BaseUnbatchedNodeResolver
 import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.internal.ResolverClassFinder
 
@@ -25,7 +25,7 @@ import viaduct.java.api.internal.ResolverClassFinder
  * unwraps the Java GRT result back to [EngineObjectData].
  */
 class JavaNodeResolverExecutorImpl(
-    private val resolveFunction: (NodeExecutionContext<*>) -> CompletableFuture<*>,
+    private val resolver: Provider<BaseUnbatchedNodeResolver>,
     override val typeName: String,
     private val resolverName: String,
     override val isSelective: Boolean = false,
@@ -65,8 +65,7 @@ class JavaNodeResolverExecutorImpl(
         )
 
         val result = handleTenantErrorsSuspend(typeName) {
-            val future = resolveFunction(javaContext)
-            future.await()
+            resolver.get().invokeNodeResolver(javaContext).await()
         }
 
         return unwrapNodeResult(result)

@@ -1,6 +1,6 @@
 package viaduct.java.runtime.bridge
 
-import java.util.concurrent.CompletableFuture
+import javax.inject.Provider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.future.await
@@ -17,6 +17,7 @@ import viaduct.errors.TenantUsageException
 import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.errors.resultOfSuspend
 import viaduct.java.api.context.NodeExecutionContext
+import viaduct.java.api.internal.BaseBatchedNodeResolver
 import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.resolvers.FieldValue
@@ -35,7 +36,7 @@ import viaduct.java.api.resolvers.FieldValue
  * batch.
  */
 class NodeBatchResolverExecutorImpl(
-    private val batchResolveFunction: (List<NodeExecutionContext<*>>) -> CompletableFuture<*>,
+    private val resolver: Provider<BaseBatchedNodeResolver>,
     override val typeName: String,
     private val resolverName: String,
     override val isSelective: Boolean = false,
@@ -62,7 +63,7 @@ class NodeBatchResolverExecutorImpl(
         }
 
         val rawResult: Any? = handleTenantErrorsSuspend(typeName) {
-            batchResolveFunction(javaContexts).await()
+            resolver.get().invokeNodeBatchResolver(javaContexts).await()
         }
 
         if (rawResult !is List<*>) {

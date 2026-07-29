@@ -5,6 +5,7 @@ import java.util.concurrent.CompletableFuture;
 import viaduct.java.api.annotations.ResolverFor;
 import viaduct.java.api.context.FieldExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
+import viaduct.java.api.internal.BaseUnbatchedFieldResolver;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.resolvers.FieldResolverBase;
 import viaduct.java.api.types.Arguments;
@@ -31,7 +32,8 @@ public final class QueryResolvers {
    */
   @ResolverFor(typeName = "Query", fieldName = "greeting", isSelective = false)
   public abstract static class Greeting
-      implements FieldResolverBase<String, Query, Query, Arguments.None, CompositeOutput.None> {
+      implements FieldResolverBase<String, Query, Query, Arguments.None, CompositeOutput.None>,
+          BaseUnbatchedFieldResolver {
 
     /**
      * Context for Query.greeting resolver. Provides type-safe access to object value, query value,
@@ -109,5 +111,14 @@ public final class QueryResolvers {
      * @return a future that completes with the resolved value
      */
     public abstract CompletableFuture<String> resolve(Context ctx);
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public final CompletableFuture<?> invokeFieldResolver(
+        FieldExecutionContext<?, ?, ?, ?> context) {
+      return resolve(
+          new Context(
+              (FieldExecutionContext<Query, Query, Arguments.None, CompositeOutput.None>) context));
+    }
   }
 }

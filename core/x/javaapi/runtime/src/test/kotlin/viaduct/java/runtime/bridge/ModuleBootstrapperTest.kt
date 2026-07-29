@@ -27,6 +27,11 @@ import viaduct.engine.api.spi.TenantModuleException
 import viaduct.java.api.annotations.NodeResolverFor
 import viaduct.java.api.annotations.Resolver
 import viaduct.java.api.annotations.ResolverFor
+import viaduct.java.api.context.FieldExecutionContext
+import viaduct.java.api.context.NodeExecutionContext
+import viaduct.java.api.internal.BaseBatchedNodeResolver
+import viaduct.java.api.internal.BaseUnbatchedFieldResolver
+import viaduct.java.api.internal.BaseUnbatchedNodeResolver
 import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.resolvers.FieldResolverBase
 import viaduct.java.api.resolvers.NodeResolverBase
@@ -41,17 +46,21 @@ class ModuleBootstrapperTest {
     // Test fixtures
     interface TestQuery : Query
 
-    @ResolverFor(typeName = "TestType", fieldName = "testField", isSelective = false)
-    abstract class TestResolverBase :
-        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput> {
-        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String>
+    abstract class TestBaseUnbatchedFieldResolver<T> :
+        FieldResolverBase<T, TestQuery, TestQuery, Arguments.None, CompositeOutput>,
+        BaseUnbatchedFieldResolver {
+        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<T>
+
+        @Suppress("UNCHECKED_CAST")
+        final override fun invokeFieldResolver(context: FieldExecutionContext<*, *, *, *>): CompletableFuture<*> =
+            resolve(context as FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>)
     }
 
+    @ResolverFor(typeName = "TestType", fieldName = "testField", isSelective = false)
+    abstract class TestResolverBase : TestBaseUnbatchedFieldResolver<String>()
+
     @ResolverFor(typeName = "TestType", fieldName = "selectiveField", isSelective = true)
-    abstract class SelectiveResolverBase :
-        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput> {
-        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String>
-    }
+    abstract class SelectiveResolverBase : TestBaseUnbatchedFieldResolver<String>()
 
     @Resolver
     class TestResolver : TestResolverBase() {
@@ -69,10 +78,7 @@ class ModuleBootstrapperTest {
 
     // Test fixtures for required selections tests
     @ResolverFor(typeName = "Person", fieldName = "fullName", isSelective = false)
-    abstract class PersonFullNameResolverBase :
-        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput> {
-        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String>
-    }
+    abstract class PersonFullNameResolverBase : TestBaseUnbatchedFieldResolver<String>()
 
     @Resolver(objectValueFragment = "firstName lastName")
     class PersonFullNameResolver : PersonFullNameResolverBase() {
@@ -83,10 +89,7 @@ class ModuleBootstrapperTest {
 
     // Test fixture for resolver without required selections (plain @Resolver)
     @ResolverFor(typeName = "Person", fieldName = "age", isSelective = false)
-    abstract class PersonAgeResolverBase :
-        FieldResolverBase<Int, TestQuery, TestQuery, Arguments.None, CompositeOutput> {
-        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<Int>
-    }
+    abstract class PersonAgeResolverBase : TestBaseUnbatchedFieldResolver<Int>()
 
     @Resolver
     class PersonAgeResolver : PersonAgeResolverBase() {
@@ -155,10 +158,17 @@ class ModuleBootstrapperTest {
     // Node resolver test fixtures
     class TestNodeObj : NodeObject
 
-    @NodeResolverFor(typeName = "TestNodeType")
-    abstract class TestNodeResolverBase : NodeResolverBase<TestNodeObj> {
+    abstract class TestBaseUnbatchedNodeResolver :
+        NodeResolverBase<TestNodeObj>,
+        BaseUnbatchedNodeResolver {
         abstract fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj>
+
+        @Suppress("UNCHECKED_CAST")
+        final override fun invokeNodeResolver(context: NodeExecutionContext<*>): CompletableFuture<*> = resolve(context as NodeResolverBase.Context<TestNodeObj>)
     }
+
+    @NodeResolverFor(typeName = "TestNodeType")
+    abstract class TestNodeResolverBase : TestBaseUnbatchedNodeResolver()
 
     @Resolver
     class TestNodeResolver : TestNodeResolverBase() {
@@ -167,9 +177,7 @@ class ModuleBootstrapperTest {
 
     // Fixtures for strict bootstrap validation tests.
     @NodeResolverFor(typeName = "OrphanNodeType")
-    abstract class OrphanNodeResolverBase : NodeResolverBase<TestNodeObj> {
-        abstract fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj>
-    }
+    abstract class OrphanNodeResolverBase : TestBaseUnbatchedNodeResolver()
 
     // A subclass that is NOT annotated with @Resolver — should cause the bootstrap to throw.
     class OrphanNodeSubclassWithoutResolverAnnotation : OrphanNodeResolverBase() {
@@ -177,9 +185,7 @@ class ModuleBootstrapperTest {
     }
 
     @NodeResolverFor(typeName = "DuplicateNodeType")
-    abstract class DuplicateNodeResolverBase : NodeResolverBase<TestNodeObj> {
-        abstract fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj>
-    }
+    abstract class DuplicateNodeResolverBase : TestBaseUnbatchedNodeResolver()
 
     @Resolver
     class DuplicateNodeResolverA : DuplicateNodeResolverBase() {
@@ -192,9 +198,7 @@ class ModuleBootstrapperTest {
     }
 
     @NodeResolverFor(typeName = "ForbiddenAnnotationNodeType")
-    abstract class ForbiddenAnnotationNodeResolverBase : NodeResolverBase<TestNodeObj> {
-        abstract fun resolve(ctx: NodeResolverBase.Context<TestNodeObj>): CompletableFuture<TestNodeObj>
-    }
+    abstract class ForbiddenAnnotationNodeResolverBase : TestBaseUnbatchedNodeResolver()
 
     @Resolver(objectValueFragment = "fragment _ on Foo { id }")
     class NodeResolverWithObjectValueFragment : ForbiddenAnnotationNodeResolverBase() {
@@ -202,13 +206,20 @@ class ModuleBootstrapperTest {
     }
 
     @NodeResolverFor(typeName = "TestBatchNodeType", isBatching = true)
-    abstract class TestBatchNodeResolverBase : NodeResolverBase<TestNodeObj> {
-        abstract fun batchResolve(contexts: List<NodeResolverBase.Context<TestNodeObj>>): CompletableFuture<List<viaduct.java.api.resolvers.FieldValue<TestNodeObj>>>
+    abstract class TestBatchNodeResolverBase : NodeResolverBase<TestNodeObj>, BaseBatchedNodeResolver {
+        class Context(
+            inner: NodeExecutionContext<TestNodeObj>
+        ) : NodeResolverBase.Context<TestNodeObj>, NodeExecutionContext<TestNodeObj> by inner
+
+        abstract fun batchResolve(contexts: List<Context>): CompletableFuture<List<viaduct.java.api.resolvers.FieldValue<TestNodeObj>>>
+
+        @Suppress("UNCHECKED_CAST")
+        final override fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): CompletableFuture<*> = batchResolve(contexts.map { Context(it as NodeExecutionContext<TestNodeObj>) })
     }
 
     @Resolver
     class TestBatchNodeResolver : TestBatchNodeResolverBase() {
-        override fun batchResolve(contexts: List<NodeResolverBase.Context<TestNodeObj>>): CompletableFuture<List<viaduct.java.api.resolvers.FieldValue<TestNodeObj>>> {
+        override fun batchResolve(contexts: List<Context>): CompletableFuture<List<viaduct.java.api.resolvers.FieldValue<TestNodeObj>>> {
             val list = contexts.map { viaduct.java.api.resolvers.FieldValue.ofValue(TestNodeObj()) }
             return CompletableFuture.completedFuture(list)
         }
@@ -269,9 +280,7 @@ class ModuleBootstrapperTest {
         assertEquals("TestNodeType", typeName)
         assertFalse(executor.isBatching)
 
-        // Exercise the wired executor lambda by calling resolve(). The lambda invokes the
-        // tenant's resolve method via reflection, so a successful round-trip confirms the lambda
-        // is wired correctly.
+        // Exercise the generated base resolver contract through the engine executor.
         val engineCtx: EngineExecutionContext = mockk {
             every { requestContext } returns null
             every { globalIDCodec } returns GlobalIDCodecDefault
@@ -284,11 +293,8 @@ class ModuleBootstrapperTest {
         val result = kotlinx.coroutines.runBlocking {
             executor.resolve(listOf(selector), engineCtx)
         }
-        // The lambda was invoked (a Result is produced regardless of conversion outcome). The
-        // tenant resolver returns a TestNodeObj that doesn't extend ObjectBase, so the engine
-        // bridge will surface a conversion failure — what we're verifying here is that the
-        // executor lambda chain (resolveFunction -> invokeNodeResolver -> reflective invoke) is
-        // wired correctly.
+        // The tenant resolver returns a TestNodeObj that doesn't extend ObjectBase, so conversion
+        // fails after invocation. Producing a Result confirms the base resolver is wired correctly.
         assertEquals(1, result.size)
         assertNotNull(result[selector])
     }

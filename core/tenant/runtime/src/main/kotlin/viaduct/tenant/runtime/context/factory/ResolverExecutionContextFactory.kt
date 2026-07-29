@@ -5,20 +5,17 @@ import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLTypeUtil
 import java.util.Locale.getDefault
 import kotlin.reflect.KClass
-import kotlin.reflect.full.isSubclassOf
-import kotlin.reflect.full.primaryConstructor
-import viaduct.api.NodeResolverBase
+import viaduct.api.ConnectionResolverBase
+import viaduct.api.FieldResolverBase
+import viaduct.api.MutationResolverBase
 import viaduct.api.ResolverBase
 import viaduct.api.context.BaseFieldExecutionContext
 import viaduct.api.context.ConnectionFieldExecutionContext
-import viaduct.api.context.ExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
-import viaduct.api.context.ResolverExecutionContext
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.internal.GRTConvFactory
-import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
@@ -45,20 +42,8 @@ import viaduct.tenant.runtime.select.SelectionSetImpl
 import viaduct.tenant.runtime.toInputLikeGRT
 
 sealed class ResolverExecutionContextFactoryBase<R : CompositeOutput>(
-    resolverBaseClass: Class<*>,
-    expectedContextInterface: Class<out ResolverExecutionContext<*>>,
     protected val resultType: Type<CompositeOutput>,
 ) {
-    @Suppress("UNCHECKED_CAST")
-    private val wrapperContextCls: KClass<out ResolverExecutionContext<*>> =
-        resolverBaseClass.declaredClasses.firstOrNull {
-            expectedContextInterface.isAssignableFrom(it)
-        }?.kotlin as? KClass<out ResolverExecutionContext<*>>
-            ?: throw IllegalArgumentException("No nested Context class found in ${resolverBaseClass.name}")
-
-    @Suppress("UNCHECKED_CAST")
-    protected fun <CTX : ResolverExecutionContext<*>> wrap(ctx: CTX): CTX = wrapperContextCls.primaryConstructor!!.call(ctx) as CTX
-
     private val toNonCompositeSelectionSet: ResolverExecutionContextFactoryBase<R>.(EngineSelectionSet?) -> SelectionSet<R> = { sels ->
         require(sels == null) {
             "received a non-null selection set on a type declared as not-composite: ${resultType.kcls}"
@@ -84,16 +69,11 @@ sealed class ResolverExecutionContextFactoryBase<R : CompositeOutput>(
 }
 
 class NodeExecutionContextFactory(
-    resolverBaseClass: Class<out NodeResolverBase<*>>,
     private val reflectionLoader: ReflectionLoader,
     resultType: Type<NodeObject>,
     private val grtConvFactory: GRTConvFactory,
     private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
-) : ResolverExecutionContextFactoryBase<NodeObject>(
-        resolverBaseClass,
-        NodeExecutionContext::class.java,
-        resultType
-    ) {
+) : ResolverExecutionContextFactoryBase<NodeObject>(resultType) {
     operator fun invoke(
         engineExecutionContext: EngineExecutionContext,
         selections: EngineSelectionSet?,
@@ -101,18 +81,13 @@ class NodeExecutionContextFactory(
         id: String
     ): NodeExecutionContext<*> {
         val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, engineExecutionContext.globalIDCodec, reflectionLoader, grtConvFactory)
-        val wrappedContext = NodeExecutionContextImpl(
+        return NodeExecutionContextImpl(
             internalContext,
             EngineExecutionContextWrapperImpl(engineExecutionContext, knownFragments),
             this.toSelectionSet(selections),
             requestContext,
             internalContext.deserializeGlobalID(id)
         )
-        return wrap(wrappedContext)
-    }
-
-    class FakeResolverBase<R : NodeObject> : NodeResolverBase<R> {
-        class Context<R : NodeObject>(ctx: NodeExecutionContext<R>) : NodeExecutionContext<R> by ctx, InternalContext by (ctx as InternalContext)
     }
 }
 
@@ -125,7 +100,6 @@ interface VariablesProviderContextFactory {
 }
 
 class FieldExecutionContextFactory internal constructor(
-    resolverBaseClass: Class<out ResolverBase<*>>,
     private val expectedContextInterface: Class<out BaseFieldExecutionContext<*, *, *>>,
     private val reflectionLoader: ReflectionLoader,
     resultType: Type<CompositeOutput>,
@@ -138,8 +112,6 @@ class FieldExecutionContextFactory internal constructor(
     private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
 ) : VariablesProviderContextFactory,
     ResolverExecutionContextFactoryBase<CompositeOutput>(
-        resolverBaseClass,
-        expectedContextInterface,
         resultType
     ) {
     @Suppress("UNCHECKED_CAST")
@@ -154,7 +126,7 @@ class FieldExecutionContextFactory internal constructor(
         val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, engineExecutionContext.globalIDCodec, reflectionLoader, grtConvFactory)
         val engineExecutionContextWrapper = EngineExecutionContextWrapperImpl(engineExecutionContext, knownFragments)
 
-        val wrappedContext = when (expectedContextInterface) {
+        return when (expectedContextInterface) {
             ConnectionFieldExecutionContext::class.java -> ConnectionFieldExecutionContextImpl(
                 internalContext,
                 engineExecutionContextWrapper,
@@ -193,7 +165,6 @@ class FieldExecutionContextFactory internal constructor(
                 "Expected context interface must be one of `ConnectionFieldExecutionContext`, `FieldExecutionContext`, or `MutationFieldExecutionContext` ($expectedContextInterface)."
             )
         }
-        return wrap(wrappedContext)
     }
 
     override fun createVariablesProviderContext(
@@ -205,15 +176,10 @@ class FieldExecutionContextFactory internal constructor(
         return VariablesProviderContextImpl(ic, requestContext, rawArguments.toInputLikeGRT(ic, argumentsCls, graphqlTypeName, graphqlFieldName))
     }
 
-    class FakeResolverBase<R : CompositeOutput> : ResolverBase<R> {
-        class Context<O : Object, Q : Query, A : Arguments, R : CompositeOutput>(ctx: FieldExecutionContext<O, Q, A, R>) :
-            FieldExecutionContext<O, Q, A, R> by ctx, InternalContext by (ctx as InternalContext)
-    }
-
     companion object {
         @Suppress("UNCHECKED_CAST")
         fun of(
-            resolverBaseClass: Class<out ResolverBase<*>>,
+            resolverClass: Class<out ResolverBase<*>>,
             reflectionLoader: ReflectionLoader,
             typeName: String,
             fieldName: String,
@@ -223,7 +189,7 @@ class FieldExecutionContextFactory internal constructor(
             grtConvFactory: GRTConvFactory,
             knownFragments: Map<String, FragmentDefinition> = emptyMap(),
         ): FieldExecutionContextFactory {
-            val expectedContextInterface = resolveExpectedContextInterface(resolverBaseClass)
+            val expectedContextInterface = resolveExpectedContextInterface(resolverClass)
             val queryCls = reflectionLoader.reflectionFor(queryTypeName).kcls as KClass<Query>
             val objectCls = reflectionLoader.reflectionFor(typeName).kcls as KClass<Object>
             val argumentsCls = resolveArgumentsCls(reflectionLoader, typeName, fieldName, hasArguments)
@@ -233,13 +199,12 @@ class FieldExecutionContextFactory internal constructor(
                 runCatching {
                     @Suppress("UNCHECKED_CAST")
                     reflectionLoader.reflectionFor(it).kcls
-                        .takeIf { cls -> cls.isSubclassOf(CompositeOutput::class) } as KClass<CompositeOutput>?
+                        .takeIf { cls -> CompositeOutput::class.java.isAssignableFrom(cls.java) } as KClass<CompositeOutput>?
                 }.getOrNull()
             }
             val resultType = Type.ofClass(returnTypeKClass ?: CompositeOutput.NotComposite::class)
 
             return FieldExecutionContextFactory(
-                resolverBaseClass,
                 expectedContextInterface,
                 reflectionLoader,
                 resultType,
@@ -256,14 +221,14 @@ class FieldExecutionContextFactory internal constructor(
         /**
          * Returns a field execution context factory for a field def.  Could be
          * a "regular" or "mutation" context factory based on the type of the
-         * nested `Context` class found in [resolverBaseClass].
+         * field resolver base interface implemented by [resolverClass].
          *
          * Called by module bootstrapper only when a field exists and has a resolver on it.
          * Thus, assumes `typeName.fieldName` is a valid field coordinate in [schema].
          */
         @Suppress("UNCHECKED_CAST")
         fun of(
-            resolverBaseClass: Class<out ResolverBase<*>>,
+            resolverClass: Class<out ResolverBase<*>>,
             reflectionLoader: ReflectionLoader,
             schema: ViaductSchema,
             typeName: String,
@@ -274,7 +239,7 @@ class FieldExecutionContextFactory internal constructor(
             val fieldDef = schema.schema.getObjectType(typeName)?.getFieldDefinition(fieldName)
                 ?: throw IllegalArgumentException("Called on a missing field coordinate ($typeName.$fieldName).")
 
-            val expectedContextInterface = resolveExpectedContextInterface(resolverBaseClass)
+            val expectedContextInterface = resolveExpectedContextInterface(resolverClass)
             val queryCls = reflectionLoader.reflectionFor(schema.schema.queryType.name).kcls as KClass<Query>
             val objectCls = reflectionLoader.reflectionFor(typeName).kcls as KClass<Object>
             val argumentsCls = resolveArgumentsCls(reflectionLoader, typeName, fieldName, fieldDef.arguments.isNotEmpty())
@@ -286,7 +251,6 @@ class FieldExecutionContextFactory internal constructor(
             )
 
             return FieldExecutionContextFactory(
-                resolverBaseClass,
                 expectedContextInterface,
                 reflectionLoader,
                 resultType,
@@ -301,22 +265,20 @@ class FieldExecutionContextFactory internal constructor(
         }
 
         @Suppress("UNCHECKED_CAST")
-        private fun resolveExpectedContextInterface(resolverBaseClass: Class<out ResolverBase<*>>): Class<out BaseFieldExecutionContext<*, *, *>> {
-            val contextKClass: KClass<out ExecutionContext> =
-                resolverBaseClass.declaredClasses.firstOrNull {
-                    BaseFieldExecutionContext::class.java.isAssignableFrom(it)
-                }?.kotlin as? KClass<out ExecutionContext>
-                    ?: throw IllegalArgumentException("No nested Context class found in ${resolverBaseClass.name}")
-
+        private fun resolveExpectedContextInterface(resolverClass: Class<out ResolverBase<*>>): Class<out BaseFieldExecutionContext<*, *, *>> {
             return when {
-                contextKClass.isSubclassOf(MutationFieldExecutionContext::class) ->
+                MutationResolverBase::class.java.isAssignableFrom(resolverClass) ->
                     MutationFieldExecutionContext::class.java
 
-                contextKClass.isSubclassOf(ConnectionFieldExecutionContext::class) ->
+                ConnectionResolverBase::class.java.isAssignableFrom(resolverClass) ->
                     ConnectionFieldExecutionContext::class.java
 
-                else ->
+                FieldResolverBase::class.java.isAssignableFrom(resolverClass) ->
                     FieldExecutionContext::class.java
+
+                else -> throw IllegalArgumentException(
+                    "Resolver ${resolverClass.name} does not implement a supported field resolver base interface"
+                )
             }
         }
 

@@ -9,9 +9,10 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.NodeResolverBase
-import viaduct.api.ResolverBase
-import viaduct.api.internal.ReflectionLoader
+import viaduct.api.context.BaseFieldExecutionContext
+import viaduct.api.context.NodeExecutionContext
+import viaduct.api.internal.BaseBatchedFieldResolver
+import viaduct.api.internal.BaseBatchedNodeResolver
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineSelectionSet
@@ -25,14 +26,12 @@ import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 class BatchResolverExecutorTest {
     interface TestNodeObject : NodeObject
 
-    class NonListFieldBatchResolver : ResolverBase<String> {
-        @Suppress("unused")
-        suspend fun batchResolve(contexts: List<Any?>): Any = "not a list"
+    class NonListFieldBatchResolver : BaseBatchedFieldResolver {
+        override suspend fun invokeFieldBatchResolver(contexts: List<BaseFieldExecutionContext<*, *, *>>): Any = "not a list"
     }
 
-    class NonListNodeBatchResolver : NodeResolverBase<TestNodeObject> {
-        @Suppress("unused")
-        suspend fun batchResolve(contexts: List<Any?>): Any = "not a list"
+    class NonListNodeBatchResolver : BaseBatchedNodeResolver {
+        override suspend fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): Any = "not a list"
     }
 
     @Test
@@ -48,9 +47,7 @@ class BatchResolverExecutorTest {
             querySelectionSet = null,
             isSelective = false,
             resolver = Provider { resolver },
-            batchResolveFn = NonListFieldBatchResolver::batchResolve,
             resolverId = "Query.testField",
-            reflectionLoader = mockk<ReflectionLoader>(relaxed = true),
             resolverContextFactory = resolverContextFactory,
             resolverName = "Query.testField",
         )
@@ -80,9 +77,7 @@ class BatchResolverExecutorTest {
 
         val executor = NodeBatchResolverExecutorImpl(
             resolver = Provider { resolver },
-            batchResolveFunction = NonListNodeBatchResolver::batchResolve,
             typeName = "TestNode",
-            reflectionLoader = mockk<ReflectionLoader>(relaxed = true),
             factory = resolverContextFactory,
             resolverName = "TestNode",
             isSelective = false,
