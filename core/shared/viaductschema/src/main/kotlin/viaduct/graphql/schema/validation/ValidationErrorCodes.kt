@@ -96,6 +96,9 @@ object ValidationErrorCodes {
     // NodeInterfaceIdConsistencyRule
     const val NODE_INTERFACE_ID_INCONSISTENT = "NODE_INTERFACE_ID_INCONSISTENT"
 
+    // ScopedSchemaBuildTimeMaterializationRule (slice 5 of #361)
+    const val SCOPED_SCHEMA_INTROSPECTION_FAILED = "SCOPED_SCHEMA_INTROSPECTION_FAILED"
+
     // ScopeUsageRule
     const val SCOPE_NAME_NOT_DECLARED = "SCOPE_NAME_NOT_DECLARED"
     const val SCOPE_NAME_NOT_VALID_STRING = "SCOPE_NAME_NOT_VALID_STRING"
