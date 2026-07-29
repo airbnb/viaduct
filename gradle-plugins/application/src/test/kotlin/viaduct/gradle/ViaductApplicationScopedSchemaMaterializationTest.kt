@@ -10,28 +10,35 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * End-to-end coverage of slice-5 scoped-schema materialization inside `AssembleCentralSchemaTask`.
+ * End-to-end coverage of build-time schema materialization inside `AssembleCentralSchemaTask`.
  *
- * Slice 5 wires `ScopedSchemaValidator` into the assembly path: for every scoped app, the task
- * enumerates the distinct scope sets to materialize (the union of declared `scopedSchemas.values`
- * and the always-included `scopeUniverse`), builds each filtered projection via
- * `ScopedSchemaBuilder`, runs `IntrospectionQuery` against it, and fails the build with a
- * Viaduct-flavored diagnostic if any set fails to introspect.
+ * `ScopedSchemaValidator` is wired into the assembly path with two coverage lanes:
+ * - **BASE** (`SchemaId.Base`) — validated for EVERY application, scoped or unscoped. BASE is the
+ *   default runtime projection when a caller passes no explicit `schemaId` to `Viaduct.execute`.
+ * - **Per-scope-set** — validated only for scoped applications, one materialization per distinct
+ *   non-empty entry in `scopedSchemas.values`. An empty-alias entry (`scopedSchema("SOME_ALIAS")`)
+ *   contributes nothing here because its runtime behavior collapses to BASE, which the BASE
+ *   coverage above already handles.
+ *
+ * Failures across BASE and per-scope-set are aggregated into a single build failure with distinct
+ * labels ("BASE schema" vs. "scope set [foo, bar]") so an operator can tell at a glance which
+ * projection is broken.
  *
  * All SDL fixtures here use type-level `@scope` only. The framework's `@scope` directive is
  * defined on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION — NOT `FIELD_DEFINITION` — so per-
- * field `@scope` is a schema-syntax error and would never reach the slice-5 materialization
- * stage. Keeping fixtures type-level-only guarantees the failure mode we assert here is the one
- * we actually shipped.
+ * field `@scope` is a schema-syntax error and would never reach the materialization stage.
+ * Keeping fixtures type-level-only guarantees the failure mode we assert here is the one we
+ * actually shipped.
  */
 class ViaductApplicationScopedSchemaMaterializationTest : ViaductApplicationTestKitFixture() {
     // Scenario 5 — the empty-set alias (`scopedSchema("FULL_ALIAS")` with no scope IDs) must NOT
-    // silently short-circuit. Under our chosen deviation from the spec's literal
-    // `if (scopeSet.isEmpty()) continue`, empty aliases resolve into the always-added universe
-    // set — we prove this here by asserting the INFO line for the universe set appears even when
-    // the ONLY declared alias is the empty one.
+    // silently short-circuit. An empty alias's runtime shape is BASE (`SchemaId.Base` is what a
+    // caller gets when it passes no explicit schemaId), so BASE coverage is what validates it at
+    // build time. Asserted here by pinning that the BASE INFO line appears when the ONLY declared
+    // alias is the empty one, AND that no per-scope-set line fires (empty alias contributes
+    // nothing to the loop).
     @Test
-    fun `empty-set alias is validated as the universe scope set, not skipped`() {
+    fun `empty-set alias is covered by BASE validation, not by a per-scope-set loop entry`() {
         writeSettings()
         File(projectDir, "build.gradle.kts").writeText(
             buildScript(
@@ -59,13 +66,12 @@ class ViaductApplicationScopedSchemaMaterializationTest : ViaductApplicationTest
             .build()
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":assembleViaductCentralSchema")?.outcome)
-        val universeLines = result.output.lines().filter {
-            it.contains("Validated scoped schema") && it.contains("[public]")
+        val baseLines = result.output.lines().filter { it.contains("Validated BASE schema") }
+        assertTrue(baseLines.isNotEmpty()) {
+            "expected an INFO line for BASE validation covering the empty-set alias; got:\n${result.output}"
         }
-        assertTrue(universeLines.isNotEmpty()) {
-            "expected an INFO line for scope set [public] (the universe, resolved from the " +
-                "empty-set alias); got:\n${result.output}"
-        }
+        // Empty alias contributes nothing to the per-scope-set loop.
+        result.output shouldNotContain "Validated scoped schema"
     }
 
     // Scenario 6 — failure diagnostics must identify the scope set, not any alias the app chose.
@@ -110,25 +116,21 @@ class ViaductApplicationScopedSchemaMaterializationTest : ViaductApplicationTest
         result.output shouldNotContain "MY_ALIAS"
     }
 
-    // Scenario 7 — pins the D3 deviation. A scoped app is allowed to register zero explicit
-    // scoped schemas (per the PR #401 regression: `built-in schema still emits @scope when
-    // universe is declared but zero scoped schemas are registered`). Slice 5 must still perform
-    // materialization for the always-added universe set in that config — otherwise a scoped app
-    // with zero declared scoped schemas would have NO build-time introspection check at all, and
-    // a scoped runtime `SchemaId.Base` projection could ship broken.
-    //
-    // Positive-path assertion: valid tenant SDL + zero scoped schemas → build succeeds AND the
-    // INFO log confirms the universe set was materialized (proving slice 5 ran, not just that
-    // slice 5 was skipped).
+    // Scenario 7 — a scoped app is allowed to register zero explicit scoped schemas (the
+    // built-in schema still emits `@scope` when universe is declared but zero scoped schemas
+    // are registered). In that config the per-scope-set loop iterates nothing — but BASE
+    // materialization must still run so the runtime default projection has build-time coverage.
+    // Without it, a scoped app that ships all-`@tenantLocal` Query fields would have NO
+    // build-time check on the shape callers actually execute against.
     @Test
-    fun `scoped app with zero declared scoped schemas still materializes the universe set`() {
+    fun `scoped app with zero declared scoped schemas still runs BASE validation`() {
         writeSettings()
         File(projectDir, "build.gradle.kts").writeText(
             buildScript(
                 """
                 declareScoping {
                     scopes("public")
-                    // No scopedSchema(...) calls — the universe set is the only thing to validate.
+                    // No scopedSchema(...) calls — the per-scope-set loop has nothing to iterate.
                 }
                 """.trimIndent()
             )
@@ -149,18 +151,19 @@ class ViaductApplicationScopedSchemaMaterializationTest : ViaductApplicationTest
             .build()
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":assembleViaductCentralSchema")?.outcome)
-        // If the empty-`scopedSchemas` config caused slice 5 to skip materialization entirely,
-        // this line would be absent. Its presence proves the always-added universe set ran.
-        val matLines = result.output.lines().filter { it.contains("Validated scoped schema") }
-        assertEquals(1, matLines.size, "expected exactly 1 materialization line; got:\n$matLines")
-        matLines.single() shouldContain "[public]"
+        val baseLines = result.output.lines().filter { it.contains("Validated BASE schema") }
+        assertEquals(1, baseLines.size, "expected exactly 1 BASE validation line; got:\n$baseLines")
+        // Per-scope-set loop iterated nothing.
+        result.output shouldNotContain "Validated scoped schema"
     }
 
-    // Scenario 8 — unscoped app (no declareScoping at all) must skip materialization entirely.
-    // Materialization for an unscoped app would be both wasteful (no scope directives to filter
-    // by) and misleading (nothing scoped to validate). This is the counterpart to scenario 7.
+    // Scenario 8 — unscoped app (no declareScoping at all) skips the per-scope-set loop but must
+    // still run BASE validation. BASE is the default runtime projection when a caller passes no
+    // explicit `schemaId`, and that default applies uniformly to scoped and unscoped apps; without
+    // BASE coverage here, an unscoped app whose entire Query is `@tenantLocal` would ship a
+    // broken default with no build-time check.
     @Test
-    fun `unscoped app skips materialization entirely`() {
+    fun `unscoped app runs BASE validation but skips per-scope-set materialization`() {
         writeSettings()
         File(projectDir, "build.gradle.kts").writeText(buildScript(""))
         writeSchemaFile(
@@ -179,17 +182,20 @@ class ViaductApplicationScopedSchemaMaterializationTest : ViaductApplicationTest
             .build()
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":assembleViaductCentralSchema")?.outcome)
-        // No materialization work happened — neither the success nor the failure log line the
-        // scoped path emits must be present.
+        // BASE validation must have run.
+        val baseLines = result.output.lines().filter { it.contains("Validated BASE schema") }
+        assertEquals(1, baseLines.size, "expected exactly 1 BASE validation line; got:\n$baseLines")
+        // Per-scope-set loop must NOT have run (nothing scoped to iterate).
         result.output shouldNotContain "Validated scoped schema"
         result.output shouldNotContain "Scoped schema for scope set"
     }
 
-    // Scenario 9 — per-scope-set INFO logging visibility + dedup. Operators inspecting a slow
-    // build via `--info` need to see which scope sets were materialized and roughly how expensive
-    // each was. Without this line, a 30-second build spent inside materialization looks like a
-    // mystery hang inside `assembleViaductCentralSchema`. Also asserts dedup on the underlying
-    // scope set (INTERNAL_API's set == universe's set, one line, not two).
+    // Scenario 9 — per-scope-set INFO logging visibility + scope-set-based dedup. Operators
+    // inspecting a slow build via `--info` need to see which scope sets were materialized and
+    // roughly how expensive each was. Without this line, a 30-second build spent inside
+    // materialization looks like a mystery hang inside `assembleViaductCentralSchema`. Also pins
+    // that the dedup key is the scope set (not the alias name): two aliases that resolve to the
+    // same scope set produce ONE materialization line, not two.
     @Test
     fun `per-scope-set INFO timing lines appear under --info and dedup on scope set`() {
         writeSettings()
@@ -199,15 +205,16 @@ class ViaductApplicationScopedSchemaMaterializationTest : ViaductApplicationTest
                 declareScoping {
                     scopes("public", "internal")
                     scopedSchema("PUBLIC_API", "public")
+                    scopedSchema("PUBLIC_API_V2", "public")
                     scopedSchema("INTERNAL_API", "internal", "public")
                 }
                 """.trimIndent()
             )
         )
-        // Query is in the "public" scope only. Materialized sets: {public} (from PUBLIC_API) and
-        // {internal, public} (from INTERNAL_API AND from the universe — dedup). Under {public},
-        // Query is kept and introspection passes. Under {internal, public} — the universe set —
-        // A.9 fires; Query has `@scope`, so it passes.
+        // Query is in the "public" scope only. Materialized distinct sets: {public} (from
+        // PUBLIC_API and PUBLIC_API_V2, deduped) and {internal, public} (from INTERNAL_API).
+        // Under {public} Query is kept and introspection passes; under {internal, public} Query
+        // is also kept (its scope is a subset) and introspection passes.
         writeSchemaFile(
             "src/viaduct/schema/types.graphqls",
             """
@@ -225,12 +232,14 @@ class ViaductApplicationScopedSchemaMaterializationTest : ViaductApplicationTest
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":assembleViaductCentralSchema")?.outcome)
         val matLines = result.output.lines().filter { it.contains("Validated scoped schema") }
-        // 2 declared scoped schemas + 1 universe entry, with INTERNAL_API's set deduped against
-        // the universe = 2 distinct materialization lines.
+        // 3 declared aliases, 2 distinct scope sets after dedup = 2 materialization lines.
         assertEquals(2, matLines.size, "expected 2 dedup'd materialization lines; got:\n$matLines")
         val combined = matLines.joinToString("\n")
         combined shouldContain "[public]"
         combined shouldContain "[internal, public]"
         combined shouldContain "ms"
+        // BASE line also appears (validated for every app) — separate from the scoped lines.
+        val baseLines = result.output.lines().filter { it.contains("Validated BASE schema") }
+        assertEquals(1, baseLines.size, "expected exactly 1 BASE validation line; got:\n$baseLines")
     }
 }

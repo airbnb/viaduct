@@ -49,6 +49,13 @@ abstract class AssembleCentralSchemaTask
             description = "Merge and validate GraphQL schema files from all modules into a single central schema. Run this in CI to verify the complete schema is valid."
         }
 
+        private companion object {
+            // Sentinel used in the aggregated (label, message) failure list to distinguish BASE
+            // failures from per-scope-set failures. A leading colon guarantees no collision with
+            // any real scope-set label, which always starts with `[`.
+            const val BASE_LABEL = ":BASE"
+        }
+
         /** Schema partition files from individual viaduct-module projects. */
         @get:InputFiles
         @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -140,15 +147,18 @@ abstract class AssembleCentralSchemaTask
                 validScopes = scoping.scopeUniverse
             )
 
-            // Slice 5 of #361 — for scoped applications, materialize each distinct declared scope
-            // set (plus the always-included universe set) and assert introspectability at build
-            // time. This is the counterpart to slice 4's build-time `@scope` gating: slice 4 fixes
-            // which `@scope` decorations get emitted; slice 5 fixes what the resulting scoped
-            // projections must look like when applied. Unscoped applications skip this entirely —
-            // there is no scope directive to filter by.
-            if (scoping.isScoped) {
-                validateScopedSchemas(allSchemaFiles + sdlFile, scoping)
-            }
+            // Build-time materialization of the projections that runtime will execute against.
+            // Two paths, both routed through the same parse + validator:
+            //
+            //   - BASE (SchemaId.Base) is validated for BOTH scoped and unscoped applications.
+            //     It is the default projection when a caller passes no explicit schemaId to
+            //     Viaduct.execute, so build-time introspection coverage must apply to both.
+            //   - Every declared scope set is validated only for scoped applications — unscoped
+            //     applications have no scope directive to filter by and nothing to enumerate.
+            //
+            // Failures across BASE and per-scope-set materializations are aggregated into a single
+            // report so the operator sees every problem in one build rather than one per re-run.
+            materializeAndIntrospectProjections(allSchemaFiles + sdlFile, scoping)
         }
 
         private fun validateCompleteSchema(
@@ -168,22 +178,17 @@ abstract class AssembleCentralSchemaTask
         }
 
         /**
-         * Materialize each distinct scope set and assert it introspects cleanly.
+         * Materialize BASE (always) plus each distinct declared scope set (if scoped) and assert
+         * each introspects cleanly.
          *
-         * The set of scope sets iterated is:
-         * - every non-empty `scopedSchemas.values` entry (declared scoped schemas), AND
-         * - the full `scopeUniverse` (always included — see D3 deviation from spec's
-         *   `if (scopeSet.isEmpty()) continue`, filed as a heads-up on issue #374).
+         * The scope-set list iterated is every non-empty entry in `scopedSchemas.values`,
+         * deduplicated on the scope set itself — aliases carry no validation identity. An empty
+         * alias (`scopedSchema("SOME_ALIAS")`) contributes nothing here because its runtime
+         * behavior collapses to BASE, which the BASE materialization already covers.
          *
-         * Deduplication is on the *scope set*, not the alias name — aliases carry no validation
-         * identity. An empty-set scoped-schema entry (`scopedSchema("FULL_ALIAS")`) contributes
-         * nothing to the explicit list; it collapses into the always-added universe set, giving
-         * empty-alias entries well-defined "materialize as base" semantics.
-         *
-         * Failures across all scope sets are aggregated before throwing, so the operator gets one
-         * report per build rather than one per Gradle re-run.
+         * Failures across BASE and all scope sets are aggregated before throwing.
          */
-        private fun validateScopedSchemas(
+        private fun materializeAndIntrospectProjections(
             schemaFiles: Collection<File>,
             scoping: SchemaScoping,
         ) {
@@ -191,47 +196,65 @@ abstract class AssembleCentralSchemaTask
             val inputSchema = parseSchemaForScopedValidation(schemaFiles, logger)
             val validator = ScopedSchemaValidator(inputSchema, scoping.scopeUniverse.toSortedSet())
 
-            // Iterate in canonical (sorted) order so INFO/WARN/ERROR log ordering is stable
-            // across runs. `Set<Set<String>>` iteration order is undefined; without sorting, CI
-            // log diffs and Gradle cached-output comparisons would flap.
-            val toMaterialize: List<Set<String>> =
-                (scoping.scopedSchemas.values.filter { it.isNotEmpty() } + listOf(scoping.scopeUniverse))
-                    .toSet()
-                    .sortedBy { it.toSortedSet().toString() }
+            // (label, message) — label is "BASE" for the base projection, or the canonical sorted
+            // scope-set string for a per-scope-set failure. Distinguishing the two in the error
+            // output lets an operator tell at a glance whether the default projection is broken
+            // vs. only a specific declared alias.
+            val failures = mutableListOf<Pair<String, String>>()
 
-            val failures = mutableListOf<Pair<String, ScopedSchemaValidator.Failure>>()
-            for (scopeSet in toMaterialize) {
-                val label = scopeSet.toSortedSet().toString()
-                val startNanos = System.nanoTime()
-                val setFailures = validator.validate(scopeSet)
-                val elapsedMs = (System.nanoTime() - startNanos) / 1_000_000
-                if (setFailures.isEmpty()) {
-                    // INFO — visible under `--info`. Operators inspecting a slow build need to see
-                    // per-set materialization work; without this line, time spent here looks like
-                    // an unattributed hang inside `assembleViaductCentralSchema`.
-                    logger.info("Validated scoped schema for scope set {} in {} ms", label, elapsedMs)
-                } else {
-                    // WARN so it surfaces without --info as well, since we're about to fail the
-                    // build with an aggregated error and want the operator to see which set
-                    // contributed.
-                    logger.warn("Scoped schema for scope set {} failed after {} ms", label, elapsedMs)
-                    setFailures.forEach { failures.add(label to it) }
+            val baseStartNanos = System.nanoTime()
+            val baseMessages = validator.validateBase()
+            val baseElapsedMs = (System.nanoTime() - baseStartNanos) / 1_000_000
+            if (baseMessages.isEmpty()) {
+                logger.info("Validated BASE schema in {} ms", baseElapsedMs)
+            } else {
+                logger.warn("BASE schema validation failed after {} ms", baseElapsedMs)
+                baseMessages.forEach { failures.add(BASE_LABEL to it) }
+            }
+
+            if (scoping.isScoped) {
+                // Iterate in canonical (sorted) order so INFO/WARN/ERROR log ordering is stable
+                // across runs. `Set<Set<String>>` iteration order is undefined; without sorting,
+                // CI log diffs and Gradle cached-output comparisons would flap.
+                val toMaterialize: List<Set<String>> =
+                    scoping.scopedSchemas.values.filter { it.isNotEmpty() }
+                        .toSet()
+                        .sortedBy { it.toSortedSet().toString() }
+
+                for (scopeSet in toMaterialize) {
+                    val label = scopeSet.toSortedSet().toString()
+                    val startNanos = System.nanoTime()
+                    val setFailures = validator.validate(scopeSet)
+                    val elapsedMs = (System.nanoTime() - startNanos) / 1_000_000
+                    if (setFailures.isEmpty()) {
+                        logger.info("Validated scoped schema for scope set {} in {} ms", label, elapsedMs)
+                    } else {
+                        logger.warn("Scoped schema for scope set {} failed after {} ms", label, elapsedMs)
+                        setFailures.forEach { failures.add(label to it.message) }
+                    }
                 }
             }
 
             if (failures.isNotEmpty()) {
-                failures.forEach { (label, failure) ->
+                failures.forEach { (label, message) ->
                     logger.error(
-                        "[{}] scope set {}: {}",
+                        "[{}] {}: {}",
                         ValidationErrorCodes.SCOPED_SCHEMA_INTROSPECTION_FAILED,
-                        label,
-                        failure.message,
+                        if (label == BASE_LABEL) "BASE schema" else "scope set $label",
+                        message,
                     )
                 }
-                val distinctFailingSets = failures.map { it.first }.distinct().size
-                throw GradleException(
-                    "Scoped schema validation failed for $distinctFailingSets scope set(s). See errors above."
-                )
+                val distinctLabels = failures.map { it.first }.distinct()
+                val baseFailed = BASE_LABEL in distinctLabels
+                val scopeSetsFailed = distinctLabels.count { it != BASE_LABEL }
+                val summary = buildString {
+                    append("Scoped schema validation failed for ")
+                    if (baseFailed) append("BASE")
+                    if (baseFailed && scopeSetsFailed > 0) append(" and ")
+                    if (scopeSetsFailed > 0) append("$scopeSetsFailed scope set(s)")
+                    append(". See errors above.")
+                }
+                throw GradleException(summary)
             }
         }
 
