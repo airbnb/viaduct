@@ -41,13 +41,6 @@ includeBuild("publications")
 includeBuild("gradle-plugins")
 includeBuild("gradle-plugins/gradletestapps")
 
-// The publish step (publishToMavenLocal) only needs the published builds: core,
-// publications, and gradle-plugins (above).
-// The demo apps are passive composite participants; configuring them resolves their third-party
-// Gradle plugins from Maven Central, which gets rate-limited (429) during CI's parallel publish.
-// -PexcludeDemoApps skips them.
-val excludeDemoApps = providers.gradleProperty("excludeDemoApps").isPresent
-
 // The experimental remoteresolvers lib is a non-participating included build: built from source and
 // static-analyzed in CI (see _infra/ci/jobs/static_analysis.yml), but never published to Maven
 // Central (it is not in orchestration.participatingIncludedBuilds); its tests run via Bazel. Its
@@ -55,23 +48,7 @@ val excludeDemoApps = providers.gradleProperty("excludeDemoApps").isPresent
 // and run from there — see its README) and are intentionally NOT part of this composite.
 includeBuild("core/x/remoteresolvers/lib") { name = "remoteresolvers" }
 
-if (!excludeDemoApps) {
-
-    // demo apps
-    includeBuild("demoapps/cli-starter")
-    includeBuild("demoapps/jetty-starter")
-    includeBuild("demoapps/ktor-starter")
-    includeBuild("demoapps/micronaut-starter")
-    includeBuild("demoapps/spring-starter")
-    includeBuild("demoapps/starwars") {
-        dependencySubstitution {
-            // Expose StarWars module outputs via Maven coordinates so other included
-            // builds in the composite (e.g. main-server) can resolve them.
-            substitute(module("com.example.starwars:common")).using(project(":common"))
-            substitute(module("com.example.starwars:filmography")).using(project(":modules:filmography"))
-            substitute(module("com.example.starwars:universe")).using(project(":modules:universe"))
-        }
-    }
-}
+// demoapps are not part of this composite build. They are standalone-only integration tests
+// against published artifacts, run via the demoappsStandaloneTest task — see demoapps/AGENTS.md.
 
 include(":docs")

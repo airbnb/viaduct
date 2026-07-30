@@ -127,7 +127,7 @@ val demoappsStandaloneTest by tasks.registering {
             logger.lifecycle("Publishing Viaduct to isolated Maven local repo: $mavenLocalRepo")
             exec {
                 commandLine(
-                    "./gradlew", "publishToMavenLocal", "-PpublishMinimal", "-PexcludeDemoApps",
+                    "./gradlew", "publishToMavenLocal", "-PpublishMinimal",
                     "-Dmaven.repo.local=${mavenLocalRepo.absolutePath}",
                     "--gradle-user-home", publishGradleHome.absolutePath,
                     "-Dviaduct.distDir=${publishDistDir.absolutePath}",

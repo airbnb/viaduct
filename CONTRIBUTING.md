@@ -113,11 +113,7 @@ Run tests with:
 
 ### Demo Apps
 
-To build and test demo apps:
-
-```bash
-./gradlew :cli-starter:build :cli-starter:test :starwars:build :starwars:test
-```
+Demo apps are standalone Gradle builds, not part of the root composite. `./gradlew check` runs all of them sequentially against published artifacts via the `demoappsStandaloneTest` task. To iterate on a single demo app, see `demoapps/AGENTS.md`.
 
 # Release Process
 

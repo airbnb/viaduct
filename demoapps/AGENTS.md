@@ -96,20 +96,15 @@ Caused by: java.lang.ClassNotFoundException: com.github.ajalt.clikt.core.CliktCo
 
 The last `Caused by` line is the actual root cause.
 
-## Running as included builds (secondary, source-substitution mode)
+## Running all demoapps at once
 
-The demoapps also participate in the root composite build as included builds, which is useful for quick local iteration since it substitutes Viaduct source directly, skipping the publish step. From the top-level Viaduct OSS directory:
+Demoapps are not included in the root composite build, so there is no `./gradlew :ktor-starter`-style command from the top-level directory. Root `check` and CI run every demoapp sequentially, standalone against a fresh isolated Maven local repository, via the `demoappsStandaloneTest` task. To run the same thing locally:
 
 ```shell
-./gradlew :ktor-starter
+./gradlew demoappsStandaloneTest
 ```
-for the `ktor` starter app or
-```shell
-./gradlew :starwars
-```
-for the starwars app, and so forth.
 
-This mode does **not** exercise the published-artifact path, so it can pass even when publication is broken. It is not the canonical demoapp test and is not what CI or root `check` runs — use it only for fast local iteration, and confirm with the isolated Maven-local workflow above before treating a change as verified.
+To iterate on a single demoapp, use the Steps 1-4 workflow above instead.
 
 # Demo Applications
 

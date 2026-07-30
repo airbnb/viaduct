@@ -12,7 +12,7 @@ Viaduct's Gradle build is organized as a **composite build** — a set of indepe
 
 - **Eliminate manual dependency wiring.** Gradle's composite auto-substitution should handle the mapping from Maven coordinates to local source. No hand-maintained substitution rules.
 
-- **Keep each build independently viable.** `core`, `gradle-plugins`, `publications`, and each demoapp should each be able to build and test on their own, so that changes to one build's configuration don't break another.
+- **Keep each build independently viable.** `core`, `gradle-plugins`, and `publications` should each be able to build and test on their own, so that changes to one build's configuration don't break another.
 
 ## Build Map
 
@@ -36,7 +36,8 @@ viaduct/                         ← root project (orchestration only)
 │   ├── application              (ViaductApplicationPlugin)
 │   ├── module                   (ViaductModulePlugin)
 │   └── common                   (shared plugin utilities)
-├── demoapps/                    ← each demoapp is its own included build
+├── demoapps/                    ← standalone Gradle builds, not part of this composite;
+│   │                             see demoapps/AGENTS.md
 │   ├── cli-starter/
 │   ├── jetty-starter/
 │   ├── ktor-starter/
@@ -49,7 +50,7 @@ viaduct/                         ← root project (orchestration only)
 
 The root `build.gradle.kts` owns no source code. It applies the `buildroot.orchestration` plugin, which creates lifecycle tasks (`check`, `test`, `build`, `detekt`, `ktlintCheck`, etc.) that delegate into the **participating included builds**: `core`, `gradle-plugins`, and `publications`. When you run `./gradlew check` at the root, Gradle fans out into those three builds.
 
-Demoapps are included in the composite for dependency substitution but are *not* participating builds — they are not exercised by root lifecycle tasks. They are tested separately (see below).
+Demoapps are not part of this composite build. `check` runs them by shelling out to a standalone build per demoapp via the `demoappsStandaloneTest` task — see demoapps/AGENTS.md.
 
 ## The `core` Build
 
@@ -73,7 +74,7 @@ This separation means `core` modules can freely split, merge, or reorganize with
 
 The `publications` build produces the public-facing `com.airbnb.viaduct` artifacts — `api`, `bom`, `buildtime`, `runtime`, and `test-fixtures`. These are facade modules whose primary job is to re-export the right set of `core` dependencies as shadow jars under stable, documented coordinates. External consumers depend on these and only these.
 
-As an included build, `publications` participates in Gradle's automatic dependency substitution. When any other build in the composite (e.g., a demoapp) declares a dependency on `com.airbnb.viaduct:api`, Gradle substitutes the local `publications/api` project. This eliminates manually maintained substitution rules.
+As an included build, `publications` participates in Gradle's automatic dependency substitution. When any other build in the composite declares a dependency on `com.airbnb.viaduct:api`, Gradle substitutes the local `publications/api` project. This eliminates manually maintained substitution rules.
 
 ## The `gradle-plugins` Build
 
@@ -85,22 +86,8 @@ As an included build, `publications` participates in Gradle's automatic dependen
 
 ## Demoapps
 
-Each demoapp is its own included build with a `settings.gradle.kts` that detects whether it's running inside the composite or standalone:
+Demoapps are not included in the root composite build. Each demoapp is its own standalone Gradle build that resolves Viaduct from published artifacts (Maven Local or Maven Central), exercising the exact dependency graph a real external consumer would see.
 
-```kotlin
-pluginManagement {
-    if (gradle.parent != null) {
-        // Composite mode: resolve plugins from local gradle-plugins source
-        includeBuild("../../gradle-plugins")
-    } else {
-        // Standalone mode: resolve from Maven Central / Maven Local
-        repositories { ... }
-    }
-}
-```
+Root `check` and CI run all demoapps sequentially via the `demoappsStandaloneTest` task, which publishes Viaduct to a fresh, isolated Maven local repository and then runs each demoapp's own build against it. See demoapps/AGENTS.md for how to run this locally, including how to test a single demoapp during iteration.
 
-This dual-mode design serves two purposes:
-
-- **Composite mode** (fast local iteration): developers get source substitution for everything — plugins, core libraries, and publications, without a publish step. Useful for quick manual checks, but it does not exercise the published-artifact path, so it is not a substitute for standalone testing.
-
-- **Standalone mode** (the canonical demoapp test): demoapps resolve all dependencies from published artifacts (Maven Local or Maven Central), exercising the exact dependency graph a real external consumer would see. This is the mode root `check` and CI run (`demoappsStandaloneTest`) — it is what actually catches downstream breakage, since publication is fragile enough that a project can compile fine under composite substitution but still produce broken published artifacts.
+`gradle.parent`-based mode-switching (`settings.gradle.kts` in each demoapp still has a `pluginManagement` branch for `gradle.parent != null`) is now only exercised by the separate, self-contained composite in `core/x/remoteresolvers`, which includes `demoapps/starwars` directly.
