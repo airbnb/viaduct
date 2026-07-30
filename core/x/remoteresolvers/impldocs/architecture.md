@@ -59,8 +59,10 @@ The implementation has four important ownership rules:
 
 ### Transport lifecycle
 
-`RemoteResolverConfig.fromEnvironment()` accepts an explicit enablement value and reads the node and
-field allowlists, RRS endpoint, and callback port. `RemoteResolverInitializer.initialize()` then:
+`RemoteResolverConfig.fromEnvironment()` accepts an explicit enablement value and reads the RRS
+endpoint and callback port. The main server derives an exact `RemoteResolverSelection` from the
+selected tenants' `ExecutionRegistryConfigFile` resources and passes it to `RemoteResolverInitializer`.
+`RemoteResolverInitializer.initialize()` then:
 
 1. Returns `ProxyResolverFactory.NO_OP` when remote execution is disabled.
 2. Creates one shaded-Netty `ManagedChannel` to the configured RRS endpoint.
@@ -85,14 +87,10 @@ Before returning a proxy, the factory registers the original executor in the mai
 
 ### Proxy selection
 
-The configuration-backed factory applies these rules:
-
-- An empty node type set proxies all non-selective node resolvers.
-- An empty field set proxies all non-selective field resolvers except the built-in `Query.node`, `Query.nodes`, and `@namespaceType` executors.
-- A non-empty set narrows proxying to the listed type names or field coordinates.
-- Explicitly listing a built-in field opts it in.
-- `VIADUCT_REMOTE_RESOLVER_FIELDS=none`, `off`, or `-` disables field proxying while leaving node proxying unchanged.
-- Selective node and field resolvers are always left local.
+The factory proxies exactly the node type names and field coordinates in
+`RemoteResolverSelection`. Empty sets proxy nothing. Selective node and field resolvers are not
+supported; registry-backed selection excludes them while retaining the tenant's other resolvers,
+and the proxy factory skips them as a second line of defense.
 
 Selective node resolvers cannot use the current response correlation by node ID when the same ID appears with different selections. Selective field resolver semantics likewise depend on the requested sub-selection. Both proxy constructors reject selective executors as a second line of defense.
 

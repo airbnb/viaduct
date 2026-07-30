@@ -94,7 +94,7 @@ class RemoteProxyIntegrationTest {
         assertTrue(proxiedUser != null)
         assertTrue(proxiedUser is RemoteNodeProxyExecutor)
 
-        // Post should NOT be proxied (not in remoteTypes)
+        // Post should NOT be proxied (not in the selected types)
         assertTrue(proxiedPost == null)
     }
 

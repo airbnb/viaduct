@@ -18,65 +18,6 @@ class RemoteResolverConfigTest {
     }
 
     @Test
-    fun `types are split on comma and trimmed`() {
-        val cfg = RemoteResolverConfig.fromEnvironment(envOf(RemoteResolverConfig.ENV_TYPES to "Film, Character ,Planet"))
-        assertEquals(setOf("Film", "Character", "Planet"), cfg.remoteTypes)
-    }
-
-    @Test
-    fun `empty entries in types csv are dropped`() {
-        val cfg = RemoteResolverConfig.fromEnvironment(envOf(RemoteResolverConfig.ENV_TYPES to ",Film,, ,Character,"))
-        assertEquals(setOf("Film", "Character"), cfg.remoteTypes)
-    }
-
-    @Test
-    fun `types defaults to empty set when env is unset`() {
-        val cfg = RemoteResolverConfig.fromEnvironment(envOf())
-        assertEquals(emptySet<String>(), cfg.remoteTypes)
-    }
-
-    @Test
-    fun `sentinel fields value disables field proxying and clears coordinates`() {
-        // `none` / `off` / `-` (case-insensitive, trimmed) are the field-only off switch: they turn
-        // field proxying off and clear remoteFields, distinct from unset/empty (= proxy all fields).
-        for (raw in listOf("none", "off", "-", " NONE ")) {
-            val cfg = RemoteResolverConfig.fromEnvironment(envOf(RemoteResolverConfig.ENV_FIELDS to raw))
-            assertFalse(cfg.fieldProxyingEnabled, "value=$raw should disable field proxying")
-            assertEquals(emptySet<String>(), cfg.remoteFields, "value=$raw should clear remoteFields")
-        }
-    }
-
-    @Test
-    fun `non-sentinel fields value parses coordinates with proxying enabled`() {
-        val cfg = RemoteResolverConfig.fromEnvironment(
-            envOf(RemoteResolverConfig.ENV_FIELDS to "Character.isAdult,Character.summary")
-        )
-        assertTrue(cfg.fieldProxyingEnabled)
-        assertEquals(setOf("Character.isAdult", "Character.summary"), cfg.remoteFields)
-    }
-
-    @Test
-    fun `field proxying stays enabled with empty coordinates when fields env is unset or blank`() {
-        // Neither unset nor blank is a sentinel: proxying stays on and the empty set means "all fields".
-        val unset = RemoteResolverConfig.fromEnvironment(envOf())
-        assertTrue(unset.fieldProxyingEnabled)
-        assertEquals(emptySet<String>(), unset.remoteFields)
-
-        val blank = RemoteResolverConfig.fromEnvironment(envOf(RemoteResolverConfig.ENV_FIELDS to ""))
-        assertTrue(blank.fieldProxyingEnabled)
-        assertEquals(emptySet<String>(), blank.remoteFields)
-    }
-
-    @Test
-    fun `direct construction does not read env`() {
-        // Constructor must not depend on EnvLookup — used by tests/hosts to build
-        // configs explicitly without env-var coupling.
-        val cfg = RemoteResolverConfig(enabled = true, remoteTypes = setOf("Film"))
-        assertTrue(cfg.enabled)
-        assertEquals(setOf("Film"), cfg.remoteTypes)
-    }
-
-    @Test
     fun `network endpoints default and override`() {
         val defaults = RemoteResolverConfig.fromEnvironment(envOf())
         assertEquals(RemoteResolverConfig.DEFAULT_RRS_HOST, defaults.rrsHost)

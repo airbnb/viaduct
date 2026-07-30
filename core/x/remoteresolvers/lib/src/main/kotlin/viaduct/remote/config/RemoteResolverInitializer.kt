@@ -21,6 +21,7 @@ import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
  */
 class RemoteResolverInitializer(
     private val config: RemoteResolverConfig,
+    private val selection: RemoteResolverSelection,
     private val contextCapturerProvider: RemoteResolverContextCapturerProvider =
         RemoteResolverContextCapturerProvider.NO_OP,
 ) : AutoCloseable {
@@ -52,8 +53,8 @@ class RemoteResolverInitializer(
             requireOpen()
             if (factory !== ProxyResolverFactory.NO_OP) return@synchronized factory
 
-            logEnabled()
-            factory = initializeTransport()
+            logEnabled(selection)
+            factory = initializeTransport(selection)
             log.info("Remote resolver execution initialized")
             factory
         }
@@ -90,7 +91,7 @@ class RemoteResolverInitializer(
 
     // Shaded Netty avoids classpath clashes with a non-shaded grpc-netty pulled in by
     // host applications. Plaintext only; TLS is out of scope for this experimental feature.
-    private fun initializeTransport(): ProxyResolverFactory {
+    private fun initializeTransport(selection: RemoteResolverSelection): ProxyResolverFactory {
         log.info("Connecting to remote RRS at {}:{}", config.rrsHost, config.rrsPort)
         rrsChannel = NettyChannelBuilder.forAddress(config.rrsHost, config.rrsPort)
             .usePlaintext()
@@ -104,51 +105,29 @@ class RemoteResolverInitializer(
 
         val callbackEndpoint = "${resolveLocalHost()}:${config.callbackPort}"
         log.info("Callback endpoint: {}", callbackEndpoint)
-        return buildFactory(rrsChannel!!, callbackEndpoint)
+        return buildFactory(rrsChannel!!, callbackEndpoint, selection)
     }
 
     private fun buildFactory(
         channel: ManagedChannel,
-        callbackEndpoint: String
+        callbackEndpoint: String,
+        selection: RemoteResolverSelection,
     ): ProxyResolverFactory =
         RemoteProxyResolverFactory(
             channel,
             callbackEndpoint,
-            // Both nodes and fields default to all (empty set = all); a non-empty set restricts to it.
-            shouldProxyNode = { config.remoteTypes.isEmpty() || it.typeName in config.remoteTypes },
-            // Default (empty set) proxies all field resolvers EXCEPT the engine's built-ins
-            // (Query.node/nodes, @namespaceType) — those are in-JVM framework ops, so a gRPC hop is
-            // pure overhead. An explicit VIADUCT_REMOTE_RESOLVER_FIELDS entry still opts a built-in in.
-            // A `none` sentinel (fieldProxyingEnabled = false) turns field proxying fully off.
-            shouldProxyField = {
-                config.fieldProxyingEnabled &&
-                    (
-                        (config.remoteFields.isEmpty() && it.metadata.name !in BUILT_IN_FIELD_RESOLVER_NAMES) ||
-                            it.resolverId in config.remoteFields
-                    )
-            },
+            shouldProxyNode = { it.typeName in selection.nodeTypes },
+            shouldProxyField = { it.resolverId in selection.fieldCoordinates },
             contextCapturerProvider = contextCapturerProvider,
         )
 
-    private fun logEnabled() {
-        if (config.remoteTypes.isEmpty()) {
-            log.info("Remote resolver execution enabled for all node types")
-        } else {
-            log.info("Remote resolver execution enabled for node types {}", config.remoteTypes)
-        }
-        if (!config.fieldProxyingEnabled) {
-            log.info(
-                "Remote resolver field proxying disabled via VIADUCT_REMOTE_RESOLVER_FIELDS=none; " +
-                    "node proxying unaffected"
-            )
-        } else if (config.remoteFields.isEmpty()) {
-            log.info(
-                "Remote resolver execution enabled for all field resolvers by default; built-ins and " +
-                    "selective resolvers excluded (set VIADUCT_REMOTE_RESOLVER_FIELDS to narrow or 'none' to disable)"
-            )
-        } else {
-            log.info("Remote resolver execution enabled for fields {}", config.remoteFields)
-        }
+    private fun logEnabled(selection: RemoteResolverSelection) {
+        log.info(
+            "Remote resolver execution selected by tenants {}: {} node types, {} fields",
+            selection.tenantNames,
+            selection.nodeTypes.size,
+            selection.fieldCoordinates.size,
+        )
     }
 
     private fun resolveLocalHost(): String =
@@ -163,13 +142,5 @@ class RemoteResolverInitializer(
 
     private companion object {
         const val SHUTDOWN_TIMEOUT_SECONDS = 5L
-
-        // Engine built-in field resolvers (by ResolverMetadata.name) — proxied only when explicitly
-        // listed, never by default: they're in-JVM framework ops, so proxying them is wasted round-trips.
-        val BUILT_IN_FIELD_RESOLVER_NAMES = setOf(
-            "query-node-resolver",
-            "query-nodes-resolver",
-            "namespace-type-resolver"
-        )
     }
 }

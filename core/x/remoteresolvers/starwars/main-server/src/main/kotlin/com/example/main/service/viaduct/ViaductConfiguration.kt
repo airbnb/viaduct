@@ -5,8 +5,10 @@ import io.micronaut.context.annotation.Factory
 import jakarta.inject.Singleton
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.api.spi.ProxyResolverFactory
+import viaduct.engine.runtime.tenantloading.ExecutionRegistryConfigSourceCollector
 import viaduct.remote.config.RemoteResolverConfig
 import viaduct.remote.config.RemoteResolverInitializer
+import viaduct.remote.config.RemoteResolverSelection
 import viaduct.service.SchemaScopeInfo
 import viaduct.service.ViaductBuilder
 import viaduct.service.api.Viaduct
@@ -23,9 +25,19 @@ class ViaductConfiguration(
     // Singleton so preDestroy targets the same instance the factory binds to.
     @Singleton
     @Bean(preDestroy = "close")
-    fun remoteResolverInitializer(): RemoteResolverInitializer =
+    fun remoteResolverInitializer(): RemoteResolverInitializer {
+        val moduleConfigSources = ExecutionRegistryConfigSourceCollector.fromResources()
+
         // The sample always runs with the proxy enabled.
-        RemoteResolverInitializer(RemoteResolverConfig.fromEnvironment(enabled = true))
+        return RemoteResolverInitializer(
+            config = RemoteResolverConfig.fromEnvironment(enabled = true),
+            selection =
+                RemoteResolverSelection.fromModuleConfigSources(
+                    selectedTenantNames = moduleConfigSources.map { it.tenantName }.toSet(),
+                    moduleConfigSources = moduleConfigSources,
+                ),
+        )
+    }
 
     @OptIn(ExperimentalApi::class)
     @Bean

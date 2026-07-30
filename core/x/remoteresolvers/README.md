@@ -24,8 +24,6 @@ channel; the remote server calls back through a plaintext server bound by the ma
 
 | Env var | Default | Side | Description |
 | --- | --- | --- | --- |
-| `VIADUCT_REMOTE_RESOLVER_TYPES` | _empty_ | main | Comma-separated GraphQL type names whose node resolvers to proxy. Empty means all node types. |
-| `VIADUCT_REMOTE_RESOLVER_FIELDS` | _empty_ | main | Comma-separated field coordinates (`Type.field`) whose field resolvers to proxy. Empty means **all** field resolvers except the engine's built-ins (`Query.node`/`nodes`, `@namespaceType`) and selective resolvers; a listed coordinate is proxied even if it's a built-in. Set to `none` (or `off`/`-`) to disable field proxying entirely while leaving node proxying on. |
 | `VIADUCT_RRS_HOST` | `localhost` | main | Hostname the main server dials for the remote resolver service. |
 | `VIADUCT_RRS_PORT` | `50051` | both | Remote server gRPC port — the main server dials it, the remote server binds it. |
 | `VIADUCT_RRS_CALLBACK_HOST` | `localhost` | remote | Hostname the remote server reaches the main server callback at. |
@@ -36,7 +34,8 @@ both the main server and the remote server process so they meet on the wire.
 
 ## Wiring it in
 
-Build a `RemoteResolverInitializer` from a `RemoteResolverConfig`, call
+Build a `RemoteResolverInitializer` from a `RemoteResolverConfig` and an exact
+`RemoteResolverSelection`, call
 `initialize()` once at startup to get a `ProxyResolverFactory`, hand that
 factory to `BasicViaductFactory.create`, and call `close()` on the initializer
 at shutdown. If `RemoteResolverConfig.enabled` is false, `initialize()` returns
@@ -67,8 +66,7 @@ Run the remote server and main server in separate terminals:
 When the proxy comes up, the main-server log includes:
 
 ```
-INFO  viaduct.remote.config.RemoteResolverInitializer - Remote resolver execution enabled for all node types
-INFO  viaduct.remote.config.RemoteResolverInitializer - Remote resolver execution enabled for all field resolvers by default; built-ins and selective resolvers excluded (set VIADUCT_REMOTE_RESOLVER_FIELDS to narrow or 'none' to disable)
+INFO  viaduct.remote.config.RemoteResolverInitializer - Remote resolver execution selected by tenants [filmography, universe]: <node-count> node types, <field-count> fields
 INFO  viaduct.remote.config.RemoteResolverInitializer - Connecting to remote RRS at localhost:50051
 INFO  viaduct.remote.config.RemoteResolverInitializer - Starting callback server on port 50052
 INFO  viaduct.remote.config.RemoteResolverInitializer - Remote resolver execution initialized
@@ -102,19 +100,11 @@ unzip -p demoapps/starwars/modules/filmography/build/libs/filmography.jar \
 
 ## Proxying field resolvers
 
-Like node resolvers, **every field resolver is proxied by default**. The engine resolves each field's
+The engine proxies the field coordinates in `RemoteResolverSelection`. It resolves each field's
 required selection set on the main server and ships the resolved object/query values — and the
 field's own sub-selection set — to the remote service, which runs the resolver and returns the value.
 Every return kind round-trips over the remote service: scalars, `null`, node references
 (`Character.species`, `Character.homeworld`), resolved objects, and lists of any of these.
-
-To restrict proxying to specific fields, set `VIADUCT_REMOTE_RESOLVER_FIELDS` to a comma-separated
-list of `Type.field` coordinates (the empty default proxies them all). For example, to run *only*
-`Character.isAdult` remotely:
-
-```bash
-VIADUCT_REMOTE_RESOLVER_FIELDS=Character.isAdult ./gradlew :main-server:run
-```
 
 A query spanning multiple field kinds resolves end-to-end through the remote service; scalars,
 node references, and their sub-selections all cross the wire:
@@ -124,9 +114,6 @@ curl -X POST http://localhost:8080/graphql -H "Content-Type: application/json" \
   -d '{"query":"{ allCharacters(limit: 5) { name birthYear isAdult species { name } homeworld { name } } }"}'
 ```
 
-`VIADUCT_REMOTE_RESOLVER_TYPES` (nodes) and `VIADUCT_REMOTE_RESOLVER_FIELDS` (fields) are
-independent — each defaults to *all* and can be narrowed on its own.
-
 ## Limitations
 
 - **Re-entrant selection execution is not yet cross-process:** `ctx.query()` and
@@ -135,25 +122,18 @@ independent — each defaults to *all* and can be narrowed on its own.
   the registry and reach the callback, but a separate remote server gets
   `selections handle not registered` until the callback RPC carries a serialized
   selection set (or another cross-process representation).
-- **Default-on (semantic note):** an empty `VIADUCT_REMOTE_RESOLVER_FIELDS` now means *all* field
-  resolvers — it previously meant *none*. To turn field proxying off while keeping node proxying, set
-  `VIADUCT_REMOTE_RESOLVER_FIELDS=none` (or `off`/`-`); to disable the whole feature (nodes too),
-  set `RemoteResolverConfig.enabled=false`. Or list only the coordinates you want.
-- Node and field resolvers are both proxied by default. A proxied field result carries scalars,
+- A proxied field result carries scalars,
   `null`, node references, resolved objects, and lists thereof; a field returning an arbitrary
   non-JSON, non-`EngineObjectData` value (or a `Map`/list-leaf containing one) is rejected at
   serialize time.
 - Every proxied field is a gRPC hop (batched per field coordinate) — fields are finer-grained than
-  nodes, so proxying *all* of them has a much larger call surface; narrow
-  `VIADUCT_REMOTE_RESOLVER_FIELDS` for latency-sensitive paths. The engine's built-in resolvers
-  (`Query.node`/`nodes`, `@namespaceType`) are excluded from the default for this reason — proxy
-  them only by listing them explicitly.
+  nodes, so selecting all of them has a much larger call surface.
 - Proxying the built-in `Query.node` / `Query.nodes` resolvers remotely requires the remote
   server to run with the *same* `GlobalIDCodec` as the caller: the remote decodes global ids with its
   own codec, so a custom codec on only one side mis-resolves the node type. With the default codec on
   both sides (as in the demo) they work as-is.
-- Selective resolvers (`isSelective = true`) are never proxied — they run locally (the proxy factory
-  skips them); constructing a proxy for one directly still throws.
+- Selective resolvers (`isSelective = true`) are not supported and remain local. Registry-backed
+  selection excludes them while still proxying the tenant's non-selective resolvers.
 - Wire format only handles JSON-friendly engine values. Custom scalars with bespoke coercers, and
   JSR-310 types without a configured `ObjectMapper`, will fail at serialize time; likewise a field's
   sub-selection set travels over the wire, so its variable values must be JSON-friendly.
