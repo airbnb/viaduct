@@ -240,11 +240,49 @@ Arbitrary precision integer.
 
 ### JSON
 
-Generic JSON object type. Can represent any JSON structure.
+Represents any JSON value, including objects, arrays, and scalar values.
 
 **Example value:** `{"key": "value", "nested": {"count": 42}}`
 
-**Kotlin type mapping:** `com.fasterxml.jackson.databind.JsonNode`
+**Generated type mappings:**
+
+- Kotlin: `Any?` for `JSON`, or `Any` for `JSON!`
+- Java: `Object`; nullability follows the GraphQL field or argument declaration
+
+These language-specific types expose the same recursive runtime JSON value model.
+
+#### Resolver inputs
+
+For a `JSON` argument or input field, resolvers receive a recursively decoded JSON value:
+
+- JSON objects become `Map<String, Any?>` in Kotlin or `Map<String, Object>` in Java.
+- JSON arrays become `List<Any?>` in Kotlin or `List<Object>` in Java.
+- JSON strings, booleans, and null become `String`, `Boolean`, and `null`.
+- JSON numbers become a subtype of `java.lang.Number`.
+
+Do not depend on a particular numeric subtype. The concrete type can differ based on whether
+the value came from a literal or variable and on conversions performed while passing the value
+to the resolver.
+
+Values nested inside `JSON` do not use Viaduct's other scalar coercions. For example, dates and
+timestamps are strings, not `LocalDate` or `Instant`.
+
+#### Resolver outputs
+
+Resolvers should produce a recursively JSON-compatible value:
+
+- `Map<String, Any?>` in Kotlin or `Map<String, Object>` in Java for objects, with string keys
+- `List<Any?>` in Kotlin or `List<Object>` in Java for arrays
+- `String`, `Boolean`, `Number`, or `null` for scalar values
+
+Standard JVM numeric types, including `Integer`, `Long`, `Float`, `Double`, `BigInteger`, and
+`BigDecimal`, represent JSON numbers; `BigDecimal` is not required. This includes Kotlin `Int`
+and Java `int`, which are boxed as `java.lang.Integer` when used as an `Any` or `Object` value.
+
+Viaduct does not call `toString()` on other object types to turn them into JSON strings. The
+embedding application's JSON serializer may serialize such values as objects or reject them, so
+resolvers should explicitly convert arbitrary objects, dates, and timestamps to the
+JSON-compatible representation they intend to expose.
 
 ### BackingData
 
@@ -297,7 +335,7 @@ extend type Mutation {
 | Long | 64-bit integer | `Long` | `9223372036854775807` |
 | BigDecimal | Arbitrary precision decimal | `java.math.BigDecimal` | `"123.456789"` |
 | BigInteger | Arbitrary precision integer | `java.math.BigInteger` | `"12345678901234567890"` |
-| Object | JSON object | `JsonNode` | `{"key": "value"}` |
+| JSON | Generic JSON value | `Any?` | `{"key": "value"}` |
 | Upload | File upload | Implementation-specific | (binary) |
 | BackingData | Internal backing data ref | Internal | (internal) |
 
