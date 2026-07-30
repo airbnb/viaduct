@@ -301,9 +301,14 @@ class ViaductDescriptorTest {
 
             override suspend fun fetchSelections(): Iterable<String> = getSelections()
 
-            override fun get(selection: String): Any? = data.getOrElse(selection) { error("Unset field $selection") }
+            override fun get(selection: String): Any? {
+                check(isPresent(selection)) { "Unset field $selection" }
+                return data[selection]
+            }
 
-            override fun getOrNull(selection: String): Any? = data[selection]
+            override fun getOrNull(selection: String): Any? = if (isPresent(selection)) data[selection] else null
+
+            override fun isPresent(selection: String): Boolean = data.containsKey(selection)
 
             override fun getSelections(): Iterable<String> = data.keys
         }

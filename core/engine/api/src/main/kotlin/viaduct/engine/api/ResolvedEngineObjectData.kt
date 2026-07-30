@@ -24,8 +24,10 @@ class ResolvedEngineObjectData(
 
     override fun getSelections(): Iterable<String> = data.keys
 
+    override fun isPresent(selection: String): Boolean = data.containsKey(selection)
+
     override fun get(selection: String): Any? {
-        if (!data.containsKey(selection)) {
+        if (!isPresent(selection)) {
             throw UnsetFieldException(
                 selection,
                 type,
@@ -35,7 +37,7 @@ class ResolvedEngineObjectData(
         return data[selection]
     }
 
-    override fun getOrNull(selection: String): Any? = data[selection]
+    override fun getOrNull(selection: String): Any? = if (isPresent(selection)) data[selection] else null
 
     override fun toString(): String = "type=${type.name} $data=$data"
 

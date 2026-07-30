@@ -124,6 +124,11 @@ class ObjectBaseTest {
     }
 
     @Override
+    public boolean isPresent(String selection) {
+      return values.containsKey(selection);
+    }
+
+    @Override
     public Iterable<String> getSelections() {
       return values.keySet();
     }

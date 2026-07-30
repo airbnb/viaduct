@@ -35,6 +35,8 @@ object InstrumentedEngineObjectData {
 
         override fun getOrNull(selection: String): Any? = instrumentedGet(selection) { engineObjectData.getOrNull(selection) }
 
+        override fun isPresent(selection: String): Boolean = engineObjectData.isPresent(selection)
+
         override fun getSelections(): Iterable<String> = engineObjectData.getSelections()
 
         override suspend fun fetch(selection: String): Any? = get(selection)

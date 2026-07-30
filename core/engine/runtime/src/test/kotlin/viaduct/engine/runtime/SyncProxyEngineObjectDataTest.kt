@@ -2,8 +2,10 @@
 
 package viaduct.engine.runtime
 
+import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -106,6 +108,18 @@ class SyncProxyEngineObjectDataTest {
     }
 
     @Test
+    fun `isPresent distinguishes stored null from an unset selection`() {
+        val eod = SyncProxyEngineObjectData(
+            obj,
+            mapOf("x" to 1, "y" to null),
+        )
+
+        assertTrue(eod.isPresent("x"))
+        assertTrue(eod.isPresent("y"))
+        assertFalse(eod.isPresent("missing"))
+    }
+
+    @Test
     fun `type -- returns the object type`() {
         val eod = SyncProxyEngineObjectData(
             obj,
@@ -120,13 +134,14 @@ class SyncProxyEngineObjectDataTest {
     // ============================================================================
 
     @Test
-    fun `get -- throws stored exception`() {
+    fun `isPresent returns true when reading the selection throws a stored exception`() {
         val storedException = IllegalStateException("test error")
         val eod = SyncProxyEngineObjectData(
             obj,
             mapOf("x" to storedException)
         )
 
+        assertTrue(eod.isPresent("x"))
         val thrown = assertThrows<IllegalStateException> {
             eod.get("x")
         }
@@ -314,6 +329,18 @@ class SyncProxyEngineObjectDataTest {
     }
 
     @Test
+    fun `isPresent returns true for a conditionally excluded selection`() {
+        val eod = SyncProxyEngineObjectData(
+            obj,
+            emptyMap(),
+            conditionallyExcludedResultKeys = setOf("y"),
+        )
+
+        assertTrue(eod.isPresent("y"))
+        assertFalse(eod.isPresent("missing"))
+    }
+
+    @Test
     fun `get -- throws UnsetFieldException for key absent from both data and excludedKeys`() {
         val eod = SyncProxyEngineObjectData(
             obj,
@@ -349,6 +376,15 @@ class SyncProxyEngineObjectDataTest {
 
             assertNull(eod.fetch("y"))
         }
+
+    @Test
+    fun `checker wrapper preserves presence semantics`() {
+        val delegate = SyncProxyEngineObjectData(obj, mapOf("x" to null))
+        val eod = CheckerSyncEngineObjectData(mockk(), delegate)
+
+        assertTrue(eod.isPresent("x"))
+        assertFalse(eod.isPresent("missing"))
+    }
 
     // ============================================================================
     // toString test

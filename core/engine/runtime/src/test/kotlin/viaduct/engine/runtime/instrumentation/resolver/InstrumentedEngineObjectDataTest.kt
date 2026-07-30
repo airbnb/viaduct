@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -68,6 +69,20 @@ internal class InstrumentedEngineObjectDataTest {
             assertEquals(selection, context.parameters.selection)
             assertNull(context.result)
             assertNull(context.error)
+        }
+
+        @Test
+        fun `isPresent delegates without instrumenting a selection read`() {
+            val mockEngineObjectData: EngineObjectData.Sync = mockk()
+            val instrumentation = RecordingResolverInstrumentation()
+            val state = instrumentation.createInstrumentationState(parameters = mockk())
+
+            every { mockEngineObjectData.isPresent("testField") } returns true
+
+            val testClass = InstrumentedEngineObjectData.Sync(mockEngineObjectData, instrumentation, state)
+
+            assertTrue(testClass.isPresent("testField"))
+            assertTrue(instrumentation.syncFetchSelectionContexts.isEmpty())
         }
 
         @Test

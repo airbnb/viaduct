@@ -80,6 +80,15 @@ interface EngineObjectData : EngineObject {
         fun getOrNull(selection: String): Any?
 
         /**
+         * Returns true when [selection] is set, including when its value is null.
+         *
+         * A set selection may still throw a field error when read. False specifically means that
+         * [get] would throw an `UnsetFieldException` because the selection is unset. This check does
+         * not read or materialize the selection's value.
+         */
+        fun isPresent(selection: String): Boolean
+
+        /**
          * Get the list of selections available for this object.
          */
         fun getSelections(): Iterable<String>

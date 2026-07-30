@@ -35,9 +35,10 @@ class SyncProxyEngineObjectData(
 
     override fun getSelections(): Iterable<String> = data.keys
 
+    override fun isPresent(selection: String): Boolean = data.containsKey(selection) || selection in conditionallyExcludedResultKeys
+
     override fun get(selection: String): Any? {
-        if (!data.containsKey(selection)) {
-            if (selection in conditionallyExcludedResultKeys) return null
+        if (!isPresent(selection)) {
             val message = errorMessageTemplate
                 ?: "Please set a value for $selection using the builder for ${type.name}"
             throw UnsetFieldException(
@@ -54,6 +55,7 @@ class SyncProxyEngineObjectData(
     }
 
     override fun getOrNull(selection: String): Any? {
+        if (!isPresent(selection)) return null
         val value = data[selection]
         if (value is Exception) {
             throw value

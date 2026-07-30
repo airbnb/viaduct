@@ -4,6 +4,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.errors.UnsetFieldException
@@ -139,6 +140,42 @@ class OverlayEngineObjectDataTest {
 
             Assertions.assertEquals(null, combined.fetchOrNull(FIELD_1))
         }
+
+    @Test
+    fun `isPresent combines overlay and base presence including explicit null`() {
+        val base = ResolvedEngineObjectData.Builder(testType)
+            .put(FIELD_1, BASE_VALUE)
+            .build()
+        val overlay = ResolvedEngineObjectData.Builder(testType)
+            .put(FIELD_2, null)
+            .build()
+
+        val combined = OverlayEngineObjectData(overlay, base)
+
+        Assertions.assertTrue(combined.isPresent(FIELD_1))
+        Assertions.assertTrue(combined.isPresent(FIELD_2))
+        Assertions.assertFalse(combined.isPresent(FIELD_3))
+    }
+
+    @Test
+    fun `present selection omitted from overlay enumeration masks base value`() {
+        val base = ResolvedEngineObjectData.Builder(testType)
+            .put(FIELD_1, BASE_VALUE)
+            .build()
+        val emptyOverlay = ResolvedEngineObjectData.Builder(testType).build()
+        val overlay = object : EngineObjectData.Sync by emptyOverlay {
+            override fun get(selection: String): Any? = null
+
+            override fun getOrNull(selection: String): Any? = null
+
+            override fun isPresent(selection: String): Boolean = selection == FIELD_1
+        }
+
+        val combined = OverlayEngineObjectData(overlay, base)
+
+        Assertions.assertNull(combined.get(FIELD_1))
+        Assertions.assertNull(combined.getOrNull(FIELD_1))
+    }
 
     @Test
     fun `fetchSelections returns union of overlay and base selections`() =

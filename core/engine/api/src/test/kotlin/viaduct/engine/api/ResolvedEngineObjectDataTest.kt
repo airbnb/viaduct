@@ -1,7 +1,9 @@
 package viaduct.engine.api
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.mocks.createSchema
@@ -31,6 +33,18 @@ class ResolvedEngineObjectDataTest {
         }
         assertEquals(null, eod.getOrNull("unset"))
         assertEquals(listOf("x", "y"), eod.getSelections().toList())
+    }
+
+    @Test
+    fun `isPresent distinguishes stored null from an unset selection`() {
+        val eod = ResolvedEngineObjectData.Builder(obj)
+            .put("x", 1)
+            .put("y", null)
+            .build()
+
+        assertTrue(eod.isPresent("x"))
+        assertTrue(eod.isPresent("y"))
+        assertFalse(eod.isPresent("unset"))
     }
 
     @Test

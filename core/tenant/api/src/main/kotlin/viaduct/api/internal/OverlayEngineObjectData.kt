@@ -20,9 +20,11 @@ class OverlayEngineObjectData(
 ) : EngineObjectData.Sync {
     override val type: GraphQLObjectType = base.type
 
-    override fun get(selection: String): Any? = if (selection in overlay.getSelections()) overlay.get(selection) else base.get(selection)
+    override fun get(selection: String): Any? = if (overlay.isPresent(selection)) overlay.get(selection) else base.get(selection)
 
-    override fun getOrNull(selection: String): Any? = if (selection in overlay.getSelections()) overlay.getOrNull(selection) else base.getOrNull(selection)
+    override fun getOrNull(selection: String): Any? = if (overlay.isPresent(selection)) overlay.getOrNull(selection) else base.getOrNull(selection)
+
+    override fun isPresent(selection: String): Boolean = overlay.isPresent(selection) || base.isPresent(selection)
 
     override fun getSelections(): Iterable<String> =
         buildSet {
