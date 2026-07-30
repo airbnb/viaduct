@@ -167,7 +167,7 @@ class ScopeDirectivesRule(
             if (scope == WILDCARD_SCOPE) continue
 
             val hasFieldDeclaredInScope = outputRecord.fields.any {
-                !it.hasAppliedDirective(TENANT_LOCAL_DIRECTIVE_NAME) &&
+                !it.isTenantLocalEquivalentField() &&
                     it.containingExtension.appliedDirectives.includesScope(scope)
             }
             if (!hasFieldDeclaredInScope) {
@@ -189,7 +189,7 @@ class ScopeDirectivesRule(
     ) {
         if (extension.hasAppliedDirective(SCOPE_DIRECTIVE_NAME)) return
 
-        val scopedFields = extension.members.filterNot { it.hasAppliedDirective(TENANT_LOCAL_DIRECTIVE_NAME) }
+        val scopedFields = extension.members.filterNot { it.isTenantLocalEquivalentField() }
         val scopedSupers = extension.supers
         if (scopedFields.isEmpty() && scopedSupers.isEmpty()) return
 
@@ -207,7 +207,7 @@ class ScopeDirectivesRule(
         superInterface: ViaductSchema.Interface,
         extensionScopes: List<String>
     ) {
-        for (superField in superInterface.fields.filterNot { it.hasAppliedDirective(TENANT_LOCAL_DIRECTIVE_NAME) }) {
+        for (superField in superInterface.fields.filterNot { it.isTenantLocalEquivalentField() }) {
             val field = outputRecord.fields.firstOrNull { it.name == superField.name } ?: continue
             for (extensionScope in extensionScopes) {
                 if (!field.isInScope(extensionScope)) {
@@ -252,12 +252,17 @@ class ScopeDirectivesRule(
             is ViaductSchema.Object,
             is ViaductSchema.Union -> appliedDirectives.includesScope(scope)
             is ViaductSchema.Field ->
-                !hasAppliedDirective(TENANT_LOCAL_DIRECTIVE_NAME) &&
+                !isTenantLocalEquivalentField() &&
                     containingExtension.appliedDirectives.includesScope(scope) &&
                     type.baseTypeDef.isInScope(scope)
             is ViaductSchema.EnumValue -> containingExtension.appliedDirectives.includesScope(scope)
             else -> true
         }
+
+    private fun ViaductSchema.Field.isTenantLocalEquivalentField(): Boolean =
+        hasAppliedDirective(TENANT_LOCAL_DIRECTIVE_NAME) ||
+            hasAppliedDirective(PARENT_DIRECTIVE_NAME) ||
+            type.baseTypeDef.name == BACKING_DATA_SCALAR_NAME
 
     private fun Iterable<ViaductSchema.AppliedDirective<*>>.includesScope(scope: String): Boolean {
         // If a definition is in a non-private scope, it's automatically also in the private version of that scope, e.g.
@@ -311,8 +316,10 @@ class ScopeDirectivesRule(
         }
 
     companion object {
+        private const val BACKING_DATA_SCALAR_NAME = "BackingData"
         private const val SCOPE_DIRECTIVE_NAME = "scope"
         private const val SCOPE_TO_ARGUMENT = "to"
+        private const val PARENT_DIRECTIVE_NAME = "parent"
         private const val TENANT_LOCAL_DIRECTIVE_NAME = "tenantLocal"
         private const val PRIVATE_SCOPE_SUFFIX = ":private"
         private const val WILDCARD_SCOPE = "*"

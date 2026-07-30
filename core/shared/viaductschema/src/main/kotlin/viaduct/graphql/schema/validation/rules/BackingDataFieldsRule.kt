@@ -10,13 +10,13 @@ import viaduct.graphql.schema.validation.ValidationRule
  * Validates correct usage of the [BackingData] scalar type and [@backingData][BACKING_DATA_DIRECTIVE] directive.
  *
  * Rules enforced:
- * 1. A field with [BackingData] type on an Object or Interface **must** have a `@backingData` directive.
+ * 1. [BackingData] and `@backingData` may only be used on object fields that are not inherited from interfaces.
  * 2. A field with a `@backingData` directive **must** have [BackingData] as its base type.
- * 3. [BackingData] type is **not** allowed on input fields.
+ * 3. A field with [BackingData] as its base type **must** have a `@backingData` directive.
  */
 class BackingDataFieldsRule : ValidationRule(
     id = "BackingDataFields",
-    description = "BackingData type and @backingData directive must be used together, and only on non-input fields"
+    description = "BackingData type and @backingData directive must be used together on object-only fields"
 ) {
     override fun visitField(
         ctx: ValidationContext,
@@ -24,6 +24,7 @@ class BackingDataFieldsRule : ValidationRule(
     ) {
         val isBackingDataType = field.type.baseTypeDef.name == BACKING_DATA_SCALAR
         val hasBackingDataDirective = field.hasAppliedDirective(BACKING_DATA_DIRECTIVE)
+        val usesBackingData = isBackingDataType || hasBackingDataDirective
         val typeName = field.containingDef.name
         val fieldName = field.name
 
@@ -32,7 +33,23 @@ class BackingDataFieldsRule : ValidationRule(
                 ctx.reportError(
                     code = ValidationErrorCodes.BACKING_DATA_ON_INPUT_FIELD,
                     message = "BackingData cannot be used on input field $typeName.$fieldName. " +
-                        "It can only be used on Object or Interface field.",
+                        "It can only be used on object fields.",
+                    location = SchemaLocation.ofField(typeName, fieldName).withSourceLocation(field.sourceLocation)
+                )
+
+            field.containingDef is ViaductSchema.Interface && usesBackingData ->
+                ctx.reportError(
+                    code = ValidationErrorCodes.BACKING_DATA_ON_INTERFACE_FIELD,
+                    message = "BackingData cannot be used on interface field $typeName.$fieldName. " +
+                        "It can only be used on object fields.",
+                    location = SchemaLocation.ofField(typeName, fieldName).withSourceLocation(field.sourceLocation)
+                )
+
+            field.isOverride && usesBackingData ->
+                ctx.reportError(
+                    code = ValidationErrorCodes.BACKING_DATA_IMPLEMENTED_INTERFACE_FIELD,
+                    message = "Field $typeName.$fieldName uses BackingData but implements an interface field. " +
+                        "BackingData is not allowed on fields inherited from interfaces.",
                     location = SchemaLocation.ofField(typeName, fieldName).withSourceLocation(field.sourceLocation)
                 )
 

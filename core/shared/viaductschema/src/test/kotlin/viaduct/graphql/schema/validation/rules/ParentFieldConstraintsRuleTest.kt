@@ -108,7 +108,24 @@ class ParentFieldConstraintsRuleTest {
         errors shouldHaveSize 1
         errors[0].code shouldBe ValidationErrorCodes.PARENT_FIELD_ON_INTERFACE
         errors[0].message shouldContain "UserInterface.parent"
-        errors[0].message shouldContain "Declare @parent directly on each implementing object field"
+        errors[0].message shouldContain "Remove the field from the interface contract"
+    }
+
+    @Test
+    fun `invalid - parent field cannot implement an interface field`() {
+        val errors = validate(
+            """
+            type Query { company: Company @resolver }
+            type Company { user: User }
+            interface UserInterface { parent: Company }
+            type User implements UserInterface { parent: Company @parent }
+            """.trimIndent()
+        )
+
+        errors shouldHaveSize 1
+        errors[0].code shouldBe ValidationErrorCodes.PARENT_FIELD_IMPLEMENTED_INTERFACE_FIELD
+        errors[0].message shouldContain "User.parent"
+        errors[0].message shouldContain "@parent is not allowed on fields inherited from interfaces"
     }
 
     @Test

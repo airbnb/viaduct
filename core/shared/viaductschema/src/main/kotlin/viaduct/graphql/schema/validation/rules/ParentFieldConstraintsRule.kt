@@ -45,7 +45,16 @@ class ParentFieldConstraintsRule(
             ctx.reportError(
                 code = ValidationErrorCodes.PARENT_FIELD_ON_INTERFACE,
                 message = "Field $parentTypeName.$fieldName is marked @$DIRECTIVE_NAME, but parent fields cannot be declared on interfaces. " +
-                    "Declare @$DIRECTIVE_NAME directly on each implementing object field.",
+                    "Remove the field from the interface contract and declare it only on object types.",
+                location = SchemaLocation.ofField(parentTypeName, fieldName).withSourceLocation(field.sourceLocation)
+            )
+        }
+
+        if (field.isOverride) {
+            ctx.reportError(
+                code = ValidationErrorCodes.PARENT_FIELD_IMPLEMENTED_INTERFACE_FIELD,
+                message = "Field $parentTypeName.$fieldName is marked @$DIRECTIVE_NAME but implements an interface field. " +
+                    "@$DIRECTIVE_NAME is not allowed on fields inherited from interfaces.",
                 location = SchemaLocation.ofField(parentTypeName, fieldName).withSourceLocation(field.sourceLocation)
             )
         }

@@ -89,27 +89,31 @@ class BackingDataFieldsRuleTest {
     }
 
     @Test
-    fun `should fail for both directions of violation on interface type`() {
+    fun `should reject BackingData type and directive on interface fields`() {
         val errors = validate(
             """
             type Query { placeholder: String }
             interface MyInterface {
                 missingDirective: BackingData
                 missingType: String @backingData(class: "MyData")
+                validPair: BackingData @backingData(class: "MyData")
             }
             extend interface MyInterface {
                 extMissingDirective: BackingData
                 extMissingType: String @backingData(class: "MyData")
+                extValidPair: BackingData @backingData(class: "MyData")
             }
             """.trimIndent()
         )
 
-        errors shouldHaveSize 4
+        errors shouldHaveSize 6
         errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
-            ValidationErrorCodes.BACKING_DATA_MISSING_DIRECTIVE,
-            ValidationErrorCodes.BACKING_DATA_MISSING_TYPE,
-            ValidationErrorCodes.BACKING_DATA_MISSING_DIRECTIVE,
-            ValidationErrorCodes.BACKING_DATA_MISSING_TYPE
+            ValidationErrorCodes.BACKING_DATA_ON_INTERFACE_FIELD,
+            ValidationErrorCodes.BACKING_DATA_ON_INTERFACE_FIELD,
+            ValidationErrorCodes.BACKING_DATA_ON_INTERFACE_FIELD,
+            ValidationErrorCodes.BACKING_DATA_ON_INTERFACE_FIELD,
+            ValidationErrorCodes.BACKING_DATA_ON_INTERFACE_FIELD,
+            ValidationErrorCodes.BACKING_DATA_ON_INTERFACE_FIELD,
         )
     }
 
@@ -136,17 +140,23 @@ class BackingDataFieldsRuleTest {
     }
 
     @Test
-    fun `should pass when BackingData field with @backingData is on an interface`() {
+    fun `should reject BackingData fields inherited from interfaces`() {
         val errors = validate(
             """
             type Query { placeholder: String }
             interface MyInterface {
                 data: BackingData @backingData(class: "MyData")
             }
+            type MyObject implements MyInterface {
+                data: BackingData @backingData(class: "MyData")
+            }
             """.trimIndent()
         )
 
-        errors.shouldBeEmpty()
+        errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
+            ValidationErrorCodes.BACKING_DATA_ON_INTERFACE_FIELD,
+            ValidationErrorCodes.BACKING_DATA_IMPLEMENTED_INTERFACE_FIELD,
+        )
     }
 
     @Test
