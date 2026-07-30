@@ -10,7 +10,6 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention")
 }
 
-// mavenCentral() stays as a fallback for external contributors and CI hiccups.
 val artifactoryMirror = System.getenv("VIADUCT_ARTIFACTORY_MIRROR")
 
 @Suppress("UnstableApiUsage")
@@ -18,8 +17,9 @@ dependencyResolutionManagement {
     repositories {
         if (artifactoryMirror != null) {
             maven { url = uri(artifactoryMirror) }
+        } else {
+            mavenCentral()
         }
-        mavenCentral()
     }
     repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
 }

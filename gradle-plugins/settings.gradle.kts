@@ -1,17 +1,28 @@
 pluginManagement {
     repositories {
-        gradlePluginPortal()
+        val artifactoryMirror = System.getenv("VIADUCT_ARTIFACTORY_MIRROR")
+        if (artifactoryMirror != null) {
+            maven { url = uri(artifactoryMirror) }
+        } else {
+            gradlePluginPortal()
+        }
     }
     includeBuild("../build-logic")
 }
 
+val artifactoryMirror = System.getenv("VIADUCT_ARTIFACTORY_MIRROR")
+
 @Suppress("UnstableApiUsage")
 dependencyResolutionManagement {
     repositories {
-        mavenCentral()
-        gradlePluginPortal()
-        maven {
-            url = uri("https://central.sonatype.com/repository/maven-snapshots")
+        if (artifactoryMirror != null) {
+            maven { url = uri(artifactoryMirror) }
+        } else {
+            mavenCentral()
+            gradlePluginPortal()
+            maven {
+                url = uri("https://central.sonatype.com/repository/maven-snapshots")
+            }
         }
     }
     versionCatalogs {

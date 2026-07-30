@@ -1,12 +1,14 @@
-// Route build-logic's own plugin + dependency resolution through the Artifactory mirror when CI sets
-// VIADUCT_ARTIFACTORY_MIRROR; otherwise fall back to the Gradle Plugin Portal. build-logic provides
-// settings.common, so it can't use that plugin to set its own repositories (chicken-and-egg) — without
-// this its bootstrap (kotlin-dsl / kotlin-gradle-plugin / kotlin-stdlib) resolves from Maven Central
-// and is rate-limited (429) under CI load. Mirrors common.settings.gradle.kts.
+// Route build-logic's own plugin and dependency resolution exclusively through Artifactory when CI
+// configures it. The Gradle Plugin Portal redirects ordinary Maven artifacts to Maven Central, which
+// rate-limits CI. External builds without the variable still use the portal.
 pluginManagement {
     repositories {
-        System.getenv("VIADUCT_ARTIFACTORY_MIRROR")?.let { maven { url = uri(it) } }
-        gradlePluginPortal()
+        val artifactoryMirror = System.getenv("VIADUCT_ARTIFACTORY_MIRROR")
+        if (artifactoryMirror != null) {
+            maven { url = uri(artifactoryMirror) }
+        } else {
+            gradlePluginPortal()
+        }
     }
 }
 
@@ -17,8 +19,9 @@ dependencyResolutionManagement {
     repositories {
         if (artifactoryMirror != null) {
             maven { url = uri(artifactoryMirror) }
+        } else {
+            gradlePluginPortal()
         }
-        gradlePluginPortal()
     }
     repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
 
