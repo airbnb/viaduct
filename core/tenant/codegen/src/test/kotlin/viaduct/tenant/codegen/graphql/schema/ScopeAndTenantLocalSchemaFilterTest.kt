@@ -100,6 +100,102 @@ class ScopeAndTenantLocalSchemaFilterTest {
         assertNotNull(query.field("f4"))
     }
 
+    @Test
+    fun `scope filter removes backing-data fields without explicit tenant-local directive`() {
+        val schema = loadSchema(
+            """
+            directive @scope(to: [String!]!) repeatable on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
+            directive @backingData(class: String!) on FIELD_DEFINITION
+
+            scalar BackingData
+
+            type Query @scope(to: ["a"]) {
+                publicField: String
+                backingDataField: BackingData @backingData(class: "com.airbnb.TestBackingData")
+                object: ObjectWithBackingData
+            }
+
+            type ObjectWithBackingData @scope(to: ["a"]) {
+                publicField: String
+                backingDataField: BackingData @backingData(class: "com.airbnb.TestBackingData")
+            }
+
+            extend type ObjectWithBackingData @scope(to: ["a"]) {
+                backingDataExtensionField: BackingData @backingData(class: "com.airbnb.TestBackingData")
+            }
+            """.trimIndent()
+        )
+
+        val filteredSchema = schema.filter(ScopeAndTenantLocalSchemaFilter(setOf("a")))
+
+        val query = filteredSchema.types["Query"] as ViaductSchema.Record
+        assertNotNull(query.field("publicField"))
+        assertNotNull(query.field("object"))
+        assertNull(query.field("backingDataField"))
+        val objectWithBackingData = filteredSchema.types["ObjectWithBackingData"] as ViaductSchema.Record
+        assertNotNull(objectWithBackingData.field("publicField"))
+        assertNull(objectWithBackingData.field("backingDataField"))
+        assertNull(objectWithBackingData.field("backingDataExtensionField"))
+    }
+
+    @Test
+    fun `base schema filter removes backing-data fields without explicit tenant-local directive`() {
+        val schema = loadSchema(
+            """
+            directive @scope(to: [String!]!) repeatable on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
+            directive @backingData(class: String!) on FIELD_DEFINITION
+
+            scalar BackingData
+
+            type Query @scope(to: ["a"]) {
+                publicField: String
+                backingDataField: BackingData @backingData(class: "com.airbnb.TestBackingData")
+            }
+            """.trimIndent()
+        )
+
+        val filteredSchema = schema.filter(ScopeAndTenantLocalSchemaFilter.baseSchema())
+
+        val query = filteredSchema.types["Query"] as ViaductSchema.Record
+        assertNotNull(query.field("publicField"))
+        assertNull(query.field("backingDataField"))
+    }
+
+    @Test
+    fun `parent fields are hidden from base and scoped schemas`() {
+        val schema = loadSchema(
+            """
+            directive @scope(to: [String!]!) repeatable on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
+            directive @parent on FIELD_DEFINITION
+
+            type Query @scope(to: ["a"]) {
+                publicField: String
+                parent: Parent @parent
+            }
+
+            extend type Query @scope(to: ["a"]) {
+                extensionParent: Parent @parent
+            }
+
+            type Parent @scope(to: ["a"]) {
+                value: String
+            }
+            """.trimIndent()
+        )
+
+        val baseQuery = schema.filter(ScopeAndTenantLocalSchemaFilter.baseSchema())
+            .types["Query"] as ViaductSchema.Record
+        val scopedQuery = schema.filter(ScopeAndTenantLocalSchemaFilter(setOf("a")))
+            .types["Query"] as ViaductSchema.Record
+
+        assertNotNull(baseQuery.field("publicField"))
+        assertNull(baseQuery.field("parent"))
+        assertNull(baseQuery.field("extensionParent"))
+        assertNotNull(scopedQuery.field("publicField"))
+        assertNull(scopedQuery.field("parent"))
+        assertNull(scopedQuery.field("extensionParent"))
+    }
+
     private fun loadSchema(schema: String) = ViaductSchema.fromTypeDefinitionRegistry(SchemaParser().parse(schema))
 
     @AfterEach

@@ -16,10 +16,14 @@ import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLSchemaElement
 import graphql.schema.GraphQLUnionType
 import graphql.schema.SchemaTransformer
+import graphql.schema.idl.SchemaPrinter
 import graphql.util.TraversalControl
 import graphql.util.TraverserContext
 import graphql.util.TraverserVisitorStub
 import io.kotest.matchers.collections.shouldContainExactly
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.graphql.scopes.utils.StubRoot
 import viaduct.graphql.scopes.utils.buildSchemaTraverser
@@ -390,6 +394,233 @@ class TransformationsVisitorTest {
             ?.map { it.name }
             .shouldContainExactly("ONE")
     }
+
+    @Test
+    fun `preserves extension ownership and directives for every supported type kind`() {
+        val schema =
+            toSchema(
+                """
+                directive @metadata(label: String!) repeatable on OBJECT | INTERFACE | INPUT_OBJECT | ENUM | UNION
+
+                schema {
+                  query: RootQuery
+                }
+
+                type RootQuery {
+                  value: ExtendedObject
+                }
+
+                interface ObjectContract {
+                  extensionObject: String
+                }
+
+                type ExtendedObject {
+                  baseObject: String
+                }
+
+                extend type ExtendedObject implements ObjectContract @metadata(label: "object") {
+                  extensionObject: String
+                  removeObject: String
+                }
+
+                interface ParentInterface {
+                  parent: String
+                }
+
+                interface ExtendedInterface {
+                  baseInterface: String
+                }
+
+                extend interface ExtendedInterface implements ParentInterface @metadata(label: "interface") {
+                  parent: String
+                  extensionInterface: String
+                  removeInterface: String
+                }
+
+                input ExtendedInput {
+                  baseInput: String
+                }
+
+                extend input ExtendedInput @metadata(label: "input") {
+                  extensionInput: String
+                  removeInput: String
+                }
+
+                enum ExtendedEnum {
+                  BASE_ENUM
+                }
+
+                extend enum ExtendedEnum @metadata(label: "enum") {
+                  EXTENSION_ENUM
+                  REMOVE_ENUM
+                }
+
+                type BaseMember {
+                  value: String
+                }
+
+                type ExtensionMember {
+                  value: String
+                }
+
+                type RemoveMember {
+                  value: String
+                }
+
+                union ExtendedUnion = BaseMember
+
+                extend union ExtendedUnion @metadata(label: "union") = ExtensionMember | RemoveMember
+                """.trimIndent()
+            )
+
+        val transformedSchema = transformSchema(schema) { element, currentChildren ->
+            when (element.name) {
+                "ExtendedObject" -> currentChildren.filterNot { it.name == "removeObject" }
+                "ExtendedInterface" -> currentChildren.filterNot { it.name == "removeInterface" }
+                "ExtendedInput" -> currentChildren.filterNot { it.name == "removeInput" }
+                "ExtendedEnum" -> currentChildren.filterNot { it.name == "REMOVE_ENUM" }
+                "ExtendedUnion" -> currentChildren.filterNot { it.name == "RemoveMember" }
+                else -> currentChildren
+            }
+        }
+
+        val objectType = transformedSchema.getObjectType("ExtendedObject")
+        assertEquals(listOf("baseObject"), objectType.definition!!.fieldDefinitions.map { it.name })
+        assertEquals(
+            listOf("extensionObject"),
+            objectType.extensionDefinitions.single().fieldDefinitions.map { it.name }
+        )
+        assertEquals(
+            listOf("ObjectContract"),
+            objectType.extensionDefinitions.single().implements.map { (it as TypeName).name }
+        )
+        assertEquals(listOf("metadata"), objectType.extensionDefinitions.single().directives.map { it.name })
+
+        val interfaceType = transformedSchema.getTypeAs<GraphQLInterfaceType>("ExtendedInterface")
+        assertEquals(listOf("baseInterface"), interfaceType.definition!!.fieldDefinitions.map { it.name })
+        assertEquals(
+            listOf("parent", "extensionInterface"),
+            interfaceType.extensionDefinitions.single().fieldDefinitions.map { it.name }
+        )
+        assertEquals(
+            listOf("ParentInterface"),
+            interfaceType.extensionDefinitions.single().implements.map { (it as TypeName).name }
+        )
+        assertEquals(listOf("metadata"), interfaceType.extensionDefinitions.single().directives.map { it.name })
+
+        val inputType = transformedSchema.getTypeAs<GraphQLInputObjectType>("ExtendedInput")
+        assertEquals(listOf("baseInput"), inputType.definition!!.inputValueDefinitions.map { it.name })
+        assertEquals(
+            listOf("extensionInput"),
+            inputType.extensionDefinitions.single().inputValueDefinitions.map { it.name }
+        )
+        assertEquals(listOf("metadata"), inputType.extensionDefinitions.single().directives.map { it.name })
+
+        val enumType = transformedSchema.getTypeAs<GraphQLEnumType>("ExtendedEnum")
+        assertEquals(listOf("BASE_ENUM"), enumType.definition!!.enumValueDefinitions.map { it.name })
+        assertEquals(
+            listOf("EXTENSION_ENUM"),
+            enumType.extensionDefinitions.single().enumValueDefinitions.map { it.name }
+        )
+        assertEquals(listOf("metadata"), enumType.extensionDefinitions.single().directives.map { it.name })
+
+        val unionType = transformedSchema.getTypeAs<GraphQLUnionType>("ExtendedUnion")
+        assertEquals(listOf("BaseMember"), unionType.definition!!.memberTypes.map { (it as TypeName).name })
+        assertEquals(
+            listOf("ExtensionMember"),
+            unionType.extensionDefinitions.single().memberTypes.map { (it as TypeName).name }
+        )
+        assertEquals(listOf("metadata"), unionType.extensionDefinitions.single().directives.map { it.name })
+
+        val roundTrippedSchema = toSchema(printAstSchema(transformedSchema))
+        assertEquals(
+            listOf("baseObject", "extensionObject"),
+            roundTrippedSchema.getObjectType("ExtendedObject").fieldDefinitions.map { it.name }
+        )
+        assertNull(roundTrippedSchema.getObjectType("ExtendedObject").getFieldDefinition("removeObject"))
+        assertTrue(roundTrippedSchema.getObjectType("ExtendedObject").hasAppliedDirective("metadata"))
+        assertEquals(
+            listOf("baseInterface", "parent", "extensionInterface"),
+            roundTrippedSchema.getTypeAs<GraphQLInterfaceType>("ExtendedInterface").fieldDefinitions.map { it.name }
+        )
+        assertTrue(roundTrippedSchema.getTypeAs<GraphQLInterfaceType>("ExtendedInterface").hasAppliedDirective("metadata"))
+        assertEquals(
+            listOf("baseInput", "extensionInput"),
+            roundTrippedSchema.getTypeAs<GraphQLInputObjectType>("ExtendedInput").fieldDefinitions.map { it.name }
+        )
+        assertTrue(roundTrippedSchema.getTypeAs<GraphQLInputObjectType>("ExtendedInput").hasAppliedDirective("metadata"))
+        assertEquals(
+            listOf("BASE_ENUM", "EXTENSION_ENUM"),
+            roundTrippedSchema.getTypeAs<GraphQLEnumType>("ExtendedEnum").values.map { it.name }
+        )
+        assertTrue(roundTrippedSchema.getTypeAs<GraphQLEnumType>("ExtendedEnum").hasAppliedDirective("metadata"))
+        assertEquals(
+            listOf("BaseMember", "ExtensionMember"),
+            roundTrippedSchema.getTypeAs<GraphQLUnionType>("ExtendedUnion").types.map { it.name }
+        )
+        assertTrue(roundTrippedSchema.getTypeAs<GraphQLUnionType>("ExtendedUnion").hasAppliedDirective("metadata"))
+    }
+
+    @Test
+    fun `keeps directive-only extensions and drops empty extensions`() {
+        val schema =
+            toSchema(
+                """
+                directive @metadata on OBJECT
+
+                schema {
+                  query: RootQuery
+                }
+
+                type RootQuery {
+                  value: DirectiveOnlyExtension
+                }
+
+                type DirectiveOnlyExtension {
+                  base: String
+                }
+
+                extend type DirectiveOnlyExtension @metadata {
+                  remove: String
+                }
+
+                type EmptyExtension {
+                  base: String
+                }
+
+                extend type EmptyExtension {
+                  remove: String
+                }
+                """.trimIndent()
+            )
+
+        val transformedSchema = transformSchema(schema) { element, currentChildren ->
+            if (element.name == "DirectiveOnlyExtension" || element.name == "EmptyExtension") {
+                currentChildren.filterNot { it.name == "remove" }
+            } else {
+                currentChildren
+            }
+        }
+
+        val directiveOnlyType = transformedSchema.getObjectType("DirectiveOnlyExtension")
+        assertTrue(directiveOnlyType.extensionDefinitions.single().fieldDefinitions.isEmpty())
+        assertEquals(
+            listOf("metadata"),
+            directiveOnlyType.extensionDefinitions.single().directives.map { it.name }
+        )
+        assertTrue(transformedSchema.getObjectType("EmptyExtension").extensionDefinitions.isEmpty())
+
+        val roundTrippedSchema = toSchema(printAstSchema(transformedSchema))
+        assertTrue(roundTrippedSchema.getObjectType("DirectiveOnlyExtension").hasAppliedDirective("metadata"))
+        assertNull(roundTrippedSchema.getObjectType("DirectiveOnlyExtension").getFieldDefinition("remove"))
+        assertNull(roundTrippedSchema.getObjectType("EmptyExtension").getFieldDefinition("remove"))
+    }
+
+    private fun printAstSchema(schema: GraphQLSchema): String =
+        SchemaPrinter(
+            SchemaPrinter.Options.defaultOptions()
+                .useAstDefinitions(true)
+        ).print(schema)
 
     private fun transformSchema(
         schema: GraphQLSchema,

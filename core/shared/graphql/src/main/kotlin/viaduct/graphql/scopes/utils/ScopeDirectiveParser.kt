@@ -30,7 +30,6 @@ import graphql.schema.GraphQLSchemaElement
 import graphql.schema.GraphQLTypeUtil.unwrapAll
 import graphql.schema.GraphQLUnionType
 import viaduct.graphql.scopes.errors.SchemaScopeValidationError
-import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.utils.slf4j.logger
 
 internal class ScopeDirectiveParser(
@@ -41,7 +40,6 @@ internal class ScopeDirectiveParser(
 
         private const val SCOPED_TO_ARG: String = "to"
         private const val WILDCARD_SCOPE: String = "*"
-        private val TENANT_LOCAL_DIRECTIVE_NAME = DefaultSchemaFactory.DefaultDirective.TENANT_LOCAL.directiveName
     }
 
     fun metadataForElement(element: GraphQLSchemaElement): ElementScopeMetadata? {
@@ -61,7 +59,7 @@ internal class ScopeDirectiveParser(
 
         // Validate the children of this element
         getChildrenForElement(element)?.forEach { child ->
-            if (isTenantLocalField(child)) {
+            if (isTenantLocalEquivalentField(child)) {
                 return@forEach
             }
             val referencedType =
@@ -185,11 +183,7 @@ internal class ScopeDirectiveParser(
         return ElementScopeMetadata(element.name, elementsForScopes)
     }
 
-    private fun getScopeMetadataChildNodes(node: Node<*>): List<NamedNode<*>> = getChildNodes(node).filterNot(::isTenantLocalFieldNode)
-
-    private fun isTenantLocalField(element: GraphQLNamedSchemaElement): Boolean = element is GraphQLFieldDefinition && element.hasAppliedDirective(TENANT_LOCAL_DIRECTIVE_NAME)
-
-    private fun isTenantLocalFieldNode(node: NamedNode<*>): Boolean = node is DirectivesContainer<*> && node.getDirectives(TENANT_LOCAL_DIRECTIVE_NAME).isNotEmpty()
+    private fun getScopeMetadataChildNodes(node: Node<*>): List<NamedNode<*>> = getChildNodes(node).filterNot(::isTenantLocalEquivalentFieldNode)
 
     private fun getChildNodes(node: Node<*>): List<NamedNode<*>> =
         when (node) {
