@@ -1,20 +1,18 @@
 package viaduct.tenant.codegen.util
 
+import viaduct.codegen.ConnectionArgumentsDirection
+import viaduct.codegen.SchemaAnalysis
 import viaduct.codegen.utils.KmName
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg
-import viaduct.tenant.codegen.bytecode.config.hasConnectionDirective
 
 data class ConnectionArgumentsInfo(
     val interfaceToAdd: KmName?,
     val overrideFieldNames: Set<String>
 ) {
     companion object {
-        /** Field names declared by ForwardConnectionArguments. */
-        private val FORWARD_FIELDS = setOf("first", "after")
-
-        /** Field names declared by BackwardConnectionArguments. */
-        private val BACKWARD_FIELDS = setOf("last", "before")
+        private val FORWARD_FIELDS = SchemaAnalysis.FORWARD_CONNECTION_ARG_NAMES
+        private val BACKWARD_FIELDS = SchemaAnalysis.BACKWARD_CONNECTION_ARG_NAMES
 
         val NONE = ConnectionArgumentsInfo(null, emptySet())
         val FORWARD = ConnectionArgumentsInfo(
@@ -29,40 +27,22 @@ data class ConnectionArgumentsInfo(
             cfg.MULTIDIRECTIONAL_CONNECTION_ARGUMENTS.asKmName,
             FORWARD_FIELDS + BACKWARD_FIELDS
         )
-        val BASE = ConnectionArgumentsInfo(
-            cfg.CONNECTION_ARGUMENTS.asKmName,
-            emptySet()
-        )
 
         /**
-         * Determines the appropriate ConnectionArguments interface based on which
-         * pagination arguments are present on a field that returns a Connection type:
-         * - ForwardConnectionArguments: requires both 'first' AND 'after'
-         * - BackwardConnectionArguments: requires both 'last' AND 'before'
-         * - MultidirectionalConnectionArguments: requires all four
-         * - ConnectionArguments (base): requires at least 'first' or 'last'
+         * Determines the appropriate ConnectionArguments interface for a field returning a
+         * `@connection` type. Delegates the direction decision to the shared
+         * [SchemaAnalysis.connectionArgumentsDirection] so the Kotlin and Java codegens agree;
+         * this only maps that direction to the Kotlin interface KmName + the field names it
+         * overrides. A `first`-only field is FORWARD and a `last`-only field is BACKWARD (there is
+         * no bare-`ConnectionArguments` case — see [SchemaAnalysis.connectionArgumentsDirection]).
          */
-
         fun from(field: ViaductSchema.Field?): ConnectionArgumentsInfo {
             if (field == null) return NONE
-            if (!field.type.baseTypeDef.hasConnectionDirective) return NONE
-
-            val argNames = field.args.map { it.name }.toSet()
-
-            val hasFirst = "first" in argNames
-            val hasAfter = "after" in argNames
-            val hasLast = "last" in argNames
-            val hasBefore = "before" in argNames
-
-            val hasFullForward = hasFirst && hasAfter
-            val hasFullBackward = hasLast && hasBefore
-
-            return when {
-                hasFullForward && hasFullBackward -> MULTIDIRECTIONAL
-                hasFullForward -> FORWARD
-                hasFullBackward -> BACKWARD
-                hasFirst || hasLast -> BASE
-                else -> NONE
+            return when (SchemaAnalysis.connectionArgumentsDirection(field)) {
+                ConnectionArgumentsDirection.NONE -> NONE
+                ConnectionArgumentsDirection.FORWARD -> FORWARD
+                ConnectionArgumentsDirection.BACKWARD -> BACKWARD
+                ConnectionArgumentsDirection.MULTIDIRECTIONAL -> MULTIDIRECTIONAL
             }
         }
     }

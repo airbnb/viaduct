@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import viaduct.engine.api.ViaductSchema;
 import viaduct.java.api.annotations.ResolverFor;
+import viaduct.java.api.context.ConnectionFieldExecutionContext;
 import viaduct.java.api.context.FieldExecutionContext;
 import viaduct.java.api.context.SelectiveFieldExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
@@ -14,6 +15,7 @@ import viaduct.java.api.internal.BaseBatchedFieldResolver;
 import viaduct.java.api.internal.BaseUnbatchedFieldResolver;
 import viaduct.java.api.internal.ResolverClassFinder;
 import viaduct.java.api.reflect.Type;
+import viaduct.java.api.resolvers.ConnectionResolverBase;
 import viaduct.java.api.resolvers.FieldResolverBase;
 import viaduct.java.api.types.Arguments;
 import viaduct.java.api.types.CompositeOutput;
@@ -581,14 +583,14 @@ public final class QueryResolvers {
 
         @ResolverFor(typeName = "Query", fieldName = "ordersConnection", isSelective = false, isBatching = false)
         public abstract static class OrdersConnection
-            implements FieldResolverBase<com.example.grts.OrderConnection, com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_OrdersConnection_Arguments, com.example.grts.OrderConnection>, BaseUnbatchedFieldResolver {
+            implements ConnectionResolverBase<com.example.grts.OrderConnection, com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_OrdersConnection_Arguments, com.example.grts.OrderConnection>, BaseUnbatchedFieldResolver {
 
             /**
              * Context for Query.ordersConnection resolver.
              * Provides type-safe access to object value, query value, arguments, and selections.
              */
             public static final class Context
-                implements FieldResolverBase.Context<com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_OrdersConnection_Arguments, com.example.grts.OrderConnection>, InternalContext {
+                implements ConnectionResolverBase.Context<com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_OrdersConnection_Arguments, com.example.grts.OrderConnection>, InternalContext {
 
                 private final FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, com.example.grts.Query_OrdersConnection_Arguments, com.example.grts.OrderConnection> inner;
 

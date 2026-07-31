@@ -2,6 +2,7 @@ package viaduct.api.internal
 
 import graphql.schema.GraphQLObjectType
 import viaduct.api.context.ConnectionFieldExecutionContext
+import viaduct.api.context.ExecutionContext
 import viaduct.api.reflect.Type
 import viaduct.api.types.BackwardConnectionArguments
 import viaduct.api.types.Connection
@@ -9,6 +10,7 @@ import viaduct.api.types.ConnectionArguments
 import viaduct.api.types.Edge
 import viaduct.api.types.ForwardConnectionArguments
 import viaduct.api.types.OffsetCursor
+import viaduct.api.types.OffsetLimit
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineObjectData
@@ -30,7 +32,7 @@ import viaduct.errors.handleFrameworkErrors
  *
  * Usage in generated builders (bytecode generates equivalent of):
  * ```kotlin
- * class Builder(context: ConnectionFieldExecutionContext<*, *, *, CharactersConnection>) :
+ * class Builder(context: ExecutionContext) :
  *     ConnectionBuilder<CharactersConnection, CharacterEdge, Character>(
  *         context,
  *         graphQLObjectType
@@ -47,13 +49,46 @@ import viaduct.errors.handleFrameworkErrors
 @ExperimentalApi
 @OptIn(InternalApi::class)
 abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
-    protected val connectionContext: ConnectionFieldExecutionContext<*, *, *, C>,
+    protected val executionContext: ExecutionContext,
     graphQLObjectType: GraphQLObjectType,
     baseEngineObjectData: EngineObjectData.Sync?,
     private val edgeType: Type<E>,
-) : ObjectBase.Builder<C>(connectionContext.internal, graphQLObjectType, baseEngineObjectData) {
+) : ObjectBase.Builder<C>(executionContext.internal, graphQLObjectType, baseEngineObjectData) {
     /**
-     * The pagination arguments from the current GraphQL request
+     * Retains the original constructor descriptor for existing generated connection builders.
+     */
+    constructor(
+        connectionContext: ConnectionFieldExecutionContext<*, *, *, C>,
+        graphQLObjectType: GraphQLObjectType,
+        baseEngineObjectData: EngineObjectData.Sync?,
+        edgeType: Type<E>,
+    ) : this(
+        connectionContext as ExecutionContext,
+        graphQLObjectType,
+        baseEngineObjectData,
+        edgeType
+    )
+
+    /**
+     * Retains source compatibility for subclasses that accessed the original protected property.
+     * New code should use [executionContext] and [arguments].
+     */
+    @Deprecated("Use executionContext or arguments")
+    @Suppress("UNCHECKED_CAST")
+    protected val connectionContext: ConnectionFieldExecutionContext<*, *, *, C>
+        get() =
+            executionContext as? ConnectionFieldExecutionContext<*, *, *, C>
+                ?: throw IllegalStateException(
+                    "This connection builder was created without connection arguments"
+                )
+
+    /**
+     * The pagination arguments from the current GraphQL request.
+     *
+     * Access fails when this builder was created by an unpaged or filter-only connection resolver,
+     * whose context intentionally has no [ConnectionArguments]. [fromEdges] and the explicit
+     * [fromSlice] overload remain available to those resolvers.
+     *
      * ([ForwardConnectionArguments.first], [ForwardConnectionArguments.after],
      * [BackwardConnectionArguments.last], [BackwardConnectionArguments.before]).
      *
@@ -61,7 +96,13 @@ abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
      * [fromSlice] and [fromList] read these arguments internally.
      */
     protected val arguments: ConnectionArguments
-        get() = connectionContext.arguments
+        get() =
+            (executionContext as? ConnectionFieldExecutionContext<*, *, *, *>)?.arguments
+                ?: throw IllegalStateException(
+                    "Connection pagination requires a ConnectionFieldExecutionContext with " +
+                        "ConnectionArguments; this builder was created with " +
+                        executionContext::class.qualifiedName
+                )
 
     /**
      * Build a connection from pre-constructed edges.
@@ -116,10 +157,20 @@ abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
      * [OffsetCursor]s are encoded automatically per item, and `hasPreviousPage` is set to
      * `true` when `offset > 0`.
      *
+     * This overload derives the offset/limit from the request arguments via [ConnectionArguments.toOffsetLimit].
+     * It therefore cannot serve backward pagination that only specifies `last` (no `before`),
+     * where the offset can only be computed from the backend's total item count: use
+     * [fromSlice] with an explicit [OffsetLimit] in that case (the same one you resolved via
+     * [ConnectionArguments.toOffsetLimit] to fetch the slice). This method fails fast rather
+     * than silently encoding the negative tail-relative offset that
+     * [ConnectionArguments.toOffsetLimit] returns for that shape.
+     *
      * @param items Items to paginate; may contain one extra item for next-page detection.
      * @param hasNextPage Whether more items exist after this slice.
      * @param buildNode Converts each item to the edge's node value; return `null` to omit.
      * @return This builder for chaining.
+     * @throws IllegalArgumentException if the arguments require a total count to resolve the
+     *   offset (see [ConnectionArguments.requiresTotalCountForOffsetLimit]).
      */
     @ExperimentalApi
     fun <I> fromSlice(
@@ -127,8 +178,58 @@ abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
         hasNextPage: Boolean,
         buildNode: (item: I) -> N?
     ): ConnectionBuilder<C, E, N> {
-        val (offset, limit) = connectionContext.arguments.toOffsetLimit()
+        require(!arguments.requiresTotalCountForOffsetLimit()) {
+            "fromSlice(items, hasNextPage, buildNode) cannot resolve the offset for backward " +
+                "pagination with only `last` (no `before`): the offset depends on the backend's " +
+                "total item count. Resolve the offset with arguments.toOffsetLimit(totalCount) " +
+                "and pass it to fromSlice(items, offsetLimit, hasNextPage, buildNode)."
+        }
+        val (offset, limit) = arguments.toOffsetLimit()
         return buildEdges(items, hasNextPage, offset, limit, buildNode)
+    }
+
+    /**
+     * Build a connection from a backend-paginated slice of items, using an [OffsetLimit] you
+     * already resolved to fetch that slice.
+     *
+     * This is the counterpart to [fromSlice] for pagination shapes whose offset depends on the
+     * backend's total item count — backward pagination with only `last` (no `before`). Resolve the
+     * bounds once and reuse them for both the fetch and the cursor/`PageInfo` construction:
+     * ```kotlin
+     * val offsetLimit = if (ctx.arguments.requiresTotalCountForOffsetLimit()) {
+     *     ctx.arguments.toOffsetLimit(totalCount = repo.count())
+     * } else {
+     *     ctx.arguments.toOffsetLimit()
+     * }
+     * val fetched = repo.fetchPosts(offset = offsetLimit.offset, limit = offsetLimit.limit + 1)
+     * return PostsConnection {
+     *     fromSlice(fetched, offsetLimit, hasNextPage = fetched.size > offsetLimit.limit) { … }
+     * }
+     * ```
+     *
+     * [OffsetCursor]s are encoded automatically per item starting from [OffsetLimit.offset], and
+     * `hasPreviousPage` is set to `true` when that offset is `> 0`.
+     *
+     * @param items Items to paginate; may contain one extra item for next-page detection.
+     * @param offsetLimit The resolved offset/limit used to fetch [items]; must have a non-negative
+     *   [OffsetLimit.offset] (the tail-relative signal from the no-count overload is not accepted).
+     * @param hasNextPage Whether more items exist after this slice.
+     * @param buildNode Converts each item to the edge's node value; return `null` to omit.
+     * @return This builder for chaining.
+     */
+    @ExperimentalApi
+    fun <I> fromSlice(
+        items: List<I>,
+        offsetLimit: OffsetLimit,
+        hasNextPage: Boolean,
+        buildNode: (item: I) -> N?
+    ): ConnectionBuilder<C, E, N> {
+        require(offsetLimit.offset >= 0) {
+            "fromSlice requires a resolved, non-negative offset, got: ${offsetLimit.offset}. " +
+                "For backward pagination with only `last`, resolve it via " +
+                "arguments.toOffsetLimit(totalCount) before fetching the slice."
+        }
+        return buildEdges(items, hasNextPage, offsetLimit.offset, offsetLimit.limit, buildNode)
     }
 
     /**
@@ -165,9 +266,13 @@ abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
         limit: Int,
         buildNode: (item: I) -> N?
     ): ConnectionBuilder<C, E, N> {
-        val edges = items.take(limit).mapIndexed { idx, item ->
-            ViaductObjectBuilder.dynamicBuilderFor(connectionContext.internal, edgeType.kcls)
-                .put("node", buildNode(item))
+        val edges = items.take(limit).mapIndexedNotNull { idx, item ->
+            val node = buildNode(item) ?: return@mapIndexedNotNull null
+            // Documented contract: a null mapper result omits the item — no edge is created. The
+            // cursor of each surviving edge stays anchored to its original position (offset + idx),
+            // so after/before cursors still resume pagination correctly against the source list.
+            ViaductObjectBuilder.dynamicBuilderFor(executionContext.internal, edgeType.kcls)
+                .put("node", node)
                 .put("cursor", OffsetCursor.fromOffset(offset + idx).value)
                 .build()
         }
@@ -180,7 +285,7 @@ abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
         startCursor: String?,
         endCursor: String?
     ): EngineObjectData.Sync {
-        val pageInfoType = connectionContext.internal.schema.schema.getObjectType("PageInfo")
+        val pageInfoType = executionContext.internal.schema.schema.getObjectType("PageInfo")
             ?: error("PageInfo type not found in schema")
 
         return EngineObjectDataBuilder.from(pageInfoType)

@@ -325,19 +325,7 @@ private class ObjectClassGenV2(
     }
 
     private fun CustomClassBuilder.addOfObject(): CustomClassBuilder {
-        // Connection types require a richer context carrying edge/node/argument type info;
-        // plain object types use the standard ExecutionContext.
-        val contextType = if (def.hasConnectionDirective) {
-            cfg.CONNECTION_FIELD_EXECUTION_CONTEXT.asKmName.asType().also {
-                it.arguments += KmTypeProjection.STAR
-                it.arguments += KmTypeProjection.STAR
-                it.arguments += KmTypeProjection(KmVariance.OUT, cfg.CONNECTION_ARGUMENTS.asKmName.asType())
-                it.arguments += KmTypeProjection(KmVariance.INVARIANT, this.kmType)
-            }
-        } else {
-            cfg.EXECUTION_CONTEXT.asKmName.asType()
-        }
-        addOfObject(contextType)
+        addOfObject(cfg.EXECUTION_CONTEXT.asKmName.asType())
         return this
     }
 

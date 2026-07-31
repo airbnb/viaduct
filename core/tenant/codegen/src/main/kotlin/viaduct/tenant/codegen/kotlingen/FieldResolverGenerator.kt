@@ -1,6 +1,7 @@
 package viaduct.tenant.codegen.kotlingen
 
 import java.io.File
+import viaduct.codegen.ConnectionArgumentsDirection
 import viaduct.codegen.SchemaAnalysis
 import viaduct.codegen.km.kotlinTypeString
 import viaduct.codegen.st.STContents
@@ -197,10 +198,12 @@ private class ResolverModelImpl(
         }
 
     /**
-     * Checks if the field returns a Connection type (detected via @connection directive).
-     * Connection types get special context handling with pagination utilities.
+     * Connection resolver APIs require generated arguments that implement ConnectionArguments.
+     * Unpaged and filter-only connection fields use ordinary field resolver APIs.
      */
-    private val isConnectionField: Boolean = field.type.baseTypeDef.hasConnectionDirective
+    private val hasConnectionArguments: Boolean =
+        field.type.baseTypeDef.hasConnectionDirective &&
+            SchemaAnalysis.connectionArgumentsDirection(field) != ConnectionArgumentsDirection.NONE
 
     override val typeSpecifier: String = field.kmType(JavaName(grtPackage).asKmName, baseTypeMapper).kotlinTypeString
     override val ctxOutputType: String = grtOutputName
@@ -208,7 +211,7 @@ private class ResolverModelImpl(
         get() = when {
             mutationTypeName != null && this.field.containingDef.name == mutationTypeName ->
                 "viaduct.api.context.MutationFieldExecutionContext<$queryGrtTypeName, $mutationGrtTypeName, $grtArgsName, $grtOutputName>"
-            isConnectionField ->
+            hasConnectionArguments ->
                 "viaduct.api.context.ConnectionFieldExecutionContext<$grtTypeName, $queryGrtTypeName, $grtArgsName, $grtOutputName>"
             else ->
                 "viaduct.api.context.FieldExecutionContext<$grtTypeName, $queryGrtTypeName, $grtArgsName, $grtOutputName>"
@@ -218,7 +221,7 @@ private class ResolverModelImpl(
         get() = when {
             mutationTypeName != null && this.field.containingDef.name == mutationTypeName ->
                 "viaduct.api.MutationResolverBase<$queryGrtTypeName, $mutationGrtTypeName, $grtArgsName, $typeSpecifier>"
-            isConnectionField ->
+            hasConnectionArguments ->
                 "viaduct.api.ConnectionResolverBase<$grtTypeName, $queryGrtTypeName, $grtArgsName, $typeSpecifier>"
             else ->
                 "viaduct.api.FieldResolverBase<$grtTypeName, $queryGrtTypeName, $grtArgsName, $typeSpecifier>"

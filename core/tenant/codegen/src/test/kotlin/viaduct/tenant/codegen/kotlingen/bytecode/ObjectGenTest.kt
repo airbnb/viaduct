@@ -142,4 +142,31 @@ class ObjectGenTest {
         assertTrue(result.contains("type: graphql.schema.GraphQLObjectType"))
         assertTrue(result.contains("baseEngineObjectData: EngineObjectData.Sync"))
     }
+
+    @Test
+    fun `connection Builder accepts ordinary ExecutionContext`() {
+        val sdl = """
+            directive @connection on OBJECT
+            directive @edge on OBJECT
+            type Query { posts: PostConnection }
+            type Post { title: String }
+            type PostEdge @edge { node: Post cursor: String! }
+            type PageInfo {
+                hasNextPage: Boolean!
+                hasPreviousPage: Boolean!
+            }
+            type PostConnection @connection {
+                edges: [PostEdge!]!
+                pageInfo: PageInfo!
+            }
+        """.trimIndent()
+
+        val result = genObject(sdl, "PostConnection").toString()
+
+        assertTrue(result.contains("operator fun invoke(context: ExecutionContext"))
+        assertTrue(result.contains("constructor(context: ExecutionContext)"))
+        assertTrue(result.contains("context as ExecutionContext"))
+        assertFalse(result.contains("ConnectionFieldExecutionContext"))
+        assertFalse(result.contains("ConnectionArguments"))
+    }
 }

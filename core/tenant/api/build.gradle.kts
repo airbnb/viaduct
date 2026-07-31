@@ -49,6 +49,8 @@ dependencies {
     api(libs.viaduct.errors)
     implementation(libs.viaduct.shared.mapping)
     implementation(libs.viaduct.shared.apiannotations)
+    // Shared connection pagination math (OffsetCursorCodec, ConnectionArgumentsSupport).
+    implementation(libs.viaduct.tenant.shared)
 
     /** External dependencies **/
     implementation(libs.graphql.java)

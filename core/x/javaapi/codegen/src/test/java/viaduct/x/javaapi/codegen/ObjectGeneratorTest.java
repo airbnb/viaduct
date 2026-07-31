@@ -208,6 +208,146 @@ class ObjectGeneratorTest {
   }
 
   @Test
+  void generatesConnectionBuilderOverridesWithConcreteReturnType() {
+    ObjectModel model =
+        new ObjectModel(
+            "com.example.types",
+            "PostConnection",
+            List.of(),
+            List.of(FieldModel.simple("totalCount", "Integer", true)),
+            null,
+            false,
+            false,
+            true,
+            false,
+            "PostEdge",
+            "Post");
+
+    String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
+
+    assertTrue(generated.contains("extends ConnectionBuilder<PostConnection, PostEdge, Post>"));
+    assertTrue(generated.contains("public static Builder builder(ExecutionContext context)"));
+    assertTrue(generated.contains("public Builder fromEdges(List<PostEdge> edges)"));
+    assertTrue(generated.contains("super.fromEdges(edges, hasNextPage, hasPreviousPage);"));
+    assertTrue(generated.contains("public <I> Builder fromSlice("));
+    assertTrue(generated.contains("super.fromSlice(items, offsetLimit, hasNextPage, buildNode);"));
+    assertTrue(generated.contains("public <I> Builder fromList("));
+    assertTrue(generated.contains("Function<I, Post> buildNode"));
+  }
+
+  @Test
+  void generatesConnectionWithEnumField() {
+    ObjectModel model =
+        new ObjectModel(
+            "com.example.types",
+            "PostConnection",
+            List.of(),
+            List.of(
+                new FieldModel(
+                    "status", "PostStatus", true, false, false, true, false, false, "PostStatus")),
+            null,
+            false,
+            false,
+            true,
+            false,
+            "PostEdge",
+            "Post");
+
+    String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
+
+    assertTrue(generated.contains("return fetchEnum(\"status\", PostStatus.class)"));
+  }
+
+  @Test
+  void generatesConnectionWithOrdinaryObjectFieldConversions() {
+    ObjectModel model =
+        new ObjectModel(
+            "com.example.types",
+            "PostConnection",
+            List.of(),
+            List.of(
+                new FieldModel(
+                    "statusHistory",
+                    "List<PostStatus>",
+                    true,
+                    false,
+                    true,
+                    true,
+                    false,
+                    false,
+                    "PostStatus"),
+                new FieldModel(
+                    "metadata", "Metadata", true, false, false, false, true, false, "Metadata"),
+                new FieldModel(
+                    "metadataHistory",
+                    "List<Metadata>",
+                    true,
+                    false,
+                    true,
+                    false,
+                    true,
+                    false,
+                    "Metadata"),
+                new FieldModel(
+                    "labels", "List<String>", true, false, true, false, false, false, null),
+                FieldModel.simple("publishedAt", "Instant", true),
+                new FieldModel(
+                    "publishedHistory",
+                    "List<Instant>",
+                    true,
+                    false,
+                    true,
+                    false,
+                    false,
+                    false,
+                    null),
+                new FieldModel(
+                    "ownerID", "GlobalID<Post>", true, false, false, false, false, true, "Post"),
+                new FieldModel(
+                    "ownerIDs",
+                    "List<GlobalID<Post>>",
+                    true,
+                    false,
+                    true,
+                    false,
+                    false,
+                    true,
+                    "Post")),
+            null,
+            false,
+            false,
+            true,
+            false,
+            "PostEdge",
+            "Post");
+
+    String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
+
+    assertTrue(generated.contains("return fetchEnumList(\"statusHistory\", PostStatus.class)"));
+    assertTrue(generated.contains("return fetchAbstractObject(\"metadata\", Metadata.class)"));
+    assertTrue(
+        generated.contains("return fetchAbstractObjectList(\"metadataHistory\", Metadata.class)"));
+    assertTrue(generated.contains("return fetchScalarList(\"labels\")"));
+    assertTrue(generated.contains("return fetchScalar(\"publishedAt\", \"DateTime\")"));
+    assertTrue(generated.contains("return fetchScalarList(\"publishedHistory\", \"DateTime\")"));
+    assertTrue(generated.contains("return fetchGlobalID(\"ownerID\")"));
+    assertTrue(generated.contains("return fetchGlobalIDList(\"ownerIDs\")"));
+    assertTrue(generated.contains("import viaduct.java.api.globalid.GlobalID;"));
+    assertTrue(generated.contains("import java.time.Instant;"));
+    assertTrue(
+        generated.contains(
+            "putField(\"ownerID\", ownerID == null ? null : "
+                + "__context.getGlobalIDCodec().serialize(ownerID.getType().getName(), "
+                + "ownerID.getInternalID()))"));
+    assertTrue(
+        generated.contains(
+            "putField(\"ownerIDs\", ownerIDs == null ? null : ownerIDs.stream()"
+                + ".map(__id -> __context.getGlobalIDCodec().serialize("
+                + "__id.getType().getName(), __id.getInternalID()))"
+                + ".collect(java.util.stream.Collectors.toList()))"));
+  }
+
+  @Test
   void generatesObjectWithTemporalScalarFields() {
     ObjectModel model =
         new ObjectModel(

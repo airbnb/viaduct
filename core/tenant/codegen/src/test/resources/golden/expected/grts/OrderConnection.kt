@@ -4,11 +4,10 @@ package viaduct.api.grts
 
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
-import viaduct.api.context.ConnectionFieldExecutionContext
+import viaduct.api.context.ExecutionContext
 import viaduct.api.internal.ConnectionBuilder
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ObjectBase
-import viaduct.api.types.ConnectionArguments
 import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 
@@ -31,12 +30,12 @@ class OrderConnection(context: InternalContext, engineObject: EngineObject)
         Builder(__context, __engineObject.type, toBuilderEOD())
 
     object of {
-        operator fun invoke(context: ConnectionFieldExecutionContext<*, *, out ConnectionArguments, OrderConnection>, block: Builder.() -> Unit): OrderConnection =
+        operator fun invoke(context: ExecutionContext, block: Builder.() -> Unit): OrderConnection =
             Builder(context).apply(block).build()
     }
 
     class Builder : ConnectionBuilder<OrderConnection, viaduct.api.grts.OrderEdge, viaduct.api.grts.Order> {
-        constructor(context: ConnectionFieldExecutionContext<*, *, out ConnectionArguments, OrderConnection>)
+        constructor(context: ExecutionContext)
             : super(
                 context,
                 TODO() as graphql.schema.GraphQLObjectType,
@@ -49,7 +48,7 @@ class OrderConnection(context: InternalContext, engineObject: EngineObject)
             type: graphql.schema.GraphQLObjectType,
             baseEngineObjectData: EngineObjectData.Sync
         ) : super(
-                context as ConnectionFieldExecutionContext<*, *, out ConnectionArguments, OrderConnection>,
+                context as ExecutionContext,
                 type,
                 baseEngineObjectData,
                 viaduct.api.grts.OrderEdge.Reflection

@@ -64,7 +64,40 @@ public record ResolverModel(
     boolean hasArguments,
     boolean isCompositeOutput,
     boolean isSelective,
-    boolean isBatching) {
+    boolean isBatching,
+    boolean isConnection) {
+
+  /** Legacy constructor for non-connection resolver fields (used by generator unit tests). */
+  public ResolverModel(
+      String gqlTypeName,
+      String gqlFieldName,
+      String resolverClassName,
+      String returnType,
+      String objectType,
+      String queryType,
+      String mutationType,
+      String argumentsType,
+      String selectionsType,
+      boolean hasArguments,
+      boolean isCompositeOutput,
+      boolean isSelective,
+      boolean isBatching) {
+    this(
+        gqlTypeName,
+        gqlFieldName,
+        resolverClassName,
+        returnType,
+        objectType,
+        queryType,
+        mutationType,
+        argumentsType,
+        selectionsType,
+        hasArguments,
+        isCompositeOutput,
+        isSelective,
+        isBatching,
+        false);
+  }
 
   // ===== JavaBean-style getters for StringTemplate =====
   // ST (StringTemplate) requires JavaBean-style getters to access record components.
@@ -211,7 +244,9 @@ public record ResolverModel(
    * @return the FieldResolverBase type with all type parameters
    */
   public String getFieldResolverBaseType() {
-    return "FieldResolverBase<"
+    String base = isConnection ? "ConnectionResolverBase" : "FieldResolverBase";
+    return base
+        + "<"
         + returnType
         + ", "
         + objectType
@@ -233,7 +268,9 @@ public record ResolverModel(
    * @return the Context interface type with all type parameters
    */
   public String getContextBaseType() {
-    return "FieldResolverBase.Context<"
+    String base = isConnection ? "ConnectionResolverBase" : "FieldResolverBase";
+    return base
+        + ".Context<"
         + objectType
         + ", "
         + queryType
@@ -261,6 +298,11 @@ public record ResolverModel(
    * @return the FieldExecutionContext type with all type parameters
    */
   public String getFieldExecutionContextType() {
+    // The generated Context's inner field / constructor parameter is always the plain
+    // FieldExecutionContext the runtime supplies (a SimpleFieldExecutionContext), even for
+    // connection resolvers — ConnectionFieldExecutionContext narrows the developer-facing Context
+    // interface, not the wrapped runtime handle. Keeping this wide avoids an
+    // "argument type mismatch" when the runtime reflectively invokes the constructor.
     return "FieldExecutionContext<"
         + objectType
         + ", "
@@ -270,6 +312,11 @@ public record ResolverModel(
         + ", "
         + selectionsType
         + ">";
+  }
+
+  /** Returns true when the resolver's field returns a {@code @connection} type. */
+  public boolean getIsConnection() {
+    return isConnection;
   }
 
   /**

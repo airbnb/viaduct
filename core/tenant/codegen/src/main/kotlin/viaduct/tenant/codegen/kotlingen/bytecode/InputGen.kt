@@ -2,6 +2,7 @@ package viaduct.tenant.codegen.kotlingen.bytecode
 
 import getEscapedFieldName
 import viaduct.apiannotations.VisibleForTest
+import viaduct.codegen.SchemaAnalysis
 import viaduct.codegen.km.kotlinTypeString
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
@@ -38,6 +39,14 @@ fun KotlinGRTFilesBuilder.inputKotlinGen(
         desc.containingField != null -> fieldsObjectGenForArguments(desc.className, desc.fields)
         else -> null
     }
+    // The chosen ConnectionArguments interface declares getters for the whole pagination pair, but
+    // the schema may declare only part of it (e.g. `first` without `after`). Synthesize the missing
+    // counterparts so the generated class satisfies the interface. See
+    // SchemaAnalysis.connectionArgumentRequiredNames.
+    val synthesizedConnectionArgs = field?.let {
+        val declared = it.args.map { arg -> arg.name }.toSet()
+        SchemaAnalysis.connectionArgumentRequiredNames(SchemaAnalysis.connectionArgumentsDirection(it)) - declared
+    } ?: emptySet()
     return STContents(
         inputSTGroup,
         InputModelImpl(
@@ -51,6 +60,7 @@ fun KotlinGRTFilesBuilder.inputKotlinGen(
             connectionArgumentsSupertype = connectionInfo.interfaceToAdd?.let { ", ${it.asJavaName}" } ?: "",
             overrideFieldNames = connectionInfo.overrideFieldNames,
             containingField = desc.containingField,
+            synthesizedConnectionArgs = synthesizedConnectionArgs,
         )
     )
 }
@@ -84,22 +94,40 @@ private interface InputModel {
     val connectionArgumentsSupertype: String
 
     /** Submodel for "fields" in this type. */
-    class FieldModel(
-        pkg: String,
-        fieldDef: ViaductSchema.HasDefaultValue,
-        baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
-        isOverride: Boolean = false
+    class FieldModel private constructor(
+        val escapedName: String,
+        val kotlinType: String,
+        val overrideKeyword: String,
     ) {
-        /** For fields whose names match Kotlin keywords (e.g., "private"),
-         *  we need to use Kotlin's back-tick mechanism for escapsing.
-         */
-        val escapedName: String = getEscapedFieldName(fieldDef.name)
+        constructor(
+            pkg: String,
+            fieldDef: ViaductSchema.HasDefaultValue,
+            baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
+            isOverride: Boolean = false
+        ) : this(
+            // For fields whose names match Kotlin keywords (e.g., "private"), use Kotlin's back-tick
+            // escaping mechanism.
+            escapedName = getEscapedFieldName(fieldDef.name),
+            kotlinType = fieldDef.kmType(JavaName(pkg).asKmName, baseTypeMapper).kotlinTypeString,
+            // "final override" if this field overrides a ConnectionArguments interface property.
+            overrideKeyword = if (isOverride) "final override " else ""
+        )
 
-        /** Kotlin GRT-type of this field. */
-        val kotlinType: String = fieldDef.kmType(JavaName(pkg).asKmName, baseTypeMapper).kotlinTypeString
-
-        /** "final override" if this field overrides a ConnectionArguments interface property, empty otherwise. */
-        val overrideKeyword: String = if (isOverride) "final override " else ""
+        companion object {
+            /**
+             * A synthesized pagination-argument getter that overrides a `ConnectionArguments`
+             * interface property the schema does not declare (e.g. `after` on a `first`-only
+             * field). See [SchemaAnalysis.connectionArgumentRequiredNames].
+             */
+            fun synthesizedConnectionArg(argName: String): FieldModel {
+                val kotlinType = when (SchemaAnalysis.connectionArgumentScalarKind(argName)) {
+                    viaduct.codegen.ConnectionArgScalarKind.INT -> "Int?"
+                    viaduct.codegen.ConnectionArgScalarKind.STRING -> "String?"
+                    null -> error("Not a pagination argument: $argName")
+                }
+                return FieldModel(getEscapedFieldName(argName), kotlinType, "final override ")
+            }
+        }
     }
 }
 
@@ -181,10 +209,11 @@ private class InputModelImpl(
     override val connectionArgumentsSupertype: String = "",
     overrideFieldNames: Set<String> = emptySet(),
     containingField: ViaductSchema.Field? = null,
+    synthesizedConnectionArgs: Set<String> = emptySet(),
 ) : InputModel {
     override val fields: List<InputModel.FieldModel> = fieldDefs.map {
         InputModel.FieldModel(pkg, it, baseTypeMapper, isOverride = it.name in overrideFieldNames)
-    }
+    } + synthesizedConnectionArgs.map { InputModel.FieldModel.synthesizedConnectionArg(it) }
     override val reflection: String = reflectedType?.toString() ?: ""
     override val fieldsObject: String = fieldsObject?.toString() ?: ""
     private val inputTypeMethod: String = InputTypeFactoryConfig.getFactoryMethodName(taggingInterface)

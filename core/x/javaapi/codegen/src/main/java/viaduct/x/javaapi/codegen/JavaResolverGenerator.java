@@ -32,6 +32,7 @@ public final class JavaResolverGenerator {
           import java.util.concurrent.CompletableFuture;
           import viaduct.engine.api.ViaductSchema;
           import viaduct.java.api.annotations.ResolverFor;
+          import viaduct.java.api.context.ConnectionFieldExecutionContext;
           import viaduct.java.api.context.FieldExecutionContext;
           import viaduct.java.api.context.SelectiveFieldExecutionContext;
           import viaduct.java.api.globalid.GlobalID;
@@ -44,6 +45,7 @@ public final class JavaResolverGenerator {
           <endif>
           import viaduct.java.api.internal.ResolverClassFinder;
           import viaduct.java.api.reflect.Type;
+          import viaduct.java.api.resolvers.ConnectionResolverBase;
           import viaduct.java.api.resolvers.FieldResolverBase;
           import viaduct.java.api.types.Arguments;
           import viaduct.java.api.types.CompositeOutput;

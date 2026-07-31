@@ -10,7 +10,37 @@ public record ObjectModel(
     List<FieldModel> fields,
     String description,
     boolean isRootType,
-    boolean isNodeType) {
+    boolean isNodeType,
+    boolean isConnection,
+    boolean isEdge,
+    String edgeTypeName,
+    String nodeTypeName) {
+
+  /**
+   * Legacy constructor for object types that are neither connections nor edges. Kept so existing
+   * call sites and tests continue to compile.
+   */
+  public ObjectModel(
+      String packageName,
+      String className,
+      List<String> implementedInterfaces,
+      List<FieldModel> fields,
+      String description,
+      boolean isRootType,
+      boolean isNodeType) {
+    this(
+        packageName,
+        className,
+        implementedInterfaces,
+        fields,
+        description,
+        isRootType,
+        isNodeType,
+        false,
+        false,
+        null,
+        null);
+  }
 
   // ST (StringTemplate) requires JavaBean-style getters
   public String getPackageName() {
@@ -37,6 +67,27 @@ public record ObjectModel(
     return isNodeType;
   }
 
+  public boolean getIsConnection() {
+    return isConnection;
+  }
+
+  public boolean getIsEdge() {
+    return isEdge;
+  }
+
+  public String getEdgeTypeName() {
+    return edgeTypeName;
+  }
+
+  public String getNodeTypeName() {
+    return nodeTypeName;
+  }
+
+  /** Pre-formatted {@code ConnectionBuilder<Conn, Edge, Node>} generated-builder supertype. */
+  public String getConnectionBuilderSupertype() {
+    return "ConnectionBuilder<" + className + ", " + edgeTypeName + ", " + nodeTypeName + ">";
+  }
+
   public boolean getHasDescription() {
     return description != null && !description.isEmpty();
   }
@@ -50,41 +101,38 @@ public record ObjectModel(
    *
    * <p>Since all generated object classes now extend {@code ObjectBase} (which implements {@code
    * GraphQLObject}), an implements clause is only needed when there are additional interfaces (root
-   * type marker or user-defined interfaces).
+   * type marker or user-defined interfaces) or a connection/edge marker interface.
    */
   public boolean getHasImplementsClause() {
-    return isRootType || (implementedInterfaces != null && !implementedInterfaces.isEmpty());
+    return isRootType
+        || isConnection
+        || isEdge
+        || (implementedInterfaces != null && !implementedInterfaces.isEmpty());
   }
 
   /**
    * Returns the implements clause for the class declaration (without GraphQLObject, which is
-   * inherited from ObjectBase). For root types, uses the appropriate marker interface. For other
-   * types, uses any implemented interfaces only.
+   * inherited from ObjectBase). For root types, uses the appropriate marker interface. Connection
+   * and edge types add their {@code Connection<Edge, Node>} / {@code Edge<Node>} marker. All other
+   * user-defined interfaces are appended.
    */
   public String getImplementsClause() {
+    List<String> clauses = new java.util.ArrayList<>();
+
     if (isRootType) {
       // Root types use their specific marker interface (which extends GraphQLObject)
-      StringBuilder sb = new StringBuilder("viaduct.java.api.types." + className);
-      if (implementedInterfaces != null) {
-        for (String iface : implementedInterfaces) {
-          sb.append(", ").append(iface);
-        }
-      }
-      return sb.toString();
+      clauses.add("viaduct.java.api.types." + className);
+    }
+    if (isConnection && edgeTypeName != null && nodeTypeName != null) {
+      clauses.add("viaduct.java.api.types.Connection<" + edgeTypeName + ", " + nodeTypeName + ">");
+    }
+    if (isEdge && nodeTypeName != null) {
+      clauses.add("viaduct.java.api.types.Edge<" + nodeTypeName + ">");
+    }
+    if (implementedInterfaces != null) {
+      clauses.addAll(implementedInterfaces);
     }
 
-    // Non-root types: only list user-defined interfaces (GraphQLObject is inherited from
-    // ObjectBase)
-    if (implementedInterfaces == null || implementedInterfaces.isEmpty()) {
-      return "";
-    }
-    StringBuilder sb = new StringBuilder();
-    boolean first = true;
-    for (String iface : implementedInterfaces) {
-      if (!first) sb.append(", ");
-      sb.append(iface);
-      first = false;
-    }
-    return sb.toString();
+    return String.join(", ", clauses);
   }
 }

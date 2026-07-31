@@ -215,6 +215,73 @@ public record FieldModel(
     return globalIDType && list;
   }
 
+  /**
+   * Returns the expression used to read this field from an ObjectBase. Both ordinary and connection
+   * object templates consume this so their generated getters cannot drift.
+   */
+  public String getGetterExpression() {
+    String fieldName = "\"" + name + "\"";
+    if (getGlobalIDList()) {
+      return "fetchGlobalIDList(" + fieldName + ")";
+    }
+    if (globalIDType) {
+      return "fetchGlobalID(" + fieldName + ")";
+    }
+    if (getAbstractList()) {
+      return "fetchAbstractObjectList(" + fieldName + ", " + baseTypeName + ".class)";
+    }
+    if (abstractType) {
+      return "fetchAbstractObject(" + fieldName + ", " + baseTypeName + ".class)";
+    }
+    if (getCompositeList()) {
+      return "fetchObjectList(" + fieldName + ", " + baseTypeName + "::new)";
+    }
+    if (compositeType) {
+      return "fetchObject(" + fieldName + ", " + baseTypeName + "::new)";
+    }
+    if (getEnumList()) {
+      return "fetchEnumList(" + fieldName + ", " + baseTypeName + ".class)";
+    }
+    if (enumType) {
+      return "fetchEnum(" + fieldName + ", " + baseTypeName + ".class)";
+    }
+    if (getTemporalScalarList()) {
+      return "fetchScalarList(" + fieldName + ", \"" + getScalarCoercionHint() + "\")";
+    }
+    if (getTemporalScalar()) {
+      return "fetchScalar(" + fieldName + ", \"" + getScalarCoercionHint() + "\")";
+    }
+    if (getScalarList()) {
+      return "fetchScalarList(" + fieldName + ")";
+    }
+    return "fetchScalar(" + fieldName + ")";
+  }
+
+  /**
+   * Returns the expression stored by a generated builder setter. GlobalIDs are converted to their
+   * engine-space wire representation; every other field is stored unchanged.
+   */
+  public String getBuilderValueExpression() {
+    String value = getSafeName();
+    if (getGlobalIDBuilderSerialize()) {
+      return value
+          + " == null ? null : __context.getGlobalIDCodec().serialize("
+          + value
+          + ".getType().getName(), "
+          + value
+          + ".getInternalID())";
+    }
+    if (getGlobalIDListBuilderSerialize()) {
+      return value
+          + " == null ? null : "
+          + value
+          + ".stream().map(__id -> __context.getGlobalIDCodec().serialize("
+          + "__id.getType().getName(), __id.getInternalID()))"
+          + ".collect(java.util.stream.Collectors.toList())";
+    }
+    return value;
+  }
+
   /** Returns the getter method name for this field. */
   public String getGetterName() {
     return "get" + capitalize(name);

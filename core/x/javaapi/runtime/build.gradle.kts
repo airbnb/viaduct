@@ -48,6 +48,7 @@ dependencies {
     implementation(libs.viaduct.tenant.shared)
 
     // Testing
+    testImplementation(libs.assertj.core)
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.kotlinx.coroutines.test)

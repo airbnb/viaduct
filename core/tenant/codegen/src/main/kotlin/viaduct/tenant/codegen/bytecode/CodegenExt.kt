@@ -39,8 +39,7 @@ fun String.kmFQN(pkg: KmName): KmName = KmName("$pkg/$this")
  * The `of` object exposes an `invoke` operator that creates a Builder, applies the
  * caller-supplied receiver lambda, and returns the built instance.
  *
- * @param contextType the KmType for the context parameter (ExecutionContext for regular
- *   types, ConnectionFieldExecutionContext for connection types)
+ * @param contextType the KmType for the context parameter
  */
 internal fun CustomClassBuilder.addOfObject(contextType: KmType) {
     val ofObject = nestedClassBuilder(JavaIdName("of"), kind = ClassKind.OBJECT)

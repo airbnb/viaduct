@@ -18,6 +18,13 @@ internal const val VARIABLE_FQN = "viaduct.java.api.annotations.Variable"
 internal const val VARIABLES_FQN = "viaduct.java.api.annotations.Variables"
 
 internal const val FIELD_RESOLVER_BASE_FQN = "viaduct.java.api.resolvers.FieldResolverBase"
+
+/**
+ * Connection field resolvers implement `ConnectionResolverBase<T, O, Q, A, R>`, which extends
+ * `FieldResolverBase<T, O, Q, A, R>` with the same type-argument order. The extractor treats it as
+ * an alias so a connection resolver's return/query/arguments types are read the same way.
+ */
+internal const val CONNECTION_RESOLVER_BASE_FQN = "viaduct.java.api.resolvers.ConnectionResolverBase"
 internal const val NODE_RESOLVER_BASE_FQN = "viaduct.java.api.resolvers.NodeResolverBase"
 internal const val ARGUMENTS_NONE_FQN = "viaduct.java.api.types.Arguments.None"
 
@@ -224,7 +231,10 @@ internal class JavaResolverParamsExtractor(
     private fun fieldResolverBaseTypeArgs(base: TypeElement): List<TypeMirror> =
         base.interfaces
             .filterIsInstance<DeclaredType>()
-            .firstOrNull { (it.asElement() as? TypeElement)?.qualifiedName?.toString() == FIELD_RESOLVER_BASE_FQN }
+            .firstOrNull {
+                val fqn = (it.asElement() as? TypeElement)?.qualifiedName?.toString()
+                fqn == FIELD_RESOLVER_BASE_FQN || fqn == CONNECTION_RESOLVER_BASE_FQN
+            }
             ?.typeArguments
             ?: emptyList()
 

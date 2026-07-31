@@ -1,20 +1,20 @@
 package com.example.grts;
 
 import viaduct.engine.api.EngineObjectData;
-import viaduct.engine.api.NodeReference;
 import viaduct.java.api.context.ExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
+import viaduct.java.api.internal.ConnectionBuilder;
 import viaduct.java.api.internal.InternalContext;
-import viaduct.java.api.internal.NodeObjectBase;
 import viaduct.java.api.internal.ObjectBase;
+import viaduct.java.api.types.OffsetLimit;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetTime;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
-public class OrderConnection extends ObjectBase {
+public class OrderConnection extends ObjectBase implements viaduct.java.api.types.Connection<OrderEdge, Order> {
 
     public OrderConnection(InternalContext context, EngineObjectData.Sync data) {
         super(context, data);
@@ -23,6 +23,7 @@ public class OrderConnection extends ObjectBase {
     private OrderConnection(InternalContext context, Map<String, Object> data) {
         super(context, data);
     }
+
         public List<OrderEdge> getEdges() {
             return fetchObjectList("edges", OrderEdge::new);
         }
@@ -31,32 +32,87 @@ public class OrderConnection extends ObjectBase {
             return fetchObject("pageInfo", PageInfo::new);
         }
 
+        public Integer getTotalCount() {
+            return fetchScalar("totalCount");
+        }
+
 
     public static Builder builder(ExecutionContext context) {
-        return new Builder(InternalContext.from(context));
+        return new Builder(context);
     }
 
-    public static class Builder {
+    /**
+     * Pagination-aware builder. Extends {@link ConnectionBuilder} with {@code fromEdges},
+     * {@code fromSlice}, and {@code fromList}; the base builds the OrderEdge,
+     * PageInfo, and OrderConnection GRTs from the field's context and these Class handles.
+     * The generated per-field setters populate additional connection fields (e.g.
+     * {@code totalCount}) alongside the pagination-produced {@code edges}/{@code pageInfo};
+     * a pagination method and any setters can be combined in any order before {@code build()}.
+     */
+    public static class Builder extends ConnectionBuilder<OrderConnection, OrderEdge, Order> {
         private final InternalContext __context;
-        private final Map<String, Object> data = new LinkedHashMap<>();
 
-        private Builder(InternalContext __context) {
-            this.__context = __context;
+        private Builder(ExecutionContext context) {
+            super(context, OrderConnection.class, OrderEdge.class);
+            this.__context = InternalContext.from(context);
+        }
+
+        @Override
+        public Builder fromEdges(List<OrderEdge> edges) {
+            super.fromEdges(edges);
+            return this;
+        }
+
+        @Override
+        public Builder fromEdges(
+                List<OrderEdge> edges,
+                boolean hasNextPage,
+                boolean hasPreviousPage) {
+            super.fromEdges(edges, hasNextPage, hasPreviousPage);
+            return this;
+        }
+
+        @Override
+        public <I> Builder fromSlice(
+                List<I> items,
+                boolean hasNextPage,
+                Function<I, Order> buildNode) {
+            super.fromSlice(items, hasNextPage, buildNode);
+            return this;
+        }
+
+        @Override
+        public <I> Builder fromSlice(
+                List<I> items,
+                OffsetLimit offsetLimit,
+                boolean hasNextPage,
+                Function<I, Order> buildNode) {
+            super.fromSlice(items, offsetLimit, hasNextPage, buildNode);
+            return this;
+        }
+
+        @Override
+        public <I> Builder fromList(
+                List<I> items,
+                Function<I, Order> buildNode) {
+            super.fromList(items, buildNode);
+            return this;
         }
 
                 public Builder edges(List<OrderEdge> edges) {
-                    data.put("edges", edges);
-        return this;
+                    putField("edges", edges);
+                    return this;
                 }
 
                 public Builder pageInfo(PageInfo pageInfo) {
-                    data.put("pageInfo", pageInfo);
-        return this;
+                    putField("pageInfo", pageInfo);
+                    return this;
                 }
 
+                public Builder totalCount(Integer totalCount) {
+                    putField("totalCount", totalCount);
+                    return this;
+                }
 
-        public OrderConnection build() {
-            return new OrderConnection(__context, new LinkedHashMap<>(data));
-        }
     }
 }

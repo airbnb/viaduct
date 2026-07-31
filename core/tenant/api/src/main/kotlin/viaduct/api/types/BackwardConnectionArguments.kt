@@ -1,9 +1,13 @@
 package viaduct.api.types
 
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.tenant.runtime.support.ConnectionArgumentsSupport
 
 /**
  * Arguments for backward pagination through a connection.
+ *
+ * The offset/limit math and validation are delegated to the language-neutral
+ * [ConnectionArgumentsSupport] so the Kotlin and Java Tenant APIs stay in lockstep.
  *
  * @property last Maximum number of items to return from the end.
  * @property before Cursor to start fetching items before (exclusive).
@@ -22,40 +26,31 @@ interface BackwardConnectionArguments : ConnectionArguments {
      * instead of [toOffsetLimit(Int)].
      */
     @ExperimentalApi
-    override fun requiresTotalCountForOffsetLimit(): Boolean = before == null
+    override fun requiresTotalCountForOffsetLimit(): Boolean = ConnectionArgumentsSupport.backwardRequiresTotalCount(before)
 
     /**
      * Converts backward pagination arguments to offset/limit.
      *
      * - [last] determines the page size (defaults to [defaultPageSize]).
-     * - [before] cursor encodes the index of the first item on the next page; the offset and
-     *   limit are computed to return the last items ending just before that position.
-     *   Both are clamped so the window never extends before index 0.
+     * - [before] cursor encodes the index of the first item on the next page; the offset and limit
+     *   are computed to return the last items ending just before that position, clamped so the
+     *   window never extends before index 0.
      * - If [before] is absent, a negative offset equal to `-pageSize` is returned, signalling
      *   [viaduct.api.internal.ConnectionBuilder.fromList] to resolve from the tail of the full
-     *   list. Prefer using [toOffsetLimit(Int, Int)] with the total count when available.
+     *   list. Prefer [toOffsetLimit(Int, Int)] with the total count when available.
      */
     @ExperimentalApi
-    override fun toOffsetLimit(defaultPageSize: Int): OffsetLimit {
-        validate()
-        val pageSize = last ?: defaultPageSize
-        val beforeOffset = before?.let { OffsetCursor(it).toOffset() }
-        if (beforeOffset == null) {
-            return OffsetLimit(offset = -pageSize, limit = pageSize)
+    override fun toOffsetLimit(defaultPageSize: Int): OffsetLimit =
+        ConnectionArgumentsSupport.backwardOffsetLimit(last, before, defaultPageSize).let {
+            OffsetLimit(offset = it.offset, limit = it.limit)
         }
-        val calculatedOffset = maxOf(0, beforeOffset - pageSize)
-        val adjustedLimit = minOf(pageSize, beforeOffset)
-        return OffsetLimit(offset = calculatedOffset, limit = adjustedLimit)
-    }
 
     /**
      * Converts backward pagination arguments to offset/limit when the total count is known.
      *
-     * When [before] is absent, this computes the offset as `max(0, totalCount - last)` to
-     * return the last N items from the dataset, avoiding the negative-offset signal used by
-     * [toOffsetLimit(Int)].
-     *
-     * When [before] is present, [totalCount] is ignored and this delegates to [toOffsetLimit(Int)].
+     * When [before] is absent, this computes the offset as `max(0, totalCount - last)` to return
+     * the last N items from the dataset, avoiding the negative-offset signal used by
+     * [toOffsetLimit(Int)]. When [before] is present, [totalCount] is ignored.
      *
      * @param totalCount Total number of items in the full dataset
      * @param defaultPageSize Default number of items when last not specified (default: 20)
@@ -64,18 +59,10 @@ interface BackwardConnectionArguments : ConnectionArguments {
     override fun toOffsetLimit(
         totalCount: Int,
         defaultPageSize: Int
-    ): OffsetLimit {
-        validate()
-        require(totalCount >= 0) { "totalCount must be non-negative, got: $totalCount" }
-        val beforeOffset = before?.let { OffsetCursor(it).toOffset() }
-        if (beforeOffset != null) {
-            return toOffsetLimit(defaultPageSize)
+    ): OffsetLimit =
+        ConnectionArgumentsSupport.backwardOffsetLimit(last, before, totalCount, defaultPageSize).let {
+            OffsetLimit(offset = it.offset, limit = it.limit)
         }
-        val pageSize = last ?: defaultPageSize
-        val calculatedOffset = maxOf(0, totalCount - pageSize)
-        val adjustedLimit = minOf(pageSize, totalCount)
-        return OffsetLimit(offset = calculatedOffset, limit = adjustedLimit)
-    }
 
     /**
      * Validates backward pagination arguments.
@@ -83,8 +70,5 @@ interface BackwardConnectionArguments : ConnectionArguments {
      * @throws IllegalArgumentException if last is not positive or before cursor is invalid
      */
     @ExperimentalApi
-    override fun validate() {
-        last?.let { require(it > 0) { "last must be positive, got: $it" } }
-        before?.let { require(OffsetCursor.isValid(it)) { "Invalid before cursor: $it" } }
-    }
+    override fun validate() = ConnectionArgumentsSupport.validateBackward(last, before)
 }

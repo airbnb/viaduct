@@ -282,6 +282,53 @@ class FieldResolverGeneratorTest {
     }
 
     @Test
+    fun `generates ordinary resolver context for connection fields without pagination arguments`() {
+        val contents = gen(
+            """
+                directive @connection on OBJECT
+                directive @edge on OBJECT
+
+                type Query { placeholder: Int }
+                type Mutation { placeholder: Int }
+                type Subscription { placeholder: Int }
+
+                type Book {
+                    title: String!
+                }
+
+                type BookEdge @edge {
+                    cursor: String!
+                    node: Book
+                }
+
+                type BookConnection @connection {
+                    edges: [BookEdge!]!
+                }
+
+                type Subject {
+                    books(category: String): BookConnection!
+                    allBooks: BookConnection!
+                }
+            """.trimIndent(),
+            "Subject"
+        )
+
+        assertTrue(contents.contains("viaduct.api.FieldResolverBase<"))
+        assertTrue(
+            contents.contains(
+                "FieldExecutionContext<viaduct.api.grts.Subject, viaduct.api.grts.Query, viaduct.api.grts.Subject_Books_Arguments, viaduct.api.grts.BookConnection>"
+            )
+        )
+        assertTrue(
+            contents.contains(
+                "FieldExecutionContext<viaduct.api.grts.Subject, viaduct.api.grts.Query, viaduct.api.types.Arguments.NoArguments, viaduct.api.grts.BookConnection>"
+            )
+        )
+        assertFalse(contents.contains("viaduct.api.ConnectionResolverBase<"))
+        assertFalse(contents.contains("ConnectionFieldExecutionContext"))
+    }
+
+    @Test
     fun `generates selective field contexts when resolver is selective`() {
         val contents = gen(
             """

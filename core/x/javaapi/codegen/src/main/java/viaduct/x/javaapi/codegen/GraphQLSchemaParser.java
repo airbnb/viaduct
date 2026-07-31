@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import viaduct.codegen.ConnectionArgScalarKind;
+import viaduct.codegen.ConnectionArgumentsDirection;
 import viaduct.codegen.SchemaAnalysis;
 import viaduct.graphql.schema.ViaductSchema;
 import viaduct.graphql.schema.graphqljava.extensions.ViaductSchemaFactory;
@@ -144,6 +146,26 @@ public class GraphQLSchemaParser {
 
         boolean isNodeType = isNodeType(objectDef);
 
+        // Connection/edge metadata (@connection / @edge). Reuses the shared, language-neutral
+        // SchemaAnalysis helpers so the Java parser stays in lockstep with the Kotlin codegen.
+        boolean isConnection = SchemaAnalysis.INSTANCE.hasConnectionDirective(objectDef);
+        boolean isEdge = SchemaAnalysis.INSTANCE.hasEdgeDirective(objectDef);
+        String edgeTypeName = null;
+        String nodeTypeName = null;
+        if (isEdge) {
+          nodeTypeName = SchemaAnalysis.INSTANCE.edgeNodeTypeName(objectDef);
+        }
+        if (isConnection) {
+          edgeTypeName = SchemaAnalysis.INSTANCE.connectionEdgeTypeName(objectDef);
+          // The connection's node type is the node type of its edge.
+          if (edgeTypeName != null) {
+            ViaductSchema.TypeDef edgeDef = schema.getTypes().get(edgeTypeName);
+            if (edgeDef instanceof ViaductSchema.Object edgeObj) {
+              nodeTypeName = SchemaAnalysis.INSTANCE.edgeNodeTypeName(edgeObj);
+            }
+          }
+        }
+
         objects.add(
             new ObjectModel(
                 packageName,
@@ -152,7 +174,11 @@ public class GraphQLSchemaParser {
                 fields,
                 getDescription(objectDef),
                 rootTypes.contains(name),
-                isNodeType));
+                isNodeType,
+                isConnection,
+                isEdge,
+                edgeTypeName,
+                nodeTypeName));
       }
     }
 
@@ -294,6 +320,13 @@ public class GraphQLSchemaParser {
 
             String fqClassName = resolver.argumentsType();
             String className = fqClassName.substring(fqClassName.lastIndexOf('.') + 1);
+
+            // Connection fields: their arguments type additionally implements a
+            // ConnectionArguments sub-interface, and the pagination args (first/after/last/before)
+            // must be boxed + nullable to match the interface's getter signatures.
+            String connectionArgsInterface = connectionArgumentsInterface(field);
+            boolean isConnectionArgs = connectionArgsInterface != null;
+
             List<FieldModel> fields = new ArrayList<>();
             for (ViaductSchema.FieldArg arg : field.getArgs()) {
               ViaductSchema.TypeDef argBaseTypeDef = arg.getType().getBaseTypeDef();
@@ -313,7 +346,15 @@ public class GraphQLSchemaParser {
               // Detect @idOf on argument
               String argIdOfTypeName = SchemaAnalysis.INSTANCE.idOfTypeName(arg);
               boolean argGlobalIDType = false;
-              String argJavaType = typeMapper.toJavaType(arg.getType());
+              // Pagination args (first/after/last/before) on a connection field must be boxed and
+              // nullable to match the ConnectionArguments getter signatures the type implements.
+              boolean paginationArg =
+                  isConnectionArgs && PAGINATION_ARG_NAMES.contains(arg.getName());
+              boolean argNullable = arg.getType().isNullable() || paginationArg;
+              String argJavaType =
+                  paginationArg
+                      ? typeMapper.toBoxedJavaType(arg.getType())
+                      : typeMapper.toJavaType(arg.getType());
               if (argIdOfTypeName != null) {
                 argGlobalIDType = true;
                 argBaseTypeName = argIdOfTypeName;
@@ -327,7 +368,7 @@ public class GraphQLSchemaParser {
                   new FieldModel(
                       arg.getName(),
                       argJavaType,
-                      arg.getType().isNullable(),
+                      argNullable,
                       argCompositeType,
                       argList,
                       argEnumType,
@@ -335,7 +376,11 @@ public class GraphQLSchemaParser {
                       argGlobalIDType,
                       argBaseTypeName));
             }
-            arguments.add(new ArgumentModel(packageName, className, fields));
+            if (isConnectionArgs) {
+              addSynthesizedConnectionArgGetters(field, fields);
+            }
+            arguments.add(
+                new ArgumentModel(packageName, className, fields, connectionArgsInterface));
           }
         }
       }
@@ -450,6 +495,15 @@ public class GraphQLSchemaParser {
         isSelectiveResolver(field, typeName, mutationTypeName, mutationNamespaceNames);
     boolean isBatching =
         isBatchingResolver(field, typeName, mutationTypeName, mutationNamespaceNames);
+    // Fields returning a @connection type get the connection-specific resolver base + context, so
+    // the generated developer surface matches the hand-written ConnectionResolverBase API. But a
+    // @connection field that declares no pagination arguments (first/after/last/before) has no
+    // ConnectionArguments to expose, so it gets the ordinary FieldResolverBase instead — matching
+    // connectionArgumentsInterface, which returns null for that shape. Keying off the pagination
+    // direction (rather than the bare directive) keeps the two decisions in lockstep.
+    boolean isConnection =
+        SchemaAnalysis.INSTANCE.connectionArgumentsDirection(field)
+            != ConnectionArgumentsDirection.NONE;
 
     return new ResolverModel(
         typeName,
@@ -464,7 +518,8 @@ public class GraphQLSchemaParser {
         hasArguments,
         isCompositeOutput,
         isSelective,
-        isBatching);
+        isBatching,
+        isConnection);
   }
 
   private boolean isBatchingResolver(
@@ -586,6 +641,59 @@ public class GraphQLSchemaParser {
    */
   private static boolean isNodeType(ViaductSchema.TypeDef typeDef) {
     return SchemaAnalysis.INSTANCE.isNode(typeDef);
+  }
+
+  /** Pagination argument names that must be boxed/nullable on connection-field arguments. */
+  private static final Set<String> PAGINATION_ARG_NAMES =
+      Set.of("first", "after", "last", "before");
+
+  /**
+   * Returns the simple name of the {@code ConnectionArguments} sub-interface a resolver field's
+   * arguments type should implement (e.g. {@code "ForwardConnectionArguments"}), or null when the
+   * field does not return a {@code @connection} type or declares no pagination arguments. Delegates
+   * the direction decision to the shared {@link SchemaAnalysis} so the Java and Kotlin codegens
+   * agree.
+   */
+  private static String connectionArgumentsInterface(ViaductSchema.Field field) {
+    return switch (SchemaAnalysis.INSTANCE.connectionArgumentsDirection(field)) {
+      case NONE -> null;
+      case FORWARD -> "ForwardConnectionArguments";
+      case BACKWARD -> "BackwardConnectionArguments";
+      case MULTIDIRECTIONAL -> "MultidirectionalConnectionArguments";
+    };
+  }
+
+  /**
+   * Appends synthetic null-returning getters for the pagination arguments the field's {@code
+   * ConnectionArguments} sub-interface requires but the schema does not declare (e.g. {@code after}
+   * on a {@code first}-only field). Without these, the generated class would not satisfy the
+   * interface and fail to compile. The synthetic getter reads the absent field from the backing
+   * map, which yields null. See {@link SchemaAnalysis#connectionArgumentRequiredNames}.
+   */
+  private static void addSynthesizedConnectionArgGetters(
+      ViaductSchema.Field field, List<FieldModel> fields) {
+    Set<String> declared = new java.util.HashSet<>();
+    for (FieldModel f : fields) {
+      declared.add(f.name());
+    }
+    Set<String> required =
+        SchemaAnalysis.INSTANCE.connectionArgumentRequiredNames(
+            SchemaAnalysis.INSTANCE.connectionArgumentsDirection(field));
+    for (String argName : required) {
+      if (declared.contains(argName)) {
+        continue;
+      }
+      ConnectionArgScalarKind kind = SchemaAnalysis.INSTANCE.connectionArgumentScalarKind(argName);
+      if (kind == null) {
+        throw new IllegalStateException("Not a pagination argument: " + argName);
+      }
+      String javaType =
+          switch (kind) {
+            case INT -> "Integer";
+            case STRING -> "String";
+          };
+      fields.add(FieldModel.simple(argName, javaType, true));
+    }
   }
 
   /**

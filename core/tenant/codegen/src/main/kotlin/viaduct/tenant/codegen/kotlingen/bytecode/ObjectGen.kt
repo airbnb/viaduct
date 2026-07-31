@@ -190,11 +190,10 @@ private val connectionObjectSTGroup = stTemplate(
 
     import viaduct.apiannotations.ExperimentalApi
     import viaduct.apiannotations.InternalApi
-    import viaduct.api.context.ConnectionFieldExecutionContext
+    import viaduct.api.context.ExecutionContext
     import viaduct.api.internal.ConnectionBuilder
     import viaduct.api.internal.InternalContext
     import viaduct.api.internal.ObjectBase
-    import viaduct.api.types.ConnectionArguments
     import viaduct.engine.api.EngineObject
     import viaduct.engine.api.EngineObjectData
 
@@ -213,12 +212,12 @@ private val connectionObjectSTGroup = stTemplate(
             Builder(__context, __engineObject.type, toBuilderEOD())
 
         object of {
-            operator fun invoke(context: ConnectionFieldExecutionContext\<*, *, out ConnectionArguments, <mdl.className>\>, block: Builder.() -> Unit): <mdl.className> =
+            operator fun invoke(context: ExecutionContext, block: Builder.() -> Unit): <mdl.className> =
                 Builder(context).apply(block).build()
         }
 
         class Builder : ConnectionBuilder\<<mdl.className>, <mdl.pkg>.<mdl.edgeTypeName>, <mdl.pkg>.<mdl.nodeTypeName>\> {
-            constructor(context: ConnectionFieldExecutionContext\<*, *, out ConnectionArguments, <mdl.className>\>)
+            constructor(context: ExecutionContext)
                 : super(
                     context,
                     TODO() as graphql.schema.GraphQLObjectType,
@@ -231,7 +230,7 @@ private val connectionObjectSTGroup = stTemplate(
                 type: graphql.schema.GraphQLObjectType,
                 baseEngineObjectData: EngineObjectData.Sync
             ) : super(
-                    context as ConnectionFieldExecutionContext\<*, *, out ConnectionArguments, <mdl.className>\>,
+                    context as ExecutionContext,
                     type,
                     baseEngineObjectData,
                     <mdl.pkg>.<mdl.edgeTypeName>.Reflection

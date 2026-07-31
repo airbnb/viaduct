@@ -102,6 +102,9 @@ type OrderEdge @edge {
 type OrderConnection @connection {
   edges: [OrderEdge!]!
   pageInfo: PageInfo
+  # An additional connection field beyond edges/pageInfo (mirrors production connections like
+  # ConnectedUserTripsConnection.totalCount); locks in the generated per-field builder setter.
+  totalCount: Int
 }
 
 # ---------------------------------------------------------------------------

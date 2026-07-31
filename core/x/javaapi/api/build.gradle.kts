@@ -16,6 +16,8 @@ dependencies {
     api(libs.viaduct.engine.api)
     // Exposed transitively so generated Arguments GRTs can reference @InternalApi.
     api(libs.viaduct.shared.apiannotations)
+    // Shared connection pagination math (OffsetCursorCodec, ConnectionArgumentsSupport).
+    implementation(libs.viaduct.tenant.shared)
 
     compileOnly(libs.jspecify)
 

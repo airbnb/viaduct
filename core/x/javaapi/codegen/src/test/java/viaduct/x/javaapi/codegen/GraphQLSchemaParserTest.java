@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import viaduct.graphql.schema.ViaductSchema;
 import viaduct.graphql.utils.DefaultSchemaFactory;
@@ -715,6 +716,53 @@ class GraphQLSchemaParserTest {
   }
 
   @Test
+  void connectionResolverWithoutArgumentsUsesOrdinaryResolverBase() throws IOException {
+    ResolverModel resolver = connectionResolversWithoutPagination().get("unpagedItems");
+
+    assertThat(resolver.getFieldResolverBaseType())
+        .startsWith("FieldResolverBase<")
+        .contains("Arguments.None");
+  }
+
+  @Test
+  void connectionResolverWithOnlyNonPaginationArgumentsUsesOrdinaryResolverBase()
+      throws IOException {
+    ResolverModel resolver = connectionResolversWithoutPagination().get("filteredItems");
+
+    assertThat(resolver.getFieldResolverBaseType())
+        .startsWith("FieldResolverBase<")
+        .contains("com.example.types.Query_FilteredItems_Arguments");
+  }
+
+  private Map<String, ResolverModel> connectionResolversWithoutPagination() throws IOException {
+    ViaductSchema schema =
+        parseWithDefaults(
+            """
+            type Item {
+              id: ID!
+            }
+
+            type ItemEdge @edge {
+              node: Item
+              cursor: String!
+            }
+
+            type ItemConnection @connection {
+              edges: [ItemEdge!]!
+              pageInfo: PageInfo!
+            }
+
+            extend type Query {
+              unpagedItems: ItemConnection @resolver
+              filteredItems(filter: String): ItemConnection @resolver
+            }
+            """);
+
+    return parser.extractResolvers(schema, "com.example.types", null).get("Query").stream()
+        .collect(Collectors.toMap(ResolverModel::gqlFieldName, model -> model));
+  }
+
+  @Test
   void returnsEmptyMapWhenNoResolversInSchema() throws IOException {
     // Use a minimal schema with no resolver directives
     String minimalSchema =
@@ -750,6 +798,14 @@ class GraphQLSchemaParserTest {
       throw new RuntimeException("Failed to load test-schema.graphqls", e);
     }
     return new StringReader(sdl);
+  }
+
+  private ViaductSchema parseWithDefaults(String sdl) throws IOException {
+    var registry = withDefaults(new SchemaParser().parse(sdl));
+    return parser.parse(
+        new StringReader(
+            TypeDefinitionRegistryExtensionsKt.toSDL(
+                registry, Predicates.INSTANCE.alwaysTrue(), Predicates.INSTANCE.alwaysTrue())));
   }
 
   private static graphql.schema.idl.TypeDefinitionRegistry withDefaults(

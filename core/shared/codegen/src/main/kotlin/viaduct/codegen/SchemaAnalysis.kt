@@ -170,6 +170,74 @@ object SchemaAnalysis {
         return edgesField.type.baseTypeDef.name
     }
 
+    /**
+     * The `ConnectionArguments` sub-interface a resolver field's arguments should implement, based
+     * on which pagination arguments the schema declares on a field returning a `@connection` type:
+     * - [ConnectionArgumentsDirection.MULTIDIRECTIONAL]: forward (`first`/`after`) and backward
+     *   (`last`/`before`) args both present
+     * - [ConnectionArgumentsDirection.FORWARD]: forward args only (`first` and/or `after`)
+     * - [ConnectionArgumentsDirection.BACKWARD]: backward args only (`last` and/or `before`)
+     * - [ConnectionArgumentsDirection.NONE]: not a connection field, or no pagination args
+     *
+     * A field with only `first` (no `after`) is still FORWARD: `ForwardConnectionArguments`
+     * implements the offset/limit math and treats a null `after` as offset 0, so the missing
+     * cursor getter simply reads null. Likewise `last`-only is BACKWARD. There is deliberately no
+     * "base" direction: the bare `ConnectionArguments` interface has no `toOffsetLimit`/`validate`
+     * implementation, so mapping a partial-arg field to it produces an incomplete args type (a javac
+     * error in Java, an `AbstractMethodError`-prone type in Kotlin). Mirrors the Kotlin
+     * `ConnectionArgumentsInfo.from`; shared here so the Java and Kotlin codegens agree.
+     */
+    fun connectionArgumentsDirection(field: ViaductSchema.Field): ConnectionArgumentsDirection {
+        if (!hasConnectionDirective(field.type.baseTypeDef)) return ConnectionArgumentsDirection.NONE
+        val argNames = field.args.map { it.name }.toSet()
+        val hasForward = argNames.any { it in FORWARD_CONNECTION_ARG_NAMES }
+        val hasBackward = argNames.any { it in BACKWARD_CONNECTION_ARG_NAMES }
+        return when {
+            hasForward && hasBackward -> ConnectionArgumentsDirection.MULTIDIRECTIONAL
+            hasForward -> ConnectionArgumentsDirection.FORWARD
+            hasBackward -> ConnectionArgumentsDirection.BACKWARD
+            else -> ConnectionArgumentsDirection.NONE
+        }
+    }
+
+    /** Field names declared by `ForwardConnectionArguments`. */
+    val FORWARD_CONNECTION_ARG_NAMES: Set<String> = setOf("first", "after")
+
+    /** Field names declared by `BackwardConnectionArguments`. */
+    val BACKWARD_CONNECTION_ARG_NAMES: Set<String> = setOf("last", "before")
+
+    /**
+     * The full set of pagination-argument getters the chosen `ConnectionArguments` sub-interface
+     * requires, regardless of which of those arguments the schema actually declares on the field.
+     *
+     * [connectionArgumentsDirection] deliberately supports partial pagination shapes (e.g. a
+     * `first`-only field is [ConnectionArgumentsDirection.FORWARD]). But the interface it selects
+     * declares getters for the *whole* pair — `ForwardConnectionArguments` requires both `getFirst`
+     * and `getAfter`. Codegen only emits getters for schema-declared args, so a `first`-only class
+     * would be missing `getAfter` and fail to satisfy the interface (a javac error in Java, an
+     * `AbstractMethodError`-prone class in Kotlin). Both generators use this set to synthesize
+     * null-returning getters for the missing counterparts. Shared here so Java and Kotlin agree.
+     */
+    fun connectionArgumentRequiredNames(direction: ConnectionArgumentsDirection): Set<String> =
+        when (direction) {
+            ConnectionArgumentsDirection.NONE -> emptySet()
+            ConnectionArgumentsDirection.FORWARD -> FORWARD_CONNECTION_ARG_NAMES
+            ConnectionArgumentsDirection.BACKWARD -> BACKWARD_CONNECTION_ARG_NAMES
+            ConnectionArgumentsDirection.MULTIDIRECTIONAL -> FORWARD_CONNECTION_ARG_NAMES + BACKWARD_CONNECTION_ARG_NAMES
+        }
+
+    /**
+     * The nullable, boxed scalar getter type for a pagination argument: `first`/`last` are `Int?`
+     * and `after`/`before` are `String?`. Used by codegen to synthesize the missing-counterpart
+     * getters (see [connectionArgumentRequiredNames]). Returns null for a non-pagination name.
+     */
+    fun connectionArgumentScalarKind(argName: String): ConnectionArgScalarKind? =
+        when (argName) {
+            "first", "last" -> ConnectionArgScalarKind.INT
+            "after", "before" -> ConnectionArgScalarKind.STRING
+            else -> null
+        }
+
     // ---- resolver naming conventions -------------------------------------------------------
 
     /**
@@ -211,4 +279,24 @@ object SchemaAnalysis {
     }
 
     private val BUILD_TIME_MODULE_EXTRACTOR = Regex("modules/(.*?)/schema/")
+}
+
+/**
+ * Which `ConnectionArguments` sub-interface a connection field's arguments should implement.
+ * Returned by [SchemaAnalysis.connectionArgumentsDirection].
+ */
+enum class ConnectionArgumentsDirection {
+    NONE,
+    FORWARD,
+    BACKWARD,
+    MULTIDIRECTIONAL,
+}
+
+/**
+ * The boxed scalar kind of a synthesized pagination-argument getter. `first`/`last` are integers
+ * and `after`/`before` are strings. Returned by [SchemaAnalysis.connectionArgumentScalarKind].
+ */
+enum class ConnectionArgScalarKind {
+    INT,
+    STRING,
 }

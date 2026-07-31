@@ -8,9 +8,11 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.context.ConnectionFieldExecutionContext
+import viaduct.api.context.ExecutionContext
 import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.globalid.GlobalID
@@ -29,6 +31,7 @@ import viaduct.api.types.MultidirectionalConnectionArguments
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.OffsetCursor
+import viaduct.api.types.OffsetLimit
 import viaduct.api.types.Query
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
@@ -163,9 +166,20 @@ class ConnectionBuilderTest {
         override val requestContext: Any? = null
     }
 
+    private inner class MockExecutionContext(
+        internalCtx: InternalContext
+    ) : ExecutionContext, InternalContext by internalCtx {
+        override fun <T : NodeObject> globalIDFor(
+            type: Type<T>,
+            internalID: String
+        ): GlobalID<T> = throw NotImplementedError("Not needed for tests")
+
+        override val requestContext: Any? = null
+    }
+
     // Concrete ConnectionBuilder implementation for testing
     private inner class TestConnectionBuilder(
-        context: ConnectionFieldExecutionContext<*, *, *, TestConnection>,
+        context: ExecutionContext,
         graphQLObjectType: GraphQLObjectType,
         baseEngineObjectData: EngineObjectData.Sync? = null
     ) : ConnectionBuilder<TestConnection, TestEdge, Any>(
@@ -182,6 +196,21 @@ class ConnectionBuilderTest {
         fun getBuiltEngineObjectData(): EngineObjectData = buildEngineObjectData()
     }
 
+    @Suppress("DEPRECATION")
+    private inner class LegacyConnectionBuilder(
+        context: ConnectionFieldExecutionContext<*, *, *, TestConnection>,
+        graphQLObjectType: GraphQLObjectType,
+    ) : ConnectionBuilder<TestConnection, TestEdge, Any>(
+            context,
+            graphQLObjectType,
+            null,
+            Type.ofClass(TestEdge::class)
+        ) {
+        override fun build(): TestConnection = object : TestConnection {}
+
+        fun legacyContext(): ConnectionFieldExecutionContext<*, *, *, TestConnection> = connectionContext
+    }
+
     private fun createContext(args: ConnectionArguments = TestForwardArgs()): MockConnectionFieldExecutionContext {
         return MockConnectionFieldExecutionContext(internalContext, args)
     }
@@ -189,6 +218,11 @@ class ConnectionBuilderTest {
     private fun createBuilder(args: ConnectionArguments = TestForwardArgs()): TestConnectionBuilder {
         val connectionType = testSchema.schema.getObjectType("TestConnection")
         return TestConnectionBuilder(createContext(args), connectionType)
+    }
+
+    private fun createOrdinaryBuilder(): TestConnectionBuilder {
+        val connectionType = testSchema.schema.getObjectType("TestConnection")
+        return TestConnectionBuilder(MockExecutionContext(internalContext), connectionType)
     }
 
     /**
@@ -313,6 +347,28 @@ class ConnectionBuilderTest {
         assertEquals(OffsetCursor.fromOffset(12).value, fetchedEndCursor)
     }
 
+    @Test
+    fun `fromEdges works without connection arguments`() {
+        val builder = createOrdinaryBuilder()
+        val edge = createEdge(OffsetCursor.fromOffset(3).value, "1", "Node1")
+
+        builder.fromEdges(listOf(edge))
+
+        val eod = builder.getBuiltEngineObjectData()
+        val builtEdges = runBlocking { eod.fetch("edges") } as List<*>
+        assertEquals(1, builtEdges.size)
+    }
+
+    @Test
+    fun `legacy connection context constructor and property remain available`() {
+        val context = createContext()
+        val connectionType = testSchema.schema.getObjectType("TestConnection")
+
+        val builder = LegacyConnectionBuilder(context, connectionType)
+
+        assertEquals(context, builder.legacyContext())
+    }
+
     // ==================== fromSlice tests ====================
 
     @Test
@@ -435,6 +491,34 @@ class ConnectionBuilderTest {
         assertEquals(3, builtEdges.size) // Should take only 3, not 4
     }
 
+    @Test
+    fun `fromSlice with explicit bounds works without connection arguments`() {
+        val builder = createOrdinaryBuilder()
+        val items = listOf(SimpleTestNode("1", "Node1"), SimpleTestNode("2", "Node2"))
+
+        builder.fromSlice(items, OffsetLimit(offset = 4, limit = 2), hasNextPage = false) {
+            createNodeGRT(it)
+        }
+
+        val eod = builder.getBuiltEngineObjectData()
+        val pageInfo = runBlocking { eod.fetch("pageInfo") } as EngineObjectData
+        val startCursor = runBlocking { pageInfo.fetch("startCursor") } as String
+        assertEquals(4, OffsetCursor(startCursor).toOffset())
+    }
+
+    @Test
+    fun `fromSlice with implicit bounds requires connection arguments`() {
+        val builder = createOrdinaryBuilder()
+
+        val exception = assertThrows(IllegalStateException::class.java) {
+            builder.fromSlice(emptyList<SimpleTestNode>(), hasNextPage = false) {
+                createNodeGRT(it)
+            }
+        }
+
+        assertTrue(exception.message!!.contains("requires a ConnectionFieldExecutionContext"))
+    }
+
     // ==================== fromList tests ====================
 
     @Test
@@ -487,6 +571,17 @@ class ConnectionBuilderTest {
         val pageInfo = runBlocking { eod.fetch("pageInfo") } as EngineObject
         val hasPreviousPage = runBlocking { (pageInfo as EngineObjectData).fetch("hasPreviousPage") }
         assertTrue(hasPreviousPage as Boolean)
+    }
+
+    @Test
+    fun `fromList requires connection arguments`() {
+        val builder = createOrdinaryBuilder()
+
+        val exception = assertThrows(IllegalStateException::class.java) {
+            builder.fromList(emptyList<SimpleTestNode>()) { createNodeGRT(it) }
+        }
+
+        assertTrue(exception.message!!.contains("requires a ConnectionFieldExecutionContext"))
     }
 
     // ==================== Edge cases ====================
@@ -774,6 +869,25 @@ class ConnectionBuilderTest {
 
         // Should be false — we fetched everything after cursor 4, there is no next page
         assertFalse(hasNextPage as Boolean)
+    }
+
+    @Test
+    fun `fromList with maximum after cursor does not restart from beginning`() {
+        val afterCursor = OffsetCursor.fromOffset(Int.MAX_VALUE)
+        val args = TestForwardArgs(first = 2, after = afterCursor.value)
+        val builder = createBuilder(args)
+        val fullList = (0..4).map { SimpleTestNode("$it", "Node$it") }
+
+        val exception = assertThrows(IllegalArgumentException::class.java) {
+            builder.fromList(fullList) { node ->
+                createNodeGRT(node)
+            }
+        }
+
+        assertEquals(
+            "after cursor cannot advance beyond Int.MAX_VALUE: ${afterCursor.value}",
+            exception.message
+        )
     }
 
     @Test

@@ -89,7 +89,18 @@ class SchemaAnalysisTest {
         input OneOfFilter @oneOf { byId: ID, byName: String }
         union Searchable = Entity | Plain
 
-        type Query { entity: Entity }
+        # Connection fields with varying pagination-argument shapes, plus a non-connection field,
+        # to exercise connectionArgumentsDirection across all of its branches.
+        type Query {
+            entity: Entity
+            forwardConn(first: Int, after: String): WidgetConnection
+            backwardConn(last: Int, before: String): WidgetConnection
+            multiConn(first: Int, after: String, last: Int, before: String): WidgetConnection
+            firstOnlyConn(first: Int): WidgetConnection
+            lastOnlyConn(last: Int): WidgetConnection
+            unpagedConn: WidgetConnection
+            plainField(first: Int, after: String): Plain
+        }
         """
     )
 
@@ -358,5 +369,128 @@ class SchemaAnalysisTest {
     @Test
     fun `argumentsTypeName derives the containing type and field name from a field`() {
         assertEquals("Selective_X_Arguments", SchemaAnalysis.argumentsTypeName(schema.field("Selective", "x")))
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // 11. connectionArgumentsDirection
+    // ---------------------------------------------------------------------------------------------
+
+    @Test
+    fun `connectionArgumentsDirection is NONE when the field does not return a connection`() {
+        assertEquals(
+            ConnectionArgumentsDirection.NONE,
+            SchemaAnalysis.connectionArgumentsDirection(schema.field("Query", "plainField")),
+        )
+    }
+
+    @Test
+    fun `connectionArgumentsDirection is NONE for a connection field with no pagination args`() {
+        assertEquals(
+            ConnectionArgumentsDirection.NONE,
+            SchemaAnalysis.connectionArgumentsDirection(schema.field("Query", "unpagedConn")),
+        )
+    }
+
+    @Test
+    fun `connectionArgumentsDirection is FORWARD when only first is present`() {
+        assertEquals(
+            ConnectionArgumentsDirection.FORWARD,
+            SchemaAnalysis.connectionArgumentsDirection(schema.field("Query", "firstOnlyConn")),
+        )
+    }
+
+    @Test
+    fun `connectionArgumentsDirection is BACKWARD when only last is present`() {
+        assertEquals(
+            ConnectionArgumentsDirection.BACKWARD,
+            SchemaAnalysis.connectionArgumentsDirection(schema.field("Query", "lastOnlyConn")),
+        )
+    }
+
+    @Test
+    fun `connectionArgumentsDirection is FORWARD for first plus after`() {
+        assertEquals(
+            ConnectionArgumentsDirection.FORWARD,
+            SchemaAnalysis.connectionArgumentsDirection(schema.field("Query", "forwardConn")),
+        )
+    }
+
+    @Test
+    fun `connectionArgumentsDirection is BACKWARD for last plus before`() {
+        assertEquals(
+            ConnectionArgumentsDirection.BACKWARD,
+            SchemaAnalysis.connectionArgumentsDirection(schema.field("Query", "backwardConn")),
+        )
+    }
+
+    @Test
+    fun `connectionArgumentsDirection is MULTIDIRECTIONAL for both forward and backward args`() {
+        assertEquals(
+            ConnectionArgumentsDirection.MULTIDIRECTIONAL,
+            SchemaAnalysis.connectionArgumentsDirection(schema.field("Query", "multiConn")),
+        )
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // 12. connectionArgumentRequiredNames / connectionArgumentScalarKind
+    // ---------------------------------------------------------------------------------------------
+
+    @Test
+    fun `connectionArgumentRequiredNames covers the whole pair for each direction`() {
+        assertEquals(
+            emptySet<String>(),
+            SchemaAnalysis.connectionArgumentRequiredNames(ConnectionArgumentsDirection.NONE),
+        )
+        assertEquals(
+            setOf("first", "after"),
+            SchemaAnalysis.connectionArgumentRequiredNames(ConnectionArgumentsDirection.FORWARD),
+        )
+        assertEquals(
+            setOf("last", "before"),
+            SchemaAnalysis.connectionArgumentRequiredNames(ConnectionArgumentsDirection.BACKWARD),
+        )
+        assertEquals(
+            setOf("first", "after", "last", "before"),
+            SchemaAnalysis.connectionArgumentRequiredNames(ConnectionArgumentsDirection.MULTIDIRECTIONAL),
+        )
+    }
+
+    @Test
+    fun `connectionArgumentRequiredNames minus declared yields the missing counterpart`() {
+        // A first-only field is FORWARD but declares only `first`; `after` must be synthesized.
+        val firstOnly = schema.field("Query", "firstOnlyConn")
+        val declared = firstOnly.args.map { it.name }.toSet()
+        val direction = SchemaAnalysis.connectionArgumentsDirection(firstOnly)
+        assertEquals(
+            setOf("after"),
+            SchemaAnalysis.connectionArgumentRequiredNames(direction) - declared,
+        )
+
+        // A last-only field is BACKWARD but declares only `last`; `before` must be synthesized.
+        val lastOnly = schema.field("Query", "lastOnlyConn")
+        assertEquals(
+            setOf("before"),
+            SchemaAnalysis.connectionArgumentRequiredNames(
+                SchemaAnalysis.connectionArgumentsDirection(lastOnly),
+            ) - lastOnly.args.map { it.name }.toSet(),
+        )
+
+        // A complete forward pair synthesizes nothing.
+        val forward = schema.field("Query", "forwardConn")
+        assertEquals(
+            emptySet<String>(),
+            SchemaAnalysis.connectionArgumentRequiredNames(
+                SchemaAnalysis.connectionArgumentsDirection(forward),
+            ) - forward.args.map { it.name }.toSet(),
+        )
+    }
+
+    @Test
+    fun `connectionArgumentScalarKind maps names to boxed scalar kinds`() {
+        assertEquals(ConnectionArgScalarKind.INT, SchemaAnalysis.connectionArgumentScalarKind("first"))
+        assertEquals(ConnectionArgScalarKind.INT, SchemaAnalysis.connectionArgumentScalarKind("last"))
+        assertEquals(ConnectionArgScalarKind.STRING, SchemaAnalysis.connectionArgumentScalarKind("after"))
+        assertEquals(ConnectionArgScalarKind.STRING, SchemaAnalysis.connectionArgumentScalarKind("before"))
+        assertNull(SchemaAnalysis.connectionArgumentScalarKind("notAPaginationArg"))
     }
 }

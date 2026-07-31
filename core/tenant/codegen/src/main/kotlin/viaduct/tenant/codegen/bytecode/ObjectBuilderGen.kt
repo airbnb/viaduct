@@ -46,7 +46,7 @@ internal fun GRTClassFilesBuilder.objectBuilderGenV2(
  * Generates a Builder class for GraphQL object types.
  *
  * For Connection types (types with @connection directive), generates a builder that extends
- * ConnectionBuilder<C, E, N> with specialized context handling. Note that N is inferred from E : Edge<N>.
+ * ConnectionBuilder<C, E, N>. Note that N is inferred from E : Edge<N>.
  *
  * For regular object types, generates a builder that extends ObjectBase.Builder<T>.
  */
@@ -107,7 +107,7 @@ private class ObjectBuilderGenV2(
     }
 
     private fun CustomClassBuilder.addPrimaryConstructor(): CustomClassBuilder {
-        val contextType = connectionInfo?.contextType ?: cfg.EXECUTION_CONTEXT.asKmName.asType()
+        val contextType = cfg.EXECUTION_CONTEXT.asKmName.asType()
 
         val kmConstructor = KmConstructor().also { constructor ->
             constructor.visibility = Visibility.PUBLIC
@@ -163,7 +163,7 @@ private class ObjectBuilderGenV2(
         }
 
         val superCall = if (connectionInfo != null) {
-            val contextCast = castObjectExpression(cfg.CONNECTION_FIELD_EXECUTION_CONTEXT.asKmName.asType(), "$1")
+            val contextCast = castObjectExpression(cfg.EXECUTION_CONTEXT.asKmName.asType(), "$1")
             val edgeReflectionClass = KmName("$pkg/${connectionInfo.edgeTypeName}.${cfg.REFLECTION_NAME}").asJavaBinaryName
             "super($contextCast, $2, $3, (${cfg.REFLECTED_TYPE}) $edgeReflectionClass.INSTANCE);"
         } else {
@@ -242,17 +242,9 @@ private class ObjectBuilderGenV2(
     /**
      * Holds resolved type information for Connection types.
      */
-    private inner class ConnectionInfo(
+    private data class ConnectionInfo(
         val edgeTypeName: String,
         val edgeKmType: KmType,
         val nodeKmType: KmType
-    ) {
-        /** ConnectionFieldExecutionContext<*, *, in ConnectionArguments, C> for the primary constructor. */
-        val contextType: KmType = cfg.CONNECTION_FIELD_EXECUTION_CONTEXT.asKmName.asType().also {
-            it.arguments += KmTypeProjection.STAR // T (Object)
-            it.arguments += KmTypeProjection.STAR // Q (Query)
-            it.arguments += KmTypeProjection(KmVariance.OUT, cfg.CONNECTION_ARGUMENTS.asKmName.asType()) // A (ConnectionArguments)
-            it.arguments += KmTypeProjection(KmVariance.INVARIANT, builderFor) // C (Connection type)
-        }
-    }
+    )
 }

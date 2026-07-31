@@ -140,7 +140,7 @@ public final class JavaGRTGenerator {
 
                 <mdl.fields: {f |
                 public <f.javaType> <f.getterName>() {
-                    <if(f.globalIDList)>return fetchGlobalIDList("<f.name>");<elseif(f.globalIDType)>return fetchGlobalID("<f.name>");<elseif(f.abstractList)>return fetchAbstractObjectList("<f.name>", <f.baseTypeName>.class);<elseif(f.abstractType)>return fetchAbstractObject("<f.name>", <f.baseTypeName>.class);<elseif(f.compositeList)>return fetchObjectList("<f.name>", <f.baseTypeName>::new);<elseif(f.compositeType)>return fetchObject("<f.name>", <f.baseTypeName>::new);<elseif(f.enumList)>return fetchEnumList("<f.name>", <f.baseTypeName>.class);<elseif(f.enumType)>return fetchEnum("<f.name>", <f.baseTypeName>.class);<elseif(f.temporalScalarList)>return fetchScalarList("<f.name>", "<f.scalarCoercionHint>");<elseif(f.temporalScalar)>return fetchScalar("<f.name>", "<f.scalarCoercionHint>");<elseif(f.scalarList)>return fetchScalarList("<f.name>");<else>return fetchScalar("<f.name>");<endif>
+                    return <f.getterExpression>;
                 \\}
                 }; separator="
             ">
@@ -159,9 +159,9 @@ public final class JavaGRTGenerator {
 
                     <mdl.fields: {f |
                     public Builder <f.safeName>(<f.builderType> <f.safeName>) {
-                        <if(f.globalIDBuilderSerialize)>data.put("<f.name>", <f.safeName> == null ? null : __context.getGlobalIDCodec().serialize(<f.safeName>.getType().getName(), <f.safeName>.getInternalID()));
-                        <elseif(f.globalIDListBuilderSerialize)>data.put("<f.name>", <f.safeName> == null ? null : <f.safeName>.stream().map(__id -> __context.getGlobalIDCodec().serialize(__id.getType().getName(), __id.getInternalID())).collect(java.util.stream.Collectors.toList()));
-                        <else>data.put("<f.name>", <f.safeName>);
+                        <if(f.globalIDBuilderSerialize)>data.put("<f.name>", <f.builderValueExpression>);
+                        <elseif(f.globalIDListBuilderSerialize)>data.put("<f.name>", <f.builderValueExpression>);
+                        <else>data.put("<f.name>", <f.builderValueExpression>);
                         <endif>return this;
                     \\}
                     }; separator="
@@ -170,6 +170,126 @@ public final class JavaGRTGenerator {
                     public <mdl.className> build() {
                         return new <mdl.className>(__context, new LinkedHashMap\\<>(data));
                     }
+                }
+            }
+            """);
+
+    /**
+     * Template for {@code @connection} object types. Kept separate from {@link #TEMPLATE} because
+     * the connection builder extends {@link viaduct.java.api.internal.ConnectionBuilder} with a
+     * fixed shape (no per-field setters), which avoids weaving StringTemplate conditionals through
+     * the generic-object template's brace-escaping.
+     */
+    private static final String CONNECTION_TEMPLATE =
+        STUtilsKt.stTemplate(
+            """
+            package <mdl.packageName>;
+
+            import viaduct.engine.api.EngineObjectData;
+            import viaduct.java.api.context.ExecutionContext;
+            import viaduct.java.api.globalid.GlobalID;
+            import viaduct.java.api.internal.ConnectionBuilder;
+            import viaduct.java.api.internal.InternalContext;
+            import viaduct.java.api.internal.ObjectBase;
+            import viaduct.java.api.types.OffsetLimit;
+            import java.time.Instant;
+            import java.time.LocalDate;
+            import java.time.OffsetTime;
+            import java.util.List;
+            import java.util.Map;
+            import java.util.function.Function;
+
+            <if(mdl.hasDescription)>
+            /**
+             * <mdl.description>
+             */
+            <endif>
+            public class <mdl.className> extends ObjectBase implements <mdl.implementsClause> {
+
+                public <mdl.className>(InternalContext context, EngineObjectData.Sync data) {
+                    super(context, data);
+                }
+
+                private <mdl.className>(InternalContext context, Map\\<String, Object> data) {
+                    super(context, data);
+                }
+
+                <mdl.fields: {f |
+                public <f.javaType> <f.getterName>() {
+                    return <f.getterExpression>;
+                \\}
+                }; separator="
+            ">
+
+                public static Builder builder(ExecutionContext context) {
+                    return new Builder(context);
+                }
+
+                /**
+                 * Pagination-aware builder. Extends {@link ConnectionBuilder} with {@code fromEdges},
+                 * {@code fromSlice}, and {@code fromList}; the base builds the <mdl.edgeTypeName>,
+                 * PageInfo, and <mdl.className> GRTs from the field's context and these Class handles.
+                 * The generated per-field setters populate additional connection fields (e.g.
+                 * {@code totalCount}) alongside the pagination-produced {@code edges}/{@code pageInfo};
+                 * a pagination method and any setters can be combined in any order before {@code build()}.
+                 */
+                public static class Builder extends <mdl.connectionBuilderSupertype> {
+                    private final InternalContext __context;
+
+                    private Builder(ExecutionContext context) {
+                        super(context, <mdl.className>.class, <mdl.edgeTypeName>.class);
+                        this.__context = InternalContext.from(context);
+                    }
+
+                    @Override
+                    public Builder fromEdges(List\\<<mdl.edgeTypeName>\\> edges) {
+                        super.fromEdges(edges);
+                        return this;
+                    }
+
+                    @Override
+                    public Builder fromEdges(
+                            List\\<<mdl.edgeTypeName>\\> edges,
+                            boolean hasNextPage,
+                            boolean hasPreviousPage) {
+                        super.fromEdges(edges, hasNextPage, hasPreviousPage);
+                        return this;
+                    }
+
+                    @Override
+                    public \\<I> Builder fromSlice(
+                            List\\<I> items,
+                            boolean hasNextPage,
+                            Function\\<I, <mdl.nodeTypeName>\\> buildNode) {
+                        super.fromSlice(items, hasNextPage, buildNode);
+                        return this;
+                    }
+
+                    @Override
+                    public \\<I> Builder fromSlice(
+                            List\\<I> items,
+                            OffsetLimit offsetLimit,
+                            boolean hasNextPage,
+                            Function\\<I, <mdl.nodeTypeName>\\> buildNode) {
+                        super.fromSlice(items, offsetLimit, hasNextPage, buildNode);
+                        return this;
+                    }
+
+                    @Override
+                    public \\<I> Builder fromList(
+                            List\\<I> items,
+                            Function\\<I, <mdl.nodeTypeName>\\> buildNode) {
+                        super.fromList(items, buildNode);
+                        return this;
+                    }
+
+                    <mdl.fields: {f |
+                    public Builder <f.safeName>(<f.builderType> <f.safeName>) {
+                        putField("<f.name>", <f.builderValueExpression>);
+                        return this;
+                    \\}
+                    }; separator="
+            ">
                 }
             }
             """);
@@ -183,7 +303,12 @@ public final class JavaGRTGenerator {
      * @return the generated Java source code
      */
     public static String generate(ObjectModel model) {
-      return new STContents(TEMPLATE, model).toString();
+      return new STContents(templateFor(model), model).toString();
+    }
+
+    /** Connection object types use the pagination-aware {@link #CONNECTION_TEMPLATE}. */
+    private static String templateFor(ObjectModel model) {
+      return model.getIsConnection() ? CONNECTION_TEMPLATE : TEMPLATE;
     }
 
     /**
@@ -195,7 +320,7 @@ public final class JavaGRTGenerator {
      * @throws IOException if there's an error writing the file
      */
     public static File generateToFile(ObjectModel model, File outputDir) throws IOException {
-      STContents contents = new STContents(TEMPLATE, model);
+      STContents contents = new STContents(templateFor(model), model);
       return writeToFile(contents, model.packageName(), model.className(), outputDir);
     }
   }
@@ -373,7 +498,7 @@ public final class JavaGRTGenerator {
             import viaduct.java.api.internal.InternalContext;
 
             /** Generated arguments class for resolver field. */
-            public class <mdl.className> extends InputBase implements Arguments {
+            public class <mdl.className> extends InputBase implements Arguments<if(mdl.isConnectionArguments)>, <mdl.connectionArgumentsClause><endif> {
 
                 // Public because the framework constructs arguments reflectively across packages
                 // (JavaFieldResolverExecutorImpl, VariablesProviderExecutorImpl, etc.). @InternalApi

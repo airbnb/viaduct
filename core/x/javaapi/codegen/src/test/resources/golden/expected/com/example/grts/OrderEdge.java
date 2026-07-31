@@ -14,7 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class OrderEdge extends ObjectBase {
+public class OrderEdge extends ObjectBase implements viaduct.java.api.types.Edge<Order> {
 
     public OrderEdge(InternalContext context, EngineObjectData.Sync data) {
         super(context, data);

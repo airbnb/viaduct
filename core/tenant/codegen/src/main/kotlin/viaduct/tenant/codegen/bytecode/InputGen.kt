@@ -13,6 +13,7 @@ import kotlinx.metadata.isNullable
 import kotlinx.metadata.isSuspend
 import kotlinx.metadata.modality
 import kotlinx.metadata.visibility
+import viaduct.codegen.SchemaAnalysis
 import viaduct.codegen.km.CustomClassBuilder
 import viaduct.codegen.km.KmPropertyBuilder
 import viaduct.codegen.km.castObjectExpression
@@ -41,12 +42,21 @@ internal fun GRTClassFilesBuilder.fieldArgumentsInputGen(field: ViaductSchema.Fi
     val connectionArgsInfo = ConnectionArgumentsInfo.from(field)
     val argumentsSimpleName = cfg.argumentTypeName(field)
 
+    // The chosen ConnectionArguments interface declares getters for the whole pagination pair, but
+    // the schema may declare only part of it (e.g. `first` without `after`). Synthesize the missing
+    // counterparts so the generated class satisfies the interface. See
+    // SchemaAnalysis.connectionArgumentRequiredNames.
+    val declaredArgNames = field.args.map { it.name }.toSet()
+    val synthesizedConnectionArgs =
+        SchemaAnalysis.connectionArgumentRequiredNames(SchemaAnalysis.connectionArgumentsDirection(field)) - declaredArgNames
+
     val builder = makeInputClass(
         argumentsSimpleName.kmFQN(pkg),
         field.args,
         cfg.ARGUMENTS_GRT.asKmName,
         overrideFieldNames = connectionArgsInfo.overrideFieldNames,
         containingField = field,
+        synthesizedConnectionArgs = synthesizedConnectionArgs,
     )
 
     // If the field returns a Connection type, add appropriate ConnectionArguments interface
@@ -65,12 +75,13 @@ private fun GRTClassFilesBuilder.makeInputClass(
     taggingInterface: KmName,
     overrideFieldNames: Set<String> = emptySet(),
     containingField: ViaductSchema.Field? = null,
+    synthesizedConnectionArgs: Set<String> = emptySet(),
 ): CustomClassBuilder {
     val builder = kmClassFilesBuilder.customClassBuilder(
         ClassKind.CLASS,
         className
     )
-    InputClassGen(this, fields, builder, overrideFieldNames)
+    InputClassGen(this, fields, builder, overrideFieldNames, synthesizedConnectionArgs)
     builder.addSupertype(taggingInterface.asType())
     this.inputBuilderGen(fields, builder, taggingInterface, containingField)
     builder.addInputOfObject()
@@ -83,6 +94,7 @@ private class InputClassGen(
     private val fields: Iterable<ViaductSchema.HasDefaultValue>,
     private val inputClass: CustomClassBuilder,
     private val overrideFieldNames: Set<String> = emptySet(),
+    private val synthesizedConnectionArgs: Set<String> = emptySet(),
 ) {
     private val pkg = grtClassFilesBuilder.pkg
     private val baseTypeMapper = grtClassFilesBuilder.baseTypeMapper
@@ -97,7 +109,49 @@ private class InputClassGen(
             .addGraphQLInputObjectTypeProperty()
             .addPrimaryConstructor()
             .addFieldProperties()
+            .addSynthesizedConnectionArgProperties()
             .addToBuilderFun()
+    }
+
+    /**
+     * Emits null-returning getters for pagination arguments the field's `ConnectionArguments`
+     * sub-interface requires but the schema does not declare (e.g. `after` on a `first`-only
+     * field). Without these the generated class would not satisfy the interface (an
+     * `AbstractMethodError`-prone class). The getter reads the absent field from the backing map,
+     * which yields null. See [SchemaAnalysis.connectionArgumentRequiredNames].
+     */
+    private fun CustomClassBuilder.addSynthesizedConnectionArgProperties(): CustomClassBuilder {
+        for (argName in synthesizedConnectionArgs) {
+            val kind = SchemaAnalysis.connectionArgumentScalarKind(argName)
+                ?: error("Not a pagination argument: $argName")
+            val fieldType = when (kind) {
+                viaduct.codegen.ConnectionArgScalarKind.INT -> Km.INT.asNullableType()
+                viaduct.codegen.ConnectionArgScalarKind.STRING -> Km.STRING.asNullableType()
+            }
+            val kmProperty = KmPropertyBuilder(
+                JavaIdName(argName),
+                fieldType,
+                fieldType,
+                isVariable = false,
+                constructorProperty = false
+            ).apply {
+                getterVisibility(Visibility.PUBLIC)
+                propertyModality(Modality.FINAL)
+                // Always null: the counterpart is not a schema-declared argument, so it can never be
+                // present in a request, and the schema-validated get() would reject the unknown
+                // field. Returning null satisfies the ConnectionArguments interface (e.g. a
+                // first-only field's after cursor is treated as "start from the beginning").
+                getterBody(
+                    body = buildString {
+                        append("{\n")
+                        append("return ${castObjectExpression(fieldType, "null")};\n")
+                        append("}")
+                    }
+                )
+            }
+            this.addProperty(kmProperty)
+        }
+        return this
     }
 
     private fun CustomClassBuilder.addContextProperty(): CustomClassBuilder =

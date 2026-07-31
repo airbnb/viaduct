@@ -13,7 +13,7 @@ import viaduct.java.api.internal.InputBase;
 import viaduct.java.api.internal.InternalContext;
 
 /** Generated arguments class for resolver field. */
-public class Query_OrdersConnection_Arguments extends InputBase implements Arguments {
+public class Query_OrdersConnection_Arguments extends InputBase implements Arguments, viaduct.java.api.types.ForwardConnectionArguments {
 
     // Public because the framework constructs arguments reflectively across packages
     // (JavaFieldResolverExecutorImpl, VariablesProviderExecutorImpl, etc.). @InternalApi
@@ -23,7 +23,7 @@ public class Query_OrdersConnection_Arguments extends InputBase implements Argum
         super(context, data, graphQLInputObjectType);
     }
 
-        public int getFirst() {
+        public Integer getFirst() {
             return get("first");
         }
 
