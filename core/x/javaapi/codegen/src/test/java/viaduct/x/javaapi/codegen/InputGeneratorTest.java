@@ -164,6 +164,21 @@ class InputGeneratorTest {
   }
 
   @Test
+  void generatesInputWithJsonScalarPassThrough() {
+    InputModel model =
+        new InputModel(
+            "com.example.types",
+            "PayloadInput",
+            List.of(FieldModel.simple("json", "Object", true)),
+            null);
+
+    String generated = JavaGRTGenerator.InputGenerator.generate(model);
+
+    assertTrue(generated.contains("public Object getJson()"));
+    assertTrue(generated.contains("return get(\"json\")"));
+  }
+
+  @Test
   void generatesBuilderMethods() {
     InputModel model =
         new InputModel(

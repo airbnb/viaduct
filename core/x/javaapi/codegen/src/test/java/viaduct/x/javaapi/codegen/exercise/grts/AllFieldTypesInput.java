@@ -1,6 +1,8 @@
 package viaduct.x.javaapi.codegen.exercise.grts;
 
 import graphql.schema.GraphQLInputObjectType;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +40,22 @@ public class AllFieldTypesInput extends InputBase {
     return getScalarList("listField");
   }
 
+  public BigDecimal getBigDecimalField() {
+    return get("bigDecimalField");
+  }
+
+  public BigInteger getBigIntegerField() {
+    return get("bigIntegerField");
+  }
+
+  public Object getJsonField() {
+    return get("jsonField");
+  }
+
+  public List<Object> getJsonListField() {
+    return getScalarList("jsonListField");
+  }
+
   public static Builder builder(ExecutionContext context) {
     return new Builder(InternalContext.from(context));
   }
@@ -72,6 +90,26 @@ public class AllFieldTypesInput extends InputBase {
 
     public Builder listField(List<String> listField) {
       data.put("listField", listField);
+      return this;
+    }
+
+    public Builder bigDecimalField(BigDecimal bigDecimalField) {
+      data.put("bigDecimalField", bigDecimalField);
+      return this;
+    }
+
+    public Builder bigIntegerField(BigInteger bigIntegerField) {
+      data.put("bigIntegerField", bigIntegerField);
+      return this;
+    }
+
+    public Builder jsonField(Object jsonField) {
+      data.put("jsonField", jsonField);
+      return this;
+    }
+
+    public Builder jsonListField(List<Object> jsonListField) {
+      data.put("jsonListField", jsonListField);
       return this;
     }
 

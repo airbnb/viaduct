@@ -10,6 +10,8 @@ import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.of
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetTime
@@ -117,6 +119,20 @@ class EngineValueConvTest : KotestPropertyBase() {
     fun `Byte -- simple`() {
         val conv = EngineValueConv(emptySchema, ExtendedScalars.GraphQLByte, null)
         assertRoundtrip(conv, 1.toByte(), IR.Value.Number(1.toByte()))
+    }
+
+    @Test
+    fun `BigDecimal -- simple`() {
+        val value = BigDecimal("12345678901234567890.12345678901234567890")
+        val conv = EngineValueConv(emptySchema, ExtendedScalars.GraphQLBigDecimal, null)
+        assertRoundtrip(conv, value, IR.Value.Number(value))
+    }
+
+    @Test
+    fun `BigInteger -- simple`() {
+        val value = BigInteger("123456789012345678901234567890")
+        val conv = EngineValueConv(emptySchema, ExtendedScalars.GraphQLBigInteger, null)
+        assertRoundtrip(conv, value, IR.Value.Number(value))
     }
 
     @Test

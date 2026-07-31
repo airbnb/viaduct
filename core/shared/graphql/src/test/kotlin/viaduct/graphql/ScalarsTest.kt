@@ -448,6 +448,8 @@ class ScalarsTest {
         fun `contains expected scalars`() {
             val scalars = Scalars.viaductStandardScalars
             assertTrue(scalars.contains(ExtendedScalars.Date))
+            assertTrue(scalars.contains(ExtendedScalars.GraphQLBigDecimal))
+            assertTrue(scalars.contains(ExtendedScalars.GraphQLBigInteger))
             assertTrue(scalars.contains(ExtendedScalars.GraphQLByte))
             assertTrue(scalars.contains(ExtendedScalars.GraphQLShort))
             assertTrue(scalars.contains(ExtendedScalars.Json))
@@ -459,7 +461,7 @@ class ScalarsTest {
 
         @Test
         fun `has correct size`() {
-            assertEquals(8, Scalars.viaductStandardScalars.size)
+            assertEquals(10, Scalars.viaductStandardScalars.size)
         }
     }
 }

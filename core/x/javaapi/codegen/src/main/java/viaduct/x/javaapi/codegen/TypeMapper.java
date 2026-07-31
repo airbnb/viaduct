@@ -82,6 +82,8 @@ public class TypeMapper {
       case "Long" -> useBoxedType ? "Long" : "long";
       case "Short" -> useBoxedType ? "Short" : "short";
       case "Byte" -> useBoxedType ? "Byte" : "byte";
+      case "BigDecimal" -> "java.math.BigDecimal";
+      case "BigInteger" -> "java.math.BigInteger";
       case "JSON", "BackingData" -> "Object";
       // For custom types (enums, objects, interfaces), use FQN if a package was provided
       default -> grtPackage != null ? grtPackage + "." + graphqlType : graphqlType;

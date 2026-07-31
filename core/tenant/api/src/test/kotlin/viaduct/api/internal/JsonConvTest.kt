@@ -15,6 +15,8 @@ import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.of
 import io.kotest.property.arbitrary.take
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetTime
@@ -83,6 +85,23 @@ class JsonConvTest : KotestPropertyBase() {
     @Test
     fun `Byte -- arb`() {
         checkAll(emptySchema, "Byte")
+    }
+
+    @Test
+    fun `BigDecimal -- simple`() {
+        val value = BigDecimal("12345678901234567890.12345678901234567890")
+        val conv = JsonConv(emptySchema, ExtendedScalars.GraphQLBigDecimal)
+        assertEquals(IR.Value.Number(value), conv(value.toString()))
+        assertEquals(value.toString(), conv.invert(IR.Value.Number(value)))
+        assertEquals(IR.Value.Number(BigDecimal.ONE), conv("1"))
+    }
+
+    @Test
+    fun `BigInteger -- simple`() {
+        val value = BigInteger("123456789012345678901234567890")
+        val conv = JsonConv(emptySchema, ExtendedScalars.GraphQLBigInteger)
+        assertEquals(IR.Value.Number(value), conv(value.toString()))
+        assertEquals(value.toString(), conv.invert(IR.Value.Number(value)))
     }
 
     @Test

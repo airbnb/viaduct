@@ -34,7 +34,15 @@ input AllFieldTypesInput {
   floatField: Float
   boolField: Boolean
   listField: [String]
+  bigDecimalField: BigDecimal
+  bigIntegerField: BigInteger
+  jsonField: JSON
+  jsonListField: [JSON]
 }
+
+scalar BigDecimal
+scalar BigInteger
+scalar JSON
 
 """
 Enum for use in ComplexInput.

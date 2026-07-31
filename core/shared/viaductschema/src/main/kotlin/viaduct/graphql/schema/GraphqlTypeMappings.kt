@@ -1,11 +1,15 @@
 package viaduct.graphql.schema
 
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetTime
 import kotlin.reflect.KClass
 
 val baseGraphqlScalarTypeMapping = mapOf<String, KClass<*>>(
+    "BigDecimal" to BigDecimal::class,
+    "BigInteger" to BigInteger::class,
     "Boolean" to Boolean::class,
     "Byte" to Byte::class,
     "Date" to LocalDate::class,

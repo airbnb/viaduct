@@ -9,6 +9,8 @@ import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLType
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.time.temporal.TemporalAccessor
 import viaduct.api.internal.EngineValueConv.invoke
 import viaduct.apiannotations.InternalApi
@@ -101,6 +103,20 @@ object EngineValueConv {
             forward = { IR.Value.Number(it as Number) },
             inverse = { (it as IR.Value.Number).byte },
             "byte"
+        )
+
+    internal val bigDecimal: Conv<Any?, IR.Value> =
+        Conv(
+            forward = { IR.Value.Number(it as BigDecimal) },
+            inverse = { (it as IR.Value.Number).bigDecimal },
+            "bigDecimal"
+        )
+
+    internal val bigInteger: Conv<Any?, IR.Value> =
+        Conv(
+            forward = { IR.Value.Number(it as BigInteger) },
+            inverse = { (it as IR.Value.Number).bigInteger },
+            "bigInteger"
         )
 
     internal val short: Conv<Any?, IR.Value> =
@@ -279,6 +295,8 @@ object EngineValueConv {
 
                 is GraphQLScalarType -> when (type.name) {
                     "BackingData" -> backingData
+                    "BigDecimal" -> bigDecimal
+                    "BigInteger" -> bigInteger
                     "Boolean" -> boolean
                     "Byte" -> byte
                     "Date" -> date

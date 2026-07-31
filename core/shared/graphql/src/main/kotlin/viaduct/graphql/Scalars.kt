@@ -245,6 +245,8 @@ object Scalars {
      */
     val viaductStandardScalars = setOf(
         ExtendedScalars.Date,
+        ExtendedScalars.GraphQLBigDecimal,
+        ExtendedScalars.GraphQLBigInteger,
         ExtendedScalars.GraphQLByte,
         ExtendedScalars.GraphQLShort,
         ExtendedScalars.Json,

@@ -56,6 +56,8 @@ class DefaultSchemaValidatorTest {
     fun `should allow Viaduct standard scalars`() {
         val schema = ViaductSchema.fromTypeDefinitionRegistry(
             """
+            scalar BigDecimal
+            scalar BigInteger
             scalar Date
             scalar DateTime
             scalar Long

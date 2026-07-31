@@ -1,5 +1,6 @@
 package viaduct.api.internal
 
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLEnumType
@@ -9,6 +10,8 @@ import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLType
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetTime
@@ -26,7 +29,10 @@ import viaduct.mapping.graphql.IR
  */
 @InternalApi
 object JsonConv {
-    private val objectMapper = ObjectMapper()
+    private val objectMapper =
+        ObjectMapper()
+            .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+            .enable(DeserializationFeature.USE_BIG_INTEGER_FOR_INTS)
     @Suppress("ObjectPropertyNaming")
     private val __typename = "__typename"
 
@@ -136,6 +142,23 @@ object JsonConv {
             forward = { IR.Value.Number((it).toInt()) },
             inverse = { it.int },
             "int"
+        )
+
+    private val bigDecimal: Conv<Number, IR.Value.Number> =
+        Conv(
+            forward = {
+                val value = it as? BigDecimal ?: BigDecimal(it.toString())
+                IR.Value.Number(value)
+            },
+            inverse = { it.bigDecimal },
+            "bigDecimal"
+        )
+
+    private val bigInteger: Conv<Number, IR.Value.Number> =
+        Conv(
+            forward = { IR.Value.Number(it as BigInteger) },
+            inverse = { it.bigInteger },
+            "bigInteger"
         )
 
     private val byte: Conv<Number, IR.Value.Number> =
@@ -300,6 +323,8 @@ object JsonConv {
                 is GraphQLEnumType -> enum(type.name, type.values.map { it.name }.toSet())
 
                 is GraphQLScalarType -> when (type.name) {
+                    "BigDecimal" -> bigDecimal
+                    "BigInteger" -> bigInteger
                     "Boolean" -> boolean
                     "Date" -> date
                     "DateTime" -> instant

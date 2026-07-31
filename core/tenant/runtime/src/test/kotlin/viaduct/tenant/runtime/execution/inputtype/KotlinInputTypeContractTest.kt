@@ -8,7 +8,12 @@ class KotlinInputTypeContractTest : InputTypeContractTest() {
     class Query_UserByNameResolver : QueryResolvers.UserByName() {
         override suspend fun resolve(ctx: Context): User {
             val input = ctx.arguments.input
-            return User.Builder(ctx).name(input.name).age(input.age).build()
+            return User.Builder(ctx)
+                .name(input.name)
+                .age(input.age)
+                .balance(input.balance)
+                .serial(input.serial)
+                .build()
         }
     }
 }

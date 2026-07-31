@@ -50,6 +50,36 @@ object GJValueConv {
         "byte"
     )
 
+    private val bigDecimal: Conv<Value<*>, IR.Value> = Conv(
+        forward = {
+            val value =
+                when (it) {
+                    is FloatValue -> it.value
+                    is IntValue -> it.value.toBigDecimal()
+                    is StringValue -> it.value.toBigDecimal()
+                    else -> error("Expected FloatValue, IntValue, or StringValue, got ${it::class.simpleName}")
+                }
+            IR.Value.Number(value)
+        },
+        inverse = { FloatValue((it as IR.Value.Number).bigDecimal) },
+        "bigDecimal"
+    )
+
+    private val bigInteger: Conv<Value<*>, IR.Value> = Conv(
+        forward = {
+            val value =
+                when (it) {
+                    is FloatValue -> it.value.toBigIntegerExact()
+                    is IntValue -> it.value
+                    is StringValue -> it.value.toBigDecimal().toBigIntegerExact()
+                    else -> error("Expected FloatValue, IntValue, or StringValue, got ${it::class.simpleName}")
+                }
+            IR.Value.Number(value)
+        },
+        inverse = { IntValue((it as IR.Value.Number).bigInteger) },
+        "bigInteger"
+    )
+
     private val short: Conv<Value<*>, IR.Value> = Conv(
         forward = { IR.Value.Number((it as IntValue).value.shortValueExact()) },
         inverse = { IntValue((it as IR.Value.Number).bigInteger) },
@@ -221,6 +251,8 @@ object GJValueConv {
                 is GraphQLNonNull -> return nonNull(mk(type.wrappedType, false))
                 is GraphQLList -> array(mk(type.wrappedType))
                 is GraphQLScalarType -> when (type.name) {
+                    "BigDecimal" -> bigDecimal
+                    "BigInteger" -> bigInteger
                     "Boolean" -> boolean
                     "Byte" -> byte
                     "Date" -> date

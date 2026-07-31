@@ -22,5 +22,7 @@ class DefaultSchemaOutputTaskTest {
         task.extractDefaultSchema()
 
         outputFile.readText() shouldContain "directive @parent on FIELD_DEFINITION"
+        outputFile.readText() shouldContain "scalar BigDecimal"
+        outputFile.readText() shouldContain "scalar BigInteger"
     }
 }

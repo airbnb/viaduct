@@ -39,6 +39,10 @@ class TypeMapperTest {
           booleanField: Boolean
           nonNullBooleanField: Boolean!
           idField: ID
+          bigDecimalField: BigDecimal
+          bigIntegerField: BigInteger
+          jsonField: JSON
+          jsonListField: [JSON!]
           userField: User
           listOfStrings: [String]
           nonNullListOfStrings: [String]!
@@ -54,6 +58,10 @@ class TypeMapperTest {
           id: ID!
           name: String!
         }
+
+        scalar BigDecimal
+        scalar BigInteger
+        scalar JSON
         """;
 
     schema = ViaductSchemaFactory.fromTypeDefinitionRegistry(sdl);
@@ -132,6 +140,28 @@ class TypeMapperTest {
     ViaductSchema.Field field = getQueryField("idField");
 
     assertEquals("String", mapper.toJavaType(field.getType()));
+  }
+
+  @Test
+  void mapsBigDecimalType() {
+    assertEquals(
+        "java.math.BigDecimal", mapper.toJavaType(getQueryField("bigDecimalField").getType()));
+  }
+
+  @Test
+  void mapsBigIntegerType() {
+    assertEquals(
+        "java.math.BigInteger", mapper.toJavaType(getQueryField("bigIntegerField").getType()));
+  }
+
+  @Test
+  void mapsJsonType() {
+    assertEquals("Object", mapper.toJavaType(getQueryField("jsonField").getType()));
+  }
+
+  @Test
+  void mapsJsonListType() {
+    assertEquals("List<Object>", mapper.toJavaType(getQueryField("jsonListField").getType()));
   }
 
   @Test

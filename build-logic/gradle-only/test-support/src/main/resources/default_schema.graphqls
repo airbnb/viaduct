@@ -47,6 +47,12 @@ type Subscription @scope(to: ["*"]) {
 "Custom scalar type for private fields"
 scalar BackingData
 
+"An arbitrary precision signed decimal"
+scalar BigDecimal
+
+"An arbitrary precision signed integer"
+scalar BigInteger
+
 "An 8-bit signed integer"
 scalar Byte
 

@@ -376,6 +376,24 @@ class ObjectGeneratorTest {
   }
 
   @Test
+  void generatesObjectWithJsonScalarPassThrough() {
+    ObjectModel model =
+        new ObjectModel(
+            "com.example.types",
+            "Payload",
+            List.of(),
+            List.of(FieldModel.simple("json", "Object", true)),
+            null,
+            false,
+            false);
+
+    String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
+
+    assertTrue(generated.contains("public Object getJson()"));
+    assertTrue(generated.contains("return fetchScalar(\"json\")"));
+  }
+
+  @Test
   void generatesObjectWithTemporalScalarListFields() {
     ObjectModel model =
         new ObjectModel(

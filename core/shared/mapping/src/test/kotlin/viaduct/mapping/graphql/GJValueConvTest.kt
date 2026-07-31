@@ -3,10 +3,12 @@
 package viaduct.mapping.graphql
 
 import graphql.Scalars
+import graphql.language.FloatValue
 import graphql.language.IntValue
 import graphql.language.NullValue
 import graphql.language.ObjectField
 import graphql.language.ObjectValue
+import graphql.language.StringValue
 import graphql.language.Value
 import graphql.schema.GraphQLEnumType
 import graphql.schema.GraphQLInputObjectType
@@ -21,8 +23,10 @@ import io.kotest.property.arbitrary.bigInt
 import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.long
 import io.kotest.property.arbitrary.of
+import java.math.BigDecimal
 import java.math.BigInteger
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -146,6 +150,42 @@ class GJValueConvTest : KotestPropertyBase() {
         checkRange("Short", Short.MIN_VALUE to Short.MAX_VALUE)
         checkRange("Int", Int.MIN_VALUE to Int.MAX_VALUE)
         checkRange("Long", Long.MIN_VALUE to Long.MAX_VALUE)
+    }
+
+    @Test
+    fun `BigDecimal values retain arbitrary precision`() {
+        val value = BigDecimal("12345678901234567890.12345678901234567890")
+        val conv = GJValueConv(schema.schema.getType("BigDecimal")!!)
+
+        listOf(
+            FloatValue(value),
+            StringValue(value.toString())
+        ).forEach { literal ->
+            assertEquals(value, (conv(literal) as IR.Value.Number).value)
+        }
+        assertEquals(
+            BigDecimal("12345678901234567890"),
+            (conv(IntValue(BigInteger("12345678901234567890"))) as IR.Value.Number).value
+        )
+        assertEquals(value, (conv.invert(IR.Value.Number(value)) as FloatValue).value)
+    }
+
+    @Test
+    fun `BigInteger values retain arbitrary precision`() {
+        val value = BigInteger("123456789012345678901234567890")
+        val conv = GJValueConv(schema.schema.getType("BigInteger")!!)
+
+        listOf(
+            IntValue(value),
+            FloatValue(value.toBigDecimal().setScale(1)),
+            StringValue("$value.0")
+        ).forEach { literal ->
+            assertEquals(value, (conv(literal) as IR.Value.Number).value)
+        }
+        assertEquals(value, (conv.invert(IR.Value.Number(value)) as IntValue).value)
+        assertThrows<ArithmeticException> {
+            conv(FloatValue(BigDecimal("1.5")))
+        }
     }
 
     @Test

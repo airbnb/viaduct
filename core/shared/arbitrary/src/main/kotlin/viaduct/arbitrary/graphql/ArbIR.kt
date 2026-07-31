@@ -22,6 +22,8 @@ import graphql.schema.GraphQLTypeUtil
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.arbitrary
+import io.kotest.property.arbitrary.bigDecimal
+import io.kotest.property.arbitrary.bigInt
 import io.kotest.property.arbitrary.bind
 import io.kotest.property.arbitrary.boolean
 import io.kotest.property.arbitrary.byte
@@ -421,6 +423,8 @@ internal class ScalarValueGen(
 
         return when (type.name) {
             "BackingData" -> IR.Value.Null
+            "BigDecimal" -> IR.Value.Number(Arb.bigDecimal().next(rs))
+            "BigInteger" -> IR.Value.Number(Arb.bigInt(128).next(rs))
             "Boolean" -> IR.Value.Boolean(Arb.boolean().next(rs))
             "Byte" -> IR.Value.Number(Arb.byte().next(rs))
             "Date" -> IR.Value.Time(Arb.localDate().next(rs))

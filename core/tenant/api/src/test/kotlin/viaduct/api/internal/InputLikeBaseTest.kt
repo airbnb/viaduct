@@ -1,8 +1,13 @@
 package viaduct.api.internal
 
+import graphql.language.FloatValue
+import graphql.language.StringValue
+import graphql.scalars.ExtendedScalars
 import graphql.schema.GraphQLInputObjectField
 import graphql.schema.GraphQLInputObjectType
 import java.lang.reflect.InvocationTargetException
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.time.Instant
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -77,6 +82,15 @@ class InputLikeBaseTest {
         override val context: InternalContext = internalContext
 
         fun validate() = validateInputDataAndThrowAsFrameworkError()
+    }
+
+    private inner class DefaultValueTestInput(
+        override val graphQLInputObjectType: GraphQLInputObjectType
+    ) : InputLikeBase() {
+        override val context: InternalContext = internalContext
+        override val inputData: Map<String, Any?> = emptyMap()
+
+        fun <T> field(name: String): T = get(name)
     }
 
     @Test
@@ -207,6 +221,41 @@ class InputLikeBaseTest {
         // `isPresent` should return false because it was not set, and the getter should return the set value
         assertFalse(input.isPresent(Input1.Fields.nonNullEnumFieldWithDefault))
         assertEquals(E1.A, input.nonNullEnumFieldWithDefault)
+    }
+
+    @Test
+    fun `arbitrary precision scalar defaults accept supported literal forms`() {
+        val decimal = BigDecimal("12345678901234567890.12345678901234567890")
+        val integer = BigInteger("123456789012345678901234567890")
+        val inputType = GraphQLInputObjectType.Builder()
+            .name("ArbitraryPrecisionDefaults")
+            .field(
+                GraphQLInputObjectField.Builder()
+                    .name("decimal")
+                    .type(ExtendedScalars.GraphQLBigDecimal)
+                    .defaultValueLiteral(StringValue(decimal.toString()))
+                    .build()
+            )
+            .field(
+                GraphQLInputObjectField.Builder()
+                    .name("integerFromString")
+                    .type(ExtendedScalars.GraphQLBigInteger)
+                    .defaultValueLiteral(StringValue("$integer.0"))
+                    .build()
+            )
+            .field(
+                GraphQLInputObjectField.Builder()
+                    .name("integerFromFloat")
+                    .type(ExtendedScalars.GraphQLBigInteger)
+                    .defaultValueLiteral(FloatValue(BigDecimal("42.0")))
+                    .build()
+            )
+            .build()
+        val input = DefaultValueTestInput(inputType)
+
+        assertEquals(decimal, input.field<BigDecimal>("decimal"))
+        assertEquals(integer, input.field<BigInteger>("integerFromString"))
+        assertEquals(BigInteger.valueOf(42), input.field<BigInteger>("integerFromFloat"))
     }
 
     @Test
