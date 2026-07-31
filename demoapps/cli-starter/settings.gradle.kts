@@ -13,8 +13,12 @@ pluginManagement {
             if (System.getenv("USE_VIADUCT_SNAPSHOT_REPO")?.toBoolean() == true) {
                 maven("https://central.sonatype.com/repository/maven-snapshots/")
             }
-            System.getenv("VIADUCT_ARTIFACTORY_MIRROR")?.let { maven { url = uri(it) } }
-            gradlePluginPortal()
+            val artifactoryMirror = System.getenv("VIADUCT_ARTIFACTORY_MIRROR")
+            if (artifactoryMirror != null) {
+                maven { url = uri(artifactoryMirror) }
+            } else {
+                gradlePluginPortal()
+            }
         }
     }
     plugins {
@@ -34,8 +38,12 @@ dependencyResolutionManagement {
         if (System.getenv("USE_VIADUCT_SNAPSHOT_REPO")?.toBoolean() == true) {
             maven("https://central.sonatype.com/repository/maven-snapshots/")
         }
-        System.getenv("VIADUCT_ARTIFACTORY_MIRROR")?.let { maven { url = uri(it) } }
-        mavenCentral()
+        val artifactoryMirror = System.getenv("VIADUCT_ARTIFACTORY_MIRROR")
+        if (artifactoryMirror != null) {
+            maven { url = uri(artifactoryMirror) }
+        } else {
+            mavenCentral()
+        }
     }
     versionCatalogs {
         create("libs") {
