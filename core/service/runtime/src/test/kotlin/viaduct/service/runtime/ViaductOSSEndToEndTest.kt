@@ -125,6 +125,26 @@ class ViaductOSSEndToEndTest {
         }
 
     @Test
+    fun `default execution returns an error when the base schema is not registered`() =
+        runBlocking {
+            val executionInput = ExecutionInput.create(operationText = "query { field }")
+
+            val results = listOf(
+                subject.execute(executionInput),
+                subject.executeAsync(executionInput).await(),
+            )
+
+            results.forEach { result ->
+                assertEquals(1, result.errors.size)
+                assertEquals(
+                    "Schema not found for schemaId=SchemaId(id='BASE')",
+                    result.errors.first().message,
+                )
+                assertNull(result.getData())
+            }
+        }
+
+    @Test
     fun `handles exceptions from data fetchers gracefully`() =
         runBlocking {
             val exceptionWiring = RuntimeWiring.newRuntimeWiring()

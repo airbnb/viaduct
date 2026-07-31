@@ -1,5 +1,6 @@
 package com.example.viadapp
 
+import com.example.viadapp.production.DEFAULT_SCHEMA
 import io.micronaut.context.ApplicationContext
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.Viaduct
@@ -16,7 +17,11 @@ import viaduct.service.api.Viaduct
 fun main() {
     ApplicationContext.run().use { context ->
         val viaduct = context.getBean(Viaduct::class.java)
-        val result = viaduct.executeAsync(ExecutionInput.create(operationText = "query { greeting }")).join()
+        val result =
+            viaduct.executeAsync(
+                ExecutionInput.create(operationText = "query { greeting }"),
+                DEFAULT_SCHEMA.schemaId,
+            ).join()
         check(result.errors.isEmpty()) { "Smoke query returned errors: ${result.errors}" }
         println(result.getData())
     }

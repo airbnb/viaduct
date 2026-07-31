@@ -109,13 +109,13 @@ class ViaductBuilderTest {
     }
 
     @Test
-    fun `schema without scopes executes the canonical base without SchemaScopeInfo`() {
+    fun `base SchemaScopeInfo executes the base view of an unscoped schema`() {
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withScopedSchemasFromSdl(
                 "extend type Query { visible: String }",
-                emptyList(),
+                listOf(SchemaScopeInfo.Base),
             )
             .build()
 

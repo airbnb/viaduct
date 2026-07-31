@@ -47,6 +47,24 @@ class EngineRegistry private constructor(
     fun getFullSchema(): ViaductSchema = fullSchema
 
     /**
+     * Returns the base view without requiring it to be registered for execution.
+     */
+    internal fun getBaseSchemaView(): ViaductSchema {
+        schemasById[SchemaId.Base]?.let { return it.value }
+
+        val baseGraphQLSchema = ScopedSchemaBuilder(
+            inputSchema = fullSchema.schema,
+            scopingMode = fullSchema.schemaScopingMode(),
+            additionalVisitorConstructors = emptyList(),
+        ).build(SchemaView.Base).filtered
+        return if (baseGraphQLSchema === fullSchema.schema) {
+            fullSchema
+        } else {
+            fullSchema.copy(schema = baseGraphQLSchema)
+        }
+    }
+
+    /**
      * Exception thrown when a requested schema is not found in the registry.
      * This is an expected failure case that should be handled gracefully by callers.
      */
@@ -104,22 +122,9 @@ class EngineRegistry private constructor(
                         log.info("Full schema built in {} s ({} ms).", duration.inWholeSeconds, duration.inWholeMilliseconds)
                         schema
                     }
-                    val baseGraphQLSchema = ScopedSchemaBuilder(
-                        inputSchema = fullSchema.schema,
-                        scopingMode = fullSchema.schemaScopingMode(),
-                        additionalVisitorConstructors = emptyList(),
-                    ).build(SchemaView.Base).filtered
-                    val baseSchema = if (baseGraphQLSchema === fullSchema.schema) {
-                        fullSchema
-                    } else {
-                        fullSchema.copy(schema = baseGraphQLSchema)
-                    }
                     EngineRegistry(
-                        buildMap {
-                            put(SchemaId.Base, lazyOf(baseSchema))
-                            // block while building scoped schemas in parallel
-                            putAll(buildScopedSchemas(config.scopedSchemas.toMap(), fullSchema))
-                        },
+                        // Block while building configured external schemas in parallel.
+                        buildScopedSchemas(config.scopedSchemas.toMap(), fullSchema).toMap(),
                         fullSchema,
                         documentProviderFactory,
                     )

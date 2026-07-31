@@ -8,6 +8,7 @@ import viaduct.service.api.Viaduct
 
 val SCHEMA_ID = "publicSchema"
 const val DEFAULT_SCOPE_ID = "default"
+val DEFAULT_SCHEMA = SchemaScopeInfo.Scoped(SCHEMA_ID, setOf(DEFAULT_SCOPE_ID))
 
 /**
  * Micronaut factory that provides the Viaduct instance.
@@ -23,7 +24,7 @@ class ViaductConfiguration(
     fun providesViaduct(): Viaduct {
         return BasicViaductFactory.create(
             tenantModuleInjectorFactory = tenantModuleInjectorFactory,
-            scopedSchemas = listOf(SchemaScopeInfo.Scoped(SCHEMA_ID, setOf(DEFAULT_SCOPE_ID))),
+            scopedSchemas = listOf(DEFAULT_SCHEMA),
         )
     }
 }

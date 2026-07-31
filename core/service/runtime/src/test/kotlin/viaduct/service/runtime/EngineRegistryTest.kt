@@ -212,6 +212,7 @@ class EngineRegistryTest {
         val factory = EngineRegistry.Factory(schemaFactory, documentProviderFactory)
 
         val scopeConfigs = setOf(
+            SchemaConfiguration.ScopeConfig.Base,
             SchemaConfiguration.ScopeConfig.Scoped(id = "admin", scopeIds = setOf("admin")),
             SchemaConfiguration.ScopeConfig.Scoped(id = "public", scopeIds = setOf("public"))
         )
@@ -226,6 +227,23 @@ class EngineRegistryTest {
 
         val publicSchema = registry.getSchema(SchemaId.Scoped("public", setOf("public")))
         assertValidSchema(publicSchema)
+    }
+
+    @Test
+    fun `Factory create - registers only explicitly configured schema views`() {
+        val factory = EngineRegistry.Factory(createSchemaFactory(), createDocumentProviderFactory())
+        val scopedSchemaId = SchemaId.Scoped("public", setOf("public"))
+        val config = SchemaConfiguration.fromSdl(
+            SCOPED_SDL,
+            scopes = setOf(SchemaConfiguration.ScopeConfig.Scoped("public", setOf("public"))),
+        )
+
+        val registry = factory.create(config)
+
+        assertEquals(setOf(scopedSchemaId), registry.getRegisteredSchemaIds())
+        assertThrows(EngineRegistry.SchemaNotFoundException::class.java) {
+            registry.getSchema(SchemaId.Base)
+        }
     }
 
     @Test
@@ -468,6 +486,7 @@ class EngineRegistryTest {
         val factory = EngineRegistry.Factory(schemaFactory, documentProviderFactory)
 
         val scopeConfigs = setOf(
+            SchemaConfiguration.ScopeConfig.Base,
             SchemaConfiguration.ScopeConfig.Scoped(id = "admin", scopeIds = setOf("admin"))
         )
         val config = SchemaConfiguration.fromSdl(SCOPED_SDL, scopes = scopeConfigs)
@@ -537,6 +556,7 @@ class EngineRegistryTest {
         val factory = EngineRegistry.Factory(schemaFactory, documentProviderFactory)
 
         val scopeConfigs = setOf(
+            SchemaConfiguration.ScopeConfig.Base,
             SchemaConfiguration.ScopeConfig.Scoped(id = "resources-scope", scopeIds = setOf("resource"))
         )
         val config = SchemaConfiguration.fromResources(
@@ -561,6 +581,7 @@ class EngineRegistryTest {
 
         val baseSchema = createSchemaFromSdl(SCOPED_SDL)
         val scopeConfigs = setOf(
+            SchemaConfiguration.ScopeConfig.Base,
             SchemaConfiguration.ScopeConfig.Scoped(id = "from-schema", scopeIds = setOf("test"))
         )
         val config = SchemaConfiguration.fromSchema(
@@ -571,6 +592,7 @@ class EngineRegistryTest {
 
         val registeredBaseSchema = registry.getSchema(SchemaId.Base)
         assertValidSchema(registeredBaseSchema)
+        assertSame(baseSchema, registeredBaseSchema, "Base should reuse the provided schema when no filtering is needed")
         assertSame(baseSchema.schema, registeredBaseSchema.schema, "fromSchema should use the exact provided schema")
 
         val scopedSchema = registry.getSchema(SchemaId.Scoped("from-schema", setOf("test")))
@@ -609,6 +631,7 @@ class EngineRegistryTest {
         val factory = EngineRegistry.Factory(schemaFactory, documentProviderFactory)
 
         val scopeConfigs = setOf(
+            SchemaConfiguration.ScopeConfig.Base,
             SchemaConfiguration.ScopeConfig.Scoped(id = "admin", scopeIds = setOf("admin"))
         )
         val config = SchemaConfiguration.fromSdl(SCOPED_SDL, scopes = scopeConfigs)
@@ -635,6 +658,7 @@ class EngineRegistryTest {
         val factory = EngineRegistry.Factory(schemaFactory, documentProviderFactory)
 
         val scopeConfigs = setOf(
+            SchemaConfiguration.ScopeConfig.Base,
             SchemaConfiguration.ScopeConfig.Scoped(id = "admin", scopeIds = setOf("admin")),
             SchemaConfiguration.ScopeConfig.Scoped(id = "public", scopeIds = setOf("public")),
             SchemaConfiguration.ScopeConfig.Scoped(id = "internal", scopeIds = setOf("internal"))
@@ -657,6 +681,19 @@ class EngineRegistryTest {
 
     // Tests for deprecated registerSchema() API
     // TODO: Remove these tests when registerSchema() is deleted
+
+    @Test
+    fun `registerSchema - registers the base view explicitly`() {
+        val factory = EngineRegistry.Factory(createSchemaFactory(), createDocumentProviderFactory())
+        val config = SchemaConfiguration.fromSdl(SIMPLE_SDL, scopes = emptySet())
+
+        config.registerSchema(SchemaId.Base, { createSchemaFromSdl() })
+
+        val registry = factory.create(config)
+
+        assertEquals(setOf(SchemaId.Base), registry.getRegisteredSchemaIds())
+        assertValidSchema(registry.getSchema(SchemaId.Base))
+    }
 
     @Test
     fun `registerSchema - can register schema dynamically with compute block`() {
@@ -757,7 +794,10 @@ class EngineRegistryTest {
         val factory = EngineRegistry.Factory(schemaFactory, documentProviderFactory)
 
         val scopeConfig = SchemaConfiguration.ScopeConfig.Scoped(id = "fromSdl", scopeIds = setOf("sdl"))
-        val config = SchemaConfiguration.fromSdl(SCOPED_SDL, scopes = setOf(scopeConfig))
+        val config = SchemaConfiguration.fromSdl(
+            SCOPED_SDL,
+            scopes = setOf(SchemaConfiguration.ScopeConfig.Base, scopeConfig),
+        )
 
         val registeredSchemaId = SchemaId.Scoped("registered", setOf("registered"))
         config.registerSchema(registeredSchemaId, { createSchemaFromSdl() })

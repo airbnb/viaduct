@@ -63,6 +63,9 @@ class ViaductBuilder {
      * Configures executable views of a scope-aware schema from [SchemaScopeInfo] descriptors,
      * discovering the schema from classpath resources.
      *
+     * Only the listed views are registered. Include [SchemaScopeInfo.Base] to allow execution
+     * using [SchemaId.Base].
+     *
      * If both this and [withScopedSchemasFromSdl] are called, the last one wins.
      */
     @Suppress("DEPRECATION")
@@ -77,6 +80,9 @@ class ViaductBuilder {
     /**
      * Configures executable views of a scope-aware schema from [SchemaScopeInfo] descriptors,
      * building the schema from the given [sdl] string.
+     *
+     * Only the listed views are registered. Include [SchemaScopeInfo.Base] to allow execution
+     * using [SchemaId.Base].
      *
      * If both this and [withScopedSchemas] are called, the last one wins.
      */
@@ -207,8 +213,8 @@ class ViaductBuilder {
  * The [schemaId] property holds the [SchemaId] that identifies this schema at execution time.
  * Use it when calling [Viaduct.executeAsync] or [Viaduct.execute] to select this schema.
  *
- * Schemas that do not declare scopes do not need this configuration; they are executable using
- * [SchemaId.Base] by default.
+ * When configuring views explicitly, include [Base] to allow execution using [SchemaId.Base].
+ * Builders without explicit view configuration register [Base] by default.
  */
 @StableApi
 sealed interface SchemaScopeInfo {

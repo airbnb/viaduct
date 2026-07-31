@@ -404,7 +404,7 @@ class StandardViaduct
                         factory.createWithReusedSchemas(schemaConfiguration, existingViaduct.engineRegistry)
                     }
                         .also { viaduct ->
-                            if (!airbnbModeEnabled && !allowSubscriptions && hasSubscriptions(viaduct.engineRegistry.getSchema(SchemaId.Base))) {
+                            if (!airbnbModeEnabled && !allowSubscriptions && hasSubscriptions(viaduct.engineRegistry.getBaseSchemaView())) {
                                 throw GraphQLBuildError("Viaduct does not currently support subscriptions.")
                             }
                         }

@@ -23,13 +23,13 @@ object BasicViaductFactory {
      * @param tenantModuleInjectorFactory factory used for tenant modules discovered from the
      *        classpath. Defaults to [NaiveTenantModuleInjectorFactory].
      * @param scopedSchemas executable views to register for a schema that declares scopes.
-     *        Defaults to none; the base schema remains executable using [viaduct.service.api.SchemaId.Base].
+     *        Defaults to the base view using [viaduct.service.api.SchemaId.Base].
      */
     @JvmStatic
     @JvmOverloads
     fun create(
         tenantModuleInjectorFactory: TenantModuleInjectorFactory = NaiveTenantModuleInjectorFactory,
-        scopedSchemas: List<SchemaScopeInfo> = emptyList(),
+        scopedSchemas: List<SchemaScopeInfo> = listOf(SchemaScopeInfo.Base),
     ): Viaduct =
         ViaductBuilder()
             .withTenantModuleInjectorFactory(tenantModuleInjectorFactory)

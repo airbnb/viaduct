@@ -2,6 +2,7 @@
 
 package com.example.viadapp
 
+import com.example.viadapp.production.DEFAULT_SCHEMA
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -30,7 +31,7 @@ class HelloWorldTest {
         context.close()
     }
 
-    private fun execute(query: String) = viaduct.executeAsync(ExecutionInput.create(operationText = query)).join()
+    private fun execute(query: String) = viaduct.executeAsync(ExecutionInput.create(operationText = query), DEFAULT_SCHEMA.schemaId).join()
 
     @Test
     fun `greeting resolver returns Hello World`() {
@@ -108,7 +109,10 @@ class HelloWorldTest {
             val ctx = ApplicationContext.run(mapOf("greeting.message" to "Hi from config!"))
             try {
                 val v = ctx.getBean(Viaduct::class.java)
-                val result = v.execute(ExecutionInput.create(operationText = "query { greeting }"))
+                val result = v.execute(
+                    ExecutionInput.create(operationText = "query { greeting }"),
+                    DEFAULT_SCHEMA.schemaId,
+                )
                 result.errors shouldBe emptyList()
                 result.getData().shouldNotBeNull()["greeting"] shouldBe "Hi from config!"
             } finally {

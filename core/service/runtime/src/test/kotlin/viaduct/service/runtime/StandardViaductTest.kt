@@ -185,7 +185,7 @@ class StandardViaductTest {
                 userUpdated: String
             }
         """.trimIndent()
-        val schemaConfiguration = SchemaConfiguration.fromSdl(sdl)
+        val schemaConfiguration = SchemaConfiguration.fromSdl(sdl, scopes = emptySet())
 
         val exception = assertThrows<GraphQLBuildError> {
             StandardViaduct.Builder()
@@ -195,6 +195,29 @@ class StandardViaductTest {
         }
 
         assertEquals("Viaduct does not currently support subscriptions.", exception.message)
+    }
+
+    @Test
+    fun `subscription validation uses the base view when Base is not registered`() {
+        val sdl = """
+            extend type Query {
+                user: String
+            }
+
+            extend type Subscription {
+                internalUpdate: String @tenantLocal
+            }
+        """.trimIndent()
+        val schemaConfiguration = SchemaConfiguration.fromSdl(sdl, scopes = emptySet())
+
+        val viaduct = assertDoesNotThrow {
+            StandardViaduct.Builder()
+                .withNoTenantAPIBootstrapper()
+                .withSchemaConfiguration(schemaConfiguration)
+                .build()
+        }
+
+        assertEquals(emptySet<SchemaId>(), viaduct.engineRegistry.getRegisteredSchemaIds())
     }
 
     @Test

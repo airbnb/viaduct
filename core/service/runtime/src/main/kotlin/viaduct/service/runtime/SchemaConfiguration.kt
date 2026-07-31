@@ -119,20 +119,24 @@ class SchemaConfiguration private constructor(
                     additionalVisitorConstructors = emptyList(),
                     scopingMode = scopeConfig.scopingMode(fullSchema),
                 ).build(scopeConfig.schemaView()).filtered
-                return fullSchema.copy(schema = scopedSchema)
+                return if (scopedSchema === fullSchema.schema) {
+                    fullSchema
+                } else {
+                    fullSchema.copy(schema = scopedSchema)
+                }
             }
         }
     }
 
     companion object {
         /**
-         * Default configuration that loads the full schema from resources without any scoped schemas.
+         * Default configuration that loads the full schema from resources and registers its base view.
          */
         val DEFAULT: SchemaConfiguration = fromResources()
 
         /**
          * Creates a [SchemaConfiguration] that registers schemas from the provided SDL string.
-         * Registers one schema for each provided [ScopeConfig] and one base schema.
+         * Registers exactly one external schema for each provided [ScopeConfig].
          * The internal full schema includes all fields; the base schema filters tenant-local fields.
          *
          * @param sdl the GraphQL SDL string defining the schema
@@ -143,7 +147,7 @@ class SchemaConfiguration private constructor(
          */
         fun fromSdl(
             sdl: String,
-            scopes: Set<ScopeConfig> = emptySet(),
+            scopes: Set<ScopeConfig> = setOf(ScopeConfig.Base),
             lazyScopedSchemas: Boolean = false,
         ): SchemaConfiguration {
             return SchemaConfiguration(
@@ -156,7 +160,7 @@ class SchemaConfiguration private constructor(
 
         /**
          * Creates a [SchemaConfiguration] that registers schemas by loading them from resources.
-         * Registers one schema for each provided [ScopeConfig] and one base schema.
+         * Registers exactly one external schema for each provided [ScopeConfig].
          * The internal full schema includes all fields; the base schema filters tenant-local fields.
          * The resources are loaded from the specified [grtPackagePrefix] and can be filtered using [resourcesIncluded].
          * If [grtPackagePrefix] is null, resources are loaded from the root of the classpath.
@@ -172,7 +176,7 @@ class SchemaConfiguration private constructor(
         fun fromResources(
             grtPackagePrefix: String? = null,
             resourcesIncluded: Regex? = null,
-            scopes: Set<ScopeConfig> = emptySet(),
+            scopes: Set<ScopeConfig> = setOf(ScopeConfig.Base),
             lazyScopedSchemas: Boolean = false,
         ): SchemaConfiguration {
             return SchemaConfiguration(
@@ -185,7 +189,7 @@ class SchemaConfiguration private constructor(
 
         /**
          * Creates a [SchemaConfiguration] that registers schemas from an existing [ViaductSchema].
-         * Registers one schema for each provided [ScopeConfig] and one base schema.
+         * Registers exactly one external schema for each provided [ScopeConfig].
          * The internal full schema includes all fields; the base schema filters tenant-local fields.
          * The provided [schema] is used as the basis for all registered schemas.
          *
@@ -197,7 +201,7 @@ class SchemaConfiguration private constructor(
          */
         fun fromSchema(
             schema: ViaductSchema,
-            scopes: Set<ScopeConfig> = emptySet(),
+            scopes: Set<ScopeConfig> = setOf(ScopeConfig.Base),
             lazyScopedSchemas: Boolean = false,
         ): SchemaConfiguration {
             return SchemaConfiguration(
@@ -260,6 +264,10 @@ class SchemaConfiguration private constructor(
                 if (fullSchemaConfig == null) {
                     fullSchemaConfig = FromPrebuiltFullSchema(scopedSchemaComputeBlock)
                 }
+                scopedSchemas.putIfAbsent(
+                    schemaId,
+                    ScopedSchemaConfig.Derived(ScopeConfig.Base, lazy),
+                )
             }
 
             is SchemaId.Scoped -> {

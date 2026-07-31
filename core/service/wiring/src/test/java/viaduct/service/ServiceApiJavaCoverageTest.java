@@ -173,7 +173,9 @@ class ServiceApiJavaCoverageTest {
 
   private static Viaduct buildMinimalViaduct() {
     final var scopedSchemas =
-        List.of(new SchemaScopeInfo.Scoped("public", Set.of("viaduct-public")));
+        List.of(
+            SchemaScopeInfo.Base.INSTANCE,
+            new SchemaScopeInfo.Scoped("public", Set.of("viaduct-public")));
     return new ViaductBuilder()
         .withFlagManager(new JavaFlagManager())
         // No public "no tenants" switch (withNoTenantAPIBootstrapper is internal); the public
