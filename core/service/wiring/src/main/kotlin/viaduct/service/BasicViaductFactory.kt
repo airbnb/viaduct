@@ -22,8 +22,8 @@ object BasicViaductFactory {
      *
      * @param tenantModuleInjectorFactory factory used for tenant modules discovered from the
      *        classpath. Defaults to [NaiveTenantModuleInjectorFactory].
-     * @param scopedSchemas scoped schema definitions to register. Defaults to none (only the
-     *        full schema is available).
+     * @param scopedSchemas executable views to register for a schema that declares scopes.
+     *        Defaults to none; the base schema remains executable using [viaduct.service.api.SchemaId.Base].
      */
     @JvmStatic
     @JvmOverloads

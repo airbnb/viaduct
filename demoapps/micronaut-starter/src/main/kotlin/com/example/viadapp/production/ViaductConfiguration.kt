@@ -23,7 +23,7 @@ class ViaductConfiguration(
     fun providesViaduct(): Viaduct {
         return BasicViaductFactory.create(
             tenantModuleInjectorFactory = tenantModuleInjectorFactory,
-            scopedSchemas = listOf(SchemaScopeInfo(SCHEMA_ID, setOf(DEFAULT_SCOPE_ID))),
+            scopedSchemas = listOf(SchemaScopeInfo.Scoped(SCHEMA_ID, setOf(DEFAULT_SCOPE_ID))),
         )
     }
 }

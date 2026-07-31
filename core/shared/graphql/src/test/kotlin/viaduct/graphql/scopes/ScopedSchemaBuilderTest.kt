@@ -68,8 +68,8 @@ class ScopedSchemaBuilderTest {
     ) {
         ScopedSchemaBuilder(
             UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(sdl)),
-            validScopes.toSortedSet(),
+            SchemaScopingMode.ScopeAware(validScopes),
             listOf()
-        ).applyScopes(scopesToApply)
+        ).build(SchemaView.Scoped(scopesToApply))
     }
 }

@@ -157,7 +157,7 @@ class ServiceApiJavaCoverageTest {
     assertNotNull(direct.getMessage());
 
     // SchemaScopeInfo (wiring)
-    final var scopeInfo = new SchemaScopeInfo("public", Set.of("viaduct-public"));
+    final var scopeInfo = new SchemaScopeInfo.Scoped("public", Set.of("viaduct-public"));
     assertEquals(Set.of("viaduct-public"), scopeInfo.getScopesToApply());
 
     // GraphiQL HTML
@@ -168,11 +168,12 @@ class ServiceApiJavaCoverageTest {
     assertNotNull(ExecutionInput.Companion.create("{ __typename }"));
     assertNotNull(new ErrorReporter.Metadata("fieldName"));
     assertNotNull(new GraphiQLHtmlConfig("Custom Title"));
-    assertNotNull(new SchemaScopeInfo("public"));
+    assertNotNull(SchemaScopeInfo.Base.INSTANCE);
   }
 
   private static Viaduct buildMinimalViaduct() {
-    final var scopedSchemas = List.of(new SchemaScopeInfo("public", Set.of("viaduct-public")));
+    final var scopedSchemas =
+        List.of(new SchemaScopeInfo.Scoped("public", Set.of("viaduct-public")));
     return new ViaductBuilder()
         .withFlagManager(new JavaFlagManager())
         // No public "no tenants" switch (withNoTenantAPIBootstrapper is internal); the public
@@ -196,7 +197,8 @@ class ServiceApiJavaCoverageTest {
     final Viaduct v1 = factory.create();
     final Viaduct v2 = factory.create(NaiveTenantModuleInjectorFactory.INSTANCE);
     final Viaduct v3 = factory.create(NaiveTenantModuleInjectorFactory.INSTANCE, List.of());
-    final var scopedSchemas = List.of(new SchemaScopeInfo("public", Set.of("viaduct-public")));
+    final var scopedSchemas =
+        List.of(new SchemaScopeInfo.Scoped("public", Set.of("viaduct-public")));
 
     // Every public, non-experimental ViaductBuilder setter is Java-callable.
     final Viaduct v4 =

@@ -88,7 +88,10 @@ abstract class AbstractFeatureAppTestContractBase {
     @Suppress("DEPRECATION")
     fun withScopedSchemas(scopedSchemas: List<SchemaScopeInfo>) {
         val scopeConfigs = scopedSchemas.map {
-            SchemaConfiguration.ScopeConfig(it.schemaId.id, it.scopesToApply)
+            when (it) {
+                SchemaScopeInfo.Base -> SchemaConfiguration.ScopeConfig.Base
+                is SchemaScopeInfo.Scoped -> SchemaConfiguration.ScopeConfig.Scoped(it.id, it.scopesToApply)
+            }
         }.toSet()
         viaductBuilder = viaductBuilder.withSchemaConfiguration(
             SchemaConfiguration.fromSdl(sdl(), scopes = scopeConfigs)

@@ -25,7 +25,9 @@ Schemas are registered when creating a Viaduct instance by passing a list of [Sc
 {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductConfiguration.kt", "schema_registration", lang="kotlin") }}
 
 
-- `scopedSchemas`: a list of `SchemaScopeInfo` descriptors, each binding a schema name to a set of scope IDs.
+- `scopedSchemas`: a list of `SchemaScopeInfo` descriptors for schemas that use `@scope`.
+  `SchemaScopeInfo.Scoped` binds a schema name to scope IDs; `SchemaScopeInfo.Base` exposes the
+  unfiltered base view. Schemas without `@scope` need no descriptors.
 
 ## Organizing SDL files
 

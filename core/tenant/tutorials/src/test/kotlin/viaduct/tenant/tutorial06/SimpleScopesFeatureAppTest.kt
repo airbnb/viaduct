@@ -96,7 +96,7 @@ class SimpleScopesFeatureAppTest : SimpleScopesContractTest() {
         // `withScopedSchemas` configures the scoped schemas for the [Viaduct] object being
         // tested.  In this example we're creating a scoped schema named "CUSTOMER_API".
         // See Viaduct user docs for more on schema scoping.
-        val customerSchema = SchemaScopeInfo("CUSTOMER_API", setOf("USER"))
+        val customerSchema = SchemaScopeInfo.Scoped("CUSTOMER_API", setOf("USER"))
         withScopedSchemas(listOf(customerSchema))
 
         // USER SCOPE ACCESS - Works
@@ -145,7 +145,7 @@ class SimpleScopesFeatureAppTest : SimpleScopesContractTest() {
         // Register admin dashboard schema with ADMIN scope only
         // This simulates deploying the API for internal admin tools and dashboards
 
-        val adminSchema = SchemaScopeInfo("ADMIN_API", setOf("ADMIN"))
+        val adminSchema = SchemaScopeInfo.Scoped("ADMIN_API", setOf("ADMIN"))
         withScopedSchemas(listOf(adminSchema))
 
         // ADMIN SCOPE ACCESS - Works
@@ -193,7 +193,7 @@ class SimpleScopesFeatureAppTest : SimpleScopesContractTest() {
     fun `Internal tools with both scopes can access everything`() {
         // Register internal tools schema with both USER and ADMIN scopes
         // This simulates deploying the API for support tools that need access to everything
-        val internalSchema = SchemaScopeInfo("INTERNAL_API", setOf("USER", "ADMIN"))
+        val internalSchema = SchemaScopeInfo.Scoped("INTERNAL_API", setOf("USER", "ADMIN"))
         withScopedSchemas(listOf(internalSchema))
 
         // COMBINED ACCESS - Both scopes available

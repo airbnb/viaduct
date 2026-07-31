@@ -16,71 +16,83 @@ import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeReference
 import graphql.schema.GraphQLUnionType
-import java.util.SortedSet
 import viaduct.graphql.scopes.utils.getChildrenForElement
 import viaduct.graphql.scopes.utils.isIntrospectionType
 import viaduct.graphql.scopes.utils.isTenantLocalEquivalentField
 import viaduct.utils.memoize.memoize
 
 /**
- * Given an input schema, allow the generation of one or more schemas that are projections of the source schema, derived
- * by filtering the schema to certain "scopes".
+ * Describes whether an input schema participates in scope-based projection.
+ */
+sealed interface SchemaScopingMode {
+    /** The schema has no declared scope IDs and cannot produce scoped projections. */
+    data object Unscoped : SchemaScopingMode
+
+    /** The schema can produce projections for the declared [validScopes]. */
+    data class ScopeAware(
+        val validScopes: Set<String>,
+    ) : SchemaScopingMode {
+        init {
+            require(validScopes.isNotEmpty()) { "Scope-aware schemas must declare at least one valid scope." }
+            require("*" !in validScopes) { "'*' is a wildcard in schema directives, not a valid scope ID." }
+        }
+    }
+}
+
+/**
+ * Identifies the semantic schema variant to build.
+ */
+sealed interface SchemaView {
+    /** The complete schema, including tenant-local fields. */
+    data object Full : SchemaView
+
+    /** The complete schema with tenant-local fields removed. */
+    data object Base : SchemaView
+
+    /** A projection containing fields visible to at least one of [scopes]. */
+    data class Scoped(
+        val scopes: Set<String>,
+    ) : SchemaView {
+        init {
+            require(scopes.isNotEmpty()) { "A scoped schema view must select at least one scope." }
+            require("*" !in scopes) { "'*' is a schema directive wildcard, not a selectable scope ID." }
+        }
+    }
+}
+
+/**
+ * Builds full, base, or scope-filtered views of an input schema.
  *
- * On initialization, this class will optimistically traverse the input schema and gather scope metadata. Upon applying
- * a scope (or scopes), this metadata will be leveraged to do a fast filtering of types and fields from the schema to
- * produce the final schema projection with the scopes applied. The resulting projection will be memoized for the
- * lifetime of the instance of this class.
+ * Scope-aware inputs can produce a full view or projections for specific scopes. Unscoped inputs can produce full and
+ * base views without participating in scope validation or filtering.
  *
  * See https://viaduct.airbnb.tech/docs/scopes/ for more information.
  *
- * @property inputSchema The fully-annotated input schema that contains schema elements belonging to
- *                       _all_ available scopes
- * @property validScopes Scopes that are valid to be applied to this schema.
- * @property additionalVisitorClasses Additional transverser visitors for transformations. Currently, we default
+ * @property inputSchema The input schema from which views are built.
+ * @property scopingMode Whether the input schema supports scoped projections and its valid scope IDs.
+ * @property additionalVisitorConstructors Additional traverser visitors for transformations. Currently, we default
  *                       to include only the `AddD3Fields` visitor class for the @experimental_dataDrivenDependency
  *                       directive.
  */
 class ScopedSchemaBuilder(
     private val inputSchema: GraphQLSchema,
-    private val validScopes: SortedSet<String>,
+    private val scopingMode: SchemaScopingMode,
     private val additionalVisitorConstructors: List<AdditionalVisitorConstructor>
 ) {
     /**
-     * Given a list of "scope" names, return a ScopedGraphQLSchema object, containing the original input schema
-     * and the filtered schema with those scopes applied and types/interfaces/enums/unions/fields filtered
-     * appropriately.
+     * Builds [view] from the input schema.
      *
-     * Note that the resulting schema object will not be executable -- it only contains type metadata, not wiring.
-     *
-     * @property scopesToApply The list of scope names to apply to the input schema.
-     * @return a new ScopedGraphQLSchema object containing the original and the filtered GraphQLSchema objects.
+     * The resulting schema is not executable; it only contains type metadata, not wiring.
      */
-    @JvmOverloads
-    fun applyScopes(
-        scopesToApply: Set<String>,
-        includeTenantLocalFields: Boolean = false,
-    ): ScopedGraphQLSchema {
-        val scopeTransformer = SchemaScopeTransformer(validScopes, additionalVisitorConstructors)
-        // replace the types in the schema with TypeReferences
-        val preparedSchema = replaceAllTypesWithReferences(inputSchema)
-        val scopedSchema =
-            scopeTransformer.applyScopes(
-                preparedSchema,
-                scopesToApply.toSortedSet(),
-                includeTenantLocalFields,
-            )
-        return ScopedGraphQLSchema(inputSchema, scopedSchema)
-    }
-
-    fun applyBaseSchema(): ScopedGraphQLSchema {
-        if (!hasTenantLocalFields(inputSchema)) {
+    fun build(view: SchemaView): ScopedGraphQLSchema {
+        if (view == SchemaView.Base && !hasTenantLocalFields(inputSchema)) {
             return ScopedGraphQLSchema(inputSchema, inputSchema)
         }
-        val scopeTransformer = SchemaScopeTransformer(validScopes, additionalVisitorConstructors)
+        val scopeTransformer = SchemaScopeTransformer(scopingMode, additionalVisitorConstructors)
         val preparedSchema = replaceAllTypesWithReferences(inputSchema)
         return ScopedGraphQLSchema(
             inputSchema,
-            scopeTransformer.applyBaseSchema(preparedSchema),
+            scopeTransformer.transform(preparedSchema, view),
         )
     }
 

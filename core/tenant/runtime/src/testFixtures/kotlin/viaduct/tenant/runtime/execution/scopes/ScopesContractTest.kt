@@ -38,8 +38,8 @@ import viaduct.service.api.SchemaId
 """
 )
 abstract class ScopesContractTest : KotlinFeatureAppTestContractBase() {
-    private val schema1 = SchemaScopeInfo("SCHEMA_ID_1", setOf("SCOPE1"))
-    private val schema2 = SchemaScopeInfo("SCHEMA_ID_2", setOf("SCOPE2"))
+    private val schema1 = SchemaScopeInfo.Scoped("SCHEMA_ID_1", setOf("SCOPE1"))
+    private val schema2 = SchemaScopeInfo.Scoped("SCHEMA_ID_2", setOf("SCOPE2"))
 
     // -- Single-scope tests (only SCOPE1 registered) --
 

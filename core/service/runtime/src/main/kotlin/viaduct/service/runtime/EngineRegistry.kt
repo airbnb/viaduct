@@ -17,6 +17,7 @@ import viaduct.engine.EngineFactory
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.Engine
 import viaduct.engine.api.ViaductSchema
+import viaduct.graphql.scopes.SchemaView
 import viaduct.graphql.scopes.ScopedSchemaBuilder
 import viaduct.service.api.SchemaId
 import viaduct.utils.collections.parallelMap
@@ -105,9 +106,9 @@ class EngineRegistry private constructor(
                     }
                     val baseGraphQLSchema = ScopedSchemaBuilder(
                         inputSchema = fullSchema.schema,
-                        validScopes = fullSchema.scopes(),
+                        scopingMode = fullSchema.schemaScopingMode(),
                         additionalVisitorConstructors = emptyList(),
-                    ).applyBaseSchema().filtered
+                    ).build(SchemaView.Base).filtered
                     val baseSchema = if (baseGraphQLSchema === fullSchema.schema) {
                         fullSchema
                     } else {

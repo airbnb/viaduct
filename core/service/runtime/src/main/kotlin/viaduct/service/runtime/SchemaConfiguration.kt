@@ -3,24 +3,32 @@ package viaduct.service.runtime
 import java.util.concurrent.ConcurrentHashMap
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.ViaductSchema
+import viaduct.graphql.scopes.SchemaScopingMode
+import viaduct.graphql.scopes.SchemaView
 import viaduct.graphql.scopes.ScopedSchemaBuilder
 import viaduct.service.api.SchemaId
 
 class SchemaConfiguration private constructor(
     initialFullSchemaConfig: FullSchemaConfig?,
-    initialScopedSchemas: Map<SchemaId.Scoped, ScopedSchemaConfig>
+    initialScopedSchemas: Map<SchemaId, ScopedSchemaConfig>
 ) {
     /**
-     * Configuration for registering a scoped schema that filters the full schema to specific scope identifiers.
-     * Types/fields that are members of scopes are defined using the @scope directive in GraphQL schema definitions.
-     *
-     * @param id unique identifier used to select this scoped schema when executing operations
-     * @param scopeIds set of scope identifiers (from @scope directives) to include in the filtered schema
+     * Configuration for registering an executable view derived from the full schema.
      */
-    data class ScopeConfig(
-        val id: String,
-        val scopeIds: Set<String>
-    )
+    sealed interface ScopeConfig {
+        /** Registers the base view. */
+        data object Base : ScopeConfig
+
+        /** Registers a named projection containing the selected scope IDs. */
+        data class Scoped(
+            val id: String,
+            val scopeIds: Set<String>,
+        ) : ScopeConfig {
+            init {
+                require(scopeIds.isNotEmpty()) { "Scoped schema configurations must contain at least one scope ID." }
+            }
+        }
+    }
 
     internal var fullSchemaConfig: FullSchemaConfig? = initialFullSchemaConfig
         private set
@@ -74,18 +82,17 @@ class SchemaConfiguration private constructor(
     }
 
     /**
-     * Configuration for deriving a scoped (filtered) schema from the full schema.
+     * Configuration for deriving a named external schema from the full schema.
      *
      * This represents the "transformation" step of schema creation - taking an already-built
-     * full schema and applying scope filtering to produce a schema that only includes types
-     * and fields annotated with specific scope directives.
+     * full schema and applying the explicitly configured schema view.
      *
      * Key characteristics:
      * - Does NOT require a [SchemaFactory] - operates on an already-built [ViaductSchema]
      * - Takes the full schema as input (from [FullSchemaConfig.build])
      * - Only performs fast filtering operations (no parsing or schema building)
      * - Supports lazy evaluation - can defer filtering until schema is first accessed
-     * - Produces schemas with scoped IDs ([SchemaId.Scoped])
+     * - Produces base or scope-filtered schemas
      *
      * Difference from [FullSchemaConfig]:
      * - [FullSchemaConfig]: Source → Schema (expensive: parsing, building, wiring)
@@ -95,31 +102,24 @@ class SchemaConfiguration private constructor(
      * - [Derived]: Derive from full schema by applying scope filtering
      */
     internal sealed interface ScopedSchemaConfig {
-        val schemaId: SchemaId.Scoped
+        val schemaId: SchemaId
         val lazy: Boolean
 
         fun build(fullSchema: ViaductSchema): ViaductSchema
 
         class Derived(
-            override val schemaId: SchemaId.Scoped,
+            private val scopeConfig: ScopeConfig,
             override val lazy: Boolean,
         ) : ScopedSchemaConfig {
-            override fun build(fullSchema: ViaductSchema): ViaductSchema {
-                return applyScopes(fullSchema, schemaId)
-            }
+            override val schemaId: SchemaId = scopeConfig.schemaId()
 
-            private fun applyScopes(
-                schema: ViaductSchema,
-                scopedId: SchemaId.Scoped
-            ): ViaductSchema {
-                val scopeIds = scopedId.scopeIds
-                val validScopes = schema.scopes()
+            override fun build(fullSchema: ViaductSchema): ViaductSchema {
                 val scopedSchema = ScopedSchemaBuilder(
-                    inputSchema = schema.schema,
+                    inputSchema = fullSchema.schema,
                     additionalVisitorConstructors = emptyList(),
-                    validScopes = validScopes
-                ).applyScopes(scopeIds).filtered
-                return schema.copy(schema = scopedSchema)
+                    scopingMode = scopeConfig.scopingMode(fullSchema),
+                ).build(scopeConfig.schemaView()).filtered
+                return fullSchema.copy(schema = scopedSchema)
             }
         }
     }
@@ -136,8 +136,8 @@ class SchemaConfiguration private constructor(
          * The internal full schema includes all fields; the base schema filters tenant-local fields.
          *
          * @param sdl the GraphQL SDL string defining the schema
-         * @param scopes set of [ScopeConfig] defining scoped schemas to register
-         * @param lazyScopedSchemas if true, scoped schemas are treated as lazy; otherwise,
+         * @param scopes set of [ScopeConfig] defining named external schemas to register
+         * @param lazyScopedSchemas if true, named schemas are treated as lazy; otherwise,
          *                          they are computed immediately during initialization.
          * @return a [SchemaConfiguration] with the registered schemas
          */
@@ -149,7 +149,7 @@ class SchemaConfiguration private constructor(
             return SchemaConfiguration(
                 FullSchemaConfig.FromSdl(sdl),
                 scopes.associate {
-                    it.schemaId() to ScopedSchemaConfig.Derived(it.schemaId(), lazyScopedSchemas)
+                    it.schemaId() to ScopedSchemaConfig.Derived(it, lazyScopedSchemas)
                 }
             )
         }
@@ -164,8 +164,8 @@ class SchemaConfiguration private constructor(
          *
          * @param grtPackagePrefix optional GRT package prefix to load schema resources from (for testing only)
          * @param resourcesIncluded optional regex to filter which resources to include
-         * @param scopes set of [ScopeConfig] defining scoped schemas to register
-         * @param lazyScopedSchemas if true, scoped schemas are treated as lazy; otherwise,
+         * @param scopes set of [ScopeConfig] defining named external schemas to register
+         * @param lazyScopedSchemas if true, named schemas are treated as lazy; otherwise,
          *                          they are computed immediately during initialization.
          * @return a [SchemaConfiguration] with the registered schemas
          */
@@ -178,7 +178,7 @@ class SchemaConfiguration private constructor(
             return SchemaConfiguration(
                 FullSchemaConfig.FromResources(grtPackagePrefix, resourcesIncluded),
                 scopes.associate {
-                    it.schemaId() to ScopedSchemaConfig.Derived(it.schemaId(), lazyScopedSchemas)
+                    it.schemaId() to ScopedSchemaConfig.Derived(it, lazyScopedSchemas)
                 }
             )
         }
@@ -190,8 +190,8 @@ class SchemaConfiguration private constructor(
          * The provided [schema] is used as the basis for all registered schemas.
          *
          * @param schema the existing [ViaductSchema] to register schemas from
-         * @param scopes set of [ScopeConfig] defining scoped schemas to register
-         * @param lazyScopedSchemas if true, scoped schemas are treated as lazy; otherwise,
+         * @param scopes set of [ScopeConfig] defining named external schemas to register
+         * @param lazyScopedSchemas if true, named schemas are treated as lazy; otherwise,
          *                          they are computed immediately during initialization.
          * @return a [SchemaConfiguration] with the registered schemas
          */
@@ -203,7 +203,7 @@ class SchemaConfiguration private constructor(
             return SchemaConfiguration(
                 FullSchemaConfig.FromSchema(schema),
                 scopes.associate {
-                    it.schemaId() to ScopedSchemaConfig.Derived(it.schemaId(), lazyScopedSchemas)
+                    it.schemaId() to ScopedSchemaConfig.Derived(it, lazyScopedSchemas)
                 }
             )
         }
@@ -228,7 +228,7 @@ class SchemaConfiguration private constructor(
      * The schema is provided via a computation block to allow for lazy evaluation if needed.
      */
     private class FromPrebuiltScopedSchema(
-        override val schemaId: SchemaId.Scoped,
+        override val schemaId: SchemaId,
         private val computeBlock: () -> ViaductSchema,
         override val lazy: Boolean
     ) : ScopedSchemaConfig {
@@ -273,12 +273,24 @@ class SchemaConfiguration private constructor(
 }
 
 /**
- * Private helper to create a [SchemaId.Scoped] for a scoped schema from its configuration.
+ * Creates the explicit schema ID for a named schema configuration.
  *
  * @receiver the scope configuration containing the scope ID and identifiers
- * @return a SchemaId.Scoped representing the scoped schema
+ * @return the schema ID representing the configured schema
  */
-private fun SchemaConfiguration.ScopeConfig.schemaId(): SchemaId.Scoped = SchemaId.Scoped(id, scopeIds)
+private fun SchemaConfiguration.ScopeConfig.schemaId(): SchemaId =
+    when (this) {
+        SchemaConfiguration.ScopeConfig.Base -> SchemaId.Base
+        is SchemaConfiguration.ScopeConfig.Scoped -> SchemaId.Scoped(id, scopeIds)
+    }
+
+private fun SchemaConfiguration.ScopeConfig.schemaView(): SchemaView =
+    when (this) {
+        SchemaConfiguration.ScopeConfig.Base -> SchemaView.Base
+        is SchemaConfiguration.ScopeConfig.Scoped -> SchemaView.Scoped(scopeIds)
+    }
+
+internal fun SchemaConfiguration.ScopeConfig.scopingMode(fullSchema: ViaductSchema): SchemaScopingMode = fullSchema.schemaScopingMode()
 
 /**
  * Converts a [SchemaId.Scoped] to a [SchemaConfiguration.ScopeConfig].
@@ -286,4 +298,4 @@ private fun SchemaConfiguration.ScopeConfig.schemaId(): SchemaId.Scoped = Schema
  * @receiver the scoped schema ID containing the scope ID and identifiers
  * @return a ScopeConfig representing the scoped schema configuration
  */
-fun SchemaId.Scoped.toScopeConfig(): SchemaConfiguration.ScopeConfig = SchemaConfiguration.ScopeConfig(id, scopeIds)
+fun SchemaId.Scoped.toScopeConfig(): SchemaConfiguration.ScopeConfig = SchemaConfiguration.ScopeConfig.Scoped(id, scopeIds)

@@ -324,7 +324,7 @@ class ViaductScopedSchemaIntegrationTest {
                 .withSchemaConfiguration(
                     SchemaConfiguration.fromSdl(
                         sdl,
-                        scopes = setOf(SchemaConfiguration.ScopeConfig("SCHEMA_ID_1", setOf("SCOPE1")))
+                        scopes = setOf(SchemaConfiguration.ScopeConfig.Scoped("SCHEMA_ID_1", setOf("SCOPE1")))
                     )
                 )
                 .build()
@@ -365,7 +365,7 @@ class ViaductScopedSchemaIntegrationTest {
                     .withSchemaConfiguration(
                         SchemaConfiguration.fromSdl(
                             sdl,
-                            scopes = setOf(SchemaConfiguration.ScopeConfig("public", setOf("publicScope")))
+                            scopes = setOf(SchemaConfiguration.ScopeConfig.Scoped("public", setOf("publicScope")))
                         )
                     )
                     .build()

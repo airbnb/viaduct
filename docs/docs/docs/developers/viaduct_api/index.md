@@ -44,10 +44,11 @@ import viaduct.service.ViaductBuilder
 
 val viaduct =
   ViaductBuilder()
-    // Register scoped schemas discovered from classpath resources.
+    // Register executable views of a schema that declares scopes.
     .withScopedSchemas(
       listOf(
-        SchemaScopeInfo(id = "public", scopesToApply = setOf("public"))
+        SchemaScopeInfo.Base,
+        SchemaScopeInfo.Scoped(id = "public", scopesToApply = setOf("public"))
       )
     )
     // Optional platform hooks:
@@ -64,11 +65,17 @@ val viaduct =
 - You need to control observability, error reporting/shaping, feature flags, schema configuration, or global-id behavior.
 - You want a single consistent “production-like” configuration used by both prod and test harnesses.
 
+If your schema does not declare any scopes, do not configure `SchemaScopeInfo`. The base schema is
+registered automatically and is selected by default. For a schema that declares scopes,
+`SchemaScopeInfo.Base` exposes all non-tenant-local fields without scope filtering, while
+`SchemaScopeInfo.Scoped` exposes only fields visible to its configured scopes. `Base` always uses
+`SchemaId.Base`.
+
 ## Choosing The Schema: `SchemaId`
 
 Each execution targets a **schema variant** identified by a `SchemaId`:
 
-- `SchemaId.Base` — default unscoped external schema.
+- `SchemaId.Base` — default external base schema.
 - `SchemaId.Scoped(id, scopeIds)` — a schema variant derived from the full schema by applying *scope IDs*.
 - `SchemaId.None` — sentinel “non-existent schema” (typically not used for normal execution).
 

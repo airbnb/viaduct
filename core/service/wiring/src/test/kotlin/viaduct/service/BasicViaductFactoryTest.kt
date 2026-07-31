@@ -1,12 +1,12 @@
 package viaduct.service
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.NaiveTenantModuleInjectorFactory
+import viaduct.service.runtime.SchemaConfiguration
 
 internal class BasicViaductFactoryTest {
     @Test
@@ -19,8 +19,8 @@ internal class BasicViaductFactoryTest {
     @Nested
     inner class SchemaScopeInfoTests {
         @Test
-        fun `should expose SchemaId with id and scope ids`() {
-            val scopeInfo = SchemaScopeInfo("test-schema", setOf("admin", "user"))
+        fun `scoped schema should expose scoped SchemaId`() {
+            val scopeInfo = SchemaScopeInfo.Scoped("test-schema", setOf("admin", "user"))
 
             val scoped = scopeInfo.schemaId as SchemaId.Scoped
             assertEquals("test-schema", scoped.id)
@@ -28,47 +28,43 @@ internal class BasicViaductFactoryTest {
         }
 
         @Test
-        fun `default scopesToApply should produce empty scope set`() {
-            val scopeInfo = SchemaScopeInfo("full-schema")
+        fun `base schema should expose canonical base SchemaId`() {
+            val scopeInfo = SchemaScopeInfo.Base
 
-            val scoped = scopeInfo.schemaId as SchemaId.Scoped
-            assertEquals("full-schema", scoped.id)
-            assertTrue(scoped.scopeIds.isEmpty())
-            assertTrue(scopeInfo.scopesToApply.isEmpty())
+            assertEquals(SchemaId.Base, scopeInfo.schemaId)
         }
 
         @Test
         fun `should reject blank id`() {
             assertThrows<IllegalArgumentException> {
-                SchemaScopeInfo("")
+                SchemaScopeInfo.Scoped("   ", setOf("public"))
             }
+        }
+
+        @Test
+        fun `scoped schema should reject empty scopes`() {
             assertThrows<IllegalArgumentException> {
-                SchemaScopeInfo("   ")
+                SchemaScopeInfo.Scoped("scoped-schema", emptySet())
             }
         }
 
         @Test
-        fun `toString should include id and scopesToApply`() {
-            val scopeInfo = SchemaScopeInfo("my-schema", setOf("admin", "user"))
+        fun `toScopeConfig should preserve scoped intent`() {
+            val scopeInfo = SchemaScopeInfo.Scoped("public", setOf("scope1", "scope2"))
 
-            assertEquals("SchemaScopeInfo(id=my-schema, scopesToApply=[admin, user])", scopeInfo.toString())
-        }
-
-        @Test
-        fun `toString should show empty scopesToApply for unscoped schema`() {
-            val scopeInfo = SchemaScopeInfo("full-schema")
-
-            assertEquals("SchemaScopeInfo(id=full-schema, scopesToApply=[])", scopeInfo.toString())
-        }
-
-        @Test
-        fun `toScopeConfig should produce correct ScopeConfig`() {
-            val scopeInfo = SchemaScopeInfo("public", setOf("scope1", "scope2"))
-
-            val scopeConfig = scopeInfo.toScopeConfig()
+            val scopeConfig = scopeInfo.toScopeConfig() as SchemaConfiguration.ScopeConfig.Scoped
 
             assertEquals("public", scopeConfig.id)
             assertEquals(setOf("scope1", "scope2"), scopeConfig.scopeIds)
+        }
+
+        @Test
+        fun `toScopeConfig should preserve base intent`() {
+            val scopeInfo = SchemaScopeInfo.Base
+
+            val scopeConfig = scopeInfo.toScopeConfig()
+
+            assertEquals(SchemaConfiguration.ScopeConfig.Base, scopeConfig)
         }
     }
 
@@ -88,7 +84,7 @@ internal class BasicViaductFactoryTest {
             assertThrows<Exception> {
                 BasicViaductFactory.create(
                     scopedSchemas = listOf(
-                        SchemaScopeInfo("scoped", setOf("scope1", "scope2"))
+                        SchemaScopeInfo.Scoped("scoped", setOf("scope1", "scope2"))
                     ),
                 )
             }
@@ -99,9 +95,9 @@ internal class BasicViaductFactoryTest {
             assertThrows<Exception> {
                 BasicViaductFactory.create(
                     scopedSchemas = listOf(
-                        SchemaScopeInfo("full"),
-                        SchemaScopeInfo("public", setOf("public")),
-                        SchemaScopeInfo("admin", setOf("admin", "internal"))
+                        SchemaScopeInfo.Base,
+                        SchemaScopeInfo.Scoped("public", setOf("public")),
+                        SchemaScopeInfo.Scoped("admin", setOf("admin", "internal"))
                     ),
                 )
             }

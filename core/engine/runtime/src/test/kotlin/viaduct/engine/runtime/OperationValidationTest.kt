@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.runFeatureTest
+import viaduct.graphql.scopes.SchemaScopingMode
+import viaduct.graphql.scopes.SchemaView
 import viaduct.graphql.scopes.ScopedSchemaBuilder
 
 class OperationValidationTest {
@@ -47,8 +49,8 @@ class OperationValidationTest {
             ScopedSchemaBuilder(
                 inputSchema = bootstrapper.fullSchema.schema,
                 additionalVisitorConstructors = emptyList(),
-                validScopes = sortedSetOf("public", "private")
-            ).applyScopes(setOf("public")).filtered
+                scopingMode = SchemaScopingMode.ScopeAware(setOf("public", "private")),
+            ).build(SchemaView.Scoped(setOf("public"))).filtered
         )
 
         bootstrapper.runFeatureTest(schema = publicSchema) {

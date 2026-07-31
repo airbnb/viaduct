@@ -181,7 +181,7 @@ The `ktor-starter` project illustrates how Viaduct might fit into a Ktor-based s
 // Create and initialize the [Viaduct] instance used to execute GraphQL operations
 private val viaduct by lazy {
     BasicViaductFactory.create(
-        scopedSchemas = listOf(SchemaScopeInfo(SCHEMA_ID)),
+        scopedSchemas = listOf(SchemaScopeInfo.Scoped(SCHEMA_ID, setOf(DEFAULT_SCOPE_ID))),
     )
 }
 

@@ -16,6 +16,25 @@ import viaduct.graphql.utils.DefaultSchemaFactory
 
 class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
     @Test
+    fun `full view preserves an unscoped schema without validation`() {
+        val schema = schemaFromSdl(
+            """
+            type Query {
+                publicField: String
+                tenantOnly: String @tenantLocal
+            }
+            """.trimIndent()
+        )
+
+        val unscopedSchema = ScopedSchemaBuilder(schema, SchemaScopingMode.Unscoped, listOf())
+            .build(SchemaView.Full)
+            .filtered
+
+        assertNotNull(unscopedSchema.queryType.getFieldDefinition("publicField"))
+        assertNotNull(unscopedSchema.queryType.getFieldDefinition("tenantOnly"))
+    }
+
+    @Test
     fun `doesnt transform full schema`() {
         val sourceSchema = readSchema("/scopes/simple/source.graphqls")
         val allScopes =
@@ -29,10 +48,10 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
         val scopedSchemaBuilder =
             ScopedSchemaBuilder(
                 sourceSchema,
-                allScopes,
+                SchemaScopingMode.ScopeAware(allScopes),
                 listOf()
             )
-        val allScopedSchema = scopedSchemaBuilder.applyScopes(allScopes)
+        val allScopedSchema = scopedSchemaBuilder.build(SchemaView.Full)
         assertSchemaEqualToFixture("/scopes/simple/test-scope__all.graphqls", allScopedSchema.filtered)
     }
 
@@ -47,7 +66,9 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
             """.trimIndent()
         )
 
-        val filteredSchema = ScopedSchemaBuilder(schema, sortedSetOf(), listOf()).applyBaseSchema().filtered
+        val filteredSchema = ScopedSchemaBuilder(schema, SchemaScopingMode.Unscoped, listOf())
+            .build(SchemaView.Base)
+            .filtered
 
         assertNotNull(filteredSchema.queryType.getFieldDefinition("publicField"))
         assertNull(filteredSchema.queryType.getFieldDefinition("internalOnly"))
@@ -64,7 +85,9 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
             """.trimIndent()
         )
 
-        val filteredSchema = ScopedSchemaBuilder(schema, sortedSetOf(), listOf()).applyBaseSchema().filtered
+        val filteredSchema = ScopedSchemaBuilder(schema, SchemaScopingMode.Unscoped, listOf())
+            .build(SchemaView.Base)
+            .filtered
 
         assertNotNull(filteredSchema.queryType.getFieldDefinition("publicField"))
         assertNull(filteredSchema.queryType.getFieldDefinition("backingData"))
@@ -88,10 +111,14 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
             }
             """.trimIndent()
         )
-        val scopedSchemaBuilder = ScopedSchemaBuilder(schema, sortedSetOf("public"), listOf())
+        val scopedSchemaBuilder = ScopedSchemaBuilder(
+            schema,
+            SchemaScopingMode.ScopeAware(setOf("public")),
+            listOf(),
+        )
 
-        val baseUser = scopedSchemaBuilder.applyBaseSchema().filtered.getObjectType("User")
-        val scopedUser = scopedSchemaBuilder.applyScopes(setOf("public")).filtered.getObjectType("User")
+        val baseUser = scopedSchemaBuilder.build(SchemaView.Base).filtered.getObjectType("User")
+        val scopedUser = scopedSchemaBuilder.build(SchemaView.Scoped(setOf("public"))).filtered.getObjectType("User")
         val metadata = ScopeDirectiveParser(setOf("public")).metadataForElement(schema.getObjectType("User"))
 
         assertNotNull(baseUser.getFieldDefinition("name"))
@@ -116,11 +143,83 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
             """.trimIndent()
         )
 
-        val filteredSchema = ScopedSchemaBuilder(schema, sortedSetOf(), listOf()).applyBaseSchema().filtered
+        val filteredSchema = ScopedSchemaBuilder(schema, SchemaScopingMode.Unscoped, listOf())
+            .build(SchemaView.Base)
+            .filtered
 
         assertNotNull(filteredSchema.queryType.getFieldDefinition("publicField"))
         assertNull(filteredSchema.queryType.getFieldDefinition("internalOnly"))
         assertNull(filteredSchema.getType("InternalOnly"))
+    }
+
+    @Test
+    fun `semantic views distinguish full base and scoped schemas`() {
+        val schema = schemaFromSdl(
+            """
+            type Query @scope(to: ["public", "internal"]) {
+                shared: String
+                tenantOnly: String @tenantLocal
+            }
+
+            extend type Query @scope(to: ["internal"]) {
+                internal: String
+            }
+            """.trimIndent()
+        )
+        val builder = ScopedSchemaBuilder(
+            schema,
+            SchemaScopingMode.ScopeAware(setOf("public", "internal")),
+            listOf(),
+        )
+
+        val fullSchema = builder.build(SchemaView.Full).filtered
+        val baseSchema = builder.build(SchemaView.Base).filtered
+        val publicSchema = builder.build(SchemaView.Scoped(setOf("public"))).filtered
+        val allScopesSchema = builder.build(SchemaView.Scoped(setOf("public", "internal"))).filtered
+
+        assertNotNull(fullSchema.queryType.getFieldDefinition("tenantOnly"))
+        assertNotNull(fullSchema.queryType.getFieldDefinition("internal"))
+        assertNull(baseSchema.queryType.getFieldDefinition("tenantOnly"))
+        assertNotNull(baseSchema.queryType.getFieldDefinition("internal"))
+        assertNull(publicSchema.queryType.getFieldDefinition("tenantOnly"))
+        assertNull(publicSchema.queryType.getFieldDefinition("internal"))
+        assertNotNull(publicSchema.queryType.getFieldDefinition("shared"))
+        assertNull(allScopesSchema.queryType.getFieldDefinition("tenantOnly"))
+        assertNotNull(allScopesSchema.queryType.getFieldDefinition("internal"))
+    }
+
+    @Test
+    fun `scoped views require scope-aware schemas and known non-empty scopes`() {
+        assertThrows<IllegalArgumentException> {
+            SchemaView.Scoped(emptySet())
+        }
+        assertThrows<IllegalArgumentException> {
+            SchemaScopingMode.ScopeAware(emptySet())
+        }
+        assertThrows<IllegalArgumentException> {
+            SchemaScopingMode.ScopeAware(setOf("*"))
+        }
+
+        val schema = schemaFromSdl(
+            """
+            type Query {
+                publicField: String
+            }
+            """.trimIndent()
+        )
+        assertThrows<IllegalArgumentException> {
+            ScopedSchemaBuilder(schema, SchemaScopingMode.Unscoped, listOf())
+                .build(SchemaView.Scoped(setOf("public")))
+        }
+
+        val scopeAwareBuilder = ScopedSchemaBuilder(
+            schema,
+            SchemaScopingMode.ScopeAware(setOf("public")),
+            listOf(),
+        )
+        assertThrows<IllegalArgumentException> {
+            scopeAwareBuilder.build(SchemaView.Scoped(setOf("unknown")))
+        }
     }
 
     @Test
@@ -175,8 +274,11 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
             """.trimIndent()
         )
 
-        val filteredSchema = ScopedSchemaBuilder(schema, sortedSetOf("public"), listOf())
-            .applyScopes(setOf("public"))
+        val filteredSchema = ScopedSchemaBuilder(
+            schema,
+            SchemaScopingMode.ScopeAware(setOf("public")),
+            listOf(),
+        ).build(SchemaView.Scoped(setOf("public")))
             .filtered
 
         assertNotNull(filteredSchema.queryType.getFieldDefinition("publicField"))
@@ -197,8 +299,12 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
             """.trimIndent()
         )
 
-        val filteredSchema = ScopedSchemaBuilder(schema, sortedSetOf("public"), listOf())
-            .applyScopes(setOf("public"))
+        val filteredSchema = ScopedSchemaBuilder(
+            schema,
+            SchemaScopingMode.ScopeAware(setOf("public")),
+            listOf(),
+        )
+            .build(SchemaView.Scoped(setOf("public")))
             .filtered
 
         assertNotNull(filteredSchema.queryType.getFieldDefinition("publicField"))
@@ -223,8 +329,12 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
             """.trimIndent()
         )
 
-        val filteredSchema = ScopedSchemaBuilder(schema, sortedSetOf("public"), listOf())
-            .applyScopes(setOf("public"))
+        val filteredSchema = ScopedSchemaBuilder(
+            schema,
+            SchemaScopingMode.ScopeAware(setOf("public")),
+            listOf(),
+        )
+            .build(SchemaView.Scoped(setOf("public")))
             .filtered
 
         assertNotNull(filteredSchema.queryType.getFieldDefinition("publicField"))
@@ -247,8 +357,12 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
         )
 
         val error = assertThrows<SchemaScopeValidationError> {
-            ScopedSchemaBuilder(schema, sortedSetOf("public"), listOf())
-                .applyScopes(setOf("public"))
+            ScopedSchemaBuilder(
+                schema,
+                SchemaScopingMode.ScopeAware(setOf("public")),
+                listOf(),
+            )
+                .build(SchemaView.Scoped(setOf("public")))
         }
 
         assertEquals(true, error.message!!.contains("No scope directives found"))
@@ -268,10 +382,10 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
         val scopedSchemaBuilder =
             ScopedSchemaBuilder(
                 sourceSchema,
-                allScopes,
+                SchemaScopingMode.ScopeAware(allScopes),
                 listOf()
             )
-        val allScopedSchema = scopedSchemaBuilder.applyScopes(allScopes)
+        val allScopedSchema = scopedSchemaBuilder.build(SchemaView.Full)
         assertSchemaEqualToFixture(
             "/scopes/simple/test-scope-with-directives__all.graphqls",
             allScopedSchema.filtered,
@@ -286,23 +400,25 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
         val scopedSchemaBuilder =
             ScopedSchemaBuilder(
                 sourceSchema,
-                sortedSetOf(
-                    // valid scopes for our test
-                    "test-scope:public",
-                    "test-scope:data",
-                    "test-scope:private",
-                    "some-other-scope"
+                SchemaScopingMode.ScopeAware(
+                    sortedSetOf(
+                        // valid scopes for our test
+                        "test-scope:public",
+                        "test-scope:data",
+                        "test-scope:private",
+                        "some-other-scope"
+                    )
                 ),
                 listOf()
             )
         val testScopeAllSchema =
-            scopedSchemaBuilder.applyScopes(
-                setOf("test-scope:public", "test-scope:data", "test-scope:private")
+            scopedSchemaBuilder.build(
+                SchemaView.Scoped(setOf("test-scope:public", "test-scope:data", "test-scope:private"))
             )
         assertSchemaEqualToFixture("/scopes/simple/test-scope__some.graphqls", testScopeAllSchema.filtered)
-        val testScopeDataSchema = scopedSchemaBuilder.applyScopes(setOf("test-scope:data"))
+        val testScopeDataSchema = scopedSchemaBuilder.build(SchemaView.Scoped(setOf("test-scope:data")))
         assertSchemaEqualToFixture("/scopes/simple/test-scope__data.graphqls", testScopeDataSchema.filtered)
-        val testScopePublicSchema = scopedSchemaBuilder.applyScopes(setOf("test-scope:public"))
+        val testScopePublicSchema = scopedSchemaBuilder.build(SchemaView.Scoped(setOf("test-scope:public")))
         assertSchemaEqualToFixture("/scopes/simple/test-scope__public.graphqls", testScopePublicSchema.filtered)
     }
 
@@ -312,18 +428,20 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
         val scopedSchemaBuilder =
             ScopedSchemaBuilder(
                 sourceSchema,
-                sortedSetOf(
-                    // valid scopes for our test
-                    "test-scope:public",
-                    "test-scope:data",
-                    "test-scope:private",
-                    "some-other-scope"
+                SchemaScopingMode.ScopeAware(
+                    sortedSetOf(
+                        // valid scopes for our test
+                        "test-scope:public",
+                        "test-scope:data",
+                        "test-scope:private",
+                        "some-other-scope"
+                    )
                 ),
                 listOf()
             )
         val scopedSchema =
-            scopedSchemaBuilder.applyScopes(
-                setOf("test-scope:public", "test-scope:data")
+            scopedSchemaBuilder.build(
+                SchemaView.Scoped(setOf("test-scope:public", "test-scope:data"))
             )
         assertSchemaEqualToFixture("/scopes/interface-connection/expected.graphqls", scopedSchema.filtered)
     }
@@ -334,18 +452,20 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
         val scopedSchemaBuilder =
             ScopedSchemaBuilder(
                 sourceSchema,
-                sortedSetOf(
-                    // valid scopes for our test
-                    "test-scope:public",
-                    "test-scope:data",
-                    "test-scope:private",
-                    "some-other-scope"
+                SchemaScopingMode.ScopeAware(
+                    sortedSetOf(
+                        // valid scopes for our test
+                        "test-scope:public",
+                        "test-scope:data",
+                        "test-scope:private",
+                        "some-other-scope"
+                    )
                 ),
                 listOf()
             )
-        val testScopePublicSchema = scopedSchemaBuilder.applyScopes(setOf("test-scope:public"))
+        val testScopePublicSchema = scopedSchemaBuilder.build(SchemaView.Scoped(setOf("test-scope:public")))
         assertSchemaEqualToFixture("/scopes/filter-fields/test-scope__public.graphqls", testScopePublicSchema.filtered)
-        val someOtherScopeSchema = scopedSchemaBuilder.applyScopes(setOf("some-other-scope"))
+        val someOtherScopeSchema = scopedSchemaBuilder.build(SchemaView.Scoped(setOf("some-other-scope")))
         assertSchemaEqualToFixture("/scopes/filter-fields/some-other-scope.graphqls", someOtherScopeSchema.filtered)
     }
 
@@ -375,9 +495,19 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
             """.trimIndent()
         )
 
-        val scopedSchemaBuilder = ScopedSchemaBuilder(schema, sortedSetOf("public", "private"), listOf())
-        val publicThing = scopedSchemaBuilder.applyScopes(setOf("public")).filtered.getObjectType("Thing")
-        val privateThing = scopedSchemaBuilder.applyScopes(setOf("private")).filtered.getObjectType("Thing")
+        val scopedSchemaBuilder = ScopedSchemaBuilder(
+            schema,
+            SchemaScopingMode.ScopeAware(setOf("public", "private")),
+            listOf(),
+        )
+        val publicThing = scopedSchemaBuilder
+            .build(SchemaView.Scoped(setOf("public")))
+            .filtered
+            .getObjectType("Thing")
+        val privateThing = scopedSchemaBuilder
+            .build(SchemaView.Scoped(setOf("private")))
+            .filtered
+            .getObjectType("Thing")
 
         assertNull(publicThing.getFieldDefinition("vanityCode"))
         assertEquals(emptyList<String>(), publicThing.interfaces.map { it.name })
@@ -411,9 +541,13 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
             """.trimIndent()
         )
 
-        val scopedSchemaBuilder = ScopedSchemaBuilder(schema, sortedSetOf("public", "private"), listOf())
-        val publicSchema = scopedSchemaBuilder.applyScopes(setOf("public")).filtered
-        val privateSchema = scopedSchemaBuilder.applyScopes(setOf("private")).filtered
+        val scopedSchemaBuilder = ScopedSchemaBuilder(
+            schema,
+            SchemaScopingMode.ScopeAware(setOf("public", "private")),
+            listOf(),
+        )
+        val publicSchema = scopedSchemaBuilder.build(SchemaView.Scoped(setOf("public"))).filtered
+        val privateSchema = scopedSchemaBuilder.build(SchemaView.Scoped(setOf("private"))).filtered
         val publicReview = publicSchema.getObjectType("StayReview")
         val privateReview = privateSchema.getObjectType("StayReview")
 
@@ -457,8 +591,12 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
             """.trimIndent()
         )
 
-        val scopedSchema = ScopedSchemaBuilder(schema, sortedSetOf("public"), listOf())
-            .applyScopes(setOf("public"))
+        val scopedSchema = ScopedSchemaBuilder(
+            schema,
+            SchemaScopingMode.ScopeAware(setOf("public")),
+            listOf(),
+        )
+            .build(SchemaView.Scoped(setOf("public")))
             .filtered
 
         assertEquals(
@@ -477,16 +615,18 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
         val scopedSchemaBuilder =
             ScopedSchemaBuilder(
                 sourceSchema,
-                sortedSetOf(
-                    // valid scopes for our test
-                    "test-scope:public",
-                    "test-scope:data",
-                    "test-scope:private",
-                    "some-other-scope"
+                SchemaScopingMode.ScopeAware(
+                    sortedSetOf(
+                        // valid scopes for our test
+                        "test-scope:public",
+                        "test-scope:data",
+                        "test-scope:private",
+                        "some-other-scope"
+                    )
                 ),
                 listOf()
             )
-        val scopedSchema = scopedSchemaBuilder.applyScopes(setOf("some-other-scope"))
+        val scopedSchema = scopedSchemaBuilder.build(SchemaView.Scoped(setOf("some-other-scope")))
         assertSchemaEqualToFixture("/scopes/superset-scopes/expected.graphqls", scopedSchema.filtered)
     }
 
@@ -496,12 +636,12 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
         val scopedSchemaBuilder =
             ScopedSchemaBuilder(
                 sourceSchema,
-                sortedSetOf("test-scope", "other-scope"),
+                SchemaScopingMode.ScopeAware(setOf("test-scope", "other-scope")),
                 listOf()
             )
 
         assertThrows<DirectiveRetainedTypeScopeError> {
-            scopedSchemaBuilder.applyScopes(setOf("other-scope"))
+            scopedSchemaBuilder.build(SchemaView.Scoped(setOf("other-scope")))
         }
     }
 

@@ -25,6 +25,8 @@ import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
+import viaduct.graphql.scopes.SchemaScopingMode
+import viaduct.graphql.scopes.SchemaView
 import viaduct.graphql.scopes.ScopedSchemaBuilder
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.mocks.MockFlagManager
@@ -1917,8 +1919,8 @@ class RequiredSelectionsTest {
             ScopedSchemaBuilder(
                 inputSchema = bootstrapper.fullSchema.schema,
                 additionalVisitorConstructors = emptyList(),
-                validScopes = sortedSetOf("scoped", "private")
-            ).applyScopes(setOf("scoped")).filtered
+                scopingMode = SchemaScopingMode.ScopeAware(setOf("scoped", "private")),
+            ).build(SchemaView.Scoped(setOf("scoped"))).filtered
         )
 
         bootstrapper.runFeatureTest(schema = privateSchema) {

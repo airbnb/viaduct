@@ -60,8 +60,8 @@ class ViaductBuilder {
         }
 
     /**
-     * Configures scoped schemas from a list of [SchemaScopeInfo] descriptors, discovering the
-     * schema from classpath resources.
+     * Configures executable views of a scope-aware schema from [SchemaScopeInfo] descriptors,
+     * discovering the schema from classpath resources.
      *
      * If both this and [withScopedSchemasFromSdl] are called, the last one wins.
      */
@@ -75,8 +75,8 @@ class ViaductBuilder {
         }
 
     /**
-     * Configures scoped schemas from a list of [SchemaScopeInfo] descriptors, building the schema
-     * from the given [sdl] string.
+     * Configures executable views of a scope-aware schema from [SchemaScopeInfo] descriptors,
+     * building the schema from the given [sdl] string.
      *
      * If both this and [withScopedSchemas] are called, the last one wins.
      */
@@ -202,32 +202,43 @@ class ViaductBuilder {
 }
 
 /**
- * A descriptor for a scoped schema configuration.
+ * Describes an executable view of a schema that declares scopes.
  *
  * The [schemaId] property holds the [SchemaId] that identifies this schema at execution time.
  * Use it when calling [Viaduct.executeAsync] or [Viaduct.execute] to select this schema.
  *
- * @param id the name for the scoped schema
- * @param scopesToApply the set of scope-ids that define the scoped schema;
- *        empty means the full (unscoped) schema is registered under this name.
+ * Schemas that do not declare scopes do not need this configuration; they are executable using
+ * [SchemaId.Base] by default.
  */
 @StableApi
-class SchemaScopeInfo private constructor(
-    val schemaId: SchemaId,
-) {
-    @JvmOverloads
-    constructor(id: String, scopesToApply: Set<String> = emptySet()) : this(
-        SchemaId.Scoped(id, scopesToApply)
-    )
+sealed interface SchemaScopeInfo {
+    val schemaId: SchemaId
 
-    init {
-        require(schemaId.id.isNotBlank()) { "schema id must not be blank" }
+    /**
+     * Represents the base view using [SchemaId.Base].
+     *
+     * The base view contains all non-tenant-local fields without filtering to specific scopes.
+     */
+    data object Base : SchemaScopeInfo {
+        override val schemaId: SchemaId = SchemaId.Base
     }
 
-    val scopesToApply: Set<String>
-        get() = (schemaId as SchemaId.Scoped).scopeIds
+    /** Registers a named schema projected to the non-empty set of [scopesToApply]. */
+    data class Scoped(
+        val id: String,
+        val scopesToApply: Set<String>,
+    ) : SchemaScopeInfo {
+        init {
+            require(id.isNotBlank()) { "schema id must not be blank" }
+            require(scopesToApply.isNotEmpty()) { "scoped schemas must contain at least one scope ID" }
+        }
 
-    override fun toString(): String = "SchemaScopeInfo(id=${schemaId.id}, scopesToApply=$scopesToApply)"
-
-    internal fun toScopeConfig(): SchemaConfiguration.ScopeConfig = SchemaConfiguration.ScopeConfig(schemaId.id, scopesToApply)
+        override val schemaId: SchemaId = SchemaId.Scoped(id, scopesToApply)
+    }
 }
+
+internal fun SchemaScopeInfo.toScopeConfig(): SchemaConfiguration.ScopeConfig =
+    when (this) {
+        SchemaScopeInfo.Base -> SchemaConfiguration.ScopeConfig.Base
+        is SchemaScopeInfo.Scoped -> SchemaConfiguration.ScopeConfig.Scoped(id, scopesToApply)
+    }

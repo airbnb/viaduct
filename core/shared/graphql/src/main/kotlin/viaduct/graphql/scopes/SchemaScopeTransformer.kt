@@ -10,7 +10,6 @@ import viaduct.graphql.scopes.utils.ScopeDirectiveParser
 import viaduct.graphql.scopes.utils.StubRoot
 import viaduct.graphql.scopes.utils.buildSchemaTraverser
 import viaduct.graphql.scopes.utils.getChildrenForElement
-import viaduct.graphql.scopes.utils.isTenantLocalEquivalentField
 import viaduct.graphql.scopes.visitors.CompositeVisitor
 import viaduct.graphql.scopes.visitors.FilterChildrenVisitor
 import viaduct.graphql.scopes.visitors.FilterTenantLocalFieldsVisitor
@@ -28,27 +27,14 @@ typealias AdditionalVisitorConstructor = (
 ) -> TraverserVisitorStub<GraphQLSchemaElement>
 
 internal class SchemaScopeTransformer(
-    private val validScopes: Set<String>,
+    private val scopingMode: SchemaScopingMode,
     private val additionalVisitorConstructors: List<AdditionalVisitorConstructor>
 ) {
-    fun applyScopes(
+    fun transform(
         inputSchema: GraphQLSchema,
-        appliedScopes: Set<String>,
-        includeTenantLocalFields: Boolean,
+        view: SchemaView,
     ): GraphQLSchema {
-        val schemaTransformations = buildTransformations(
-            inputSchema,
-            appliedScopes,
-            includeTenantLocalFields = includeTenantLocalFields,
-        )
-        return transformAndNormalizeDirectives(inputSchema, schemaTransformations)
-    }
-
-    fun applyBaseSchema(inputSchema: GraphQLSchema): GraphQLSchema {
-        if (!hasTenantLocalFields(inputSchema)) {
-            return inputSchema
-        }
-        val schemaTransformations = buildBaseSchemaTransformations(inputSchema)
+        val schemaTransformations = buildTransformations(inputSchema, view)
         return transformAndNormalizeDirectives(inputSchema, schemaTransformations)
     }
 
@@ -72,56 +58,50 @@ internal class SchemaScopeTransformer(
         }
     }
 
-    fun buildTransformations(
+    private fun buildTransformations(
         schema: GraphQLSchema,
-        appliedScopes: Set<String>,
-        includeTenantLocalFields: Boolean = false,
+        view: SchemaView,
     ): SchemaTransformations {
-        // Traverse the Schema AST
         val stubRoot = StubRoot(schema)
-        val scopeDirectiveParser = ScopeDirectiveParser(validScopes)
-
-        // Build a mutable map of element -> children, where we will store filtered children
         val elementChildren =
             schema.allTypesAsList
                 .associate {
                     Pair(it as GraphQLSchemaElement, getChildrenForElement(it))
                 }.toMutableMap()
-
-        // Keep track of types we want to remove from the schema
         val typesToRemove = mutableSetOf<String>()
-
+        val appliedScopes = appliedScopes(view)
         val additionalVisitors =
             additionalVisitorConstructors
                 .map { it(schema, typesToRemove, elementChildren, appliedScopes) }
                 .toTypedArray()
-        val visitor = when {
-            validScopes.isEmpty() && appliedScopes.isEmpty() && includeTenantLocalFields ->
-                // If no scopes are applied, we can skip the validation and just run additional visitors
-                CompositeVisitor(
-                    *additionalVisitors
-                )
 
-            appliedScopes == validScopes && includeTenantLocalFields -> CompositeVisitor(
-                ValidateRequiredScopesVisitor(scopeDirectiveParser),
-                *additionalVisitors
+        val visitor = when (view) {
+            SchemaView.Full -> when (scopingMode) {
+                SchemaScopingMode.Unscoped -> CompositeVisitor(*additionalVisitors)
+                is SchemaScopingMode.ScopeAware -> CompositeVisitor(
+                    ValidateRequiredScopesVisitor(ScopeDirectiveParser(scopingMode.validScopes)),
+                    *additionalVisitors,
+                )
+            }
+
+            SchemaView.Base -> CompositeVisitor(
+                FilterTenantLocalFieldsVisitor(elementChildren),
+                TypeRemovalVisitor(typesToRemove, elementChildren),
+                *additionalVisitors,
             )
 
-            else -> {
-                // Build a composite visitor that will run child visitors (FilterChildren and TypeRemoval, in this case)
+            is SchemaView.Scoped -> {
+                val scopeAware = requireScopeAware(view)
+                val scopeDirectiveParser = ScopeDirectiveParser(scopeAware.validScopes)
                 CompositeVisitor(
-                    ValidateScopesVisitor(validScopes, scopeDirectiveParser),
-                    // inspect the scope information for this type or its extensions and save it's modified children
-                    // in `elementChildren`
+                    ValidateScopesVisitor(scopeAware.validScopes, scopeDirectiveParser),
                     FilterChildrenVisitor(
                         appliedScopes = appliedScopes,
                         scopeDirectiveParser = scopeDirectiveParser,
                         elementChildren = elementChildren,
                     ),
-                    // Based on the filtered children, decide if the element should be removed
                     TypeRemovalVisitor(typesToRemove, elementChildren),
-                    // Run any additional visitors
-                    *additionalVisitors
+                    *additionalVisitors,
                 )
             }
         }
@@ -134,30 +114,24 @@ internal class SchemaScopeTransformer(
         )
     }
 
-    private fun buildBaseSchemaTransformations(schema: GraphQLSchema): SchemaTransformations {
-        val stubRoot = StubRoot(schema)
-        val elementChildren =
-            schema.allTypesAsList
-                .associate {
-                    Pair(it as GraphQLSchemaElement, getChildrenForElement(it))
-                }.toMutableMap()
-        val typesToRemove = mutableSetOf<String>()
-        val additionalVisitors =
-            additionalVisitorConstructors
-                .map { it(schema, typesToRemove, elementChildren, emptySet()) }
-                .toTypedArray()
-        val visitor = CompositeVisitor(
-            FilterTenantLocalFieldsVisitor(elementChildren),
-            TypeRemovalVisitor(typesToRemove, elementChildren),
-            *additionalVisitors
-        )
+    private fun appliedScopes(view: SchemaView): Set<String> =
+        when (view) {
+            SchemaView.Base -> emptySet()
+            SchemaView.Full -> when (scopingMode) {
+                SchemaScopingMode.Unscoped -> emptySet()
+                is SchemaScopingMode.ScopeAware -> scopingMode.validScopes
+            }
+            is SchemaView.Scoped -> view.scopes
+        }
 
-        buildSchemaTraverser(schema).traverse(stubRoot, visitor)
-
-        return SchemaTransformations(
-            elementChildren = elementChildren,
-            typesNamesToRemove = typesToRemove
-        )
+    private fun requireScopeAware(view: SchemaView.Scoped): SchemaScopingMode.ScopeAware {
+        val scopeAware = scopingMode as? SchemaScopingMode.ScopeAware
+            ?: throw IllegalArgumentException("Cannot build a scoped schema view from an unscoped schema.")
+        val unknownScopes = view.scopes - scopeAware.validScopes
+        require(unknownScopes.isEmpty()) {
+            "Scoped schema view contains unknown scopes: ${unknownScopes.sorted()}."
+        }
+        return scopeAware
     }
 
     /**
@@ -167,11 +141,4 @@ internal class SchemaScopeTransformer(
         schema: GraphQLSchema,
         transformations: SchemaTransformations
     ): GraphQLSchema = SchemaTransformer.transformSchema(schema, TransformationsVisitor(transformations))
-
-    private fun hasTenantLocalFields(schema: GraphQLSchema): Boolean =
-        schema.allTypesAsList.any { element ->
-            getChildrenForElement(element)?.any { child ->
-                isTenantLocalEquivalentField(child)
-            } == true
-        }
 }
