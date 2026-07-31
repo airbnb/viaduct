@@ -12,6 +12,7 @@ import graphql.language.SourceLocation
 import graphql.language.VariableDefinition
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
+import graphql.schema.GraphQLSchema
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
@@ -242,14 +243,26 @@ data class QueryPlan(
 
         operator fun plus(selection: Selection): SelectionSet = copy(selections = selections + selection)
 
-        operator fun plus(other: SelectionSet): SelectionSet {
-            require(parentType == other.parentType) {
-                "Cannot merge selection sets on `${parentType.name}` and `${other.parentType.name}`"
-            }
+        /**
+         * Merges this selection set with [other]. The two selection sets must have the same
+         * parent type, or one parent type must be a possible type of the other per [schema] --
+         * i.e. an interface (or union) merged with one of its implementing (or member) object
+         * types. This allows merging selections that reach the same response key through
+         * different but schema-compatible paths, such as an interface field alongside a
+         * concrete implementation's narrower field.
+         *
+         * The merged selection set keeps the more specific (possible) type, since it is always
+         * a superset of the abstract type's fields.
+         */
+        fun merge(
+            other: SelectionSet,
+            schema: GraphQLSchema,
+        ): SelectionSet {
+            val mergedParentType = mergedParentType(other, schema)
             return if (other.isEmpty()) {
-                this
+                copy(parentType = mergedParentType)
             } else if (isEmpty()) {
-                other
+                other.copy(parentType = mergedParentType)
             } else {
                 val nextEnclosingVariableReferences =
                     if (other.enclosingVariableReferences.isEmpty()) {
@@ -268,12 +281,26 @@ data class QueryPlan(
                         conditionallyExcludedCoordinates + other.conditionallyExcludedCoordinates
                     }
                 SelectionSet(
-                    parentType,
+                    mergedParentType,
                     selections + other.selections,
                     nextEnclosingVariableReferences,
                     nextConditionallyExcludedCoordinates
                 )
             }
+        }
+
+        private fun mergedParentType(
+            other: SelectionSet,
+            schema: GraphQLSchema,
+        ): GraphQLCompositeType {
+            val a = parentType
+            val b = other.parentType
+            if (a == b) return a
+            if (b is GraphQLObjectType && schema.isPossibleType(a, b)) return b
+            if (a is GraphQLObjectType && schema.isPossibleType(b, a)) return a
+            throw IllegalArgumentException(
+                "Cannot merge selection sets on `${a.name}` and `${b.name}`"
+            )
         }
 
         private fun isEmpty(): Boolean =

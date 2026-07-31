@@ -383,4 +383,60 @@ class CollectFieldsTest {
         collectedX.childPlans.shouldHaveSize(1)
         assertEquals("Query" to "x", collectedX.childPlans.single().originCoordinate)
     }
+
+    @Test
+    fun `shallowStrictCollect merges same-response-key fields whose declared parent types are an interface and its implementor`() {
+        // Regression test for a production incident: a selection on an interface field
+        // (`Sections.metadata: SectionsMetadata`) and a selection on an implementing type's
+        // narrower override of that field (`MediationSections.metadata: MediationMetadata`)
+        // share the same response key `sectionMetadata`. Both apply against a runtime type of
+        // MediationSections, so their subselection sets must be merged rather than rejected.
+        val rawSchema = """
+            type Query { configuration: Sections }
+
+            interface Sections { metadata: SectionsMetadata }
+            interface SectionsMetadata { pageTitle: String }
+
+            type MediationSections implements Sections {
+                metadata: MediationMetadata
+            }
+
+            type MediationMetadata implements SectionsMetadata {
+                pageTitle: String
+                prefillValues: String
+            }
+        """.asSchema
+        val schema = ViaductSchema(rawSchema)
+        val mediationSections = rawSchema.getObjectType("MediationSections")
+
+        val plan = buildPlan(
+            """
+                {
+                    configuration {
+                        ... on Sections { sectionMetadata: metadata { pageTitle } }
+                        ... on MediationSections { sectionMetadata: metadata { prefillValues } }
+                    }
+                }
+            """.trimIndent(),
+            schema
+        )
+        val configurationField = plan.selectionSet.selections.single() as Field
+
+        val collected = CollectFields.shallowStrictCollect(
+            rawSchema,
+            configurationField.selectionSet!!,
+            emptyVars,
+            mediationSections,
+            plan.fragments,
+            fieldRssOriginFilteringKillSwitchEnabled = false,
+        )
+
+        val collectedMetadata = collected.selections.filterIsInstance<CollectedField>().single { it.responseKey == "sectionMetadata" }
+        val mergedSelectionSet = requireNotNull(collectedMetadata.selectionSet)
+        assertEquals(rawSchema.getObjectType("MediationMetadata"), mergedSelectionSet.parentType)
+
+        val mergedFieldNames = mergedSelectionSet.selections.filterIsInstance<Field>().map { it.field.name }
+        mergedFieldNames shouldContain "pageTitle"
+        mergedFieldNames shouldContain "prefillValues"
+    }
 }

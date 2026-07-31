@@ -115,7 +115,7 @@ object CollectFields {
                             // we've already collected a field with this responseKey.
                             // Look it up by its index and merge
                             val extant = acc[extantIndex] as CollectedField
-                            acc[extantIndex] = merge(extant, sel)
+                            acc[extantIndex] = merge(state.schema, extant, sel)
                         }
                     }
 
@@ -182,6 +182,7 @@ object CollectFields {
             this == schema.subscriptionType
 
     private fun merge(
+        schema: GraphQLSchema,
         host: CollectedField,
         donor: CollectedField
     ): CollectedField {
@@ -191,7 +192,7 @@ object CollectFields {
 
         val newSelectionSet = host.selectionSet?.let { hss ->
             val dss = donor.selectionSet!!
-            hss + dss
+            hss.merge(dss, schema)
         }
         return host.copy(
             mergedField = merge(host.mergedField, donor.mergedField),
