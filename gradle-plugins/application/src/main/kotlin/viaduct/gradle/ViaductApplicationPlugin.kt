@@ -4,6 +4,7 @@ import centralSchemaDirectory
 import grtClassesDirectory
 import javaGrtClassesDirectory
 import javaGrtSourcesDirectory
+import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
@@ -23,6 +24,7 @@ import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.createOrGetJavaCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.createOrGetJavaGRTCompileClasspath
 import viaduct.gradle.ViaductPluginCommon.pluginVersion
+import viaduct.gradle.ViaductPluginCommon.prettyPath
 import viaduct.gradle.ViaductPluginCommon.validateApplicationProjectPlacement
 import viaduct.gradle.task.AssembleCentralSchemaTask
 import viaduct.gradle.task.AssembleSchemaPartitionTask
@@ -74,8 +76,31 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             // Expose the Kotlin GRT jar on the application project's own classpath so local sources
             // (main + tests) can reference generated types. Java-specific application projects can
             // depend on generateViaductJavaGRTs explicitly.
-            this.dependencies.add("api", files(kotlinGRTJar.flatMap { it.archiveFile }))
+            configurations.matching { it.name == "api" }.configureEach {
+                project.dependencies.add("api", files(kotlinGRTJar.flatMap { it.archiveFile }))
+            }
+
+            validateJvmPluginApplied()
         }
+
+    /**
+     * The "api" and "runtimeOnly" wiring above is deferred until those configurations exist, so it
+     * runs regardless of plugin declaration order. But if no Java/Kotlin JVM plugin is ever applied,
+     * those configurations never appear and the deferred callbacks silently never fire. Fail loudly
+     * at the end of configuration instead of leaving generated GRTs and topology modules quietly
+     * missing from the classpath.
+     */
+    private fun Project.validateJvmPluginApplied() {
+        afterEvaluate {
+            if (configurations.findByName("api") == null || configurations.findByName("runtimeOnly") == null) {
+                throw GradleException(
+                    "Project ${prettyPath()} applies 'com.airbnb.viaduct.application-gradle-plugin' but no " +
+                        "Java/Kotlin JVM plugin (e.g. 'org.jetbrains.kotlin.jvm' or 'java-library') is applied. " +
+                        "Add one to the project's plugins block.",
+                )
+            }
+        }
+    }
 
     private fun Project.setupIncomingDependenciesFromTopology(
         topology: ViaductApplicationTopology,
@@ -113,8 +138,10 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             isCanBeResolved = false
         }
 
-        configurations.named("runtimeOnly").configure {
-            extendsFrom(viaductModules)
+        pluginManager.withPlugin("java") {
+            configurations.named("runtimeOnly").configure {
+                extendsFrom(viaductModules)
+            }
         }
 
         return viaductModules
