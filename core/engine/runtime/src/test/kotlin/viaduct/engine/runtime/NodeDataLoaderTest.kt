@@ -1,11 +1,15 @@
 package viaduct.engine.runtime
 
+import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.MockNodeUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -20,7 +24,7 @@ class NodeDataLoaderTest {
         type Query { test: Test }
         interface Node { id: ID! }
         type Test implements Node { id: ID! foo: Foo bar: String}
-        type Foo { a: String }
+        type Foo { id: ID! a: String b: String }
         """.trimIndent()
     )
     private val selectionSetFactory = EngineSelectionSetFactoryImpl(schema)
@@ -28,7 +32,7 @@ class NodeDataLoaderTest {
     @Test
     fun `covers returns true for exact match`() {
         val selector = NodeResolverExecutor.Selector(
-            id = "id1",
+            id = id1,
             selections = selectionSetFactory.engineSelectionSet("Test", "id bar", emptyMap())
         )
         assertTrue(selector.covers(selector))
@@ -37,34 +41,140 @@ class NodeDataLoaderTest {
     @Test
     fun `covers returns true for larger selection set`() {
         val selector = NodeResolverExecutor.Selector(
-            id = "id1",
+            id = id1,
             selections = selectionSetFactory.engineSelectionSet("Test", "id bar foo { a }", emptyMap())
         )
         val other = NodeResolverExecutor.Selector(
-            id = "id1",
+            id = id1,
             selections = selectionSetFactory.engineSelectionSet("Test", "foo { a } bar", emptyMap())
         )
+
         assertTrue(selector.covers(other))
     }
 
     @Test
-    fun `covers returns false for different ID`() {
-        val selections = selectionSetFactory.engineSelectionSet("Test", "id bar", emptyMap())
-        val selector = NodeResolverExecutor.Selector("id1", selections)
-        val other = NodeResolverExecutor.Selector("id2", selections)
+    fun `covers returns false for different nested selections`() {
+        val selector = NodeResolverExecutor.Selector(
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "foo { a }", emptyMap())
+        )
+        val other = NodeResolverExecutor.Selector(
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "foo { b }", emptyMap())
+        )
+
         assertFalse(selector.covers(other))
     }
 
     @Test
-    fun `covers returns false for smaller selection set`() {
+    fun `covers returns true for top-level ID`() {
         val selector = NodeResolverExecutor.Selector(
-            id = "id1",
-            selections = selectionSetFactory.engineSelectionSet("Test", "id foo { a }", emptyMap())
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "foo { a }", emptyMap())
         )
         val other = NodeResolverExecutor.Selector(
-            id = "id1",
-            selections = selectionSetFactory.engineSelectionSet("Test", "id foo { a } bar", emptyMap())
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "id", emptyMap())
         )
+
+        assertTrue(selector.covers(other))
+    }
+
+    @Test
+    fun `covers returns true for aliased top-level ID`() {
+        val selector = NodeResolverExecutor.Selector(
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "foo { a }", emptyMap())
+        )
+        val other = NodeResolverExecutor.Selector(
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "nodeId: id", emptyMap())
+        )
+
+        assertTrue(selector.covers(other))
+    }
+
+    @Test
+    fun `covers returns true for top-level __typename`() {
+        val selector = NodeResolverExecutor.Selector(
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "foo { a }", emptyMap())
+        )
+        val other = NodeResolverExecutor.Selector(
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "__typename", emptyMap())
+        )
+
+        assertTrue(selector.covers(other))
+    }
+
+    @Test
+    fun `covers returns true for aliased top-level __typename`() {
+        val selector = NodeResolverExecutor.Selector(
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "foo { a }", emptyMap())
+        )
+        val other = NodeResolverExecutor.Selector(
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "nodeType: __typename", emptyMap())
+        )
+
+        assertTrue(selector.covers(other))
+    }
+
+    @Test
+    fun `covers returns true for nested __typename`() {
+        val selector = NodeResolverExecutor.Selector(
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "foo { a }", emptyMap())
+        )
+        val other = NodeResolverExecutor.Selector(
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "foo { __typename }", emptyMap())
+        )
+
+        assertTrue(selector.covers(other))
+    }
+
+    @Test
+    fun `covers returns true for aliased nested __typename`() {
+        val selector = NodeResolverExecutor.Selector(
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "foo { a }", emptyMap())
+        )
+        val other = NodeResolverExecutor.Selector(
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "foo { fooType: __typename }", emptyMap())
+        )
+
+        assertTrue(selector.covers(other))
+    }
+
+    @Test
+    fun `covers returns false for nested ID`() {
+        val selector = NodeResolverExecutor.Selector(
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "foo { a }", emptyMap())
+        )
+        val other = NodeResolverExecutor.Selector(
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "foo { id }", emptyMap())
+        )
+
+        assertFalse(selector.covers(other))
+    }
+
+    @Test
+    fun `covers returns false for different ID`() {
+        val selector = NodeResolverExecutor.Selector(
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", "bar", emptyMap())
+        )
+        val other = NodeResolverExecutor.Selector(
+            id = id2,
+            selections = selectionSetFactory.engineSelectionSet("Test", "bar", emptyMap())
+        )
+
         assertFalse(selector.covers(other))
     }
 
@@ -82,6 +192,48 @@ class NodeDataLoaderTest {
         assertEquals(selector, other)
         assertEquals(selector.hashCode(), other.hashCode())
     }
+
+    @Test
+    fun `loadByKey reuses cached result when cached selections cover requested selections`() =
+        runTest {
+            var resolveCount = 0
+            val resolver = MockNodeUnbatchedResolverExecutor(
+                typeName = "Test",
+                isSelective = true,
+            ) { _, _, _ ->
+                resolveCount++
+                createEngineObjectData(schema.schema.getObjectType("Test"), emptyMap())
+            }
+            val loader = NodeDataLoader(resolver)
+            val context = mockk<EngineExecutionContext>()
+
+            loader.loadByKey(selector("foo { a b }"), context)
+            // load a subset: previous load should cover this one
+            loader.loadByKey(selector("foo { a }"), context)
+
+            assertEquals(1, resolveCount)
+        }
+
+    @Test
+    fun `loadByKey resolves again when cached selections do not cover requested selections`() =
+        runTest {
+            var resolveCount = 0
+            val resolver = MockNodeUnbatchedResolverExecutor(
+                typeName = "Test",
+                isSelective = true,
+            ) { _, _, _ ->
+                resolveCount++
+                createEngineObjectData(schema.schema.getObjectType("Test"), emptyMap())
+            }
+            val loader = NodeDataLoader(resolver)
+            val context = mockk<EngineExecutionContext>()
+
+            loader.loadByKey(selector("foo { a }"), context).getOrThrow()
+            // load a superset: previous load does not cover this one
+            loader.loadByKey(selector("foo { a b }"), context).getOrThrow()
+
+            assertEquals(2, resolveCount)
+        }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
@@ -174,4 +326,10 @@ class NodeDataLoaderTest {
             )
         }
     }
+
+    private fun selector(selections: String) =
+        NodeResolverExecutor.Selector(
+            id = id1,
+            selections = selectionSetFactory.engineSelectionSet("Test", selections, emptyMap()),
+        )
 }

@@ -539,6 +539,20 @@ class ExecutionSelectionSetTest {
         }
 
         @Test
+        fun `projected defaults`() {
+            val sdl = """
+                extend type Query { empty: Int }
+                interface Iface { x: Int }
+                type Foo implements Iface { x(z: Int = 2): Int }
+            """.trimIndent()
+
+            mk("Iface", "x", sdl = sdl).let {
+                assertEquals(emptyMap<String, Any?>(), it.argumentsOfSelection("Iface", "x"))
+                assertEquals(mapOf("z" to 2), it.argumentsOfSelection("Foo", "x"))
+            }
+        }
+
+        @Test
         fun `arg of list of object with defaults`() {
             val sdl = """
                 extend type Query { x(y:[Input] = [{z: 1, input: null}]): Int }

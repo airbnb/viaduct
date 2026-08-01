@@ -14,6 +14,7 @@ import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.runtime.select.covers
 
 /**
  * If the resolver is a batch resolver, then the data loader handles batching together calls to
@@ -62,8 +63,11 @@ class NodeDataLoader(
  */
 internal fun NodeResolverExecutor.Selector.covers(other: NodeResolverExecutor.Selector): Boolean {
     if (other.id != this.id) return false
-    val selectedFields = this.selections.selections().mapTo(mutableSetOf("id")) { it.fieldName }
-    return other.selections.selections().all { it.fieldName in selectedFields }
+    return this.selections.covers(
+        other.selections,
+        implicitlyCoveredFields = setOf("__typename"),
+        implicitlyCoveredTopLevelFields = setOf("id")
+    )
 }
 
 /**
@@ -74,6 +78,7 @@ internal fun NodeResolverExecutor.Selector.covers(other: NodeResolverExecutor.Se
 @ExcludeFromJacocoGeneratedReport
 private object NonSelectiveCacheMarker : EngineSelectionSet {
     override val type: String get() = throw UnsupportedOperationException()
+
     override val schema: ViaductSchema get() = throw UnsupportedOperationException()
 
     override fun selections(): List<EngineSelection> = throw UnsupportedOperationException()

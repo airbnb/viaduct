@@ -525,7 +525,7 @@ data class EngineSelectionSetImpl(
             ?.let { sel ->
                 ValuesResolver.getArgumentValues(
                     ctx.schema.schema.codeRegistry,
-                    fieldDefinition(sel).arguments,
+                    fieldDefinition(type, sel.field.name).arguments,
                     sel.field.arguments,
                     ctx.coercedVariables,
                     ctx.gjContext,
@@ -561,10 +561,12 @@ data class EngineSelectionSetImpl(
 
     private fun constraintsCtxFor(type: GraphQLCompositeType): Constraints.Ctx = ctx.constraintsCtx.copy(parentTypes = ctx.schema.rels.possibleObjectTypes(type))
 
-    private fun fieldDefinition(sel: FieldSelection): GraphQLFieldDefinition {
-        val coord = (sel.typeCondition.name to sel.field.name).gj
-        return ctx.schema.schema.getFieldDefinition(coord)
-    }
+    private fun fieldDefinition(sel: FieldSelection): GraphQLFieldDefinition = fieldDefinition(sel.typeCondition.name, sel.field.name)
+
+    private fun fieldDefinition(
+        type: String,
+        field: String,
+    ): GraphQLFieldDefinition = ctx.schema.schema.getFieldDefinition((type to field).gj)
 
     private fun asEagerlyInlined(
         selection: Selection<*>,

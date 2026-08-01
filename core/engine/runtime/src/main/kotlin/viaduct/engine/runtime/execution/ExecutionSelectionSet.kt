@@ -250,7 +250,7 @@ internal data class ExecutionSelectionSet(
             ?.let { selection ->
                 ValuesResolver.getArgumentValues(
                     schema.schema.codeRegistry,
-                    fieldDefinition(selection).arguments,
+                    fieldDefinition(type, selection.fieldName).arguments,
                     selection.arguments,
                     ctx.coercedVariables,
                     ctx.graphQLContext,
