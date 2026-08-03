@@ -30,6 +30,7 @@ public abstract interface class viaduct/api/context/FieldExecutionContext : viad
 
 public abstract interface class viaduct/api/context/MutationFieldExecutionContext : viaduct/api/context/BaseFieldExecutionContext {
 	public abstract fun mutation (Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun mutation (Lviaduct/api/documents/MutationFromAnnotation;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class viaduct/api/context/MutationFieldExecutionContext$DefaultImpls {
@@ -45,6 +46,7 @@ public abstract interface class viaduct/api/context/ResolverExecutionContext : v
 	public abstract fun globalIDStringFor (Lviaduct/api/reflect/Type;Ljava/lang/String;)Ljava/lang/String;
 	public abstract fun nodeRef (Lviaduct/api/globalid/GlobalID;)Lviaduct/api/types/NodeObject;
 	public abstract fun query (Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun query (Lviaduct/api/documents/QueryFromAnnotation;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun selectionsFor (Lviaduct/api/reflect/Type;Ljava/lang/String;Ljava/util/Map;)Lviaduct/api/select/SelectionSet;
 }
 
@@ -64,6 +66,20 @@ public abstract interface class viaduct/api/context/SelectiveNodeExecutionContex
 
 public abstract interface class viaduct/api/context/VariablesProviderContext : viaduct/api/context/ExecutionContext {
 	public abstract fun getArguments ()Lviaduct/api/types/Arguments;
+}
+
+public abstract interface annotation class viaduct/api/documents/GraphQLOperation : java/lang/annotation/Annotation {
+	public abstract fun value ()Ljava/lang/String;
+}
+
+public abstract class viaduct/api/documents/MutationFromAnnotation {
+	public fun <init> ()V
+	public final fun getOperationText ()Ljava/lang/String;
+}
+
+public abstract class viaduct/api/documents/QueryFromAnnotation {
+	public fun <init> ()V
+	public final fun getOperationText ()Ljava/lang/String;
 }
 
 public abstract interface annotation class viaduct/api/documents/Selections : java/lang/annotation/Annotation {

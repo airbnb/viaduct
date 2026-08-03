@@ -1,10 +1,7 @@
-@file:OptIn(ExperimentalApi::class)
-
 package com.example.starwars.modules.filmography.characters.operations
 
 import viaduct.api.documents.GraphQLOperation
 import viaduct.api.documents.MutationFromAnnotation
-import viaduct.apiannotations.ExperimentalApi
 
 /**
  * A statically-declared GraphQL **mutation** operation.

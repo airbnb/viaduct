@@ -3,6 +3,9 @@
 package viaduct.tenant.tutorial11
 
 import org.junit.jupiter.api.Test
+import viaduct.api.documents.GraphQLOperation
+import viaduct.api.documents.MutationFromAnnotation
+import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.resolver.Resolver
 import viaduct.graphql.test.assertEquals
 import viaduct.tenant.tutorial11.resolverbases.EnrichedGreetingResolvers
@@ -74,13 +77,21 @@ class SimpleSubqueriesFeatureAppTest : SimpleSubqueriesContractTest() {
         override suspend fun resolve(ctx: Context): EnrichedGreeting = EnrichedGreeting.Builder(ctx).build()
     }
 
+    @GraphQLOperation("{ greeting }")
+    object GreetingOperation : QueryFromAnnotation()
+
+    @GraphQLOperation("query(\$n: Int!) { multiply(n: \$n) }")
+    object MultiplyOperation : QueryFromAnnotation()
+
+    @GraphQLOperation("mutation { step }")
+    object StepOperation : MutationFromAnnotation()
     // ======================= EnrichedGreeting field resolvers =======================
 
     /**
      * USING ctx.query() — imperative subquery
      *
      * What YOU write:
-     * - Call ctx.query(selectionString) with standard GraphQL selection syntax
+     * - Declare a @GraphQLOperation object and pass it to ctx.query(operation)
      * - Access results via typed getter methods on the returned object
      *
      * What VIADUCT does:
@@ -97,7 +108,7 @@ class SimpleSubqueriesFeatureAppTest : SimpleSubqueriesContractTest() {
     class MessageResolver : EnrichedGreetingResolvers.Message() {
         override suspend fun resolve(ctx: Context): String {
             // SUBQUERY: fetch "greeting" from the Query root at runtime
-            val queryResult = ctx.query("greeting")
+            val queryResult = ctx.query(GreetingOperation)
             val greeting = queryResult.getGreeting() ?: "Hello"
             return "$greeting (enriched)"
         }
@@ -115,7 +126,7 @@ class SimpleSubqueriesFeatureAppTest : SimpleSubqueriesContractTest() {
         override suspend fun resolve(ctx: Context): Int {
             val input = ctx.arguments.input
             // Pass variable values explicitly — subqueries have their own variable scope
-            val queryResult = ctx.query("multiply(n: \$n)", mapOf("n" to input))
+            val queryResult = ctx.query(MultiplyOperation, mapOf("n" to input))
             return queryResult.getMultiply() ?: 0
         }
     }
@@ -131,7 +142,7 @@ class SimpleSubqueriesFeatureAppTest : SimpleSubqueriesContractTest() {
      * USING ctx.mutation() — submutation from a mutation resolver
      *
      * What YOU write:
-     * - Call ctx.mutation(selectionString) from a mutation resolver
+     * - Declare a @GraphQLOperation mutation object and pass it to ctx.mutation(operation)
      * - Access results via typed getters, same as ctx.query()
      *
      * What VIADUCT does:
@@ -146,11 +157,11 @@ class SimpleSubqueriesFeatureAppTest : SimpleSubqueriesContractTest() {
     class PipelineResolver : MutationResolvers.Pipeline() {
         override suspend fun resolve(ctx: Context): String {
             // SUBMUTATION: call another mutation from this mutation resolver
-            val mutationResult = ctx.mutation("step")
+            val mutationResult = ctx.mutation(StepOperation)
             val newCount = mutationResult.getStep() ?: 0
 
             // SUBQUERY: also fetch query data from the same resolver
-            val queryResult = ctx.query("greeting")
+            val queryResult = ctx.query(GreetingOperation)
             val greeting = queryResult.getGreeting() ?: "Hello"
 
             return "$greeting — step $newCount"

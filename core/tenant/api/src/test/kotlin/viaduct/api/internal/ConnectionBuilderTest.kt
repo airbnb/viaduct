@@ -129,6 +129,7 @@ class ConnectionBuilderTest {
 
         override fun selections(): SelectionSet<TestConnection> = throw NotImplementedError("Not needed for tests")
 
+        @Deprecated("This API is not supported and will be deleted. Use the GraphQLOperation-based query(operation, variables) instead.")
         override suspend fun query(
             selections: String,
             variables: Map<String, Any?>

@@ -30,6 +30,7 @@ interface ResolverExecutionContext<Q : QueryType> : ExecutionContext {
      * @param variables Optional variables to use in the selections
      * @return The query result typed as [Q]
      */
+    @Deprecated("This API is not supported and will be deleted. Use the GraphQLOperation-based query(operation, variables) instead.")
     suspend fun query(
         selections: @Selections String,
         variables: Map<String, Any?> = emptyMap()
@@ -48,7 +49,7 @@ interface ResolverExecutionContext<Q : QueryType> : ExecutionContext {
      * @param variables Optional variables to use in the operation
      * @return The query result typed as [Q]
      */
-    @ExperimentalApi
+    @StableApi
     suspend fun query(
         operation: QueryFromAnnotation,
         variables: Map<String, Any?> = emptyMap()

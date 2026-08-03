@@ -1,7 +1,7 @@
 package viaduct.api.documents
 
 import org.intellij.lang.annotations.Language
-import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.StableApi
 
 /**
  * Annotation that declares a GraphQL executable document on a Kotlin singleton object.
@@ -25,7 +25,7 @@ import viaduct.apiannotations.ExperimentalApi
  * @see QueryFromAnnotation
  * @see MutationFromAnnotation
  */
-@ExperimentalApi
+@StableApi
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class GraphQLOperation(

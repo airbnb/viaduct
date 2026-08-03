@@ -3,9 +3,7 @@ package viaduct.api.documents
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
-import viaduct.apiannotations.ExperimentalApi
 
-@OptIn(ExperimentalApi::class)
 class GraphQLOperationAnnotationTest {
     @Test
     fun `GraphQLOperation targets CLASS only`() {

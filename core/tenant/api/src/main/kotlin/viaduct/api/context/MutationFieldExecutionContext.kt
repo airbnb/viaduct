@@ -6,7 +6,6 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Mutation
 import viaduct.api.types.Query
-import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.StableApi
 
 /** An [ExecutionContext] provided to resolvers for root Mutation type fields */
@@ -30,6 +29,7 @@ interface MutationFieldExecutionContext<
      * @param variables Optional variables to use in the selections
      * @return The mutation result typed as [M]
      */
+    @Deprecated("This API is not supported and will be deleted. Use the GraphQLOperation-based mutation(operation, variables) instead.")
     suspend fun mutation(
         selections: @Selections String,
         variables: Map<String, Any?> = emptyMap()
@@ -49,7 +49,7 @@ interface MutationFieldExecutionContext<
      * @param variables Optional variables to use in the operation
      * @return The mutation result typed as [M]
      */
-    @ExperimentalApi
+    @StableApi
     suspend fun mutation(
         operation: MutationFromAnnotation,
         variables: Map<String, Any?> = emptyMap()

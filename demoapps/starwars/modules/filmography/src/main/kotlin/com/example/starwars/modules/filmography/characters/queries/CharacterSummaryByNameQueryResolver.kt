@@ -1,12 +1,9 @@
-@file:OptIn(ExperimentalApi::class)
-
 package com.example.starwars.modules.filmography.characters.queries
 
 import com.example.starwars.filmography.resolverbases.QueryResolvers
 import com.example.starwars.modules.filmography.characters.operations.CharacterByNameOperation
 import io.micronaut.context.annotation.Prototype
 import viaduct.api.resolver.Resolver
-import viaduct.apiannotations.ExperimentalApi
 
 /**
  * Runs the statically-declared [CharacterByNameOperation] query as a subquery via

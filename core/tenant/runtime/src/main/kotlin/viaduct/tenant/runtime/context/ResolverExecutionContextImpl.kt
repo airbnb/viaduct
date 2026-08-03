@@ -18,6 +18,7 @@ sealed class ResolverExecutionContextImpl<Q : Query>(
     baseData: InternalContext,
     protected val engineExecutionContextWrapper: EngineExecutionContextWrapper,
 ) : ResolverExecutionContext<Q>, ExecutionContextImpl(baseData) {
+    @Deprecated("This API is not supported and will be deleted. Use the GraphQLOperation-based query(operation, variables) instead.")
     override suspend fun query(
         selections: String,
         variables: Map<String, Any?>

@@ -7,6 +7,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import viaduct.api.documents.GraphQLOperation
+import viaduct.api.documents.MutationFromAnnotation
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.select.SelectionSet
@@ -15,6 +17,9 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.executioncontext.ExecutionContextTestSchema
 import viaduct.tenant.runtime.executioncontext.Mutation
 import viaduct.tenant.runtime.executioncontext.Query
+
+@GraphQLOperation("mutation { __typename }")
+private object TypenameMutation : MutationFromAnnotation()
 
 class MutationFieldExecutionContextImplTest : ContextTestBase() {
     private val mutationObject = mockk<Mutation>()
@@ -44,7 +49,7 @@ class MutationFieldExecutionContextImplTest : ContextTestBase() {
     fun mutation() =
         runTest {
             val ctx = mk()
-            assertEquals(mutationObject, ctx.mutation("__typename"))
+            assertEquals(mutationObject, ctx.mutation(TypenameMutation))
         }
 
     @Test

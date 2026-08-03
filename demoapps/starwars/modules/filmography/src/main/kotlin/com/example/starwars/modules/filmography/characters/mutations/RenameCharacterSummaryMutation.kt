@@ -1,12 +1,9 @@
-@file:OptIn(ExperimentalApi::class)
-
 package com.example.starwars.modules.filmography.characters.mutations
 
 import com.example.starwars.filmography.resolverbases.MutationResolvers
 import com.example.starwars.modules.filmography.characters.operations.RenameCharacterOperation
 import io.micronaut.context.annotation.Prototype
 import viaduct.api.resolver.Resolver
-import viaduct.apiannotations.ExperimentalApi
 
 /**
  * Runs the statically-declared [RenameCharacterOperation] mutation as a submutation via

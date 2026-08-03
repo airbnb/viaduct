@@ -22,6 +22,7 @@ import viaduct.tenant.runtime.select.SelectionSetImpl
 @Suppress("USELESS_CAST")
 class NodeExecutionContextImplTest : ContextTestBase() {
     private val queryObject = mockk<Query>()
+
     @Suppress("UNCHECKED_CAST")
     private val userId: GlobalID<NodeObject> = GlobalID(User.Reflection, "123") as GlobalID<NodeObject>
 
@@ -66,7 +67,7 @@ class NodeExecutionContextImplTest : ContextTestBase() {
     fun query() =
         runTest {
             val ctx = mk()
-            val result = ctx.query("__typename")
+            val result = ctx.query(TypenameQuery)
             assertEquals(queryObject, result)
         }
 

@@ -2,6 +2,8 @@
 
 package viaduct.tenant.runtime.context
 
+import viaduct.api.documents.GraphQLOperation
+import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InternalContext
 import viaduct.api.reflect.RootObjectField
@@ -28,6 +30,9 @@ abstract class ContextTestBase {
     protected object Q : Query
 
     protected object Args : Arguments
+
+    @GraphQLOperation("{ __typename }")
+    object TypenameQuery : QueryFromAnnotation()
 
     @Suppress("UNCHECKED_CAST")
     protected val noSelections = SelectionSet.NoSelections as SelectionSet<CompositeOutput>

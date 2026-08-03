@@ -84,7 +84,7 @@ class FieldExecutionContextImplTest : ContextTestBase() {
     fun query() =
         runTest {
             val ctx = mk()
-            val result = ctx.query("__typename")
+            val result = ctx.query(TypenameQuery)
             assertEquals(queryObject, result)
         }
 

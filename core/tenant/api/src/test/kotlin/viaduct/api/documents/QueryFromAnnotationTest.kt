@@ -3,9 +3,7 @@ package viaduct.api.documents
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.apiannotations.ExperimentalApi
 
-@OptIn(ExperimentalApi::class)
 class QueryFromAnnotationTest {
     @GraphQLOperation("{ viewer { id name } }")
     object GetViewerQuery : QueryFromAnnotation()

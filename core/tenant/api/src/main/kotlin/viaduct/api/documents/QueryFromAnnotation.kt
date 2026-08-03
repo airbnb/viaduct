@@ -1,6 +1,6 @@
 package viaduct.api.documents
 
-import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.StableApi
 
 /**
  * Abstract base class for named GraphQL query operation objects.
@@ -20,7 +20,7 @@ import viaduct.apiannotations.ExperimentalApi
  * @see GraphQLOperation
  * @see MutationFromAnnotation
  */
-@ExperimentalApi
+@StableApi
 abstract class QueryFromAnnotation {
     /**
      * The GraphQL operation document text declared in [@GraphQLOperation][GraphQLOperation].

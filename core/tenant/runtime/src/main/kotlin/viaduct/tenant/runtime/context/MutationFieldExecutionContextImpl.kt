@@ -46,6 +46,7 @@ class MutationFieldExecutionContextImpl<Q : Query, M : Mutation>(
     ) {
     override fun selections(): SelectionSet<CompositeOutput> = selectionSet()
 
+    @Deprecated("This API is not supported and will be deleted. Use the GraphQLOperation-based mutation(operation, variables) instead.")
     override suspend fun mutation(
         selections: String,
         variables: Map<String, Any?>

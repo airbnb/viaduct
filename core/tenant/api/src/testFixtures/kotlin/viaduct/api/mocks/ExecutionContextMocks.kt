@@ -212,6 +212,7 @@ open class MockResolverExecutionContext<Q : Query>(
     }
 
     @Suppress("UNCHECKED_CAST")
+    @Deprecated("This API is not supported and will be deleted. Use the GraphQLOperation-based query(operation, variables) instead.")
     override suspend fun query(
         selections: String,
         variables: Map<String, Any?>
@@ -353,6 +354,7 @@ class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, 
     }
 
     @Suppress("UNCHECKED_CAST")
+    @Deprecated("This API is not supported and will be deleted. Use the GraphQLOperation-based query(operation, variables) instead.")
     override suspend fun mutation(
         selections: String,
         variables: Map<String, Any?>

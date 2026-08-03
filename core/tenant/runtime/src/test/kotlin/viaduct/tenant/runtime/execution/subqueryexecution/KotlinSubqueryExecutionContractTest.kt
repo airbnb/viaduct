@@ -3,6 +3,9 @@
 package viaduct.tenant.runtime.execution.subqueryexecution
 
 import org.junit.jupiter.api.BeforeEach
+import viaduct.api.documents.GraphQLOperation
+import viaduct.api.documents.MutationFromAnnotation
+import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.CalculatorResolvers
 import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.ContainerResolvers
@@ -11,6 +14,24 @@ import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.Level2Re
 import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.MutationResolvers
 import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.UserResolvers
+
+@GraphQLOperation("mutation { incrementCounter }")
+object IncrementCounterMutation : MutationFromAnnotation()
+
+@GraphQLOperation("{ firstName lastName }")
+object FirstLastNameQuery : QueryFromAnnotation()
+
+@GraphQLOperation("{ profile { firstName } }")
+object ProfileQuery : QueryFromAnnotation()
+
+@GraphQLOperation("{ rootValue }")
+object RootValueQuery : QueryFromAnnotation()
+
+@GraphQLOperation("{ baseValue }")
+object BaseValueQuery : QueryFromAnnotation()
+
+@GraphQLOperation("query(\$n: Int!) { multiply(n: \$n) }")
+object MultiplyQuery : QueryFromAnnotation()
 
 class KotlinSubqueryExecutionContractTest : SubqueryExecutionContractTest() {
     companion object {
@@ -84,7 +105,7 @@ class KotlinSubqueryExecutionContractTest : SubqueryExecutionContractTest() {
     @Resolver
     class Mutation_TriggerNestedMutationResolver : MutationResolvers.TriggerNestedMutation() {
         override suspend fun resolve(ctx: Context): Int {
-            val mutationResult = ctx.mutation("incrementCounter")
+            val mutationResult = ctx.mutation(IncrementCounterMutation)
             return mutationResult.getIncrementCounter() ?: 0
         }
     }
@@ -92,7 +113,7 @@ class KotlinSubqueryExecutionContractTest : SubqueryExecutionContractTest() {
     @Resolver
     class Mutation_FetchFromQueryDuringMutationResolver : MutationResolvers.FetchFromQueryDuringMutation() {
         override suspend fun resolve(ctx: Context): String {
-            val queryResult = ctx.query("firstName lastName")
+            val queryResult = ctx.query(FirstLastNameQuery)
             val first = queryResult.getFirstName() ?: ""
             val last = queryResult.getLastName() ?: ""
             return "Mutation processed for: $first $last"
@@ -107,7 +128,7 @@ class KotlinSubqueryExecutionContractTest : SubqueryExecutionContractTest() {
     @Resolver
     class Container_DerivedFromNestedQueryResolver : ContainerResolvers.DerivedFromNestedQuery() {
         override suspend fun resolve(ctx: Context): String {
-            val queryResult = ctx.query("profile { firstName }")
+            val queryResult = ctx.query(ProfileQuery)
             return queryResult.getProfile()?.getFirstName() ?: ""
         }
     }
@@ -115,7 +136,7 @@ class KotlinSubqueryExecutionContractTest : SubqueryExecutionContractTest() {
     @Resolver
     class Container_DerivedFromQueryResolver : ContainerResolvers.DerivedFromQuery() {
         override suspend fun resolve(ctx: Context): Int {
-            val queryResult = ctx.query("rootValue")
+            val queryResult = ctx.query(RootValueQuery)
             val rootValue = queryResult.getRootValue() ?: 0
             return rootValue * 2
         }
@@ -129,7 +150,7 @@ class KotlinSubqueryExecutionContractTest : SubqueryExecutionContractTest() {
     @Resolver
     class Container_ViaCtxQueryResolver : ContainerResolvers.ViaCtxQuery() {
         override suspend fun resolve(ctx: Context): Int {
-            val result = ctx.query("rootValue")
+            val result = ctx.query(RootValueQuery)
             return result.getRootValue() ?: 0
         }
     }
@@ -137,7 +158,7 @@ class KotlinSubqueryExecutionContractTest : SubqueryExecutionContractTest() {
     @Resolver
     class User_FullNameResolver : UserResolvers.FullName() {
         override suspend fun resolve(ctx: Context): String {
-            val queryResult = ctx.query("firstName lastName")
+            val queryResult = ctx.query(FirstLastNameQuery)
             val first = queryResult.getFirstName() ?: ""
             val last = queryResult.getLastName() ?: ""
             return "$first $last"
@@ -148,7 +169,7 @@ class KotlinSubqueryExecutionContractTest : SubqueryExecutionContractTest() {
     class Calculator_DoubleResolver : CalculatorResolvers.Double() {
         override suspend fun resolve(ctx: Context): Int {
             val input = ctx.arguments.input
-            val queryResult = ctx.query("multiply(n: $input)")
+            val queryResult = ctx.query(MultiplyQuery, mapOf("n" to input))
             return queryResult.getMultiply() ?: 0
         }
     }
@@ -161,7 +182,7 @@ class KotlinSubqueryExecutionContractTest : SubqueryExecutionContractTest() {
     @Resolver
     class Level2_DerivedValueResolver : Level2Resolvers.DerivedValue() {
         override suspend fun resolve(ctx: Context): Int {
-            val result = ctx.query("baseValue")
+            val result = ctx.query(BaseValueQuery)
             return (result.getBaseValue() ?: 0) * 3
         }
     }
@@ -170,7 +191,7 @@ class KotlinSubqueryExecutionContractTest : SubqueryExecutionContractTest() {
     class Container_QueryWithVariablesResolver : ContainerResolvers.QueryWithVariables() {
         override suspend fun resolve(ctx: Context): Int {
             val multiplier = ctx.arguments.multiplier
-            val result = ctx.query("multiply(n: \$n)", mapOf("n" to multiplier))
+            val result = ctx.query(MultiplyQuery, mapOf("n" to multiplier))
             return result.getMultiply() ?: 0
         }
     }
@@ -179,7 +200,7 @@ class KotlinSubqueryExecutionContractTest : SubqueryExecutionContractTest() {
     class Mutation_MutationWithVariablesResolver : MutationResolvers.MutationWithVariables() {
         override suspend fun resolve(ctx: Context): Int {
             val multiplier = ctx.arguments.multiplier
-            val mutationResult = ctx.mutation("incrementCounter")
+            val mutationResult = ctx.mutation(IncrementCounterMutation)
             val counterValue = mutationResult.getIncrementCounter() ?: 0
             return counterValue * multiplier
         }
@@ -189,7 +210,7 @@ class KotlinSubqueryExecutionContractTest : SubqueryExecutionContractTest() {
     class Mutation_QueryWithVariablesFromMutationResolver : MutationResolvers.QueryWithVariablesFromMutation() {
         override suspend fun resolve(ctx: Context): Int {
             val n = ctx.arguments.n
-            val queryResult = ctx.query("multiply(n: \$n)", mapOf("n" to n))
+            val queryResult = ctx.query(MultiplyQuery, mapOf("n" to n))
             return queryResult.getMultiply() ?: 0
         }
     }
