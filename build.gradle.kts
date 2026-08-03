@@ -96,6 +96,12 @@ val demoappsStandaloneTest by tasks.registering {
     )
 
     doLast {
+        // Explicitly forward the CI mirror across the nested Gradle process boundary. These builds
+        // use fresh dependency caches, so losing it would fall back to Plugin Portal/Maven Central.
+        val nestedGradleEnvironment =
+            providers.environmentVariable("VIADUCT_ARTIFACTORY_MIRROR").orNull
+                ?.let { mapOf("VIADUCT_ARTIFACTORY_MIRROR" to it) }
+                .orEmpty()
         val runRoot = Files.createTempDirectory(
             Files.createDirectories(Path.of("/tmp/mlc")),
             "demoapps-standalone-"
@@ -116,6 +122,7 @@ val demoappsStandaloneTest by tasks.registering {
             // viaduct-plugin-version.properties with the current VERSION, publishing stale
             // artifacts. See demoapps/AGENTS.md.
             exec {
+                environment(nestedGradleEnvironment)
                 commandLine(
                     "./gradlew", "clean",
                     "--gradle-user-home", publishGradleHome.absolutePath,
@@ -126,6 +133,7 @@ val demoappsStandaloneTest by tasks.registering {
 
             logger.lifecycle("Publishing Viaduct to isolated Maven local repo: $mavenLocalRepo")
             exec {
+                environment(nestedGradleEnvironment)
                 commandLine(
                     "./gradlew", "publishToMavenLocal", "-PpublishMinimal",
                     "-Dmaven.repo.local=${mavenLocalRepo.absolutePath}",
@@ -147,6 +155,7 @@ val demoappsStandaloneTest by tasks.registering {
                 val demoappCacheDir = File(runRoot, "cache-$demoapp").apply { mkdirs() }
                 exec {
                     workingDir = demoappWorkspace
+                    environment(nestedGradleEnvironment)
                     environment("USE_MAVEN_LOCAL", "true")
                     commandLine(
                         "./gradlew", "test",
