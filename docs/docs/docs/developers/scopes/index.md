@@ -41,9 +41,42 @@ As you will also learn from the later sections, the scope validation system will
 
 ### Multiple Schemas
 
-A single instance of the Viaduct framework can expose multiple schemas. Within Airbnb, for instance, the Viaduct service itself, exposes a different, more complete schema to internal clients than it exposes to external Web and mobile clients. Scopes also provide encapsulation that allows us to hide implementation details present in your central schema.
+A single instance of the Viaduct framework can expose multiple executable views derived from one full schema. Within Airbnb, for instance, the Viaduct service exposes a different, more complete schema to internal clients than it exposes to external Web and mobile clients. Scopes also provide encapsulation that allows us to hide implementation details present in the full schema.
 
-Every schema exported by an instance of the Viaduct framework is called a scope set. A scope set is identified by a schema ID. The particular scope set seen by a given request to the Viaduct framework is controlled by the `schemaId` field of {{ kdoc("viaduct.service.api.ExecutionInput") }}. In the above example, `viaduct` and `viaduct:public` are both schema IDs. You can use as many schema IDs as you like with whatever naming scheme fits your use case.
+Viaduct models schema construction with two separate concepts:
+
+**Schema scoping mode** describes the input schema:
+
+- `SchemaScopingMode.Unscoped` means the input schema declares no scopes. It can produce Full and Base views but cannot produce a Scoped view.
+- `SchemaScopingMode.ScopeAware(validScopes)` means the input schema participates in scope projection and declares a non-empty set of valid scope IDs.
+
+**Schema view** describes the variant derived from that input:
+
+- `SchemaView.Full` contains the complete schema, including tenant-local fields. Viaduct retains this view internally for code generation, planning, and execution support; applications do not register it as a client execution target.
+- `SchemaView.Base` contains all non-tenant-local fields without projecting to particular scopes.
+- `SchemaView.Scoped(scopes)` contains fields visible to at least one selected scope and excludes tenant-local fields.
+
+A schema ID identifies a registered executable Base or Scoped view. The particular view used by a request is selected by the `schemaId` argument to {{ kdoc("viaduct.service.api.Viaduct.execute") }} or {{ kdoc("viaduct.service.api.Viaduct.executeAsync") }}. Construction and registration are separate: deriving a Full schema does not make Base executable, and applications may register Base, one or more Scoped views, both, or neither. See the [Viaduct API](https://viaduct.airbnb.tech/docs/developers/viaduct_api/#registering-executable-schema-views) for configuration examples.
+
+### Tenant-local fields
+
+Tenant-local fields are implementation details available to the code of a single tenant but unavailable to other tenants or to external clients. Viaduct retains them in the Full schema and removes them from both Base and Scoped views.
+
+The following are treated as tenant-local:
+
+- Fields explicitly marked `@tenantLocal`.
+- Fields marked `@parent`.
+- Fields whose unwrapped base type is `BackingData`.
+
+`@parent` and `BackingData` fields have this behavior automatically; they do not also need `@tenantLocal`.
+
+Because these fields do not participate in client-visible scope projection:
+
+- A type extension that adds only tenant-local fields does not need `@scope`.
+- Tenant-local fields do not satisfy the requirement that a declared object or interface scope contain at least one visible field.
+- Removing tenant-local fields may also remove types that become empty or unreachable in a Base or Scoped view.
+
+See the [Schema Reference](https://viaduct.airbnb.tech/docs/developers/schema_reference/#tenantlocal) for the authoring constraints on explicit `@tenantLocal` fields.
 
 ### Guidelines for annotating types with @scope
 
@@ -95,6 +128,25 @@ extend type Foo @scope(to: ["private"]) {
 In GraphQL SDL, scopes are referenced by their string value, and in Kotlin are referenced by the strongly typed enum member. The SDL will be validated at build time to ensure invalid scope names were not referenced.
 
 In addition to detecting invalid scope names, the Viaduct Bazel validators will perform other static analysis on the schema in order to detect invalid or confusing scope usage.
+
+#### Require a client-visible field for each declared scope
+
+Every scope declared on an object or interface must contain at least one field visible in that scope. Tenant-local fields, including `@parent` and `BackingData` fields, do not count because they are removed from executable views.
+
+An extension that adds only tenant-local fields is the intentional exception to the usual requirement that type extensions declare `@scope`:
+
+```graphql
+type User @scope(to: ["public"]) {
+  id: ID!
+}
+
+extend type User {
+  cacheKey: String! @tenantLocal
+  backingData: BackingData
+    @backingData(class: "com.example.UserData")
+    @resolver
+}
+```
 
 #### Detecting inaccessible fields when referencing another type
 

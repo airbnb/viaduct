@@ -8,7 +8,7 @@ Viaduct automatically provides a rich set of built-in schema components that are
 
 ## Built-in Directives
 
-Viaduct includes four core directives that are fundamental to the framework's functionality. These directives are automatically available and cannot be overridden.
+Viaduct includes core directives that are fundamental to the framework's functionality. These directives are automatically available and cannot be overridden.
 
 ### @resolver
 
@@ -47,7 +47,7 @@ When you apply `@resolver` to a field, Viaduct generates an abstract resolver cl
 
 ### @backingData
 
-Specifies the backing data class for a field, enabling type-safe data access in resolvers.
+Specifies the backing data class for a field, enabling type-safe data access in resolvers. A backing-data field is an implementation detail: Viaduct keeps it available for use in required selection sets only in the module that defines the field. The field is not available in other modules or in any externally published schemas.
 
 **Locations:** `FIELD_DEFINITION`
 
@@ -59,14 +59,72 @@ Specifies the backing data class for a field, enabling type-safe data access in 
 
 ```graphql
 type User {
-  profile: UserProfile @backingData(class: "com.example.data.UserProfileData")
-}
-
-type UserProfile {
-  bio: String
-  avatarUrl: String
+  profileData: BackingData
+    @backingData(class: "com.example.data.UserProfileData")
+    @resolver
 }
 ```
+
+The field's base type must be `BackingData`, and a field whose base type is `BackingData` must carry `@backingData`. Backing-data fields can only be declared directly on object types; they cannot be declared on interfaces, inherited from interfaces, or used as input fields.
+
+See the [`@backingData` guide](../../../getting_started/starwars/directives/backing_data.md) for a complete resolver example.
+
+### @tenantLocal
+
+Marks an internal field that is available to code in the field's owning tenant but is not part of a client-executable schema. This directive is only applicable to fields whose base type is a scalar (for example, `Int`) or `BackingData`. `BackingData` fields and `@parent` fields are also tenant-local automatically; they do not need this directive.
+
+**Locations:** `FIELD_DEFINITION`
+
+**Example:**
+
+```graphql
+type User {
+  profileCacheKey: String! @tenantLocal
+}
+```
+
+Viaduct keeps tenant-local fields in the internal full schema so generated code, resolver required selection sets, and execution internals can use them. It removes them from Base and Scoped executable schemas, so clients cannot query them.
+
+An explicit `@tenantLocal` field:
+
+- Must return a scalar or `BackingData` type. Lists and non-null wrappers are allowed.
+- Must be declared directly on an object type.
+- Cannot be declared on an interface or implement a field inherited from an interface.
+
+Fields with the `@parent` directive and fields whose base type is `BackingData` have the same schema-visibility behavior automatically. Do not add `@tenantLocal` merely to make those fields private.
+
+### @parent
+
+Marks a field that resolves to the object from which the current object was reached during execution. The engine resolves the field from execution ancestry; it does not invoke a field resolver for it.
+
+**Locations:** `FIELD_DEFINITION`
+
+**Example:**
+
+```graphql
+type Company {
+  name: String!
+  user: User @resolver
+}
+
+type User {
+  parent: Company @parent
+  companyDisplayName: String @resolver
+}
+```
+
+A resolver or checker for a field on `User` can include `parent { name }` in its required selection set. See [Parent fields in required selection sets](../resolvers/field_resolvers.md#parent-fields-in-required-selection-sets).
+
+Parent fields:
+
+- Are tenant-local automatically and are removed from Base and Scoped executable schemas.
+- Must be declared directly on an object type, not on an interface or an inherited interface field.
+- May be nullable or non-null and return an object, interface, or union type, but cannot return a list.
+- Cannot take arguments or carry `@resolver`; the engine resolves the field from execution ancestry.
+- Require exactly one non-`@parent` field in the schema whose unwrapped return type is the child type. That producer field's containing type must be compatible with the declared parent return type.
+- Cannot target a type with a selective type resolver or a parent value whose nearest upstream field resolver is selective.
+
+The `@resolver` restriction applies to the `@parent` field, not to the field that produces the child. A producer field may carry `@resolver` and may return the child directly, in a list, or in a nested list. A non-selective resolver that produces the parent value is also allowed; it prevents a selective resolver farther upstream from affecting this validation.
 
 ### @namespaceType
 
@@ -286,7 +344,7 @@ JSON-compatible representation they intend to expose.
 
 ### BackingData
 
-Special internal type used by the `@backingData` directive. Not typically used directly in schemas.
+Internal marker type used by fields carrying the `@backingData` directive. A backing-data field's base type must be `BackingData`; Viaduct maps its value to the class named by the directive.
 
 ## Root Types
 
@@ -321,7 +379,9 @@ extend type Mutation {
 | Directive | Locations | Purpose | Generated Code Impact |
 |-----------|-----------|---------|----------------------|
 | `@resolver(isSelective: Boolean! = false, isBatching: Boolean! = false)` | FIELD_DEFINITION, OBJECT | Marks fields/types requiring custom resolution | Generates `resolve` (default) or `batchResolve` (`isBatching: true`) |
-| `@backingData(class: String!)` | FIELD_DEFINITION | Specifies backing data class | Allows access to arbitrary class from GRTs |
+| `@backingData(class: String!)` | FIELD_DEFINITION | Binds a tenant-local `BackingData` field to a JVM class | Generates typed access to the backing data |
+| `@tenantLocal` | FIELD_DEFINITION | Hides an internal scalar field from executable schemas | Keeps the field available to tenant code |
+| `@parent` | FIELD_DEFINITION | Resolves the current object's execution parent | Generates typed access to selected parent fields |
 | `@namespaceType` | OBJECT | Groups related fields under an organizational namespace | Engine auto-resolves the parent field |
 | `@scope(to: [String!]!)` | OBJECT, INTERFACE, UNION, ENUM, INPUT_OBJECT, FIELD_DEFINITION, ENUM_VALUE | Controls visibility by scope (repeatable) | Affects schema filtering |
 | `@idOf(type: String!)` | FIELD_DEFINITION, INPUT_FIELD_DEFINITION, ARGUMENT_DEFINITION | Declares Global ID type | Uses `GlobalID<T>` instead of `String` |
@@ -352,7 +412,7 @@ extend type Mutation {
 
 ### Don't
 
-- **Don't override core directives** — `@resolver`, `@backingData`, `@scope`, and `@idOf` are framework-provided
+- **Don't override core directives** — Framework directives such as `@resolver`, `@backingData`, `@tenantLocal`, `@parent`, `@scope`, and `@idOf` are provided automatically
 - **Don't redefine standard scalars** — They're automatically available
 - **Don't manually add the Node interface** — It's added automatically when used
 - **Don't forget to extend root types** — Always use `extend type Query`, not `type Query`

@@ -44,7 +44,7 @@ import viaduct.service.ViaductBuilder
 
 val viaduct =
   ViaductBuilder()
-    // Register executable views of a schema that declares scopes.
+    // Register exactly these executable views.
     .withScopedSchemas(
       listOf(
         SchemaScopeInfo.Base,
@@ -65,17 +65,50 @@ val viaduct =
 - You need to control observability, error reporting/shaping, feature flags, schema configuration, or global-id behavior.
 - You want a single consistent “production-like” configuration used by both prod and test harnesses.
 
-If your schema does not declare any scopes, do not configure `SchemaScopeInfo`. The base schema is
-registered automatically and is selected by default. For a schema that declares scopes,
-`SchemaScopeInfo.Base` exposes all non-tenant-local fields without scope filtering, while
-`SchemaScopeInfo.Scoped` exposes only fields visible to its configured scopes. `Base` always uses
-`SchemaId.Base`.
+### Registering executable schema views
+
+If you do not explicitly configure schema views, Viaduct's convenience construction paths register
+Base by default. This preserves the normal single-schema setup for both unscoped and scope-aware
+schemas.
+
+When you call `withScopedSchemas(...)`, however, the supplied list is authoritative. Viaduct
+registers exactly those views:
+
+- `SchemaScopeInfo.Base` registers `SchemaId.Base`. It contains every non-tenant-local field
+  without filtering to specific scopes.
+- `SchemaScopeInfo.Scoped` registers its named `SchemaId.Scoped`. It contains fields visible to
+  at least one configured scope and excludes tenant-local fields.
+
+Base is optional under explicit configuration. For example, an application can expose only a
+public projection:
+
+```kotlin
+val viaduct =
+  ViaductBuilder()
+    .withScopedSchemas(
+      listOf(
+        SchemaScopeInfo.Scoped(
+          id = "public",
+          scopesToApply = setOf("public"),
+        )
+      )
+    )
+    .build()
+```
+
+This application must execute requests using the corresponding `SchemaId.Scoped`; `SchemaId.Base`
+is not registered. The internal Full schema still exists for planning and execution support, but
+it is not a client execution target.
+
+`SchemaScopeInfo` selects executable views; it does not declare whether the source schema is
+unscoped or scope-aware. Viaduct determines that from the schema itself. A Scoped view can only be
+derived from a scope-aware schema.
 
 ## Choosing The Schema: `SchemaId`
 
 Each execution targets a **schema variant** identified by a `SchemaId`:
 
-- `SchemaId.Base` — default external base schema.
+- `SchemaId.Base` — base schema and the default execution target, when Base is registered.
 - `SchemaId.Scoped(id, scopeIds)` — a schema variant derived from the full schema by applying *scope IDs*.
 - `SchemaId.None` — sentinel “non-existent schema” (typically not used for normal execution).
 
@@ -168,6 +201,10 @@ interface Viaduct {
 ```
 
 In both cases the returned `ExecutionResult.errors` are **sorted** by GraphQL path and then message.
+
+Both methods default to `SchemaId.Base`. If explicit schema configuration omitted Base, callers
+must pass a registered `SchemaId.Scoped`; using the default returns the existing schema-not-found
+execution result.
 
 ### `execute(...)`
 

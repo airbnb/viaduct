@@ -16,6 +16,15 @@ Apply `@backingData` on a field typed as `BackingData` (a Viaduct built-in marke
 {{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Film.graphqls", "backing_data_schema", lang="graphql") }}
 
 
+The field must be declared directly on an object type. `BackingData` fields cannot be declared on interfaces, inherited from interfaces, or used as input fields. The `BackingData` type and `@backingData` directive must always appear together.
+
+## Schema visibility
+
+Every field whose base type is `BackingData` is tenant-local automatically. Viaduct keeps it in the internal Full schema so resolvers and generated code can use it, but removes it from Base and Scoped executable schemas. Clients therefore cannot query backing-data fields.
+
+Do not add `@tenantLocal` to a backing-data field. Its `BackingData` type already supplies the same visibility behavior.
+
+
 ## The backing data class
 
 A simple data class holding the pre-fetched data. Keep it minimal, shared state only:
@@ -60,6 +69,7 @@ Multiple resolvers can share the same backing data, each declares it in their fr
 - Keep the data class minimal — only the shared state needed by consumers.
 - The backing resolver should do I/O; consumers should do transformation only.
 - The field type must be `BackingData` — this is a Viaduct marker type that is never exposed in the client schema.
+- Do not declare backing-data fields on interfaces or fields inherited from interfaces.
 
 ## Related
 

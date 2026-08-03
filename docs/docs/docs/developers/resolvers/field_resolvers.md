@@ -101,6 +101,49 @@ The `@Resolver` annotation can also be used to declare data dependencies on the 
 
 **Important clarification:** there are no requirements on the names of these resolver classes: We use `UserDisplayNameResolver` here as an example of a typical name, but that choice is not dictated by the framework.
 
+### Parent fields in required selection sets
+
+Use a field marked `@parent` when a resolver or checker for a child object needs fields from the object that produced it:
+
+```graphql
+type Company {
+  name: String!
+  user: User @resolver
+}
+
+type User {
+  parent: Company @parent
+  companyDisplayName: String @resolver
+}
+```
+
+The resolver selects the parent field as part of its object required selection set and reads it through the generated GRT:
+
+```kotlin
+@Resolver(
+  objectValueFragment =
+    """
+    fragment _ on User {
+      parent { name }
+    }
+    """
+)
+class UserCompanyDisplayNameResolver : UserResolvers.CompanyDisplayName() {
+  override suspend fun resolve(ctx: Context): String? =
+    ctx.getObjectValue().getParent()?.getName()
+}
+```
+
+Viaduct resolves `User.parent` to the particular `Company` object from which that `User` was reached. It executes `Company.name` normally if the value is not already available. Parent selections can be nested when each object in the traversal declares its own `@parent` field.
+
+`@parent` is intended for required selection sets, not client queries. Parent fields are tenant-local automatically and are absent from any externally accessible schemas.
+
+The `@parent` field itself must be declared directly on an object type, rather than on an interface or a field inherited from an interface. It may be nullable or non-null, and its base type may be an object, interface, or union, but it cannot return a list, take arguments, or carry `@resolver`. The engine resolves this field from execution ancestry.
+
+The field that produces the child is a separate field: `Company.user` in this example. Across the schema, exactly one non-`@parent` field may have the child type as its unwrapped return type, and that field's containing type must be compatible with the type returned by `User.parent`. The producer may return the child directly, in a list, or in a nested list, and it may carry `@resolver`; the resolver prohibition applies only to the `@parent` field.
+
+The parent target type and the nearest upstream resolver that produces it must not be selective. A non-selective resolver is allowed and forms a boundary, so a selective resolver farther upstream does not invalidate the parent field.
+
 ## Context
 
 Both `resolve` and `batchResolve` take `Context` objects as input. This class is an instance of {{ kdoc("viaduct.api.context.FieldExecutionContext") }}:
