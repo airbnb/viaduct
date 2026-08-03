@@ -7,8 +7,8 @@ import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RootFieldReference
 
 /**
- * Runtime implementation of [RootFieldReference] and [LazyEngineObjectData] for
- * object-typed root fields.
+ * Runtime implementation of [RootFieldReference] and [LazyEngineObjectData] for object-typed
+ * root fields.
  */
 class ObjectRootFieldReference(
     override val rootFieldPath: List<String>,

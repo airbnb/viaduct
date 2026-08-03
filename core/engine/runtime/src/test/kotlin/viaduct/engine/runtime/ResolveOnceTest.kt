@@ -1,8 +1,13 @@
 package viaduct.engine.runtime
 
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -26,7 +31,7 @@ class ResolveOnceTest {
         }
 
     @Test
-    fun `await suspends until resolve completes`() =
+    fun `await suspends until resolution completes`() =
         runTest {
             val resolveOnce = ResolveOnce<EngineObjectData>()
             val expected = mockk<EngineObjectData>()
@@ -38,7 +43,7 @@ class ResolveOnceTest {
         }
 
     @Test
-    fun `exception propagates to subsequent resolve and await calls`() =
+    fun `exception propagates to await calls`() =
         runTest {
             val resolveOnce = ResolveOnce<EngineObjectData>()
 
@@ -53,6 +58,31 @@ class ResolveOnceTest {
             assertThrows<IllegalStateException> {
                 resolveOnce.await()
             }
+        }
+
+    @Test
+    fun `cancellation propagates to await calls`() =
+        runTest {
+            val resolveOnce = ResolveOnce<EngineObjectData>()
+            val cancellation = CancellationException("resolution cancelled")
+
+            val resolution = async {
+                resolveOnce.resolve {
+                    currentCoroutineContext().cancel(cancellation)
+                    currentCoroutineContext().ensureActive()
+                    error("unreachable")
+                }
+            }
+            assertThrows<CancellationException> {
+                resolution.await()
+            }
+
+            val propagated = assertThrows<CancellationException> {
+                withTimeout(100) {
+                    resolveOnce.await()
+                }
+            }
+            assertEquals(cancellation.message, propagated.message)
         }
 
     @Test

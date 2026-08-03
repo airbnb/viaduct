@@ -24,6 +24,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
@@ -657,6 +658,8 @@ class FieldResolver(
                 field = field,
                 fieldType = fieldType,
                 effectiveData = effectiveData,
+                fetchedValue = fetchedValue,
+                resolutionPolicy = effectiveResolutionPolicy,
                 memberIndices = memberIndices,
             ).map { oer ->
                 FieldResolutionResult.fromFetchedValue(
@@ -748,9 +751,24 @@ class FieldResolver(
         field: QueryPlan.CollectedField,
         fieldType: GraphQLObjectType,
         effectiveData: Any,
+        fetchedValue: FetchedValue,
+        resolutionPolicy: ResolutionPolicy,
         memberIndices: List<Int>,
     ): Value<ObjectEngineResultImpl> {
+        val nodeReference = effectiveData as? NodeEngineObjectData
         return when {
+            effectiveData is LazyEngineObjectData &&
+                nodeReference != null &&
+                isNodeMatBacked(parameters, fieldType) ->
+                mkNodeMatOER(
+                    parameters = parameters,
+                    field = field,
+                    fieldType = fieldType,
+                    reference = nodeReference,
+                    fetchedValue = fetchedValue,
+                    resolutionPolicy = resolutionPolicy,
+                )
+
             effectiveData is LazyEngineObjectData ->
                 lazyObjectEngineResult(
                     parameters = parameters,
@@ -798,6 +816,81 @@ class FieldResolver(
                 deferred.completeExceptionally(e)
                 throw e
             } catch (e: Throwable) {
+                deferred.completeExceptionally(e)
+            }
+        }
+        return Value.fromDeferred(deferred)
+    }
+
+    /**
+     * Creates an ObjectEngineResultImpl backed by a selective node resolver. The first requested
+     * selection is loaded before the result is made available for object traversal.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun mkNodeMatOER(
+        parameters: ExecutionParameters,
+        field: QueryPlan.CollectedField,
+        fieldType: GraphQLObjectType,
+        reference: NodeEngineObjectData,
+        fetchedValue: FetchedValue,
+        resolutionPolicy: ResolutionPolicy,
+    ): Value<ObjectEngineResultImpl> {
+        val outputSelectionSetFilter = NodeOutputSelectionSetFilter(
+            HasResolver.fromRegistry(parameters.engineExecutionContext.dispatcherRegistry)
+        )
+        val mat = NodeMatImpl(
+            ref = reference,
+            outputSelectionSetFilter = outputSelectionSetFilter,
+            materialize = { selections, selectionParameters ->
+                resolveWithNodeFetchingInstrumentation(selectionParameters, reference.type) {
+                    val engineExecutionContext = selectionParameters.engineExecutionContext
+                    val dispatcher = checkNotNull(
+                        engineExecutionContext.dispatcherRegistry
+                            .getNodeResolverDispatcher(reference.type.name)
+                    )
+                    dispatcher.resolve(
+                        reference.id,
+                        selections,
+                        engineExecutionContext,
+                    )
+                }
+            },
+            launch = { selectionParameters, materializationPlan, keyTree ->
+                launchMatPlan(selectionParameters, materializationPlan, keyTree)
+            },
+        )
+        val ledger = MatLedgerImpl(mat)
+        val matSource = MatSource.Ledger(ledger, outputSelectionSetFilter, reference.id)
+        val engineResult = ObjectEngineResultImpl.newPendingForType(fieldType, matSource)
+        val deferred = CompletableDeferred<ObjectEngineResultImpl>()
+        parameters.launchOnRootScope {
+            try {
+                val traversalParameters = parameters.forObjectTraversal(
+                    field,
+                    engineResult,
+                    fetchedValue.compositeLocalContext,
+                    reference,
+                    resolutionPolicy,
+                )
+                val materializationKeyTree = traversalParameters.queryPlan
+                    .keyTree(traversalParameters)
+                    .filter(nodeInitialResolutionFilter)
+                if (materializationKeyTree.isEmpty()) {
+                    engineResult.resolveToValue()
+                    deferred.complete(engineResult)
+                    return@launchOnRootScope
+                }
+                ledger.materializeInitial(materializationKeyTree, traversalParameters)
+                    .source
+                    .getOrThrow()
+                engineResult.resolveToValue()
+                deferred.complete(engineResult)
+            } catch (e: CancellationException) {
+                engineResult.resolveExceptionally(e)
+                deferred.completeExceptionally(e)
+                throw e
+            } catch (e: Throwable) {
+                engineResult.resolveExceptionally(e)
                 deferred.completeExceptionally(e)
             }
         }
@@ -875,6 +968,24 @@ class FieldResolver(
             )
         }
         return matSource
+    }
+
+    private fun launchMatPlan(
+        selectionParameters: ExecutionParameters,
+        matPlan: QueryPlan,
+        keyTree: KeyTree,
+    ) {
+        if (keyTree.isEmpty()) return
+
+        checkNotNull(selectionParameters.currentObjectEngineResult.matSource as? MatSource.Ledger)
+        launchQueryPlan(
+            selectionParameters,
+            matPlan,
+            target = ChildQueryPlanTarget.ResolvedFieldObjectResult(
+                selectionParameters.currentObjectEngineResult,
+                selectionParameters.source,
+            ),
+        )
     }
 
     /**

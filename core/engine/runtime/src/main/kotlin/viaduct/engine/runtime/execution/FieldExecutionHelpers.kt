@@ -300,6 +300,21 @@ object FieldExecutionHelpers {
 
     internal fun engineSelectionSet(parameters: ExecutionParameters): EngineSelectionSet? = engineSelectionSet(parameters, parameters.engineExecutionContext)
 
+    internal fun engineSelectionSet(
+        parameters: ExecutionParameters,
+        projectionType: GraphQLCompositeType,
+        selectionSet: QueryPlan.SelectionSet,
+        fragments: QueryPlan.Fragments,
+    ): EngineSelectionSet =
+        ExecutionSelectionSet.create(
+            schema = parameters.engineExecutionContext.activeSchema,
+            typeName = projectionType.name,
+            selectionSet = selectionSet,
+            fragments = fragments,
+            variables = parameters.coercedVariables.toMap(),
+            graphQLContext = parameters.executionContext.graphQLContext,
+        )
+
     private fun engineSelectionSet(
         parameters: ExecutionParameters,
         engineExecutionContext: EngineExecutionContext,
@@ -307,7 +322,16 @@ object FieldExecutionHelpers {
         val field = requireNotNull(parameters.field)
 
         if (engineExecutionContext.matResolutionEnabled) {
-            return ExecutionSelectionSet.createForField(parameters, field)
+            val projectionType =
+                GraphQLTypeUtil.unwrapAll(parameters.executionStepInfo.fieldDefinition.type)
+                    as? GraphQLCompositeType
+                    ?: return null
+            return engineSelectionSet(
+                parameters,
+                projectionType,
+                field.selectionSet ?: QueryPlan.SelectionSet.empty(projectionType),
+                parameters.queryPlan.fragments,
+            )
         }
 
         val unwrappedType = GraphQLTypeUtil.unwrapAll(parameters.executionStepInfo.type)

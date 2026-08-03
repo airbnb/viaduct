@@ -322,6 +322,7 @@ class FieldResolverInstrumentationTest {
         ): DispatcherRegistry {
             val nodeRes = object : NodeResolverDispatcher {
                 override val resolverMetadata = ResolverMetadata.forMock(resolverName)
+                override val isSelective = false
 
                 override suspend fun resolve(
                     id: String,

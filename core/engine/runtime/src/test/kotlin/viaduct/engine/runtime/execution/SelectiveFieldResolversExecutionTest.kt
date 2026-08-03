@@ -1272,7 +1272,7 @@ class SelectiveFieldResolversExecutionTest {
                     }
                     "errors" to arrayOf(
                         {
-                            "message" to ".*expected type `Baz`.*found `Qux`.*"
+                            "message" to ".*expected object of type `Baz`, found `Qux`.*"
                             "path" to listOf("foo", "bars", "0", "x")
                         }
                     )
@@ -2218,7 +2218,7 @@ class SelectiveFieldResolversExecutionTest {
                     }
                     "errors" to arrayOf(
                         {
-                            "message" to ".*expected type `Baz`.*found `Qux`.*"
+                            "message" to ".*expected object of type `Baz`, found `Qux`.*"
                             "path" to listOf("foo", "bar", "y")
                         }
                     )

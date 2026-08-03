@@ -56,15 +56,17 @@ class NodeEngineObjectDataImplTest {
         }
 
     @Test
-    fun testFetchSuspendsWaitingOnResolve(): Unit =
+    fun `first resolution provides data used by fetch`(): Unit =
         runBlocking {
             every { dispatcherRegistry.getNodeResolverDispatcher("TestType") }.returns(nodeResolver)
             coEvery { nodeResolver.resolve("testID", selections, context) }.returns(engineObjectData)
             coEvery { engineObjectData.fetch("name") }.returns("testName")
 
-            nodeReference.resolveData(selections, context)
+            val result = nodeReference.resolveData(selections, context)
 
+            assertEquals(engineObjectData, result)
             assertEquals("testName", nodeReference.fetch("name"))
+            coVerify(exactly = 1) { nodeResolver.resolve("testID", selections, context) }
         }
 
     @Test

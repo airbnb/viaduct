@@ -11,6 +11,7 @@ import graphql.schema.DataFetcher
 import graphql.schema.DataFetchingEnvironment
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
+import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.api.instrumentation.ViaductModernInstrumentation
 
 class RecordingInstrumentation :
@@ -21,6 +22,7 @@ class RecordingInstrumentation :
     ViaductModernInstrumentation.WithBeginCompleteObject,
     ViaductModernInstrumentation.WithBeginFieldCompletion,
     ViaductModernInstrumentation.WithBeginFieldListCompletion,
+    ViaductModernInstrumentation.WithBeginNodeFetching,
     ViaductModernInstrumentation.WithInstrumentDataFetcher {
     // Base class for recording contexts
     open class RecordingInstrumentationContext<T : Any>(
@@ -57,6 +59,7 @@ class RecordingInstrumentation :
     val completeObjectContexts = ConcurrentLinkedQueue<RecordingInstrumentationContext<Any>>()
     val fieldCompletionContexts = ConcurrentLinkedQueue<RecordingInstrumentationContext<Any>>()
     val fieldListCompletionContexts = ConcurrentLinkedQueue<RecordingInstrumentationContext<Any>>()
+    val nodeFetchingContexts = ConcurrentLinkedQueue<RecordingInstrumentationContext<Any>>()
     val dataFetchingEnvironments = ConcurrentLinkedQueue<DataFetchingEnvironment>()
 
     fun reset() {
@@ -65,6 +68,7 @@ class RecordingInstrumentation :
         fieldFetchingContexts.clear()
         completeObjectContexts.clear()
         fieldCompletionContexts.clear()
+        nodeFetchingContexts.clear()
         dataFetchingEnvironments.clear()
     }
 
@@ -120,6 +124,15 @@ class RecordingInstrumentation :
     ): InstrumentationContext<Any>? {
         val context = RecordingInstrumentationContext<Any>(parameters)
         fieldListCompletionContexts.add(context)
+        return context
+    }
+
+    override fun beginNodeFetching(
+        parameters: InstrumentNodeFetchingParameters,
+        state: InstrumentationState?
+    ): InstrumentationContext<Any>? {
+        val context = RecordingInstrumentationContext<Any>(parameters)
+        nodeFetchingContexts.add(context)
         return context
     }
 

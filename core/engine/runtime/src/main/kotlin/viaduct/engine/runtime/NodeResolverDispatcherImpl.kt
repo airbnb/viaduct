@@ -22,6 +22,8 @@ class NodeResolverDispatcherImpl(
 ) : NodeResolverDispatcher {
     override val resolverMetadata: ResolverMetadata = resolver.metadata
 
+    override val isSelective: Boolean = resolver.isSelective
+
     override suspend fun resolve(
         id: String,
         selections: EngineSelectionSet,

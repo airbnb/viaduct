@@ -1,5 +1,6 @@
 package viaduct.engine.runtime.execution
 
+import graphql.schema.GraphQLObjectType
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import viaduct.engine.api.EngineExecutionContext
@@ -34,6 +35,9 @@ internal class MatLedgerImpl(
     @Volatile
     private var coverage: KeyTree = KeyTree.empty
 
+    @Volatile
+    private var rootType: GraphQLObjectType? = null
+
     /**
      * Records the result available when this ledger is created.
      *
@@ -46,10 +50,38 @@ internal class MatLedgerImpl(
         }
     }
 
+    /**
+     * Invokes [mat] to create and record this ledger's first result.
+     *
+     * Unlike [initialize], this keeps the initial invocation behind the same boundary used by
+     * later materializations.
+     */
+    suspend fun materializeInitial(
+        requested: KeyTree,
+        selectionHandle: EngineExecutionContext.ExecutionHandle,
+    ): MatResult =
+        mutex.withLock {
+            check(results.isEmpty()) { "Mat ledger for $mat is already initialized" }
+            invokeAndRecordUnsafe(requested, selectionHandle)
+        }
+
     /** Records a result after the caller has locked [mutex]. */
     private fun recordResultUnsafe(result: MatResult) {
+        if (rootType == null) {
+            rootType = result.source.getOrNull()?.type
+        }
         results = results + result
         coverage += result.coverage
+    }
+
+    /** Invokes [mat] and records its result after the caller has locked [mutex]. */
+    private suspend fun invokeAndRecordUnsafe(
+        requested: KeyTree,
+        selectionHandle: EngineExecutionContext.ExecutionHandle,
+    ): MatResult {
+        val result = mat(requested, selectionHandle)
+        recordResultUnsafe(result)
+        return result
     }
 
     /**
@@ -72,8 +104,7 @@ internal class MatLedgerImpl(
 
             if (missing.isEmpty()) return@withLock
 
-            val result = mat(missing, selectionHandle)
-            recordResultUnsafe(result)
+            invokeAndRecordUnsafe(missing, selectionHandle)
         }
     }
 
@@ -87,6 +118,9 @@ internal class MatLedgerImpl(
         path: MatPath,
         key: ObjectEngineResult.Key,
     ): EngineObjectData? {
+        val expectedRootType = rootType ?: path.rootType
+        requireMaterializedType(path.rootType, expectedRootType)
+
         val matResult = requireMaterializedNotNull(
             results.firstOrNull { result ->
                 result.coverage.subtreeAt(path).containsKey(path.terminalType, key)
@@ -96,11 +130,13 @@ internal class MatLedgerImpl(
         }
 
         var source: Any? = matResult.source.getOrThrow() ?: return null
+        var expectedType = expectedRootType
         for (segment in path.segments) {
             val eod = requireMaterializedNotNull(source as? EngineObjectData) {
                 "mat result of $mat diverged: expected object " +
                     "at `${segment.key.responseKey}`, found ${source?.let { it::class.simpleName }}"
             }
+            requireMaterializedType(eod, expectedType)
             source = eod.fetchOrNull(segment.key.name)
             for (index in segment.indices) {
                 val list = requireMaterializedNotNull(source as? List<*>) {
@@ -115,23 +151,31 @@ internal class MatLedgerImpl(
                 source = list[index]
             }
             if (source == null) return null
-            val objectData = requireMaterializedNotNull(source as? EngineObjectData) {
-                "mat result of $mat diverged: expected object " +
-                    "at `${segment.key.responseKey}`, found ${source?.let { it::class.simpleName }}"
-            }
-            if (objectData.type.name != segment.type.name) {
-                throw materializationException(
-                    "mat result of $mat diverged: expected type `${segment.type.name}` " +
-                        "at `${segment.key.responseKey}`, found `${objectData.type.name}`"
-                )
-            }
-            source = objectData
+            expectedType = segment.type
         }
         val eod = requireMaterializedNotNull(source as? EngineObjectData) {
             "mat result of $mat diverged: expected object, " +
                 "found ${source?.let { it::class.simpleName }}"
         }
+        requireMaterializedType(eod, expectedType)
         return eod
+    }
+
+    private fun requireMaterializedType(
+        source: EngineObjectData,
+        expectedType: GraphQLObjectType,
+    ) = requireMaterializedType(source.type, expectedType)
+
+    private fun requireMaterializedType(
+        actualType: GraphQLObjectType,
+        expectedType: GraphQLObjectType,
+    ) {
+        if (actualType.name != expectedType.name) {
+            throw materializationException(
+                "mat result of $mat diverged: expected object of type " +
+                    "`${expectedType.name}`, found `${actualType.name}`"
+            )
+        }
     }
 
     /**

@@ -536,19 +536,6 @@ internal data class ExecutionSelectionSet(
             )
         }
 
-        fun createForField(
-            parameters: ExecutionParameters,
-            field: QueryPlan.CollectedField,
-        ): EngineSelectionSet? =
-            create(
-                schema = parameters.engineExecutionContext.activeSchema,
-                fieldType = parameters.executionStepInfo.fieldDefinition.type,
-                selectionSet = field.selectionSet,
-                fragments = parameters.queryPlan.fragments,
-                variables = parameters.coercedVariables.toMap(),
-                graphQLContext = parameters.executionContext.graphQLContext,
-            )
-
         private interface FieldSelection {
             val typeCondition: GraphQLCompositeType
             val selection: QueryPlan.Selection

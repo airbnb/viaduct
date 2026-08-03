@@ -12,6 +12,9 @@ interface NodeResolverDispatcher {
     /** The metadata associated with this resolver **/
     val resolverMetadata: ResolverMetadata
 
+    /** Whether the underlying resolver's result varies based on the requested selections. */
+    val isSelective: Boolean
+
     suspend fun resolve(
         id: String,
         selections: EngineSelectionSet,

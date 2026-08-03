@@ -23,6 +23,8 @@ class InstrumentedNodeResolverDispatcher(
 ) : NodeResolverDispatcher {
     override val resolverMetadata get() = dispatcher.resolverMetadata
 
+    override val isSelective get() = dispatcher.isSelective
+
     override suspend fun resolve(
         id: String,
         selections: EngineSelectionSet,

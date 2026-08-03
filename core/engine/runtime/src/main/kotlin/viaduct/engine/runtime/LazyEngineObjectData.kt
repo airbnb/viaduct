@@ -1,10 +1,7 @@
 package viaduct.engine.runtime
 
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
@@ -38,7 +35,7 @@ internal class ResolveOnce<T> {
 
     /**
      * Runs [block] exactly once. Subsequent calls await the first resolution and return
-     * the same result (or re-throw the original exception).
+     * the same result (or re-throw the exception thrown by that first resolution).
      *
      * @return the value produced by [block]
      * @throws Exception if [block] threw
@@ -52,7 +49,6 @@ internal class ResolveOnce<T> {
             deferred.complete(result)
             return result
         } catch (e: Exception) {
-            if (e is CancellationException) currentCoroutineContext().ensureActive()
             deferred.completeExceptionally(e)
             throw e
         }

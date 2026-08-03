@@ -235,7 +235,7 @@ class MatLedgerImplTest {
                     ledger.fetchField(path, "b")
                 }
 
-                assertTrue(err.message?.contains("expected type `Bar` at `bar`, found `Foo`") == true)
+                assertTrue(err.message?.contains("expected object of type `Bar`, found `Foo`") == true)
             }
 
         @Test
@@ -478,6 +478,27 @@ class MatLedgerImplTest {
 
     @Nested
     inner class EnsureCoverage {
+        @Test
+        fun `initial materialization records result`(): Unit =
+            runBlocking {
+                val requested = KeyTree.build(schema) {
+                    field(foo.name, key("a"))
+                }
+                val source = ResolvedEngineObjectData(foo, mapOf("a" to "A"))
+                val matCalls = AtomicInteger()
+                val ledger = MatLedgerImpl { tree, _ ->
+                    matCalls.incrementAndGet()
+                    MatResult(tree, Result.success(source))
+                }
+
+                val result = ledger.materializeInitial(requested, testParameters())
+
+                assertEquals(1, matCalls.get())
+                assertSame(source, result.source.getOrThrow())
+                assertEquals(requested, ledger.subtreeAt(mkMatPath(foo)))
+                assertEquals("A", ledger.fetchField(mkMatPath(foo), "a"))
+            }
+
         @Test
         fun `initial result covers selections without invoking Mat`(): Unit =
             runBlocking {

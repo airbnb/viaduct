@@ -187,6 +187,18 @@ internal fun isFieldMatBacked(
         ?.isSelective == true
 }
 
+internal fun isNodeMatBacked(
+    parameters: ExecutionParameters,
+    fieldType: GraphQLObjectType,
+): Boolean {
+    if (!parameters.engineExecutionContext.matResolutionEnabled) return false
+
+    val dispatcher = parameters.engineExecutionContext.dispatcherRegistry
+        .getNodeResolverDispatcher(fieldType.name)
+        ?: return false
+    return dispatcher.isSelective
+}
+
 internal fun materializationPlan(
     selectionParameters: ExecutionParameters,
     keyTree: KeyTree,
