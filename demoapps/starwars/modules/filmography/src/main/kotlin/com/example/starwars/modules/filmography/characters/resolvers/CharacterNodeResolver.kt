@@ -24,7 +24,7 @@ class CharacterNodeResolver
     ) : NodeResolvers.Character() {
         // Node resolvers can also be batched to optimize multiple requests
         // tag::node_batch_resolver_example[21] Example of a node resolver
-        override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<Character>> {
+        override suspend fun batchResolve(contexts: List<Context>): Map<Context, FieldValue<Character>> {
             // Extract all unique character IDs from the contexts
             val characterIds = contexts.map { it.id.internalID }
 
@@ -35,7 +35,7 @@ class CharacterNodeResolver
             }
 
             // For each context gets the character ID and map to the viaduct object
-            return contexts.map { ctx ->
+            return contexts.associateWith { ctx ->
                 val characterId = ctx.id.internalID
                 characters.firstOrNull { it.id == characterId }?.let {
                     FieldValue.ofValue(

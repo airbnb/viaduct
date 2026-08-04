@@ -2,17 +2,19 @@
 
 package viaduct.api.testing
 
-import java.lang.reflect.InvocationTargetException
-import kotlin.reflect.full.callSuspend
-import kotlin.reflect.full.declaredFunctions
 import viaduct.api.ConnectionResolverBase
 import viaduct.api.FieldResolverBase
 import viaduct.api.FieldValue
 import viaduct.api.MutationResolverBase
 import viaduct.api.NodeResolverBase
 import viaduct.api.context.ExecutionContext
+import viaduct.api.context.NodeExecutionContext
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.globalid.GlobalID
+import viaduct.api.internal.BaseBatchedFieldResolver
+import viaduct.api.internal.BaseBatchedNodeResolver
+import viaduct.api.internal.BaseUnbatchedFieldResolver
+import viaduct.api.internal.BaseUnbatchedNodeResolver
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.ObjectBaseTestHelpers
@@ -109,7 +111,8 @@ abstract class ResolverTestBase {
     ): R {
         val inputs = FieldResolverSpec<O, Q, A>().apply(block)
         val ctx = inputs.createContext(resolver::class.java, context.internal, selectionSetFactory)
-        return resolver.callResolve(ctx)
+        @Suppress("UNCHECKED_CAST")
+        return (resolver as BaseUnbatchedFieldResolver).invokeFieldResolver(ctx) as R
     }
 
     /**
@@ -122,7 +125,8 @@ abstract class ResolverTestBase {
     ): R {
         val inputs = MutationResolverSpec<Q, M, A>().apply(block)
         val ctx = inputs.createContext(resolver::class.java, context.internal, selectionSetFactory)
-        return resolver.callResolve(ctx)
+        @Suppress("UNCHECKED_CAST")
+        return (resolver as BaseUnbatchedFieldResolver).invokeFieldResolver(ctx) as R
     }
 
     /**
@@ -135,7 +139,8 @@ abstract class ResolverTestBase {
     ): List<FieldValue<R>> {
         val inputs = FieldBatchResolverSpec<O, Q>().apply(block)
         val contexts = inputs.createContexts(resolver::class.java, context.internal, selectionSetFactory)
-        return resolver.callBatchResolve(contexts)
+        @Suppress("UNCHECKED_CAST")
+        return (resolver as BaseBatchedFieldResolver).invokeFieldBatchResolver(contexts) as List<FieldValue<R>>
     }
 
     /**
@@ -149,7 +154,8 @@ abstract class ResolverTestBase {
     ): T {
         val inputs = NodeResolverSpec<T>().apply(block)
         val ctx = inputs.createContext(resolver::class.java, context.internal, selectionSetFactory)
-        return resolver.callResolve(ctx)
+        @Suppress("UNCHECKED_CAST")
+        return (resolver as BaseUnbatchedNodeResolver).invokeNodeResolver(ctx) as T
     }
 
     /**
@@ -159,10 +165,11 @@ abstract class ResolverTestBase {
     suspend fun <T : NodeObject> runNodeBatchResolver(
         resolver: NodeResolverBase<T>,
         block: NodeBatchResolverSpec<T>.() -> Unit = {}
-    ): List<FieldValue<T>> {
+    ): Map<NodeExecutionContext<T>, FieldValue<T>> {
         val inputs = NodeBatchResolverSpec<T>().apply(block)
         val contexts = inputs.createContexts(resolver::class.java, context.internal, selectionSetFactory)
-        return resolver.callBatchResolve(contexts)
+        @Suppress("UNCHECKED_CAST")
+        return (resolver as BaseBatchedNodeResolver).invokeNodeBatchResolver(contexts) as Map<NodeExecutionContext<T>, FieldValue<T>>
     }
 
     fun <T : NodeObject> globalIDFor(
@@ -190,22 +197,4 @@ abstract class ResolverTestBase {
         value: Any?,
         alias: String
     ): T = ObjectBaseTestHelpers.putWithAlias(builder = this, name = name, value = value, alias = alias)
-
-    @Suppress("UNCHECKED_CAST")
-    private suspend fun <R> Any.callResolve(ctx: Any): R =
-        try {
-            this::class.declaredFunctions.first { it.name == "resolve" }
-                .callSuspend(this, ctx) as R
-        } catch (e: InvocationTargetException) {
-            throw e.targetException
-        }
-
-    @Suppress("UNCHECKED_CAST")
-    private suspend fun <R> Any.callBatchResolve(contexts: List<*>): R =
-        try {
-            this::class.declaredFunctions.first { it.name == "batchResolve" }
-                .callSuspend(this, contexts) as R
-        } catch (e: InvocationTargetException) {
-            throw e.targetException
-        }
 }

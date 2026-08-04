@@ -41,18 +41,23 @@ In Viaduct, you implement the generated `batchResolve` function to directly call
 ```kotlin
 @Resolver
 class ListingNodeResolver @Inject constructor(val client: ListingClient) : NodeResolvers.Listing() {
-  override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<Listing>> {
+  override suspend fun batchResolve(
+    contexts: List<Context>
+  ): Map<Context, FieldValue<Listing>> {
     val listingIDs = contexts.map { it.id.internalID }
     val responses = client.fetch(listingIDs)
 
-    return contexts.map { ctx ->
-      val listingID = ctx.id.internalID
-      val response = responses[listingID]
-      FieldValue.ofValue(
-        Listing.Builder(ctx)
-          .title(response.title)
-          .build()
-      )
+    return contexts.associateWith { ctx ->
+      val response = responses[ctx.id.internalID]
+      if (response == null) {
+        FieldValue.ofError(ListingNotFoundException("Listing ${ctx.id} was not found"))
+      } else {
+        FieldValue.ofValue(
+          Listing.Builder(ctx)
+            .title(response.title)
+            .build()
+        )
+      }
     }
   }
 }
@@ -62,13 +67,17 @@ class ListingNodeResolver @Inject constructor(val client: ListingClient) : NodeR
 
 `batchResolve` takes a list of `Context` objects as input. This is the same `Context` object type passed to the non-batching `resolve` function. Viaduct's GraphQL execution engine batches these contexts before passing them to the `batchResolve` function.
 
+For node resolvers, a single invocation never contains the same decoded internal node ID more than once. If one execution batch contains duplicate internal IDs, Viaduct splits it into concurrent resolver invocations while preserving the selections associated with each context. If a split invocation fails, only the contexts in that invocation fail; the other invocations continue independently.
+
 ### Output
 
-The list that `batchResolve` returns must have the same number of elements as the input list. Each output value corresponds to the input `Context` at the same list index.
+Batch node resolvers return a map from every original input `Context` object to its value. Use the exact `Context` instances supplied in `contexts`; map iteration order does not affect result matching. Missing or foreign context keys are rejected.
+
+Batch field resolvers retain their positional list contract: their output list must have the same number of elements as the input list, and each output corresponds to the input context at the same index.
 
 #### FieldValue
 
-Notice that the output list elements are wrapped in {{ kdoc("viaduct.api.FieldValue") }} (e.g., `List<FieldValue<Listing>>` in the example above). This represents either a successfully resolved value or an error value.
+Resolved values and explicit per-node failures are wrapped in {{ kdoc("viaduct.api.FieldValue") }}. Use `FieldValue.ofError` with your application's appropriate exception type to report a node that was not found or another per-node failure.
 
 **Usage:**
 

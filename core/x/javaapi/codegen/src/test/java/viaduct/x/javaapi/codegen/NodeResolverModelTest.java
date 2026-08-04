@@ -61,13 +61,17 @@ class NodeResolverModelTest {
   }
 
   @Test
-  void getBatchResolveFutureType_isListOfFieldValue() {
+  void getBatchResolveFutureType_isContextMapOfFieldValue() {
     NodeResolverModel model =
         new NodeResolverModel("com.example.tenant", "com.example.types", "User", true, false);
 
     assertEquals(
-        "CompletableFuture<List<FieldValue<com.example.types.User>>>",
+        "CompletableFuture<Map<Context, FieldValue<com.example.types.User>>>",
         model.getBatchResolveFutureType());
+    assertEquals(
+        "CompletableFuture<Map<NodeExecutionContext<?>," + " FieldValue<com.example.types.User>>>",
+        model.getBatchInvokerFutureType());
+    assertEquals("List<NodeExecutionContext<?>>", model.getBatchInvokerContextListType());
   }
 
   @Test

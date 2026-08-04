@@ -22,7 +22,7 @@ class PlanetNodeResolver
         /**
          * Resolves planets node based on the provided context.
          */
-        override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<Planet>> {
+        override suspend fun batchResolve(contexts: List<Context>): Map<Context, FieldValue<Planet>> {
             // Extract all unique planet IDs from the contexts
             val planetId = contexts.map { it.id.internalID }
 
@@ -33,7 +33,7 @@ class PlanetNodeResolver
             }
 
             // For each context gets the planet ID and map to the viaduct object
-            return contexts.map { ctx ->
+            return contexts.associateWith { ctx ->
                 val planetId = ctx.id.internalID
                 planets.firstOrNull { it.id == planetId }?.let {
                     FieldValue.ofValue(

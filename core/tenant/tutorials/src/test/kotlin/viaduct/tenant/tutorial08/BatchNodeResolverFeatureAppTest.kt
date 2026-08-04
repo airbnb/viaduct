@@ -67,7 +67,7 @@ class BatchNodeResolverFeatureAppTest : BatchNodeResolverContractTest() {
      * - Implement batchResolve() for multiple GlobalIDs at once
      * - Extract all internal IDs from GlobalIDs
      * - Make single database call for all requested objects
-     * - Return List<FieldValue<T>> with proper error handling
+     * - Return Map<Context, FieldValue<T>> with proper error handling
      *
      * What VIADUCT handles:
      * - Collects all ctx.nodeRef() calls requesting same object type
@@ -77,7 +77,7 @@ class BatchNodeResolverFeatureAppTest : BatchNodeResolverContractTest() {
      */
     @Resolver
     class ProductNodeResolver : NodeResolvers.Product() { // Generated from "type Product implements Node @resolver"
-        override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<Product>> {
+        override suspend fun batchResolve(contexts: List<Context>): Map<Context, FieldValue<Product>> {
             // EXTRACT ALL INTERNAL IDS from GlobalIDs
             val productIds = contexts.map { ctx -> ctx.id.internalID }
 
@@ -89,7 +89,7 @@ class BatchNodeResolverFeatureAppTest : BatchNodeResolverContractTest() {
             val productsData = fetchProductsByIds(productIds)
 
             // RETURN RESULTS with individual error handling
-            return contexts.map { ctx ->
+            return contexts.associateWith { ctx ->
                 val productId = ctx.id.internalID
                 val productData = productsData[productId]
 
@@ -278,14 +278,14 @@ class BatchNodeResolverFeatureAppTest : BatchNodeResolverContractTest() {
      * 4. Single ProductNodeResolver.batchResolve() call with all contexts
      * 5. Extract ["laptop-123", "phone-456"] from GlobalIDs
      * 6. Single database query for both products
-     * 7. Build Product objects and return as FieldValue list
-     * 8. Viaduct maps results back to individual requests
+     * 7. Build Product objects and return them keyed by their original contexts
+     * 8. Viaduct maps results back to individual requests by context identity
      *
      * KEY TAKEAWAYS:
      * - Batch Node Resolvers optimize multiple object creation
      * - Use when multiple ctx.nodeRef() calls request same type
      * - Single database call replaces N separate calls
-     * - FieldValue.ofError() handles individual failures gracefully
+     * - Omit missing nodes; use FieldValue.ofError() for other individual failures
      * - Automatic batching works across different query fields
      * - Significant performance improvement for object-heavy queries
      */

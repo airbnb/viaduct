@@ -47,6 +47,10 @@ public final class JavaNodeResolverGenerator {
           """
           package <mdl.tenantPackage>.resolverbases;
 
+          <if(mdl.hasBatchingResolvers)>
+          import java.util.ArrayList;
+          import java.util.LinkedHashMap;
+          <endif>
           import java.util.List;
           import java.util.Map;
           import java.util.concurrent.CompletableFuture;
@@ -80,7 +84,7 @@ public final class JavaNodeResolverGenerator {
 
               <mdl.nodeResolvers:{nr |
               @NodeResolverFor(typeName = "<nr.typeName>", isBatching = <nr.batchingLiteral>, isSelective = <nr.selectiveLiteral>)
-              public abstract static class <nr.typeName> implements NodeResolverBase\\<<nr.grtType>\\><if(nr.isBatching)>, BaseBatchedNodeResolver<else>, BaseUnbatchedNodeResolver<endif> {
+              public abstract static class <nr.typeName> implements NodeResolverBase\\<<nr.grtType>\\><if(nr.isBatching)>, BaseBatchedNodeResolver\\<<nr.grtType>\\><else>, BaseUnbatchedNodeResolver<endif> {
 
                   /**
                    * Context for <nr.typeName> node resolver.
@@ -177,10 +181,18 @@ public final class JavaNodeResolverGenerator {
                   @Override
                   public final <nr.batchInvokerFutureType> invokeNodeBatchResolver(
                       <nr.batchInvokerContextListType> contexts) {
-                      return batchResolve(
-                          contexts.stream()
-                              .map(context -> new Context((<nr.ctxInterface>\\<?>) context))
-                              .toList());
+                      List\\<Context> wrappedContexts = new ArrayList\\<>(contexts.size());
+                      for (NodeExecutionContext\\<?> context : contexts) {
+                          wrappedContexts.add(new Context((<nr.ctxInterface>\\<?>) context));
+                      \\}
+                      return batchResolve(wrappedContexts).thenApply(results -> {
+                          Map\\<NodeExecutionContext\\<?>, FieldValue\\<<nr.grtType>\\>> unwrappedResults =
+                              new LinkedHashMap\\<>();
+                          results.forEach(
+                              (resultContext, value) ->
+                                  unwrappedResults.put(resultContext.inner, value));
+                          return unwrappedResults;
+                      \\});
                   \\}
                   <endif>
               \\}

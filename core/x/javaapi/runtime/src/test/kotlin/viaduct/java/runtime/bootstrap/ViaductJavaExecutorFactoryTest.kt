@@ -181,7 +181,7 @@ class ViaductJavaExecutorFactoryTest {
 
     /** Concrete node Context wrapping the engine-provided [NodeExecutionContext], as codegen emits. */
     class ConcreteNodeContext(
-        inner: NodeExecutionContext<*>,
+        internal val inner: NodeExecutionContext<*>,
     ) : NodeResolverBase.Context<TestNodeObj> by uncheckedCast(inner)
 
     @NodeResolverFor(typeName = "TestNodeType")
@@ -210,16 +210,25 @@ class ViaductJavaExecutorFactoryTest {
     }
 
     @NodeResolverFor(typeName = "TestNodeType")
-    abstract class BatchNodeResolverBase : NodeResolverBase<TestNodeObj>, BaseBatchedNodeResolver {
-        abstract fun batchResolve(contexts: List<ConcreteNodeContext>): CompletableFuture<List<FieldValue<TestNodeGRT>>>
+    abstract class BatchNodeResolverBase :
+        NodeResolverBase<TestNodeObj>,
+        BaseBatchedNodeResolver<TestNodeGRT> {
+        abstract fun batchResolve(contexts: List<ConcreteNodeContext>): CompletableFuture<Map<ConcreteNodeContext, FieldValue<TestNodeGRT>>>
 
-        final override fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): CompletableFuture<*> = batchResolve(contexts.map(::ConcreteNodeContext))
+        final override fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): CompletableFuture<Map<NodeExecutionContext<*>, FieldValue<TestNodeGRT>>> {
+            val wrappedContexts = contexts.map(::ConcreteNodeContext)
+            return batchResolve(wrappedContexts).thenApply { results ->
+                results.mapKeysTo(linkedMapOf()) { it.key.inner }
+            }
+        }
     }
 
     @Resolver
     class DataBoundBatchNodeResolver : BatchNodeResolverBase() {
-        override fun batchResolve(contexts: List<ConcreteNodeContext>): CompletableFuture<List<FieldValue<TestNodeGRT>>> =
-            CompletableFuture.completedFuture(contexts.map { FieldValue.ofValue(TestNodeGRT(nextEngineData!!)) })
+        override fun batchResolve(contexts: List<ConcreteNodeContext>): CompletableFuture<Map<ConcreteNodeContext, FieldValue<TestNodeGRT>>> =
+            CompletableFuture.completedFuture(
+                contexts.associateWith { FieldValue.ofValue(TestNodeGRT(nextEngineData!!)) }
+            )
 
         companion object {
             @Volatile

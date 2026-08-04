@@ -76,18 +76,20 @@ class JavaNodeResolverGeneratorTest {
     String generated =
         JavaNodeResolverGenerator.generate(fileModel(resolver("Booking", true, false)));
 
-    // Mirrors Kotlin: List<FieldValue<T>> wrapped in CompletableFuture
+    // Mirrors Kotlin: Map<Context, FieldValue<T>> wrapped in CompletableFuture
     assertTrue(
         generated.contains(
-            "public abstract CompletableFuture<List<FieldValue<com.example.types.Booking>>>"
+            "public abstract CompletableFuture<Map<Context, FieldValue<com.example.types.Booking>>>"
                 + " batchResolve(List<Context> contexts)"));
     assertTrue(
         generated.contains(
-            "implements NodeResolverBase<com.example.types.Booking>, BaseBatchedNodeResolver"));
+            "implements NodeResolverBase<com.example.types.Booking>,"
+                + " BaseBatchedNodeResolver<com.example.types.Booking>"));
     assertTrue(generated.contains("invokeNodeBatchResolver("));
     assertTrue(generated.contains("List<NodeExecutionContext<?>> contexts"));
     assertTrue(
-        generated.contains(".map(context -> new Context((NodeExecutionContext<?>) context))"));
+        generated.contains("wrappedContexts.add(new Context((NodeExecutionContext<?>) context))"));
+    assertTrue(generated.contains("unwrappedResults.put(resultContext.inner, value)"));
     assertTrue(
         !generated.contains("CompletableFuture<com.example.types.Booking> resolve(Context ctx)"));
   }
@@ -124,9 +126,7 @@ class JavaNodeResolverGeneratorTest {
   void generate_castsBatchInvokerContext_whenSelective() {
     String generated = JavaNodeResolverGenerator.generate(fileModel(resolver("User", true, true)));
 
-    assertTrue(
-        generated.contains(
-            ".map(context -> new Context((SelectiveNodeExecutionContext<?>) context))"));
+    assertTrue(generated.contains("new Context((SelectiveNodeExecutionContext<?>) context)"));
   }
 
   @Test

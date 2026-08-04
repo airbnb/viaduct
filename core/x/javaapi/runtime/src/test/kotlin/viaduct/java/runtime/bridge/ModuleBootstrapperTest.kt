@@ -206,23 +206,30 @@ class ModuleBootstrapperTest {
     }
 
     @NodeResolverFor(typeName = "TestBatchNodeType", isBatching = true)
-    abstract class TestBatchNodeResolverBase : NodeResolverBase<TestNodeObj>, BaseBatchedNodeResolver {
+    abstract class TestBatchNodeResolverBase :
+        NodeResolverBase<TestNodeObj>,
+        BaseBatchedNodeResolver<TestNodeObj> {
         class Context(
-            inner: NodeExecutionContext<TestNodeObj>
+            internal val inner: NodeExecutionContext<TestNodeObj>
         ) : NodeResolverBase.Context<TestNodeObj>, NodeExecutionContext<TestNodeObj> by inner
 
-        abstract fun batchResolve(contexts: List<Context>): CompletableFuture<List<viaduct.java.api.resolvers.FieldValue<TestNodeObj>>>
+        abstract fun batchResolve(contexts: List<Context>): CompletableFuture<Map<Context, viaduct.java.api.resolvers.FieldValue<TestNodeObj>>>
 
         @Suppress("UNCHECKED_CAST")
-        final override fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): CompletableFuture<*> = batchResolve(contexts.map { Context(it as NodeExecutionContext<TestNodeObj>) })
+        final override fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): CompletableFuture<Map<NodeExecutionContext<*>, viaduct.java.api.resolvers.FieldValue<TestNodeObj>>> {
+            val wrappedContexts = contexts.map { Context(it as NodeExecutionContext<TestNodeObj>) }
+            return batchResolve(wrappedContexts).thenApply { results ->
+                results.mapKeysTo(linkedMapOf()) { it.key.inner }
+            }
+        }
     }
 
     @Resolver
     class TestBatchNodeResolver : TestBatchNodeResolverBase() {
-        override fun batchResolve(contexts: List<Context>): CompletableFuture<List<viaduct.java.api.resolvers.FieldValue<TestNodeObj>>> {
-            val list = contexts.map { viaduct.java.api.resolvers.FieldValue.ofValue(TestNodeObj()) }
-            return CompletableFuture.completedFuture(list)
-        }
+        override fun batchResolve(contexts: List<Context>): CompletableFuture<Map<Context, viaduct.java.api.resolvers.FieldValue<TestNodeObj>>> =
+            CompletableFuture.completedFuture(
+                contexts.associateWith { viaduct.java.api.resolvers.FieldValue.ofValue(TestNodeObj()) }
+            )
     }
 
     @Test

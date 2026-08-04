@@ -79,17 +79,22 @@ class MyNodeResolver
     constructor(
         private val repository: MyRepository
     ) : NodeResolvers.MyNode() {
-        override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<MyNode>> {
+        override suspend fun batchResolve(contexts: List<Context>): Map<Context, FieldValue<MyNode>> {
             val ids = contexts.map { it.id.internalID }
             val entities = repository.findByIds(ids)
-            return contexts.map { ctx ->
-                entities[ctx.id.internalID]
-                    ?.let { FieldValue.ofValue(MyNodeBuilder(ctx).build(it)) }
-                    ?: FieldValue.ofError(IllegalArgumentException("Not found: ${ctx.id.internalID}"))
+            return contexts.associateWith { ctx ->
+                val entity = entities[ctx.id.internalID]
+                if (entity == null) {
+                    FieldValue.ofError(MissingMyNodeException("MyNode ${ctx.id} was not found"))
+                } else {
+                    FieldValue.ofValue(MyNodeBuilder(ctx).build(entity))
+                }
             }
         }
     }
 ```
+
+The returned map must contain every exact input `Context` object as a key. Return `FieldValue.ofError` when an ID is not found; missing or foreign context keys are rejected.
 
 ## Schema hinting with `@idOf`
 

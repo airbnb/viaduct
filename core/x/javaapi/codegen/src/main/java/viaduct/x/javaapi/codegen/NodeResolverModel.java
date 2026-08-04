@@ -62,17 +62,17 @@ public record NodeResolverModel(
 
   /**
    * Returns the return type for the {@code batchResolve} method, e.g. {@code
-   * CompletableFuture<List<FieldValue<pkg.Type>>>}.
+   * CompletableFuture<Map<Context, FieldValue<pkg.Type>>>}.
    *
-   * <p>Matches Kotlin's batchResolve signature ({@code List<FieldValue<T>>}) wrapped in a {@link
-   * java.util.concurrent.CompletableFuture} for the Java tenant API.
+   * <p>Matches Kotlin's batchResolve signature ({@code Map<Context, FieldValue<T>>}) wrapped in a
+   * {@link java.util.concurrent.CompletableFuture} for the Java tenant API.
    */
   public String getBatchResolveFutureType() {
-    return "CompletableFuture<List<FieldValue<" + getGrtType() + ">>>";
+    return "CompletableFuture<Map<Context, FieldValue<" + getGrtType() + ">>>";
   }
 
   public String getBatchInvokerFutureType() {
-    return "CompletableFuture<?>";
+    return "CompletableFuture<Map<NodeExecutionContext<?>, FieldValue<" + getGrtType() + ">>>";
   }
 
   public String getBatchInvokerContextListType() {

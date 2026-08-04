@@ -151,18 +151,21 @@ private val nodeSt = stTemplate(
             )
             <endif>
             <if(mdl.batching)>
-            abstract suspend fun batchResolve(contexts: List\<Context>): List\<FieldValue\<<mdl.grtPackage>.<mdl.typeName>\>>
+            abstract suspend fun batchResolve(contexts: List\<Context>): Map\<Context, FieldValue\<<mdl.grtPackage>.<mdl.typeName>\>>
 
             @Suppress("UNCHECKED_CAST")
             final override suspend fun invokeNodeBatchResolver(
                 contexts: List\<viaduct.api.context.NodeExecutionContext\<*\>>
-            ): Any? = batchResolve(
-                contexts.map { Context(it as <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\>) }
-            )
+            ): Map\<viaduct.api.context.NodeExecutionContext\<*>, FieldValue\<<mdl.grtPackage>.<mdl.typeName>\>> {
+                val wrappedContexts = contexts.map {
+                    Context(it as <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\>)
+                }
+                return batchResolve(wrappedContexts).mapKeys { it.key.inner }
+            }
             <endif>
 
             class Context(
-                private val inner: <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\>
+                @InternalApi internal val inner: <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\>
             ) : <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\> by inner, InternalContext by (inner as InternalContext) {
                 <if(mdl.selective)>
                 override fun selections(): SelectionSet\<<mdl.grtPackage>.<mdl.typeName>\> = inner.selections()

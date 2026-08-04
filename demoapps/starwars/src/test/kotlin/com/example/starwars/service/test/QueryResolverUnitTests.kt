@@ -237,7 +237,7 @@ class QueryResolverUnitTests : ResolverTestBase() {
             val result = runNodeBatchResolver(resolver) { ids = listOf(planetGlobalId) }
 
             assertNotNull(result)
-            assertEquals("Tatooine", result.first().get().getName())
+            assertEquals("Tatooine", result.values.first().get().getName())
         }
 
     @Test
@@ -253,7 +253,7 @@ class QueryResolverUnitTests : ResolverTestBase() {
             val result = runNodeBatchResolver(resolver) { ids = listOf(speciesGlobalId) }
 
             assertNotNull(result)
-            assertEquals(ref.name, result.first().get().getName())
+            assertEquals(ref.name, result.values.first().get().getName())
         }
 
     @Test

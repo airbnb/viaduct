@@ -2,6 +2,9 @@ package viaduct.java.runtime.bridge
 
 import javax.inject.Provider
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.future.await
 import viaduct.engine.api.EngineExecutionContext
@@ -14,29 +17,31 @@ import viaduct.errors.FrameworkException
 import viaduct.errors.PassthroughException
 import viaduct.errors.TenantResolverException
 import viaduct.errors.TenantUsageException
-import viaduct.errors.handleTenantErrorsSuspend
+import viaduct.errors.handleTenantErrorsResultSuspend
 import viaduct.errors.resultOfSuspend
 import viaduct.java.api.context.NodeExecutionContext
 import viaduct.java.api.internal.BaseBatchedNodeResolver
 import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.resolvers.FieldValue
+import viaduct.java.api.types.NodeObject
+import viaduct.tenant.runtime.support.partitionByUniqueKey
 
 /**
  * Kotlin bridge that wraps a batch Java node resolver and implements [NodeResolverExecutor].
  *
  * Called when [isBatching] is true. Receives all selectors in one call, creates per-selector
- * contexts, invokes the tenant's `batchResolve(List<Context>): CompletableFuture<List<FieldValue<T>>>`,
- * and zips results back to selectors in order.
+ * contexts, invokes the tenant's
+ * `batchResolve(List<Context>): CompletableFuture<Map<Context, FieldValue<T>>>`, and binds results
+ * back to selectors by context identity.
  *
  * The return type mirrors the Kotlin tenant API
- * ([viaduct.tenant.runtime.execution.NodeBatchResolverExecutorImpl]): an ordered list of
- * [FieldValue] entries (one per selector), where each entry is either a successful value or an
- * error. Per-element errors surface to the engine as failed [Result]s without aborting the entire
- * batch.
+ * ([viaduct.tenant.runtime.execution.NodeBatchResolverExecutorImpl]): a context-keyed map of
+ * [FieldValue] entries. Per-element errors surface to the engine as failed [Result]s without
+ * aborting the entire batch. Every input context must have a corresponding map entry.
  */
 class NodeBatchResolverExecutorImpl(
-    private val resolver: Provider<BaseBatchedNodeResolver>,
+    private val resolver: Provider<out BaseBatchedNodeResolver<*>>,
     override val typeName: String,
     private val resolverName: String,
     override val isSelective: Boolean = false,
@@ -49,51 +54,82 @@ class NodeBatchResolverExecutorImpl(
     override suspend fun resolve(
         selectors: List<NodeResolverExecutor.Selector>,
         context: EngineExecutionContext,
+    ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> =
+        resolve(
+            resolver = resolver.get(),
+            selectors = selectors,
+            context = context,
+        )
+
+    private suspend fun <R : NodeObject> resolve(
+        resolver: BaseBatchedNodeResolver<R>,
+        selectors: List<NodeResolverExecutor.Selector>,
+        context: EngineExecutionContext,
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
         val scope = CoroutineScope(currentCoroutineContext())
-        val javaContexts: List<NodeExecutionContext<*>> = selectors.map { selector ->
-            SimpleNodeExecutionContext(
-                serializedId = selector.id,
-                typeName = typeName,
-                requestContext = context.requestContext,
-                engineExecutionContext = context,
-                coroutineScope = scope,
-                classFinder = classFinder,
+        val inputs = selectors.map { selector ->
+            ResolverInput(
+                selector = selector,
+                context = SimpleNodeExecutionContext(
+                    serializedId = selector.id,
+                    typeName = typeName,
+                    requestContext = context.requestContext,
+                    engineExecutionContext = context,
+                    coroutineScope = scope,
+                    classFinder = classFinder,
+                ),
+                internalID = context.globalIDCodec.deserialize(selector.id).localID,
             )
         }
-
-        val rawResult: Any? = handleTenantErrorsSuspend(typeName) {
-            resolver.get().invokeNodeBatchResolver(javaContexts).await()
+        val resolvedGroups = coroutineScope {
+            partitionByUniqueKey(inputs) { it.internalID }
+                .map { group -> async { resolveGroup(resolver, group) } }
+                .awaitAll()
         }
 
-        if (rawResult !is List<*>) {
-            throw TenantUsageException(
-                "batchResolve for node $typeName must return CompletableFuture<List<FieldValue<T>>>, " +
-                    "got ${rawResult?.javaClass?.name}"
-            )
+        return linkedMapOf<NodeResolverExecutor.Selector, Result<EngineObjectData>>().apply {
+            resolvedGroups.forEach { putAll(it) }
         }
-
-        if (rawResult.size != selectors.size) {
-            throw TenantUsageException(
-                "batchResolve for node $typeName was given ${selectors.size} contexts but returned ${rawResult.size} entries"
-            )
-        }
-
-        return selectors.zip(rawResult.map { unwrap(it) }).toMap()
     }
 
-    private suspend fun unwrap(fieldValue: Any?): Result<EngineObjectData> {
-        if (fieldValue !is FieldValue<*>) {
-            return Result.failure(
-                TenantResolverException(
-                    TenantUsageException(
-                        "batchResolve for node $typeName returned an entry that is not a FieldValue: " +
-                            "${fieldValue?.javaClass?.name}"
-                    ),
-                    typeName
+    private suspend fun <R : NodeObject> resolveGroup(
+        resolver: BaseBatchedNodeResolver<R>,
+        group: List<ResolverInput>,
+    ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> =
+        handleTenantErrorsResultSuspend(typeName) {
+            val javaContexts = group.map { it.context }
+            val results: Map<NodeExecutionContext<*>, FieldValue<R>> =
+                resolver.invokeNodeBatchResolver(javaContexts).await()
+            if (javaContexts.size != results.size) {
+                throw TenantUsageException(
+                    "batchResolve for node $typeName was given ${javaContexts.size} contexts but returned ${results.size} entries"
                 )
-            )
+            }
+            val contextToSelector = group.associate { it.context to it.selector }
+            val resolved = linkedMapOf<NodeResolverExecutor.Selector, Result<EngineObjectData>>()
+
+            results.forEach { (returnedContext, fieldValue) ->
+                val selector = contextToSelector[returnedContext]
+                    ?: throw TenantUsageException(
+                        "batchResolve for node $typeName returned a context that was not in the input context list: $returnedContext"
+                    )
+                resolved[selector] = unwrap(fieldValue)
+            }
+
+            resolved
+        }.getOrElse { failure ->
+            group.associate { input ->
+                input.selector to Result.failure(failure)
+            }
         }
+
+    private data class ResolverInput(
+        val selector: NodeResolverExecutor.Selector,
+        val context: NodeExecutionContext<*>,
+        val internalID: String,
+    )
+
+    private suspend fun unwrap(fieldValue: FieldValue<*>): Result<EngineObjectData> {
         return resultOfSuspend(
             mapException = { e ->
                 if (e is PassthroughException || e is ErroneousFieldException) {

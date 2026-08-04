@@ -31,8 +31,8 @@ class KotlinTenantExceptionWrappingContractTest : TenantExceptionWrappingContrac
             var shouldReturnErroneousFieldException = false
         }
 
-        override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<Item>> =
-            contexts.map { ctx ->
+        override suspend fun batchResolve(contexts: List<Context>): Map<Context, FieldValue<Item>> =
+            contexts.associateWith { ctx ->
                 when {
                     shouldReturnTenantException ->
                         FieldValue.ofError(TenantUsageException("node api misuse"))

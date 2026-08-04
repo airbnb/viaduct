@@ -1,5 +1,6 @@
 package viaduct.api.internal
 
+import viaduct.api.FieldValue
 import viaduct.api.context.BaseFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
 import viaduct.apiannotations.InternalApi
@@ -21,5 +22,5 @@ interface BaseUnbatchedNodeResolver {
 
 @InternalApi
 interface BaseBatchedNodeResolver {
-    suspend fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): Any?
+    suspend fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): Map<NodeExecutionContext<*>, FieldValue<*>>
 }

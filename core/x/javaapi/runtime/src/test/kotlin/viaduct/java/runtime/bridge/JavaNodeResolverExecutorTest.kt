@@ -8,11 +8,11 @@ import io.mockk.mockk
 import java.util.concurrent.CompletableFuture
 import javax.inject.Provider
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
@@ -20,13 +20,15 @@ import viaduct.engine.api.NodeReference
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.errors.TenantResolverException
 import viaduct.errors.TenantUsageException
+import viaduct.java.api.context.NodeExecutionContext
 import viaduct.java.api.internal.BaseBatchedNodeResolver
 import viaduct.java.api.internal.BaseUnbatchedNodeResolver
 import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.resolvers.FieldValue
+import viaduct.java.api.types.NodeObject
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
-private class TestNodeGRT : ObjectBase {
+private class TestNodeGRT : ObjectBase, NodeObject {
     constructor(data: EngineObjectData.Sync) : super(null, data)
     constructor(ref: NodeReference) : super(null, ref)
 }
@@ -116,7 +118,7 @@ class JavaNodeResolverExecutorTest {
     }
 
     @Test
-    fun `batch executor resolve returns values for all selectors in order`(): Unit =
+    fun `batch executor binds values by context independent of map order`(): Unit =
         runBlocking {
             val id1 = GlobalIDCodecDefault.serialize("TestType", "1")
             val id2 = GlobalIDCodecDefault.serialize("TestType", "2")
@@ -124,10 +126,10 @@ class JavaNodeResolverExecutorTest {
             val engineData2 = mockk<EngineObjectData.Sync>()
 
             val executor = NodeBatchResolverExecutorImpl(
-                resolver = batchResolver {
-                    val results = listOf<FieldValue<ObjectBase>>(
-                        FieldValue.ofValue(TestNodeGRT(engineData1)),
-                        FieldValue.ofValue(TestNodeGRT(engineData2)),
+                resolver = batchResolver { contexts ->
+                    val results = linkedMapOf<NodeExecutionContext<*>, FieldValue<TestNodeGRT>>(
+                        contexts[1] to FieldValue.ofValue(TestNodeGRT(engineData2)),
+                        contexts[0] to FieldValue.ofValue(TestNodeGRT(engineData1)),
                     )
                     CompletableFuture.completedFuture(results)
                 },
@@ -153,10 +155,10 @@ class JavaNodeResolverExecutorTest {
             val engineData1 = mockk<EngineObjectData.Sync>()
 
             val executor = NodeBatchResolverExecutorImpl(
-                resolver = batchResolver {
-                    val results = listOf<FieldValue<ObjectBase>>(
-                        FieldValue.ofValue(TestNodeGRT(engineData1)),
-                        FieldValue.ofError(RuntimeException("boom")),
+                resolver = batchResolver { contexts ->
+                    val results = mapOf<NodeExecutionContext<*>, FieldValue<TestNodeGRT>>(
+                        contexts[0] to FieldValue.ofValue(TestNodeGRT(engineData1)),
+                        contexts[1] to FieldValue.ofError(RuntimeException("boom")),
                     )
                     CompletableFuture.completedFuture(results)
                 },
@@ -178,9 +180,7 @@ class JavaNodeResolverExecutorTest {
     @Test
     fun `batch executor has correct metadata`() {
         val executor = NodeBatchResolverExecutorImpl(
-            resolver = batchResolver {
-                CompletableFuture.completedFuture(emptyList<FieldValue<*>>())
-            },
+            resolver = batchResolver { CompletableFuture.completedFuture(emptyMap()) },
             typeName = "TestType",
             resolverName = "TestBatchNodeResolver",
         )
@@ -191,35 +191,17 @@ class JavaNodeResolverExecutorTest {
     }
 
     @Test
-    fun `batch executor throws when result size mismatches selectors`(): Unit =
+    fun `batch executor rejects omitted context key`(): Unit =
         runBlocking {
             val executor = NodeBatchResolverExecutorImpl(
-                resolver = batchResolver {
-                    CompletableFuture.completedFuture(emptyList<FieldValue<*>>())
-                },
+                resolver = batchResolver { CompletableFuture.completedFuture(emptyMap()) },
                 typeName = "TestType",
                 resolverName = "TestBatchNodeResolver",
             )
 
-            assertThrows<TenantUsageException> {
-                executor.resolve(listOf(selector()), mockEngineContext())
-            }
-        }
+            val result = executor.resolve(listOf(selector()), mockEngineContext())
 
-    @Test
-    fun `batch executor throws when result is not a List`(): Unit =
-        runBlocking {
-            val executor = NodeBatchResolverExecutorImpl(
-                resolver = batchResolver {
-                    CompletableFuture.completedFuture("not-a-list")
-                },
-                typeName = "TestType",
-                resolverName = "TestBatchNodeResolver",
-            )
-
-            assertThrows<TenantUsageException> {
-                executor.resolve(listOf(selector()), mockEngineContext())
-            }
+            result.values.single().exceptionOrNull().shouldBeInstanceOf<TenantUsageException>()
         }
 
     @Test
@@ -257,50 +239,13 @@ class JavaNodeResolverExecutorTest {
         }
 
     @Test
-    fun `batch executor fails per-element with TenantResolverException when entry is not a FieldValue`(): Unit =
-        runBlocking {
-            val executor = NodeBatchResolverExecutorImpl(
-                resolver = batchResolver {
-                    CompletableFuture.completedFuture(listOf("not-a-field-value"))
-                },
-                typeName = "TestType",
-                resolverName = "TestBatchNodeResolver",
-            )
-
-            val result = executor.resolve(listOf(selector()), mockEngineContext())
-            val value = result.values.single()
-            assertTrue(value.isFailure)
-            val ex = value.exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
-            generateSequence(ex.cause) { it.cause }.last().shouldBeInstanceOf<TenantUsageException>()
-        }
-
-    @Test
-    fun `batch executor fails per-element with TenantResolverException when entry value is not a ObjectBase`(): Unit =
-        runBlocking {
-            val executor = NodeBatchResolverExecutorImpl(
-                resolver = batchResolver {
-                    val results = listOf<FieldValue<Any>>(FieldValue.ofValue("not-a-grt"))
-                    CompletableFuture.completedFuture(results)
-                },
-                typeName = "TestType",
-                resolverName = "TestBatchNodeResolver",
-            )
-
-            val result = executor.resolve(listOf(selector()), mockEngineContext())
-            val value = result.values.single()
-            assertTrue(value.isFailure)
-            val ex = value.exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
-            generateSequence(ex.cause) { it.cause }.last().shouldBeInstanceOf<TenantUsageException>()
-        }
-
-    @Test
     fun `batch executor fails per-element with TenantResolverException when entry value is a NodeReference-backed GRT`(): Unit =
         runBlocking {
             val nodeRef = mockk<NodeReference>()
             val grt = TestNodeGRT(nodeRef)
             val executor = NodeBatchResolverExecutorImpl(
-                resolver = batchResolver {
-                    val results = listOf<FieldValue<ObjectBase>>(FieldValue.ofValue(grt))
+                resolver = batchResolver { contexts ->
+                    val results = mapOf(contexts.single() to FieldValue.ofValue(grt))
                     CompletableFuture.completedFuture(results)
                 },
                 typeName = "TestType",
@@ -314,12 +259,135 @@ class JavaNodeResolverExecutorTest {
             generateSequence(ex.cause) { it.cause }.last().shouldBeInstanceOf<TenantUsageException>()
         }
 
-    private fun batchResolver(resolve: () -> CompletableFuture<*>): Provider<BaseBatchedNodeResolver> =
-        Provider {
-            BaseBatchedNodeResolver { resolve() }
+    @Test
+    fun `batch executor rejects context not supplied to current invocation`(): Unit =
+        runBlocking {
+            val foreignContext = mockk<NodeExecutionContext<*>>()
+            val executor = NodeBatchResolverExecutorImpl(
+                resolver = batchResolver {
+                    CompletableFuture.completedFuture(
+                        mapOf(foreignContext to FieldValue.ofValue(TestNodeGRT(mockk<EngineObjectData.Sync>())))
+                    )
+                },
+                typeName = "TestType",
+                resolverName = "TestBatchNodeResolver",
+            )
+
+            val result = executor.resolve(listOf(selector()), mockEngineContext())
+
+            assertTrue(result.values.single().exceptionOrNull() is TenantUsageException)
         }
 
-    private fun nodeResolver(resolve: (viaduct.java.api.context.NodeExecutionContext<*>) -> CompletableFuture<*>): Provider<BaseUnbatchedNodeResolver> =
+    @Test
+    fun `batch executor runs duplicate internal id groups concurrently`(): Unit =
+        runBlocking {
+            val id = GlobalIDCodecDefault.serialize("TestType", "same-id")
+            val invocationContexts = mutableListOf<List<NodeExecutionContext<*>>>()
+            val invocationResults =
+                mutableListOf<CompletableFuture<Map<NodeExecutionContext<*>, FieldValue<TestNodeGRT>>>>()
+            val executor = NodeBatchResolverExecutorImpl(
+                resolver = batchResolver { contexts ->
+                    val result = CompletableFuture<Map<NodeExecutionContext<*>, FieldValue<TestNodeGRT>>>()
+                    invocationContexts.add(contexts)
+                    invocationResults.add(result)
+                    if (invocationContexts.size == 2) {
+                        invocationContexts.zip(invocationResults).forEach { (contexts, invocationResult) ->
+                            invocationResult.complete(
+                                contexts.associateWith {
+                                    FieldValue.ofError<TestNodeGRT>(RuntimeException("expected"))
+                                }
+                            )
+                        }
+                    }
+                    result
+                },
+                typeName = "TestType",
+                resolverName = "TestBatchNodeResolver",
+            )
+            val selectors = listOf(selector(id), selector(id))
+
+            val result = withTimeout(5_000) {
+                executor.resolve(selectors, mockEngineContext())
+            }
+
+            assertEquals(listOf(1, 1), invocationContexts.map { it.size })
+            assertEquals(2, result.size)
+        }
+
+    @Test
+    fun `batch executor rejects context returned from another split invocation`(): Unit =
+        runBlocking {
+            val id = GlobalIDCodecDefault.serialize("TestType", "same-id")
+            var firstContext: NodeExecutionContext<*>? = null
+            val executor = NodeBatchResolverExecutorImpl(
+                resolver = batchResolver { contexts ->
+                    val currentContext = contexts.single()
+                    val returnedContext = firstContext ?: currentContext
+                    firstContext = firstContext ?: currentContext
+                    CompletableFuture.completedFuture(
+                        mapOf(
+                            returnedContext to
+                                FieldValue.ofError<TestNodeGRT>(RuntimeException("expected"))
+                        )
+                    )
+                },
+                typeName = "TestType",
+                resolverName = "TestBatchNodeResolver",
+            )
+
+            val result = executor.resolve(listOf(selector(id), selector(id)), mockEngineContext())
+
+            assertTrue(result.values.any { it.exceptionOrNull() is TenantUsageException })
+        }
+
+    @Test
+    fun `batch executor isolates a failing split invocation`(): Unit =
+        runBlocking {
+            val id = GlobalIDCodecDefault.serialize("TestType", "same-id")
+            var invocation = 0
+            val executor = NodeBatchResolverExecutorImpl(
+                resolver = batchResolver { contexts ->
+                    invocation += 1
+                    if (invocation == 2) {
+                        CompletableFuture.failedFuture<Map<NodeExecutionContext<*>, FieldValue<TestNodeGRT>>>(
+                            RuntimeException("second invocation failed")
+                        )
+                    } else {
+                        CompletableFuture.completedFuture(
+                            contexts.associateWith {
+                                FieldValue.ofError<TestNodeGRT>(RuntimeException("expected"))
+                            }
+                        )
+                    }
+                },
+                typeName = "TestType",
+                resolverName = "TestBatchNodeResolver",
+            )
+            val selectors = listOf(selector(id), selector(id))
+
+            val result = executor.resolve(selectors, mockEngineContext())
+
+            assertEquals(
+                "expected",
+                generateSequence(result.getValue(selectors.first()).exceptionOrNull()) { it.cause }.last().message,
+            )
+            assertEquals(
+                "second invocation failed",
+                generateSequence(result.getValue(selectors.last()).exceptionOrNull()) { it.cause }.last().message,
+            )
+        }
+
+    private fun batchResolver(
+        resolve: (List<NodeExecutionContext<*>>) ->
+        CompletableFuture<Map<NodeExecutionContext<*>, FieldValue<TestNodeGRT>>>
+    ): Provider<BaseBatchedNodeResolver<TestNodeGRT>> =
+        Provider {
+            object : BaseBatchedNodeResolver<TestNodeGRT> {
+                override fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): CompletableFuture<Map<NodeExecutionContext<*>, FieldValue<TestNodeGRT>>> = resolve(contexts)
+            }
+        }
+
+    private fun nodeResolver(resolve: (NodeExecutionContext<*>) -> CompletableFuture<*>): Provider<BaseUnbatchedNodeResolver> =
         Provider {
             BaseUnbatchedNodeResolver { context -> resolve(context) }
         }

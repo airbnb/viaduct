@@ -21,7 +21,7 @@ object NodeResolvers {
             Context(context as viaduct.api.context.NodeExecutionContext<viaduct.api.grts.User>)
         )
         class Context(
-            private val inner: viaduct.api.context.NodeExecutionContext<viaduct.api.grts.User>
+            @InternalApi internal val inner: viaduct.api.context.NodeExecutionContext<viaduct.api.grts.User>
         ) : viaduct.api.context.NodeExecutionContext<viaduct.api.grts.User> by inner, InternalContext by (inner as InternalContext) {
         }
     }

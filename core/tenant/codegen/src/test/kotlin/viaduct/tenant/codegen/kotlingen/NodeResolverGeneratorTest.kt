@@ -35,6 +35,11 @@ class NodeResolverGeneratorTest {
         assertTrue(contents.contains("abstract class Foo : viaduct.api.ResolverBase<pkg.grts.Foo>, NodeResolverBase<pkg.grts.Foo>, viaduct.api.internal.BaseUnbatchedNodeResolver"))
         assertTrue(contents.contains("final override suspend fun invokeNodeResolver("))
         assertTrue(contents.contains("Context(context as viaduct.api.context.NodeExecutionContext<pkg.grts.Foo>)"))
+        assertTrue(
+            contents.contains(
+                "@InternalApi internal val inner: viaduct.api.context.NodeExecutionContext<pkg.grts.Foo>"
+            )
+        )
         assertTrue(contents.contains("NodeResolverFor(typeName = \"Bar\", isSelective = true, isBatching = false)"))
         assertTrue(contents.contains("abstract class Bar : viaduct.api.ResolverBase<pkg.grts.Bar>, NodeResolverBase<pkg.grts.Bar>, viaduct.api.internal.BaseUnbatchedNodeResolver"))
         assertTrue(contents.contains("viaduct.api.context.SelectiveNodeExecutionContext<pkg.grts.Bar>"))
@@ -42,16 +47,31 @@ class NodeResolverGeneratorTest {
     }
 
     @Test
-    fun `generates direct adapter for batching node resolver`() {
+    fun `generates typed delegating adapter for batching node resolver`() {
         val contents = gen(Triple("Foo", false, true))
 
         assertNotNull(contents)
         contents!!
 
-        assertTrue(contents.contains("viaduct.api.internal.BaseBatchedNodeResolver"))
-        assertTrue(contents.contains("abstract suspend fun batchResolve(contexts: List<Context>)"))
+        assertTrue(
+            contents.contains(
+                "viaduct.api.internal.BaseBatchedNodeResolver"
+            )
+        )
+        assertTrue(
+            contents.contains(
+                "abstract suspend fun batchResolve(contexts: List<Context>): Map<Context, FieldValue<pkg.grts.Foo>>"
+            )
+        )
         assertTrue(contents.contains("final override suspend fun invokeNodeBatchResolver("))
-        assertTrue(contents.contains("contexts.map { Context(it as viaduct.api.context.NodeExecutionContext<pkg.grts.Foo>) }"))
+        assertTrue(contents.contains("contexts: List<viaduct.api.context.NodeExecutionContext<*>>"))
+        assertTrue(contents.contains("Context(it as viaduct.api.context.NodeExecutionContext<pkg.grts.Foo>)"))
+        assertTrue(contents.contains("return batchResolve(wrappedContexts).mapKeys { it.key.inner }"))
+        assertTrue(
+            contents.contains(
+                "@InternalApi internal val inner: viaduct.api.context.NodeExecutionContext<pkg.grts.Foo>"
+            )
+        )
     }
 
     @Test

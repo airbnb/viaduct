@@ -33,8 +33,8 @@ class BatchResolverErrorHandlingFeatureAppTest : BatchResolverErrorHandlingContr
         constructor(
             private val test: BatchResolverErrorHandlingContractTest
         ) : NodeResolvers.Foo() {
-            override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<Foo>> {
-                val results = contexts.map { ctx ->
+            override suspend fun batchResolve(contexts: List<Context>): Map<Context, FieldValue<Foo>> {
+                val results = contexts.associateWith { ctx ->
                     val selections = ctx.selections().toString()
                     FieldValue.Companion.ofValue(
                         Foo.Builder(ctx)
@@ -46,11 +46,7 @@ class BatchResolverErrorHandlingFeatureAppTest : BatchResolverErrorHandlingContr
                     )
                 }
 
-                return if (test.shouldReturnWrongNumberOfResults) {
-                    results.take(results.size - 1)
-                } else {
-                    results
-                }
+                return results.filterKeys { it.id.internalID != test.internalIdToOmit }
             }
         }
 }

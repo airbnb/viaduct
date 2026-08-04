@@ -3,7 +3,6 @@ package viaduct.tenant.runtime.execution.batchresolver.errorhandling
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
 import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
-import viaduct.graphql.test.assertEquals
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 @TestSchema(
@@ -21,22 +20,19 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 """
 )
 abstract class BatchResolverErrorHandlingContractTest : KotlinFeatureAppTestContractBase() {
-    /**
-     * Controls whether the batch node resolver intentionally returns the wrong
-     * number of results. Visible to resolvers via Guice injection of the test instance.
-     */
-    var shouldReturnWrongNumberOfResults = false
+    /** The internal ID whose context the batch node resolver should intentionally omit. */
+    var internalIdToOmit: String? = null
 
     private fun fooGlobalId(internalId: String) = GlobalIDCodecDefault.serialize("Foo", internalId)
 
     @Test
-    fun `batch resolver returning wrong number of results causes error`() {
-        shouldReturnWrongNumberOfResults = true
+    fun `batch resolver omission fails the entire invocation`() {
+        internalIdToOmit = "1"
 
         val id1 = fooGlobalId("1")
         val id2 = fooGlobalId("2")
 
-        execute(
+        val result = execute(
             query = """
             query {
                 f1: foo(id: "$id1") {
@@ -51,55 +47,26 @@ abstract class BatchResolverErrorHandlingContractTest : KotlinFeatureAppTestCont
                 }
             }
             """.trimIndent()
-        ).assertEquals {
-            "data" to {
-                "f1" to null
-                "f2" to null
+        )
+
+        assert(result.errors.size == 2)
+        assert(
+            result.errors.all {
+                it.message ==
+                    "viaduct.errors.TenantUsageException: The batchResolve function in the Node resolver for Foo was given a batch of size 2 but returned 1 elements"
             }
-            "errors" to arrayOf(
-                {
-                    "message" to "viaduct.errors.TenantUsageException: The batchResolve function in the Node resolver for Foo was given a batch of size 2 but returned 1 elements"
-                    "locations" to arrayOf(
-                        {
-                            "line" to 2
-                            "column" to 5
-                        }
-                    )
-                    "path" to listOf("f1")
-                    "extensions" to {
-                        "fieldName" to "foo"
-                        "parentType" to "Foo"
-                        "resolvers" to "Foo"
-                        "isFrameworkError" to "false"
-                        "fullyQualifiedErrorClass" to "viaduct.errors.TenantUsageException"
-                        "classification" to "DataFetchingException"
-                    }
-                },
-                {
-                    "message" to "viaduct.errors.TenantUsageException: The batchResolve function in the Node resolver for Foo was given a batch of size 2 but returned 1 elements"
-                    "locations" to arrayOf(
-                        {
-                            "line" to 6
-                            "column" to 5
-                        }
-                    )
-                    "path" to listOf("f2")
-                    "extensions" to {
-                        "fieldName" to "foo"
-                        "parentType" to "Foo"
-                        "resolvers" to "Foo"
-                        "isFrameworkError" to "false"
-                        "fullyQualifiedErrorClass" to "viaduct.errors.TenantUsageException"
-                        "classification" to "DataFetchingException"
-                    }
-                }
-            )
-        }
+        )
+        assert(result.errors.map { it.path }.toSet() == setOf(listOf("f1"), listOf("f2")))
+        assert(result.errors.all { it.extensions["fullyQualifiedErrorClass"] == "viaduct.errors.TenantUsageException" })
+
+        val data = result.getData()!!
+        assert(data["f1"] == null)
+        assert(data["f2"] == null)
     }
 
     @Test
     fun `batch resolver contexts contain correct client selections`() {
-        shouldReturnWrongNumberOfResults = false
+        internalIdToOmit = null
 
         val id1 = fooGlobalId("1")
         val id2 = fooGlobalId("2")

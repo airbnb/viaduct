@@ -30,11 +30,7 @@ Viaduct generates an abstract base class for object types that both implement `N
 ```kotlin
 object NodeResolvers {
   abstract class User {
-    open suspend fun resolve(ctx: Context): viaduct.api.grts.User =
-      throw NotImplementedError()
-
-    open suspend fun batchResolve(contexts: List<Context>): List<FieldValue<viaduct.api.grts.User>> =
-      throw NotImplementedError()
+    abstract suspend fun resolve(ctx: Context): viaduct.api.grts.User
 
     class Context: NodeExecutionContext<viaduct.api.grts.User>
   }
@@ -45,9 +41,19 @@ object NodeResolvers {
 
 The nested `Context` class is described in more detail [below](#context).
 
+The schema's batching setting determines which resolver method is generated. With
+`@resolver(isBatching: true)`, the generated `User` base class declares `batchResolve`
+instead of `resolve`:
+
+```kotlin
+abstract suspend fun batchResolve(
+  contexts: List<Context>
+): Map<Context, FieldValue<viaduct.api.grts.User>>
+```
+
 ## Implementation
 
-Implement a node resolver by subclassing the generated base class, annotating the class with `@Resolver`, and overriding exactly one of either `resolve` or `batchResolve`.
+Implement a node resolver by subclassing the generated base class, annotating the class with `@Resolver`, and overriding its generated `resolve` or `batchResolve` method.
 
 Here's an example of a non-batching resolver for `User` that calls a user service to get data for a single user:
 
@@ -58,8 +64,9 @@ class UserNodeResolver @Inject constructor(
 ): NodeResolvers.User() {
   override suspend fun resolve(ctx: Context): User {
     // Fetches data for a single User ID
-    val data = userService.fetch(ctx.id.internalId)
-    return User.builder(ctx)
+    val data = userService.fetch(ctx.id.internalID)
+    return User.Builder(ctx)
+      .id(ctx.id)
       .firstName(data.firstName)
       .lastName(data.lastName)
       .build()
@@ -118,7 +125,7 @@ class SelectiveUserNodeResolver @Inject constructor(
 ): NodeResolvers.User() {
   override suspend fun resolve(ctx: Context): User {
     val sel = ctx.selections()
-    return User.builder(ctx)
+    return User.Builder(ctx)
       .id(ctx.id)
       .apply {
         // Conditionally fetch expensive fields based on what's requested
@@ -137,6 +144,6 @@ Non-selective node resolvers should not use `ctx.selections()`, and their genera
 
 The node resolver is responsible for resolving all fields, including nested fields, that do not have their own resolver. These are typically core fields that are stored together and can be efficiently retrieved together.
 
-In the example above, the node resolver for `User` is responsible for returning the `firstName` and `lastName` fields, but not the `displayName` field, which has its own resolver. Note that node resolvers are *not* responsible for the `id` field, since the ID is an input to the node resolver.
+In the example above, the node resolver for `User` is responsible for returning the `id`, `firstName`, and `lastName` fields, but not the `displayName` field, which has its own resolver. Since the ID is an input to the node resolver, it can populate the field directly from `ctx.id`.
 
-Node resolvers are also responsible for determining whether the node exists. When a requested node does not exist, the node resolver should throw an exception, indicating that there's been an error.
+Node resolvers are also responsible for determining whether the node exists. An unbatched resolver should throw an exception when the requested node does not exist. A batch resolver should return a `FieldValue` error for the corresponding `Context`, as described in [Batch Resolution](batch_resolution.md#output).

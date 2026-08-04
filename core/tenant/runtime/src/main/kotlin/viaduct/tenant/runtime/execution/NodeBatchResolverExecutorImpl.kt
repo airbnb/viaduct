@@ -1,7 +1,11 @@
 package viaduct.tenant.runtime.execution
 
 import javax.inject.Provider
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import viaduct.api.FieldValue
+import viaduct.api.context.NodeExecutionContext
 import viaduct.api.internal.BaseBatchedNodeResolver
 import viaduct.apiannotations.Attribution
 import viaduct.apiannotations.AttributionContext
@@ -12,13 +16,13 @@ import viaduct.engine.api.ResolverType
 import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.errors.ErroneousFieldException
-import viaduct.errors.FrameworkException
 import viaduct.errors.PassthroughException
 import viaduct.errors.TenantResolverException
 import viaduct.errors.TenantUsageException
-import viaduct.errors.handleTenantErrorsSuspend
+import viaduct.errors.handleTenantErrorsResultSuspend
 import viaduct.errors.resultOfSuspend
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
+import viaduct.tenant.runtime.support.partitionByUniqueKey
 
 class NodeBatchResolverExecutorImpl(
     val resolver: Provider<out BaseBatchedNodeResolver>,
@@ -34,38 +38,83 @@ class NodeBatchResolverExecutorImpl(
     override suspend fun resolve(
         selectors: List<NodeResolverExecutor.Selector>,
         context: EngineExecutionContext
+    ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> =
+        resolve(
+            resolver = resolver.get(),
+            selectors = selectors,
+            context = context,
+        )
+
+    private suspend fun resolve(
+        resolver: BaseBatchedNodeResolver,
+        selectors: List<NodeResolverExecutor.Selector>,
+        context: EngineExecutionContext,
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
-        val contexts = selectors.map { key ->
-            factory(context, key.selections, context.requestContext, key.id)
-        }
-        val resolver = resolver.get()
-        val results: Any? = handleTenantErrorsSuspend(typeName) {
-            resolver.invokeNodeBatchResolver(contexts)
-        }
-        if (results !is List<*>) {
-            throw FrameworkException("Unexpected return value from batchResolve function for node $typeName: $results")
-        }
-        if (selectors.size != results.size) {
-            throw TenantResolverException(
-                TenantUsageException(
-                    "The batchResolve function in the Node resolver for $typeName was given a batch of size ${selectors.size} but returned ${results.size} elements"
-                ),
-                typeName
+        val inputs = selectors.map { selector ->
+            ResolverInput(
+                selector = selector,
+                context = factory(context, selector.selections, context.requestContext, selector.id),
+                internalID = context.globalIDCodec.deserialize(selector.id).localID,
             )
         }
-        return selectors.zip(results.map { unwrap(it) }).toMap()
+        val resolvedGroups = coroutineScope {
+            // A request can contain the same decoded ID with different selections. Partition
+            // into stable groups with unique IDs so every context reaches the resolver without
+            // duplicate IDs in one invocation; the groups are then executed concurrently.
+            partitionByUniqueKey(inputs) { it.internalID }
+                .map { group -> async { resolveGroup(resolver, group) } }
+                .awaitAll()
+        }
+
+        return linkedMapOf<NodeResolverExecutor.Selector, Result<EngineObjectData>>().apply {
+            resolvedGroups.forEach { putAll(it) }
+        }
     }
 
-    private suspend fun unwrap(fieldValue: Any?): Result<EngineObjectData> {
-        if (fieldValue !is FieldValue<*>) {
-            return Result.failure(
-                TenantResolverException(
-                    TenantUsageException("Unexpected result type that is not a FieldValue: $fieldValue"),
-                    typeName
+    private suspend fun resolveGroup(
+        resolver: BaseBatchedNodeResolver,
+        group: List<ResolverInput>,
+    ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> =
+        handleTenantErrorsResultSuspend(typeName) {
+            val contexts = group.map { it.context }
+            val results: Map<NodeExecutionContext<*>, FieldValue<*>> =
+                resolver.invokeNodeBatchResolver(contexts)
+            if (contexts.size != results.size) {
+                throw TenantResolverException(
+                    TenantUsageException(
+                        "The batchResolve function in the Node resolver for $typeName was given a batch of size ${contexts.size} but returned ${results.size} elements"
+                    ),
+                    typeName,
                 )
-            )
+            }
+            val contextToSelector = group.associate { it.context to it.selector }
+            val resolved = linkedMapOf<NodeResolverExecutor.Selector, Result<EngineObjectData>>()
+
+            results.forEach { (returnedContext, fieldValue) ->
+                val selector = contextToSelector[returnedContext]
+                    ?: throw TenantResolverException(
+                        TenantUsageException(
+                            "The batchResolve function in the Node resolver for $typeName returned a context that was not in the input context list: $returnedContext"
+                        ),
+                        typeName,
+                    )
+                resolved[selector] = unwrap(fieldValue)
+            }
+
+            resolved
+        }.getOrElse { failure ->
+            group.associate { input ->
+                input.selector to Result.failure(failure)
+            }
         }
 
+    private data class ResolverInput(
+        val selector: NodeResolverExecutor.Selector,
+        val context: NodeExecutionContext<*>,
+        val internalID: String,
+    )
+
+    private suspend fun unwrap(fieldValue: FieldValue<*>): Result<EngineObjectData> {
         // TODO: the pass through here for `ErroneousFieldException` is not our long-term
         // solution. Instead, we need a mechanism for passing field-level error information
         // from tenant exceptions into the final graphql field-error. See the

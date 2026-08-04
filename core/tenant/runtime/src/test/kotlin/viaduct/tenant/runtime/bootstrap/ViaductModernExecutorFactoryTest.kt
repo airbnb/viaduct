@@ -21,6 +21,7 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
 import viaduct.api.types.Query
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
@@ -90,20 +91,25 @@ class ViaductModernExecutorFactoryTest {
         override suspend fun resolve(ctx: Context): TestNode = TestNode()
     }
 
-    abstract class TestBatchNodeResolverBase : NodeResolverBase<TestBatchNode>, BaseBatchedNodeResolver {
-        abstract suspend fun batchResolve(ctxs: List<Context>): List<FieldValue<TestBatchNode>>
+    abstract class TestBatchNodeResolverBase :
+        NodeResolverBase<TestBatchNode>,
+        BaseBatchedNodeResolver {
+        abstract suspend fun batchResolve(ctxs: List<Context>): Map<Context, FieldValue<TestBatchNode>>
 
         @Suppress("UNCHECKED_CAST")
-        final override suspend fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): Any? = batchResolve(contexts.map { Context(it as NodeExecutionContext<TestBatchNode>) })
+        final override suspend fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): Map<NodeExecutionContext<*>, FieldValue<TestBatchNode>> {
+            val wrappedContexts = contexts.map { Context(it as NodeExecutionContext<TestBatchNode>) }
+            return batchResolve(wrappedContexts).mapKeys { it.key.inner }
+        }
 
         class Context(
-            private val inner: NodeExecutionContext<TestBatchNode>,
+            @InternalApi internal val inner: NodeExecutionContext<TestBatchNode>,
         ) : NodeExecutionContext<TestBatchNode> by inner
     }
 
     @Resolver
     class TestBatchNodeResolver : TestBatchNodeResolverBase() {
-        override suspend fun batchResolve(ctxs: List<Context>): List<FieldValue<TestBatchNode>> = emptyList()
+        override suspend fun batchResolve(ctxs: List<Context>): Map<Context, FieldValue<TestBatchNode>> = emptyMap()
     }
 
     private val schema = MockSchema.mk("type TestType { aField: String }")
