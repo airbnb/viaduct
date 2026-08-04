@@ -231,4 +231,38 @@ class InputGeneratorTest {
         !generated.contains("validateOneOf"),
         "Expected no @oneOf validation on a plain input, got:\n" + generated);
   }
+
+  @Test
+  void generatesReflectionAndCompositeFieldDescriptors() {
+    InputModel model =
+        new InputModel(
+            "com.example.types",
+            "SearchInput",
+            List.of(
+                new FieldModel(
+                    "filter",
+                    "FilterInput",
+                    true,
+                    true,
+                    false,
+                    false,
+                    false,
+                    false,
+                    "FilterInput",
+                    "FilterInput",
+                    false,
+                    null,
+                    null)),
+            null);
+
+    String generated = JavaGRTGenerator.InputGenerator.generate(model);
+
+    assertTrue(
+        generated.contains(
+            "public static final Type<SearchInput> Reflection = Type.ofClass(SearchInput.class)"));
+    assertTrue(
+        generated.contains("public static final CompositeField<SearchInput, FilterInput> filter"));
+    assertTrue(
+        generated.contains("CompositeField.of(\"filter\", Reflection, FilterInput.Reflection)"));
+  }
 }

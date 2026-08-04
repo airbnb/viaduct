@@ -6,9 +6,22 @@ import java.util.Map;
 import viaduct.java.api.context.ExecutionContext;
 import viaduct.java.api.internal.InputBase;
 import viaduct.java.api.internal.InternalContext;
+import viaduct.java.api.reflect.Field;
+import viaduct.java.api.reflect.Type;
+import viaduct.java.api.reflect.TypeFields;
 
 /** A simple input with basic fields. */
 public class SimpleInput extends InputBase {
+
+  public static final Type<SimpleInput> Reflection = Type.ofClass(SimpleInput.class);
+
+  public static final class Fields implements TypeFields<SimpleInput> {
+    private Fields() {}
+
+    public static final Field<SimpleInput> __typename = Field.of("__typename", Reflection);
+    public static final Field<SimpleInput> name = Field.of("name", Reflection);
+    public static final Field<SimpleInput> count = Field.of("count", Reflection);
+  }
 
   SimpleInput(
       InternalContext context,

@@ -62,5 +62,7 @@ class GeneratedCodeConsistencyTest {
 
     assertTrue(generated.contains("import viaduct.java.api.types.GraphQLUnion;"));
     assertTrue(generated.contains("extends GraphQLUnion"));
+    assertTrue(generated.contains("Type<TestUnion> Reflection = Type.ofClass(TestUnion.class)"));
+    assertTrue(generated.contains("final class Fields implements TypeFields<TestUnion>"));
   }
 }

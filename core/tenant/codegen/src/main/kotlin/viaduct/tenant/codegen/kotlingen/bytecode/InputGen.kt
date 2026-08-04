@@ -42,11 +42,9 @@ fun KotlinGRTFilesBuilder.inputKotlinGen(
     // The chosen ConnectionArguments interface declares getters for the whole pagination pair, but
     // the schema may declare only part of it (e.g. `first` without `after`). Synthesize the missing
     // counterparts so the generated class satisfies the interface. See
-    // SchemaAnalysis.connectionArgumentRequiredNames.
-    val synthesizedConnectionArgs = field?.let {
-        val declared = it.args.map { arg -> arg.name }.toSet()
-        SchemaAnalysis.connectionArgumentRequiredNames(SchemaAnalysis.connectionArgumentsDirection(it)) - declared
-    } ?: emptySet()
+    // SchemaAnalysis.synthesizedConnectionArgumentNames.
+    val synthesizedConnectionArgs =
+        field?.let(SchemaAnalysis::synthesizedConnectionArgumentNames) ?: emptySet()
     return STContents(
         inputSTGroup,
         InputModelImpl(
@@ -117,7 +115,7 @@ private interface InputModel {
             /**
              * A synthesized pagination-argument getter that overrides a `ConnectionArguments`
              * interface property the schema does not declare (e.g. `after` on a `first`-only
-             * field). See [SchemaAnalysis.connectionArgumentRequiredNames].
+             * field). See [SchemaAnalysis.synthesizedConnectionArgumentNames].
              */
             fun synthesizedConnectionArg(argName: String): FieldModel {
                 val kotlinType = when (SchemaAnalysis.connectionArgumentScalarKind(argName)) {

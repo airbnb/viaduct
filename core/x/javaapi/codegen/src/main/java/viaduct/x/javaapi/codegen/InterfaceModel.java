@@ -8,8 +8,20 @@ public record InterfaceModel(
     String className,
     List<String> extendedInterfaces,
     List<FieldModel> fields,
+    List<FieldModel> reflectedFields,
     String description,
     boolean nodeInterface) {
+
+  /** Constructor for models whose generated and reflected fields are identical. */
+  public InterfaceModel(
+      String packageName,
+      String className,
+      List<String> extendedInterfaces,
+      List<FieldModel> fields,
+      String description,
+      boolean nodeInterface) {
+    this(packageName, className, extendedInterfaces, fields, fields, description, nodeInterface);
+  }
 
   // ST (StringTemplate) requires JavaBean-style getters
   public String getPackageName() {
@@ -26,6 +38,10 @@ public record InterfaceModel(
 
   public List<FieldModel> getFields() {
     return fields;
+  }
+
+  public List<FieldModel> getReflectedFields() {
+    return reflectedFields;
   }
 
   public String getDescription() {

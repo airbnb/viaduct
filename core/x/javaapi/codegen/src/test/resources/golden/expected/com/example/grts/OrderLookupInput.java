@@ -5,6 +5,10 @@ import viaduct.java.api.context.ExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InputBase;
 import viaduct.java.api.internal.InternalContext;
+import viaduct.java.api.reflect.CompositeField;
+import viaduct.java.api.reflect.Field;
+import viaduct.java.api.reflect.Type;
+import viaduct.java.api.reflect.TypeFields;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetTime;
@@ -13,6 +17,21 @@ import java.util.List;
 import java.util.Map;
 
 public class OrderLookupInput extends InputBase {
+
+    public static final Type<OrderLookupInput> Reflection = Type.ofClass(OrderLookupInput.class);
+
+    public static final class Fields implements TypeFields<OrderLookupInput> {
+        private Fields() {}
+
+        public static final Field<OrderLookupInput> __typename =
+                Field.of("__typename", Reflection);
+                public static final Field<OrderLookupInput> byId =
+                                Field.of("byId", Reflection);
+
+                public static final Field<OrderLookupInput> byNote =
+                                Field.of("byNote", Reflection);
+
+    }
 
     // Package-private: input GRTs are constructed only through the validating Builder or
     // by sibling GRTs in this package (nested-input wrapping). Tenants cannot construct

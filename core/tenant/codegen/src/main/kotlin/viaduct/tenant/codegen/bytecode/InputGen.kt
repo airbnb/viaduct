@@ -45,10 +45,8 @@ internal fun GRTClassFilesBuilder.fieldArgumentsInputGen(field: ViaductSchema.Fi
     // The chosen ConnectionArguments interface declares getters for the whole pagination pair, but
     // the schema may declare only part of it (e.g. `first` without `after`). Synthesize the missing
     // counterparts so the generated class satisfies the interface. See
-    // SchemaAnalysis.connectionArgumentRequiredNames.
-    val declaredArgNames = field.args.map { it.name }.toSet()
-    val synthesizedConnectionArgs =
-        SchemaAnalysis.connectionArgumentRequiredNames(SchemaAnalysis.connectionArgumentsDirection(field)) - declaredArgNames
+    // SchemaAnalysis.synthesizedConnectionArgumentNames.
+    val synthesizedConnectionArgs = SchemaAnalysis.synthesizedConnectionArgumentNames(field)
 
     val builder = makeInputClass(
         argumentsSimpleName.kmFQN(pkg),
@@ -117,8 +115,8 @@ private class InputClassGen(
      * Emits null-returning getters for pagination arguments the field's `ConnectionArguments`
      * sub-interface requires but the schema does not declare (e.g. `after` on a `first`-only
      * field). Without these the generated class would not satisfy the interface (an
-     * `AbstractMethodError`-prone class). The getter reads the absent field from the backing map,
-     * which yields null. See [SchemaAnalysis.connectionArgumentRequiredNames].
+     * `AbstractMethodError`-prone class). See
+     * [SchemaAnalysis.synthesizedConnectionArgumentNames].
      */
     private fun CustomClassBuilder.addSynthesizedConnectionArgProperties(): CustomClassBuilder {
         for (argName in synthesizedConnectionArgs) {

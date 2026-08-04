@@ -7,6 +7,12 @@ import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.NodeObjectBase;
 import viaduct.java.api.internal.ObjectBase;
+import viaduct.java.api.reflect.CompositeField;
+import viaduct.java.api.reflect.Field;
+import viaduct.java.api.reflect.RootObjectField;
+import viaduct.java.api.reflect.Type;
+import viaduct.java.api.reflect.TypeFields;
+import viaduct.java.api.types.Arguments;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetTime;
@@ -15,6 +21,21 @@ import java.util.List;
 import java.util.Map;
 
 public class OrderEdge extends ObjectBase implements viaduct.java.api.types.Edge<Order> {
+
+    public static final Type<OrderEdge> Reflection = Type.ofClass(OrderEdge.class);
+
+    public static final class Fields implements TypeFields<OrderEdge> {
+        private Fields() {}
+
+        public static final Field<OrderEdge> __typename =
+                Field.of("__typename", Reflection);
+                public static final Field<OrderEdge> cursor =
+                                Field.of("cursor", Reflection);
+
+                public static final CompositeField<OrderEdge, Order> node =
+                                CompositeField.of("node", Reflection, Order.Reflection);
+
+    }
 
     public OrderEdge(InternalContext context, EngineObjectData.Sync data) {
         super(context, data);

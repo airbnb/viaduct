@@ -5,6 +5,9 @@ import java.util.List;
 /**
  * Model representing a GraphQL argument type for code generation.
  *
+ * @param fields schema-declared argument fields
+ * @param synthesizedConnectionFields null-returning compatibility getters required by the selected
+ *     {@code ConnectionArguments} interface but absent from the schema
  * @param connectionArgumentsInterface the simple name of the {@code ConnectionArguments}
  *     sub-interface this arguments type should additionally implement (e.g. {@code
  *     "ForwardConnectionArguments"}), or null when the field is not a connection field
@@ -13,11 +16,20 @@ public record ArgumentModel(
     String packageName,
     String className,
     List<FieldModel> fields,
+    List<FieldModel> synthesizedConnectionFields,
     String connectionArgumentsInterface) {
 
   /** Legacy constructor for non-connection argument types. */
   public ArgumentModel(String packageName, String className, List<FieldModel> fields) {
-    this(packageName, className, fields, null);
+    this(packageName, className, fields, List.of(), null);
+  }
+
+  public ArgumentModel(
+      String packageName,
+      String className,
+      List<FieldModel> fields,
+      String connectionArgumentsInterface) {
+    this(packageName, className, fields, List.of(), connectionArgumentsInterface);
   }
 
   // ST (StringTemplate) requires JavaBean-style getters
@@ -31,6 +43,14 @@ public record ArgumentModel(
 
   public List<FieldModel> getFields() {
     return fields;
+  }
+
+  public List<FieldModel> getReflectedFields() {
+    return fields;
+  }
+
+  public List<FieldModel> getSynthesizedConnectionFields() {
+    return synthesizedConnectionFields;
   }
 
   /**

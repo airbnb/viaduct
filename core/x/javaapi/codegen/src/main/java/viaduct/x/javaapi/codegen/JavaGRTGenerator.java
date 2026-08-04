@@ -56,6 +56,7 @@ public final class JavaGRTGenerator {
             """
             package <mdl.packageName>;
 
+            import viaduct.java.api.reflect.Type;
             import viaduct.java.api.types.GraphQLEnum;
 
             <if(mdl.hasDescription)>
@@ -65,7 +66,9 @@ public final class JavaGRTGenerator {
             <endif>
             public enum <mdl.className> implements GraphQLEnum {
                 <mdl.valueNames: {valueName | <valueName>}; separator=",
-            ">
+            ">;
+
+                public static final Type\\<<mdl.className>\\> Reflection = Type.ofClass(<mdl.className>.class);
             }
             """);
 
@@ -110,6 +113,12 @@ public final class JavaGRTGenerator {
             import viaduct.java.api.internal.InternalContext;
             import viaduct.java.api.internal.NodeObjectBase;
             import viaduct.java.api.internal.ObjectBase;
+            import viaduct.java.api.reflect.CompositeField;
+            import viaduct.java.api.reflect.Field;
+            import viaduct.java.api.reflect.RootObjectField;
+            import viaduct.java.api.reflect.Type;
+            import viaduct.java.api.reflect.TypeFields;
+            import viaduct.java.api.types.Arguments;
             import java.time.Instant;
             import java.time.LocalDate;
             import java.time.OffsetTime;
@@ -123,6 +132,24 @@ public final class JavaGRTGenerator {
              */
             <endif>
             public class <mdl.className> extends <if(mdl.isNodeType)>NodeObjectBase<else>ObjectBase<endif><if(mdl.hasImplementsClause)> implements <mdl.implementsClause><endif> {
+
+                public static final Type\\<<mdl.className>\\> Reflection = Type.ofClass(<mdl.className>.class);
+
+                public static final class Fields implements TypeFields\\<<mdl.className>\\> {
+                    private Fields() {}
+
+                    public static final Field\\<<mdl.className>\\> __typename =
+                            Field.of("__typename", Reflection);
+                    <mdl.reflectedFields: {f |
+                    <if(f.rootObjectField)>public static final RootObjectField\\<<mdl.className>, <f.reflectedTypeName>, <f.argumentsTypeName>\\> <f.safeName> =
+                            RootObjectField.of("<f.name>", Reflection, <f.reflectedTypeName>.Reflection, List.of(<f.pathFromQueryRoot: {segment | "<segment>"}; separator=", ">));
+                    <elseif(f.hasReflectedType)>public static final CompositeField\\<<mdl.className>, <f.reflectedTypeName>\\> <f.safeName> =
+                            CompositeField.of("<f.name>", Reflection, <f.reflectedTypeName>.Reflection);
+                    <else>public static final Field\\<<mdl.className>\\> <f.safeName> =
+                            Field.of("<f.name>", Reflection);
+                    <endif>
+                    }; separator="\\n">
+                }
 
                 public <mdl.className>(InternalContext context, EngineObjectData.Sync data) {
                     super(context, data);
@@ -191,6 +218,13 @@ public final class JavaGRTGenerator {
             import viaduct.java.api.internal.ConnectionBuilder;
             import viaduct.java.api.internal.InternalContext;
             import viaduct.java.api.internal.ObjectBase;
+            import viaduct.java.api.reflect.CompositeField;
+            import viaduct.java.api.reflect.Field;
+            import viaduct.java.api.reflect.RootObjectField;
+            import viaduct.java.api.reflect.Type;
+            import viaduct.java.api.reflect.TypeFields;
+            import viaduct.java.api.types.Arguments;
+            import viaduct.java.api.types.ConnectionArguments;
             import viaduct.java.api.types.OffsetLimit;
             import java.time.Instant;
             import java.time.LocalDate;
@@ -205,6 +239,24 @@ public final class JavaGRTGenerator {
              */
             <endif>
             public class <mdl.className> extends ObjectBase implements <mdl.implementsClause> {
+
+                public static final Type\\<<mdl.className>\\> Reflection = Type.ofClass(<mdl.className>.class);
+
+                public static final class Fields implements TypeFields\\<<mdl.className>\\> {
+                    private Fields() {}
+
+                    public static final Field\\<<mdl.className>\\> __typename =
+                            Field.of("__typename", Reflection);
+                    <mdl.reflectedFields: {f |
+                    <if(f.rootObjectField)>public static final RootObjectField\\<<mdl.className>, <f.reflectedTypeName>, <f.argumentsTypeName>\\> <f.safeName> =
+                            RootObjectField.of("<f.name>", Reflection, <f.reflectedTypeName>.Reflection, List.of(<f.pathFromQueryRoot: {segment | "<segment>"}; separator=", ">));
+                    <elseif(f.hasReflectedType)>public static final CompositeField\\<<mdl.className>, <f.reflectedTypeName>\\> <f.safeName> =
+                            CompositeField.of("<f.name>", Reflection, <f.reflectedTypeName>.Reflection);
+                    <else>public static final Field\\<<mdl.className>\\> <f.safeName> =
+                            Field.of("<f.name>", Reflection);
+                    <endif>
+                    }; separator="\\n">
+                }
 
                 public <mdl.className>(InternalContext context, EngineObjectData.Sync data) {
                     super(context, data);
@@ -338,6 +390,10 @@ public final class JavaGRTGenerator {
             import viaduct.java.api.globalid.GlobalID;
             import viaduct.java.api.internal.InputBase;
             import viaduct.java.api.internal.InternalContext;
+            import viaduct.java.api.reflect.CompositeField;
+            import viaduct.java.api.reflect.Field;
+            import viaduct.java.api.reflect.Type;
+            import viaduct.java.api.reflect.TypeFields;
             import java.time.Instant;
             import java.time.LocalDate;
             import java.time.OffsetTime;
@@ -351,6 +407,22 @@ public final class JavaGRTGenerator {
              */
             <endif>
             public class <mdl.className> extends InputBase {
+
+                public static final Type\\<<mdl.className>\\> Reflection = Type.ofClass(<mdl.className>.class);
+
+                public static final class Fields implements TypeFields\\<<mdl.className>\\> {
+                    private Fields() {}
+
+                    public static final Field\\<<mdl.className>\\> __typename =
+                            Field.of("__typename", Reflection);
+                    <mdl.reflectedFields: {f |
+                    <if(f.hasReflectedType)>public static final CompositeField\\<<mdl.className>, <f.reflectedTypeName>\\> <f.safeName> =
+                            CompositeField.of("<f.name>", Reflection, <f.reflectedTypeName>.Reflection);
+                    <else>public static final Field\\<<mdl.className>\\> <f.safeName> =
+                            Field.of("<f.name>", Reflection);
+                    <endif>
+                    }; separator="\\n">
+                }
 
                 // Package-private: input GRTs are constructed only through the validating Builder or
                 // by sibling GRTs in this package (nested-input wrapping). Tenants cannot construct
@@ -431,6 +503,10 @@ public final class JavaGRTGenerator {
             package <mdl.packageName>;
 
             import viaduct.java.api.globalid.GlobalID;
+            import viaduct.java.api.reflect.CompositeField;
+            import viaduct.java.api.reflect.Field;
+            import viaduct.java.api.reflect.Type;
+            import viaduct.java.api.reflect.TypeFields;
             import viaduct.java.api.types.GraphQLInterface;
             import viaduct.java.api.types.NodeCompositeOutput;
             import java.time.Instant;
@@ -444,6 +520,22 @@ public final class JavaGRTGenerator {
              */
             <endif>
             public interface <mdl.className> extends <mdl.extendsClause> {
+
+                Type\\<<mdl.className>\\> Reflection = Type.ofClass(<mdl.className>.class);
+
+                final class Fields implements TypeFields\\<<mdl.className>\\> {
+                    private Fields() {}
+
+                    public static final Field\\<<mdl.className>\\> __typename =
+                            Field.of("__typename", Reflection);
+                    <mdl.reflectedFields: {f |
+                    <if(f.hasReflectedType)>public static final CompositeField\\<<mdl.className>, <f.reflectedTypeName>\\> <f.safeName> =
+                            CompositeField.of("<f.name>", Reflection, <f.reflectedTypeName>.Reflection);
+                    <else>public static final Field\\<<mdl.className>\\> <f.safeName> =
+                            Field.of("<f.name>", Reflection);
+                    <endif>
+                    }; separator="\\n">
+                }
 
                 <mdl.fields: {f |
                 <f.javaType> <f.getterName>();
@@ -487,6 +579,10 @@ public final class JavaGRTGenerator {
 
             import graphql.schema.GraphQLInputObjectType;
             import viaduct.java.api.globalid.GlobalID;
+            import viaduct.java.api.reflect.CompositeField;
+            import viaduct.java.api.reflect.Field;
+            import viaduct.java.api.reflect.Type;
+            import viaduct.java.api.reflect.TypeFields;
             import java.time.Instant;
             import java.time.LocalDate;
             import java.time.OffsetTime;
@@ -500,6 +596,22 @@ public final class JavaGRTGenerator {
             /** Generated arguments class for resolver field. */
             public class <mdl.className> extends InputBase implements Arguments<if(mdl.isConnectionArguments)>, <mdl.connectionArgumentsClause><endif> {
 
+                public static final Type\\<<mdl.className>\\> Reflection = Type.ofClass(<mdl.className>.class);
+
+                public static final class Fields implements TypeFields\\<<mdl.className>\\> {
+                    private Fields() {}
+
+                    public static final Field\\<<mdl.className>\\> __typename =
+                            Field.of("__typename", Reflection);
+                    <mdl.reflectedFields: {f |
+                    <if(f.hasReflectedType)>public static final CompositeField\\<<mdl.className>, <f.reflectedTypeName>\\> <f.safeName> =
+                            CompositeField.of("<f.name>", Reflection, <f.reflectedTypeName>.Reflection);
+                    <else>public static final Field\\<<mdl.className>\\> <f.safeName> =
+                            Field.of("<f.name>", Reflection);
+                    <endif>
+                    }; separator="\\n">
+                }
+
                 // Public because the framework constructs arguments reflectively across packages
                 // (JavaFieldResolverExecutorImpl, VariablesProviderExecutorImpl, etc.). @InternalApi
                 // marks it as not-for-tenant-use, mirroring Kotlin's `internal constructor`.
@@ -511,6 +623,11 @@ public final class JavaGRTGenerator {
                 <mdl.fields: {f |
                 public <f.javaType> <f.getterName>() {
                     <if(f.globalIDList)>return getGlobalIDList("<f.name>");<elseif(f.globalIDType)>return getGlobalID("<f.name>");<elseif(f.compositeList)>return getInputList("<f.name>", <f.baseTypeName>::new);<elseif(f.compositeType)>return getInput("<f.name>", <f.baseTypeName>::new);<elseif(f.enumList)>return getEnumList("<f.name>", <f.baseTypeName>.class);<elseif(f.enumType)>return getEnum("<f.name>", <f.baseTypeName>.class);<elseif(f.temporalScalarList)>return getScalarList("<f.name>", "<f.scalarCoercionHint>");<elseif(f.temporalScalar)>return get("<f.name>", "<f.scalarCoercionHint>");<elseif(f.scalarList)>return getScalarList("<f.name>");<else>return get("<f.name>");<endif>
+                \\}
+                }; separator="\\n">
+                <mdl.synthesizedConnectionFields: {f |
+                public <f.javaType> <f.getterName>() {
+                    return null;
                 \\}
                 }; separator="\\n">
             }
@@ -550,6 +667,9 @@ public final class JavaGRTGenerator {
             """
             package <mdl.packageName>;
 
+            import viaduct.java.api.reflect.Field;
+            import viaduct.java.api.reflect.Type;
+            import viaduct.java.api.reflect.TypeFields;
             import viaduct.java.api.types.GraphQLUnion;
 
             /**
@@ -560,6 +680,14 @@ public final class JavaGRTGenerator {
              * Possible types: <mdl.memberTypes; separator=", ">
              */
             public interface <mdl.className> extends GraphQLUnion {
+                Type\\<<mdl.className>\\> Reflection = Type.ofClass(<mdl.className>.class);
+
+                final class Fields implements TypeFields\\<<mdl.className>\\> {
+                    private Fields() {}
+
+                    public static final Field\\<<mdl.className>\\> __typename =
+                            Field.of("__typename", Reflection);
+                }
             }
             """);
 

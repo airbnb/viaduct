@@ -1,14 +1,35 @@
 package viaduct.tenant.runtime.execution.reflection;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.junit.jupiter.api.Test;
 import viaduct.java.api.annotations.Resolver;
+import viaduct.java.api.reflect.CompositeField;
+import viaduct.java.api.reflect.RootObjectField;
 import viaduct.tenant.runtime.execution.reflection.resolverbases.CategoryResolvers;
 import viaduct.tenant.runtime.execution.reflection.resolverbases.QueryResolvers;
 import viaduct.tenant.runtime.execution.reflection.resolverbases.ShelfResolvers;
 
 public class JavaReflectionContractTest extends ReflectionContractTest {
+
+  @Test
+  void generatedMetadataDescriptorsMatchSchema() {
+    assertEquals("Query", Query.Reflection.getName());
+    assertSame(Query.class, Query.Reflection.getJavaClass());
+    assertEquals("id", Toy.Fields.id.getName());
+    assertSame(Toy.Reflection, Toy.Fields.id.getContainingType());
+
+    CompositeField<Category, Product> products = Category.Fields.products;
+    assertSame(Product.Reflection, products.getType());
+
+    RootObjectField<Query, Category, Query_Category_Arguments> category = Query.Fields.category;
+    assertSame(Category.Reflection, category.getType());
+    assertEquals(List.of("category"), category.getPathFromQueryRoot());
+  }
 
   // --- Resolvers ---
 

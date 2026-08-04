@@ -106,4 +106,22 @@ class InterfaceGeneratorTest {
     assertTrue(generated.contains("String getName();"));
     assertTrue(generated.contains("boolean getIsActive();"));
   }
+
+  @Test
+  void generatesReflectionAndFieldsContainer() {
+    InterfaceModel model =
+        new InterfaceModel(
+            "com.example.types",
+            "Entity",
+            List.of(),
+            List.of(FieldModel.simple("id", "String", false)),
+            null,
+            false);
+
+    String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
+
+    assertTrue(generated.contains("Type<Entity> Reflection = Type.ofClass(Entity.class)"));
+    assertTrue(generated.contains("final class Fields implements TypeFields<Entity>"));
+    assertTrue(generated.contains("public static final Field<Entity> id"));
+  }
 }

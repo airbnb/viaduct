@@ -145,7 +145,7 @@ extend type Query {
   # Selective + batching field resolver.
   trendingUsers: [User!]! @resolver(isSelective: true, isBatching: true)
   # Connection field resolver.
-  ordersConnection(first: Int!, after: String): OrderConnection @resolver
+  ordersConnection(first: Int!): OrderConnection @resolver
   # Field resolver taking a @oneOf input argument.
   lookupOrder(filter: OrderLookupInput!): Order @resolver
 }

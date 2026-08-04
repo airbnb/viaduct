@@ -227,9 +227,18 @@ object SchemaAnalysis {
         }
 
     /**
+     * Pagination-argument getters required by the selected `ConnectionArguments` interface but not
+     * declared by the schema. Generators emit these as null-returning compatibility getters only;
+     * they must not expose them as schema fields through reflection.
+     */
+    fun synthesizedConnectionArgumentNames(field: ViaductSchema.Field): Set<String> =
+        connectionArgumentRequiredNames(connectionArgumentsDirection(field)) -
+            field.args.map { it.name }.toSet()
+
+    /**
      * The nullable, boxed scalar getter type for a pagination argument: `first`/`last` are `Int?`
      * and `after`/`before` are `String?`. Used by codegen to synthesize the missing-counterpart
-     * getters (see [connectionArgumentRequiredNames]). Returns null for a non-pagination name.
+     * getters (see [synthesizedConnectionArgumentNames]). Returns null for a non-pagination name.
      */
     fun connectionArgumentScalarKind(argName: String): ConnectionArgScalarKind? =
         when (argName) {

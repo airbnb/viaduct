@@ -97,7 +97,10 @@ class SchemaAnalysisTest {
             backwardConn(last: Int, before: String): WidgetConnection
             multiConn(first: Int, after: String, last: Int, before: String): WidgetConnection
             firstOnlyConn(first: Int): WidgetConnection
+            afterOnlyConn(after: String): WidgetConnection
             lastOnlyConn(last: Int): WidgetConnection
+            beforeOnlyConn(before: String): WidgetConnection
+            partialMultiConn(first: Int, last: Int): WidgetConnection
             unpagedConn: WidgetConnection
             plainField(first: Int, after: String): Plain
         }
@@ -456,32 +459,30 @@ class SchemaAnalysisTest {
     }
 
     @Test
-    fun `connectionArgumentRequiredNames minus declared yields the missing counterpart`() {
-        // A first-only field is FORWARD but declares only `first`; `after` must be synthesized.
-        val firstOnly = schema.field("Query", "firstOnlyConn")
-        val declared = firstOnly.args.map { it.name }.toSet()
-        val direction = SchemaAnalysis.connectionArgumentsDirection(firstOnly)
+    fun `synthesizedConnectionArgumentNames returns only interface fields absent from the schema`() {
         assertEquals(
             setOf("after"),
-            SchemaAnalysis.connectionArgumentRequiredNames(direction) - declared,
+            SchemaAnalysis.synthesizedConnectionArgumentNames(schema.field("Query", "firstOnlyConn")),
         )
-
-        // A last-only field is BACKWARD but declares only `last`; `before` must be synthesized.
-        val lastOnly = schema.field("Query", "lastOnlyConn")
+        assertEquals(
+            setOf("first"),
+            SchemaAnalysis.synthesizedConnectionArgumentNames(schema.field("Query", "afterOnlyConn")),
+        )
         assertEquals(
             setOf("before"),
-            SchemaAnalysis.connectionArgumentRequiredNames(
-                SchemaAnalysis.connectionArgumentsDirection(lastOnly),
-            ) - lastOnly.args.map { it.name }.toSet(),
+            SchemaAnalysis.synthesizedConnectionArgumentNames(schema.field("Query", "lastOnlyConn")),
         )
-
-        // A complete forward pair synthesizes nothing.
-        val forward = schema.field("Query", "forwardConn")
+        assertEquals(
+            setOf("last"),
+            SchemaAnalysis.synthesizedConnectionArgumentNames(schema.field("Query", "beforeOnlyConn")),
+        )
+        assertEquals(
+            setOf("after", "before"),
+            SchemaAnalysis.synthesizedConnectionArgumentNames(schema.field("Query", "partialMultiConn")),
+        )
         assertEquals(
             emptySet<String>(),
-            SchemaAnalysis.connectionArgumentRequiredNames(
-                SchemaAnalysis.connectionArgumentsDirection(forward),
-            ) - forward.args.map { it.name }.toSet(),
+            SchemaAnalysis.synthesizedConnectionArgumentNames(schema.field("Query", "multiConn")),
         )
     }
 

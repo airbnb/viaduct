@@ -7,6 +7,12 @@ import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.NodeObjectBase;
 import viaduct.java.api.internal.ObjectBase;
+import viaduct.java.api.reflect.CompositeField;
+import viaduct.java.api.reflect.Field;
+import viaduct.java.api.reflect.RootObjectField;
+import viaduct.java.api.reflect.Type;
+import viaduct.java.api.reflect.TypeFields;
+import viaduct.java.api.types.Arguments;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetTime;
@@ -15,6 +21,36 @@ import java.util.List;
 import java.util.Map;
 
 public class Order extends NodeObjectBase implements Node, Auditable, Timestamped, SearchHit {
+
+    public static final Type<Order> Reflection = Type.ofClass(Order.class);
+
+    public static final class Fields implements TypeFields<Order> {
+        private Fields() {}
+
+        public static final Field<Order> __typename =
+                Field.of("__typename", Reflection);
+                public static final Field<Order> id =
+                                Field.of("id", Reflection);
+
+                public static final CompositeField<Order, OrderStatus> status =
+                                CompositeField.of("status", Reflection, OrderStatus.Reflection);
+
+                public static final CompositeField<Order, Money> total =
+                                CompositeField.of("total", Reflection, Money.Reflection);
+
+                public static final Field<Order> createdAt =
+                                Field.of("createdAt", Reflection);
+
+                public static final Field<Order> updatedAt =
+                                Field.of("updatedAt", Reflection);
+
+                public static final Field<Order> auditTrail =
+                                Field.of("auditTrail", Reflection);
+
+                public static final CompositeField<Order, User> buyer =
+                                CompositeField.of("buyer", Reflection, User.Reflection);
+
+    }
 
     public Order(InternalContext context, EngineObjectData.Sync data) {
         super(context, data);

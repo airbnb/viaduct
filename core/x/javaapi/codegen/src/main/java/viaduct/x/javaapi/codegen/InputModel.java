@@ -7,8 +7,19 @@ public record InputModel(
     String packageName,
     String className,
     List<FieldModel> fields,
+    List<FieldModel> reflectedFields,
     String description,
     boolean isOneOf) {
+
+  /** Constructor for models whose generated and reflected fields are identical. */
+  public InputModel(
+      String packageName,
+      String className,
+      List<FieldModel> fields,
+      String description,
+      boolean isOneOf) {
+    this(packageName, className, fields, fields, description, isOneOf);
+  }
 
   /**
    * Legacy constructor for non-{@code @oneOf} inputs. Kept so existing call sites and tests
@@ -30,6 +41,10 @@ public record InputModel(
 
   public List<FieldModel> getFields() {
     return fields;
+  }
+
+  public List<FieldModel> getReflectedFields() {
+    return reflectedFields;
   }
 
   public String getDescription() {

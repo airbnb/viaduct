@@ -30,6 +30,8 @@ class ArgumentModelTest {
     assertEquals(model.packageName(), model.getPackageName());
     assertEquals(model.className(), model.getClassName());
     assertEquals(model.fields(), model.getFields());
+    assertEquals(model.fields(), model.getReflectedFields());
+    assertTrue(model.getSynthesizedConnectionFields().isEmpty());
   }
 
   @Test

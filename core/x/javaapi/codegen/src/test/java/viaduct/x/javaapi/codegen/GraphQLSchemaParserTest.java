@@ -141,6 +141,133 @@ class GraphQLSchemaParserTest {
   }
 
   @Test
+  void extractsReflectionMetadataForRootAndCompositeFields() throws IOException {
+    ViaductSchema schema =
+        parser.parse(
+            new StringReader(
+                """
+                directive @namespaceType on OBJECT
+                type Query {
+                  products: Products!
+                }
+                type Products @namespaceType {
+                  detail(id: ID): Product
+                  featured: [Product!]!
+                }
+                type Product {
+                  id: ID!
+                }
+                """));
+
+    List<ObjectModel> objects =
+        parser.extractObjects(schema, "com.example.types", /* includeRootTypes= */ true);
+    ObjectModel query =
+        objects.stream().filter(o -> o.className().equals("Query")).findFirst().orElseThrow();
+    ObjectModel products =
+        objects.stream().filter(o -> o.className().equals("Products")).findFirst().orElseThrow();
+
+    FieldModel productsField = query.fields().get(0);
+    assertThat(productsField.rootObjectField()).isTrue();
+    assertThat(productsField.argumentsTypeName()).isEqualTo("Arguments.None");
+    assertThat(productsField.pathFromQueryRoot()).containsExactly("products");
+
+    FieldModel detail =
+        products.fields().stream().filter(f -> f.name().equals("detail")).findFirst().orElseThrow();
+    assertThat(detail.reflectedTypeName()).isEqualTo("Product");
+    assertThat(detail.rootObjectField()).isTrue();
+    assertThat(detail.argumentsTypeName()).isEqualTo("Products_Detail_Arguments");
+    assertThat(detail.pathFromQueryRoot()).containsExactly("products", "detail");
+
+    FieldModel featured =
+        products.fields().stream()
+            .filter(f -> f.name().equals("featured"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(featured.reflectedTypeName()).isEqualTo("Product");
+    assertThat(featured.rootObjectField()).isFalse();
+
+    assertThat(parser.extractArguments(schema, "com.example.types", null))
+        .extracting(ArgumentModel::className)
+        .containsExactly("Products_Detail_Arguments");
+  }
+
+  @Test
+  void keepsSyntheticConnectionGettersOutOfArgumentReflection() throws IOException {
+    ViaductSchema schema =
+        parser.parse(
+            new StringReader(
+                """
+                directive @connection on OBJECT
+                type Query {
+                  forward(first: Int!): ResultConnection
+                  backward(last: Int!): ResultConnection
+                }
+                type ResultConnection @connection {
+                  edges: [ResultEdge]
+                }
+                type ResultEdge {
+                  cursor: String!
+                }
+                """));
+
+    List<ArgumentModel> arguments = parser.extractArguments(schema, "com.example.types", null);
+    ArgumentModel forward =
+        arguments.stream()
+            .filter(argument -> argument.className().equals("Query_Forward_Arguments"))
+            .findFirst()
+            .orElseThrow();
+    ArgumentModel backward =
+        arguments.stream()
+            .filter(argument -> argument.className().equals("Query_Backward_Arguments"))
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(forward.getReflectedFields()).extracting(FieldModel::name).containsExactly("first");
+    assertThat(forward.synthesizedConnectionFields())
+        .extracting(FieldModel::name)
+        .containsExactly("after");
+    assertThat(backward.getReflectedFields()).extracting(FieldModel::name).containsExactly("last");
+    assertThat(backward.synthesizedConnectionFields())
+        .extracting(FieldModel::name)
+        .containsExactly("before");
+
+    assertThat(JavaGRTGenerator.ArgumentGenerator.generate(forward))
+        .contains("public String getAfter()", "return null;")
+        .doesNotContain("Field<Query_Forward_Arguments> after");
+    assertThat(JavaGRTGenerator.ArgumentGenerator.generate(backward))
+        .contains("public String getBefore()", "return null;")
+        .doesNotContain("Field<Query_Backward_Arguments> before");
+  }
+
+  @Test
+  void reflectsBackingDataWithoutGeneratingJavaAccessors() throws IOException {
+    ViaductSchema schema =
+        parser.parse(
+            new StringReader(
+                """
+                scalar BackingData
+                type User {
+                  name: String!
+                  internalState: BackingData
+                }
+                """));
+
+    ObjectModel user = parser.extractObjects(schema, "com.example.types").get(0);
+
+    assertThat(user.fields()).extracting(FieldModel::name).containsExactly("name");
+    assertThat(user.reflectedFields())
+        .extracting(FieldModel::name)
+        .containsExactly("name", "internalState");
+
+    String generated = JavaGRTGenerator.ObjectGenerator.generate(user);
+    assertThat(generated)
+        .contains(
+            "public static final Field<User> internalState",
+            "Field.of(\"internalState\", Reflection)")
+        .doesNotContain("getInternalState()", "Builder internalState(");
+  }
+
+  @Test
   void extractsAbstractTypedFields() throws IOException {
     ViaductSchema schema = parser.parse(getTestSchemaReader());
 

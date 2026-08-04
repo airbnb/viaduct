@@ -438,4 +438,47 @@ class ObjectGeneratorTest {
     assertTrue(generated.contains("private final Map<String, Object> data = new LinkedHashMap<>"));
     assertTrue(generated.contains("return new User(__context, new LinkedHashMap<>(data))"));
   }
+
+  @Test
+  void generatesReflectionAndFieldDescriptors() {
+    ObjectModel model =
+        new ObjectModel(
+            "com.example.types",
+            "Query",
+            List.of(),
+            List.of(
+                new FieldModel(
+                    "title", "String", true, false, false, false, false, false, null, null, false,
+                    null, null),
+                new FieldModel(
+                    "viewer",
+                    "User",
+                    true,
+                    true,
+                    false,
+                    false,
+                    false,
+                    false,
+                    "User",
+                    "User",
+                    true,
+                    "Query_Viewer_Arguments",
+                    List.of("viewer"))),
+            null,
+            true,
+            false);
+
+    String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
+
+    assertTrue(
+        generated.contains(
+            "public static final Type<Query> Reflection = Type.ofClass(Query.class)"));
+    assertTrue(generated.contains("public static final class Fields implements TypeFields<Query>"));
+    assertTrue(generated.contains("public static final Field<Query> __typename"));
+    assertTrue(generated.contains("public static final Field<Query> title"));
+    assertTrue(generated.contains("RootObjectField<Query, User, Query_Viewer_Arguments> viewer"));
+    assertTrue(
+        generated.contains(
+            "RootObjectField.of(\"viewer\", Reflection, User.Reflection, List.of(\"viewer\"))"));
+  }
 }

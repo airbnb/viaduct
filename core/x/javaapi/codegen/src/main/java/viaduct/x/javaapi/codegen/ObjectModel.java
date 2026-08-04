@@ -8,6 +8,7 @@ public record ObjectModel(
     String className,
     List<String> implementedInterfaces,
     List<FieldModel> fields,
+    List<FieldModel> reflectedFields,
     String description,
     boolean isRootType,
     boolean isNodeType,
@@ -15,6 +16,34 @@ public record ObjectModel(
     boolean isEdge,
     String edgeTypeName,
     String nodeTypeName) {
+
+  /** Constructor for models whose generated and reflected fields are identical. */
+  public ObjectModel(
+      String packageName,
+      String className,
+      List<String> implementedInterfaces,
+      List<FieldModel> fields,
+      String description,
+      boolean isRootType,
+      boolean isNodeType,
+      boolean isConnection,
+      boolean isEdge,
+      String edgeTypeName,
+      String nodeTypeName) {
+    this(
+        packageName,
+        className,
+        implementedInterfaces,
+        fields,
+        fields,
+        description,
+        isRootType,
+        isNodeType,
+        isConnection,
+        isEdge,
+        edgeTypeName,
+        nodeTypeName);
+  }
 
   /**
    * Legacy constructor for object types that are neither connections nor edges. Kept so existing
@@ -57,6 +86,10 @@ public record ObjectModel(
 
   public List<FieldModel> getFields() {
     return fields;
+  }
+
+  public List<FieldModel> getReflectedFields() {
+    return reflectedFields;
   }
 
   public String getDescription() {

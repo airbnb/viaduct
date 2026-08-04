@@ -6,6 +6,13 @@ import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.ConnectionBuilder;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.ObjectBase;
+import viaduct.java.api.reflect.CompositeField;
+import viaduct.java.api.reflect.Field;
+import viaduct.java.api.reflect.RootObjectField;
+import viaduct.java.api.reflect.Type;
+import viaduct.java.api.reflect.TypeFields;
+import viaduct.java.api.types.Arguments;
+import viaduct.java.api.types.ConnectionArguments;
 import viaduct.java.api.types.OffsetLimit;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -15,6 +22,24 @@ import java.util.Map;
 import java.util.function.Function;
 
 public class OrderConnection extends ObjectBase implements viaduct.java.api.types.Connection<OrderEdge, Order> {
+
+    public static final Type<OrderConnection> Reflection = Type.ofClass(OrderConnection.class);
+
+    public static final class Fields implements TypeFields<OrderConnection> {
+        private Fields() {}
+
+        public static final Field<OrderConnection> __typename =
+                Field.of("__typename", Reflection);
+                public static final CompositeField<OrderConnection, OrderEdge> edges =
+                                CompositeField.of("edges", Reflection, OrderEdge.Reflection);
+
+                public static final CompositeField<OrderConnection, PageInfo> pageInfo =
+                                CompositeField.of("pageInfo", Reflection, PageInfo.Reflection);
+
+                public static final Field<OrderConnection> totalCount =
+                                Field.of("totalCount", Reflection);
+
+    }
 
     public OrderConnection(InternalContext context, EngineObjectData.Sync data) {
         super(context, data);

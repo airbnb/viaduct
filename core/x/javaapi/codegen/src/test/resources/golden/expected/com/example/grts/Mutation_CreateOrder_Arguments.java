@@ -2,6 +2,10 @@ package com.example.grts;
 
 import graphql.schema.GraphQLInputObjectType;
 import viaduct.java.api.globalid.GlobalID;
+import viaduct.java.api.reflect.CompositeField;
+import viaduct.java.api.reflect.Field;
+import viaduct.java.api.reflect.Type;
+import viaduct.java.api.reflect.TypeFields;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetTime;
@@ -14,6 +18,18 @@ import viaduct.java.api.internal.InternalContext;
 
 /** Generated arguments class for resolver field. */
 public class Mutation_CreateOrder_Arguments extends InputBase implements Arguments {
+
+    public static final Type<Mutation_CreateOrder_Arguments> Reflection = Type.ofClass(Mutation_CreateOrder_Arguments.class);
+
+    public static final class Fields implements TypeFields<Mutation_CreateOrder_Arguments> {
+        private Fields() {}
+
+        public static final Field<Mutation_CreateOrder_Arguments> __typename =
+                Field.of("__typename", Reflection);
+                public static final CompositeField<Mutation_CreateOrder_Arguments, CreateOrderInput> input =
+                                CompositeField.of("input", Reflection, CreateOrderInput.Reflection);
+
+    }
 
     // Public because the framework constructs arguments reflectively across packages
     // (JavaFieldResolverExecutorImpl, VariablesProviderExecutorImpl, etc.). @InternalApi

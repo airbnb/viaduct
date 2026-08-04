@@ -5,8 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
+import viaduct.java.api.types.Arguments;
 import viaduct.java.api.types.GRT;
+import viaduct.java.api.types.GraphQLObject;
 
 class TypeTest {
 
@@ -15,6 +18,10 @@ class TypeTest {
   static class AnotherTestGRT implements GRT {}
 
   static class NotAGRT {}
+
+  static class TestObject implements GraphQLObject {}
+
+  static class TestArguments implements Arguments {}
 
   @Test
   void ofClass_returnsTypeWithCorrectName() {
@@ -95,5 +102,42 @@ class TypeTest {
 
     assertEquals("GRT", type.getName());
     assertEquals(GRT.class, type.getJavaClass());
+  }
+
+  @Test
+  void fieldDescriptor_exposesNameAndContainingType() {
+    Type<TestGRT> containingType = Type.ofClass(TestGRT.class);
+
+    Field<TestGRT> field = Field.of("name", containingType);
+
+    assertEquals("name", field.getName());
+    assertEquals(containingType, field.getContainingType());
+  }
+
+  @Test
+  void compositeFieldDescriptor_exposesUnwrappedType() {
+    Type<TestGRT> containingType = Type.ofClass(TestGRT.class);
+    Type<TestObject> fieldType = Type.ofClass(TestObject.class);
+
+    CompositeField<TestGRT, TestObject> field =
+        CompositeField.of("object", containingType, fieldType);
+
+    assertEquals(fieldType, field.getType());
+  }
+
+  @Test
+  void rootObjectFieldDescriptor_copiesAndValidatesPath() {
+    Type<TestGRT> containingType = Type.ofClass(TestGRT.class);
+    Type<TestObject> fieldType = Type.ofClass(TestObject.class);
+    List<String> path = new java.util.ArrayList<>(List.of("namespace", "object"));
+
+    RootObjectField<TestGRT, TestObject, TestArguments> field =
+        RootObjectField.of("object", containingType, fieldType, path);
+    path.clear();
+
+    assertEquals(List.of("namespace", "object"), field.getPathFromQueryRoot());
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> RootObjectField.of("object", containingType, fieldType, List.of("other")));
   }
 }

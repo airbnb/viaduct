@@ -1,5 +1,6 @@
 package viaduct.x.javaapi.codegen;
 
+import java.util.List;
 import java.util.Set;
 
 /** Model representing a GraphQL field for code generation. */
@@ -12,14 +13,50 @@ public record FieldModel(
     boolean enumType,
     boolean abstractType,
     boolean globalIDType,
-    String baseTypeName) {
+    String baseTypeName,
+    String reflectedTypeName,
+    boolean rootObjectField,
+    String argumentsTypeName,
+    List<String> pathFromQueryRoot) {
+
+  public FieldModel {
+    pathFromQueryRoot = pathFromQueryRoot == null ? null : List.copyOf(pathFromQueryRoot);
+  }
+
+  /** Legacy constructor for fields without reflection metadata. */
+  public FieldModel(
+      String name,
+      String javaType,
+      boolean nullable,
+      boolean compositeType,
+      boolean list,
+      boolean enumType,
+      boolean abstractType,
+      boolean globalIDType,
+      String baseTypeName) {
+    this(
+        name,
+        javaType,
+        nullable,
+        compositeType,
+        list,
+        enumType,
+        abstractType,
+        globalIDType,
+        baseTypeName,
+        null,
+        false,
+        null,
+        null);
+  }
 
   /**
    * Creates a simple scalar FieldModel with no composite/enum/abstract type metadata. Useful for
    * tests and scalar fields.
    */
   public static FieldModel simple(String name, String javaType, boolean nullable) {
-    return new FieldModel(name, javaType, nullable, false, false, false, false, false, null);
+    return new FieldModel(
+        name, javaType, nullable, false, false, false, false, false, null, null, false, null, null);
   }
 
   private static final Set<String> JAVA_KEYWORDS =
@@ -135,6 +172,31 @@ public record FieldModel(
   /** Returns the simple class name of the base type (for composite and enum fields). */
   public String getBaseTypeName() {
     return baseTypeName;
+  }
+
+  /** Returns whether this field's unwrapped type has a generated reflection descriptor. */
+  public boolean getHasReflectedType() {
+    return reflectedTypeName != null;
+  }
+
+  /** Returns the simple name of this field's reflected, unwrapped type. */
+  public String getReflectedTypeName() {
+    return reflectedTypeName;
+  }
+
+  /** Returns whether this field is a non-list object field reachable from the query root. */
+  public boolean getRootObjectField() {
+    return rootObjectField;
+  }
+
+  /** Returns the generated arguments type for a root-object field. */
+  public String getArgumentsTypeName() {
+    return argumentsTypeName;
+  }
+
+  /** Returns the path segments from the query root to this root-object field. */
+  public List<String> getPathFromQueryRoot() {
+    return pathFromQueryRoot;
   }
 
   /** Returns true if this is a list of composite objects. Used for ST template conditionals. */

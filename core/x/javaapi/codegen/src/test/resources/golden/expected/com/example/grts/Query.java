@@ -7,6 +7,12 @@ import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.NodeObjectBase;
 import viaduct.java.api.internal.ObjectBase;
+import viaduct.java.api.reflect.CompositeField;
+import viaduct.java.api.reflect.Field;
+import viaduct.java.api.reflect.RootObjectField;
+import viaduct.java.api.reflect.Type;
+import viaduct.java.api.reflect.TypeFields;
+import viaduct.java.api.types.Arguments;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetTime;
@@ -15,6 +21,39 @@ import java.util.List;
 import java.util.Map;
 
 public class Query extends ObjectBase implements viaduct.java.api.types.Query {
+
+    public static final Type<Query> Reflection = Type.ofClass(Query.class);
+
+    public static final class Fields implements TypeFields<Query> {
+        private Fields() {}
+
+        public static final Field<Query> __typename =
+                Field.of("__typename", Reflection);
+                public static final RootObjectField<Query, Order, Query_Order_Arguments> order =
+                                RootObjectField.of("order", Reflection, Order.Reflection, List.of("order"));
+
+                public static final RootObjectField<Query, User, Arguments.None> topUser =
+                                RootObjectField.of("topUser", Reflection, User.Reflection, List.of("topUser"));
+
+                public static final CompositeField<Query, Order> popularOrders =
+                                CompositeField.of("popularOrders", Reflection, Order.Reflection);
+
+                public static final CompositeField<Query, User> trendingUsers =
+                                CompositeField.of("trendingUsers", Reflection, User.Reflection);
+
+                public static final RootObjectField<Query, OrderConnection, Query_OrdersConnection_Arguments> ordersConnection =
+                                RootObjectField.of("ordersConnection", Reflection, OrderConnection.Reflection, List.of("ordersConnection"));
+
+                public static final RootObjectField<Query, Order, Query_LookupOrder_Arguments> lookupOrder =
+                                RootObjectField.of("lookupOrder", Reflection, Order.Reflection, List.of("lookupOrder"));
+
+                public static final CompositeField<Query, Node> node =
+                                CompositeField.of("node", Reflection, Node.Reflection);
+
+                public static final CompositeField<Query, Node> nodes =
+                                CompositeField.of("nodes", Reflection, Node.Reflection);
+
+    }
 
     public Query(InternalContext context, EngineObjectData.Sync data) {
         super(context, data);

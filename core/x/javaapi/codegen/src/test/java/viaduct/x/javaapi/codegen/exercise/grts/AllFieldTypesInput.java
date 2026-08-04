@@ -9,9 +9,32 @@ import java.util.Map;
 import viaduct.java.api.context.ExecutionContext;
 import viaduct.java.api.internal.InputBase;
 import viaduct.java.api.internal.InternalContext;
+import viaduct.java.api.reflect.Field;
+import viaduct.java.api.reflect.Type;
+import viaduct.java.api.reflect.TypeFields;
 
 /** An input with all field types. */
 public class AllFieldTypesInput extends InputBase {
+
+  public static final Type<AllFieldTypesInput> Reflection = Type.ofClass(AllFieldTypesInput.class);
+
+  public static final class Fields implements TypeFields<AllFieldTypesInput> {
+    private Fields() {}
+
+    public static final Field<AllFieldTypesInput> __typename = Field.of("__typename", Reflection);
+    public static final Field<AllFieldTypesInput> stringField = Field.of("stringField", Reflection);
+    public static final Field<AllFieldTypesInput> intField = Field.of("intField", Reflection);
+    public static final Field<AllFieldTypesInput> floatField = Field.of("floatField", Reflection);
+    public static final Field<AllFieldTypesInput> boolField = Field.of("boolField", Reflection);
+    public static final Field<AllFieldTypesInput> listField = Field.of("listField", Reflection);
+    public static final Field<AllFieldTypesInput> bigDecimalField =
+        Field.of("bigDecimalField", Reflection);
+    public static final Field<AllFieldTypesInput> bigIntegerField =
+        Field.of("bigIntegerField", Reflection);
+    public static final Field<AllFieldTypesInput> jsonField = Field.of("jsonField", Reflection);
+    public static final Field<AllFieldTypesInput> jsonListField =
+        Field.of("jsonListField", Reflection);
+  }
 
   AllFieldTypesInput(
       InternalContext context,
