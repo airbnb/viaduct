@@ -2,6 +2,8 @@ package viaduct.java.api.context;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import viaduct.java.api.documents.MutationFromAnnotation;
+import viaduct.java.api.documents.QueryFromAnnotation;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.types.NodeCompositeOutput;
@@ -45,6 +47,22 @@ public interface ResolverExecutionContext extends ExecutionContext {
   }
 
   /**
+   * Executes a query declared with {@code @GraphQLOperation}.
+   *
+   * <p>Generated resolver contexts provide overloads that infer {@code targetClass} from the
+   * tenant's Query GRT.
+   */
+  default <T> CompletableFuture<T> query(
+      QueryFromAnnotation operation, Map<String, Object> variables, Class<T> targetClass) {
+    return query(operation.getOperationText(), variables, targetClass);
+  }
+
+  /** Executes an annotated query with no variables. */
+  default <T> CompletableFuture<T> query(QueryFromAnnotation operation, Class<T> targetClass) {
+    return query(operation, Map.of(), targetClass);
+  }
+
+  /**
    * Executes a sub-mutation against the Mutation root type and returns the result as an instance of
    * {@code targetClass} with the requested selections populated.
    *
@@ -60,5 +78,22 @@ public interface ResolverExecutionContext extends ExecutionContext {
   /** Executes a sub-mutation against the Mutation root type with no variables. */
   default <T> CompletableFuture<T> mutation(String selections, Class<T> targetClass) {
     return mutation(selections, Map.of(), targetClass);
+  }
+
+  /**
+   * Executes a mutation declared with {@code @GraphQLOperation}.
+   *
+   * <p>Generated resolver contexts provide overloads that infer {@code targetClass} from the
+   * tenant's Mutation GRT.
+   */
+  default <T> CompletableFuture<T> mutation(
+      MutationFromAnnotation operation, Map<String, Object> variables, Class<T> targetClass) {
+    return mutation(operation.getOperationText(), variables, targetClass);
+  }
+
+  /** Executes an annotated mutation with no variables. */
+  default <T> CompletableFuture<T> mutation(
+      MutationFromAnnotation operation, Class<T> targetClass) {
+    return mutation(operation, Map.of(), targetClass);
   }
 }

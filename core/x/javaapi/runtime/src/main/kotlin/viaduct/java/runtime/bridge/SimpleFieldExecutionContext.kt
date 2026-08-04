@@ -1,5 +1,6 @@
 package viaduct.java.runtime.bridge
 
+import graphql.language.FragmentDefinition
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.CoroutineScope
 import viaduct.engine.api.EngineExecutionContext
@@ -8,6 +9,8 @@ import viaduct.errors.FrameworkException
 import viaduct.errors.handleFrameworkErrors
 import viaduct.java.api.context.FieldExecutionContext
 import viaduct.java.api.context.SelectiveFieldExecutionContext
+import viaduct.java.api.documents.MutationFromAnnotation
+import viaduct.java.api.documents.QueryFromAnnotation
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.resolvers.FieldResolverBase
@@ -54,11 +57,12 @@ class SimpleFieldExecutionContext(
     private val engineExecutionContext: EngineExecutionContext? = null,
     private val coroutineScope: CoroutineScope? = null,
     private val classFinder: ResolverClassFinder? = null,
+    private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
 ) : FieldExecutionContext<GraphQLObject, Query, Arguments, AnySelections>,
     SelectiveFieldExecutionContext<AnySelections>,
     FieldResolverBase.Context<GraphQLObject, Query, Arguments, AnySelections>,
     InternalContext {
-    private val delegate = JavaEngineContextDelegate(engineExecutionContext, classFinder, coroutineScope)
+    private val delegate = JavaEngineContextDelegate(engineExecutionContext, classFinder, coroutineScope, knownFragments)
 
     override fun getObjectValue(): GraphQLObject =
         handleFrameworkErrors("getObjectValue") {
@@ -129,4 +133,16 @@ class SimpleFieldExecutionContext(
         variables: Map<String, Any?>,
         targetClass: Class<T>
     ): CompletableFuture<T> = delegate.mutation(selections, variables, targetClass)
+
+    override fun <T : Any> query(
+        operation: QueryFromAnnotation,
+        variables: Map<String, Any?>,
+        targetClass: Class<T>,
+    ): CompletableFuture<T> = delegate.queryOperation(operation.operationText, variables, targetClass)
+
+    override fun <T : Any> mutation(
+        operation: MutationFromAnnotation,
+        variables: Map<String, Any?>,
+        targetClass: Class<T>,
+    ): CompletableFuture<T> = delegate.mutationOperation(operation.operationText, variables, targetClass)
 }

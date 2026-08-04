@@ -340,6 +340,20 @@ class ResolverGeneratorTest {
     assertTrue(
         generated.contains(
             "inner.mutation(selections, java.util.Map.of(), com.example.types.Mutation.class)"));
+    assertTrue(
+        generated.contains(
+            "public CompletableFuture<com.example.types.Query> query(QueryFromAnnotation"
+                + " operation)"));
+    assertTrue(
+        generated.contains(
+            "public CompletableFuture<com.example.types.Mutation> mutation(MutationFromAnnotation"
+                + " operation)"));
+    assertTrue(
+        generated.contains(
+            "inner.query(operation, java.util.Map.of(), com.example.types.Query.class)"));
+    assertTrue(
+        generated.contains(
+            "inner.mutation(operation, java.util.Map.of(), com.example.types.Mutation.class)"));
   }
 
   @Test

@@ -163,6 +163,14 @@ class JavaNodeResolverGeneratorTest {
         generated.contains(
             "public <T> CompletableFuture<T> mutation(String selections,"
                 + " Map<String, Object> variables, Class<T> targetClass)"));
+    assertTrue(
+        generated.contains(
+            "public <T> CompletableFuture<T> query(QueryFromAnnotation operation,"
+                + " Map<String, Object> variables, Class<T> targetClass)"));
+    assertTrue(
+        generated.contains(
+            "public <T> CompletableFuture<T> mutation(MutationFromAnnotation operation,"
+                + " Map<String, Object> variables, Class<T> targetClass)"));
   }
 
   @Test

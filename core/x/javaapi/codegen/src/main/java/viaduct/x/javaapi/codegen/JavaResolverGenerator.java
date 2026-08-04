@@ -35,6 +35,8 @@ public final class JavaResolverGenerator {
           import viaduct.java.api.context.ConnectionFieldExecutionContext;
           import viaduct.java.api.context.FieldExecutionContext;
           import viaduct.java.api.context.SelectiveFieldExecutionContext;
+          import viaduct.java.api.documents.MutationFromAnnotation;
+          import viaduct.java.api.documents.QueryFromAnnotation;
           import viaduct.java.api.globalid.GlobalID;
           import viaduct.java.api.internal.InternalContext;
           <if(mdl.hasBatchingResolvers)>
@@ -138,12 +140,30 @@ public final class JavaResolverGenerator {
                           return inner.mutation(selections, variables, targetClass);
                       \\}
 
+                      @Override
+                      public \\<T> CompletableFuture\\<T> query(QueryFromAnnotation operation, Map\\<String, Object> variables, Class\\<T> targetClass) {
+                          return inner.query(operation, variables, targetClass);
+                      \\}
+
+                      @Override
+                      public \\<T> CompletableFuture\\<T> mutation(MutationFromAnnotation operation, Map\\<String, Object> variables, Class\\<T> targetClass) {
+                          return inner.mutation(operation, variables, targetClass);
+                      \\}
+
                       public CompletableFuture\\<<r.queryType>\\> query(String selections) {
                           return inner.query(selections, java.util.Map.of(), <r.queryType>.class);
                       \\}
 
                       public CompletableFuture\\<<r.queryType>\\> query(String selections, Map\\<String, Object> variables) {
                           return inner.query(selections, variables, <r.queryType>.class);
+                      \\}
+
+                      public CompletableFuture\\<<r.queryType>\\> query(QueryFromAnnotation operation) {
+                          return inner.query(operation, java.util.Map.of(), <r.queryType>.class);
+                      \\}
+
+                      public CompletableFuture\\<<r.queryType>\\> query(QueryFromAnnotation operation, Map\\<String, Object> variables) {
+                          return inner.query(operation, variables, <r.queryType>.class);
                       \\}
                       <if(r.hasMutationType)>
                       public CompletableFuture\\<<r.mutationType>\\> mutation(String selections) {
@@ -152,6 +172,14 @@ public final class JavaResolverGenerator {
 
                       public CompletableFuture\\<<r.mutationType>\\> mutation(String selections, Map\\<String, Object> variables) {
                           return inner.mutation(selections, variables, <r.mutationType>.class);
+                      \\}
+
+                      public CompletableFuture\\<<r.mutationType>\\> mutation(MutationFromAnnotation operation) {
+                          return inner.mutation(operation, java.util.Map.of(), <r.mutationType>.class);
+                      \\}
+
+                      public CompletableFuture\\<<r.mutationType>\\> mutation(MutationFromAnnotation operation, Map\\<String, Object> variables) {
+                          return inner.mutation(operation, variables, <r.mutationType>.class);
                       \\}
                       <endif>
 

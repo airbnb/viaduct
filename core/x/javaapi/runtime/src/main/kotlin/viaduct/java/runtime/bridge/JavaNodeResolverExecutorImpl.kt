@@ -1,5 +1,6 @@
 package viaduct.java.runtime.bridge
 
+import graphql.language.FragmentDefinition
 import javax.inject.Provider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
@@ -31,6 +32,7 @@ class JavaNodeResolverExecutorImpl(
     override val isSelective: Boolean = false,
     private val graphqlSchema: graphql.schema.GraphQLSchema? = null,
     private val classFinder: ResolverClassFinder? = null,
+    private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
 ) : NodeResolverExecutor {
     override val metadata: ResolverMetadata = ResolverMetadata.forModern(resolverName, ResolverType.NODE)
     override val isBatching: Boolean = false
@@ -62,6 +64,7 @@ class JavaNodeResolverExecutorImpl(
             engineExecutionContext = context,
             coroutineScope = scope,
             classFinder = classFinder,
+            knownFragments = knownFragments,
         )
 
         val result = handleTenantErrorsSuspend(typeName) {

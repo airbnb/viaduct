@@ -199,6 +199,45 @@ class JavaRegistryExtractorProcessorTest {
         field.path("objectSelections").path("variablesProviders").shouldBeEmpty()
     }
 
+    @Test
+    fun `emits named fragments and typed operations from a document-only source file`(
+        @TempDir tempDir: File
+    ) {
+        val descriptors = compileAndReadDescriptors(tempDir, GRT_STUBS, DOCUMENTS_SOURCE)
+
+        val json = descriptors.getValue("com/example/tenant/Documents.json")
+        json.path("fields").shouldBeEmpty()
+        json.path("nodes").shouldBeEmpty()
+        json.path("grtPackagePrefix").asText() shouldBe "com.example.grts"
+
+        val fragment = json.path("namedFragments").single()
+        fragment.path("text").asText() shouldBe "fragment UserFields on User { id }"
+        fragment.path("grtTypeName").asText() shouldBe "User"
+
+        json.path("namedOperations").shouldHaveSize(2)
+        val query = json.path("namedOperations")[0]
+        query.path("implFqn").asText() shouldBe "com.example.tenant.Documents\$EchoQuery"
+        query.path("kind").asText() shouldBe "QUERY"
+        query.path("text").asText() shouldBe "query(\$value: String!) { echo(value: \$value) }"
+        val mutation = json.path("namedOperations")[1]
+        mutation.path("implFqn").asText() shouldBe "com.example.tenant.Documents\$RecordMutation"
+        mutation.path("kind").asText() shouldBe "MUTATION"
+    }
+
+    @Test
+    fun `reports an error when GraphQLOperation does not extend an operation base`(
+        @TempDir tempDir: File
+    ) {
+        val (success, diagnostics) = compile(tempDir, INVALID_OPERATION_SOURCE)
+
+        success.shouldBeFalse()
+        assertTrue(
+            diagnostics.any {
+                it.contains("must extend QueryFromAnnotation or MutationFromAnnotation")
+            }
+        )
+    }
+
     // ── Compilation harness ───────────────────────────────────────────────────
 
     private fun compileAndReadDescriptors(
@@ -661,6 +700,43 @@ class JavaRegistryExtractorProcessorTest {
                     }
                 }
             }
+            """.trimIndent(),
+        )
+
+        val DOCUMENTS_SOURCE = SourceFile(
+            "com.example.tenant.Documents",
+            """
+            package com.example.tenant;
+
+            import com.example.grts.Grts;
+            import viaduct.java.api.annotations.GraphQLFragment;
+            import viaduct.java.api.annotations.GraphQLOperation;
+            import viaduct.java.api.documents.FragmentFromAnnotation;
+            import viaduct.java.api.documents.MutationFromAnnotation;
+            import viaduct.java.api.documents.QueryFromAnnotation;
+
+            public final class Documents {
+                @GraphQLFragment("fragment UserFields on User { id }")
+                public static final class UserFields extends FragmentFromAnnotation<Grts.User> {}
+
+                @GraphQLOperation("query(${ '$' }value: String!) { echo(value: ${ '$' }value) }")
+                public static final class EchoQuery extends QueryFromAnnotation {}
+
+                @GraphQLOperation("mutation { record }")
+                public static final class RecordMutation extends MutationFromAnnotation {}
+            }
+            """.trimIndent(),
+        )
+
+        val INVALID_OPERATION_SOURCE = SourceFile(
+            "com.example.tenant.InvalidOperation",
+            """
+            package com.example.tenant;
+
+            import viaduct.java.api.annotations.GraphQLOperation;
+
+            @GraphQLOperation("{ echo }")
+            public final class InvalidOperation {}
             """.trimIndent(),
         )
 

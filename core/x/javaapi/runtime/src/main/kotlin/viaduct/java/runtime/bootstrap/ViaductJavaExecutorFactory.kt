@@ -1,11 +1,13 @@
 package viaduct.java.runtime.bootstrap
 
+import graphql.language.FragmentDefinition
 import javax.inject.Provider
 import org.slf4j.LoggerFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
+import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -49,7 +51,7 @@ import viaduct.service.api.spi.CodeInjector
 class ViaductJavaExecutorFactory(
     private val codeInjector: CodeInjector,
     private val grtPackagePrefix: String,
-    @Suppress("UNUSED_PARAMETER") registry: ExecutionRegistryConfigFile,
+    private val registry: ExecutionRegistryConfigFile,
 ) : ExecutorFactory {
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory()
 
@@ -58,6 +60,12 @@ class ViaductJavaExecutorFactory(
     // registry, so only the name-only lookups (grtClassForName/argumentClassForName) are used and
     // the scanner is never triggered.
     private val classFinder: ResolverClassFinder = DefaultResolverClassFinder(grtPackagePrefix, grtPackagePrefix)
+
+    private val namedFragments: Map<String, FragmentDefinition> by lazy {
+        registry.namedFragments
+            .flatMap { CachedDocumentParser.parseDocument(it).getDefinitionsOfType(FragmentDefinition::class.java) }
+            .associateBy { it.name }
+    }
 
     override fun createFieldResolverExecutor(
         configData: FieldEntryConfig,
@@ -122,6 +130,7 @@ class ViaductJavaExecutorFactory(
                 queryValueClass = queryValueClass,
                 graphqlSchema = schema.schema,
                 classFinder = classFinder,
+                knownFragments = namedFragments,
             )
         } else {
             val unbatchedResolverProvider = requireBaseResolver(
@@ -143,6 +152,7 @@ class ViaductJavaExecutorFactory(
                 queryValueClass = queryValueClass,
                 graphqlSchema = schema.schema,
                 classFinder = classFinder,
+                knownFragments = namedFragments,
             )
         }
     }
@@ -180,6 +190,7 @@ class ViaductJavaExecutorFactory(
                 isSelective = configData.isSelective,
                 graphqlSchema = graphqlSchema,
                 classFinder = classFinder,
+                knownFragments = namedFragments,
             )
         } else {
             val unbatchedResolverProvider = requireBaseResolver(
@@ -196,6 +207,7 @@ class ViaductJavaExecutorFactory(
                 isSelective = configData.isSelective,
                 graphqlSchema = graphqlSchema,
                 classFinder = classFinder,
+                knownFragments = namedFragments,
             )
         }
     }

@@ -1,5 +1,6 @@
 package viaduct.java.runtime.bridge
 
+import graphql.language.FragmentDefinition
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.future
@@ -7,9 +8,12 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
 import viaduct.errors.handleFrameworkErrorsSuspend
+import viaduct.graphql.utils.ParsedSelections
+import viaduct.graphql.utils.SelectionsParserUtils
 import viaduct.java.api.globalid.GlobalID
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ResolverClassFinder
@@ -40,6 +44,7 @@ internal class JavaEngineContextDelegate(
     private val engineExecutionContext: EngineExecutionContext? = null,
     private val classFinder: ResolverClassFinder? = null,
     private val coroutineScope: CoroutineScope? = null,
+    private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
 ) {
     private fun requireEngineContext(operation: String): EngineExecutionContext =
         engineExecutionContext
@@ -122,6 +127,41 @@ internal class JavaEngineContextDelegate(
                 ?: throw FrameworkException("ctx.mutation() is not available: the schema has no Mutation type.")
         }
 
+    fun <T : Any> queryOperation(
+        operationText: String,
+        variables: Map<String, Any?>,
+        targetClass: Class<T>,
+    ): CompletableFuture<T> =
+        subquery(
+            "ctx.query()",
+            "query",
+            operationText,
+            variables,
+            targetClass,
+            ResolveSelectionSetOptions.DEFAULT,
+            isOperation = true,
+        ) { engineCtx ->
+            engineCtx.activeSchema.schema.queryType.name
+        }
+
+    fun <T : Any> mutationOperation(
+        operationText: String,
+        variables: Map<String, Any?>,
+        targetClass: Class<T>,
+    ): CompletableFuture<T> =
+        subquery(
+            "ctx.mutation()",
+            "mutation",
+            operationText,
+            variables,
+            targetClass,
+            ResolveSelectionSetOptions.MUTATION,
+            isOperation = true,
+        ) { engineCtx ->
+            engineCtx.activeSchema.schema.mutationType?.name
+                ?: throw FrameworkException("ctx.mutation() is not available: the schema has no Mutation type.")
+        }
+
     /**
      * Shared body for [query] and [mutation]: launch a coroutine that resolves the operation root
      * type's selection set with the given options and converts the engine result into a typed Java
@@ -135,6 +175,7 @@ internal class JavaEngineContextDelegate(
         variables: Map<String, Any?>,
         targetClass: Class<T>,
         options: ResolveSelectionSetOptions,
+        isOperation: Boolean = false,
         rootTypeName: (EngineExecutionContext) -> String,
     ): CompletableFuture<T> {
         val engineCtx = engineExecutionContext
@@ -145,11 +186,16 @@ internal class JavaEngineContextDelegate(
             ?: throw FrameworkException("$requireContextLabel requires a coroutineScope.")
         return scope.future {
             handleFrameworkErrorsSuspend(errorLabel) {
-                val selectionSet = engineCtx.engineSelectionSetFactory.engineSelectionSet(
-                    rootTypeName(engineCtx),
-                    selections,
-                    JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(variables, engineCtx)
-                )
+                val typeName = rootTypeName(engineCtx)
+                val normalizedVariables = JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(variables, engineCtx)
+                val selectionSet = if (isOperation) {
+                    engineCtx.engineSelectionSetFactory.engineSelectionSet(
+                        parseSelfContained(typeName, selections),
+                        normalizedVariables,
+                    )
+                } else {
+                    engineCtx.engineSelectionSetFactory.engineSelectionSet(typeName, selections, normalizedVariables)
+                }
                 val result = engineCtx.resolveSelectionSet(selectionSet, options)
                 convertSyncEngineDataToJavaObject(
                     targetClass,
@@ -158,5 +204,18 @@ internal class JavaEngineContextDelegate(
                 ) as T
             }
         }
+    }
+
+    private fun parseSelfContained(
+        typeName: String,
+        operationText: String,
+    ): ParsedSelections {
+        val normalized = SelectionsParserUtils.normalizeToFragmentDocument(
+            operationText,
+            typeName,
+            CachedDocumentParser::parseDocument,
+        )
+        val selfContained = SelectionsParserUtils.inlineReachableFragments(normalized, knownFragments)
+        return ParsedSelections.fromDocument(typeName, selfContained)
     }
 }

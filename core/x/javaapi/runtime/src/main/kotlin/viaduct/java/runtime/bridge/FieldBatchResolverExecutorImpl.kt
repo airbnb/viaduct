@@ -1,5 +1,6 @@
 package viaduct.java.runtime.bridge
 
+import graphql.language.FragmentDefinition
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLSchema
 import javax.inject.Provider
@@ -42,6 +43,7 @@ class FieldBatchResolverExecutorImpl(
     private val queryValueClass: Class<*>? = null,
     private val graphqlSchema: GraphQLSchema? = null,
     private val classFinder: ResolverClassFinder? = null,
+    private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
 ) : FieldResolverExecutor {
     override val metadata: ResolverMetadata = ResolverMetadata.forModern(resolverName, ResolverType.FIELD)
     override val isBatching: Boolean = true
@@ -74,6 +76,7 @@ class FieldBatchResolverExecutorImpl(
                 engineExecutionContext = context,
                 coroutineScope = scope,
                 classFinder = classFinder,
+                knownFragments = knownFragments,
             )
         }
 

@@ -11,6 +11,7 @@ import javax.lang.model.element.ElementKind
 import javax.lang.model.element.TypeElement
 import javax.tools.Diagnostic
 import javax.tools.StandardLocation
+import viaduct.tenant.codegen.ksp.OperationDescriptor
 import viaduct.tenant.codegen.ksp.PerSourceDescriptorFile
 import viaduct.tenant.codegen.ksp.ResolverParams
 import viaduct.tenant.codegen.ksp.ResolverParamsJsonCodec
@@ -39,7 +40,11 @@ import viaduct.tenant.codegen.ksp.ResolverParamsJsonCodec
  *   supported.
  * - There is no Java `@TenantBootstrapper` annotation today, so `bootstrapClass` is always null.
  */
-@SupportedAnnotationTypes(RESOLVER_ANNOTATION_FQN)
+@SupportedAnnotationTypes(
+    RESOLVER_ANNOTATION_FQN,
+    GRAPHQL_FRAGMENT_ANNOTATION_FQN,
+    GRAPHQL_OPERATION_ANNOTATION_FQN,
+)
 class JavaRegistryExtractorProcessor : AbstractProcessor() {
     private val codec = ResolverParamsJsonCodec()
 
@@ -49,29 +54,35 @@ class JavaRegistryExtractorProcessor : AbstractProcessor() {
         annotations: Set<TypeElement>,
         roundEnv: RoundEnvironment,
     ): Boolean {
-        val resolverAnnotation = processingEnv.elementUtils.getTypeElement(RESOLVER_ANNOTATION_FQN)
-            ?: return false
-
-        val annotatedTypes = roundEnv.getElementsAnnotatedWith(resolverAnnotation)
-            .filterIsInstance<TypeElement>()
-        if (annotatedTypes.isEmpty()) return false
-
-        val extractor = JavaResolverParamsExtractor(processingEnv) { msg, element ->
+        val reportError = { msg: String, element: Element ->
             processingEnv.messager.printMessage(Diagnostic.Kind.ERROR, msg, element)
         }
+        val resolverExtractor = JavaResolverParamsExtractor(processingEnv, reportError)
+        val documentExtractor = JavaDocumentParamsExtractor(processingEnv, reportError)
 
-        // Group resolver descriptors by their containing top-level source file. The descriptor
-        // file name and originating element both derive from that top-level type, mirroring KSP's
-        // per-source-file isolation.
-        val byTopLevel = mutableMapOf<TypeElement, MutableList<ExtractedResolver>>()
-        for (type in annotatedTypes) {
-            val extracted = extractor.extract(type) ?: continue
+        // Group all descriptors by their containing top-level source file. Document-only source
+        // files must emit descriptors too, so named fragments and operations reach assembly even
+        // when no resolver happens to share their file.
+        val byTopLevel = mutableMapOf<TypeElement, SourceDescriptors>()
+
+        for (type in annotatedTypes(roundEnv, RESOLVER_ANNOTATION_FQN)) {
+            val extracted = resolverExtractor.extract(type) ?: continue
             val topLevel = topLevelType(type)
-            byTopLevel.getOrPut(topLevel) { mutableListOf() }.add(extracted)
+            byTopLevel.getOrPut(topLevel, ::SourceDescriptors).resolvers.add(extracted)
+        }
+        for (type in annotatedTypes(roundEnv, GRAPHQL_FRAGMENT_ANNOTATION_FQN)) {
+            val extracted = documentExtractor.extractFragment(type) ?: continue
+            val topLevel = topLevelType(type)
+            byTopLevel.getOrPut(topLevel, ::SourceDescriptors).fragments.add(extracted)
+        }
+        for (type in annotatedTypes(roundEnv, GRAPHQL_OPERATION_ANNOTATION_FQN)) {
+            val extracted = documentExtractor.extractOperation(type) ?: continue
+            val topLevel = topLevelType(type)
+            byTopLevel.getOrPut(topLevel, ::SourceDescriptors).operations.add(extracted)
         }
 
-        for ((topLevel, extractedList) in byTopLevel) {
-            writeDescriptor(topLevel, extractedList)
+        for ((topLevel, descriptors) in byTopLevel) {
+            writeDescriptor(topLevel, descriptors)
         }
 
         return false
@@ -79,20 +90,23 @@ class JavaRegistryExtractorProcessor : AbstractProcessor() {
 
     private fun writeDescriptor(
         topLevel: TypeElement,
-        extractedList: List<ExtractedResolver>,
+        descriptors: SourceDescriptors,
     ) {
-        val nodes = extractedList.map { it.params }.filterIsInstance<ResolverParams.Node>()
+        val nodes = descriptors.resolvers.map { it.params }.filterIsInstance<ResolverParams.Node>()
             .sortedWith(compareBy({ it.typeName }, { it.implFqn }))
-        val fields = extractedList.map { it.params }.filterIsInstance<ResolverParams.Field>()
+        val fields = descriptors.resolvers.map { it.params }.filterIsInstance<ResolverParams.Field>()
             .sortedWith(compareBy({ it.typeName }, { it.fieldName }, { it.implFqn }))
 
-        val grtPackagePrefix = extractedList.firstNotNullOfOrNull { it.grtPackagePrefix }
+        val grtPackagePrefix = descriptors.resolvers.firstNotNullOfOrNull { it.grtPackagePrefix }
+            ?: descriptors.fragments.firstNotNullOfOrNull { it.grtPackagePrefix }
 
         val descriptor = PerSourceDescriptorFile(
             nodes = nodes,
             fields = fields,
             grtPackagePrefix = grtPackagePrefix,
             bootstrapClass = null,
+            namedFragments = descriptors.fragments.map { it.descriptor }.sortedBy { it.text },
+            namedOperations = descriptors.operations.sortedBy { it.implFqn },
         )
         if (descriptor.isEmpty()) return
 
@@ -126,4 +140,18 @@ class JavaRegistryExtractorProcessor : AbstractProcessor() {
 
     private val ElementKind.isTypeKind: Boolean
         get() = this == ElementKind.CLASS || this == ElementKind.INTERFACE || this == ElementKind.ENUM
+
+    private fun annotatedTypes(
+        roundEnv: RoundEnvironment,
+        annotationFqn: String,
+    ): List<TypeElement> {
+        val annotation = processingEnv.elementUtils.getTypeElement(annotationFqn) ?: return emptyList()
+        return roundEnv.getElementsAnnotatedWith(annotation).filterIsInstance<TypeElement>()
+    }
+
+    private data class SourceDescriptors(
+        val resolvers: MutableList<ExtractedResolver> = mutableListOf(),
+        val fragments: MutableList<ExtractedNamedFragment> = mutableListOf(),
+        val operations: MutableList<OperationDescriptor> = mutableListOf(),
+    )
 }

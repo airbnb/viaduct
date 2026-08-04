@@ -7,6 +7,8 @@ import viaduct.engine.api.ViaductSchema;
 import viaduct.java.api.annotations.NodeResolverFor;
 import viaduct.java.api.context.NodeExecutionContext;
 import viaduct.java.api.context.SelectiveNodeExecutionContext;
+import viaduct.java.api.documents.MutationFromAnnotation;
+import viaduct.java.api.documents.QueryFromAnnotation;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.BaseUnbatchedNodeResolver;
@@ -79,6 +81,16 @@ public final class NodeResolvers {
                 @Override
                 public <T> CompletableFuture<T> mutation(String selections, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(selections, variables, targetClass);
+                }
+
+                @Override
+                public <T> CompletableFuture<T> query(QueryFromAnnotation operation, Map<String, Object> variables, Class<T> targetClass) {
+                    return inner.query(operation, variables, targetClass);
+                }
+
+                @Override
+                public <T> CompletableFuture<T> mutation(MutationFromAnnotation operation, Map<String, Object> variables, Class<T> targetClass) {
+                    return inner.mutation(operation, variables, targetClass);
                 }
 
                 @Override

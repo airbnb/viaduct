@@ -41,6 +41,9 @@ dependencies {
     // GraphQL schema types
     implementation(libs.graphql.java)
 
+    // Assembled named-fragment configuration
+    implementation(libs.jackson.databind)
+
     // Shared GraphQL utils (for collectVariableReferences extension)
     implementation(libs.viaduct.shared.graphql)
 
