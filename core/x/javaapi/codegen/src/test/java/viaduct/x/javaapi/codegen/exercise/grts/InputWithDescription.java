@@ -30,6 +30,17 @@ public class InputWithDescription extends InputBase {
     super(context, data, graphQLInputObjectType);
   }
 
+  /**
+   * Returns whether {@code field} was explicitly provided, including an explicit {@code null}.
+   *
+   * <p>This is meaningful only for top-level fields. graphql-java applies input coercion, including
+   * default values, to nested input objects, so presence cannot be determined for fields nested
+   * more deeply than this input.
+   */
+  public boolean isPresent(Field<InputWithDescription> field) {
+    return isFieldPresent(field);
+  }
+
   public String getValue() {
     return get("value");
   }

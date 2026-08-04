@@ -42,4 +42,21 @@ class ArgumentModelTest {
     assertEquals("com.example", model.getPackageName());
     assertEquals("EmptyArgs", model.getClassName());
   }
+
+  @Test
+  void generatorAddsTypeSafeFieldPresenceMethod() {
+    ArgumentModel model =
+        new ArgumentModel(
+            "com.example",
+            "Query_User_Arguments",
+            List.of(FieldModel.simple("limit", "Integer", true)));
+
+    String generated = JavaGRTGenerator.ArgumentGenerator.generate(model);
+
+    assertTrue(
+        generated.contains(
+            "This is meaningful only for top-level fields. graphql-java applies input"));
+    assertTrue(generated.contains("public boolean isPresent(Field<Query_User_Arguments> field)"));
+    assertTrue(generated.contains("return isFieldPresent(field)"));
+  }
 }

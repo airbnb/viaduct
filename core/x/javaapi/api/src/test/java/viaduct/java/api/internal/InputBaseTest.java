@@ -1,6 +1,7 @@
 package viaduct.java.api.internal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import viaduct.errors.FrameworkException;
 import viaduct.errors.TenantUsageException;
 import viaduct.java.api.globalid.GlobalID;
+import viaduct.java.api.reflect.Field;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.types.NodeCompositeOutput;
 
@@ -86,6 +88,10 @@ class InputBaseTest {
 
     <T extends NodeCompositeOutput> @Nullable List<GlobalID<T>> globalIdList(String field) {
       return getGlobalIDList(field);
+    }
+
+    boolean fieldPresent(Field<TestInput> field) {
+      return isFieldPresent(field);
     }
   }
 
@@ -160,6 +166,15 @@ class InputBaseTest {
     assertEquals("Alice", input.getInputData().get("name"));
     assertThrows(
         UnsupportedOperationException.class, () -> input.getInputData().put("name", "Bob"));
+  }
+
+  @Test
+  void isFieldPresent_distinguishesMissingNullAndNonNullValues() {
+    Field<TestInput> field = Field.of("name", Type.ofClass(TestInput.class));
+
+    assertFalse(new TestInput(null, map()).fieldPresent(field));
+    assertTrue(new TestInput(null, map("name", null)).fieldPresent(field));
+    assertTrue(new TestInput(null, map("name", "Alice")).fieldPresent(field));
   }
 
   // ===== get (scalar) =====

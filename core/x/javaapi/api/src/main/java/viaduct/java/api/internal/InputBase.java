@@ -9,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 import viaduct.errors.FrameworkException;
 import viaduct.errors.HandleErrors;
 import viaduct.java.api.globalid.GlobalID;
+import viaduct.java.api.reflect.Field;
 import viaduct.java.api.types.GraphQLInput;
 import viaduct.java.api.types.NodeCompositeOutput;
 
@@ -86,6 +87,17 @@ public abstract class InputBase implements GraphQLInput {
   /** Returns the backing input data map. Used by the bridge layer to extract data. */
   public Map<String, Object> getInputData() {
     return Collections.unmodifiableMap(inputData);
+  }
+
+  /**
+   * Returns whether the backing input data contains the field, including when its value is null.
+   *
+   * <p>Generated input and arguments GRTs expose this through a type-safe {@code isPresent} method.
+   * Presence reflects explicit operation input only for top-level fields because graphql-java may
+   * apply default values while coercing nested input objects.
+   */
+  protected final boolean isFieldPresent(Field<?> field) {
+    return inputData.containsKey(field.getName());
   }
 
   /**

@@ -431,6 +431,18 @@ public final class JavaGRTGenerator {
                     super(context, data, graphQLInputObjectType);
                 }
 
+                /**
+                 * Returns whether {@code field} was explicitly provided, including an explicit
+                 * {@code null}.
+                 *
+                 * \\<p>This is meaningful only for top-level fields. graphql-java applies input
+                 * coercion, including default values, to nested input objects, so presence cannot
+                 * be determined for fields nested more deeply than this input.
+                 */
+                public boolean isPresent(Field\\<<mdl.className>\\> field) {
+                    return isFieldPresent(field);
+                }
+
                 <mdl.fields: {f |
                 public <f.javaType> <f.getterName>() {
                     <if(f.globalIDList)>return getGlobalIDList("<f.name>");<elseif(f.globalIDType)>return getGlobalID("<f.name>");<elseif(f.compositeList)>return getInputList("<f.name>", <f.baseTypeName>::new);<elseif(f.compositeType)>return getInput("<f.name>", <f.baseTypeName>::new);<elseif(f.enumList)>return getEnumList("<f.name>", <f.baseTypeName>.class);<elseif(f.enumType)>return getEnum("<f.name>", <f.baseTypeName>.class);<elseif(f.temporalScalarList)>return getScalarList("<f.name>", "<f.scalarCoercionHint>");<elseif(f.temporalScalar)>return get("<f.name>", "<f.scalarCoercionHint>");<elseif(f.scalarList)>return getScalarList("<f.name>");<else>return get("<f.name>");<endif>
@@ -618,6 +630,18 @@ public final class JavaGRTGenerator {
                 @InternalApi
                 public <mdl.className>(InternalContext context, Map\\<String, Object> data, GraphQLInputObjectType graphQLInputObjectType) {
                     super(context, data, graphQLInputObjectType);
+                }
+
+                /**
+                 * Returns whether {@code field} was explicitly provided, including an explicit
+                 * {@code null}.
+                 *
+                 * \\<p>This is meaningful only for top-level fields. graphql-java applies input
+                 * coercion, including default values, to nested input objects, so presence cannot
+                 * be determined for fields nested more deeply than this input.
+                 */
+                public boolean isPresent(Field\\<<mdl.className>\\> field) {
+                    return isFieldPresent(field);
                 }
 
                 <mdl.fields: {f |

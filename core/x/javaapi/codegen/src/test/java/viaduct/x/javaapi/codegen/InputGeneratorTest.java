@@ -36,6 +36,11 @@ class InputGeneratorTest {
     assertTrue(generated.contains("private final Map<String, Object> data = new LinkedHashMap<>"));
     assertTrue(generated.contains("public String getName()"));
     assertTrue(generated.contains("return get(\"name\")"));
+    assertTrue(
+        generated.contains(
+            "This is meaningful only for top-level fields. graphql-java applies input"));
+    assertTrue(generated.contains("public boolean isPresent(Field<CreateUserInput> field)"));
+    assertTrue(generated.contains("return isFieldPresent(field)"));
     assertTrue(!generated.contains("private String name;"));
     assertTrue(!generated.contains("public void setName("));
     assertTrue(generated.contains("public static Builder builder(ExecutionContext context)"));
