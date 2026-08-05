@@ -92,7 +92,7 @@ class RemoteProxyIntegrationTest {
 
         // User should be proxied
         assertTrue(proxiedUser != null)
-        assertTrue(proxiedUser is RemoteNodeProxyExecutor)
+        assertTrue(proxiedUser is UnaryRemoteNodeProxyExecutor)
 
         // Post should NOT be proxied (not in the selected types)
         assertTrue(proxiedPost == null)
@@ -188,8 +188,8 @@ class RemoteProxyIntegrationTest {
                     .directExecutor()
                     .build()
 
-                // 6. Test: Create RemoteNodeProxyExecutor (the gRPC proxy)
-                val remoteProxy = RemoteNodeProxyExecutor(
+                // 6. Test: Create UnaryRemoteNodeProxyExecutor (the gRPC proxy)
+                val remoteProxy = UnaryRemoteNodeProxyExecutor(
                     originalExecutor = actualResolver,
                     executorId = executorId,
                     rrsChannel = rrsChannel,
@@ -299,7 +299,7 @@ class RemoteProxyIntegrationTest {
                     .directExecutor()
                     .build()
 
-                val remoteProxy = RemoteNodeProxyExecutor(
+                val remoteProxy = UnaryRemoteNodeProxyExecutor(
                     originalExecutor = actualResolver,
                     executorId = executorId,
                     rrsChannel = rrsChannel,
@@ -401,7 +401,7 @@ class RemoteProxyIntegrationTest {
                     .build()
 
                 // 7. Test: Create RemoteNodeProxyExecutor for Post (the gRPC proxy)
-                val remotePostProxy = RemoteNodeProxyExecutor(
+                val remotePostProxy = UnaryRemoteNodeProxyExecutor(
                     originalExecutor = postResolver,
                     executorId = postExecutorId,
                     rrsChannel = rrsChannel,

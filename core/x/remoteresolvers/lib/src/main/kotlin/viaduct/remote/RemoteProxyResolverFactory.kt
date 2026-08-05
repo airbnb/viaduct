@@ -47,7 +47,7 @@ class RemoteProxyResolverFactory(
         if (executor.isSelective) return null
         if (!shouldProxyNode(executor)) return null
         val executorId = NodeExecutorRegistry.register(executor)
-        return RemoteNodeProxyExecutor(
+        return UnaryRemoteNodeProxyExecutor(
             originalExecutor = executor,
             executorId = executorId,
             rrsChannel = rrsChannel,

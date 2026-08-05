@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.produceIn
 import kotlinx.coroutines.launch
+import viaduct.remote.api.spi.RemoteResolverContextApplier
 import viaduct.remote.grpc.BatchResolveFieldResponse
 import viaduct.remote.grpc.BatchResolveNodeResponse
 import viaduct.remote.grpc.CallbackRequest
@@ -29,7 +30,9 @@ import viaduct.remote.registry.SchemaRegistry
  * [resolveNodeExecutorBatch] shared with the unary transport. `resolveFieldBatch` doesn't do real
  * resolution yet -- it currently answers with an empty resolve_response.
  */
-open class RemoteResolverStreamServiceImpl : RemoteResolverStreamServiceGrpcKt.RemoteResolverStreamServiceCoroutineImplBase() {
+open class RemoteResolverStreamServiceImpl(
+    private val contextApplier: RemoteResolverContextApplier = RemoteResolverContextApplier.NO_OP,
+) : RemoteResolverStreamServiceGrpcKt.RemoteResolverStreamServiceCoroutineImplBase() {
     override fun resolveNodeBatch(requests: Flow<ViaductServiceMessage>): Flow<RemoteResolverServiceMessage> =
         channelFlow {
             withStreamedCallbacks(
@@ -38,13 +41,15 @@ open class RemoteResolverStreamServiceImpl : RemoteResolverStreamServiceGrpcKt.R
                 callbackResponseOrNull = { if (it.hasCallbackResponse()) it.callbackResponse else null },
                 wrapCallbackRequest = { RemoteResolverServiceMessage.newBuilder().setCallbackRequest(it).build() }
             ) { request, dispatcher ->
-                val context = buildStreamContext(dispatcher, request.executorId)
-                val results = resolveNodeExecutorBatch(request.executorId, request.selectorsList, context)
-                send(
-                    RemoteResolverServiceMessage.newBuilder()
-                        .setResolveResponse(BatchResolveNodeResponse.newBuilder().addAllResults(results).build())
-                        .build()
-                )
+                runWithRemoteContext(contextApplier, request.hasRemoteContext(), request.remoteContext) {
+                    val context = buildStreamContext(dispatcher, request.executorId)
+                    val results = resolveNodeExecutorBatch(request.executorId, request.selectorsList, context)
+                    send(
+                        RemoteResolverServiceMessage.newBuilder()
+                            .setResolveResponse(BatchResolveNodeResponse.newBuilder().addAllResults(results).build())
+                            .build()
+                    )
+                }
             }
         }
 

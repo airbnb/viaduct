@@ -43,7 +43,7 @@ open class RemoteResolverServiceImpl(
     private val callbackChannelCache = ConcurrentHashMap<String, ManagedChannel>()
 
     final override suspend fun batchResolveNode(request: BatchResolveNodeRequest): BatchResolveNodeResponse =
-        runWithRemoteContext(request.hasRemoteContext(), request.remoteContext) {
+        runWithRemoteContext(contextApplier, request.hasRemoteContext(), request.remoteContext) {
             batchResolveNodeInternal(request)
         }
 
@@ -64,7 +64,7 @@ open class RemoteResolverServiceImpl(
     }
 
     final override suspend fun batchResolveField(request: BatchResolveFieldRequest): BatchResolveFieldResponse =
-        runWithRemoteContext(request.hasRemoteContext(), request.remoteContext) {
+        runWithRemoteContext(contextApplier, request.hasRemoteContext(), request.remoteContext) {
             batchResolveFieldInternal(request)
         }
 
@@ -224,26 +224,6 @@ open class RemoteResolverServiceImpl(
             )
             .build()
 
-    private suspend fun <T> runWithRemoteContext(
-        hasRemoteContext: Boolean,
-        wireContext: viaduct.remote.grpc.EncodedRemoteContext,
-        block: suspend () -> T,
-    ): T {
-        var blockStarted = false
-        try {
-            return contextApplier.apply(wireContext.takeIf { hasRemoteContext }?.fromWire()) {
-                blockStarted = true
-                block()
-            }
-        } catch (e: RemoteResolverContextException) {
-            if (blockStarted) throw e
-            throw Status.INVALID_ARGUMENT
-                .withDescription(e.message)
-                .withCause(e)
-                .asRuntimeException()
-        }
-    }
-
     /** Creates the network channel used for re-entrant callbacks. Tests may override the transport. */
     protected open fun createCallbackChannel(endpoint: String): ManagedChannel {
         val separator = endpoint.lastIndexOf(':')
@@ -258,5 +238,33 @@ open class RemoteResolverServiceImpl(
         return ManagedChannelBuilder.forAddress(host, port)
             .usePlaintext()
             .build()
+    }
+}
+
+/**
+ * Applies a request's captured [wireContext] (when [hasRemoteContext]) via [contextApplier] around
+ * [block], translating a malformed/undecodable context into `INVALID_ARGUMENT` -- but only if it's
+ * caught before [block] itself started, so a failure inside [block] isn't misattributed to context
+ * application. Shared by both the unary ([RemoteResolverServiceImpl]) and streaming
+ * ([RemoteResolverStreamServiceImpl]) service implementations.
+ */
+internal suspend fun <T> runWithRemoteContext(
+    contextApplier: RemoteResolverContextApplier,
+    hasRemoteContext: Boolean,
+    wireContext: viaduct.remote.grpc.EncodedRemoteContext,
+    block: suspend () -> T,
+): T {
+    var blockStarted = false
+    try {
+        return contextApplier.apply(wireContext.takeIf { hasRemoteContext }?.fromWire()) {
+            blockStarted = true
+            block()
+        }
+    } catch (e: RemoteResolverContextException) {
+        if (blockStarted) throw e
+        throw Status.INVALID_ARGUMENT
+            .withDescription(e.message)
+            .withCause(e)
+            .asRuntimeException()
     }
 }
