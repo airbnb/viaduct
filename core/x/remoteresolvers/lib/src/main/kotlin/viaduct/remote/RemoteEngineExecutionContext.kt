@@ -21,19 +21,20 @@ import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 /**
- * [EngineExecutionContext] used by [RemoteResolverService]. Forwards re-entrant
- * [resolveSelectionSet] calls to the engine over gRPC. When [delegate] is `null`
- * members that need local engine state throw; [localSchema] and
- * [GlobalIDCodecDefault] cover the common cases.
+ * [EngineExecutionContext] shared by both remote-resolver transports: unary gRPC
+ * ([UnaryRemoteEngineExecutionContext]) and bidirectional streaming
+ * ([RemoteResolverStreamExecutionContext]). Neither transport carries a live engine to resolve
+ * against off this JVM, so every member but [resolveSelectionSet] is schema-only when [delegate]
+ * is `null`: members that need local engine state throw; [localSchema] and [GlobalIDCodecDefault]
+ * cover the common cases. Only how a re-entrant ctx.query()/ctx.mutation() call
+ * ([resolveSelectionSet]) reaches back to the engine differs by transport -- unary calls back over
+ * a persistent gRPC channel keyed by a context handle, streaming dispatches over the request's
+ * own stream -- so it's the one abstract member.
  */
-class RemoteEngineExecutionContext(
+abstract class RemoteEngineExecutionContext(
     private val delegate: EngineExecutionContext?,
-    private val callbackChannel: ManagedChannel,
-    private val contextHandle: String,
     private val localSchema: ViaductSchema? = null
 ) : EngineExecutionContext {
-    private val callbackStub = EngineCallbackServiceGrpcKt.EngineCallbackServiceCoroutineStub(callbackChannel)
-
     private fun requireDelegate(operation: String): EngineExecutionContext = delegate ?: throw UnsupportedOperationException("'$operation' requires a local engine context")
 
     override val fullSchema: ViaductSchema
@@ -65,7 +66,7 @@ class RemoteEngineExecutionContext(
     // With no delegate, build a schema-only factory from localSchema so a remotely-run resolver can
     // reconstruct sub-selection sets shipped over the wire. Mirrors the delegate-first
     // createNodeReference / globalIDCodec fallback (delegate and localSchema are mutually exclusive —
-    // buildRemoteContext sets localSchema only when there's no delegate — so the order doesn't matter).
+    // callers set localSchema only when there's no delegate — so the order doesn't matter).
     // Memoized: one factory per context instance.
     private val localSelectionSetFactory: EngineSelectionSet.Factory? by lazy {
         localSchema?.let { EngineSelectionSetFactoryImpl(it) }
@@ -106,6 +107,25 @@ class RemoteEngineExecutionContext(
         options: CompleteSelectionSetOptions
     ): graphql.ExecutionResult = requireDelegate("completeSelectionSet").completeSelectionSet(selectionSet, targetResult, arguments, options)
 
+    abstract override suspend fun resolveSelectionSet(
+        selectionSet: EngineSelectionSet,
+        options: ResolveSelectionSetOptions
+    ): EngineObjectData.Sync
+}
+
+/**
+ * The unary-gRPC [RemoteEngineExecutionContext]: forwards [resolveSelectionSet] to the engine over
+ * a persistent callback channel, keyed by [contextHandle] so the far side can resolve back against
+ * a process-local [viaduct.remote.registry.ContextRegistry] entry.
+ */
+class UnaryRemoteEngineExecutionContext(
+    delegate: EngineExecutionContext?,
+    callbackChannel: ManagedChannel,
+    private val contextHandle: String,
+    localSchema: ViaductSchema? = null
+) : RemoteEngineExecutionContext(delegate, localSchema) {
+    private val callbackStub = EngineCallbackServiceGrpcKt.EngineCallbackServiceCoroutineStub(callbackChannel)
+
     override suspend fun resolveSelectionSet(
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions
@@ -127,14 +147,6 @@ class RemoteEngineExecutionContext(
         return EngineObjectDataSerializer.deserialize(response.objectDataJson.toByteArray(), REMOTE_RESULT_TYPE)
     }
 
-    // Minimal [NodeReference] for a context without a delegate: carries only id + type (the [EngineObject.type] used
-    // by [FieldValueSerializer] to tag the wire value). It is never resolved on the service side —
-    // the engine side rebuilds a resolvable reference via its own `createNodeReference`.
-    private class RemoteNodeReference(
-        override val id: String,
-        override val type: GraphQLObjectType
-    ) : NodeReference
-
     private companion object {
         // Type identity isn't propagated over the wire; the receiver-side builder just
         // needs a name to attach to the deserialized result.
@@ -143,3 +155,11 @@ class RemoteEngineExecutionContext(
             .build()
     }
 }
+
+// Minimal [NodeReference] for a context without a delegate: carries only id + type (the [EngineObject.type] used
+// by [FieldValueSerializer] to tag the wire value). It is never resolved on the service side —
+// the engine side rebuilds a resolvable reference via its own `createNodeReference`.
+private class RemoteNodeReference(
+    override val id: String,
+    override val type: GraphQLObjectType
+) : NodeReference

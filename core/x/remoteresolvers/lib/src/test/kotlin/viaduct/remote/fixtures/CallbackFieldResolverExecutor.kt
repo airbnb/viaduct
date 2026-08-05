@@ -11,7 +11,7 @@ import viaduct.engine.api.spi.FieldResolverExecutor
  *
  * Each selector triggers `context.resolveSelectionSet(...)`, which on the remote side routes back
  * to the engine over the gRPC callback channel
- * ([viaduct.remote.RemoteEngineExecutionContext.resolveSelectionSet] → callback service →
+ * ([viaduct.remote.UnaryRemoteEngineExecutionContext.resolveSelectionSet] → callback service →
  * engine). The resolver returns a JSON-friendly [String] so a successful round-trip would
  * serialize cleanly; the test asserts the callback mechanism fires rather than that the
  * re-entrant query completes (ContextMocks runs over a no-op engine, so the engine-side

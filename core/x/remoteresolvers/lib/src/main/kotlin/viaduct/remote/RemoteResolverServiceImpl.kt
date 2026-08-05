@@ -3,14 +3,12 @@ package viaduct.remote
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Status
-import io.grpc.StatusRuntimeException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 import org.slf4j.LoggerFactory
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.remote.api.RemoteResolverContextException
 import viaduct.remote.api.spi.RemoteResolverContextApplier
 import viaduct.remote.grpc.BatchResolveFieldRequest
@@ -20,7 +18,6 @@ import viaduct.remote.grpc.BatchResolveNodeResponse
 import viaduct.remote.grpc.ErrorInfo
 import viaduct.remote.grpc.RemoteResolverServiceGrpcKt
 import viaduct.remote.grpc.ResolvedField
-import viaduct.remote.grpc.ResolvedNode
 import viaduct.remote.grpc.SerializedSelectionSet
 import viaduct.remote.registry.ContextRegistry
 import viaduct.remote.registry.FieldExecutorRegistry
@@ -53,54 +50,16 @@ open class RemoteResolverServiceImpl(
     private suspend fun batchResolveNodeInternal(request: BatchResolveNodeRequest): BatchResolveNodeResponse {
         log.debug("Received batchResolveNode request (executorId={}, contextHandle={})", request.executorId, request.contextHandle)
 
-        val executor = NodeExecutorRegistry.get(request.executorId)
-            ?: throw notFound("executor", request.executorId)
+        // Fail fast on a missing executor before building the remote context: buildRemoteContext
+        // may dial a callback channel (createCallbackChannel), which throws on a malformed
+        // endpoint -- that shouldn't mask a NOT_FOUND for an executor that was never registered.
+        if (NodeExecutorRegistry.get(request.executorId) == null) throw notFound("executor", request.executorId)
         val remoteContext = buildRemoteContext(request.contextHandle, request.callbackEndpoint)
+        val results = resolveNodeExecutorBatch(request.executorId, request.selectorsList, remoteContext)
 
-        // A registry miss means the resolver runs with an empty selection set and the proxy side
-        // projects requested fields client-side. Wire-level selection-set serialization would
-        // unlock RRS-side pruning but isn't required for correctness.
-        val selectors = request.selectorsList.map { protoSelector ->
-            val selections = SelectionsRegistry.get(protoSelector.selectionsHandle)
-                ?: EmptyEngineSelectionSet(executor.typeName)
-            NodeResolverExecutor.Selector(id = protoSelector.id, selections = selections)
-        }
-
-        val results = try {
-            executor.resolve(selectors, remoteContext)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            log.error("Resolver execution failed for type '{}': {}", executor.typeName, e.message, e)
-            return buildErrorResponse(selectors, e)
-        }
-
-        // serialize is suspend — can't use map {} here. Isolate a serialization failure (e.g. a nested
-        // NodeReference, which throws now) to that node's error rather than fail the whole batch —
-        // mirroring the per-selector isolation on batchResolveField.
-        val protoResults = mutableListOf<ResolvedNode>()
-        for ((selector, result) in results) {
-            val node = when {
-                result.isSuccess ->
-                    try {
-                        ResolvedNode.newBuilder()
-                            .setSelectorId(selector.id)
-                            .setDataJson(com.google.protobuf.ByteString.copyFrom(EngineObjectDataSerializer.serialize(result.getOrThrow())))
-                            .build()
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        log.warn("Failed to serialize node result for id '{}' (type '{}'): {}", selector.id, executor.typeName, e.message, e)
-                        nodeError(selector.id, e)
-                    }
-                else -> nodeError(selector.id, result.exceptionOrNull()!!)
-            }
-            protoResults.add(node)
-        }
-
-        log.debug("Returning {} result(s) for executor '{}'", protoResults.size, request.executorId)
+        log.debug("Returning {} result(s) for executor '{}'", results.size, request.executorId)
         return BatchResolveNodeResponse.newBuilder()
-            .addAllResults(protoResults)
+            .addAllResults(results)
             .build()
     }
 
@@ -234,44 +193,6 @@ open class RemoteResolverServiceImpl(
             )
         }
 
-    private fun notFound(
-        kind: String,
-        handle: String
-    ): StatusRuntimeException = Status.NOT_FOUND.withDescription("$kind handle not registered: $handle").asRuntimeException()
-
-    private fun buildErrorResponse(
-        selectors: List<NodeResolverExecutor.Selector>,
-        error: Exception
-    ): BatchResolveNodeResponse {
-        val errorInfo = ErrorInfo.newBuilder()
-            .setMessage(error.message ?: "Resolver execution failed")
-            .setErrorType(error::class.java.name)
-            .build()
-        val protoResults = selectors.map { selector ->
-            ResolvedNode.newBuilder()
-                .setSelectorId(selector.id)
-                .setError(errorInfo)
-                .build()
-        }
-        return BatchResolveNodeResponse.newBuilder()
-            .addAllResults(protoResults)
-            .build()
-    }
-
-    private fun nodeError(
-        selectorId: String,
-        error: Throwable
-    ): ResolvedNode =
-        ResolvedNode.newBuilder()
-            .setSelectorId(selectorId)
-            .setError(
-                ErrorInfo.newBuilder()
-                    .setMessage(error.message ?: "Node resolver execution failed")
-                    .setErrorType(error::class.java.name)
-                    .build()
-            )
-            .build()
-
     // Builds the context for an incoming resolve. Re-entrant queries route back to the caller over
     // the cached callback channel; when the caller's context isn't registered locally, the locally
     // registered schema is used instead.
@@ -281,7 +202,7 @@ open class RemoteResolverServiceImpl(
     ): RemoteEngineExecutionContext {
         val originalContext = ContextRegistry.get(contextHandle)
         val callbackChannel = callbackChannelCache.computeIfAbsent(callbackEndpoint) { createCallbackChannel(it) }
-        return RemoteEngineExecutionContext(
+        return UnaryRemoteEngineExecutionContext(
             delegate = originalContext,
             callbackChannel = callbackChannel,
             contextHandle = contextHandle,

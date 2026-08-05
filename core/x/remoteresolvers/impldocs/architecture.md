@@ -38,7 +38,7 @@ DispatcherRegistry
                                                         | ctx.query() /
                                                         | ctx.mutation()
                                                         v
-              EngineCallbackService              RemoteEngineExecutionContext
+              EngineCallbackService              UnaryRemoteEngineExecutionContext
               ExecuteQuery / ExecuteMutation             |
               <-------------------------------------------+
                       |
@@ -124,7 +124,7 @@ Executor registration is later-wins. Re-registering the same instance is treated
 On the remote server, `RemoteResolverServiceImpl.batchResolveNode()`:
 
 1. Looks up the local node executor by stable type-name ID.
-2. Builds a `RemoteEngineExecutionContext`.
+2. Builds a `UnaryRemoteEngineExecutionContext`.
 3. Attempts to resolve each selection handle locally.
 4. Uses `EmptyEngineSelectionSet(typeName)` on a registry miss.
 5. Calls the remote process's node executor once with the reconstructed batch.
@@ -158,7 +158,7 @@ If argument, RSS value, or selection-set serialization fails, only that selector
 `RemoteResolverServiceImpl.batchResolveField()`:
 
 1. Looks up the local field executor by `Type.field`.
-2. Builds a `RemoteEngineExecutionContext`.
+2. Builds a `UnaryRemoteEngineExecutionContext`.
 3. Resolves the parent object type from the executor ID and the query type from the remote schema.
 4. Deserializes object and query RSS values against those real schema types.
 5. Deserializes arguments.
@@ -221,7 +221,7 @@ The field-value format has no protocol version and deliberately reused an existi
 
 ## Re-entrant Query and Mutation Flow
 
-`RemoteEngineExecutionContext` implements `resolveSelectionSet()` by calling back to the main process:
+`UnaryRemoteEngineExecutionContext` implements `resolveSelectionSet()` by calling back to the main process:
 
 1. Register the requested `EngineSelectionSet` in `SelectionsRegistry`.
 2. Send both handles to `ExecuteMutation` or `ExecuteQuery`, chosen from the operation type.
@@ -335,7 +335,7 @@ For a behavior that depends on process separation, add a test that prevents shar
 - `lib/src/main/kotlin/viaduct/remote/RemoteNodeProxyExecutor.kt`: Main-side node RPC client.
 - `lib/src/main/kotlin/viaduct/remote/RemoteFieldProxyExecutor.kt`: Main-side field RPC client and selector serialization.
 - `lib/src/main/kotlin/viaduct/remote/RemoteResolverServiceImpl.kt`: Remote-side dispatch and result serialization.
-- `lib/src/main/kotlin/viaduct/remote/RemoteEngineExecutionContext.kt`: Schema-only context fallbacks and callback client.
+- `lib/src/main/kotlin/viaduct/remote/RemoteEngineExecutionContext.kt`: Shared schema-only context fallbacks (base class) plus `UnaryRemoteEngineExecutionContext`, the unary callback client.
 - `lib/src/main/kotlin/viaduct/remote/EngineCallbackServiceImpl.kt`: Main-side re-entrant execution service.
 - `lib/src/main/kotlin/viaduct/remote/EngineObjectDataSerializer.kt`: Structural object-data JSON codec.
 - `lib/src/main/kotlin/viaduct/remote/FieldValueSerializer.kt`: Tagged field-value JSON codec.

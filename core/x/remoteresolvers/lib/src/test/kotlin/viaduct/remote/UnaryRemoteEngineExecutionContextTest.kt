@@ -9,13 +9,13 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
-class RemoteEngineExecutionContextTest {
+class UnaryRemoteEngineExecutionContextTest {
     private fun channel() = InProcessChannelBuilder.forName("rrp-${System.nanoTime()}").build()
 
     @Test
     fun `null delegate falls back to localSchema and the default GlobalID codec`() {
         val schema = MockSchema.mk("extend type Query { ping: String }")
-        val ctx = RemoteEngineExecutionContext(
+        val ctx = UnaryRemoteEngineExecutionContext(
             delegate = null,
             callbackChannel = channel(),
             contextHandle = "h",
@@ -27,7 +27,7 @@ class RemoteEngineExecutionContextTest {
 
     @Test
     fun `null delegate without localSchema throws on schema access`() {
-        val ctx = RemoteEngineExecutionContext(
+        val ctx = UnaryRemoteEngineExecutionContext(
             delegate = null,
             callbackChannel = channel(),
             contextHandle = "h",
