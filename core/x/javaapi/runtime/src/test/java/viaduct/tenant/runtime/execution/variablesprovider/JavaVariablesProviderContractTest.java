@@ -92,14 +92,14 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
     }
 
     @Variables(types = {"x: Int!"})
-    public static class TestVariablesProvider implements VariablesProvider<Arguments.None> {
+    public static class TestVariablesProvider implements VariablesProvider<Arguments.NoArguments> {
       public TestVariablesProvider() {
         PROVIDER_INSTANTIATIONS.incrementAndGet();
       }
 
       @Override
       public CompletableFuture<Map<String, Object>> provide(
-          VariablesProviderContext<Arguments.None> ctx) {
+          VariablesProviderContext<Arguments.NoArguments> ctx) {
         return CompletableFuture.completedFuture(Map.of("x", 123));
       }
     }
@@ -114,14 +114,14 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
     }
 
     @Variables(types = {"x: MyInput!"})
-    public static class TestVariablesProvider implements VariablesProvider<Arguments.None> {
+    public static class TestVariablesProvider implements VariablesProvider<Arguments.NoArguments> {
       public TestVariablesProvider() {
         PROVIDER_INSTANTIATIONS.incrementAndGet();
       }
 
       @Override
       public CompletableFuture<Map<String, Object>> provide(
-          VariablesProviderContext<Arguments.None> ctx) {
+          VariablesProviderContext<Arguments.NoArguments> ctx) {
         return CompletableFuture.completedFuture(Map.of("x", MyInput.builder(ctx).x(456).build()));
       }
     }
@@ -136,14 +136,14 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
     }
 
     @Variables(types = {"x: ID!"})
-    public static class TestVariablesProvider implements VariablesProvider<Arguments.None> {
+    public static class TestVariablesProvider implements VariablesProvider<Arguments.NoArguments> {
       public TestVariablesProvider() {
         PROVIDER_INSTANTIATIONS.incrementAndGet();
       }
 
       @Override
       public CompletableFuture<Map<String, Object>> provide(
-          VariablesProviderContext<Arguments.None> ctx) {
+          VariablesProviderContext<Arguments.NoArguments> ctx) {
         GlobalID<MyType> id = ctx.globalIDFor(Type.ofClass(MyType.class), "123");
         return CompletableFuture.completedFuture(Map.of("x", id));
       }
@@ -162,14 +162,14 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
     }
 
     @Variables(types = {"x: InputWithNestedInput!"})
-    public static class TestVariablesProvider implements VariablesProvider<Arguments.None> {
+    public static class TestVariablesProvider implements VariablesProvider<Arguments.NoArguments> {
       public TestVariablesProvider() {
         PROVIDER_INSTANTIATIONS.incrementAndGet();
       }
 
       @Override
       public CompletableFuture<Map<String, Object>> provide(
-          VariablesProviderContext<Arguments.None> ctx) {
+          VariablesProviderContext<Arguments.NoArguments> ctx) {
         ComplexInput complex =
             ComplexInput.builder(ctx).color(Color.RED).intArray(List.of(1, 2, 3)).build();
         InputWithNestedInput nested =

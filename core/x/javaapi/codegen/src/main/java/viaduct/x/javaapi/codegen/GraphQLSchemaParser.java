@@ -491,12 +491,12 @@ public class GraphQLSchemaParser {
     // Mutation type is the Mutation GRT if the schema has a Mutation type, otherwise null
     String mutationType = mutationTypeName != null ? grtPackage + "." + mutationTypeName : null;
 
-    // Arguments type - use Arguments.None if field has no arguments
+    // Arguments type - use Arguments.NoArguments if field has no arguments
     boolean hasArguments = field.getHasArgs();
     String argumentsType =
         hasArguments
             ? grtPackage + "." + SchemaAnalysis.INSTANCE.argumentsTypeName(typeName, fieldName)
-            : "Arguments.None";
+            : "Arguments.NoArguments";
 
     // Selections type - use CompositeOutput.None if output is not a composite type
     boolean isCompositeOutput = field.getType().getBaseTypeDef().isComposite();
@@ -756,7 +756,7 @@ public class GraphQLSchemaParser {
       argumentsTypeName =
           field.getHasArgs()
               ? SchemaAnalysis.INSTANCE.argumentsTypeName(containerType.getName(), field.getName())
-              : "Arguments.None";
+              : "Arguments.NoArguments";
       pathFromQueryRoot = new ArrayList<>(pathToContainer);
       pathFromQueryRoot.add(field.getName());
     }

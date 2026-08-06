@@ -5,6 +5,7 @@ import graphql.schema.GraphQLSchema
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -13,12 +14,17 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.NodeReference
+import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
+import viaduct.java.api.internal.InputBase
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.internal.ResolverClassFinder
+import viaduct.java.api.reflect.RootObjectField
 import viaduct.java.api.reflect.Type
+import viaduct.java.api.types.Arguments
+import viaduct.java.api.types.GraphQLObject
 import viaduct.java.api.types.NodeObject
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
@@ -44,6 +50,17 @@ class JavaEngineContextDelegateTest {
 
         fun exposedContext(): InternalContext? = __context()
     }
+
+    class RootParent : GraphQLObject
+
+    class RootResult(
+        context: InternalContext?,
+        rootFieldReference: RootFieldReference,
+    ) : ObjectBase(context, rootFieldReference)
+
+    class RootArguments(data: Map<String, Any?>) :
+        InputBase(null, data, null),
+        Arguments
 
     private fun contextExposingNodeType(): Type<ContextExposingNode> =
         object : Type<ContextExposingNode> {
@@ -101,6 +118,55 @@ class JavaEngineContextDelegateTest {
         )
 
         assertNull(node.exposedContext())
+    }
+
+    @Test
+    fun `rootFieldRef uses the full schema and forwards namespace path and typed arguments`() {
+        val graphqlType = mockk<GraphQLObjectType>()
+        val rootFieldReference = mockk<RootFieldReference>()
+        val fullGraphqlSchema = mockk<GraphQLSchema> {
+            every { getObjectType("RootResult") } returns graphqlType
+        }
+        val fullViaductSchema = mockk<ViaductSchema> {
+            every { schema } returns fullGraphqlSchema
+        }
+        val activeViaductSchema = mockk<ViaductSchema> {
+            every { schema } returns mockk<GraphQLSchema> {
+                every { getObjectType("RootResult") } returns null
+            }
+        }
+        val engineCtx = mockk<EngineExecutionContext> {
+            every { fullSchema } returns fullViaductSchema
+            every { activeSchema } returns activeViaductSchema
+            every { globalIDCodec } returns GlobalIDCodecDefault
+            every {
+                createRootFieldReference(
+                    listOf("_factories", "products", "create"),
+                    graphqlType,
+                    mapOf("name" to "Widget"),
+                )
+            } returns rootFieldReference
+        }
+        val field: RootObjectField<RootParent, RootResult, RootArguments> = RootObjectField.of(
+            "create",
+            Type.ofClass(RootParent::class.java),
+            Type.ofClass(RootResult::class.java),
+            listOf("_factories", "products", "create"),
+        )
+
+        val result: RootResult = JavaEngineContextDelegate(engineCtx).rootFieldRef(
+            field,
+            RootArguments(mapOf("name" to "Widget")),
+        )
+
+        assertSame(rootFieldReference, result.javaRootFieldReference)
+        verify(exactly = 1) {
+            engineCtx.createRootFieldReference(
+                listOf("_factories", "products", "create"),
+                graphqlType,
+                mapOf("name" to "Widget"),
+            )
+        }
     }
 
     @Test

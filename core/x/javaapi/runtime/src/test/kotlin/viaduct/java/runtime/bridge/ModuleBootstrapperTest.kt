@@ -47,13 +47,13 @@ class ModuleBootstrapperTest {
     interface TestQuery : Query
 
     abstract class TestBaseUnbatchedFieldResolver<T> :
-        FieldResolverBase<T, TestQuery, TestQuery, Arguments.None, CompositeOutput>,
+        FieldResolverBase<T, TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>,
         BaseUnbatchedFieldResolver {
-        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<T>
+        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>): CompletableFuture<T>
 
         @Suppress("UNCHECKED_CAST")
         final override fun invokeFieldResolver(context: FieldExecutionContext<*, *, *, *>): CompletableFuture<*> =
-            resolve(context as FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>)
+            resolve(context as FieldResolverBase.Context<TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>)
     }
 
     @ResolverFor(typeName = "TestType", fieldName = "testField", isSelective = false)
@@ -64,14 +64,14 @@ class ModuleBootstrapperTest {
 
     @Resolver
     class TestResolver : TestResolverBase() {
-        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String> {
+        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>): CompletableFuture<String> {
             return CompletableFuture.completedFuture("test result")
         }
     }
 
     @Resolver
     class SelectiveResolver : SelectiveResolverBase() {
-        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String> {
+        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>): CompletableFuture<String> {
             return CompletableFuture.completedFuture("selective result")
         }
     }
@@ -82,7 +82,7 @@ class ModuleBootstrapperTest {
 
     @Resolver(objectValueFragment = "firstName lastName")
     class PersonFullNameResolver : PersonFullNameResolverBase() {
-        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String> {
+        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>): CompletableFuture<String> {
             return CompletableFuture.completedFuture("Full Name")
         }
     }
@@ -93,7 +93,7 @@ class ModuleBootstrapperTest {
 
     @Resolver
     class PersonAgeResolver : PersonAgeResolverBase() {
-        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<Int> {
+        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>): CompletableFuture<Int> {
             return CompletableFuture.completedFuture(30)
         }
     }

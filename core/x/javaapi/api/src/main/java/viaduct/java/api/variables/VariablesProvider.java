@@ -16,7 +16,7 @@ import viaduct.java.api.types.Arguments;
  * <p>The returned map must contain exactly the keys declared in the {@code @Variables} annotation.
  *
  * @param <A> The arguments type for the field whose resolver references this provider's variables.
- *     Use {@link Arguments.None} when the field has no arguments.
+ *     Use {@link Arguments.NoArguments} when the field has no arguments.
  */
 @FunctionalInterface
 public interface VariablesProvider<A extends Arguments> {

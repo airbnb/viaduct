@@ -22,10 +22,10 @@ public class JavaEmptyVariablesContractTest extends EmptyVariablesContractTest {
     }
 
     @Variables(types = {})
-    public static class EmptyVariablesProvider implements VariablesProvider<Arguments.None> {
+    public static class EmptyVariablesProvider implements VariablesProvider<Arguments.NoArguments> {
       @Override
       public CompletableFuture<Map<String, Object>> provide(
-          VariablesProviderContext<Arguments.None> ctx) {
+          VariablesProviderContext<Arguments.NoArguments> ctx) {
         return CompletableFuture.completedFuture(Map.of("someVar", 42));
       }
     }

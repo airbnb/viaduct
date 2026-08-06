@@ -22,10 +22,10 @@ public class JavaTempOneOfViolationContractTest extends TempOneOfViolationContra
     }
 
     @Variables(types = {"oneofVar: OneofInput!"})
-    public static class OneOfViolationProvider implements VariablesProvider<Arguments.None> {
+    public static class OneOfViolationProvider implements VariablesProvider<Arguments.NoArguments> {
       @Override
       public CompletableFuture<Map<String, Object>> provide(
-          VariablesProviderContext<Arguments.None> ctx) {
+          VariablesProviderContext<Arguments.NoArguments> ctx) {
         return CompletableFuture.completedFuture(
             Map.of("oneofVar", Map.of("stringValue", "test", "intValue", 42)));
       }
@@ -59,10 +59,10 @@ public class JavaTempOneOfViolationContractTest extends TempOneOfViolationContra
     }
 
     @Variables(types = {"oneofVar: OneofInput!"})
-    public static class TwoKeysOneNullProvider implements VariablesProvider<Arguments.None> {
+    public static class TwoKeysOneNullProvider implements VariablesProvider<Arguments.NoArguments> {
       @Override
       public CompletableFuture<Map<String, Object>> provide(
-          VariablesProviderContext<Arguments.None> ctx) {
+          VariablesProviderContext<Arguments.NoArguments> ctx) {
         return CompletableFuture.completedFuture(
             Map.of("oneofVar", OneofInput.builder(ctx).stringValue("test").intValue(null).build()));
       }
@@ -79,10 +79,10 @@ public class JavaTempOneOfViolationContractTest extends TempOneOfViolationContra
     }
 
     @Variables(types = {"oneofVar: OneofInput!"})
-    public static class SingleNullKeyProvider implements VariablesProvider<Arguments.None> {
+    public static class SingleNullKeyProvider implements VariablesProvider<Arguments.NoArguments> {
       @Override
       public CompletableFuture<Map<String, Object>> provide(
-          VariablesProviderContext<Arguments.None> ctx) {
+          VariablesProviderContext<Arguments.NoArguments> ctx) {
         return CompletableFuture.completedFuture(
             Map.of("oneofVar", OneofInput.builder(ctx).stringValue(null).build()));
       }

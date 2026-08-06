@@ -2,6 +2,7 @@ package com.example.grts;
 
 import viaduct.engine.api.EngineObjectData;
 import viaduct.engine.api.NodeReference;
+import viaduct.engine.api.RootFieldReference;
 import viaduct.java.api.context.ExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
@@ -43,6 +44,10 @@ public class Money extends ObjectBase implements SearchHit {
 
     private Money(InternalContext context, Map<String, Object> data) {
         super(context, data);
+    }
+
+    public Money(InternalContext context, RootFieldReference rootFieldReference) {
+        super(context, rootFieldReference);
     }
         public double getAmount() {
             return fetchScalar("amount");

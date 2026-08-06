@@ -33,7 +33,7 @@ class SimpleVariablesProviderContext(
 ) : VariablesProviderContext<Arguments>, InternalContext {
     private val delegate = JavaEngineContextDelegate(engineExecutionContext, classFinder)
 
-    override fun getArguments(): Arguments = arguments ?: Arguments.NoArguments
+    override fun getArguments(): Arguments = arguments ?: Arguments.None
 
     override fun getRequestContext(): Any? = requestContext
 

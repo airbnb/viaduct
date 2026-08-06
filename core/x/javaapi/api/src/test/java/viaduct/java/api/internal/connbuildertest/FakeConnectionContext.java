@@ -8,9 +8,12 @@ import viaduct.java.api.context.ResolverExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.ResolverClassFinder;
+import viaduct.java.api.reflect.RootObjectField;
 import viaduct.java.api.reflect.Type;
+import viaduct.java.api.types.Arguments;
 import viaduct.java.api.types.Connection;
 import viaduct.java.api.types.ConnectionArguments;
+import viaduct.java.api.types.GraphQLObject;
 import viaduct.java.api.types.NodeCompositeOutput;
 import viaduct.java.api.types.NodeObject;
 import viaduct.java.api.types.Query;
@@ -58,6 +61,12 @@ class FakeExecutionContext implements ResolverExecutionContext, InternalContext 
 
   @Override
   public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
+      RootObjectField<?, T, A> field, A arguments) {
     throw new UnsupportedOperationException();
   }
 

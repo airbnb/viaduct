@@ -46,11 +46,13 @@ public final class JavaResolverGenerator {
           import viaduct.java.api.internal.BaseUnbatchedFieldResolver;
           <endif>
           import viaduct.java.api.internal.ResolverClassFinder;
+          import viaduct.java.api.reflect.RootObjectField;
           import viaduct.java.api.reflect.Type;
           import viaduct.java.api.resolvers.ConnectionResolverBase;
           import viaduct.java.api.resolvers.FieldResolverBase;
           import viaduct.java.api.types.Arguments;
           import viaduct.java.api.types.CompositeOutput;
+          import viaduct.java.api.types.GraphQLObject;
           import viaduct.java.api.types.NodeCompositeOutput;
           import viaduct.java.api.types.NodeObject;
           import viaduct.service.api.spi.GlobalIDCodec;
@@ -128,6 +130,12 @@ public final class JavaResolverGenerator {
                       @Override
                       public \\<T extends NodeCompositeOutput> T nodeRef(GlobalID\\<T> id) {
                           return inner.nodeRef(id);
+                      \\}
+
+                      @Override
+                      public \\<A extends Arguments, T extends GraphQLObject> T rootFieldRef(
+                              RootObjectField\\<?, T, A> field, A arguments) {
+                          return inner.rootFieldRef(field, arguments);
                       \\}
 
                       @Override

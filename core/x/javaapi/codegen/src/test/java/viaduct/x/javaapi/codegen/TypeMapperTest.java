@@ -52,6 +52,7 @@ class TypeMapperTest {
           listOfNonNullFloats: [Float!]
           listOfNonNullBooleans: [Boolean!]
           nestedList: [[Int!]!]
+          nonNullJsonField: JSON!
         }
 
         type User {
@@ -229,5 +230,11 @@ class TypeMapperTest {
     ViaductSchema.Field field = getQueryField("nestedList");
 
     assertEquals("List<List<Integer>>", mapper.toJavaType(field.getType()));
+  }
+
+  @Test
+  void mapsJsonToObject() {
+    assertEquals("Object", mapper.toJavaType(getQueryField("jsonField").getType()));
+    assertEquals("Object", mapper.toJavaType(getQueryField("nonNullJsonField").getType()));
   }
 }

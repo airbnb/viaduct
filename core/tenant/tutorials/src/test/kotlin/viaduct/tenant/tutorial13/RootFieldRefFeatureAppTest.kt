@@ -26,6 +26,17 @@ class RootFieldRefFeatureAppTest : RootFieldRefContractTest() {
     }
 
     @Resolver
+    class productFactoryCreateWithArgumentsResolver : ProductFactoryResolvers.CreateWithArguments() {
+        override suspend fun resolve(ctx: Context): Product? {
+            return Product.of(ctx) {
+                name(ctx.arguments.name)
+                price(ctx.arguments.spec.quantity)
+                metadata(ctx.arguments.metadata)
+            }
+        }
+    }
+
+    @Resolver
     class productResolver : QueryResolvers.Product() {
         override suspend fun resolve(ctx: Context): Product? {
             return ctx.rootFieldRef(

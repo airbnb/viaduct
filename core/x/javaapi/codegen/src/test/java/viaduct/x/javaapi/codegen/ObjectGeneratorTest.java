@@ -227,6 +227,10 @@ class ObjectGeneratorTest {
 
     assertTrue(generated.contains("extends ConnectionBuilder<PostConnection, PostEdge, Post>"));
     assertTrue(generated.contains("public static Builder builder(ExecutionContext context)"));
+    assertTrue(
+        generated.contains(
+            "public PostConnection(InternalContext context,"
+                + " RootFieldReference rootFieldReference)"));
     assertTrue(generated.contains("public Builder fromEdges(List<PostEdge> edges)"));
     assertTrue(generated.contains("super.fromEdges(edges, hasNextPage, hasPreviousPage);"));
     assertTrue(generated.contains("public <I> Builder fromSlice("));
@@ -435,6 +439,9 @@ class ObjectGeneratorTest {
         generated.contains("public User(InternalContext context, EngineObjectData.Sync data)"));
     assertTrue(
         generated.contains("private User(InternalContext context, Map<String, Object> data)"));
+    assertTrue(
+        generated.contains(
+            "public User(InternalContext context, RootFieldReference rootFieldReference)"));
     assertTrue(generated.contains("private final Map<String, Object> data = new LinkedHashMap<>"));
     assertTrue(generated.contains("return new User(__context, new LinkedHashMap<>(data))"));
   }

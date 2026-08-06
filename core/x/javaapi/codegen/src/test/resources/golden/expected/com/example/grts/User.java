@@ -2,6 +2,7 @@ package com.example.grts;
 
 import viaduct.engine.api.EngineObjectData;
 import viaduct.engine.api.NodeReference;
+import viaduct.engine.api.RootFieldReference;
 import viaduct.java.api.context.ExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
@@ -64,6 +65,10 @@ public class User extends NodeObjectBase implements Node, SearchHit {
 
     private User(InternalContext context, Map<String, Object> data) {
         super(context, data);
+    }
+
+    public User(InternalContext context, RootFieldReference rootFieldReference) {
+        super(context, rootFieldReference);
     }
 
     public User(InternalContext context, NodeReference nodeReference) {

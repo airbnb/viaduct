@@ -2,6 +2,7 @@ package com.example.grts;
 
 import viaduct.engine.api.EngineObjectData;
 import viaduct.engine.api.NodeReference;
+import viaduct.engine.api.RootFieldReference;
 import viaduct.java.api.context.ExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
@@ -49,6 +50,10 @@ public class PageInfo extends ObjectBase {
 
     private PageInfo(InternalContext context, Map<String, Object> data) {
         super(context, data);
+    }
+
+    public PageInfo(InternalContext context, RootFieldReference rootFieldReference) {
+        super(context, rootFieldReference);
     }
         public boolean getHasNextPage() {
             return fetchScalar("hasNextPage");

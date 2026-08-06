@@ -18,7 +18,7 @@ class ResolverGeneratorTest {
             "com.example.types.User",
             "com.example.types.Query",
             "com.example.types.Mutation",
-            "Arguments.None",
+            "Arguments.NoArguments",
             "com.example.types.Profile",
             false,
             true,
@@ -43,8 +43,14 @@ class ResolverGeneratorTest {
     assertTrue(
         generated.contains(
             "implements FieldResolverBase<Profile, com.example.types.User, com.example.types.Query,"
-                + " Arguments.None, com.example.types.Profile>, BaseUnbatchedFieldResolver"));
+                + " Arguments.NoArguments, com.example.types.Profile>,"
+                + " BaseUnbatchedFieldResolver"));
     assertTrue(generated.contains("public static final class Context"));
+    assertTrue(
+        generated.contains(
+            "public <A extends Arguments, T extends GraphQLObject> T rootFieldRef("));
+    assertTrue(generated.contains("RootObjectField<?, T, A> field, A arguments)"));
+    assertTrue(generated.contains("return inner.rootFieldRef(field, arguments);"));
     assertTrue(
         generated.contains("public abstract CompletableFuture<Profile> resolve(Context ctx)"));
     assertTrue(generated.contains("public final CompletableFuture<?> invokeFieldResolver("));
@@ -63,7 +69,7 @@ class ResolverGeneratorTest {
             "com.example.types.User",
             "com.example.types.Query",
             "com.example.types.Mutation",
-            "Arguments.None",
+            "Arguments.NoArguments",
             "com.example.types.Profile",
             false,
             true,
@@ -170,7 +176,7 @@ class ResolverGeneratorTest {
             "com.example.types.User",
             "com.example.types.Query",
             "com.example.types.Mutation",
-            "Arguments.None",
+            "Arguments.NoArguments",
             "com.example.types.Profile",
             false,
             true,
@@ -186,7 +192,7 @@ class ResolverGeneratorTest {
             "com.example.types.User",
             "com.example.types.Query",
             "com.example.types.Mutation",
-            "Arguments.None",
+            "Arguments.NoArguments",
             "com.example.types.Order",
             false,
             true,
@@ -223,7 +229,7 @@ class ResolverGeneratorTest {
             "com.example.types.User",
             "com.example.types.Query",
             "com.example.types.Mutation",
-            "Arguments.None",
+            "Arguments.NoArguments",
             "CompositeOutput.None",
             false,
             false,
@@ -256,7 +262,7 @@ class ResolverGeneratorTest {
             "com.example.types.User",
             "com.example.types.Query",
             "com.example.types.Mutation",
-            "Arguments.None",
+            "Arguments.NoArguments",
             "com.example.types.Profile",
             false,
             true,
@@ -272,7 +278,7 @@ class ResolverGeneratorTest {
     // Check that Context class has all required delegate methods
     assertTrue(generated.contains("public com.example.types.User getObjectValue()"));
     assertTrue(generated.contains("public com.example.types.Query getQueryValue()"));
-    assertTrue(generated.contains("public Arguments.None getArguments()"));
+    assertTrue(generated.contains("public Arguments.NoArguments getArguments()"));
     assertTrue(
         generated.contains(
             "@ResolverFor(typeName = \"User\", fieldName = \"profile\", isSelective = true,"
@@ -280,7 +286,7 @@ class ResolverGeneratorTest {
     assertTrue(
         generated.contains(
             "implements FieldResolverBase.Context<com.example.types.User, com.example.types.Query,"
-                + " Arguments.None, com.example.types.Profile>,"
+                + " Arguments.NoArguments, com.example.types.Profile>,"
                 + " SelectiveFieldExecutionContext<com.example.types.Profile>"));
     assertTrue(generated.contains("public Object getSelections()"));
     assertTrue(
@@ -306,7 +312,7 @@ class ResolverGeneratorTest {
             "com.example.types.Container",
             "com.example.types.Query",
             "com.example.types.Mutation",
-            "Arguments.None",
+            "Arguments.NoArguments",
             "CompositeOutput.None",
             false,
             false,
@@ -367,7 +373,7 @@ class ResolverGeneratorTest {
             "com.example.types.Container",
             "com.example.types.Query",
             null, // no mutation type
-            "Arguments.None",
+            "Arguments.NoArguments",
             "CompositeOutput.None",
             false,
             false,

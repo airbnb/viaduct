@@ -14,8 +14,11 @@ import viaduct.java.api.documents.QueryFromAnnotation
 import viaduct.java.api.globalid.GlobalID
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ResolverClassFinder
+import viaduct.java.api.reflect.RootObjectField
 import viaduct.java.api.reflect.Type
 import viaduct.java.api.resolvers.NodeResolverBase
+import viaduct.java.api.types.Arguments
+import viaduct.java.api.types.GraphQLObject
 import viaduct.java.api.types.NodeCompositeOutput
 import viaduct.java.api.types.NodeObject
 import viaduct.service.api.spi.GlobalIDCodec
@@ -92,6 +95,11 @@ class SimpleNodeExecutionContext(
         val grtClass = id.getType().getJavaClass() as Class<T>
         return delegate.nodeRef(id, grtClass)
     }
+
+    override fun <A : Arguments, T : GraphQLObject> rootFieldRef(
+        field: RootObjectField<*, T, A>,
+        arguments: A,
+    ): T = delegate.rootFieldRef(field, arguments)
 
     override fun <T : Any> query(
         selections: String,

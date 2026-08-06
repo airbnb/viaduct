@@ -37,7 +37,7 @@ public interface FieldExecutionContext<
 
   /**
    * The value of any arguments that were provided by the caller of this resolver. If this field
-   * does not take arguments, this returns {@link Arguments#NoArguments}.
+   * does not take arguments, this returns {@link Arguments.NoArguments}.
    *
    * @return The arguments provided to this field
    */

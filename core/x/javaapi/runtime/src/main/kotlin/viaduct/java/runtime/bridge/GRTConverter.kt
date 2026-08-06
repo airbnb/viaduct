@@ -38,6 +38,8 @@ internal fun convertResult(
         is ObjectBase -> {
             // Node reference path: pass NodeReference directly to the engine
             result.javaNodeReference?.let { return it }
+            // Root field reference path: pass RootFieldReference directly to the engine
+            result.javaRootFieldReference?.let { return it }
             convertJavaGRTToEngineObjectData(result, graphqlSchema)
         }
         is GraphQLObject -> throw FrameworkException(
@@ -88,7 +90,10 @@ private fun convertValue(
         null -> null
         is ObjectBase -> {
             // Node reference path: pass NodeReference directly to the engine
-            value.javaNodeReference ?: convertJavaGRTToEngineObjectData(value, schema)
+            value.javaNodeReference
+                // Root field reference path: pass RootFieldReference directly to the engine
+                ?: value.javaRootFieldReference
+                ?: convertJavaGRTToEngineObjectData(value, schema)
         }
         is GraphQLObject -> throw FrameworkException(
             "Nested value is a GraphQLObject that does not extend ObjectBase: ${value.javaClass.name}. " +

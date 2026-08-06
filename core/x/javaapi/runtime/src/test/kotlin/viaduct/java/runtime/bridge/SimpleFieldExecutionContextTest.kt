@@ -77,12 +77,12 @@ class SimpleFieldExecutionContextTest {
             requestContext = null
         )
 
-        assertSame(viaduct.java.api.types.Arguments.NoArguments, context.getArguments())
+        assertSame(viaduct.java.api.types.Arguments.None, context.getArguments())
     }
 
     @Test
     fun `getArguments returns provided arguments`() {
-        val args = viaduct.java.api.types.Arguments.NoArguments
+        val args = viaduct.java.api.types.Arguments.None
         val context = SimpleFieldExecutionContext(
             requestContext = null,
             arguments = args

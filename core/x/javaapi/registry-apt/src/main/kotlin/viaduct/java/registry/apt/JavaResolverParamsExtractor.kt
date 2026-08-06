@@ -26,7 +26,7 @@ internal const val FIELD_RESOLVER_BASE_FQN = "viaduct.java.api.resolvers.FieldRe
  */
 internal const val CONNECTION_RESOLVER_BASE_FQN = "viaduct.java.api.resolvers.ConnectionResolverBase"
 internal const val NODE_RESOLVER_BASE_FQN = "viaduct.java.api.resolvers.NodeResolverBase"
-internal const val ARGUMENTS_NONE_FQN = "viaduct.java.api.types.Arguments.None"
+internal const val ARGUMENTS_NO_ARGUMENTS_FQN = "viaduct.java.api.types.Arguments.NoArguments"
 
 internal const val DESCRIPTOR_ROOT = "viaduct-registry"
 
@@ -248,7 +248,7 @@ internal class JavaResolverParamsExtractor(
 
     private fun isArgumentsNone(type: TypeMirror): Boolean {
         val element = (type as? DeclaredType)?.asElement() as? TypeElement ?: return false
-        return element.qualifiedName.toString() == ARGUMENTS_NONE_FQN
+        return element.qualifiedName.toString() == ARGUMENTS_NO_ARGUMENTS_FQN
     }
 
     private fun simpleName(type: TypeMirror): String? {

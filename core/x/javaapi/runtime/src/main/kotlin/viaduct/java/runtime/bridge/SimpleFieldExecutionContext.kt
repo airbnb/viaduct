@@ -13,6 +13,7 @@ import viaduct.java.api.documents.MutationFromAnnotation
 import viaduct.java.api.documents.QueryFromAnnotation
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ResolverClassFinder
+import viaduct.java.api.reflect.RootObjectField
 import viaduct.java.api.resolvers.FieldResolverBase
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.CompositeOutput
@@ -79,7 +80,7 @@ class SimpleFieldExecutionContext(
         }
 
     override fun getArguments(): Arguments {
-        return arguments ?: Arguments.NoArguments
+        return arguments ?: Arguments.None
     }
 
     override fun getSelections(): Any {
@@ -121,6 +122,11 @@ class SimpleFieldExecutionContext(
             ?: id.getType().getJavaClass() as Class<T>
         return delegate.nodeRef(id, grtClass)
     }
+
+    override fun <A : Arguments, T : GraphQLObject> rootFieldRef(
+        field: RootObjectField<*, T, A>,
+        arguments: A,
+    ): T = delegate.rootFieldRef(field, arguments)
 
     override fun <T : Any> query(
         selections: String,

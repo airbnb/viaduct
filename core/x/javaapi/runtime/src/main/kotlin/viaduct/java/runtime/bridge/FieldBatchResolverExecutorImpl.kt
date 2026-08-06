@@ -116,7 +116,12 @@ class FieldBatchResolverExecutorImpl(
         argumentMap: Map<String, Any?>,
         internalContext: InternalContext?
     ): Arguments? {
-        if (argumentsClass == null || argumentsClass == Arguments.None::class.java) return null
+        if (
+            argumentsClass == null ||
+            Arguments.isNoArgumentsClass(argumentsClass)
+        ) {
+            return null
+        }
 
         val graphQLInputObjectType: GraphQLInputObjectType? = internalContext?.let { ctx ->
             buildArgumentsInputType(argumentsClass, resolverId, ctx)

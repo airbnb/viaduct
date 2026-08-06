@@ -22,10 +22,10 @@ public class JavaInvalidSyntaxContractTest extends InvalidSyntaxContractTest {
     }
 
     @Variables(types = {"someVar Int! invalid syntax here"})
-    public static class InvalidSyntaxProvider implements VariablesProvider<Arguments.None> {
+    public static class InvalidSyntaxProvider implements VariablesProvider<Arguments.NoArguments> {
       @Override
       public CompletableFuture<Map<String, Object>> provide(
-          VariablesProviderContext<Arguments.None> ctx) {
+          VariablesProviderContext<Arguments.NoArguments> ctx) {
         return CompletableFuture.completedFuture(Map.of("someVar", 42));
       }
     }

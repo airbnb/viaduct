@@ -19,6 +19,7 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import viaduct.engine.api.EngineObjectData;
 import viaduct.engine.api.NodeReference;
+import viaduct.engine.api.RootFieldReference;
 import viaduct.errors.FrameworkException;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.reflect.Type;
@@ -29,9 +30,9 @@ import viaduct.java.api.types.NodeCompositeOutput;
  *
  * <p>{@link ObjectBase} is an abstract base class for object-type GRTs, so it is exercised through
  * a minimal concrete subclass that exposes the {@code protected} fetch* methods. Tests assert on
- * the values returned through those accessors (state-based), covering the three construction paths
- * (engine, builder, node reference), the field cache, scalar coercion, and the list/object/enum/
- * GlobalID fetch variants.
+ * the values returned through those accessors (state-based), covering the four construction paths
+ * (engine, builder, node reference, root field reference), the field cache, scalar coercion, and
+ * the list/object/enum/GlobalID fetch variants.
  */
 class ObjectBaseTest {
 
@@ -48,6 +49,10 @@ class ObjectBaseTest {
     }
 
     TestObject(@Nullable InternalContext context, NodeReference ref) {
+      super(context, ref);
+    }
+
+    TestObject(@Nullable InternalContext context, RootFieldReference ref) {
       super(context, ref);
     }
 
@@ -176,6 +181,24 @@ class ObjectBaseTest {
     }
   }
 
+  /** Fake unresolved root field reference for construction-path and access tests. */
+  static final class FakeRootFieldReference implements RootFieldReference {
+    @Override
+    public List<String> getRootFieldPath() {
+      return List.of("_factories", "products", "create");
+    }
+
+    @Override
+    public GraphQLObjectType getType() {
+      return GraphQLObjectType.newObject().name("Product").build();
+    }
+
+    @Override
+    public Map<String, Object> getArgs() {
+      return Map.of("name", "Widget");
+    }
+  }
+
   static final class TestNode implements NodeCompositeOutput {}
 
   /** Fake InternalContext that deserializes a GlobalID by treating the raw string as the id. */
@@ -240,6 +263,7 @@ class ObjectBaseTest {
     assertSame(sync, obj.getJavaEngineObjectData());
     assertNull(obj.getJavaMapData());
     assertNull(obj.getJavaNodeReference());
+    assertNull(obj.getJavaRootFieldReference());
   }
 
   @Test
@@ -249,6 +273,7 @@ class ObjectBaseTest {
     assertEquals("Alice", obj.getJavaMapData().get("name"));
     assertNull(obj.getJavaEngineObjectData());
     assertNull(obj.getJavaNodeReference());
+    assertNull(obj.getJavaRootFieldReference());
   }
 
   @Test
@@ -267,6 +292,18 @@ class ObjectBaseTest {
     assertSame(ref, obj.getJavaNodeReference());
     assertNull(obj.getJavaEngineObjectData());
     assertNull(obj.getJavaMapData());
+    assertNull(obj.getJavaRootFieldReference());
+  }
+
+  @Test
+  void rootFieldReferencePath_exposesReferenceAndNullsForOthers() {
+    FakeRootFieldReference ref = new FakeRootFieldReference();
+    TestObject obj = new TestObject(null, ref);
+
+    assertSame(ref, obj.getJavaRootFieldReference());
+    assertNull(obj.getJavaEngineObjectData());
+    assertNull(obj.getJavaMapData());
+    assertNull(obj.getJavaNodeReference());
   }
 
   // ===== fetchScalar =====
@@ -325,6 +362,14 @@ class ObjectBaseTest {
 
     FrameworkException e = assertThrows(FrameworkException.class, () -> obj.scalar("name"));
     assertTrue(e.getMessage().contains("only `id` is accessible"));
+  }
+
+  @Test
+  void fetchScalar_onRootFieldReference_throwsForEveryField() {
+    TestObject obj = new TestObject(null, new FakeRootFieldReference());
+
+    FrameworkException e = assertThrows(FrameworkException.class, () -> obj.scalar("name"));
+    assertTrue(e.getMessage().contains("ctx.rootFieldRef"));
   }
 
   // ===== fetchScalarList =====

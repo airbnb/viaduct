@@ -20,14 +20,14 @@ class DefaultResolverClassFinderTest {
 
     @ResolverFor(typeName = "TestType", fieldName = "testField", isSelective = false)
     abstract class TestResolverBase :
-        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput> {
+        FieldResolverBase<String, TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput> {
         // Define resolve method on the base class (mirrors generated code pattern)
-        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String>
+        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>): CompletableFuture<String>
     }
 
     @Resolver
     class TestResolverImpl : TestResolverBase() {
-        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String> {
+        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>): CompletableFuture<String> {
             return CompletableFuture.completedFuture("test")
         }
     }

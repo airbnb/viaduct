@@ -168,7 +168,7 @@ class GraphQLSchemaParserTest {
 
     FieldModel productsField = query.fields().get(0);
     assertThat(productsField.rootObjectField()).isTrue();
-    assertThat(productsField.argumentsTypeName()).isEqualTo("Arguments.None");
+    assertThat(productsField.argumentsTypeName()).isEqualTo("Arguments.NoArguments");
     assertThat(productsField.pathFromQueryRoot()).containsExactly("products");
 
     FieldModel detail =
@@ -232,7 +232,12 @@ class GraphQLSchemaParserTest {
         .containsExactly("before");
 
     assertThat(JavaGRTGenerator.ArgumentGenerator.generate(forward))
-        .contains("public String getAfter()", "return null;")
+        .contains(
+            "public String getAfter()",
+            "return null;",
+            "public static Builder builder(ExecutionContext context)",
+            "public Builder first(Integer first)",
+            "public Query_Forward_Arguments build()")
         .doesNotContain("Field<Query_Forward_Arguments> after");
     assertThat(JavaGRTGenerator.ArgumentGenerator.generate(backward))
         .contains("public String getBefore()", "return null;")
@@ -651,7 +656,7 @@ class GraphQLSchemaParserTest {
     assertThat(profilePicture.returnType()).isEqualTo("String");
     assertThat(profilePicture.objectType()).isEqualTo("com.example.types.User");
     assertThat(profilePicture.queryType()).isEqualTo("com.example.types.Query");
-    assertThat(profilePicture.argumentsType()).isEqualTo("Arguments.None");
+    assertThat(profilePicture.argumentsType()).isEqualTo("Arguments.NoArguments");
     assertThat(profilePicture.hasArguments()).isFalse();
     assertThat(profilePicture.isSelective()).isTrue();
     assertThat(profilePicture.isBatching()).isFalse();
@@ -785,7 +790,7 @@ class GraphQLSchemaParserTest {
             .findFirst()
             .orElseThrow();
     assertThat(reviews.hasArguments()).isFalse();
-    assertThat(reviews.argumentsType()).isEqualTo("Arguments.None");
+    assertThat(reviews.argumentsType()).isEqualTo("Arguments.NoArguments");
   }
 
   @Test
@@ -827,15 +832,15 @@ class GraphQLSchemaParserTest {
     assertThat(profilePicture.getFieldResolverBaseType())
         .isEqualTo(
             "FieldResolverBase<String, com.example.types.User, com.example.types.Query,"
-                + " Arguments.None, CompositeOutput.None>");
+                + " Arguments.NoArguments, CompositeOutput.None>");
     assertThat(profilePicture.getContextBaseType())
         .isEqualTo(
             "FieldResolverBase.Context<com.example.types.User, com.example.types.Query,"
-                + " Arguments.None, CompositeOutput.None>");
+                + " Arguments.NoArguments, CompositeOutput.None>");
     assertThat(profilePicture.getFieldExecutionContextType())
         .isEqualTo(
             "FieldExecutionContext<com.example.types.User, com.example.types.Query,"
-                + " Arguments.None, CompositeOutput.None>");
+                + " Arguments.NoArguments, CompositeOutput.None>");
     assertThat(profilePicture.getResolveFutureType()).isEqualTo("CompletableFuture<String>");
     assertThat(profilePicture.getBatchResolveFutureType())
         .isEqualTo("CompletableFuture<Map<Context, String>>");
@@ -848,7 +853,7 @@ class GraphQLSchemaParserTest {
 
     assertThat(resolver.getFieldResolverBaseType())
         .startsWith("FieldResolverBase<")
-        .contains("Arguments.None");
+        .contains("Arguments.NoArguments");
   }
 
   @Test

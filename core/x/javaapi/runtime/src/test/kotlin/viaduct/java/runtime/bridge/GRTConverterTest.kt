@@ -12,13 +12,29 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.ViaductSchema
 import viaduct.java.api.internal.InternalContext
+import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.Arguments
+import viaduct.java.api.types.GraphQLObject
 import viaduct.service.api.spi.GlobalIDCodec
 
 class GRTConverterTest {
+    private class RootReferenceObject(ref: RootFieldReference) :
+        ObjectBase(null, ref),
+        GraphQLObject
+
+    @Test
+    fun `convertResult passes root field references directly to the engine`() {
+        val reference = mockk<RootFieldReference>()
+
+        val result = convertResult(RootReferenceObject(reference), null)
+
+        assertSame(reference, result)
+    }
+
     @Test
     fun `buildInternalContext creates InternalContextImpl from engine context`() {
         val schema = mockk<ViaductSchema>()

@@ -4,6 +4,7 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import viaduct.engine.api.EngineObjectData;
 import viaduct.engine.api.NodeReference;
+import viaduct.engine.api.RootFieldReference;
 import viaduct.java.api.types.NodeObject;
 
 /**
@@ -24,5 +25,10 @@ public abstract class NodeObjectBase extends ObjectBase implements NodeObject {
 
   protected NodeObjectBase(@Nullable InternalContext __context, NodeReference nodeReference) {
     super(__context, nodeReference);
+  }
+
+  protected NodeObjectBase(
+      @Nullable InternalContext __context, RootFieldReference rootFieldReference) {
+    super(__context, rootFieldReference);
   }
 }

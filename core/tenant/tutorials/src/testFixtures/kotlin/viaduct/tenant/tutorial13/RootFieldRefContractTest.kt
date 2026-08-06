@@ -8,10 +8,33 @@ import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
     type Product {
       name: String
       price: Int
+      metadata: JSON
+      related: Product
+    }
+
+    enum ProductKind {
+      PHYSICAL
+      DIGITAL
+    }
+
+    input ProductSpecInput {
+      quantity: Int!
+    }
+
+    type Owner implements Node {
+      id: ID!
     }
 
     type ProductFactory @namespaceType {
       create: Product @resolver
+      createWithArguments(
+        name: String!
+        metadata: JSON!
+        spec: ProductSpecInput!
+        kind: ProductKind!
+        tags: [String!]!
+        ownerId: ID! @idOf(type: "Owner")
+      ): Product @resolver
     }
 
     type Factories @namespaceType {

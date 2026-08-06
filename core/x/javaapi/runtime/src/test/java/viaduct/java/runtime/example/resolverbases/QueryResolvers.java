@@ -6,10 +6,12 @@ import viaduct.java.api.annotations.ResolverFor;
 import viaduct.java.api.context.FieldExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.BaseUnbatchedFieldResolver;
+import viaduct.java.api.reflect.RootObjectField;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.resolvers.FieldResolverBase;
 import viaduct.java.api.types.Arguments;
 import viaduct.java.api.types.CompositeOutput;
+import viaduct.java.api.types.GraphQLObject;
 import viaduct.java.api.types.NodeCompositeOutput;
 import viaduct.java.api.types.NodeObject;
 import viaduct.java.runtime.example.grts.Query;
@@ -32,7 +34,8 @@ public final class QueryResolvers {
    */
   @ResolverFor(typeName = "Query", fieldName = "greeting", isSelective = false)
   public abstract static class Greeting
-      implements FieldResolverBase<String, Query, Query, Arguments.None, CompositeOutput.None>,
+      implements FieldResolverBase<
+              String, Query, Query, Arguments.NoArguments, CompositeOutput.None>,
           BaseUnbatchedFieldResolver {
 
     /**
@@ -40,12 +43,14 @@ public final class QueryResolvers {
      * arguments, and selections.
      */
     public static class Context
-        implements FieldResolverBase.Context<Query, Query, Arguments.None, CompositeOutput.None> {
+        implements FieldResolverBase.Context<
+            Query, Query, Arguments.NoArguments, CompositeOutput.None> {
 
-      private final FieldExecutionContext<Query, Query, Arguments.None, CompositeOutput.None> inner;
+      private final FieldExecutionContext<Query, Query, Arguments.NoArguments, CompositeOutput.None>
+          inner;
 
       public Context(
-          FieldExecutionContext<Query, Query, Arguments.None, CompositeOutput.None> inner) {
+          FieldExecutionContext<Query, Query, Arguments.NoArguments, CompositeOutput.None> inner) {
         this.inner = inner;
       }
 
@@ -60,7 +65,7 @@ public final class QueryResolvers {
       }
 
       @Override
-      public Arguments.None getArguments() {
+      public Arguments.NoArguments getArguments() {
         return inner.getArguments();
       }
 
@@ -91,6 +96,12 @@ public final class QueryResolvers {
       }
 
       @Override
+      public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
+          RootObjectField<?, T, A> field, A arguments) {
+        return inner.rootFieldRef(field, arguments);
+      }
+
+      @Override
       public <T> CompletableFuture<T> query(
           String selections, Map<String, Object> variables, Class<T> targetClass) {
         return inner.query(selections, variables, targetClass);
@@ -118,7 +129,8 @@ public final class QueryResolvers {
         FieldExecutionContext<?, ?, ?, ?> context) {
       return resolve(
           new Context(
-              (FieldExecutionContext<Query, Query, Arguments.None, CompositeOutput.None>) context));
+              (FieldExecutionContext<Query, Query, Arguments.NoArguments, CompositeOutput.None>)
+                  context));
     }
   }
 }

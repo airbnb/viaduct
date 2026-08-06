@@ -88,30 +88,30 @@ class ViaductJavaExecutorFactoryTest {
 
     @ResolverFor(typeName = "Query", fieldName = "testField", isSelective = false)
     abstract class TestFieldResolverBase :
-        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>,
+        FieldResolverBase<String, TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>,
         BaseUnbatchedFieldResolver {
-        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String>
+        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>): CompletableFuture<String>
 
         final override fun invokeFieldResolver(context: FieldExecutionContext<*, *, *, *>): CompletableFuture<*> = resolve(uncheckedCast(context))
     }
 
     @Resolver
     class TestFieldResolver : TestFieldResolverBase() {
-        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String> = CompletableFuture.completedFuture("test result")
+        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>): CompletableFuture<String> = CompletableFuture.completedFuture("test result")
     }
 
     @ResolverFor(typeName = "Person", fieldName = "fullName", isSelective = false)
     abstract class PersonFullNameResolverBase :
-        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>,
+        FieldResolverBase<String, TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>,
         BaseUnbatchedFieldResolver {
-        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String>
+        abstract fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>): CompletableFuture<String>
 
         final override fun invokeFieldResolver(context: FieldExecutionContext<*, *, *, *>): CompletableFuture<*> = resolve(uncheckedCast(context))
     }
 
     @Resolver(objectValueFragment = "firstName lastName")
     class PersonFullNameResolver : PersonFullNameResolverBase() {
-        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>): CompletableFuture<String> = CompletableFuture.completedFuture("Full Name")
+        override fun resolve(ctx: FieldResolverBase.Context<TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>): CompletableFuture<String> = CompletableFuture.completedFuture("Full Name")
     }
 
     class TestNodeObj : NodeObject
@@ -133,12 +133,12 @@ class ViaductJavaExecutorFactoryTest {
     /** Concrete field Context wrapping the engine-provided [FieldExecutionContext], as codegen emits. */
     class ConcreteFieldContext(
         inner: FieldExecutionContext<*, *, *, *>,
-    ) : FieldResolverBase.Context<TestQuery, TestQuery, Arguments.None, CompositeOutput>
+    ) : FieldResolverBase.Context<TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>
         by uncheckedCast(inner)
 
     @ResolverFor(typeName = "Query", fieldName = "testField", isSelective = false)
     abstract class ConcreteContextFieldResolverBase :
-        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>,
+        FieldResolverBase<String, TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>,
         BaseUnbatchedFieldResolver {
         abstract fun resolve(ctx: ConcreteFieldContext): CompletableFuture<String>
 
@@ -156,7 +156,7 @@ class ViaductJavaExecutorFactoryTest {
 
     @ResolverFor(typeName = "Query", fieldName = "testField", isSelective = false)
     abstract class BatchFieldResolverBase :
-        FieldResolverBase<String, TestQuery, TestQuery, Arguments.None, CompositeOutput>,
+        FieldResolverBase<String, TestQuery, TestQuery, Arguments.NoArguments, CompositeOutput>,
         BaseBatchedFieldResolver {
         abstract fun batchResolve(contexts: List<ConcreteFieldContext>): CompletableFuture<Map<ConcreteFieldContext, String>>
 

@@ -7,6 +7,7 @@ plugins {
 viaductFeatureAppContracts {
     java {
         contractsFrom(":tenant:runtime")
+        contractsFrom(":tenant:tutorials")
     }
 }
 

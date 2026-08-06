@@ -14,7 +14,7 @@ public interface VariablesProviderContext<A extends Arguments> extends Execution
    * The arguments provided to the field whose resolver depends on the variables produced by this
    * provider.
    *
-   * @return the typed arguments instance, or {@link Arguments#NoArguments} for fields with no
+   * @return the typed arguments instance, or {@link Arguments.NoArguments} for fields with no
    *     arguments.
    */
   A getArguments();

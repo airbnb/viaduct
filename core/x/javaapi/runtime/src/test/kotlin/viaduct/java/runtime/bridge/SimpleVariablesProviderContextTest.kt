@@ -46,12 +46,12 @@ class SimpleVariablesProviderContextTest {
 
     @Test
     fun `getArguments returns NoArguments when none provided`() {
-        assertSame(Arguments.NoArguments, newContext().getArguments())
+        assertSame(Arguments.None, newContext().getArguments())
     }
 
     @Test
     fun `getArguments returns provided arguments`() {
-        val args = Arguments.NoArguments
+        val args = Arguments.None
         assertSame(args, newContext(arguments = args).getArguments())
     }
 

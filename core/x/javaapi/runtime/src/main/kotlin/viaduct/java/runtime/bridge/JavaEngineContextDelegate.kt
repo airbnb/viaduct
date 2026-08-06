@@ -7,6 +7,7 @@ import kotlinx.coroutines.future.future
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ResolveSelectionSetOptions
+import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.errors.FrameworkException
@@ -15,9 +16,13 @@ import viaduct.errors.handleFrameworkErrorsSuspend
 import viaduct.graphql.utils.ParsedSelections
 import viaduct.graphql.utils.SelectionsParserUtils
 import viaduct.java.api.globalid.GlobalID
+import viaduct.java.api.internal.InputBase
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ResolverClassFinder
+import viaduct.java.api.reflect.RootObjectField
 import viaduct.java.api.reflect.Type
+import viaduct.java.api.types.Arguments
+import viaduct.java.api.types.GraphQLObject
 import viaduct.java.api.types.NodeCompositeOutput
 import viaduct.java.api.types.NodeObject
 import viaduct.service.api.spi.GlobalIDCodec
@@ -104,6 +109,34 @@ internal class JavaEngineContextDelegate(
         return grtClass
             .getDeclaredConstructor(InternalContext::class.java, NodeReference::class.java)
             .newInstance(internalContext, nodeReference) as T
+    }
+
+    // ── Root field reference ──
+
+    fun <A : Arguments, T : GraphQLObject> rootFieldRef(
+        field: RootObjectField<*, T, A>,
+        arguments: A,
+    ): T {
+        val engineCtx = requireEngineContext("rootFieldRef")
+        val typeName = field.type.name
+        val graphqlType = engineCtx.fullSchema.schema.getObjectType(typeName)
+            ?: throw FrameworkException("GraphQL type '$typeName' not found in schema for rootFieldRef.")
+        val argsMap: Map<String, Any?> = when (arguments) {
+            is Arguments.NoArguments -> emptyMap()
+            is InputBase -> JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(arguments.inputData, engineCtx)
+            else -> throw IllegalArgumentException(
+                "Expected arguments to be Arguments.NoArguments or InputBase, got ${arguments.javaClass.name}"
+            )
+        }
+        val rootFieldReference = engineCtx.createRootFieldReference(
+            field.pathFromQueryRoot,
+            graphqlType,
+            argsMap,
+        )
+        val internalContext = classFinder?.let { buildInternalContext(engineCtx, it) }
+        return field.type.javaClass
+            .getDeclaredConstructor(InternalContext::class.java, RootFieldReference::class.java)
+            .newInstance(internalContext, rootFieldReference) as T
     }
 
     // ── Subquery execution ──

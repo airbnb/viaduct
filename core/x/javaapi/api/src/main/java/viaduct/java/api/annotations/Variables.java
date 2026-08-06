@@ -24,10 +24,10 @@ import java.lang.annotation.Target;
  *   public CompletableFuture<Integer> resolve(Context ctx) { ... }
  *
  *   @Variables(types = "x: Int!")
- *   public static class TestVariablesProvider implements VariablesProvider<Arguments.None> {
+ *   public static class TestVariablesProvider implements VariablesProvider<Arguments.NoArguments> {
  *     @Override
  *     public CompletableFuture<Map<String, Object>> provide(
- *         VariablesProviderContext<Arguments.None> ctx) {
+ *         VariablesProviderContext<Arguments.NoArguments> ctx) {
  *       return CompletableFuture.completedFuture(Map.of("x", 123));
  *     }
  *   }

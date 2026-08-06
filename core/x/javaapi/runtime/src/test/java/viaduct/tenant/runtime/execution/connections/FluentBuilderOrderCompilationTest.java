@@ -52,7 +52,9 @@ class FluentBuilderOrderCompilationTest {
 
   @Test
   void generatedConnectionBuilderAcceptsOrdinaryResolverContexts() {
-    Function<FieldExecutionContext<Query, Query, Arguments.None, PostConnection>, PostConnection>
+    Function<
+            FieldExecutionContext<Query, Query, Arguments.NoArguments, PostConnection>,
+            PostConnection>
         unpaged = context -> PostConnection.builder(context).fromEdges(List.<PostEdge>of()).build();
     Function<FieldExecutionContext<Query, Query, FilterArguments, PostConnection>, PostConnection>
         filtered =

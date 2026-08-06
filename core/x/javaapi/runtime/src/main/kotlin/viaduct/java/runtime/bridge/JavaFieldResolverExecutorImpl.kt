@@ -166,7 +166,10 @@ class JavaFieldResolverExecutorImpl(
         argumentMap: Map<String, Any?>,
         internalContext: InternalContext?
     ): Arguments? {
-        if (argumentsClass == null || argumentsClass == Arguments.None::class.java) {
+        if (
+            argumentsClass == null ||
+            Arguments.isNoArgumentsClass(argumentsClass)
+        ) {
             return null
         }
 

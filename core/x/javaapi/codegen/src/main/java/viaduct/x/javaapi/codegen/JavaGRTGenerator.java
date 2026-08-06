@@ -21,6 +21,27 @@ import viaduct.codegen.st.STUtilsKt;
  */
 public final class JavaGRTGenerator {
 
+  private static final String INPUT_LIKE_FIELD_ACCESSORS_TEMPLATE =
+      """
+          <mdl.fields: {f |
+          public <f.javaType> <f.getterName>() {
+              <if(f.globalIDList)>return getGlobalIDList("<f.name>");<elseif(f.globalIDType)>return getGlobalID("<f.name>");<elseif(f.compositeList)>return getInputList("<f.name>", <f.baseTypeName>::new);<elseif(f.compositeType)>return getInput("<f.name>", <f.baseTypeName>::new);<elseif(f.enumList)>return getEnumList("<f.name>", <f.baseTypeName>.class);<elseif(f.enumType)>return getEnum("<f.name>", <f.baseTypeName>.class);<elseif(f.temporalScalarList)>return getScalarList("<f.name>", "<f.scalarCoercionHint>");<elseif(f.temporalScalar)>return get("<f.name>", "<f.scalarCoercionHint>");<elseif(f.scalarList)>return getScalarList("<f.name>");<else>return get("<f.name>");<endif>
+          \\}
+          }; separator="\\n">
+      """;
+
+  private static final String INPUT_LIKE_BUILDER_SETTERS_TEMPLATE =
+      """
+              <mdl.fields: {f |
+              public Builder <f.safeName>(<f.builderType> <f.safeName>) {
+                  <if(f.globalIDBuilderSerialize)>data.put("<f.name>", <f.safeName> == null ? null : __context.getGlobalIDCodec().serialize(<f.safeName>.getType().getName(), <f.safeName>.getInternalID()));
+                  <elseif(f.globalIDListBuilderSerialize)>data.put("<f.name>", <f.safeName> == null ? null : <f.safeName>.stream().map(__id -> __context.getGlobalIDCodec().serialize(__id.getType().getName(), __id.getInternalID())).collect(java.util.stream.Collectors.toList()));
+                  <else>data.put("<f.name>", <f.safeName>);
+                  <endif>return this;
+              \\}
+              }; separator="\\n">
+      """;
+
   private JavaGRTGenerator() {
     // Static utility class
   }
@@ -108,6 +129,7 @@ public final class JavaGRTGenerator {
 
             import viaduct.engine.api.EngineObjectData;
             import viaduct.engine.api.NodeReference;
+            import viaduct.engine.api.RootFieldReference;
             import viaduct.java.api.context.ExecutionContext;
             import viaduct.java.api.globalid.GlobalID;
             import viaduct.java.api.internal.InternalContext;
@@ -157,6 +179,10 @@ public final class JavaGRTGenerator {
 
                 private <mdl.className>(InternalContext context, Map\\<String, Object> data) {
                     super(context, data);
+                }
+
+                public <mdl.className>(InternalContext context, RootFieldReference rootFieldReference) {
+                    super(context, rootFieldReference);
                 }
                 <if(mdl.isNodeType)>
 
@@ -213,6 +239,7 @@ public final class JavaGRTGenerator {
             package <mdl.packageName>;
 
             import viaduct.engine.api.EngineObjectData;
+            import viaduct.engine.api.RootFieldReference;
             import viaduct.java.api.context.ExecutionContext;
             import viaduct.java.api.globalid.GlobalID;
             import viaduct.java.api.internal.ConnectionBuilder;
@@ -264,6 +291,10 @@ public final class JavaGRTGenerator {
 
                 private <mdl.className>(InternalContext context, Map\\<String, Object> data) {
                     super(context, data);
+                }
+
+                public <mdl.className>(InternalContext context, RootFieldReference rootFieldReference) {
+                    super(context, rootFieldReference);
                 }
 
                 <mdl.fields: {f |
@@ -443,42 +474,35 @@ public final class JavaGRTGenerator {
                     return isFieldPresent(field);
                 }
 
-                <mdl.fields: {f |
-                public <f.javaType> <f.getterName>() {
-                    <if(f.globalIDList)>return getGlobalIDList("<f.name>");<elseif(f.globalIDType)>return getGlobalID("<f.name>");<elseif(f.compositeList)>return getInputList("<f.name>", <f.baseTypeName>::new);<elseif(f.compositeType)>return getInput("<f.name>", <f.baseTypeName>::new);<elseif(f.enumList)>return getEnumList("<f.name>", <f.baseTypeName>.class);<elseif(f.enumType)>return getEnum("<f.name>", <f.baseTypeName>.class);<elseif(f.temporalScalarList)>return getScalarList("<f.name>", "<f.scalarCoercionHint>");<elseif(f.temporalScalar)>return get("<f.name>", "<f.scalarCoercionHint>");<elseif(f.scalarList)>return getScalarList("<f.name>");<else>return get("<f.name>");<endif>
-                \\}
-                }; separator="\\n">
+            """
+                + INPUT_LIKE_FIELD_ACCESSORS_TEMPLATE
+                + """
 
-                public static Builder builder(ExecutionContext context) {
-                    return new Builder(InternalContext.from(context));
-                }
-
-                public static class Builder {
-                    private final InternalContext __context;
-                    private final Map\\<String, Object> data = new LinkedHashMap\\<>();
-
-                    private Builder(InternalContext __context) {
-                        this.__context = __context;
+                    public static Builder builder(ExecutionContext context) {
+                        return new Builder(InternalContext.from(context));
                     }
 
-                    <mdl.fields: {f |
-                    public Builder <f.safeName>(<f.builderType> <f.safeName>) {
-                        <if(f.globalIDBuilderSerialize)>data.put("<f.name>", <f.safeName> == null ? null : __context.getGlobalIDCodec().serialize(<f.safeName>.getType().getName(), <f.safeName>.getInternalID()));
-                        <elseif(f.globalIDListBuilderSerialize)>data.put("<f.name>", <f.safeName> == null ? null : <f.safeName>.stream().map(__id -> __context.getGlobalIDCodec().serialize(__id.getType().getName(), __id.getInternalID())).collect(java.util.stream.Collectors.toList()));
-                        <else>data.put("<f.name>", <f.safeName>);
-                        <endif>return this;
-                    \\}
-                    }; separator="\\n">
+                    public static class Builder {
+                        private final InternalContext __context;
+                        private final Map\\<String, Object> data = new LinkedHashMap\\<>();
 
-                    public <mdl.className> build() {
-                        <if(mdl.isOneOf)>
-                        InputBase.validateOneOf("<mdl.className>", data);
-                        <endif>
-                        return new <mdl.className>(__context, new LinkedHashMap\\<>(data), null);
+                        private Builder(InternalContext __context) {
+                            this.__context = __context;
+                        }
+
+                """
+                + INPUT_LIKE_BUILDER_SETTERS_TEMPLATE
+                + """
+
+                        public <mdl.className> build() {
+                            <if(mdl.isOneOf)>
+                            InputBase.validateOneOf("<mdl.className>", data);
+                            <endif>
+                            return new <mdl.className>(__context, new LinkedHashMap\\<>(data), null);
+                        }
                     }
                 }
-            }
-            """);
+                """);
 
     private InputGenerator() {}
 
@@ -590,6 +614,7 @@ public final class JavaGRTGenerator {
             package <mdl.packageName>;
 
             import graphql.schema.GraphQLInputObjectType;
+            import viaduct.java.api.context.ExecutionContext;
             import viaduct.java.api.globalid.GlobalID;
             import viaduct.java.api.reflect.CompositeField;
             import viaduct.java.api.reflect.Field;
@@ -598,6 +623,7 @@ public final class JavaGRTGenerator {
             import java.time.Instant;
             import java.time.LocalDate;
             import java.time.OffsetTime;
+            import java.util.LinkedHashMap;
             import java.util.List;
             import java.util.Map;
             import viaduct.apiannotations.InternalApi;
@@ -644,18 +670,37 @@ public final class JavaGRTGenerator {
                     return isFieldPresent(field);
                 }
 
-                <mdl.fields: {f |
-                public <f.javaType> <f.getterName>() {
-                    <if(f.globalIDList)>return getGlobalIDList("<f.name>");<elseif(f.globalIDType)>return getGlobalID("<f.name>");<elseif(f.compositeList)>return getInputList("<f.name>", <f.baseTypeName>::new);<elseif(f.compositeType)>return getInput("<f.name>", <f.baseTypeName>::new);<elseif(f.enumList)>return getEnumList("<f.name>", <f.baseTypeName>.class);<elseif(f.enumType)>return getEnum("<f.name>", <f.baseTypeName>.class);<elseif(f.temporalScalarList)>return getScalarList("<f.name>", "<f.scalarCoercionHint>");<elseif(f.temporalScalar)>return get("<f.name>", "<f.scalarCoercionHint>");<elseif(f.scalarList)>return getScalarList("<f.name>");<else>return get("<f.name>");<endif>
-                \\}
-                }; separator="\\n">
-                <mdl.synthesizedConnectionFields: {f |
-                public <f.javaType> <f.getterName>() {
-                    return null;
-                \\}
-                }; separator="\\n">
-            }
-            """);
+            """
+                + INPUT_LIKE_FIELD_ACCESSORS_TEMPLATE
+                + """
+                    <mdl.synthesizedConnectionFields: {f |
+                    public <f.javaType> <f.getterName>() {
+                        return null;
+                    \\}
+                    }; separator="\\n">
+
+                    public static Builder builder(ExecutionContext context) {
+                        return new Builder(InternalContext.from(context));
+                    }
+
+                    public static class Builder {
+                        private final InternalContext __context;
+                        private final Map\\<String, Object> data = new LinkedHashMap\\<>();
+
+                        private Builder(InternalContext __context) {
+                            this.__context = __context;
+                        }
+
+                """
+                + INPUT_LIKE_BUILDER_SETTERS_TEMPLATE
+                + """
+
+                        public <mdl.className> build() {
+                            return new <mdl.className>(__context, new LinkedHashMap\\<>(data), null);
+                        }
+                    }
+                }
+                """);
 
     private ArgumentGenerator() {}
 

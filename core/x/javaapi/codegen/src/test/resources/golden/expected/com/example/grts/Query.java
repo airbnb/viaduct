@@ -2,6 +2,7 @@ package com.example.grts;
 
 import viaduct.engine.api.EngineObjectData;
 import viaduct.engine.api.NodeReference;
+import viaduct.engine.api.RootFieldReference;
 import viaduct.java.api.context.ExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
@@ -32,7 +33,7 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
                 public static final RootObjectField<Query, Order, Query_Order_Arguments> order =
                                 RootObjectField.of("order", Reflection, Order.Reflection, List.of("order"));
 
-                public static final RootObjectField<Query, User, Arguments.None> topUser =
+                public static final RootObjectField<Query, User, Arguments.NoArguments> topUser =
                                 RootObjectField.of("topUser", Reflection, User.Reflection, List.of("topUser"));
 
                 public static final CompositeField<Query, Order> popularOrders =
@@ -61,6 +62,10 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
 
     private Query(InternalContext context, Map<String, Object> data) {
         super(context, data);
+    }
+
+    public Query(InternalContext context, RootFieldReference rootFieldReference) {
+        super(context, rootFieldReference);
     }
         public Order getOrder() {
             return fetchObject("order", Order::new);

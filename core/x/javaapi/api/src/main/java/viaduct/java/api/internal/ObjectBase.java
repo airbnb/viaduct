@@ -14,6 +14,7 @@ import java.util.function.BiFunction;
 import org.jspecify.annotations.Nullable;
 import viaduct.engine.api.EngineObjectData;
 import viaduct.engine.api.NodeReference;
+import viaduct.engine.api.RootFieldReference;
 import viaduct.errors.FrameworkException;
 import viaduct.errors.HandleErrors;
 import viaduct.java.api.globalid.GlobalID;
@@ -26,12 +27,13 @@ import viaduct.java.api.types.NodeCompositeOutput;
  * <p>Mirrors Kotlin's {@code ObjectBase} pattern — wraps {@link EngineObjectData.Sync} directly
  * rather than copying data into POJOs via reflection.
  *
- * <p>Three construction paths (matching Kotlin ObjectBase):
+ * <p>Four construction paths (matching Kotlin ObjectBase):
  *
  * <ul>
  *   <li>Engine path: wraps pre-resolved {@link EngineObjectData.Sync} provided by the engine
  *   <li>Builder path: wraps a {@link Map} populated by the generated Builder
  *   <li>Node reference path: wraps a {@link NodeReference} for deferred node resolution
+ *   <li>Root field reference path: wraps a {@link RootFieldReference} for deferred field resolution
  * </ul>
  *
  * <p>Field access is cached using a {@link ConcurrentHashMap} with a {@code NULL_VALUE} sentinel to
@@ -47,6 +49,7 @@ public abstract class ObjectBase implements GraphQLObject {
   private final EngineObjectData.@Nullable Sync engineData;
   @Nullable private final Map<String, Object> mapData;
   @Nullable private final NodeReference nodeReference;
+  @Nullable private final RootFieldReference rootFieldReference;
   private final ConcurrentHashMap<String, Object> fieldCache = new ConcurrentHashMap<>();
 
   /**
@@ -62,6 +65,7 @@ public abstract class ObjectBase implements GraphQLObject {
     this.engineData = engineData;
     this.mapData = null;
     this.nodeReference = null;
+    this.rootFieldReference = null;
   }
 
   /**
@@ -75,6 +79,7 @@ public abstract class ObjectBase implements GraphQLObject {
     this.engineData = null;
     this.mapData = mapData;
     this.nodeReference = null;
+    this.rootFieldReference = null;
   }
 
   /**
@@ -87,6 +92,20 @@ public abstract class ObjectBase implements GraphQLObject {
     this.engineData = null;
     this.mapData = null;
     this.nodeReference = nodeReference;
+    this.rootFieldReference = null;
+  }
+
+  /**
+   * Root-field-reference path constructor: wraps a reference for deferred engine resolution.
+   *
+   * <p>No fields are accessible until the engine resolves the reference.
+   */
+  protected ObjectBase(@Nullable InternalContext __context, RootFieldReference rootFieldReference) {
+    this.__context = __context;
+    this.engineData = null;
+    this.mapData = null;
+    this.nodeReference = null;
+    this.rootFieldReference = rootFieldReference;
   }
 
   /**
@@ -114,6 +133,11 @@ public abstract class ObjectBase implements GraphQLObject {
     return nodeReference;
   }
 
+  /** Returns the unresolved root field reference for bridge conversion, if present. */
+  public @Nullable RootFieldReference getJavaRootFieldReference() {
+    return rootFieldReference;
+  }
+
   /**
    * Returns the backing map if this GRT was created via the builder path. Used by the bridge layer
    * to extract data without reflection.
@@ -139,6 +163,13 @@ public abstract class ObjectBase implements GraphQLObject {
               + fieldName
               + "' cannot be accessed on an unresolved Node reference created using ctx.nodeRef —"
               + " only `id` is accessible.",
+          null);
+    } else if (rootFieldReference != null) {
+      throw new FrameworkException(
+          "Field '"
+              + fieldName
+              + "' cannot be accessed on an unresolved root field reference created using"
+              + " ctx.rootFieldRef.",
           null);
     } else {
       throw new FrameworkException(

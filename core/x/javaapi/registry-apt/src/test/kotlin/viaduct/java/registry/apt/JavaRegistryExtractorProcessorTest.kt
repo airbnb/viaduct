@@ -331,7 +331,7 @@ class JavaRegistryExtractorProcessorTest {
             public final class ListResolverBases {
                 @ResolverFor(typeName = "Query", fieldName = "users", isSelective = false)
                 public abstract static class Users
-                    implements FieldResolverBase<List<Grts.User>, Grts.MyQuery, Grts.MyQuery, Arguments.None, CompositeOutput> {
+                    implements FieldResolverBase<List<Grts.User>, Grts.MyQuery, Grts.MyQuery, Arguments.NoArguments, CompositeOutput> {
                     public static final class Context {}
                     public abstract CompletableFuture<List<Grts.User>> resolve(Context ctx);
                 }
@@ -355,7 +355,7 @@ class JavaRegistryExtractorProcessorTest {
             public final class BatchResolverBases {
                 @ResolverFor(typeName = "Query", fieldName = "batched", isSelective = true, isBatching = true)
                 public abstract static class Batched
-                    implements FieldResolverBase<String, Grts.MyQuery, Grts.MyQuery, Arguments.None, CompositeOutput> {
+                    implements FieldResolverBase<String, Grts.MyQuery, Grts.MyQuery, Arguments.NoArguments, CompositeOutput> {
                     public static final class Context {}
                     public abstract CompletableFuture<String> resolve(Context ctx);
                 }
@@ -385,7 +385,7 @@ class JavaRegistryExtractorProcessorTest {
         )
 
         // Generated-style field resolver base: @ResolverFor with FieldResolverBase<T,O,Q,A,S> and a
-        // nested Context. Greeting has no arguments (Arguments.None); Frag has an Arguments GRT.
+        // nested Context. Greeting has no arguments (Arguments.NoArguments); Frag has an Arguments GRT.
         val QUERY_RESOLVER_BASES = SourceFile(
             "com.example.tenant.QueryResolvers",
             """
@@ -403,7 +403,7 @@ class JavaRegistryExtractorProcessorTest {
             public final class QueryResolvers {
                 @ResolverFor(typeName = "Query", fieldName = "greeting", isSelective = false)
                 public abstract static class Greeting
-                    implements FieldResolverBase<String, Grts.MyQuery, Grts.MyQuery, Arguments.None, CompositeOutput> {
+                    implements FieldResolverBase<String, Grts.MyQuery, Grts.MyQuery, Arguments.NoArguments, CompositeOutput> {
                     public static final class Context {}
                     public abstract CompletableFuture<String> resolve(Context ctx);
                 }
@@ -607,10 +607,10 @@ class JavaRegistryExtractorProcessorTest {
                     }
 
                     @Variables(types = "limit: Int!")
-                    public static class LimitProvider implements VariablesProvider<Arguments.None> {
+                    public static class LimitProvider implements VariablesProvider<Arguments.NoArguments> {
                         @Override
                         public CompletableFuture<Map<String, Object>> provide(
-                            VariablesProviderContext<Arguments.None> ctx) {
+                            VariablesProviderContext<Arguments.NoArguments> ctx) {
                             return CompletableFuture.completedFuture(Map.of("limit", 10));
                         }
                     }

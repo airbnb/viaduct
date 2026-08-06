@@ -16,11 +16,13 @@ import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.BaseBatchedFieldResolver;
 import viaduct.java.api.internal.BaseUnbatchedFieldResolver;
 import viaduct.java.api.internal.ResolverClassFinder;
+import viaduct.java.api.reflect.RootObjectField;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.resolvers.ConnectionResolverBase;
 import viaduct.java.api.resolvers.FieldResolverBase;
 import viaduct.java.api.types.Arguments;
 import viaduct.java.api.types.CompositeOutput;
+import viaduct.java.api.types.GraphQLObject;
 import viaduct.java.api.types.NodeCompositeOutput;
 import viaduct.java.api.types.NodeObject;
 import viaduct.service.api.spi.GlobalIDCodec;
@@ -90,6 +92,12 @@ public final class QueryResolvers {
                 @Override
                 public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id) {
                     return inner.nodeRef(id);
+                }
+
+                @Override
+                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
+                        RootObjectField<?, T, A> field, A arguments) {
+                    return inner.rootFieldRef(field, arguments);
                 }
 
                 @Override
@@ -183,18 +191,18 @@ public final class QueryResolvers {
 
         @ResolverFor(typeName = "Query", fieldName = "topUser", isSelective = true, isBatching = false)
         public abstract static class TopUser
-            implements FieldResolverBase<com.example.grts.User, com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.User>, BaseUnbatchedFieldResolver {
+            implements FieldResolverBase<com.example.grts.User, com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User>, BaseUnbatchedFieldResolver {
 
             /**
              * Context for Query.topUser resolver.
              * Provides type-safe access to object value, query value, arguments, and selections.
              */
             public static final class Context
-                implements FieldResolverBase.Context<com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.User>, SelectiveFieldExecutionContext<com.example.grts.User>, InternalContext {
+                implements FieldResolverBase.Context<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User>, SelectiveFieldExecutionContext<com.example.grts.User>, InternalContext {
 
-                private final FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.User> inner;
+                private final FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User> inner;
 
-                public Context(FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.User> inner) {
+                public Context(FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User> inner) {
                     this.inner = inner;
                 }
 
@@ -209,7 +217,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public Arguments.None getArguments() {
+                public Arguments.NoArguments getArguments() {
                     return inner.getArguments();
                 }
 
@@ -241,6 +249,12 @@ public final class QueryResolvers {
                 @Override
                 public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id) {
                     return inner.nodeRef(id);
+                }
+
+                @Override
+                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
+                        RootObjectField<?, T, A> field, A arguments) {
+                    return inner.rootFieldRef(field, arguments);
                 }
 
                 @Override
@@ -328,24 +342,24 @@ public final class QueryResolvers {
             @SuppressWarnings("unchecked")
             public final CompletableFuture<?> invokeFieldResolver(
                 FieldExecutionContext<?, ?, ?, ?> context) {
-                return resolve(new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.User>) context));
+                return resolve(new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User>) context));
             }
         }
 
         @ResolverFor(typeName = "Query", fieldName = "popularOrders", isSelective = false, isBatching = true)
         public abstract static class PopularOrders
-            implements FieldResolverBase<List<com.example.grts.Order>, com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.Order>, BaseBatchedFieldResolver {
+            implements FieldResolverBase<List<com.example.grts.Order>, com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.Order>, BaseBatchedFieldResolver {
 
             /**
              * Context for Query.popularOrders resolver.
              * Provides type-safe access to object value, query value, arguments, and selections.
              */
             public static final class Context
-                implements FieldResolverBase.Context<com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.Order>, InternalContext {
+                implements FieldResolverBase.Context<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.Order>, InternalContext {
 
-                private final FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.Order> inner;
+                private final FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.Order> inner;
 
-                public Context(FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.Order> inner) {
+                public Context(FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.Order> inner) {
                     this.inner = inner;
                 }
 
@@ -360,7 +374,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public Arguments.None getArguments() {
+                public Arguments.NoArguments getArguments() {
                     return inner.getArguments();
                 }
 
@@ -387,6 +401,12 @@ public final class QueryResolvers {
                 @Override
                 public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id) {
                     return inner.nodeRef(id);
+                }
+
+                @Override
+                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
+                        RootObjectField<?, T, A> field, A arguments) {
+                    return inner.rootFieldRef(field, arguments);
                 }
 
                 @Override
@@ -481,7 +501,7 @@ public final class QueryResolvers {
                         .map(
                             context -> {
                                 Context wrapped =
-                                    new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.Order>) context);
+                                    new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.Order>) context);
                                 wrappedToOriginal.put(wrapped, context);
                                 return wrapped;
                             })
@@ -509,18 +529,18 @@ public final class QueryResolvers {
 
         @ResolverFor(typeName = "Query", fieldName = "trendingUsers", isSelective = true, isBatching = true)
         public abstract static class TrendingUsers
-            implements FieldResolverBase<List<com.example.grts.User>, com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.User>, BaseBatchedFieldResolver {
+            implements FieldResolverBase<List<com.example.grts.User>, com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User>, BaseBatchedFieldResolver {
 
             /**
              * Context for Query.trendingUsers resolver.
              * Provides type-safe access to object value, query value, arguments, and selections.
              */
             public static final class Context
-                implements FieldResolverBase.Context<com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.User>, SelectiveFieldExecutionContext<com.example.grts.User>, InternalContext {
+                implements FieldResolverBase.Context<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User>, SelectiveFieldExecutionContext<com.example.grts.User>, InternalContext {
 
-                private final FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.User> inner;
+                private final FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User> inner;
 
-                public Context(FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.User> inner) {
+                public Context(FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User> inner) {
                     this.inner = inner;
                 }
 
@@ -535,7 +555,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public Arguments.None getArguments() {
+                public Arguments.NoArguments getArguments() {
                     return inner.getArguments();
                 }
 
@@ -567,6 +587,12 @@ public final class QueryResolvers {
                 @Override
                 public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id) {
                     return inner.nodeRef(id);
+                }
+
+                @Override
+                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
+                        RootObjectField<?, T, A> field, A arguments) {
+                    return inner.rootFieldRef(field, arguments);
                 }
 
                 @Override
@@ -661,7 +687,7 @@ public final class QueryResolvers {
                         .map(
                             context -> {
                                 Context wrapped =
-                                    new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.None, com.example.grts.User>) context);
+                                    new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User>) context);
                                 wrappedToOriginal.put(wrapped, context);
                                 return wrapped;
                             })
@@ -742,6 +768,12 @@ public final class QueryResolvers {
                 @Override
                 public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id) {
                     return inner.nodeRef(id);
+                }
+
+                @Override
+                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
+                        RootObjectField<?, T, A> field, A arguments) {
+                    return inner.rootFieldRef(field, arguments);
                 }
 
                 @Override
@@ -891,6 +923,12 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
+                        RootObjectField<?, T, A> field, A arguments) {
+                    return inner.rootFieldRef(field, arguments);
+                }
+
+                @Override
                 public <T> CompletableFuture<T> query(String selections, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.query(selections, variables, targetClass);
                 }
@@ -1037,6 +1075,12 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
+                        RootObjectField<?, T, A> field, A arguments) {
+                    return inner.rootFieldRef(field, arguments);
+                }
+
+                @Override
                 public <T> CompletableFuture<T> query(String selections, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.query(selections, variables, targetClass);
                 }
@@ -1180,6 +1224,12 @@ public final class QueryResolvers {
                 @Override
                 public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id) {
                     return inner.nodeRef(id);
+                }
+
+                @Override
+                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
+                        RootObjectField<?, T, A> field, A arguments) {
+                    return inner.rootFieldRef(field, arguments);
                 }
 
                 @Override

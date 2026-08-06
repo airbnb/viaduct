@@ -164,13 +164,20 @@ class FeatureAppContractTestsPlugin : Plugin<Project> {
             libs.findLibrary("viaduct-tenant-codegen").get().get(),
         )
 
+        val mergedContractSchemasDir =
+            project.layout.buildDirectory.dir("intermediates/viaduct-java-contract-schemas")
+        val mergeContractSchemas = project.tasks.register<Sync>("mergeJavaContractSchemas") {
+            from(contractSchemas)
+            into(mergedContractSchemasDir)
+        }
+
         val codegenTask = project.tasks.register<JavaContractCodegenTask>(
             "generateJavaContractTestSources"
         ) {
             group = "viaduct-feature-app"
             description = "Generates Java GRTs and resolver bases from contract schemas"
 
-            contractSchemaDir.from(contractSchemas)
+            contractSchemaDir.from(mergedContractSchemasDir)
             defaultSchemaFile.set(DefaultSchemaPlugin.getDefaultSchemaFileProvider(project))
             this.codegenClasspath.from(codegenClasspath)
 
@@ -180,6 +187,8 @@ class FeatureAppContractTestsPlugin : Plugin<Project> {
             tenantOutputDir.set(
                 project.layout.buildDirectory.dir("contract-tests/java-tenant-merged")
             )
+
+            dependsOn(mergeContractSchemas)
         }
 
         // Register the Java registry-extractor annotation processor on the test compile, so
@@ -217,14 +226,14 @@ class FeatureAppContractTestsPlugin : Plugin<Project> {
             description = "Assembles tenant module config from Java APT descriptors and contract schemas"
 
             descriptorDir.set(project.layout.buildDirectory.dir("intermediates/viaduct-java-test-registry-descriptors"))
-            contractSchemaDir.set(project.layout.dir(project.provider { contractSchemas.singleFile }))
+            contractSchemaDir.set(mergedContractSchemasDir)
             this.codegenClasspath.from(codegenClasspath)
             executorFactory.set(JAVA_EXECUTOR_FACTORY)
             outputDir.set(
                 project.layout.buildDirectory.dir("generated-resources/viaduct-java-test-registry")
             )
 
-            dependsOn(extractAptDescriptors)
+            dependsOn(extractAptDescriptors, mergeContractSchemas)
         }
 
         testSourceSet.configure {
