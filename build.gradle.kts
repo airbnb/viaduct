@@ -198,5 +198,5 @@ fun Project.copyDemoappSources(
 }
 
 tasks.named("check") {
-    dependsOn(demoappsStandaloneTest)
+    finalizedBy(demoappsStandaloneTest)
 }
