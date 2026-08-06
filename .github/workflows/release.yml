@@ -144,9 +144,9 @@ jobs:
         run: |
           set -euo pipefail
           URLS=(
+            "https://repo.maven.apache.org/maven2/com/airbnb/viaduct/api/${VERSION}/api-${VERSION}.pom"
+            "https://repo.maven.apache.org/maven2/com/airbnb/viaduct/runtime/${VERSION}/runtime-${VERSION}.pom"
             "https://repo.maven.apache.org/maven2/com/airbnb/viaduct/gradle/common/${VERSION}/common-${VERSION}.pom"
-            "https://repo.maven.apache.org/maven2/com/airbnb/viaduct/shared/graphql/${VERSION}/graphql-${VERSION}.pom"
-            "https://repo.maven.apache.org/maven2/com/airbnb/viaduct/shared/viaductschema/${VERSION}/viaductschema-${VERSION}.pom"
             "https://plugins.gradle.org/m2/com/airbnb/viaduct/application-gradle-plugin/com.airbnb.viaduct.application-gradle-plugin.gradle.plugin/${VERSION}/com.airbnb.viaduct.application-gradle-plugin.gradle.plugin-${VERSION}.pom"
           )
           MAX_ATTEMPTS=60
