@@ -18,6 +18,12 @@ class RemoteResolverConfigTest {
     }
 
     @Test
+    fun `useStreamingTransport defaults to false and accepts an explicit value`() {
+        assertFalse(RemoteResolverConfig.fromEnvironment(envOf()).useStreamingTransport)
+        assertTrue(RemoteResolverConfig.fromEnvironment(envOf(), useStreamingTransport = true).useStreamingTransport)
+    }
+
+    @Test
     fun `network endpoints default and override`() {
         val defaults = RemoteResolverConfig.fromEnvironment(envOf())
         assertEquals(RemoteResolverConfig.DEFAULT_RRS_HOST, defaults.rrsHost)

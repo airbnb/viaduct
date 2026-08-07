@@ -116,6 +116,7 @@ class RemoteResolverInitializer(
         RemoteProxyResolverFactory(
             channel,
             callbackEndpoint,
+            useStreamingTransport = config.useStreamingTransport,
             shouldProxyNode = { it.typeName in selection.nodeTypes },
             shouldProxyField = { it.resolverId in selection.fieldCoordinates },
             contextCapturerProvider = contextCapturerProvider,
@@ -128,6 +129,7 @@ class RemoteResolverInitializer(
             selection.nodeTypes.size,
             selection.fieldCoordinates.size,
         )
+        log.info("Node resolver transport: {}", if (config.useStreamingTransport) "streaming" else "unary")
     }
 
     private fun resolveLocalHost(): String =

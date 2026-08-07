@@ -25,18 +25,24 @@ import viaduct.remote.registry.NodeExecutorRegistry
  * @param requestDeadline Deadline applied to every outbound resolve RPC, or `null` to rely
  *   on gRPC defaults. Unbounded waits hang resolver coroutines if the remote service is slow
  *   or unresponsive.
+ * @param useStreamingTransport Config-gated cutover: when true, node resolvers are wrapped with
+ *   the bidirectional-streaming proxy executor instead of the unary one. Field resolvers are
+ *   unaffected by this flag -- they always use the unary path, since streaming doesn't support
+ *   fields yet. Default false.
  * @param shouldProxyNode Predicate to opt specific node types in or out of proxying.
  *   Defaults to proxying every node resolver.
  * @param shouldProxyField Predicate to opt specific field resolvers in or out of proxying.
  *   Defaults to proxying every field resolver (mirroring nodes). Selective resolvers are always
  *   skipped regardless of this predicate — [RemoteFieldProxyExecutor] rejects them at construction.
  * @param contextCapturerProvider Host hook that resolves the capturer associated with the active
- *   top-level request.
+ *   top-level request. Field resolvers, and node resolvers when [useStreamingTransport] is false,
+ *   pass this along; the streaming node proxy doesn't yet support the context carrier.
  */
 class RemoteProxyResolverFactory(
     private val rrsChannel: ManagedChannel,
     private val callbackEndpoint: String,
     private val requestDeadline: Duration? = null,
+    private val useStreamingTransport: Boolean = false,
     private val shouldProxyNode: (NodeResolverExecutor) -> Boolean = { true },
     private val shouldProxyField: (FieldResolverExecutor) -> Boolean = { true },
     private val contextCapturerProvider: RemoteResolverContextCapturerProvider =
@@ -47,14 +53,23 @@ class RemoteProxyResolverFactory(
         if (executor.isSelective) return null
         if (!shouldProxyNode(executor)) return null
         val executorId = NodeExecutorRegistry.register(executor)
-        return UnaryRemoteNodeProxyExecutor(
-            originalExecutor = executor,
-            executorId = executorId,
-            rrsChannel = rrsChannel,
-            callbackEndpoint = callbackEndpoint,
-            requestDeadline = requestDeadline,
-            contextCapturerProvider = contextCapturerProvider,
-        )
+        return if (useStreamingTransport) {
+            RemoteNodeStreamProxyExecutor(
+                originalExecutor = executor,
+                executorId = executorId,
+                rrsChannel = rrsChannel,
+                requestDeadline = requestDeadline,
+            )
+        } else {
+            UnaryRemoteNodeProxyExecutor(
+                originalExecutor = executor,
+                executorId = executorId,
+                rrsChannel = rrsChannel,
+                callbackEndpoint = callbackEndpoint,
+                requestDeadline = requestDeadline,
+                contextCapturerProvider = contextCapturerProvider,
+            )
+        }
     }
 
     override fun proxyField(executor: FieldResolverExecutor): FieldResolverExecutor? {

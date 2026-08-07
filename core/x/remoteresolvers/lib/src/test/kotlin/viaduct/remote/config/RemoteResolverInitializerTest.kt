@@ -8,20 +8,25 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.spi.ProxyResolverFactory
+import viaduct.remote.RemoteNodeStreamProxyExecutor
+import viaduct.remote.UnaryRemoteNodeProxyExecutor
 import viaduct.remote.fixtures.SimpleFieldResolverExecutor
 import viaduct.remote.fixtures.SimpleNodeResolverExecutor
 import viaduct.remote.registry.FieldExecutorRegistry
 import viaduct.remote.registry.NodeExecutorRegistry
 
 class RemoteResolverInitializerTest {
-    private fun cfg(enabled: Boolean = true) =
-        RemoteResolverConfig(
-            enabled = enabled,
-            rrsHost = "localhost",
-            rrsPort = 0,
-            // Port 0 lets the OS pick a free callback port.
-            callbackPort = 0,
-        )
+    private fun cfg(
+        enabled: Boolean = true,
+        useStreamingTransport: Boolean = false,
+    ) = RemoteResolverConfig(
+        enabled = enabled,
+        useStreamingTransport = useStreamingTransport,
+        rrsHost = "localhost",
+        rrsPort = 0,
+        // Port 0 lets the OS pick a free callback port.
+        callbackPort = 0,
+    )
 
     @Test
     fun `disabled config returns NO_OP`() {
@@ -110,6 +115,40 @@ class RemoteResolverInitializerTest {
             initializer.close()
             NodeExecutorRegistry.clear()
             FieldExecutorRegistry.clear()
+        }
+    }
+
+    @Test
+    fun `useStreamingTransport wraps node resolvers with the streaming proxy executor`() {
+        val initializer =
+            RemoteResolverInitializer(
+                cfg(useStreamingTransport = true),
+                selection = RemoteResolverSelection(nodeTypes = setOf("User")),
+            )
+        try {
+            val factory = initializer.initialize()
+            val node = factory.proxyNode(SimpleNodeResolverExecutor.createUserResolver())
+            assertTrue(node is RemoteNodeStreamProxyExecutor, "expected the streaming node proxy executor, got $node")
+        } finally {
+            initializer.close()
+            NodeExecutorRegistry.clear()
+        }
+    }
+
+    @Test
+    fun `default config wraps node resolvers with the unary proxy executor`() {
+        val initializer =
+            RemoteResolverInitializer(
+                cfg(),
+                selection = RemoteResolverSelection(nodeTypes = setOf("User")),
+            )
+        try {
+            val factory = initializer.initialize()
+            val node = factory.proxyNode(SimpleNodeResolverExecutor.createUserResolver())
+            assertTrue(node is UnaryRemoteNodeProxyExecutor, "expected the unary node proxy executor, got $node")
+        } finally {
+            initializer.close()
+            NodeExecutorRegistry.clear()
         }
     }
 

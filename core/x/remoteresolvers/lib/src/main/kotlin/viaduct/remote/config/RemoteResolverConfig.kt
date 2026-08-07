@@ -16,6 +16,12 @@ fun interface EnvLookup {
  */
 data class RemoteResolverConfig(
     val enabled: Boolean,
+    /**
+     * Config-gated cutover: when true, node resolvers are proxied over the bidirectional
+     * streaming transport instead of the unary one. Field resolvers are unaffected -- they
+     * always use the unary transport, since streaming doesn't support fields yet.
+     */
+    val useStreamingTransport: Boolean = false,
     val rrsHost: String = DEFAULT_RRS_HOST,
     val rrsPort: Int = DEFAULT_RRS_PORT,
     val callbackPort: Int = DEFAULT_CALLBACK_PORT,
@@ -32,9 +38,11 @@ data class RemoteResolverConfig(
         fun fromEnvironment(
             env: EnvLookup = EnvLookup.SYSTEM,
             enabled: Boolean = false,
+            useStreamingTransport: Boolean = false,
         ): RemoteResolverConfig =
             RemoteResolverConfig(
                 enabled = enabled,
+                useStreamingTransport = useStreamingTransport,
                 rrsHost = env.get(ENV_RRS_HOST) ?: DEFAULT_RRS_HOST,
                 rrsPort = env.get(ENV_RRS_PORT)?.toIntOrNull() ?: DEFAULT_RRS_PORT,
                 callbackPort = env.get(ENV_CALLBACK_PORT)?.toIntOrNull() ?: DEFAULT_CALLBACK_PORT,
