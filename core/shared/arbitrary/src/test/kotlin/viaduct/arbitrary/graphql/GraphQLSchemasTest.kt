@@ -93,14 +93,6 @@ class GraphQLSchemasTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `Arb-viaductSchema can generate schemas`(): Unit =
-        runBlocking {
-            Arb.viaductSchema().checkAll {
-                markSuccess()
-            }
-        }
-
-    @Test
     fun `schema document can be roundtripped through sdl`(): Unit =
         runBlocking {
             Arb.graphQLSchema().forAll(100) { schema ->

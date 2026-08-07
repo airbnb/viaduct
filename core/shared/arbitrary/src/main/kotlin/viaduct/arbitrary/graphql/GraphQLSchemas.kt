@@ -41,7 +41,6 @@ import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.flatMap
-import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import viaduct.arbitrary.common.Config
@@ -56,9 +55,6 @@ fun Arb.Companion.graphQLSchema(cfg: Config = Config.default): Arb<GraphQLSchema
     Arb.graphQLTypes(cfg).flatMap { types ->
         graphQLSchema(types, cfg)
     }
-
-/** Generate arbitrary instances of [viaduct.engine.api.ViaductSchema] from a static [Config]. */
-fun Arb.Companion.viaductSchema(cfg: Config = Config.default): Arb<ViaductSchema> = graphQLSchema(cfg).map(::ViaductSchema)
 
 /** Generate arbitrary [GraphQLSchema]s from a [GraphQLTypes] */
 @JvmName("arbGraphQLSchema")

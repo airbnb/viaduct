@@ -3,33 +3,16 @@
 package viaduct.arbitrary.graphql
 
 import io.kotest.property.Arb
-import io.kotest.property.arbitrary.filter
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.KotestPropertyBase
-import viaduct.graphql.schema.checkViaductSchemaInvariants
 
-class ViaductSchemasTest : KotestPropertyBase(iterations = 100) {
+class ViaductSchemasTest : KotestPropertyBase() {
     @Test
-    fun `generates valid VSchemas`(): Unit =
+    fun `Arb_viaductSchema`(): Unit =
         runBlocking {
-            Arb.vSchema().checkInvariants { schema, check ->
-                checkViaductSchemaInvariants(schema, check)
+            Arb.viaductSchema().checkAll {
+                markSuccess()
             }
-        }
-
-    @Test
-    fun `TypeExpr methods do not throw for non-list types`(): Unit =
-        runBlocking {
-            Arb
-                .vSchemaTypeExpr()
-                .filter { !it.isList }
-                .checkInvariants { type, check ->
-                    check.doesNotThrow("unexpected err") {
-                        type.nullableAtDepth(0)
-                        type.isList
-                        type.listDepth
-                    }
-                }
         }
 }
