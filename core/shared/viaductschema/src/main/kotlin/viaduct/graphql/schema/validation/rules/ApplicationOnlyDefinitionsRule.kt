@@ -59,7 +59,5 @@ class ApplicationOnlyDefinitionsRule(
      *
      * This pattern comes from ViaductModulePlugin's module schema directory layout
      */
-    private fun isModuleLocation(location: ViaductSchema.SourceLocation?): Boolean {
-        return location?.sourceName?.contains(modulePathPattern) == true
-    }
+    private fun isModuleLocation(location: ViaductSchema.SourceLocation?): Boolean = isUnderModulePartition(location, modulePathPattern)
 }
