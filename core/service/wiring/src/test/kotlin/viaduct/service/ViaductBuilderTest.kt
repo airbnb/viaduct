@@ -3,7 +3,6 @@ package viaduct.service
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -19,6 +18,7 @@ import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.ExecutionInput
+import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.DecodedGlobalID
 import viaduct.service.api.spi.ErrorReporter
@@ -27,18 +27,13 @@ import viaduct.service.api.spi.FlagManager.Flag
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.TenantModuleInjectorFactory
+import viaduct.service.runtime.SchemaConfiguration
+import viaduct.service.runtime.StandardViaduct
 
 class ViaductBuilderTest {
-    // fromSdl parses this raw SDL and the framework injects the @scope/@resolver directive
-    // definitions, so the SDL must not redeclare them (redeclaring a core directive fails the
-    // schema build). helloWorld has no registered resolver, so strict validation rejects it
-    // unless withLenientResolverValidation() is set.
-    val sdl =
-        """
-             extend type Query @scope(to: ["publicScope"]) {
-              helloWorld: String @resolver
-             }
-        """
+    // Loaded from viaduct_builder_test_schema.graphqls on the test classpath. helloWorld has
+    // no registered resolver, so strict validation rejects it unless withLenientResolverValidation() is set.
+    val scopedSchemas = listOf(SchemaScopeInfo.Scoped("public", setOf("publicScope")))
 
     val flagManager = object : FlagManager {
         override fun isEnabled(flag: Flag) = true
@@ -50,118 +45,64 @@ class ViaductBuilderTest {
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo.Scoped("public", setOf("publicScope"))))
+            .withScopedSchemas(scopedSchemas)
             .build().let {
                 assertNotNull(it)
             }
     }
 
     @Test
-    fun testWithScopedSchemasFromSdl() {
+    fun `base SchemaScopeInfo executes across all scopes but hides tenantLocal fields`() {
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo.Scoped("public", setOf("publicScope"))))
-            .build()
-
-        assertNotNull(viaduct)
-    }
-
-    @Test
-    fun `base SchemaScopeInfo executes the base view of a scope-aware schema end to end`() {
-        val schemaInfo = SchemaScopeInfo.Base
-        val viaduct = ViaductBuilder()
-            .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
-            .withScopedSchemasFromSdl(
-                """
-                extend type Query @scope(to: ["public"]) {
-                    publicField: String
-                    internalOnly: String @tenantLocal
-                }
-
-                extend type Query @scope(to: ["private"]) {
-                    privateField: String
-                }
-                """.trimIndent(),
-                listOf(schemaInfo),
-            )
+            .withScopedSchemas(listOf(SchemaScopeInfo.Base))
             .build()
 
         val visibleResult = viaduct.executeAsync(
-            ExecutionInput.create("{ publicField privateField }"),
-            schemaInfo.schemaId,
+            ExecutionInput.create("{ basePublicFieldA basePublicFieldB }"),
+            SchemaId.Base,
         ).join()
-        assertEquals(mapOf("publicField" to null, "privateField" to null), visibleResult.getData())
+        assertEquals(mapOf("basePublicFieldA" to null, "basePublicFieldB" to null), visibleResult.getData())
         assertTrue(visibleResult.errors.isEmpty())
 
         val tenantLocalResult = viaduct.executeAsync(
-            ExecutionInput.create("{ internalOnly }"),
-            schemaInfo.schemaId,
+            ExecutionInput.create("{ baseTenantLocalField }"),
+            SchemaId.Base,
         ).join()
-        assertNull(tenantLocalResult.getData())
+        assertEquals(null, tenantLocalResult.getData())
         assertTrue(
             tenantLocalResult.errors.single().message.contains(
-                "Field 'internalOnly' in type 'Query' is undefined"
+                "Field 'baseTenantLocalField' in type 'Query' is undefined"
             )
         )
     }
 
+    // Bypasses ViaductBuilder: withScopedSchemas resolves schemas by scanning every .graphqls
+    // file on the classpath, so an unscoped fixture can't coexist there with the @scope-bearing
+    // ones used by other tests. An inline SDL string sidesteps the scan entirely.
     @Test
+    @Suppress("DEPRECATION")
     fun `base SchemaScopeInfo executes the base view of an unscoped schema`() {
-        val viaduct = ViaductBuilder()
-            .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
-            .withScopedSchemasFromSdl(
-                "extend type Query { visible: String }",
-                listOf(SchemaScopeInfo.Base),
-            )
-            .build()
-
-        val result = viaduct.executeAsync(ExecutionInput.create("{ visible }")).join()
-
-        assertEquals(mapOf("visible" to null), result.getData())
-        assertTrue(result.errors.isEmpty())
-    }
-
-    @Test
-    fun `scoped SchemaScopeInfo executes only its selected scope end to end`() {
-        val schemaInfo = SchemaScopeInfo.Scoped("public", setOf("public"))
-        val viaduct = ViaductBuilder()
-            .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
-            .withScopedSchemasFromSdl(
-                """
-                extend type Query @scope(to: ["public"]) {
-                    publicField: String
-                }
-
-                extend type Query @scope(to: ["private"]) {
-                    privateField: String
-                }
-                """.trimIndent(),
-                listOf(schemaInfo),
-            )
-            .build()
-
-        val publicResult = viaduct.executeAsync(
-            ExecutionInput.create("{ publicField }"),
-            schemaInfo.schemaId,
-        ).join()
-        assertEquals(mapOf("publicField" to null), publicResult.getData())
-        assertTrue(publicResult.errors.isEmpty())
-
-        val privateResult = viaduct.executeAsync(
-            ExecutionInput.create("{ privateField }"),
-            schemaInfo.schemaId,
-        ).join()
-        assertNull(privateResult.getData())
-        assertTrue(
-            privateResult.errors.single().message.contains(
-                "Field 'privateField' in type 'Query' is undefined"
-            )
+        val sdl = "extend type Query { unscopedVisibleField: String }"
+        val schemaConfiguration = SchemaConfiguration.fromSdl(
+            sdl,
+            scopes = setOf(SchemaConfiguration.ScopeConfig.Base),
         )
+        val viaduct = StandardViaduct.Builder()
+            .withFlagManager(flagManager)
+            .withNoTenantAPIBootstrapper()
+            .withSchemaConfiguration(schemaConfiguration)
+            .build()
+
+        val result = viaduct.executeAsync(
+            ExecutionInput.create("{ unscopedVisibleField }"),
+            SchemaId.Base,
+        ).join()
+
+        assertEquals(mapOf("unscopedVisibleField" to null), result.getData())
+        assertTrue(result.errors.isEmpty())
     }
 
     @Test
@@ -171,7 +112,7 @@ class ViaductBuilderTest {
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo.Scoped("public", setOf("publicScope"))))
+            .withScopedSchemas(scopedSchemas)
             .withMeterRegistry(meterRegistry)
             .build()
 
@@ -187,7 +128,7 @@ class ViaductBuilderTest {
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo.Scoped("public", setOf("publicScope"))))
+            .withScopedSchemas(scopedSchemas)
             .withResolverErrorReporter(errorReporter)
             .build()
 
@@ -201,7 +142,7 @@ class ViaductBuilderTest {
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo.Scoped("public", setOf("publicScope"))))
+            .withScopedSchemas(scopedSchemas)
             .withDataFetcherErrorBuilder(errorBuilder)
             .build()
 
@@ -219,7 +160,7 @@ class ViaductBuilderTest {
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo.Scoped("public", setOf("publicScope"))))
+            .withScopedSchemas(scopedSchemas)
             .withMeterRegistry(meterRegistry)
             .withResolverErrorReporter(errorReporter)
             .withDataFetcherErrorBuilder(errorBuilder)
@@ -243,7 +184,7 @@ class ViaductBuilderTest {
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo.Scoped("public", setOf("publicScope"))))
+            .withScopedSchemas(scopedSchemas)
             .withMeterRegistry(meterRegistry)
             .withResolverErrorReporter(errorReporter)
             .withDataFetcherErrorBuilder(errorBuilder)
@@ -264,7 +205,7 @@ class ViaductBuilderTest {
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
             .withResolverErrorReporter(errorReporter) // Observability in the middle
-            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo.Scoped("public", setOf("publicScope"))))
+            .withScopedSchemas(scopedSchemas)
             .build()
 
         assertNotNull(viaduct)
@@ -288,7 +229,7 @@ class ViaductBuilderTest {
             ViaductBuilder()
                 .withFlagManager(flagManager)
                 .withNoTenantAPIBootstrapper()
-                .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo.Scoped("public", setOf("publicScope"))))
+                .withScopedSchemas(scopedSchemas)
                 .build()
         }
         assertTrue(exception.message!!.contains("helloWorld"))
@@ -306,7 +247,7 @@ class ViaductBuilderTest {
             .withFlagManager(flagManager)
             .withTenantModuleInjectorFactory(injectorFactory)
             .withLenientResolverValidation()
-            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo.Scoped("public", setOf("publicScope"))))
+            .withScopedSchemas(scopedSchemas)
             .build()
 
         assertNotNull(viaduct)
@@ -329,7 +270,7 @@ class ViaductBuilderTest {
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo.Scoped("public", setOf("publicScope"))))
+            .withScopedSchemas(scopedSchemas)
             .withGlobalIDCodec(codec)
             .build()
 
@@ -355,7 +296,7 @@ class ViaductBuilderTest {
             .withFlagManager(flagManager)
             .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
-            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo.Scoped("public", setOf("publicScope"))))
+            .withScopedSchemas(scopedSchemas)
             .withCheckerExecutorFactoryCreator { factory }
             .build()
 
@@ -379,7 +320,7 @@ class ViaductBuilderTest {
             .withFlagManager(flagManager)
             .withTenantAPIBootstrapperBuilder(bootstrapperBuilder)
             .withLenientResolverValidation()
-            .withScopedSchemasFromSdl(sdl, listOf(SchemaScopeInfo.Scoped("public", setOf("publicScope"))))
+            .withScopedSchemas(scopedSchemas)
             .build()
 
         assertNotNull(viaduct)

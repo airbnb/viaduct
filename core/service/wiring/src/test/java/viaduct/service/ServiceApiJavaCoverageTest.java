@@ -49,10 +49,6 @@ import viaduct.service.wiring.graphiql.GraphiQLHtmlConfig;
  */
 class ServiceApiJavaCoverageTest {
 
-  // Minimal schema: the base schema serves { __typename } with no tenants and no resolvers.
-  private static final String SDL =
-      "extend type Query @scope(to: [\"viaduct-public\"]) { greeting: String }";
-
   @Test
   void executionSmoke() {
     final var viaduct = buildMinimalViaduct();
@@ -182,14 +178,13 @@ class ServiceApiJavaCoverageTest {
         // path supplies an injector factory and discovers zero tenants on this classpath.
         .withTenantModuleInjectorFactory(NaiveTenantModuleInjectorFactory.INSTANCE)
         .withLenientResolverValidation(true)
-        .withScopedSchemasFromSdl(SDL, scopedSchemas)
+        .withScopedSchemas(scopedSchemas)
         .build();
   }
 
   /**
    * Never invoked — exists purely to prove these calls COMPILE from Java. Kept out of the executed
-   * tests because {@link BasicViaductFactory#create} discovers tenant modules from the classpath
-   * and {@code withScopedSchemas} loads schema resources, neither of which exists here;
+   * tests because {@link BasicViaductFactory#create} discovers tenant modules from the classpath;
    * building/executing is already covered by {@link #executionSmoke()}.
    */
   @SuppressWarnings("unused")
@@ -208,14 +203,11 @@ class ServiceApiJavaCoverageTest {
             .withFlagManager(new JavaFlagManager())
             .withTenantModuleInjectorFactory(NaiveTenantModuleInjectorFactory.INSTANCE)
             .withScopedSchemas(scopedSchemas)
-            .withScopedSchemasFromSdl(SDL, scopedSchemas)
             .withMeterRegistry(new SimpleMeterRegistry())
             .withResolverErrorReporter(ErrorReporter.Companion.getNOOP())
             .withDataFetcherErrorBuilder(ResolverErrorBuilder.Companion.getNOOP())
             .withGlobalIDCodec(new JavaGlobalIDCodec())
             .withLenientResolverValidation(true)
             .build();
-    // note: the runtime SchemaConfiguration type is internal; Java schema setup goes through
-    //       withScopedSchemas / withScopedSchemasFromSdl.
   }
 }

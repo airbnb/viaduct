@@ -65,8 +65,6 @@ class ViaductBuilder {
      *
      * Only the listed views are registered. Include [SchemaScopeInfo.Base] to allow execution
      * using [SchemaId.Base].
-     *
-     * If both this and [withScopedSchemasFromSdl] are called, the last one wins.
      */
     @Suppress("DEPRECATION")
     fun withScopedSchemas(scopedSchemas: List<SchemaScopeInfo>) =
@@ -76,27 +74,6 @@ class ViaductBuilder {
             )
             builder.withSchemaConfiguration(schemaConfiguration)
         }
-
-    /**
-     * Configures executable views of a scope-aware schema from [SchemaScopeInfo] descriptors,
-     * building the schema from the given [sdl] string.
-     *
-     * Only the listed views are registered. Include [SchemaScopeInfo.Base] to allow execution
-     * using [SchemaId.Base].
-     *
-     * If both this and [withScopedSchemas] are called, the last one wins.
-     */
-    @Suppress("DEPRECATION")
-    fun withScopedSchemasFromSdl(
-        sdl: String,
-        scopedSchemas: List<SchemaScopeInfo>
-    ) = apply {
-        val schemaConfiguration = SchemaConfiguration.fromSdl(
-            sdl,
-            scopes = scopedSchemas.map { it.toScopeConfig() }.toSet()
-        )
-        builder.withSchemaConfiguration(schemaConfiguration)
-    }
 
     /**
      * Configures the MeterRegistry for metrics collection.

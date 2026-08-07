@@ -21,7 +21,6 @@ public final class viaduct/service/ViaductBuilder {
 	public final fun withMeterRegistry (Lio/micrometer/core/instrument/MeterRegistry;)Lviaduct/service/ViaductBuilder;
 	public final fun withResolverErrorReporter (Lviaduct/service/api/spi/ErrorReporter;)Lviaduct/service/ViaductBuilder;
 	public final fun withScopedSchemas (Ljava/util/List;)Lviaduct/service/ViaductBuilder;
-	public final fun withScopedSchemasFromSdl (Ljava/lang/String;Ljava/util/List;)Lviaduct/service/ViaductBuilder;
 	public final fun withTenantModuleInjectorFactory (Lviaduct/service/api/spi/TenantModuleInjectorFactory;)Lviaduct/service/ViaductBuilder;
 }
 

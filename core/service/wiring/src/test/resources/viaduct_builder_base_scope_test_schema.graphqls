@@ -1,0 +1,8 @@
+extend type Query @scope(to: ["viaductBuilderBaseTestA"]) {
+  basePublicFieldA: String
+  baseTenantLocalField: String @tenantLocal
+}
+
+extend type Query @scope(to: ["viaductBuilderBaseTestB"]) {
+  basePublicFieldB: String
+}
