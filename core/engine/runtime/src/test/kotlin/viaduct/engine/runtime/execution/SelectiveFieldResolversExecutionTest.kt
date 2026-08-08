@@ -176,6 +176,165 @@ class SelectiveFieldResolversExecutionTest {
     }
 
     @Nested
+    inner class ParentFields {
+        @Test
+        fun `selective child object can read its non-selective parent`() {
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { company: Company }
+                    type Company { name: String, user: User }
+                    type User { parent: Company @parent, companyName: String }
+                """.trimIndent()
+            ) {
+                field("Query" to "company") {
+                    resolver {
+                        fn { _, _, _, _, _ ->
+                            createEngineObjectData("Company", mapOf("name" to "Airbnb"))
+                        }
+                    }
+                }
+
+                field("Company" to "user") {
+                    resolverExecutor {
+                        MockFieldUnbatchedResolverExecutor(
+                            isSelective = true,
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { _, _, _, _, _ ->
+                                createEngineObjectData("User")
+                            }
+                        )
+                    }
+                }
+
+                field("User" to "companyName") {
+                    resolver {
+                        objectSelections("parent { name }")
+                        fn { _, obj, _, _, _ ->
+                            obj.fetchAs<EngineObjectData>("parent").fetchAs<String>("name")
+                        }
+                    }
+                }
+            }.runFeatureTest {
+                runQueryWithTimeout("{ company { user { companyName } } }")
+                    .assertJson("{data: {company: {user: {companyName: \"Airbnb\"}}}}")
+            }
+        }
+
+        @Test
+        fun `parent traversal resolves a selective child field`() {
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { company: Company }
+                    type Company { details: Details, user: User }
+                    type Details { name: String }
+                    type User { parent: Company @parent, companyName: String }
+                """.trimIndent()
+            ) {
+                field("Query" to "company") {
+                    resolver {
+                        fn { _, _, _, _, _ ->
+                            createEngineObjectData("Company")
+                        }
+                    }
+                }
+
+                field("Company" to "details") {
+                    resolverExecutor {
+                        MockFieldUnbatchedResolverExecutor(
+                            isSelective = true,
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { _, _, _, selections, _ ->
+                                createEngineObjectData(
+                                    "Details",
+                                    buildMap {
+                                        if (selections!!.containsField("Details", "name")) {
+                                            put("name", "Airbnb")
+                                        }
+                                    }
+                                )
+                            }
+                        )
+                    }
+                }
+
+                field("Company" to "user") {
+                    resolver {
+                        fn { _, _, _, _, _ ->
+                            createEngineObjectData("User")
+                        }
+                    }
+                }
+
+                field("User" to "companyName") {
+                    resolver {
+                        objectSelections("parent { details { name } }")
+                        fn { _, obj, _, _, _ ->
+                            obj.fetchAs<EngineObjectData>("parent")
+                                .fetchAs<EngineObjectData>("details")
+                                .fetchAs<String>("name")
+                        }
+                    }
+                }
+            }.runFeatureTest {
+                runQueryWithTimeout("{ company { user { companyName } } }")
+                    .assertJson("{data: {company: {user: {companyName: \"Airbnb\"}}}}")
+            }
+        }
+
+        @Test
+        fun `non-selective resolver restores parent traversal below selective ancestor`() {
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { container: Container }
+                    type Container { company: Company }
+                    type Company { name: String, user: User }
+                    type User { parent: Company @parent, companyName: String }
+                """.trimIndent()
+            ) {
+                field("Query" to "container") {
+                    resolverExecutor {
+                        MockFieldUnbatchedResolverExecutor(
+                            isSelective = true,
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { _, _, _, _, _ ->
+                                createEngineObjectData("Container")
+                            }
+                        )
+                    }
+                }
+
+                field("Container" to "company") {
+                    resolver {
+                        fn { _, _, _, _, _ ->
+                            createEngineObjectData("Company", mapOf("name" to "Airbnb"))
+                        }
+                    }
+                }
+
+                field("Company" to "user") {
+                    resolver {
+                        fn { _, _, _, _, _ ->
+                            createEngineObjectData("User")
+                        }
+                    }
+                }
+
+                field("User" to "companyName") {
+                    resolver {
+                        objectSelections("parent { name }")
+                        fn { _, obj, _, _, _ ->
+                            obj.fetchAs<EngineObjectData>("parent").fetchAs<String>("name")
+                        }
+                    }
+                }
+            }.runFeatureTest {
+                runQueryWithTimeout("{ container { company { user { companyName } } } }")
+                    .assertJson("{data: {container: {company: {user: {companyName: \"Airbnb\"}}}}}")
+            }
+        }
+    }
+
+    @Nested
     inner class RssTests {
         @Test
         fun `selective field skipped in query is selected in RSS`() {
