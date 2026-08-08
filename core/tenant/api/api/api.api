@@ -180,6 +180,7 @@ public final class viaduct/api/select/SelectionSet$NoSelections : viaduct/api/se
 	public fun getType ()Lviaduct/api/reflect/Type;
 	public fun isEmpty ()Z
 	public fun requestsType (Lviaduct/api/reflect/Type;)Z
+	public fun selectedFieldCoordinates ()Ljava/util/Set;
 	public fun selectionSetFor (Lviaduct/api/reflect/CompositeField;)Lviaduct/api/select/SelectionSet;
 	public fun selectionSetFor (Lviaduct/api/reflect/Type;)Lviaduct/api/select/SelectionSet;
 }

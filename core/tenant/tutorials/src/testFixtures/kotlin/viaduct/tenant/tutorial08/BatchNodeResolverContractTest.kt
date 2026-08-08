@@ -5,7 +5,7 @@ import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 
 @TestSchema(
     """
-    type Product implements Node @resolver(isBatching: true) {
+    type Product implements Node @resolver(isBatching: true, isSelective: true) {
       id: ID!
       name: String!
       price: Float!

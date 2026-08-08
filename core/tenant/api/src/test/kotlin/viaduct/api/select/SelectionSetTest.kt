@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalApi::class)
+
 package viaduct.api.select
 
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -6,6 +8,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.reflect.Type
 import viaduct.api.types.Object
+import viaduct.apiannotations.ExperimentalApi
 
 class SelectionSetTest {
     @Test
@@ -19,6 +22,7 @@ class SelectionSetTest {
         val ss = SelectionSet.empty(fooType)
         assertEquals(fooType, ss.type)
         assertTrue(ss.isEmpty())
+        assertTrue(ss.selectedFieldCoordinates().isEmpty())
         assertFalse(ss.requestsType(fooType))
         assertTrue(ss.selectionSetFor(fooType).isEmpty())
         assertTrue(ss.selectionSetFor(barType).isEmpty())
@@ -28,6 +32,7 @@ class SelectionSetTest {
     fun noSelections() {
         val ss = SelectionSet.NoSelections
         assertTrue(ss.isEmpty())
+        assertTrue(ss.selectedFieldCoordinates().isEmpty())
         assertFalse(ss.requestsType(ss.type))
         assertTrue(ss.type.name.startsWith("__"))
     }

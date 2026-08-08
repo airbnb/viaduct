@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalApi::class)
+
 package viaduct.api.select
 
 import kotlin.reflect.KClass
@@ -5,6 +7,7 @@ import viaduct.api.reflect.CompositeField
 import viaduct.api.reflect.Field
 import viaduct.api.reflect.Type
 import viaduct.api.types.CompositeOutput
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.StableApi
 
 /**
@@ -13,6 +16,15 @@ import viaduct.apiannotations.StableApi
  */
 @StableApi
 interface SelectionSet<T : CompositeOutput> {
+    /**
+     * Returns the schema field coordinates selected directly at this selection set's current level.
+     *
+     * Field order, aliases, and repeated selections do not affect the returned set. Coordinates
+     * preserve the declaring type for fields selected under type conditions.
+     */
+    @ExperimentalApi
+    fun selectedFieldCoordinates(): Set<FieldCoordinate>
+
     /**
      * Returns true if this SelectionSet includes the provided [Field].
      *
@@ -178,6 +190,8 @@ interface SelectionSet<T : CompositeOutput> {
         /** Create a [SelectionSet] for a provided [Type] that contains no selections */
         fun <T : CompositeOutput> empty(type: Type<T>): SelectionSet<T> =
             object : SelectionSet<T> {
+                override fun selectedFieldCoordinates(): Set<FieldCoordinate> = emptySet()
+
                 override fun <U : T> contains(field: Field<U>): Boolean = false
 
                 override fun <U : T> requestsType(type: Type<U>): Boolean = false
@@ -198,6 +212,8 @@ interface SelectionSet<T : CompositeOutput> {
      */
     @StableApi
     object NoSelections : SelectionSet<CompositeOutput.NotComposite> {
+        override fun selectedFieldCoordinates(): Set<FieldCoordinate> = emptySet()
+
         override fun <U : CompositeOutput.NotComposite> contains(field: Field<U>): Boolean = false
 
         override fun <U : CompositeOutput.NotComposite> requestsType(type: Type<U>): Boolean = false

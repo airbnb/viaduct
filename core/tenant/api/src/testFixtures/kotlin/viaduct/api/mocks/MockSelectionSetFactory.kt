@@ -1,11 +1,15 @@
+@file:OptIn(ExperimentalApi::class)
+
 package viaduct.api.mocks
 
 import viaduct.api.internal.select.SelectionSetFactory
 import viaduct.api.reflect.CompositeField
 import viaduct.api.reflect.Field
 import viaduct.api.reflect.Type
+import viaduct.api.select.FieldCoordinate
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.CompositeOutput
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.ViaductSchema
 
@@ -91,6 +95,8 @@ class MockSelectionSetFactory(
             // This prevents false positives where "name" incorrectly matches "username".
             return fieldTokens.contains(field.name)
         }
+
+        override fun selectedFieldCoordinates(): Set<FieldCoordinate> = fieldTokens.mapTo(linkedSetOf()) { FieldCoordinate(type.name, it) }
 
         override fun <U : T> requestsType(type: Type<U>): Boolean {
             // For testing purposes, assume all types are requested.

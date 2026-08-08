@@ -1,12 +1,21 @@
+@file:OptIn(ExperimentalApi::class)
+
 package viaduct.tenant.runtime.select
 
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.reflect.Type
+import viaduct.api.select.FieldCoordinate
 import viaduct.api.types.CompositeOutput
+import viaduct.apiannotations.ExperimentalApi
+import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.mocks.createEngineSelectionSet
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.tenant.runtime.executioncontext.Bar
@@ -30,6 +39,72 @@ class SelectionSetImplTest {
                 variables,
             )
         )
+
+    @Test
+    fun `selectedFieldCoordinates -- returns unique own fields independent of aliases and order`() {
+        val fields = mk(Foo.Reflection, "fooSelf { id }, id, alias: id").selectedFieldCoordinates()
+
+        assertEquals(2, fields.size)
+        assertTrue(fields.contains(FieldCoordinate("Foo", "id")))
+        assertTrue(fields.contains(FieldCoordinate("Foo", "fooSelf")))
+    }
+
+    @Test
+    fun `selectedFieldCoordinates -- preserves interface implementation coordinates`() {
+        val fields = mk(Node.Reflection, "id, ... on Foo { fooSelf { id } }").selectedFieldCoordinates()
+
+        assertEquals(2, fields.size)
+        assertTrue(fields.contains(FieldCoordinate("Node", "id")))
+        assertTrue(fields.contains(FieldCoordinate("Foo", "fooSelf")))
+    }
+
+    @Test
+    fun `selectedFieldCoordinates -- excludes fields removed by directives`() {
+        val fields = mk(Node.Reflection, "id @skip(if: true), nodeSelf").selectedFieldCoordinates()
+
+        assertEquals(1, fields.size)
+        assertTrue(fields.contains(FieldCoordinate("Node", "nodeSelf")))
+    }
+
+    @Test
+    fun `equality -- compares pure selection structure`() {
+        val first = mk(Node.Reflection, "id, nodeSelf { id }")
+        val equivalent = mk(Node.Reflection, "nodeSelf { id }, alias: id, id")
+        val differentNestedSelection = mk(Node.Reflection, "id, nodeSelf { nodeSelf { id } }")
+        val requestedFoo = mk(Node.Reflection, "id, ... on Foo { id @skip(if: true) }")
+        val requestedBar = mk(Node.Reflection, "id, ... on Bar { id @skip(if: true) }")
+
+        assertEquals(first, equivalent)
+        assertEquals(first.hashCode(), equivalent.hashCode())
+        assertNotEquals(first, differentNestedSelection)
+        assertNotEquals(requestedFoo, requestedBar)
+    }
+
+    @Test
+    fun `equality -- builds and caches pure structure for equality and hashing`() {
+        val firstEngineSelectionSet = mockk<EngineSelectionSet>()
+        val secondEngineSelectionSet = mockk<EngineSelectionSet>()
+        listOf(firstEngineSelectionSet, secondEngineSelectionSet).forEach { selectionSet ->
+            every { selectionSet.type } returns "Foo"
+            every { selectionSet.schema } returns ExecutionContextTestSchema.schema
+            every { selectionSet.selections() } returns emptyList()
+            every { selectionSet.traversableSelections() } returns emptyList()
+            every { selectionSet.requestsType(any()) } returns false
+        }
+        val first = SelectionSetImpl(Foo.Reflection, firstEngineSelectionSet)
+        val second = SelectionSetImpl(Foo.Reflection, secondEngineSelectionSet)
+
+        assertNotEquals(firstEngineSelectionSet, secondEngineSelectionSet)
+        assertEquals(first.hashCode(), second.hashCode())
+        assertEquals(first, second)
+        assertEquals(first, second)
+        verify(exactly = 1) {
+            firstEngineSelectionSet.selections()
+            secondEngineSelectionSet.selections()
+            firstEngineSelectionSet.traversableSelections()
+            secondEngineSelectionSet.traversableSelections()
+        }
+    }
 
     @Test
     fun `containsField -- object own fields`() {
