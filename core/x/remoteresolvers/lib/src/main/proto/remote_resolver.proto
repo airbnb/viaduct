@@ -65,7 +65,8 @@ message ResolvedNode {
 
   // The resolution result (either success or error)
   oneof result {
-    // Success: Map<String, Any?> serialized as JSON
+    // Success: the node's EngineObjectData, JSON-encoded by EngineObjectDataSerializer
+    // (a versioned `[version, value]` root; see that class for the value encoding).
     bytes data_json = 2;
 
     // Failure: error information
@@ -132,11 +133,12 @@ message FieldSelector {
   // Preferred when resolvable because it preserves object identity; otherwise use `selections`.
   string selections_handle = 3;
 
-  // Eagerly-resolved required-selection-set object value (the parent object), as serialized
-  // EngineObjectData — an empty object when the resolver declares no object selection set.
+  // Eagerly-resolved required-selection-set object value (the parent object), as an
+  // EngineObjectDataSerializer payload — an empty object when the resolver declares no object
+  // selection set.
   bytes object_value_json = 4;
 
-  // Eagerly-resolved required-selection-set query value, as serialized EngineObjectData —
+  // Eagerly-resolved required-selection-set query value, as an EngineObjectDataSerializer payload —
   // an empty object when the resolver declares no query selection set.
   bytes query_value_json = 5;
 
@@ -157,11 +159,11 @@ message ResolvedField {
   string selector_key = 1;
 
   oneof result {
-    // Success: the field value as a tagged JSON envelope (see FieldValueSerializer) — records the
-    // value's kind (null/scalar/noderef/object/list) plus, for references/objects, its GraphQL type.
-    // NOTE: this tagged format is not wire-compatible with the earlier bare `{"v": <value>}` envelope
-    // (this experimental transport carries no protocol version), so the RRS and RRP must be built
-    // from the same commit / co-deployed. Field number reused deliberately.
+    // Success: the field value, JSON-encoded by EngineObjectDataSerializer — each object records its
+    // concrete GraphQL type, and the root is a versioned `[version, value]` array.
+    // NOTE: successive encodings here have deliberately reused this field number rather than adding a
+    // new one, so the RRS and RRP must be built from the same commit / co-deployed. The root version
+    // exists so that violating that fails loudly rather than decoding into a wrong value.
     bytes value_json = 2;
 
     // Failure: error information
@@ -192,7 +194,7 @@ message QueryRequest {
 
 // Response from query/mutation execution
 message QueryResponse {
-  // EngineObjectData serialized as JSON
+  // The selection set's result, as an EngineObjectDataSerializer payload.
   bytes object_data_json = 1;
 }
 
@@ -283,7 +285,7 @@ message CallbackResponse {
   string correlation_id = 1;
 
   oneof result {
-    // Success: EngineObjectData serialized as JSON.
+    // Success: the selection set's result, as an EngineObjectDataSerializer payload.
     bytes object_data_json = 2;
 
     // Failure: error information.

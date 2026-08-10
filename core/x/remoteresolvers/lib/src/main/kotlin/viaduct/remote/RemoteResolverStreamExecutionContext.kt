@@ -43,12 +43,15 @@ internal class RemoteResolverStreamExecutionContext(
         if (response.hasError()) {
             throw RemoteCallbackException(response.error.message, response.error.errorType)
         }
-        // The result's root type is whatever selectionSet was rooted on (e.g. "Query"/"Mutation").
-        // It must be the real type from the schema, not a freshly-built placeholder with no field
-        // definitions: generated GRT field access (ObjectBase.get) looks up the field on this exact
-        // GraphQLObjectType, and would fail with "Field ... not found" for every field otherwise.
-        val resultType = fullSchema.schema.getObjectType(selectionSet.type)
-        return EngineObjectDataSerializer.deserialize(response.objectDataJson.toByteArray(), resultType)
+        // The result's root type is whatever selectionSet was rooted on (e.g. "Query"/"Mutation"), and
+        // it must be the real schema type rather than a freshly-built placeholder: generated GRT field
+        // access (ObjectBase.get) looks up the field on this exact GraphQLObjectType. The codec
+        // resolves the name against the schema and asserts the wire agrees.
+        return EngineObjectDataSerializer.deserialize(
+            response.objectDataJson.toByteArray(),
+            fullSchema.schema,
+            selectionSet.type
+        )
     }
 }
 

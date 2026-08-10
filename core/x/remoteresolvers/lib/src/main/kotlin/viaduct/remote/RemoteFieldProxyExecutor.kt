@@ -162,15 +162,10 @@ class RemoteFieldProxyExecutor(
                     // (unknown type, malformed payload) is isolated to this selector's Result and
                     // surfaced as a RemoteResolverException, matching every other error path here.
                     resolved.hasValueJson() ->
-                        try {
-                            Result.success(FieldValueSerializer.deserializeValue(resolved.valueJson.toByteArray(), context))
-                        } catch (e: Exception) {
-                            Result.failure(
-                                RemoteResolverException(
-                                    message = e.message ?: "Failed to deserialize remote field value",
-                                    errorType = e::class.java.name
-                                )
-                            )
+                        isolatedRemoteFailure("Failed to deserialize remote field value") {
+                            FieldValueSerializer.deserializeValue(resolved.valueJson.toByteArray(), context)
+                        }.onFailure {
+                            log.warn("Failed to decode field selector {} for executor '{}'", index, executorId, it)
                         }
                     resolved.hasError() ->
                         Result.failure(RemoteResolverException(message = resolved.error.message, errorType = resolved.error.errorType))

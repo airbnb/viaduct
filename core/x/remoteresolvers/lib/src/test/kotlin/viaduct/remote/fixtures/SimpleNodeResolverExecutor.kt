@@ -1,5 +1,6 @@
 package viaduct.remote.fixtures
 
+import graphql.schema.GraphQLObjectType
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
@@ -20,6 +21,17 @@ class SimpleNodeResolverExecutor(
     override val isSelective: Boolean = false
     override val metadata: ResolverMetadata = ResolverMetadata.forMock("SimpleNodeResolverExecutor:$typeName")
 
+    /**
+     * An object type in the schema other than this resolver's own, for [UNDECODABLE_NODE_ID]. Chosen by
+     * name so the fixture behaves the same regardless of schema iteration order.
+     */
+    private fun wrongType(context: EngineExecutionContext): GraphQLObjectType =
+        context.fullSchema.schema.allTypesAsList
+            .filterIsInstance<GraphQLObjectType>()
+            .filter { it.name != typeName && !it.name.startsWith("__") }
+            .minByOrNull { it.name }
+            ?: throw IllegalStateException("Schema has no object type other than $typeName")
+
     override suspend fun resolve(
         selectors: List<NodeResolverExecutor.Selector>,
         context: EngineExecutionContext
@@ -32,7 +44,7 @@ class SimpleNodeResolverExecutor(
         return selectors.associateWith { selector ->
             when {
                 // Sentinel: return a node whose value carries an unresolved nested NodeReference.
-                // EngineObjectDataSerializer.serialize rejects a nested NodeReference (serializeChild
+                // EngineObjectDataSerializer.serialize rejects a nested NodeReference (encodeValue
                 // throws), so this node fails serialization on the RRS side while its batch-mates —
                 // which take the normal path below — still serialize and return successfully.
                 selector.id == UNSERIALIZABLE_NODE_ID -> Result.success(
@@ -40,6 +52,13 @@ class SimpleNodeResolverExecutor(
                         .put("id", selector.id)
                         .put("friend", context.createNodeReference(selector.id, graphQLType))
                         .build()
+                )
+                // Sentinel: return a node of the WRONG GraphQL type. It serializes cleanly on the RRS
+                // side, so the failure lands on the caller's deserialize — which asserts the payload's
+                // type against the node type it independently expects. Exercises per-node isolation of
+                // a *deserialization* failure, the mirror of the serialize case above.
+                selector.id == UNDECODABLE_NODE_ID -> Result.success(
+                    EngineObjectDataBuilder.from(wrongType(context)).build()
                 )
                 else -> {
                     val data = nodeData[selector.id]
@@ -65,6 +84,14 @@ class SimpleNodeResolverExecutor(
          * remote-resolver batch path (a bad node must not sink its batch-mates).
          */
         const val UNSERIALIZABLE_NODE_ID = "user:unserializable"
+
+        /**
+         * Node id that makes [resolve] return a well-formed node of a *different* GraphQL type. The RRS
+         * serializes it happily; the caller rejects it because the payload's declared type disagrees
+         * with the node type the caller expects. Used to exercise per-node isolation of a
+         * deserialization failure (a bad node must not sink its batch-mates).
+         */
+        const val UNDECODABLE_NODE_ID = "user:undecodable"
 
         /**
          * Creates a resolver with sample user data for testing.

@@ -81,27 +81,19 @@ abstract class RemoteNodeProxyExecutor(
         }
         log.debug("Received {} result(s) for executor '{}'", response.resultsCount, executorId)
 
-        // Looked up lazily: only needed to deserialize an actual success result, so a batch that's
-        // all errors never touches the schema at all.
-        val remoteResultType by lazy { context.fullSchema.schema.getObjectType(typeName) }
+        // deserialize asserts the wire's type against this node's own type.
+        val schema = context.fullSchema.schema
 
+        val selectorsById = selectors.associateBy { it.id }
         return response.resultsList.associate { resolvedNode ->
-            val selector = selectors.find { it.id == resolvedNode.selectorId }
+            val selector = selectorsById[resolvedNode.selectorId]
                 ?: error("Response contained unknown selector ID: ${resolvedNode.selectorId}")
             val result = when {
                 resolvedNode.hasDataJson() ->
-                    try {
-                        Result.success(
-                            EngineObjectDataSerializer.deserialize(resolvedNode.dataJson.toByteArray(), remoteResultType)
-                        )
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        // Isolate a lookup/deserialization failure (e.g. a schema-drift type miss) to
-                        // this selector's result, matching the per-selector isolation used elsewhere
-                        // in the batch-resolution paths -- it shouldn't abort selectors that already
-                        // succeeded or failed independently.
-                        Result.failure(RemoteResolverException(message = e.message ?: "Failed to deserialize remote result", errorType = e::class.java.name))
+                    isolatedRemoteFailure("Failed to deserialize remote node data") {
+                        EngineObjectDataSerializer.deserialize(resolvedNode.dataJson.toByteArray(), schema, typeName)
+                    }.onFailure {
+                        log.warn("Failed to decode node '{}' for executor '{}'", resolvedNode.selectorId, executorId, it)
                     }
                 resolvedNode.hasError() -> Result.failure(
                     RemoteResolverException(message = resolvedNode.error.message, errorType = resolvedNode.error.errorType)
@@ -165,5 +157,22 @@ class UnaryRemoteNodeProxyExecutor(
 
 class RemoteResolverException(
     message: String,
-    val errorType: String
-) : RuntimeException("Remote resolver error ($errorType): $message")
+    val errorType: String,
+    cause: Throwable? = null
+) : RuntimeException("Remote resolver error ($errorType): $message", cause)
+
+/**
+ * Runs [block], converting a failure into a [RemoteResolverException] result so one bad item in a batch
+ * fails only itself. Cancellation is rethrown, not converted.
+ */
+internal inline fun <T> isolatedRemoteFailure(
+    fallbackMessage: String,
+    block: () -> T
+): Result<T> =
+    try {
+        Result.success(block())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Result.failure(RemoteResolverException(e.message ?: fallbackMessage, e::class.java.name, e))
+    }

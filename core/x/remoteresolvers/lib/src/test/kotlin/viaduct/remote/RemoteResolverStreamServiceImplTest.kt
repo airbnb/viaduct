@@ -80,7 +80,7 @@ class RemoteResolverStreamServiceImplTest {
                 val response = stub.resolveNodeBatch(flowOf(request)).toList()
                 assertEquals(1, response.size)
                 val result = response[0].resolveResponse.resultsList.single()
-                val userData = EngineObjectDataSerializer.deserialize(result.dataJson.toByteArray(), testSchema.schema.getObjectType("User"))
+                val userData = EngineObjectDataSerializer.deserialize(result.dataJson.toByteArray(), testSchema.schema, "User")
                 assertEquals("Alice", userData.fetch("name"))
             }
         }

@@ -263,96 +263,117 @@ class RemoteProxyIntegrationTest {
         runBlocking {
             // Regression: one node whose result can't be serialized (its value carries an unresolved
             // nested NodeReference) must not sink its batch-mates. RemoteResolverServiceImpl
-            // .batchResolveNode now isolates the serialization failure to that node's error — mirroring
+            // .batchResolveNode isolates the serialization failure to that node's error — mirroring
             // batchResolveField — instead of failing the whole batch. Before the fix the serialize throw
             // propagated out of the gRPC handler and failed every selector in the call.
+            assertOneBadNodeIsIsolatedInBatch(
+                sentinelId = SimpleNodeResolverExecutor.UNSERIALIZABLE_NODE_ID,
+                nameSuffix = "serfail",
+                failureLabel = "Node with an un-serializable result should fail"
+            )
+        }
+
+    @Test
+    fun `a node whose payload fails deserialization fails only its own selector in a batch`() =
+        runBlocking {
+            // A node whose payload can't be deserialized (here its declared type disagrees with the
+            // node type this caller expects) must not sink its batch-mates.
+            assertOneBadNodeIsIsolatedInBatch(
+                sentinelId = SimpleNodeResolverExecutor.UNDECODABLE_NODE_ID,
+                nameSuffix = "deserfail",
+                failureLabel = "Node with an undecodable payload should fail"
+            )
+        }
+
+    /**
+     * Resolves a batch of three nodes where only the middle one — [sentinelId] — is broken, and asserts
+     * that it alone fails while its two well-formed batch-mates still resolve. [nameSuffix] keeps the
+     * in-process server names unique across tests.
+     */
+    private suspend fun assertOneBadNodeIsIsolatedInBatch(
+        sentinelId: String,
+        nameSuffix: String,
+        failureLabel: String
+    ) {
+        NodeExecutorRegistry.clear()
+        ContextRegistry.clear()
+        SelectionsRegistry.clear()
+
+        // One resolver serves the whole batch: the sentinel id is broken, every other id takes the
+        // fixture's normal path.
+        val actualResolver = SimpleNodeResolverExecutor.createUserResolver()
+
+        val rrsServerName = "test-rrs-node-$nameSuffix"
+        val rrsService = InProcessCallbackRemoteResolverService()
+        val rrsServer = InProcessServerBuilder
+            .forName(rrsServerName)
+            .directExecutor()
+            .addService(rrsService)
+            .build()
+            .start()
+
+        val callbackEndpoint = "test-rrp-callback-node-$nameSuffix"
+        val callbackServer = InProcessServerBuilder
+            .forName(callbackEndpoint)
+            .directExecutor()
+            .addService(EngineCallbackServiceImpl())
+            .build()
+            .start()
+
+        try {
+            val executorId = NodeExecutorRegistry.register(actualResolver)
+            val rrsChannel = InProcessChannelBuilder
+                .forName(rrsServerName)
+                .directExecutor()
+                .build()
+
+            val remoteProxy = UnaryRemoteNodeProxyExecutor(
+                originalExecutor = actualResolver,
+                executorId = executorId,
+                rrsChannel = rrsChannel,
+                callbackEndpoint = callbackEndpoint
+            )
+
+            val context = ContextMocks(testSchema).engineExecutionContext
+
+            fun selector(id: String) =
+                NodeResolverExecutor.Selector(
+                    id = id,
+                    selections = context.engineSelectionSetFactory.engineSelectionSet("User", "id name email", emptyMap())
+                )
+
+            val firstSelector = selector("user:1")
+            val failingSelector = selector(sentinelId)
+            val lastSelector = selector("user:3")
+
+            val results = remoteProxy.resolve(listOf(firstSelector, failingSelector, lastSelector), context)
+
+            val failingResult = results[failingSelector]
+            assertNotNull(failingResult, "Failing selector should have a result")
+            assertFalse(failingResult!!.isSuccess, failureLabel)
+            assertTrue(
+                failingResult.exceptionOrNull() is RemoteResolverException,
+                "Should be RemoteResolverException, got ${failingResult.exceptionOrNull()}"
+            )
+
+            val firstResult = results[firstSelector]
+            assertNotNull(firstResult, "First selector should have a result")
+            assertTrue(firstResult!!.isSuccess, "Well-formed node should still succeed despite its batch-mate failing")
+            assertEquals("Alice", firstResult.getOrNull()?.fetch("name"), "First node name should match")
+
+            val lastResult = results[lastSelector]
+            assertNotNull(lastResult, "Last selector should have a result")
+            assertTrue(lastResult!!.isSuccess, "Well-formed node should still succeed despite its batch-mate failing")
+            assertEquals("Charlie", lastResult.getOrNull()?.fetch("name"), "Last node name should match")
+        } finally {
+            rrsServer.shutdown()
+            callbackServer.shutdown()
+            rrsService.shutdownChannels()
             NodeExecutorRegistry.clear()
             ContextRegistry.clear()
             SelectionsRegistry.clear()
-
-            // A single resolver serves the whole batch: the sentinel id returns an un-serializable node,
-            // every other id takes the fixture's normal path.
-            val actualResolver = SimpleNodeResolverExecutor.createUserResolver()
-
-            val rrsServerName = "test-rrs-node-serfail"
-            val rrsService = InProcessCallbackRemoteResolverService()
-            val rrsServer = InProcessServerBuilder
-                .forName(rrsServerName)
-                .directExecutor()
-                .addService(rrsService)
-                .build()
-                .start()
-
-            val callbackEndpoint = "test-rrp-callback-node-serfail"
-            val callbackService = EngineCallbackServiceImpl()
-            val callbackServer = InProcessServerBuilder
-                .forName(callbackEndpoint)
-                .directExecutor()
-                .addService(callbackService)
-                .build()
-                .start()
-
-            try {
-                val executorId = NodeExecutorRegistry.register(actualResolver)
-                val rrsChannel = InProcessChannelBuilder
-                    .forName(rrsServerName)
-                    .directExecutor()
-                    .build()
-
-                val remoteProxy = UnaryRemoteNodeProxyExecutor(
-                    originalExecutor = actualResolver,
-                    executorId = executorId,
-                    rrsChannel = rrsChannel,
-                    callbackEndpoint = callbackEndpoint
-                )
-
-                val context = ContextMocks(testSchema).engineExecutionContext
-
-                // Batch of three: the MIDDLE node's result fails serialization; the two around it are
-                // well-formed.
-                val firstSelector = NodeResolverExecutor.Selector(
-                    id = "user:1",
-                    selections = context.engineSelectionSetFactory.engineSelectionSet("User", "id name email", emptyMap())
-                )
-                val failingSelector = NodeResolverExecutor.Selector(
-                    id = SimpleNodeResolverExecutor.UNSERIALIZABLE_NODE_ID,
-                    selections = context.engineSelectionSetFactory.engineSelectionSet("User", "id name email", emptyMap())
-                )
-                val lastSelector = NodeResolverExecutor.Selector(
-                    id = "user:3",
-                    selections = context.engineSelectionSetFactory.engineSelectionSet("User", "id name email", emptyMap())
-                )
-
-                val results = remoteProxy.resolve(listOf(firstSelector, failingSelector, lastSelector), context)
-
-                // The middle node is isolated to a failure...
-                val failingResult = results[failingSelector]
-                assertNotNull(failingResult, "Failing selector should have a result")
-                assertFalse(failingResult!!.isSuccess, "Node with an un-serializable result should fail")
-                assertTrue(
-                    failingResult.exceptionOrNull() is RemoteResolverException,
-                    "Should be RemoteResolverException, got ${failingResult.exceptionOrNull()}"
-                )
-
-                // ...while the two well-formed nodes in the same batch still resolve successfully.
-                val firstResult = results[firstSelector]
-                assertNotNull(firstResult, "First selector should have a result")
-                assertTrue(firstResult!!.isSuccess, "Well-formed node should still succeed despite its batch-mate failing")
-                assertEquals("Alice", firstResult.getOrNull()?.fetch("name"), "First node name should match")
-
-                val lastResult = results[lastSelector]
-                assertNotNull(lastResult, "Last selector should have a result")
-                assertTrue(lastResult!!.isSuccess, "Well-formed node should still succeed despite its batch-mate failing")
-                assertEquals("Charlie", lastResult.getOrNull()?.fetch("name"), "Last node name should match")
-            } finally {
-                rrsServer.shutdown()
-                callbackServer.shutdown()
-                rrsService.shutdownChannels()
-                NodeExecutorRegistry.clear()
-                ContextRegistry.clear()
-                SelectionsRegistry.clear()
-            }
         }
+    }
 
     @Test
     fun `test callback flow with re-entrant calls`() =

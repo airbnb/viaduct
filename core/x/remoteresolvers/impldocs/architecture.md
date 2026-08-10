@@ -193,31 +193,64 @@ The protobuf schema defines two bidirectional services:
 
 The protobuf messages use `bytes` fields for JSON payloads. Protobuf defines RPC structure and correlation; Jackson encodes resolver values.
 
-### EngineObjectData
+### Engine values
 
-`EngineObjectDataSerializer` walks `fetchSelections()` and writes a JSON object keyed by selection name. Nested `EngineObjectData` and lists recurse.
+`EngineObjectDataSerializer` is the single codec for every engine value this transport carries:
+`EngineObjectData` payloads (node results, required-selection-set object and query values, callback
+results) and field-resolver return values. `FieldValueSerializer` is the field path's facade over it,
+and also owns the plain-JSON argument and variable maps.
 
-The caller supplies the top-level `GraphQLObjectType` during deserialization. Nested JSON objects are rebuilt as `ResolvedEngineObjectData` under a placeholder `RemoteNestedObject` type because nested type identity is not encoded. Structural access through `fetchOrNull()` works, but nested type inspection does not.
+Only JSON *objects* are enveloped, because only they are ambiguous — a bare JSON object could be an
+`EngineObjectData` or a map-valued custom scalar. Primitives, nulls and lists stay bare, so scalars
+pay no encoding overhead:
 
-A nested `NodeReference` is rejected instead of recursively awaiting an unresolved node. Callers convert that serialization error to a selector-level failure.
+| Value | JSON |
+| --- | --- |
+| `EngineObjectData.Sync` | `{"o":{"t":"<Type>","f":{<selection>: <value>}}}` |
+| `NodeReference` | `{"r":{"t":"<Type>","id":"<globalId>"}}` |
+| Map-valued scalar | `{"s":{ …opaque JSON… }}` |
+| List | `[<value>, …]` |
+| String, number, boolean | Bare JSON scalar |
+| Null | Bare JSON `null` |
+| Unset selection | Key absent from `"f"` |
 
-### Field values
+Because each object records its concrete type name, type identity survives at every depth: nested
+objects are rebuilt against the receiver's real schema type, so consumers that read type identity
+below the root (GRT reflection, interface and union membership, Classic interop) work. Only the
+`"s"` payload is opaque — nothing inside it is encoded, so nothing inside it can be decoded, and an
+`EngineObjectData` or `NodeReference` hidden in a map is rejected at serialize time.
 
-Field resolver results use a tagged JSON envelope because `Any?` does not provide an out-of-band GraphQL type:
+`NodeReference` is checked before `EngineObjectData` because the engine's node reference
+implementation satisfies both interfaces. A reference is only legal in a field-value payload; an
+`EngineObjectData` payload must be fully resolved, so a nested reference is rejected instead of
+recursively awaiting a node that never resolves. Callers convert that to a selector-level failure.
 
-| Kind | Tag | Payload |
-| --- | --- | --- |
-| Null | `n` | None |
-| Scalar | `s` | JSON scalar or JSON-friendly map |
-| Node reference | `r` | Concrete type name and ID |
-| Resolved object | `o` | Concrete type name and `EngineObjectData` field map |
-| List | `l` | Recursively tagged elements |
+Deserialization takes the type the receiver *independently* knows the payload must have — a node's
+type, a field's parent type, a selection set's type — and asserts the wire agrees, rather than
+trusting the wire. A mislabelled payload is therefore rejected instead of being accepted as a
+different-but-known type. Field values are the one exception: a field's declared type may be
+abstract, so the concrete type comes from the wire and is resolved against the live full schema.
 
-`NodeReference` is checked before `EngineObjectData` because the engine's node reference implementation satisfies both interfaces. On the main side, node references are rebuilt through `EngineExecutionContext.createNodeReference()`, and objects are rebuilt against concrete object types from the live full schema.
+Supported scalar leaves are strings, booleans, and numbers. Arbitrary objects, sets, sequences, and
+custom scalar values requiring bespoke coercion are rejected.
 
-Supported scalar leaves are strings, booleans, and numbers. Maps may contain only JSON-friendly values. Arbitrary objects, sets, sequences, custom scalar values requiring bespoke coercion, and maps containing `NodeReference` or `EngineObjectData` are rejected.
+The payload root is `[<version>, <value>]`. A JSON array root is structurally impossible in the
+pre-versioned format, which always wrote an object, so a build mismatch between the two processes
+fails loudly in both directions rather than decoding into a wrong-but-plausible value. There is no
+dual-read path: main and remote servers must still be built from compatible commits and deployed
+together, and the version exists so that violating it is diagnosable rather than silent. Note the
+version covers the engine values above; `arguments_json` and `variables_json` are plain JSON maps with
+no envelope of their own, and proto-level skew is not covered either.
 
-The field-value format has no protocol version and deliberately reused an existing protobuf field number when the tagged format replaced the earlier envelope. Main and remote servers must be built from compatible commits and deployed together.
+Self-describing objects cost roughly `19 + len(typeName)` bytes per object that the previous format
+did not, at every depth, against gRPC's unchanged 4 MiB default inbound limit. (Field-*value* payloads
+got smaller, since per-scalar tagging went away, so this applies to node, required-selection-set and
+callback payloads.) A batch already within a couple of MB of that ceiling should be measured before
+being proxied. If the limit ever does need raising, note two things: decoding materializes a generic
+object tree several times the size of the wire bytes, so headroom costs far more heap than wire; and
+`maxInboundMessageSize` on the abstract `io.grpc.ServerBuilder`/`ManagedChannelBuilder` is documented
+as advisory and does nothing, so every receiver must be built from the concrete Netty builder for a
+limit to apply at all.
 
 ## Re-entrant Query and Mutation Flow
 
@@ -228,7 +261,7 @@ The field-value format has no protocol version and deliberately reused an existi
 3. The main callback service looks up both handles.
 4. Call the original main `EngineExecutionContext.resolveSelectionSet()`.
 5. Serialize the resulting `EngineObjectData`.
-6. Deserialize it in the remote process under a placeholder top-level type.
+6. Deserialize it in the remote process against the selection set's own type, which the remote side already knows.
 7. Unregister the remote selection handle in `finally`.
 
 The context handle works across the callback because it was created and remains registered in the main process; the callback request merely returns that string to its owner.
@@ -317,7 +350,7 @@ The test suite covers several different layers:
 - `RemoteProxyIntegrationTest`: Node proxying, batching, error propagation, node serialization isolation, and callback initiation.
 - `RemoteFieldProxyIntegrationTest`: Field inputs and results, RSS data, selection reconstruction, batching, per-selector isolation, and callback initiation.
 - `RemoteSelectionSetWireTest`: Fragment and variable round-tripping for field sub-selections.
-- `FieldValueSerializerTest` and `EmptyEngineSelectionSetTest`: Wire codec and empty-selection behavior.
+- `EngineObjectDataSerializerTest`, `FieldValueSerializerTest` and `EmptyEngineSelectionSetTest`: Wire codec and empty-selection behavior.
 - Registry tests: Stable executor registration and schema publication.
 - Configuration and initializer tests: Parsing, selection policy, lifecycle, and built-in exclusions.
 - StarWars remote-server tests: Tenant bootstrap and server lifecycle.
@@ -338,7 +371,7 @@ For a behavior that depends on process separation, add a test that prevents shar
 - `lib/src/main/kotlin/viaduct/remote/RemoteEngineExecutionContext.kt`: Shared schema-only context fallbacks (base class) plus `UnaryRemoteEngineExecutionContext`, the unary callback client.
 - `lib/src/main/kotlin/viaduct/remote/EngineCallbackServiceImpl.kt`: Main-side re-entrant execution service.
 - `lib/src/main/kotlin/viaduct/remote/EngineObjectDataSerializer.kt`: Structural object-data JSON codec.
-- `lib/src/main/kotlin/viaduct/remote/FieldValueSerializer.kt`: Tagged field-value JSON codec.
+- `lib/src/main/kotlin/viaduct/remote/FieldValueSerializer.kt`: Field-value facade over the codec, plus the argument/variable map codec.
 - `lib/src/main/kotlin/viaduct/remote/registry/`: Process-local state and stable executor registries.
 - `starwars/remote-server/src/main/kotlin/com/example/remote/TenantBootstrapper.kt`: Reference remote tenant bootstrap.
 

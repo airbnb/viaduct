@@ -2,6 +2,7 @@ package viaduct.remote
 
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
+import kotlinx.coroutines.CancellationException
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.remote.grpc.EngineCallbackServiceGrpcKt
 import viaduct.remote.grpc.QueryRequest
@@ -30,8 +31,20 @@ class EngineCallbackServiceImpl : EngineCallbackServiceGrpcKt.EngineCallbackServ
         val selections = SelectionsRegistry.get(request.selectionsHandle)
             ?: throw notFound("selections", request.selectionsHandle)
         val result = context.resolveSelectionSet(selections, options)
+        // A value the codec can't encode (an unresolved reference, a non-JSON-friendly scalar) would
+        // otherwise escape the handler as an opaque UNKNOWN; report it as an attributable failure.
+        val objectDataJson = try {
+            EngineObjectDataSerializer.serialize(result)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw Status.INTERNAL
+                .withDescription("Failed to serialize callback result: ${e.message}")
+                .withCause(e)
+                .asRuntimeException()
+        }
         return QueryResponse.newBuilder()
-            .setObjectDataJson(com.google.protobuf.ByteString.copyFrom(EngineObjectDataSerializer.serialize(result)))
+            .setObjectDataJson(com.google.protobuf.ByteString.copyFrom(objectDataJson))
             .build()
     }
 

@@ -5,7 +5,6 @@ package viaduct.remote
 import graphql.schema.GraphQLObjectType
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -19,9 +18,10 @@ import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.runtime.mocks.ContextMocks
 
 /**
- * Unit tests for [FieldValueSerializer]: tagged round-trips for every field-return kind (scalar,
- * null, node reference, resolved object, and lists thereof), argument round-trips, and the guards
- * for genuinely non-serializable values.
+ * Unit tests for [FieldValueSerializer]: round-trips for every field-return kind (scalar, null, node
+ * reference, resolved object, and lists thereof), argument round-trips, and the guards for genuinely
+ * non-serializable values. The value encoding itself lives in [EngineObjectDataSerializer] and is
+ * covered by [EngineObjectDataSerializerTest].
  */
 class FieldValueSerializerTest {
     private val schema = MockSchema.mk(
@@ -52,7 +52,7 @@ class FieldValueSerializerTest {
 
     private fun objectType(name: String): GraphQLObjectType = schema.schema.getObjectType(name)
 
-    private fun roundTrip(value: Any?): Any? = runBlocking { FieldValueSerializer.deserializeValue(FieldValueSerializer.serializeValue(value), context) }
+    private fun roundTrip(value: Any?): Any? = FieldValueSerializer.deserializeValue(FieldValueSerializer.serializeValue(value), context)
 
     @Test
     fun `null round-trips`() {
@@ -153,7 +153,7 @@ class FieldValueSerializerTest {
 
     @Test
     fun `null round-trips through non-empty tagged bytes`() {
-        val bytes = runBlocking { FieldValueSerializer.serializeValue(null) }
+        val bytes = FieldValueSerializer.serializeValue(null)
         assertTrue(bytes.isNotEmpty())
         assertNull(FieldValueSerializer.deserializeValue(bytes, context))
     }
@@ -161,7 +161,7 @@ class FieldValueSerializerTest {
     @Test
     fun `an arbitrary non-serializable value is rejected`() {
         val ex = assertThrows<UnsupportedOperationException> {
-            runBlocking { FieldValueSerializer.serializeValue(NonSerializable()) }
+            FieldValueSerializer.serializeValue(NonSerializable())
         }
         ex.message.shouldContain("NonSerializable")
     }
@@ -172,7 +172,7 @@ class FieldValueSerializerTest {
         // reconstructed on the wire and must be rejected rather than silently mangled.
         val objectData = ResolvedEngineObjectData.Builder(objectType("Character")).build()
         assertThrows<UnsupportedOperationException> {
-            runBlocking { FieldValueSerializer.serializeValue(mapOf("nested" to objectData)) }
+            FieldValueSerializer.serializeValue(mapOf("nested" to objectData))
         }
     }
 
@@ -196,7 +196,7 @@ class FieldValueSerializerTest {
             .put("species", context.createNodeReference("Species:1", objectType("Species")))
             .build()
         val ex = assertThrows<UnsupportedOperationException> {
-            runBlocking { FieldValueSerializer.serializeValue(character) }
+            FieldValueSerializer.serializeValue(character)
         }
         ex.message.shouldContain("nested NodeReference")
     }
@@ -209,9 +209,9 @@ class FieldValueSerializerTest {
         // synchronously rather than awaiting a resolution that never completes on the serialize path.
         val ref = context.createRootFieldReference(listOf("test"), objectType("Species"), emptyMap())
         val ex = assertThrows<UnsupportedOperationException> {
-            runBlocking { FieldValueSerializer.serializeValue(ref) }
+            FieldValueSerializer.serializeValue(ref)
         }
-        ex.message.shouldContain("unresolved reference")
+        ex.message.shouldContain("unresolved EngineObjectData")
     }
 
     @Test
@@ -223,9 +223,9 @@ class FieldValueSerializerTest {
             .put("species", context.createRootFieldReference(listOf("test"), objectType("Species"), emptyMap()))
             .build()
         val ex = assertThrows<UnsupportedOperationException> {
-            runBlocking { FieldValueSerializer.serializeValue(character) }
+            FieldValueSerializer.serializeValue(character)
         }
-        ex.message.shouldContain("nested unresolved EngineObjectData")
+        ex.message.shouldContain("unresolved EngineObjectData")
     }
 
     @Test
@@ -237,7 +237,8 @@ class FieldValueSerializerTest {
         val result = roundTrip(character) as EngineObjectData.Sync
         assertEquals("Character", result.type.name)
         val homeworld = result.get("homeworld") as EngineObjectData.Sync
-        assertEquals("Tatooine", homeworld.get("name"), "nested object child should round-trip (under a placeholder type)")
+        assertEquals("Planet", homeworld.type.name, "a nested object keeps its own concrete type")
+        assertEquals("Tatooine", homeworld.get("name"))
     }
 
     @Test
@@ -247,14 +248,14 @@ class FieldValueSerializerTest {
     }
 
     @Test
-    fun `an unknown kind and a truncated noderef are rejected with clear errors`() {
-        // Raw tagged payloads built via the argument codec (same JSON), then decoded.
-        val unknownKind = FieldValueSerializer.serializeArguments(mapOf("k" to "x"))
-        assertThrows<UnsupportedOperationException> { FieldValueSerializer.deserializeValue(unknownKind, context) }
+    fun `an unknown envelope key and a truncated node reference are rejected with clear errors`() {
+        val unknownKey = EngineObjectDataSerializer.wrap(mapOf("x" to emptyMap<String, Any?>()))
+        val unknown = assertThrows<UnsupportedOperationException> { FieldValueSerializer.deserializeValue(unknownKey, context) }
+        unknown.message.shouldContain("Unknown remote value envelope key 'x'")
 
-        val noderefMissingId = FieldValueSerializer.serializeArguments(mapOf("k" to "r", "t" to "Species"))
-        val ex = assertThrows<UnsupportedOperationException> { FieldValueSerializer.deserializeValue(noderefMissingId, context) }
-        ex.message.shouldContain("noderef is missing its 'id'")
+        val refMissingId = EngineObjectDataSerializer.wrap(mapOf("r" to mapOf("t" to "Species")))
+        val ex = assertThrows<UnsupportedOperationException> { FieldValueSerializer.deserializeValue(refMissingId, context) }
+        ex.message.shouldContain("missing its 'id'")
     }
 
     private class NonSerializable

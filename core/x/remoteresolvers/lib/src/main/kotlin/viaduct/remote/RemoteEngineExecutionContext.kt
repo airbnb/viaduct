@@ -144,20 +144,20 @@ class UnaryRemoteEngineExecutionContext(
         } finally {
             SelectionsRegistry.unregister(selectionsHandle)
         }
-        return EngineObjectDataSerializer.deserialize(response.objectDataJson.toByteArray(), REMOTE_RESULT_TYPE)
-    }
-
-    private companion object {
-        // Type identity isn't propagated over the wire; the receiver-side builder just
-        // needs a name to attach to the deserialized result.
-        private val REMOTE_RESULT_TYPE = graphql.schema.GraphQLObjectType.newObject()
-            .name("RemoteQueryResult")
-            .build()
+        // The result's root type is the selection set's own type, which is known locally — no need to
+        // trust (or invent) a type name for it. Resolve nested names against this receiver's own
+        // schema, like every other decode site (selectionSet.schema is equivalent today but throws
+        // outright for the empty selection set the RRS substitutes on a handle miss).
+        return EngineObjectDataSerializer.deserialize(
+            response.objectDataJson.toByteArray(),
+            fullSchema.schema,
+            selectionSet.type
+        )
     }
 }
 
-// Minimal [NodeReference] for a context without a delegate: carries only id + type (the [EngineObject.type] used
-// by [FieldValueSerializer] to tag the wire value). It is never resolved on the service side —
+// Minimal [NodeReference] for a context without a delegate: carries only id + type (the
+// [EngineObject.type] used to tag the wire value). It is never resolved on the service side —
 // the engine side rebuilds a resolvable reference via its own `createNodeReference`.
 private class RemoteNodeReference(
     override val id: String,

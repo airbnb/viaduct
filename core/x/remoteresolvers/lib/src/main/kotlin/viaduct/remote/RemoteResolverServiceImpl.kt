@@ -1,5 +1,6 @@
 package viaduct.remote
 
+import graphql.schema.GraphQLObjectType
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Status
@@ -75,24 +76,22 @@ open class RemoteResolverServiceImpl(
             ?: throw notFound("field executor", request.executorId)
         val remoteContext = buildRemoteContext(request.contextHandle, request.callbackEndpoint)
 
-        // Object/query values arrive serialized; deserialize them against the resolver's real schema
-        // types (not placeholders) so the field context's type-name and field checks pass. The
-        // resolver id is the field coordinate, "Type.field".
+        // The resolver id is the field coordinate, "Type.field".
         val parentTypeName = request.executorId.substringBefore(".")
         val schema = remoteContext.fullSchema.schema
-        val objectType = schema.getObjectType(parentTypeName) ?: throw notFound("object type", parentTypeName)
+        // getObjectType asserts when the name resolves to a non-object type, which would escape this
+        // handler as an opaque UNKNOWN.
+        val objectType = schema.getType(parentTypeName) as? GraphQLObjectType
+            ?: throw notFound("object type", parentTypeName)
         val queryType = schema.queryType
-        // Selector keys correlate the response (a field Selector has no natural id). deserialize is
-        // suspend, so build with a loop.
+        // Selector keys correlate the response (a field Selector has no natural id).
         val keyedSelectors = mutableListOf<Pair<String, FieldResolverExecutor.Selector>>()
-        // A per-selector deserialization failure (malformed payload, unknown type, unparseable
-        // selection set) is isolated to that selector's error — matching the resolver-execution and
-        // value-serialization paths below — so one bad selector can't abort the whole batch.
+        // A deserialization failure fails only its own selector.
         val preFailed = mutableListOf<ResolvedField>()
         for (proto in request.selectorsList) {
             try {
-                val objectValue = EngineObjectDataSerializer.deserialize(proto.objectValueJson.toByteArray(), objectType)
-                val queryValue = EngineObjectDataSerializer.deserialize(proto.queryValueJson.toByteArray(), queryType)
+                val objectValue = EngineObjectDataSerializer.deserialize(proto.objectValueJson.toByteArray(), schema, objectType.name)
+                val queryValue = EngineObjectDataSerializer.deserialize(proto.queryValueJson.toByteArray(), schema, queryType.name)
                 val arguments = FieldValueSerializer.deserializeArguments(proto.argumentsJson.toByteArray())
                 // Prefer a resolvable registry handle, which preserves object identity; otherwise
                 // reconstruct the selection set shipped by the caller.
@@ -114,9 +113,8 @@ open class RemoteResolverServiceImpl(
             }
         }
 
-        // Every selector pre-failed deserialization — return their errors without invoking the resolver.
-        // An unbatched built-in resolver asserts `require(selectors.size == 1)`, so calling it with an
-        // empty batch would throw and misattribute the deserialization failures to the resolver.
+        // An unbatched built-in resolver asserts `require(selectors.size == 1)`, so it cannot be
+        // invoked with an empty batch.
         if (keyedSelectors.isEmpty()) {
             return BatchResolveFieldResponse.newBuilder().addAllResults(preFailed).build()
         }
@@ -134,7 +132,6 @@ open class RemoteResolverServiceImpl(
         }
 
         // Isolate a non-serializable success value to that selector's error rather than fail the batch.
-        // (serializeValue is suspend, but `map` is inline, so no manual accumulator loop is needed.)
         val protoResults = keyedSelectors.map { (key, selector) ->
             val result = results[selector]
             when {

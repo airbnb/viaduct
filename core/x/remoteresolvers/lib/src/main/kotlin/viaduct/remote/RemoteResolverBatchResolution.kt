@@ -58,7 +58,7 @@ private fun buildNodeSelectors(
         proto.id to NodeResolverExecutor.Selector(id = proto.id, selections = selections)
     }
 
-private suspend fun resolveNodeResult(
+private fun resolveNodeResult(
     id: String,
     result: Result<EngineObjectData>?,
     typeName: String
@@ -69,7 +69,7 @@ private suspend fun resolveNodeResult(
         else -> nodeError(id, result.exceptionOrNull()!!)
     }
 
-private suspend fun serializeNodeResult(
+private fun serializeNodeResult(
     id: String,
     value: EngineObjectData,
     typeName: String

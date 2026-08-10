@@ -137,9 +137,22 @@ curl -X POST http://localhost:8080/graphql -H "Content-Type: application/json" \
 - Wire format only handles JSON-friendly engine values. Custom scalars with bespoke coercers, and
   JSR-310 types without a configured `ObjectMapper`, will fail at serialize time; likewise a field's
   sub-selection set travels over the wire, so its variable values must be JSON-friendly.
-- Nested objects are reconstructed under a placeholder type — code that walks
-  the result via `EngineObjectData.fetchOrNull` works at any depth, but code
-  that inspects type identity does not. A field's returned object (and its required-selection-set
-  object/query values) is reconstructed against its real schema type (so typed accessors like
-  `ctx.getObjectValue().getBirthYear()` work), but only at the top level; deeply nested objects fall
-  back to the placeholder type.
+- **Both sides must run compatible builds.** Every object carries its concrete GraphQL type name and
+  the engine-value payload root carries a format version, so a mismatch on those payloads fails loudly
+  rather than silently decoding into a wrong value — but there is no dual-read path, and argument /
+  variable maps and the proto shape itself are not versioned. Deploy the main and remote servers
+  together; with the per-tenant selection empty, nothing is proxied and the transport is inert.
+- The two sides' schemas must agree on the types that cross the wire. An unknown type name is
+  rejected, but a *changed* same-named type is not detected.
+- Scalar fidelity is JSON's, not the JVM's: a `Long` comes back as an `Int` when it fits, a
+  `BigDecimal` as a `Double`, and `NaN`/`Infinity` serialize but fail to parse. Tenant code that casts
+  a remotely-resolved scalar to a specific numeric type can therefore behave differently than it does
+  locally.
+- A re-entrant `ctx.query()` result is serialized in one pass, so a per-field error stored in it (a
+  denied access check, a failed nested field) aborts the whole callback response and is reported as
+  `INTERNAL: Failed to serialize callback result`. The engine's partial-error semantics do not survive
+  the hop, and the error is attributed to the codec rather than to the tenant.
+- Selections dropped by `@skip`/`@include` do not survive the hop. The engine's own
+  `EngineObjectData` distinguishes "excluded by a directive" (reads as null) from "never set" (throws
+  `UnsetFieldException`); the wire format carries only the latter, so a directive-excluded selection
+  reads as unset on the far side.
