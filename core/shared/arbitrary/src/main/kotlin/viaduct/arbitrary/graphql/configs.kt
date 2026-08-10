@@ -338,6 +338,12 @@ object UndeclaredFieldResolverWeight : ConfigKey<Double>(0.0, WeightValidator)
 object UndeclaredNodeResolverWeight : ConfigKey<Double>(0.0, WeightValidator)
 
 /**
+ * The probability that an object, if it meets the requirements for a namespace type, will be configured
+ * with the `@namespaceType` directive if it doesn't already have it.
+ */
+object UndeclaredNamespaceTypeWeight : ConfigKey<Double>(0.0, WeightValidator)
+
+/**
  * The probability that a field resolver, node resolver, variables resolver, or checker will behave deterministically
  * when invoked multiple times in the same context in the same request.
  * Deterministic behavior means that it will return the same data and/or throw the same exception.
