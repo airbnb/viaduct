@@ -382,6 +382,17 @@ internal val ViaductSchema.objects: List<GraphQLObjectType>
 internal val ViaductSchema.objectCoordinates: Set<Coordinate>
     get() = objects.flatMap { it.objectCoordinates }.toSet()
 
+/** return all composite type names in the current schema */
+internal val ViaductSchema.compositeTypeNames: Set<TypeOrFieldCoordinate>
+    get() =
+        buildSet {
+            schema.allTypesAsList.forEach {
+                if (it is GraphQLCompositeType) {
+                    add(it.name to null)
+                }
+            }
+        }
+
 /** return all coordinates for the given type in the current schema */
 internal fun ViaductSchema.objectCoordinates(type: GraphQLCompositeType): Set<Coordinate> =
     rels.possibleObjectTypes(type)

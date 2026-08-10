@@ -3,8 +3,12 @@
 package viaduct.arbitrary.graphql
 
 import graphql.language.AstPrinter
+import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
+import io.kotest.property.arbitrary.next
+import io.kotest.property.arbitrary.of
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.CompoundingWeight
@@ -13,9 +17,11 @@ import viaduct.arbitrary.common.CompoundingWeight.Companion.Once
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.engine.runtime.select.allCoords
+import viaduct.engine.runtime.select.reachableObjects
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreAcyclic
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsValidationCtx
 
@@ -50,7 +56,6 @@ class RequiredSelectionSetGenTest : KotestPropertyBase() {
                     ("B" to "x") to bX,
                 )
 
-                gen.graph.assertAcyclic()
                 RequiredSelectionsAreAcyclic(schema).validate(
                     RequiredSelectionsValidationCtx("A", "y", registry)
                 )
@@ -89,13 +94,11 @@ class RequiredSelectionSetGenTest : KotestPropertyBase() {
                     forChecker = false,
                     depth = 0,
                 )
-                gen.graph to rss!!
+                rss!!
             }
 
             val factory = EngineSelectionSetFactoryImpl(schema)
-            arb.checkAll { (graph, rss) ->
-                graph.assertAcyclic()
-
+            arb.checkAll { rss ->
                 val selectionSet = factory.engineSelectionSet(rss.selections, emptyMap())
                 assertTrue(
                     "Foo" to "x" !in selectionSet.allCoords(schema),
@@ -110,60 +113,81 @@ class RequiredSelectionSetGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `generator does not produce cycles through blocked reachable object coordinates`(): Unit =
+    fun `generated dependencies precede their owner`(): Unit =
         runBlocking {
             val schema = """
-            extend type Query {
-                y: Int @resolver
-                foo: Foo
-                safe: Int
-            }
+                extend type Query {
+                    y: Int @resolver
+                    foo: Foo
+                    safe: Int
+                }
 
-            type Foo {
-                s: Int @resolver
-                safe: Int
-                query: Query
-            }
+                type Foo {
+                    s: Int @resolver
+                    safe: Int
+                    query: Query
+                }
             """.trimIndent().asViaductSchema
             val cfg = Config.default +
-                (RequiredSelectionSetWeight to Once) +
-                (BanSelectionCoordinates to setOf("Foo" to "__typename", "Query" to "__typename"))
+                (RequiredSelectionSetWeight to Once)
 
             val arb = arbitrary { rs ->
                 val env = ViaductGenEnv(schema, cfg, rs)
                 val gen = RequiredSelectionSetGen(env)
-
-                // populate the RSS graph with entries for a Foo checker
-                gen.gen(
-                    tfc = "Foo" to null,
-                    typeCondition = "Foo",
-                    forChecker = true,
+                val (owner, typeCondition, forChecker) = Arb.of(
+                    Triple<TypeOrFieldCoordinate, String, Boolean>("Query" to "y", "Query", false),
+                    Triple<TypeOrFieldCoordinate, String, Boolean>("Foo" to "s", "Foo", false),
+                    Triple<TypeOrFieldCoordinate, String, Boolean>("Foo" to null, "Foo", true),
+                ).next(rs)
+                val rss = gen.gen(
+                    tfc = owner,
+                    typeCondition = typeCondition,
+                    forChecker = forChecker,
                     depth = 0,
                 )!!
 
-                // populate an additional Foo.s RSS to increase pressure to create cycles
-                gen.gen(
-                    tfc = "Foo" to "s",
-                    typeCondition = "Foo",
-                    forChecker = false,
-                    depth = 0,
-                )!!
-
-                // generate the actual rss we want to assert on
-                gen.gen(
-                    tfc = "Query" to "y",
-                    typeCondition = "Query",
-                    forChecker = false,
-                    depth = 0,
-                )!!
-
-                gen.graph
+                Triple(env.coordinateIndex, owner, rss)
             }
 
-            arb.checkAll { graph ->
-                graph.assertAcyclic()
+            arb.checkAll { (coordinateIndex, owner, rss) ->
+                val dependencies = rss.dependencies(schema)
+                assertTrue(
+                    dependencies.all { it in coordinateIndex.before(owner) },
+                    "${AstPrinter.printAst(rss.selections.toDocument())}\n" +
+                        "owner=$owner dependencies=$dependencies"
+                )
             }
         }
+
+    @Test
+    fun `no selectable dependencies returns null`() {
+        val schema = "extend type Query { x:Int @resolver }".asViaductSchema
+        val cfg = Config.default +
+            (RequiredSelectionSetWeight to Once) +
+            (BanSelectionCoordinates to setOf("Query" to "__typename"))
+        val gen = RequiredSelectionSetGen(ViaductGenEnv(schema, cfg, randomSource))
+
+        assertNull(
+            gen.gen(
+                tfc = "Query" to "x",
+                typeCondition = "Query",
+                forChecker = false,
+                depth = 0,
+            )
+        )
+    }
+
+    private fun RequiredSelectionSet.dependencies(schema: ViaductSchema): Set<TypeOrFieldCoordinate> {
+        val factory = EngineSelectionSetFactoryImpl(schema)
+        return buildSet {
+            val selectionSet = factory.engineSelectionSet(selections, emptyMap())
+            addAll(selectionSet.allCoords(schema).filterNot { (_, fieldName) -> fieldName.startsWith("__") })
+            addAll(selectionSet.reachableObjects(schema).map { typeName -> typeName to null })
+            variablesResolvers
+                .mapNotNull { it.requiredSelectionSet }
+                .forEach { addAll(it.dependencies(schema)) }
+        }
+    }
 
     private fun requiredSelectionSetRegistry(vararg entries: Pair<TypeOrFieldCoordinate, RequiredSelectionSet>): RequiredSelectionSetRegistry =
         object : RequiredSelectionSetRegistry {

@@ -569,25 +569,33 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
         @Test
         fun `ResolverLatencyMillis`(): Unit =
             runBlocking {
-                val instr = VariablesResolver.Factory.Instrumented()
-                val viaduct = Arb.viaduct(
-                    "extend type Query { x:Int @resolver, y(a:Int!):Int }".asViaductSchema,
-                    cfg +
-                        (IncludeRequiredResolvers to false) +
-                        (RequiredSelectionSetWeight to Once) +
-                        (VariableWeight to 1.0) +
-                        (ResolverLatencyMillis to 100.asLongRange()) +
-                        (VariablesResolverFactory to instr) +
-                        (FieldSelectionWeight to Once) +
-                        (InlineFragmentWeight to Never) +
-                        (FragmentSpreadWeight to Never) +
-                        (BanSelectionCoordinates to setOf("Query" to "x", "Query" to "__typename"))
-                ).next(randomSource)
+                val arb = arbitrary {
+                    val instr = VariablesResolver.Factory.Instrumented()
+                    val viaduct = Arb.viaduct(
+                        "extend type Query { x:Int @resolver, y(a:Int!):Int }".asViaductSchema,
+                        cfg +
+                            (IncludeRequiredResolvers to false) +
+                            (RequiredSelectionSetWeight to Once) +
+                            (VariableWeight to 1.0) +
+                            (ResolverLatencyMillis to 100.asLongRange()) +
+                            (VariablesResolverFactory to instr) +
+                            (FieldSelectionWeight to Once) +
+                            (InlineFragmentWeight to Never) +
+                            (FragmentSpreadWeight to Never) +
+                            (BanSelectionCoordinates to setOf("Query" to "x"))
+                    ).bind()
+                    instr to viaduct
+                }
 
-                viaduct.execute(ExecutionInput.create("{x}"))
+                val logs = arb.asSequence(randomSource)
+                    .map { (instr, viaduct) ->
+                        viaduct.executeAsync(ExecutionInput.create("{x}")).join()
+                        instr.allResolvers.flatMap { it.recorder.log }
+                    }
+                    .take(iterations)
+                    .firstOrNull { it.isNotEmpty() }
 
-                val logs = instr.allResolvers.flatMap { it.recorder.log }
-                assertTrue(logs.isNotEmpty())
+                requireNotNull(logs)
                 assertTrue(logs.all { it.time >= 100.milliseconds })
             }
 

@@ -71,6 +71,7 @@ internal interface ViaductGenEnv {
     val nodeResolverExecutorGen: NodeResolverExecutorGen
     val variablesResolverGen: VariablesResolverGen
     val checkerExecutorGen: CheckerExecutorGen
+    val coordinateIndex: CoordinateIndex
 
     // at build time, deterministically give each resolver its own env that includes an isolated RandomSource.
     // As the sole user of that RS, they will get deterministic behavior if it's used inside their resolve function
@@ -82,6 +83,7 @@ internal interface ViaductGenEnv {
             override val resolverConfig: ResolverConfig,
             override val cfg: Config,
             override val rs: RandomSource,
+            override val coordinateIndex: CoordinateIndex,
         ) : ViaductGenEnv {
             override val requiredSelectionSetGen = RequiredSelectionSetGen(this)
             override val fieldResolverValueGen = FieldResolverValueGen(this)
@@ -104,7 +106,8 @@ internal interface ViaductGenEnv {
                 Schemas(schema),
                 resolverConfig,
                 cfg,
-                rs
+                rs,
+                CoordinateIndex(schema, rs),
             )
     }
 }
