@@ -2,6 +2,8 @@
 
 package viaduct.api.mocks
 
+import graphql.language.AstPrinter
+import graphql.parser.Parser
 import graphql.schema.GraphQLObjectType
 import viaduct.api.context.ConnectionFieldExecutionContext
 import viaduct.api.context.ExecutionContext
@@ -36,12 +38,34 @@ import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockSchema
+import viaduct.graphql.utils.SelectionsParserUtils
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.toObjectGRT
 
 interface PrebakedResults<T : CompositeOutput> {
     fun get(selections: SelectionSet<T>): T
+}
+
+/**
+ * Normalizes a `@GraphQLOperation` document into the `fragment Main on <typeName>` form that
+ * [SelectionSetFactory.selectionsOn] accepts, mirroring what
+ * `EngineExecutionContextWrapper.selectionsForOperation` does at runtime.
+ *
+ * The operation's variable definitions are dropped: variables bind by value, so the resulting
+ * selection set — and therefore the key tests match on — is identical whether the document was
+ * declared as an operation or as an equivalent bare fragment.
+ *
+ * Named fragments defined alongside the operation are preserved so spreads still resolve.
+ */
+fun operationTextAsFragmentSelections(
+    operationText: String,
+    typeName: String,
+): String {
+    val document = SelectionsParserUtils.normalizeToFragmentDocument(operationText, typeName) {
+        Parser().parseDocument(it)
+    }
+    return AstPrinter.printAst(document)
 }
 
 private class EmptyPrebakedResults<T : CompositeOutput> : PrebakedResults<T> {
@@ -225,12 +249,19 @@ open class MockResolverExecutionContext<Q : Query>(
         return query(selectionSet) as Q
     }
 
+    @Suppress("UNCHECKED_CAST")
     @ExperimentalApi
     override suspend fun query(
         operation: QueryFromAnnotation,
         variables: Map<String, Any?>
     ): Q {
-        throw UnsupportedOperationException("query(QueryFromAnnotation) is not supported in mock contexts.")
+        val queryTypeName = schema.schema.queryType.name
+        val selectionSet = selectionsFor(
+            reflectionLoader.reflectionFor(queryTypeName) as Type<Query>,
+            operationTextAsFragmentSelections(operation.operationText, queryTypeName),
+            variables
+        )
+        return query(selectionSet) as Q
     }
 
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
@@ -363,12 +394,21 @@ class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, 
         return mutation(selectionsFor(mutationType, selections, variables))
     }
 
+    @Suppress("UNCHECKED_CAST")
     @ExperimentalApi
     override suspend fun mutation(
         operation: MutationFromAnnotation,
         variables: Map<String, Any?>
     ): M {
-        throw UnsupportedOperationException("mutation(MutationFromAnnotation) is not supported in mock contexts.")
+        val mutationTypeName = schema.schema.mutationType.name
+        val mutationType = reflectionLoader.reflectionFor(mutationTypeName) as Type<M>
+        return mutation(
+            selectionsFor(
+                mutationType,
+                operationTextAsFragmentSelections(operation.operationText, mutationTypeName),
+                variables
+            )
+        )
     }
 }
 
