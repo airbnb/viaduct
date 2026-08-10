@@ -393,6 +393,8 @@ public class GraphQLSchemaParser {
             new ArgumentModel(
                 packageName,
                 className,
+                objectType.getName(),
+                field.getName(),
                 fields,
                 synthesizedConnectionFields,
                 connectionArgsInterface));

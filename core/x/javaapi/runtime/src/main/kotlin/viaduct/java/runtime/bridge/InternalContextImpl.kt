@@ -1,5 +1,7 @@
 package viaduct.java.runtime.bridge
 
+import graphql.schema.GraphQLInputObjectType
+import viaduct.api.internal.InputTypeFactory
 import viaduct.engine.api.ViaductSchema
 import viaduct.errors.TenantUsageException
 import viaduct.java.api.globalid.GlobalID
@@ -23,6 +25,12 @@ internal class InternalContextImpl(
     private val classFinder: ResolverClassFinder,
 ) : InternalContext {
     override fun getSchema(): ViaductSchema = schema
+
+    override fun getArgumentsInputType(
+        name: String,
+        containingTypeName: String,
+        fieldName: String,
+    ): GraphQLInputObjectType = InputTypeFactory.argumentsInputType(name, containingTypeName, fieldName, schema)
 
     override fun getGlobalIDCodec(): GlobalIDCodec = globalIDCodec
 

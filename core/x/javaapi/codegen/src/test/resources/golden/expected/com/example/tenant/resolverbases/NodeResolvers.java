@@ -3,6 +3,7 @@ package com.example.tenant.resolverbases;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import graphql.schema.GraphQLInputObjectType;
 import viaduct.engine.api.ViaductSchema;
 import viaduct.java.api.annotations.NodeResolverFor;
 import viaduct.java.api.context.NodeExecutionContext;
@@ -105,6 +106,13 @@ public final class NodeResolvers {
                 @Override
                 public ViaductSchema getSchema() {
                     return InternalContext.from(inner).getSchema();
+                }
+
+                @Override
+                public GraphQLInputObjectType getArgumentsInputType(
+                        String name, String containingTypeName, String fieldName) {
+                    return InternalContext.from(inner)
+                            .getArgumentsInputType(name, containingTypeName, fieldName);
                 }
 
                 @Override

@@ -186,9 +186,11 @@ class GraphQLSchemaParserTest {
     assertThat(featured.reflectedTypeName()).isEqualTo("Product");
     assertThat(featured.rootObjectField()).isFalse();
 
-    assertThat(parser.extractArguments(schema, "com.example.types", null))
-        .extracting(ArgumentModel::className)
-        .containsExactly("Products_Detail_Arguments");
+    ArgumentModel detailArguments =
+        parser.extractArguments(schema, "com.example.types", null).get(0);
+    assertThat(detailArguments.className()).isEqualTo("Products_Detail_Arguments");
+    assertThat(detailArguments.containingTypeName()).isEqualTo("Products");
+    assertThat(detailArguments.fieldName()).isEqualTo("detail");
   }
 
   @Test

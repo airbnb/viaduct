@@ -16,13 +16,9 @@ interface Field<Parent : GRT> {
 }
 
 /**
- * Returns whether [field] was explicitly provided on this input.
- *
- * This distinguishes a field that a GraphQL operation actually supplied a value for (including an
- * explicit `null`) from one that was left unset. It is only meaningful for the **top-level** fields
- * of this input: graphql-java applies input coercion — including default values — deep inside the
- * engine for nested input objects, so presence cannot be determined for fields nested any deeper
- * than the receiver itself.
+ * Returns whether this input contains a value for [field] after GraphQL defaults are applied.
+ * Explicit `null` counts as present. An omitted field with a schema default is present; an omitted
+ * field without a default is absent.
  *
  * Defined as an extension on [InputLike] ([Input][viaduct.api.types.Input] /
  * [Arguments][viaduct.api.types.Arguments]) so it is discoverable via completion on an input

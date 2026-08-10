@@ -37,6 +37,8 @@ dependencies {
 
     // For GraphQLInput interface in exercise tests
     testImplementation(project(":x:javaapi:api"))
+    // Generated argument builders use the shared synthetic input-type factory.
+    testImplementation(libs.viaduct.tenant.api)
 }
 
 // Forward the golden-snapshot regenerate flag to the test JVM so that running with

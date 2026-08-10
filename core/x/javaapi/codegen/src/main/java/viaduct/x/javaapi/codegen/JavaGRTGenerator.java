@@ -463,12 +463,9 @@ public final class JavaGRTGenerator {
                 }
 
                 /**
-                 * Returns whether {@code field} was explicitly provided, including an explicit
-                 * {@code null}.
-                 *
-                 * \\<p>This is meaningful only for top-level fields. graphql-java applies input
-                 * coercion, including default values, to nested input objects, so presence cannot
-                 * be determined for fields nested more deeply than this input.
+                 * Returns whether this input contains a value for {@code field} after GraphQL
+                 * defaults are applied. Explicit {@code null} counts as present. An omitted field
+                 * with a schema default is present; an omitted field without a default is absent.
                  */
                 public boolean isPresent(Field\\<<mdl.className>\\> field) {
                     return isFieldPresent(field);
@@ -484,10 +481,13 @@ public final class JavaGRTGenerator {
 
                     public static class Builder {
                         private final InternalContext __context;
+                        private final GraphQLInputObjectType graphQLInputObjectType;
                         private final Map\\<String, Object> data = new LinkedHashMap\\<>();
 
                         private Builder(InternalContext __context) {
                             this.__context = __context;
+                            this.graphQLInputObjectType =
+                                    (GraphQLInputObjectType) __context.getSchema().getSchema().getType("<mdl.className>");
                         }
 
                 """
@@ -498,7 +498,7 @@ public final class JavaGRTGenerator {
                             <if(mdl.isOneOf)>
                             InputBase.validateOneOf("<mdl.className>", data);
                             <endif>
-                            return new <mdl.className>(__context, new LinkedHashMap\\<>(data), null);
+                            return new <mdl.className>(__context, new LinkedHashMap\\<>(data), graphQLInputObjectType);
                         }
                     }
                 }
@@ -659,12 +659,9 @@ public final class JavaGRTGenerator {
                 }
 
                 /**
-                 * Returns whether {@code field} was explicitly provided, including an explicit
-                 * {@code null}.
-                 *
-                 * \\<p>This is meaningful only for top-level fields. graphql-java applies input
-                 * coercion, including default values, to nested input objects, so presence cannot
-                 * be determined for fields nested more deeply than this input.
+                 * Returns whether this input contains a value for {@code field} after GraphQL
+                 * defaults are applied. Explicit {@code null} counts as present. An omitted field
+                 * with a schema default is present; an omitted field without a default is absent.
                  */
                 public boolean isPresent(Field\\<<mdl.className>\\> field) {
                     return isFieldPresent(field);
@@ -685,10 +682,16 @@ public final class JavaGRTGenerator {
 
                     public static class Builder {
                         private final InternalContext __context;
+                        private final GraphQLInputObjectType graphQLInputObjectType;
                         private final Map\\<String, Object> data = new LinkedHashMap\\<>();
 
                         private Builder(InternalContext __context) {
                             this.__context = __context;
+                            this.graphQLInputObjectType =
+                                    __context.getArgumentsInputType(
+                                            "<mdl.className>",
+                                            "<mdl.containingTypeName>",
+                                            "<mdl.fieldName>");
                         }
 
                 """
@@ -696,7 +699,8 @@ public final class JavaGRTGenerator {
                 + """
 
                         public <mdl.className> build() {
-                            return new <mdl.className>(__context, new LinkedHashMap\\<>(data), null);
+                            return new <mdl.className>(
+                                    __context, new LinkedHashMap\\<>(data), graphQLInputObjectType);
                         }
                     }
                 }

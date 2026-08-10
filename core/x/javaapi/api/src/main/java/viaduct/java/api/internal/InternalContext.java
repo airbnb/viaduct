@@ -1,5 +1,6 @@
 package viaduct.java.api.internal;
 
+import graphql.schema.GraphQLInputObjectType;
 import viaduct.engine.api.ViaductSchema;
 import viaduct.java.api.context.ExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
@@ -42,6 +43,10 @@ public interface InternalContext {
 
   /** The Viaduct schema that underpins GRTs. */
   ViaductSchema getSchema();
+
+  /** Returns the GraphQL input type for a field's generated arguments GRT. */
+  GraphQLInputObjectType getArgumentsInputType(
+      String name, String containingTypeName, String fieldName);
 
   /**
    * The codec used to translate between {@link viaduct.java.api.globalid.GlobalID} tenant-space

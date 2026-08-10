@@ -33,7 +33,9 @@ abstract class InputLikeBase : InputLike, FieldPresenceProbe {
         }
     }
 
-    override fun isFieldPresent(fieldName: String): Boolean = inputData.containsKey(fieldName)
+    override fun isFieldPresent(fieldName: String): Boolean =
+        inputData.containsKey(fieldName) ||
+            graphQLInputObjectType.getField(fieldName)?.hasSetDefaultValue() == true
 
     protected fun <T> get(fieldName: String): T =
         handleFrameworkErrors("InputLikeBase.get failed for ${graphQLInputObjectType.name}.$fieldName") {
@@ -49,7 +51,7 @@ abstract class InputLikeBase : InputLike, FieldPresenceProbe {
             "Field $fieldName not found on type ${graphQLInputObjectType.name}"
         )
 
-        val irValue: IR.Value = if (isFieldPresent(fieldName)) {
+        val irValue: IR.Value = if (inputData.containsKey(fieldName)) {
             val conv = EngineValueConv(context.schema, fieldDefinition.type, null)
             conv(inputData[fieldName])
         } else if (fieldDefinition.hasSetDefaultValue()) {

@@ -7,6 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import graphql.Scalars;
+import graphql.language.StringValue;
+import graphql.schema.GraphQLInputObjectField;
 import graphql.schema.GraphQLInputObjectType;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -110,6 +113,12 @@ class InputBaseTest {
     }
 
     @Override
+    public graphql.schema.GraphQLInputObjectType getArgumentsInputType(
+        String name, String containingTypeName, String fieldName) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
     public viaduct.service.api.spi.GlobalIDCodec getGlobalIDCodec() {
       throw new UnsupportedOperationException();
     }
@@ -175,6 +184,37 @@ class InputBaseTest {
     assertFalse(new TestInput(null, map()).fieldPresent(field));
     assertTrue(new TestInput(null, map("name", null)).fieldPresent(field));
     assertTrue(new TestInput(null, map("name", "Alice")).fieldPresent(field));
+  }
+
+  @Test
+  void isFieldPresent_appliesSchemaDefaults() {
+    GraphQLInputObjectType inputType =
+        GraphQLInputObjectType.newInputObject()
+            .name("TestInput")
+            .field(
+                GraphQLInputObjectField.newInputObjectField()
+                    .name("defaulted")
+                    .type(Scalars.GraphQLString)
+                    .defaultValueLiteral(StringValue.newStringValue("default").build()))
+            .field(
+                GraphQLInputObjectField.newInputObjectField()
+                    .name("notDefaulted")
+                    .type(Scalars.GraphQLString))
+            .build();
+    TestInput input = new TestInput(null, map(), inputType);
+
+    assertTrue(
+        input.fieldPresent(Field.of("defaulted", Type.ofClass(TestInput.class))),
+        "omitted fields with schema defaults are present");
+    assertEquals("default", input.scalar("defaulted"));
+    assertFalse(input.getInputData().containsKey("defaulted"));
+    assertFalse(
+        input.fieldPresent(Field.of("notDefaulted", Type.ofClass(TestInput.class))),
+        "omitted fields without defaults are absent");
+
+    TestInput explicitNull = new TestInput(null, map("defaulted", null), inputType);
+    assertTrue(explicitNull.fieldPresent(Field.of("defaulted", Type.ofClass(TestInput.class))));
+    assertNull(explicitNull.scalar("defaulted"));
   }
 
   // ===== get (scalar) =====

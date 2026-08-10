@@ -38,6 +38,12 @@ class InternalContextTest {
     }
 
     @Override
+    public graphql.schema.GraphQLInputObjectType getArgumentsInputType(
+        String name, String containingTypeName, String fieldName) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
     public viaduct.service.api.spi.GlobalIDCodec getGlobalIDCodec() {
       throw new UnsupportedOperationException();
     }

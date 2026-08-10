@@ -2,12 +2,16 @@
 # This schema defines input types that will be used to test the code generator.
 # The generated input types will be compared against manually built expected classes.
 
+type Query {
+  inputDefaults(count: Int = 42, name: String): String
+}
+
 """
 A simple input with basic fields.
 """
 input SimpleInput {
   name: String
-  count: Int
+  count: Int = 42
 }
 
 """

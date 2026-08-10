@@ -5,6 +5,8 @@ import java.util.List;
 /**
  * Model representing a GraphQL argument type for code generation.
  *
+ * @param containingTypeName GraphQL name of the type containing the field
+ * @param fieldName GraphQL name of the field that declares these arguments
  * @param fields schema-declared argument fields
  * @param synthesizedConnectionFields null-returning compatibility getters required by the selected
  *     {@code ConnectionArguments} interface but absent from the schema
@@ -15,21 +17,37 @@ import java.util.List;
 public record ArgumentModel(
     String packageName,
     String className,
+    String containingTypeName,
+    String fieldName,
     List<FieldModel> fields,
     List<FieldModel> synthesizedConnectionFields,
     String connectionArgumentsInterface) {
 
-  /** Legacy constructor for non-connection argument types. */
-  public ArgumentModel(String packageName, String className, List<FieldModel> fields) {
-    this(packageName, className, fields, List.of(), null);
+  /** Convenience constructor for non-connection argument types. */
+  public ArgumentModel(
+      String packageName,
+      String className,
+      String containingTypeName,
+      String fieldName,
+      List<FieldModel> fields) {
+    this(packageName, className, containingTypeName, fieldName, fields, List.of(), null);
   }
 
   public ArgumentModel(
       String packageName,
       String className,
+      String containingTypeName,
+      String fieldName,
       List<FieldModel> fields,
       String connectionArgumentsInterface) {
-    this(packageName, className, fields, List.of(), connectionArgumentsInterface);
+    this(
+        packageName,
+        className,
+        containingTypeName,
+        fieldName,
+        fields,
+        List.of(),
+        connectionArgumentsInterface);
   }
 
   // ST (StringTemplate) requires JavaBean-style getters
@@ -39,6 +57,14 @@ public record ArgumentModel(
 
   public String getClassName() {
     return className;
+  }
+
+  public String getContainingTypeName() {
+    return containingTypeName;
+  }
+
+  public String getFieldName() {
+    return fieldName;
   }
 
   public List<FieldModel> getFields() {

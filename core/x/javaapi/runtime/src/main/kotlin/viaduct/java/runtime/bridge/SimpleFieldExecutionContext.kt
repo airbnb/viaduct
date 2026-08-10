@@ -1,6 +1,7 @@
 package viaduct.java.runtime.bridge
 
 import graphql.language.FragmentDefinition
+import graphql.schema.GraphQLInputObjectType
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.CoroutineScope
 import viaduct.engine.api.EngineExecutionContext
@@ -94,6 +95,12 @@ class SimpleFieldExecutionContext(
     // which implements both ExecutionContext and InternalContext.
 
     override fun getSchema(): ViaductSchema = delegate.getSchema()
+
+    override fun getArgumentsInputType(
+        name: String,
+        containingTypeName: String,
+        fieldName: String,
+    ): GraphQLInputObjectType = delegate.getArgumentsInputType(name, containingTypeName, fieldName)
 
     override fun getGlobalIDCodec(): GlobalIDCodec = delegate.getGlobalIDCodec()
 

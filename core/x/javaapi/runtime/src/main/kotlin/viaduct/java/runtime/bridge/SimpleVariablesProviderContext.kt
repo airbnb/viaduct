@@ -1,5 +1,6 @@
 package viaduct.java.runtime.bridge
 
+import graphql.schema.GraphQLInputObjectType
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ViaductSchema
 import viaduct.java.api.context.VariablesProviderContext
@@ -47,6 +48,12 @@ class SimpleVariablesProviderContext(
     // ── InternalContext implementation (delegated to JavaEngineContextDelegate) ──
 
     override fun getSchema(): ViaductSchema = delegate.getSchema()
+
+    override fun getArgumentsInputType(
+        name: String,
+        containingTypeName: String,
+        fieldName: String,
+    ): GraphQLInputObjectType = delegate.getArgumentsInputType(name, containingTypeName, fieldName)
 
     override fun getGlobalIDCodec(): GlobalIDCodec = delegate.getGlobalIDCodec()
 

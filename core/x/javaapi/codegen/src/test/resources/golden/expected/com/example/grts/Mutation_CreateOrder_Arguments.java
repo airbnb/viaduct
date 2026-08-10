@@ -42,12 +42,9 @@ public class Mutation_CreateOrder_Arguments extends InputBase implements Argumen
     }
 
     /**
-     * Returns whether {@code field} was explicitly provided, including an explicit
-     * {@code null}.
-     *
-     * <p>This is meaningful only for top-level fields. graphql-java applies input
-     * coercion, including default values, to nested input objects, so presence cannot
-     * be determined for fields nested more deeply than this input.
+     * Returns whether this input contains a value for {@code field} after GraphQL
+     * defaults are applied. Explicit {@code null} counts as present. An omitted field
+     * with a schema default is present; an omitted field without a default is absent.
      */
     public boolean isPresent(Field<Mutation_CreateOrder_Arguments> field) {
         return isFieldPresent(field);
@@ -64,10 +61,16 @@ public class Mutation_CreateOrder_Arguments extends InputBase implements Argumen
 
     public static class Builder {
         private final InternalContext __context;
+        private final GraphQLInputObjectType graphQLInputObjectType;
         private final Map<String, Object> data = new LinkedHashMap<>();
 
         private Builder(InternalContext __context) {
             this.__context = __context;
+            this.graphQLInputObjectType =
+                    __context.getArgumentsInputType(
+                            "Mutation_CreateOrder_Arguments",
+                            "Mutation",
+                            "createOrder");
         }
 
                 public Builder input(CreateOrderInput input) {
@@ -77,7 +80,8 @@ public class Mutation_CreateOrder_Arguments extends InputBase implements Argumen
 
 
         public Mutation_CreateOrder_Arguments build() {
-            return new Mutation_CreateOrder_Arguments(__context, new LinkedHashMap<>(data), null);
+            return new Mutation_CreateOrder_Arguments(
+                    __context, new LinkedHashMap<>(data), graphQLInputObjectType);
         }
     }
 }

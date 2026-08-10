@@ -30,6 +30,7 @@ public final class JavaResolverGenerator {
           <endif>
           import java.util.Map;
           import java.util.concurrent.CompletableFuture;
+          import graphql.schema.GraphQLInputObjectType;
           import viaduct.engine.api.ViaductSchema;
           import viaduct.java.api.annotations.ResolverFor;
           import viaduct.java.api.context.ConnectionFieldExecutionContext;
@@ -194,6 +195,13 @@ public final class JavaResolverGenerator {
                       @Override
                       public ViaductSchema getSchema() {
                           return InternalContext.from(inner).getSchema();
+                      \\}
+
+                      @Override
+                      public GraphQLInputObjectType getArgumentsInputType(
+                              String name, String containingTypeName, String fieldName) {
+                          return InternalContext.from(inner)
+                                  .getArgumentsInputType(name, containingTypeName, fieldName);
                       \\}
 
                       @Override

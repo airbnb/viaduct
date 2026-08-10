@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import graphql.schema.GraphQLInputObjectType;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
@@ -179,6 +180,12 @@ public class JavaObjectContractTest extends ObjectContractTest {
 
         @Override
         public ViaductSchema getSchema() {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public GraphQLInputObjectType getArgumentsInputType(
+            String name, String containingTypeName, String fieldName) {
           throw new UnsupportedOperationException();
         }
 

@@ -1,9 +1,12 @@
 package viaduct.java.api.internal;
 
+import graphql.GraphQLContext;
+import graphql.execution.ValuesResolver;
 import graphql.schema.GraphQLInputObjectType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import viaduct.errors.FrameworkException;
@@ -19,9 +22,9 @@ import viaduct.java.api.types.NodeCompositeOutput;
  * <p>Mirrors Kotlin's {@code InputLikeBase} pattern — wraps {@code Map<String, Object>} directly
  * rather than copying data into POJOs via reflection.
  *
- * <p>Field access reads directly from the backing map. For nested input types, the map value is
- * wrapped using the provided constructor function (like Kotlin's {@code
- * grtConvFactory.createForInputField()}).
+ * <p>Field access reads from the backing map and resolves schema defaults for omitted fields. For
+ * nested input types, the map value is wrapped using the provided constructor function (like
+ * Kotlin's {@code grtConvFactory.createForInputField()}).
  *
  * <p><b>{@code @oneOf} inputs:</b> the "exactly one field must be set" constraint is enforced at
  * the builder level — a generated {@code build()} on a {@code @oneOf} input calls {@link
@@ -31,8 +34,8 @@ import viaduct.java.api.types.NodeCompositeOutput;
  * coercion (its {@code ValuesResolverOneOfValidation}) before resolver input GRTs are ever
  * materialized. Unlike Kotlin's {@code InputLikeBase} — whose GRT constructor always receives the
  * schema type and re-runs {@code validateInputData} — this class is handed a null {@code
- * GraphQLInputObjectType} on the nested-input construction path, so there is no separate
- * construction-time {@code @oneOf} check here; the builder plus graphql-java cover every path.
+ * GraphQLInputObjectType} on the nested-input wrapping path, so there is no separate
+ * construction-time {@code @oneOf} check there; the builder plus graphql-java cover every path.
  */
 public abstract class InputBase implements GraphQLInput {
 
@@ -53,10 +56,10 @@ public abstract class InputBase implements GraphQLInput {
    * value resolution, and input validation.
    *
    * @param __context the per-request InternalContext, propagated to nested input GRTs; may be null
-   *     on the builder path
+   *     when no execution context is available
    * @param inputData the backing map of field name to raw value
-   * @param graphQLInputObjectType the GraphQL input type definition; may be null on the builder
-   *     path (until builders become context-aware)
+   * @param graphQLInputObjectType the GraphQL input type definition; may be null when wrapping
+   *     nested input data that graphql-java has already coerced
    */
   protected InputBase(
       @Nullable InternalContext __context,
@@ -68,9 +71,9 @@ public abstract class InputBase implements GraphQLInput {
   }
 
   /**
-   * Returns the {@link InternalContext} this input GRT was constructed with, or null on the builder
-   * path. Uses double-underscore prefix to mirror Kotlin's naming and avoid generated getter
-   * collisions.
+   * Returns the {@link InternalContext} this input GRT was constructed with, or null when no
+   * execution context was available. Uses double-underscore prefix to mirror Kotlin's naming and
+   * avoid generated getter collisions.
    */
   protected @Nullable InternalContext __context() {
     return __context;
@@ -78,26 +81,49 @@ public abstract class InputBase implements GraphQLInput {
 
   /**
    * Returns the {@link GraphQLInputObjectType} this input GRT was constructed with. Mirrors
-   * Kotlin's {@code InputLikeBase.graphQLInputObjectType}. May be null on the builder path.
+   * Kotlin's {@code InputLikeBase.graphQLInputObjectType}. May be null when wrapping nested input
+   * data that graphql-java has already coerced.
    */
   protected @Nullable GraphQLInputObjectType getGraphQLInputObjectType() {
     return graphQLInputObjectType;
   }
 
-  /** Returns the backing input data map. Used by the bridge layer to extract data. */
+  /**
+   * Returns the raw backing input data map without materializing schema defaults. Used by the
+   * bridge layer to extract data before graphql-java coercion.
+   */
   public Map<String, Object> getInputData() {
     return Collections.unmodifiableMap(inputData);
   }
 
   /**
-   * Returns whether the backing input data contains the field, including when its value is null.
-   *
-   * <p>Generated input and arguments GRTs expose this through a type-safe {@code isPresent} method.
-   * Presence reflects explicit operation input only for top-level fields because graphql-java may
-   * apply default values while coercing nested input objects.
+   * Returns whether this input contains a value for {@code field} after GraphQL defaults are
+   * applied. Explicit {@code null} counts as present. An omitted field with a schema default is
+   * present; an omitted field without a default is absent.
    */
   protected final boolean isFieldPresent(Field<?> field) {
-    return inputData.containsKey(field.getName());
+    if (inputData.containsKey(field.getName())) {
+      return true;
+    }
+    var fieldDefinition =
+        graphQLInputObjectType == null ? null : graphQLInputObjectType.getField(field.getName());
+    return fieldDefinition != null && fieldDefinition.hasSetDefaultValue();
+  }
+
+  private Object fieldValue(String fieldName) {
+    if (inputData.containsKey(fieldName)) {
+      return inputData.get(fieldName);
+    }
+    var fieldDefinition =
+        graphQLInputObjectType == null ? null : graphQLInputObjectType.getField(fieldName);
+    if (fieldDefinition == null || !fieldDefinition.hasSetDefaultValue()) {
+      return null;
+    }
+    return ValuesResolver.valueToInternalValue(
+        fieldDefinition.getInputFieldDefaultValue(),
+        fieldDefinition.getType(),
+        GraphQLContext.getDefault(),
+        Locale.getDefault());
   }
 
   /**
@@ -139,8 +165,7 @@ public abstract class InputBase implements GraphQLInput {
   @Nullable
   @SuppressWarnings("unchecked")
   protected <T> T get(String fieldName) {
-    return HandleErrors.framework(
-        "InputBase.get: " + fieldName, () -> (T) inputData.get(fieldName));
+    return HandleErrors.framework("InputBase.get: " + fieldName, () -> (T) fieldValue(fieldName));
   }
 
   /**
@@ -156,7 +181,7 @@ public abstract class InputBase implements GraphQLInput {
     return HandleErrors.framework(
         "InputBase.get: " + fieldName,
         () -> {
-          Object raw = inputData.get(fieldName);
+          Object raw = fieldValue(fieldName);
           return (T) ObjectBase.coerceScalar(raw, scalarType);
         });
   }
@@ -171,7 +196,7 @@ public abstract class InputBase implements GraphQLInput {
     return HandleErrors.framework(
         "InputBase.getScalarList: " + fieldName,
         () -> {
-          Object value = inputData.get(fieldName);
+          Object value = fieldValue(fieldName);
           if (value == null) {
             return null;
           }
@@ -197,7 +222,7 @@ public abstract class InputBase implements GraphQLInput {
     return HandleErrors.framework(
         "InputBase.getScalarList: " + fieldName,
         () -> {
-          Object value = inputData.get(fieldName);
+          Object value = fieldValue(fieldName);
           if (value == null) {
             return null;
           }
@@ -225,7 +250,7 @@ public abstract class InputBase implements GraphQLInput {
     return HandleErrors.framework(
         "InputBase.getInput: " + fieldName,
         () -> {
-          Object value = inputData.get(fieldName);
+          Object value = fieldValue(fieldName);
           if (value == null) {
             return null;
           }
@@ -249,7 +274,7 @@ public abstract class InputBase implements GraphQLInput {
     return HandleErrors.framework(
         "InputBase.getInputList: " + fieldName,
         () -> {
-          Object value = inputData.get(fieldName);
+          Object value = fieldValue(fieldName);
           if (value == null) {
             return null;
           }
@@ -282,7 +307,7 @@ public abstract class InputBase implements GraphQLInput {
     return HandleErrors.framework(
         "InputBase.getEnum: " + fieldName,
         () -> {
-          Object value = inputData.get(fieldName);
+          Object value = fieldValue(fieldName);
           if (value == null) {
             return null;
           }
@@ -300,7 +325,7 @@ public abstract class InputBase implements GraphQLInput {
     return HandleErrors.framework(
         "InputBase.getEnumList: " + fieldName,
         () -> {
-          Object value = inputData.get(fieldName);
+          Object value = fieldValue(fieldName);
           if (value == null) {
             return null;
           }
@@ -328,7 +353,7 @@ public abstract class InputBase implements GraphQLInput {
   @Nullable
   @SuppressWarnings("unchecked")
   protected <T extends NodeCompositeOutput> GlobalID<T> getGlobalID(String fieldName) {
-    Object raw = inputData.get(fieldName);
+    Object raw = fieldValue(fieldName);
     if (raw == null) {
       return null;
     }
@@ -359,7 +384,7 @@ public abstract class InputBase implements GraphQLInput {
     return HandleErrors.framework(
         "InputBase.getGlobalIDList: " + fieldName,
         () -> {
-          Object raw = inputData.get(fieldName);
+          Object raw = fieldValue(fieldName);
           if (raw == null) {
             return null;
           }

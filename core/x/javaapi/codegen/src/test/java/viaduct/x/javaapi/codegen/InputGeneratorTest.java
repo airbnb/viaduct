@@ -38,13 +38,21 @@ class InputGeneratorTest {
     assertTrue(generated.contains("return get(\"name\")"));
     assertTrue(
         generated.contains(
-            "This is meaningful only for top-level fields. graphql-java applies input"));
+            "Returns whether this input contains a value for {@code field} after GraphQL"));
     assertTrue(generated.contains("public boolean isPresent(Field<CreateUserInput> field)"));
     assertTrue(generated.contains("return isFieldPresent(field)"));
     assertTrue(!generated.contains("private String name;"));
     assertTrue(!generated.contains("public void setName("));
     assertTrue(generated.contains("public static Builder builder(ExecutionContext context)"));
     assertTrue(generated.contains("public static class Builder"));
+    assertTrue(
+        generated.contains(
+            "(GraphQLInputObjectType)"
+                + " __context.getSchema().getSchema().getType(\"CreateUserInput\")"));
+    assertTrue(
+        generated.contains(
+            "new CreateUserInput(__context, new LinkedHashMap<>(data),"
+                + " graphQLInputObjectType)"));
   }
 
   @Test

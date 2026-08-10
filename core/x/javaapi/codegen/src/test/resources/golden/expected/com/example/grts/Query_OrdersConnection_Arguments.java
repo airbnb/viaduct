@@ -42,12 +42,9 @@ public class Query_OrdersConnection_Arguments extends InputBase implements Argum
     }
 
     /**
-     * Returns whether {@code field} was explicitly provided, including an explicit
-     * {@code null}.
-     *
-     * <p>This is meaningful only for top-level fields. graphql-java applies input
-     * coercion, including default values, to nested input objects, so presence cannot
-     * be determined for fields nested more deeply than this input.
+     * Returns whether this input contains a value for {@code field} after GraphQL
+     * defaults are applied. Explicit {@code null} counts as present. An omitted field
+     * with a schema default is present; an omitted field without a default is absent.
      */
     public boolean isPresent(Field<Query_OrdersConnection_Arguments> field) {
         return isFieldPresent(field);
@@ -68,10 +65,16 @@ public class Query_OrdersConnection_Arguments extends InputBase implements Argum
 
     public static class Builder {
         private final InternalContext __context;
+        private final GraphQLInputObjectType graphQLInputObjectType;
         private final Map<String, Object> data = new LinkedHashMap<>();
 
         private Builder(InternalContext __context) {
             this.__context = __context;
+            this.graphQLInputObjectType =
+                    __context.getArgumentsInputType(
+                            "Query_OrdersConnection_Arguments",
+                            "Query",
+                            "ordersConnection");
         }
 
                 public Builder first(Integer first) {
@@ -81,7 +84,8 @@ public class Query_OrdersConnection_Arguments extends InputBase implements Argum
 
 
         public Query_OrdersConnection_Arguments build() {
-            return new Query_OrdersConnection_Arguments(__context, new LinkedHashMap<>(data), null);
+            return new Query_OrdersConnection_Arguments(
+                    __context, new LinkedHashMap<>(data), graphQLInputObjectType);
         }
     }
 }

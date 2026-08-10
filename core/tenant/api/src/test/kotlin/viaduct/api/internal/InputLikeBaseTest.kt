@@ -160,8 +160,8 @@ class InputLikeBaseTest {
         }
 
         // verify that fields with default values, which were not provided at construction time, are materialized by the grt getters
-        assertFalse(inp.isPresent(Input1.Fields.enumFieldWithDefault))
-        assertFalse(inp.isPresent(Input1.Fields.nonNullEnumFieldWithDefault))
+        assertTrue(inp.isPresent(Input1.Fields.enumFieldWithDefault))
+        assertTrue(inp.isPresent(Input1.Fields.nonNullEnumFieldWithDefault))
         assertEquals(E1.A, inp.enumFieldWithDefault)
         assertEquals(E1.A, inp.nonNullEnumFieldWithDefault)
     }
@@ -218,8 +218,8 @@ class InputLikeBaseTest {
         assertEquals(E1.B, input.enumFieldWithDefault)
 
         // nonNullEnumFieldWithDefault was not set, so the default is applied
-        // `isPresent` should return false because it was not set, and the getter should return the set value
-        assertFalse(input.isPresent(Input1.Fields.nonNullEnumFieldWithDefault))
+        // `isPresent` should return true because the schema default supplies a value.
+        assertTrue(input.isPresent(Input1.Fields.nonNullEnumFieldWithDefault))
         assertEquals(E1.A, input.nonNullEnumFieldWithDefault)
     }
 
@@ -266,8 +266,8 @@ class InputLikeBaseTest {
             .build()
 
         // verify default values
-        assertFalse(input.isPresent(Input1.Fields.enumFieldWithDefault))
-        assertFalse(input.isPresent(Input1.Fields.nonNullEnumFieldWithDefault))
+        assertTrue(input.isPresent(Input1.Fields.enumFieldWithDefault))
+        assertTrue(input.isPresent(Input1.Fields.nonNullEnumFieldWithDefault))
         assertEquals(E1.A, input.enumFieldWithDefault)
         assertEquals(E1.A, input.nonNullEnumFieldWithDefault)
         // verify set values
@@ -387,10 +387,10 @@ class InputLikeBaseTest {
         val argumentsInput = mk<O2_ArgumentedField_Arguments>(args, inputObject)
 
         // check field presence via the public InputLike.isPresent API: provided args report present,
-        // unset args (intArgWithDefault, idArg) report absent.
+        // defaulted args report present after defaults are applied; other unset args report absent.
         assertTrue(argumentsInput.isPresent(O2_ArgumentedField_Arguments.Fields.stringArg))
         assertTrue(argumentsInput.isPresent(O2_ArgumentedField_Arguments.Fields.inputArg))
-        assertFalse(argumentsInput.isPresent(O2_ArgumentedField_Arguments.Fields.intArgWithDefault))
+        assertTrue(argumentsInput.isPresent(O2_ArgumentedField_Arguments.Fields.intArgWithDefault))
         assertFalse(argumentsInput.isPresent(O2_ArgumentedField_Arguments.Fields.idArg))
 
         assertEquals("test", argumentsInput.stringArg)

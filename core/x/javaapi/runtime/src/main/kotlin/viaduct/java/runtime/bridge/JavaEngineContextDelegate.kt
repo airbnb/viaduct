@@ -1,9 +1,11 @@
 package viaduct.java.runtime.bridge
 
 import graphql.language.FragmentDefinition
+import graphql.schema.GraphQLInputObjectType
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.future
+import viaduct.api.internal.InputTypeFactory
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ResolveSelectionSetOptions
@@ -58,6 +60,12 @@ internal class JavaEngineContextDelegate(
     // ── InternalContext surface ──
 
     fun getSchema(): ViaductSchema = requireEngineContext("getSchema()").fullSchema
+
+    fun getArgumentsInputType(
+        name: String,
+        containingTypeName: String,
+        fieldName: String,
+    ): GraphQLInputObjectType = InputTypeFactory.argumentsInputType(name, containingTypeName, fieldName, getSchema())
 
     fun getGlobalIDCodec(): GlobalIDCodec = requireEngineContext("getGlobalIDCodec()").globalIDCodec
 

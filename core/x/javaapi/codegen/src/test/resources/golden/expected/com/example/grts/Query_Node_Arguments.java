@@ -42,12 +42,9 @@ public class Query_Node_Arguments extends InputBase implements Arguments {
     }
 
     /**
-     * Returns whether {@code field} was explicitly provided, including an explicit
-     * {@code null}.
-     *
-     * <p>This is meaningful only for top-level fields. graphql-java applies input
-     * coercion, including default values, to nested input objects, so presence cannot
-     * be determined for fields nested more deeply than this input.
+     * Returns whether this input contains a value for {@code field} after GraphQL
+     * defaults are applied. Explicit {@code null} counts as present. An omitted field
+     * with a schema default is present; an omitted field without a default is absent.
      */
     public boolean isPresent(Field<Query_Node_Arguments> field) {
         return isFieldPresent(field);
@@ -64,10 +61,16 @@ public class Query_Node_Arguments extends InputBase implements Arguments {
 
     public static class Builder {
         private final InternalContext __context;
+        private final GraphQLInputObjectType graphQLInputObjectType;
         private final Map<String, Object> data = new LinkedHashMap<>();
 
         private Builder(InternalContext __context) {
             this.__context = __context;
+            this.graphQLInputObjectType =
+                    __context.getArgumentsInputType(
+                            "Query_Node_Arguments",
+                            "Query",
+                            "node");
         }
 
                 public Builder id(String id) {
@@ -77,7 +80,8 @@ public class Query_Node_Arguments extends InputBase implements Arguments {
 
 
         public Query_Node_Arguments build() {
-            return new Query_Node_Arguments(__context, new LinkedHashMap<>(data), null);
+            return new Query_Node_Arguments(
+                    __context, new LinkedHashMap<>(data), graphQLInputObjectType);
         }
     }
 }

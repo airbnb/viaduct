@@ -93,6 +93,10 @@ abstract class AbstractClassDiffTest {
     assertNoDiffs(typeName);
   }
 
+  protected Class<?> generateAndLoad(String typeName) throws Exception {
+    return generateAndCompile().find(GENERATED_PACKAGE + "." + typeName);
+  }
+
   /**
    * Generates Java sources from the schema and compiles them, returning a ClassFinder for the
    * compiled classes.
