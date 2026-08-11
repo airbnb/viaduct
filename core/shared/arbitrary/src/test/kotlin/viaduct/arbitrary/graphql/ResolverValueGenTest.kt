@@ -1,6 +1,7 @@
 package viaduct.arbitrary.graphql
 
 import io.kotest.common.runBlocking
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.arbitrary
@@ -9,14 +10,17 @@ import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.long
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
+import io.kotest.property.arbitrary.take
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeReference
+import viaduct.engine.api.RootFieldReference
 import viaduct.mapping.graphql.IR
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
@@ -636,6 +640,311 @@ class ResolverValueGenTest : KotestPropertyBase() {
                 }
             }
         }
+
+    @Nested
+    inner class FieldRefs {
+        @Test
+        fun `simple`() {
+            runBlocking {
+                val schema = """
+                    | extend type Query { ns:Ns, obj:Obj! }
+                    | type Ns @namespaceType { obj:Obj! }
+                    | type Obj { x:Int }
+                """.trimMargin().asViaductSchema
+
+                val arb = arbitrary { rs ->
+                    val weight = Arb.of(0.0, 1.0).bind()
+                    val cfg = Config.default + (ResolverFieldRefWeight to weight)
+                    val env = ViaductGenEnv(schema, cfg, rs)
+
+                    val value = env.fieldResolverValueGen.gen(
+                        coord = "Query" to "obj",
+                        selective = false,
+                        selections = schema.mkEngineSelectionSet("Obj", "x"),
+                        ctx = MockEngineCtx(schema),
+                    )
+                    Triple(weight, env.coordinateIndex, value)
+                }
+
+                arb.forAll { (weight, coordinateIndex, value) ->
+                    val refIsAllowed =
+                        coordinateIndex.comparator.compare("Ns" to "obj", "Query" to "obj") < 0
+                    (value is RootFieldReference) == (weight == 1.0 && refIsAllowed)
+                }
+            }
+        }
+
+        @Test
+        fun `no self-references`() {
+            runBlocking {
+                val schema = """
+                  | extend type Query { obj:Obj! }
+                  | type Obj { x:Int }
+                """.trimMargin().asViaductSchema
+
+                val arb = Arb.fieldResolverValue(
+                    schema = schema,
+                    coord = "Query" to "obj",
+                    selections = schema.mkEngineSelectionSet("Obj", "x"),
+                    ctx = MockEngineCtx(schema),
+                    cfg = Config.default + (ResolverFieldRefWeight to 1.0)
+                )
+
+                arb.checkAll { value ->
+                    assertTrue(value !is RootFieldReference) {
+                        value.toString()
+                    }
+                }
+            }
+        }
+
+        @Test
+        fun `argumented fields`() {
+            runBlocking {
+                val schema = """
+                  | extend type Query { ns:Ns, obj:Obj! }
+                  | input Inp { x:Int, y:[Int], inp:Inp }
+                  | type Ns @namespaceType { obj(inp:Inp!):Obj! }
+                  | type Obj { x:Int }
+                """.trimMargin().asViaductSchema
+
+                val cfg = Config.default + (ResolverFieldRefWeight to 1.0)
+                arbitrary { rs ->
+                    val env = ViaductGenEnv(schema, cfg, rs)
+                    val value = env.fieldResolverValueGen.gen(
+                        coord = "Query" to "obj",
+                        selective = false,
+                        selections = schema.mkEngineSelectionSet("Obj", "x"),
+                        ctx = MockEngineCtx(schema)
+                    )
+                    env.coordinateIndex to value
+                }.checkAll { (coordinateIndex, value) ->
+                    val refIsAllowed =
+                        coordinateIndex.comparator.compare("Ns" to "obj", "Query" to "obj") < 0
+                    if (refIsAllowed) {
+                        assertTrue(value is RootFieldReference && value.args["inp"] is Map<*, *>) {
+                            value.toString()
+                        }
+                    } else {
+                        assertTrue(value !is RootFieldReference)
+                    }
+                }
+            }
+        }
+
+        @Test
+        fun `mixed nullability`() {
+            runBlocking {
+                val schema = """
+                  | extend type Query { ns:Ns, obj:Obj }
+                  | type Ns @namespaceType { obj:Obj! }
+                  | type Obj { x:Int }
+                """.trimMargin().asViaductSchema
+
+                val cfg = Config.default +
+                    (ResolverFieldRefWeight to 1.0) +
+                    (ExplicitNullValueWeight to 0.0)
+                arbitrary { rs ->
+                    val env = ViaductGenEnv(schema, cfg, rs)
+                    val value = env.fieldResolverValueGen.gen(
+                        coord = "Query" to "obj",
+                        selective = false,
+                        selections = schema.mkEngineSelectionSet("Obj", "x"),
+                        ctx = MockEngineCtx(schema)
+                    )
+                    env.coordinateIndex to value
+                }.forAll { (coordinateIndex, value) ->
+                    val refIsAllowed =
+                        coordinateIndex.comparator.compare("Ns" to "obj", "Query" to "obj") < 0
+                    (value is RootFieldReference) == refIsAllowed
+                }
+            }
+        }
+
+        @Test
+        fun `mixed unions`() {
+            runBlocking {
+                val schema = """
+                  | extend type Query { ns:Ns, u:U! }
+                  | union U = Foo | Bar
+                  | type Ns @namespaceType { foo:Foo! }
+                  | type Foo { x:Int }
+                  | type Bar { x:Int }
+                """.trimMargin().asViaductSchema
+
+                val arb = Arb.fieldResolverValue(
+                    schema = schema,
+                    coord = "Query" to "u",
+                    selections = schema.mkEngineSelectionSet("U", "__typename"),
+                    ctx = MockEngineCtx(schema),
+                    cfg = Config.default + (ResolverFieldRefWeight to 1.0)
+                )
+
+                // Foo branch
+                arb.take(100)
+                    .mapNotNull { it as? RootFieldReference }
+                    .first()
+                    .let {
+                        assertEquals("Foo", it.type.name) {
+                            it.toString()
+                        }
+                    }
+
+                // Bar branch
+                arb.take(100)
+                    .mapNotNull { it as? EngineObjectData }
+                    .first()
+                    .let {
+                        assertEquals("Bar", it.type.name) {
+                            it.toString()
+                        }
+                    }
+            }
+        }
+
+        @Test
+        fun `multiple providers`() {
+            runBlocking {
+                val schema = """
+                  | extend type Query { ns1:Ns1, ns2:Ns2, foo:Foo! }
+                  | type Ns1 @namespaceType { f1:Foo! }
+                  | type Ns2 @namespaceType { f2:Foo! }
+                  | type Foo { x:Int }
+                """.trimMargin().asViaductSchema
+
+                val arb = Arb.fieldResolverValue(
+                    schema = schema,
+                    coord = "Query" to "foo",
+                    selections = schema.mkEngineSelectionSet("Foo", "x"),
+                    ctx = MockEngineCtx(schema),
+                    cfg = Config.default + (ResolverFieldRefWeight to 1.0)
+                )
+
+                // ns1 branch
+                arb.take(100)
+                    .firstOrNull { it is RootFieldReference && it.rootFieldPath == listOf("ns1", "f1") }
+                    .shouldNotBeNull()
+
+                // ns2 branch
+                arb.take(100)
+                    .firstOrNull { it is RootFieldReference && it.rootFieldPath == listOf("ns2", "f2") }
+                    .shouldNotBeNull()
+            }
+        }
+
+        @Test
+        fun `ref used in list context`() {
+            runBlocking {
+                val schema = """
+                  | extend type Query { ns:Ns, foo:[Foo!]! }
+                  | type Ns @namespaceType { foo:Foo! }
+                  | type Foo { x:Int }
+                """.trimMargin().asViaductSchema
+
+                val cfg = Config.default +
+                    (ResolverFieldRefWeight to 1.0) +
+                    (ListValueSize to 2..2)
+                arbitrary { rs ->
+                    val env = ViaductGenEnv(schema, cfg, rs)
+                    val value = env.fieldResolverValueGen.gen(
+                        coord = "Query" to "foo",
+                        selective = false,
+                        selections = schema.mkEngineSelectionSet("Foo", "x"),
+                        ctx = MockEngineCtx(schema)
+                    )
+                    env.coordinateIndex to value
+                }.forAll { (coordinateIndex, value) ->
+                    val refIsAllowed =
+                        coordinateIndex.comparator.compare("Ns" to "foo", "Query" to "foo") < 0
+                    value is List<*> &&
+                        value.size == 2 &&
+                        value.all { (it is RootFieldReference) == refIsAllowed }
+                }
+            }
+        }
+
+        @Test
+        fun `cycle avoidance`() {
+            runBlocking {
+                val schema = """
+                  | extend type Query { ns:Ns, wrapper:Wrapper! }
+                  | type Ns @namespaceType { foo:Foo! }
+                  | type Wrapper { foo:Foo! }
+                  | type Foo { x:Int }
+                """.trimMargin().asViaductSchema
+                val resolverCoordinate = "Query" to "wrapper"
+                val refCoordinate = "Ns" to "foo"
+                val cfg = Config.default + (ResolverFieldRefWeight to 1.0)
+
+                arbitrary { rs ->
+                    val env = ViaductGenEnv(schema, cfg, rs)
+                    val value = env.fieldResolverValueGen.gen(
+                        coord = resolverCoordinate,
+                        selective = false,
+                        selections = schema.mkEngineSelectionSet("Wrapper", "foo { x }"),
+                        ctx = MockEngineCtx(schema)
+                    ) as EngineObjectData
+
+                    env.coordinateIndex to value
+                }.forAll { (coordinateIndex, data) ->
+                    val value = data.fetch("foo")
+                    val refIsAllowed =
+                        coordinateIndex.comparator.compare(refCoordinate, resolverCoordinate) < 0
+                    (value is RootFieldReference) == refIsAllowed
+                }
+            }
+        }
+
+        @Test
+        fun `node ref`() {
+            runBlocking {
+                val schema = """
+                  | extend type Query { ns:Ns, foo:Foo! }
+                  | type Ns @namespaceType { foo:Foo! }
+                  | type Foo implements Node @resolver { id:ID! }
+                """.trimMargin().asViaductSchema
+
+                val cfg = Config.default + (ResolverFieldRefWeight to 1.0)
+                arbitrary { rs ->
+                    val env = ViaductGenEnv(schema, cfg, rs)
+                    val value = env.fieldResolverValueGen.gen(
+                        coord = "Query" to "foo",
+                        selective = false,
+                        selections = schema.mkEngineSelectionSet("Foo", "x"),
+                        ctx = MockEngineCtx(schema)
+                    )
+                    env.coordinateIndex to value
+                }.forAll { (coordinateIndex, value) ->
+                    val refIsAllowed =
+                        coordinateIndex.comparator.compare("Ns" to "foo", "Query" to "foo") < 0
+                    if (refIsAllowed) {
+                        value is RootFieldReference && value.rootFieldPath == listOf("ns", "foo")
+                    } else {
+                        value is NodeReference
+                    }
+                }
+
+                arbitrary { rs ->
+                    val env = ViaductGenEnv(schema, cfg, rs)
+                    val value = env.fieldResolverValueGen.gen(
+                        coord = "Ns" to "foo",
+                        selective = false,
+                        selections = schema.mkEngineSelectionSet("Foo", "x"),
+                        ctx = MockEngineCtx(schema)
+                    )
+                    env.coordinateIndex to value
+                }.forAll { (coordinateIndex, value) ->
+                    val refIsAllowed =
+                        coordinateIndex.comparator.compare("Query" to "foo", "Ns" to "foo") < 0
+                    if (refIsAllowed) {
+                        value is RootFieldReference && value.rootFieldPath == listOf("foo")
+                    } else {
+                        value is NodeReference
+                    }
+                }
+            }
+        }
+    }
 
     private fun isSubset(
         superset: Any?,

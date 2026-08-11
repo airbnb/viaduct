@@ -7,6 +7,7 @@ import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
+import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
@@ -17,6 +18,7 @@ import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.element
 import io.kotest.property.arbitrary.int
+import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.string
 import viaduct.api.internal.EngineValueConv
@@ -27,6 +29,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
 import viaduct.service.api.spi.GlobalIDCodec
@@ -57,6 +60,7 @@ fun Arb.Companion.fieldResolverValue(
             schema,
             ResolverConfig(schema, cfg, rs),
             cfg,
+            CoordinateIndex(schema, rs),
             rs
         )
         gen.gen(coord = coord, selective = selective, selections = selections, ctx = ctx)
@@ -100,6 +104,7 @@ fun Arb.Companion.nodeResolverValue(
             schema,
             ResolverConfig(schema, cfg, rs),
             cfg,
+            CoordinateIndex(schema, rs),
             rs
         )
         gen.gen(type = type, selective = selective, selections = selections, ctx = ctx)
@@ -122,6 +127,7 @@ internal class ResolverValueGen(
     private val schema: ViaductSchema,
     private val resolverConfig: ResolverConfig,
     private val cfg: Config,
+    private val coordinateIndex: CoordinateIndex,
     private val rs: RandomSource
 ) : FieldResolverValueGen, NodeResolverValueGen {
     private val enumGen = EnumValueGen(rs)
@@ -132,6 +138,7 @@ internal class ResolverValueGen(
             env.schemas.viaductSchema,
             env.resolverConfig,
             env.cfg,
+            env.coordinateIndex,
             env.rs
         )
 
@@ -144,7 +151,7 @@ internal class ResolverValueGen(
         val field = schema.schema.getFieldDefinition(coord.gj)
         val parent = schema.schema.getType(coord.first)
         val typeCtx = TypeCtx(field.type, field, parent)
-        return genValue(rootCtx(typeCtx), selective, selections, ctx)
+        return genValue(rootCtx(typeCtx, resolverCoordinate = coord), selective, selections, ctx)
     }
 
     override fun gen(
@@ -155,7 +162,12 @@ internal class ResolverValueGen(
     ): EngineObjectData {
         val def = schema.schema.getObjectType(type)
         val value = genValue(
-            rootCtx(TypeCtx(def), nonNullable = true, genForNodeResolver = true),
+            rootCtx(
+                TypeCtx(def),
+                resolverCoordinate = type to null,
+                nonNullable = true,
+                genForNodeResolver = true
+            ),
             selective,
             selections,
             ctx
@@ -165,6 +177,7 @@ internal class ResolverValueGen(
 
     private data class Ctx(
         val tc: TypeCtx,
+        val resolverCoordinate: TypeOrFieldCoordinate,
         val depth: Int = 0,
         val maxDepth: Int = MaxValueDepth.default,
         val nonNullable: Boolean = false,
@@ -182,11 +195,13 @@ internal class ResolverValueGen(
 
     private fun rootCtx(
         tc: TypeCtx,
+        resolverCoordinate: TypeOrFieldCoordinate,
         nonNullable: Boolean = false,
         genForNodeResolver: Boolean = false
     ): Ctx =
         Ctx(
             tc = tc,
+            resolverCoordinate = resolverCoordinate,
             maxDepth = cfg[MaxValueDepth],
             nonNullable = nonNullable,
             genForNodeResolver = genForNodeResolver,
@@ -231,6 +246,12 @@ internal class ResolverValueGen(
             }
             is GraphQLObjectType -> {
                 require(selections != null)
+
+                // try to return a root field reference if possible
+                val ref = maybeGenRootFieldRef(valueCtx, ctx, type)
+                if (ref != null) {
+                    return ref
+                }
 
                 // return a node reference if asked to generate a type for a node with a resolver
                 // and we're not currently generating a value for that very resolver
@@ -334,28 +355,148 @@ internal class ResolverValueGen(
             else -> throw IllegalArgumentException("Cannot generate value for unsupported type: ${SchemaPrinter().print(type)} ")
         }
     }
+
+    private fun maybeGenRootFieldRef(
+        valueCtx: Ctx,
+        ctx: EngineCtx,
+        type: GraphQLObjectType
+    ): RootFieldReference? {
+        // try to return a root field reference if possible
+        val availRefs = ctx.fieldRefs.refFieldsFor(type)
+            .filter { ref ->
+                // restrict refs to those that have an index lower than the current coordinate
+                // This ensures that references always form a DAG and do not create cycles.
+                // RequiredSelectionSetGen must use the same ordering to keep the combined graph acyclic.
+                coordinateIndex.comparator.compare(
+                    ref.refFieldCoord,
+                    valueCtx.resolverCoordinate
+                ) < 0
+            }
+
+        if (availRefs.isEmpty() || !rs.sampleWeight(cfg[ResolverFieldRefWeight])) {
+            return null
+        }
+
+        val ref = Arb.element(availRefs).next(rs)
+
+        val args = ref.refField.arguments.associate { arg ->
+            val conv = EngineValueConv(schema, arg.type, null)
+            val argValue = Arb.ir(schema, arg.type, cfg)
+                .map(conv::invert)
+                .next(rs)
+            arg.name to argValue
+        }
+        return ctx.createRootFieldReference(ref.rootFieldPath, ref.refType, args)
+    }
 }
 
 interface EngineCtx {
     val globalIDCodec: GlobalIDCodec
+    val fieldRefs: FieldRefs
 
     fun createNodeReference(
         id: String,
         objectType: GraphQLObjectType
     ): NodeReference
 
-    @JvmInline
-    private value class AdaptedEngineExecutionContext(val ctx: EngineExecutionContext) : EngineCtx {
+    fun createRootFieldReference(
+        rootFieldPath: List<String>,
+        type: GraphQLObjectType,
+        args: Map<String, Any?>
+    ): RootFieldReference
+
+    private class AdaptedEngineExecutionContext(val ctx: EngineExecutionContext) : EngineCtx {
         override val globalIDCodec: GlobalIDCodec get() = ctx.globalIDCodec
+        override val fieldRefs: FieldRefs = FieldRefs(ctx.fullSchema)
 
         override fun createNodeReference(
             id: String,
             objectType: GraphQLObjectType
         ): NodeReference = ctx.createNodeReference(id, objectType)
+
+        override fun createRootFieldReference(
+            rootFieldPath: List<String>,
+            type: GraphQLObjectType,
+            args: Map<String, Any?>
+        ): RootFieldReference = ctx.createRootFieldReference(rootFieldPath, type, args)
     }
 
     companion object {
         /** Project an [EngineExecutionContext] into an [EngineCtx] */
         operator fun invoke(ctx: EngineExecutionContext): EngineCtx = AdaptedEngineExecutionContext(ctx)
+    }
+}
+
+data class FieldRef(
+    val rootFieldPath: List<String>,
+    val refFieldCoord: Coordinate,
+    val refField: GraphQLFieldDefinition,
+    val refType: GraphQLObjectType,
+) {
+    init {
+        require(refField.name == rootFieldPath.last())
+    }
+}
+
+interface FieldRefs {
+    fun refFieldsFor(type: GraphQLOutputType): List<FieldRef>
+
+    private class Impl(val map: Map<TypeExpr, List<FieldRef>>) : FieldRefs {
+        override fun refFieldsFor(type: GraphQLOutputType): List<FieldRef> = map[TypeExpr(type)] ?: emptyList()
+    }
+
+    companion object {
+        val empty: FieldRefs = object : FieldRefs {
+            override fun refFieldsFor(type: GraphQLOutputType): List<FieldRef> = emptyList()
+        }
+
+        operator fun invoke(schema: ViaductSchema): FieldRefs = Impl(buildRefMap(schema.schema.queryType))
+
+        private fun buildRefMap(root: GraphQLObjectType): Map<TypeExpr, List<FieldRef>> {
+            val map = mutableMapOf<TypeExpr, MutableList<FieldRef>>()
+
+            fun walk(
+                path: List<String>,
+                obj: GraphQLObjectType
+            ) {
+                obj.fields
+                    .forEach { field ->
+                        val baseType = GraphQLTypeUtil.unwrapAll(field.type)
+                        val isNamespaceField = baseType is GraphQLObjectType &&
+                            baseType.hasAppliedDirective("namespaceType")
+
+                        // Namespace fields may not be used as resolvers; traverse them to find resolvers beneath them.
+                        if (isNamespaceField) {
+                            walk(path + field.name, baseType as GraphQLObjectType)
+                            return@forEach
+                        }
+
+                        if (baseType !is GraphQLObjectType) {
+                            return@forEach
+                        }
+
+                        val expressions = buildList {
+                            add(TypeExpr(field.type))
+
+                            // A non-null reference can also satisfy a call site requesting its nullable type.
+                            if (field.type is GraphQLNonNull) {
+                                add(TypeExpr(GraphQLTypeUtil.unwrapNonNullAs(field.type)))
+                            }
+                        }
+                        expressions.forEach { expression ->
+                            val ref = FieldRef(
+                                rootFieldPath = path + field.name,
+                                refFieldCoord = obj.name to field.name,
+                                refField = field,
+                                refType = baseType
+                            )
+                            map.getOrPut(expression, ::mutableListOf).add(ref)
+                        }
+                    }
+            }
+
+            walk(emptyList(), root)
+            return map
+        }
     }
 }

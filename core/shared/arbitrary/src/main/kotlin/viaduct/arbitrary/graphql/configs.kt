@@ -413,6 +413,11 @@ object SelectiveResolverWeight : ConfigKey<Double>(0.0, WeightValidator)
 object BatchingResolverWeight : ConfigKey<Double>(.25, WeightValidator)
 
 /**
+ * The probability that a generated field resolver will return a field reference when possible.
+ */
+object ResolverFieldRefWeight : ConfigKey<Double>(.5, WeightValidator)
+
+/**
  * The probability that a field resolver, variables resolver, or checker executor will have a required selection set.
  *
  * This is sampled independently for object and query types, meaning that a weight of .50 will have a

@@ -30,6 +30,7 @@ import viaduct.arbitrary.graphql.FieldResolver
 import viaduct.arbitrary.graphql.FieldResolverExceptionWeight
 import viaduct.arbitrary.graphql.FieldResolverFactory
 import viaduct.arbitrary.graphql.NodeResolverExceptionWeight
+import viaduct.arbitrary.graphql.ResolverFieldRefWeight
 import viaduct.arbitrary.graphql.SelectedTypeBias
 import viaduct.arbitrary.graphql.SelectiveResolverWeight
 import viaduct.arbitrary.graphql.TypeCheckerWeight
@@ -3565,6 +3566,7 @@ class SelectiveFieldResolversExecutionTest {
                 //  re-executing fields to return different values when called with different selections.
                 //  Disabling this feature allows for true deterministic resolver behavior
                 (SelectedTypeBias to 0.0) +
+                (ResolverFieldRefWeight to 0.0) +
                 (VariablesResolverExceptionWeight to 0.0) +
                 (CheckerErrorWeight to 0.0) +
                 (CheckerExceptionWeight to 0.0) +

@@ -85,6 +85,7 @@ internal fun interface FieldResolverExecutorGen {
                                 env.schemas.viaductSchema,
                                 env.fieldResolverValueGen,
                                 env.resolverConfig,
+                                env.coordinateIndex,
                                 isSelective,
                                 env.rs.sampleWeight(env.cfg[ExerciseRequiredSelectionsWeight]),
                                 coord,
@@ -162,6 +163,7 @@ fun interface FieldResolver {
          * @property schema The schema the resolver operates on.
          * @property fieldResolverValueGen Generates the return value for the resolved field.
          * @property resolverConfig All resolver coordinates in the schema, including selectivity metadata.
+         * @property coordinateIndex The shared ordering used to keep generated dependencies acyclic.
          * @property selective If true, the resolver may omit values for some selections,
          *   simulating a resolver that does not always populate every requested field.
          * @property exerciseRequiredSelections If true, the resolver reads from its required
@@ -176,6 +178,7 @@ fun interface FieldResolver {
             val schema: ViaductSchema,
             val fieldResolverValueGen: FieldResolverValueGen,
             val resolverConfig: ResolverConfig,
+            val coordinateIndex: CoordinateIndex,
             val selective: Boolean,
             val exerciseRequiredSelections: Boolean,
             val coordinate: Coordinate,
@@ -219,6 +222,7 @@ fun interface FieldResolver {
                         params.schema,
                         params.resolverConfig,
                         params.cfg,
+                        params.coordinateIndex,
                         localRandom
                     )
                     val result = gen.gen(

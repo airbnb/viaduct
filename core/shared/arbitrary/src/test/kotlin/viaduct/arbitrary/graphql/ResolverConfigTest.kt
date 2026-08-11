@@ -137,6 +137,50 @@ class ResolverConfigTest : KotestPropertyBase() {
     }
 
     @Test
+    fun `UndeclaredFieldResolverWeight -- namespace types`() {
+        val schema = """
+            | extend type Query { ns1:Ns1 }
+            | extend type Mutation { ns3:Ns3 }
+            | type Ns1 @namespaceType { ns2:Ns2, foo:Foo }
+            | type Ns2 @namespaceType { foo:Foo }
+            | type Ns3 @namespaceType { foo:Foo }
+            | type Foo { x:Int }
+        """.trimMargin().asViaductSchema
+
+        // disabled
+        ResolverConfigImpl(
+            schema,
+            Config.default +
+                (IncludeRequiredResolvers to false) +
+                (UndeclaredFieldResolverWeight to 0.0),
+            randomSource
+        ).let { resolverConfig ->
+            assertEquals(emptySet<Coordinate>(), resolverConfig.fieldResolvers)
+        }
+
+        // enabled
+        ResolverConfigImpl(
+            schema,
+            Config.default + (UndeclaredFieldResolverWeight to 1.0),
+            randomSource
+        ).let { resolverConfig ->
+            assertTrue(
+                resolverConfig.fieldResolvers.containsAll(
+                    listOf(
+                        "Ns1" to "foo",
+                        "Ns2" to "foo",
+                        "Ns3" to "foo"
+                    )
+                )
+            )
+
+            assertTrue("Query" to "ns1" !in resolverConfig.fieldResolvers)
+            assertTrue("Ns1" to "ns2" !in resolverConfig.fieldResolvers)
+            assertTrue("Mutation" to "ns3" !in resolverConfig.fieldResolvers)
+        }
+    }
+
+    @Test
     fun `IncludeRequiredResolvers -- default includes root fields when undeclared field weight is zero`() {
         val schema = """
             extend type Query { x: Int }
@@ -387,6 +431,26 @@ class ResolverConfigTest : KotestPropertyBase() {
         assertFalse(rc.fieldResolvers.contains("Query" to "undeclared"), rc.fieldResolvers.toString())
         // @resolver-annotated node type is included; non-annotated node type is excluded
         assertEquals(setOf("Foo"), rc.nodeResolvers)
+    }
+
+    @Test
+    fun `factory -- excludes namespace fields`() {
+        val schema = """
+            extend type Query { foo: Foo, x: Int }
+            type Foo @namespaceType { bar: Bar, x: Int }
+            type Bar @namespaceType { x: Int }
+        """.asViaductSchema
+        val resolverConfig = ResolverConfigImpl(
+            schema,
+            Config.default + (UndeclaredFieldResolverWeight to 1.0),
+            randomSource
+        )
+
+        assertFalse(resolverConfig.fieldResolvers.contains("Query" to "foo"))
+        assertFalse(resolverConfig.fieldResolvers.contains("Foo" to "bar"))
+        assertTrue(resolverConfig.fieldResolvers.contains("Query" to "x"))
+        assertTrue(resolverConfig.fieldResolvers.contains("Foo" to "x"))
+        assertTrue(resolverConfig.fieldResolvers.contains("Bar" to "x"))
     }
 
     @Test

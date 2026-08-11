@@ -7,6 +7,7 @@ import io.kotest.property.checkAll
 import viaduct.arbitrary.common.Config
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.NodeReference
+import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
@@ -71,12 +72,32 @@ internal suspend fun Arb<*>.assertNoErrors() =
     }
 
 class MockEngineCtx(
-    override val globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault
+    override val globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
+    override val fieldRefs: FieldRefs = FieldRefs.empty
 ) : EngineCtx {
     data class MockNodeReference(override val id: String, override val type: GraphQLObjectType) : NodeReference
+
+    data class MockRootFieldReference(
+        override val rootFieldPath: List<String>,
+        override val type: GraphQLObjectType,
+        override val args: Map<String, Any?>
+    ) : RootFieldReference
 
     override fun createNodeReference(
         id: String,
         objectType: GraphQLObjectType
     ): NodeReference = MockNodeReference(id, objectType)
+
+    override fun createRootFieldReference(
+        rootFieldPath: List<String>,
+        type: GraphQLObjectType,
+        args: Map<String, Any?>
+    ): RootFieldReference = MockRootFieldReference(rootFieldPath, type, args)
+
+    companion object {
+        operator fun invoke(
+            schema: ViaductSchema,
+            globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault
+        ): MockEngineCtx = MockEngineCtx(globalIDCodec, FieldRefs(schema))
+    }
 }

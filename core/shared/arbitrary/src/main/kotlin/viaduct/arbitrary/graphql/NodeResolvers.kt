@@ -71,6 +71,7 @@ internal fun interface NodeResolverExecutorGen {
                                 env.schemas.viaductSchema,
                                 env.nodeResolverValueGen,
                                 env.resolverConfig,
+                                env.coordinateIndex,
                                 typeName,
                                 isSelective,
                                 env.cfg,
@@ -137,6 +138,7 @@ fun interface NodeResolver {
             val schema: ViaductSchema,
             val nodeResolverValueGen: NodeResolverValueGen,
             val resolverConfig: ResolverConfig,
+            val coordinateIndex: CoordinateIndex,
             val typeName: String,
             val selective: Boolean,
             val cfg: Config,
@@ -168,6 +170,7 @@ fun interface NodeResolver {
                         params.schema,
                         params.resolverConfig,
                         params.cfg,
+                        params.coordinateIndex,
                         localRandom
                     ).gen(
                         params.typeName,

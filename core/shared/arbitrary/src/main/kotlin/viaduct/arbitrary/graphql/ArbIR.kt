@@ -42,6 +42,7 @@ import io.kotest.property.arbitrary.zoneOffset
 import java.time.OffsetTime
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.ConfigKey
+import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ViaductSchema
 import viaduct.graphql.globalIDType
 import viaduct.graphql.hasIdOfDirective
@@ -171,6 +172,13 @@ data class TypeCtx(
 ) {
     val appliedDirectives: List<GraphQLAppliedDirective>
         get() = this.field?.appliedDirectives ?: emptyList()
+
+    val coord: Coordinate? get() =
+        if (fieldParent is GraphQLCompositeType && this.field != null) {
+            fieldParent.name to this.field.name
+        } else {
+            null
+        }
 
     fun traverse(field: GraphQLFieldDefinition): TypeCtx {
         require(type is GraphQLFieldsContainer)

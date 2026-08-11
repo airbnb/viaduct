@@ -3,6 +3,7 @@ package viaduct.arbitrary.graphql
 import graphql.language.BooleanValue
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLDirectiveContainer
+import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLTypeUtil
 import io.kotest.property.RandomSource
@@ -10,6 +11,7 @@ import viaduct.arbitrary.common.Config
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
+import viaduct.graphql.utils.DefaultSchemaFactory.DefaultDirective
 
 interface ResolverConfig {
     /** Returns the combined set of field and node resolvers */
@@ -44,7 +46,7 @@ interface ResolverConfig {
          *
          * The returned [ResolverConfig] will include resolvers at `@resolver` directive locations plus 0 or
          * more resolvers at locations not declared in the provided schema.
-         * Resolvers will always be configured for query/mutation/subscription root fields when
+         * Resolvers will always be configured for query/mutation/subscription/namespace root fields when
          * [IncludeRequiredResolvers] is enabled.
          *
          * When [IncludeRequiredResolvers] is enabled, the returned [ResolverConfig] will be guaranteed
@@ -271,10 +273,12 @@ class ResolverConfigImpl private constructor(
                 .sortedWith(compareBy({ it.first }, { it.second }))
                 .forEach { coord ->
                     val field = schema.schema.getFieldDefinition(coord.gj)
+                    if (field.returnsNamespaceType()) return@forEach
+
                     val declaredResolver = field.declaredResolver()
                     val shouldGenerate =
                         declaredResolver != null ||
-                            (cfg[IncludeRequiredResolvers] && schema.isRootField(coord)) ||
+                            (cfg[IncludeRequiredResolvers] && schema.resolvableRootField(coord)) ||
                             rs.sampleWeight(cfg[UndeclaredFieldResolverWeight])
 
                     if (shouldGenerate) {
@@ -311,6 +315,11 @@ class ResolverConfigImpl private constructor(
 
 private data class ResolverProperties(val selective: Boolean, val batching: Boolean)
 
+private fun GraphQLFieldDefinition.returnsNamespaceType(): Boolean =
+    (GraphQLTypeUtil.unwrapAll(type) as? GraphQLObjectType)
+        ?.hasAppliedDirective(DefaultDirective.NAMESPACE_TYPE.directiveName)
+        ?: false
+
 private fun GraphQLDirectiveContainer.declaredResolver(): ResolverProperties? {
     val dir = appliedDirectives.firstOrNull { it.name == "resolver" } ?: return null
 
@@ -333,10 +342,16 @@ private fun GraphQLDirectiveContainer.declaredResolver(): ResolverProperties? {
     )
 }
 
-private fun ViaductSchema.isRootField(coord: Coordinate): Boolean =
-    when (coord.first) {
+private fun ViaductSchema.resolvableRootField(coord: Coordinate): Boolean {
+    if (schema.getFieldDefinition(coord.gj).returnsNamespaceType()) {
+        return false
+    }
+
+    return when (coord.first) {
         schema.queryType.name -> true
         schema.mutationType?.name -> true
         schema.subscriptionType?.name -> true
-        else -> false
+        else -> schema.getObjectType(coord.first)
+            .hasAppliedDirective(DefaultDirective.NAMESPACE_TYPE.directiveName)
     }
+}

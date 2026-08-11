@@ -12,9 +12,11 @@ import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import io.kotest.property.arbitrary.string
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.fail
@@ -30,7 +32,9 @@ import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.asSequence
 import viaduct.arbitrary.common.mapNotNull
 import viaduct.arbitrary.common.withCheck
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.engine.api.RootFieldReference
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.ExecutionResult
 import viaduct.service.api.Viaduct
@@ -246,6 +250,63 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
             }
 
         @Test
+        fun `ResolverFieldRefWeight`(): Unit =
+            runBlocking {
+                val schema = """
+                    | extend type Query { foo1:Foo! @resolver, foo2:Foo! @resolver }
+                    | type Foo { x:Int }
+                """.trimMargin().asViaductSchema
+
+                val arb = arbitrary {
+                    val instr = FieldResolver.Factory.Instrumented()
+                    val v = Arb.viaduct(
+                        schema,
+                        cfg +
+                            (ResolverFieldRefWeight to 1.0) +
+                            (FieldResolverFactory to instr)
+                    ).bind()
+                    val inp = ExecutionInput.create("{ foo1 { x } foo2 { x } }")
+
+                    val result = v.executeAsync(inp).join()
+                    instr to result
+                }
+
+                arb.checkAll { (instr, result) ->
+                    val resolverResults = listOf("foo1", "foo2")
+                        .flatMap { field ->
+                            instr.resolver("Query" to field).recorder.log
+                                .map { it.result.getOrThrow() }
+                        }
+                    assertEquals(1, resolverResults.count { it is RootFieldReference })
+                    assertTrue(resolverResults.any { it is EngineObjectData })
+
+                    assertTrue(result.errors.isEmpty())
+                }
+            }
+
+        @Test
+        fun `root field refs do not form cycles with required selections`(): Unit =
+            runBlocking {
+                val schema = """
+                    | extend type Query { foo1:Foo, foo2:Foo }
+                    | type Foo { x:Int }
+                """.trimMargin().asViaductSchema
+                val input = ExecutionInput.create("{ foo1 { x } }")
+
+                Arb.viaduct(
+                    schema,
+                    cfg +
+                        (RequiredSelectionSetWeight to Once) +
+                        (ExerciseRequiredSelectionsWeight to 1.0) +
+                        (ResolverFieldRefWeight to 1.0)
+                ).checkAll { viaduct ->
+                    withTimeout(2.seconds) {
+                        viaduct.execute(input).errors.isEmpty()
+                    }
+                }
+            }
+
+        @Test
         fun `field resolver -- returns its output selection set`(): Unit =
             runBlocking {
                 val schema = """
@@ -347,7 +408,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                     val viaduct = Arb.viaduct(schema, cfg).bind()
                     viaduct.executeAsync(
                         ExecutionInput.create(
-                            "query (\$id:ID!) { node(id:\$id) { __typename } }",
+                            "query (\$id:ID!) { node(id:\$id) { ... on Foo { x } } }",
                             variables = mapOf("id" to arbId().bind())
                         )
                     ).join()
@@ -383,7 +444,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
 
                     viaduct.executeAsync(
                         ExecutionInput.create(
-                            "query (\$id:ID!) { node(id:\$id) { __typename } }",
+                            "query (\$id:ID!) { node(id:\$id) { ... on Foo { x } } }",
                             variables = mapOf("id" to arbId().bind())
                         )
                     ).join()

@@ -20,6 +20,7 @@ import viaduct.arbitrary.graphql.DeterministicResolveWeight
 import viaduct.arbitrary.graphql.FieldCheckerWeight
 import viaduct.arbitrary.graphql.FieldResolverExceptionWeight
 import viaduct.arbitrary.graphql.NodeResolverExceptionWeight
+import viaduct.arbitrary.graphql.ResolverFieldRefWeight
 import viaduct.arbitrary.graphql.SelectedTypeBias
 import viaduct.arbitrary.graphql.SelectiveResolverWeight
 import viaduct.arbitrary.graphql.TypeCheckerWeight
@@ -3310,6 +3311,7 @@ class SelectiveNodeResolversExecutionTest {
                 (UndeclaredNodeResolverWeight to 1.0) +
                 (DeterministicResolveWeight to 1.0) +
                 (SelectedTypeBias to 0.0) +
+                (ResolverFieldRefWeight to 0.0) +
                 (VariableWeight to .25) +
                 (SelectiveResolverWeight to .5) +
                 (VariablesResolverExceptionWeight to 0.0) +
