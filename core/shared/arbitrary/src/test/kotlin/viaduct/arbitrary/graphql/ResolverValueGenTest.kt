@@ -780,25 +780,20 @@ class ResolverValueGenTest : KotestPropertyBase() {
                     cfg = Config.default + (ResolverFieldRefWeight to 1.0)
                 )
 
-                // Foo branch
-                arb.take(100)
-                    .mapNotNull { it as? RootFieldReference }
-                    .first()
-                    .let {
-                        assertEquals("Foo", it.type.name) {
-                            it.toString()
-                        }
+                val values = arb.take(200).toList()
+
+                // check that only Foo is generated as a reference
+                values.filterIsInstance<RootFieldReference>().forEach {
+                    assertEquals("Foo", it.type.name) {
+                        it.toString()
                     }
+                }
+
+                // Foo branch
+                values.firstOrNull { it is RootFieldReference && it.type.name == "Foo" }.shouldNotBeNull()
 
                 // Bar branch
-                arb.take(100)
-                    .mapNotNull { it as? EngineObjectData }
-                    .first()
-                    .let {
-                        assertEquals("Bar", it.type.name) {
-                            it.toString()
-                        }
-                    }
+                values.firstOrNull { it is EngineObjectData && it.type.name == "Bar" }.shouldNotBeNull()
             }
         }
 
