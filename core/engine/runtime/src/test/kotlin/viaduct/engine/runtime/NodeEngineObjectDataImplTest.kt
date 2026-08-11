@@ -6,17 +6,29 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.errors.UnsetFieldException
 import viaduct.service.api.spi.mocks.MockFlagManager
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -24,7 +36,7 @@ class NodeEngineObjectDataImplTest {
     private val schema = MockSchema.mk(
         """
         extend type Query { empty: Int }
-        type TestType implements Node { id: ID! }
+        type TestType implements Node { id: ID!, name: String, age: Int, nickname: String }
         """.trimIndent()
     )
     private val testType = schema.schema.getObjectType("TestType")
@@ -45,6 +57,7 @@ class NodeEngineObjectDataImplTest {
             myFlagManager = MockFlagManager()
         ).engineExecutionContext
         nodeResolver = mockk<NodeResolverDispatcher>()
+        every { dispatcherRegistry.getNodeResolverDispatcher("TestType") }.returns(nodeResolver)
         engineObjectData = mockk<EngineObjectData>()
         nodeReference = NodeEngineObjectDataImpl("testID", testType, dispatcherRegistry)
     }
@@ -58,13 +71,13 @@ class NodeEngineObjectDataImplTest {
     @Test
     fun `first resolution provides data used by fetch`(): Unit =
         runBlocking {
-            every { dispatcherRegistry.getNodeResolverDispatcher("TestType") }.returns(nodeResolver)
             coEvery { nodeResolver.resolve("testID", selections, context) }.returns(engineObjectData)
+            coEvery { engineObjectData.fetchSelections() }.returns(listOf("name"))
             coEvery { engineObjectData.fetch("name") }.returns("testName")
 
             val result = nodeReference.resolveData(selections, context)
 
-            assertEquals(engineObjectData, result)
+            assertSame(engineObjectData, result)
             assertEquals("testName", nodeReference.fetch("name"))
             coVerify(exactly = 1) { nodeResolver.resolve("testID", selections, context) }
         }
@@ -84,19 +97,210 @@ class NodeEngineObjectDataImplTest {
         }
 
     @Test
-    fun `resolveData called twice`(): Unit =
+    fun `later resolutions add fields to the node reference`(): Unit =
         runBlocking {
-            every { dispatcherRegistry.getNodeResolverDispatcher("TestType") }.returns(nodeResolver)
-            coEvery { nodeResolver.resolve("testID", selections, context) }.returns(engineObjectData)
-            coEvery { engineObjectData.fetch("name") }.returns("testName")
+            val nameSelections = selections("name")
+            val ageSelections = selections("age")
+            val nameData = data("name" to "testName")
+            val ageData = data("age" to 42)
+            coEvery { nodeResolver.resolve("testID", nameSelections, context) }.returns(nameData)
+            coEvery { nodeResolver.resolve("testID", ageSelections, context) }.returns(ageData)
 
-            val result1 = nodeReference.resolveData(selections, context)
-            assertEquals(engineObjectData, result1)
+            val result1 = nodeReference.resolveData(nameSelections, context)
+            val result2 = nodeReference.resolveData(ageSelections, context)
 
-            val result2 = nodeReference.resolveData(selections, context)
-            assertEquals(engineObjectData, result2)
-            coVerify(exactly = 1) { nodeResolver.resolve("testID", selections, context) }
-
+            assertSame(nameData, result1)
+            assertSame(ageData, result2)
             assertEquals("testName", nodeReference.fetch("name"))
+            assertEquals(42, nodeReference.fetch("age"))
+            assertEquals(setOf("name", "age"), nodeReference.fetchSelections().toSet())
+            coVerify(exactly = 1) { nodeResolver.resolve("testID", nameSelections, context) }
+            coVerify(exactly = 1) { nodeResolver.resolve("testID", ageSelections, context) }
         }
+
+    @Test
+    fun `concurrent resolutions retain both results`() =
+        runTest {
+            val nameSelections = selections("name")
+            val ageSelections = selections("age")
+            val nameData = data("name" to "testName")
+            val ageData = data("age" to 42)
+            val nameStarted = CompletableDeferred<Unit>()
+            val ageStarted = CompletableDeferred<Unit>()
+            val releaseResolvers = CompletableDeferred<Unit>()
+            coEvery { nodeResolver.resolve("testID", nameSelections, context) } coAnswers {
+                nameStarted.complete(Unit)
+                releaseResolvers.await()
+                nameData
+            }
+            coEvery { nodeResolver.resolve("testID", ageSelections, context) } coAnswers {
+                ageStarted.complete(Unit)
+                releaseResolvers.await()
+                ageData
+            }
+
+            val nameResolution = async { nodeReference.resolveData(nameSelections, context) }
+            val ageResolution = async { nodeReference.resolveData(ageSelections, context) }
+            withTimeout(1.seconds) {
+                nameStarted.await()
+                ageStarted.await()
+            }
+            releaseResolvers.complete(Unit)
+
+            assertSame(nameData, nameResolution.await())
+            assertSame(ageData, ageResolution.await())
+            assertEquals("testName", nodeReference.fetch("name"))
+            assertEquals(42, nodeReference.fetch("age"))
+        }
+
+    @Test
+    fun `concurrent success remains readable when first resolution fails`() =
+        runTest {
+            val nameSelections = selections("name")
+            val ageSelections = selections("age")
+            val ageData = data("age" to 42)
+            val failure = IllegalStateException("name failed")
+            val nameStarted = CompletableDeferred<Unit>()
+            val releaseName = CompletableDeferred<Unit>()
+            coEvery { nodeResolver.resolve("testID", nameSelections, context) } coAnswers {
+                nameStarted.complete(Unit)
+                releaseName.await()
+                throw failure
+            }
+            coEvery { nodeResolver.resolve("testID", ageSelections, context) }.returns(ageData)
+
+            val failedResolution = async {
+                val thrown = assertThrows<IllegalStateException> {
+                    nodeReference.resolveData(nameSelections, context)
+                }
+                assertSame(failure, thrown)
+            }
+            withTimeout(1.seconds) {
+                nameStarted.await()
+            }
+            val pendingFetch = async(start = CoroutineStart.UNDISPATCHED) {
+                nodeReference.fetch("age")
+            }
+            assertFalse(pendingFetch.isCompleted)
+
+            assertSame(ageData, nodeReference.resolveData(ageSelections, context))
+            assertEquals(42, pendingFetch.await())
+
+            releaseName.complete(Unit)
+            failedResolution.await()
+            assertEquals(42, nodeReference.fetch("age"))
+        }
+
+    @Test
+    fun `later resolution failure preserves earlier fields`(): Unit =
+        runBlocking {
+            val nameSelections = selections("name")
+            val ageSelections = selections("age")
+            val nameData = data("name" to "testName")
+            val failure = IllegalStateException("age failed")
+            coEvery { nodeResolver.resolve("testID", nameSelections, context) }.returns(nameData)
+            coEvery { nodeResolver.resolve("testID", ageSelections, context) }.throws(failure)
+
+            nodeReference.resolveData(nameSelections, context)
+            val thrown = assertThrows<IllegalStateException> {
+                nodeReference.resolveData(ageSelections, context)
+            }
+
+            assertSame(failure, thrown)
+            assertEquals("testName", nodeReference.fetch("name"))
+            assertEquals(setOf("name"), nodeReference.fetchSelections().toSet())
+        }
+
+    @Test
+    fun `successful resolution after initial failure becomes readable`(): Unit =
+        runBlocking {
+            val nameSelections = selections("name")
+            val ageSelections = selections("age")
+            val ageData = data("age" to 42)
+            coEvery {
+                nodeResolver.resolve("testID", nameSelections, context)
+            }.throws(IllegalStateException("name failed"))
+            coEvery { nodeResolver.resolve("testID", ageSelections, context) }.returns(ageData)
+
+            assertThrows<IllegalStateException> {
+                nodeReference.resolveData(nameSelections, context)
+            }
+            val result = nodeReference.resolveData(ageSelections, context)
+
+            assertSame(ageData, result)
+            assertEquals(42, nodeReference.fetch("age"))
+            assertEquals(setOf("age"), nodeReference.fetchSelections().toSet())
+        }
+
+    @Test
+    fun `fetch waits for first materialization`() =
+        runTest {
+            val nameSelections = selections("name")
+            val nameData = data("name" to "testName")
+            coEvery { nodeResolver.resolve("testID", nameSelections, context) }.returns(nameData)
+            val pendingFetch = async(start = CoroutineStart.UNDISPATCHED) {
+                nodeReference.fetch("name")
+            }
+
+            assertFalse(pendingFetch.isCompleted)
+            nodeReference.resolveData(nameSelections, context)
+
+            assertEquals("testName", pendingFetch.await())
+        }
+
+    @Test
+    fun `present null remains distinguishable from an unset field`(): Unit =
+        runBlocking {
+            val nicknameSelections = selections("nickname")
+            val nicknameData = data("nickname" to null)
+            coEvery {
+                nodeResolver.resolve("testID", nicknameSelections, context)
+            }.returns(nicknameData)
+
+            nodeReference.resolveData(nicknameSelections, context)
+
+            assertNull(nodeReference.fetch("nickname"))
+            assertNull(nodeReference.fetchOrNull("nickname"))
+            assertTrue("nickname" in nodeReference.fetchSelections())
+        }
+
+    @Test
+    fun `missing fields retain engine object data behavior`(): Unit =
+        runBlocking {
+            val nameSelections = selections("name")
+            val nameData = data("name" to "testName")
+            coEvery { nodeResolver.resolve("testID", nameSelections, context) }.returns(nameData)
+            nodeReference.resolveData(nameSelections, context)
+
+            assertThrows<UnsetFieldException> {
+                nodeReference.fetch("missing")
+            }
+            assertNull(nodeReference.fetchOrNull("missing"))
+        }
+
+    @Test
+    fun `overlapping materializations use the first value`(): Unit =
+        runBlocking {
+            val nameSelections = selections("name")
+            val firstData = data("name" to "first")
+            val secondData = data("name" to "second")
+            var calls = 0
+            coEvery { nodeResolver.resolve("testID", nameSelections, context) } coAnswers {
+                if (calls++ == 0) firstData else secondData
+            }
+
+            assertSame(firstData, nodeReference.resolveData(nameSelections, context))
+            assertSame(secondData, nodeReference.resolveData(nameSelections, context))
+
+            assertEquals("first", nodeReference.fetch("name"))
+            assertEquals(setOf("name"), nodeReference.fetchSelections().toSet())
+        }
+
+    private fun selections(fields: String): EngineSelectionSet = context.engineSelectionSetFactory.engineSelectionSet("TestType", fields, emptyMap())
+
+    private fun data(vararg fields: Pair<String, Any?>): ResolvedEngineObjectData {
+        val builder = ResolvedEngineObjectData.Builder(testType)
+        fields.forEach { (selection, value) -> builder.put(selection, value) }
+        return builder.build()
+    }
 }

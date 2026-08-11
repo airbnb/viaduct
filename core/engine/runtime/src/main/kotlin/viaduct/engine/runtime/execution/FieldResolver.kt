@@ -765,6 +765,7 @@ class FieldResolver(
                     field = field,
                     fieldType = fieldType,
                     reference = nodeReference,
+                    lazyReference = effectiveData,
                     fetchedValue = fetchedValue,
                     resolutionPolicy = resolutionPolicy,
                 )
@@ -832,6 +833,7 @@ class FieldResolver(
         field: QueryPlan.CollectedField,
         fieldType: GraphQLObjectType,
         reference: NodeEngineObjectData,
+        lazyReference: LazyEngineObjectData,
         fetchedValue: FetchedValue,
         resolutionPolicy: ResolutionPolicy,
     ): Value<ObjectEngineResultImpl> {
@@ -843,16 +845,14 @@ class FieldResolver(
             outputSelectionSetFilter = outputSelectionSetFilter,
             materialize = { selections, selectionParameters ->
                 resolveWithNodeFetchingInstrumentation(selectionParameters, reference.type) {
-                    val engineExecutionContext = selectionParameters.engineExecutionContext
-                    val dispatcher = checkNotNull(
-                        engineExecutionContext.dispatcherRegistry
-                            .getNodeResolverDispatcher(reference.type.name)
-                    )
-                    dispatcher.resolve(
-                        reference.id,
-                        selections,
-                        engineExecutionContext,
-                    )
+                    checkNotNull(
+                        lazyReference.resolveData(
+                            selections,
+                            selectionParameters.engineExecutionContext,
+                        )
+                    ) {
+                        "Node reference ${reference.type.name}(id:${reference.id}) resolved to null"
+                    }
                 }
             },
             launch = { selectionParameters, materializationPlan, keyTree ->

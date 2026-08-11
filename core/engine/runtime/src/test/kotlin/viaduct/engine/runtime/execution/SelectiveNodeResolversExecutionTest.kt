@@ -4,6 +4,9 @@ import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -36,6 +39,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
+import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
@@ -636,6 +640,105 @@ class SelectiveNodeResolversExecutionTest {
 
             assertEquals(1, nodeCalls.get())
             assertEquals(setOf("x", "y"), checkNotNull(nodeSelections).selections().map { it.fieldName }.toSet())
+        }
+
+        @Test
+        fun `initial materialization resolves node reference`() {
+            // This test captures the original node reference returned by a field resolver
+            // and then later trying to read fields off of it after the node resolver has run
+            // This isn't possible in a pure-Modern system, but is representative of how Classic
+            // works.
+            lateinit var nodeReference: NodeEngineObjectData
+
+            MockTenantModuleBootstrapper(
+                """
+                    | extend type Query { foo: Foo }
+                    | type Foo implements Node { id: ID!, x: Int }
+                """.trimMargin()
+            ) {
+                field("Query" to "foo") {
+                    valueFromContext {
+                        it.createNodeReference("foo", objectType("Foo"))
+                            .also { reference -> nodeReference = reference as NodeEngineObjectData }
+                    }
+                }
+                type("Foo") {
+                    nodeUnbatchedExecutor(selective = true) { _, _, _ ->
+                        createEngineObjectData(objectType, mapOf("x" to 2))
+                    }
+                }
+            }.runFeatureTest {
+                runQueryWithTimeout("{ foo { x } }")
+                    .assertJson("{data: {foo: {x: 2}}}")
+            }
+
+            runTest {
+                assertEquals("foo", nodeReference.fetchAs<String>("id"))
+                assertEquals(2, withTimeout(1.seconds) { nodeReference.fetchAs<Int>("x") })
+            }
+        }
+
+        @Test
+        fun `reused node reference resolves newly selected fields`() {
+            var nodeReference: NodeEngineObjectData? = null
+
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { x:Int, foo2:Foo, foo1:Foo }
+                    type Foo implements Node { id:ID!, x:Int!, y:Int! }
+                """.trimIndent()
+            ) {
+                field("Query" to "foo1") {
+                    valueFromContext { ctx ->
+                        nodeReference ?: (ctx.createNodeReference("foo", objectType("Foo")) as NodeEngineObjectData)
+                            .also { nodeReference = it }
+                    }
+                }
+
+                field("Query" to "foo2") {
+                    resolver {
+                        // This materializes y, then returns the same reference through a second node ledger.
+                        objectSelections("foo1 { y }")
+                        fn { _, obj, _, _, _ ->
+                            obj.fetchAs<EngineObjectData>("foo1").fetchAs<Int>("y")
+                            checkNotNull(nodeReference)
+                        }
+                    }
+                }
+
+                field("Query" to "x") {
+                    resolver {
+                        objectSelections("foo2 { x }")
+                        fn { _, obj, _, _, _ ->
+                            obj.fetchAs<EngineObjectData>("foo2").fetchAs<Int>("x")
+                        }
+                    }
+                }
+
+                type("Foo") {
+                    nodeUnbatchedExecutor(selective = true) { _, sels, _ ->
+                        createEngineObjectData(
+                            objectType,
+                            buildMap {
+                                if (sels!!.containsField("Foo", "x")) {
+                                    put("x", 2)
+                                }
+                                if (sels.containsField("Foo", "y")) {
+                                    put("y", 3)
+                                }
+                            },
+                        )
+                    }
+                }
+            }.runFeatureTest(withoutDefaultQueryNodeResolvers = true) {
+                runQueryWithTimeout("{ x }")
+                    .assertJson("{data: {x: 2}}")
+            }
+
+            runTest {
+                assertEquals(3, checkNotNull(nodeReference).fetchAs<Int>("y"))
+                assertEquals(2, checkNotNull(nodeReference).fetchAs<Int>("x"))
+            }
         }
 
         @Nested
