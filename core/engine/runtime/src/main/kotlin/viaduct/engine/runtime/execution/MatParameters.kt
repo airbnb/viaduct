@@ -70,7 +70,9 @@ internal data class MatParameters(
                 return MatParameters(
                     ledger = ledger,
                     path = path,
-                    requestedShape = terminalShape.filter(matFilter),
+                    requestedShape = terminalShape
+                        .filter(matFilter)
+                        .withoutEmptyTypeBranches(),
                     parameters = terminalParameters,
                     rootNodeId = rootNodeId,
                 )
@@ -106,7 +108,9 @@ internal data class MatParameters(
             return MatParameters(
                 ledger = ledger,
                 path = path,
-                requestedShape = shape.filter(matFilter),
+                requestedShape = shape
+                    .filter(matFilter)
+                    .withoutEmptyTypeBranches(),
                 parameters = parameters,
                 rootNodeId = rootNodeId,
             )

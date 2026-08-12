@@ -2,7 +2,6 @@ package viaduct.engine.runtime.mat
 
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
-import io.kotest.matchers.maps.shouldBeEmpty as shouldBeEmptyMap
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
@@ -30,6 +29,7 @@ class KeyTreeTest {
         | }
         """.trimMargin().asViaductSchema
     private val fooType = checkNotNull(schema.schema.getObjectType("Foo"))
+    private val barType = checkNotNull(schema.schema.getObjectType("Bar"))
 
     @Nested
     inner class Identity {
@@ -139,12 +139,12 @@ class KeyTreeTest {
         }
 
         @Test
-        fun `typed empty maps are canonical empty trees`() {
+        fun `preserves empty type branches`() {
             val typedEmpty = KeyTree(mapOf(fooType to emptyMap()))
 
-            assertEquals(KeyTree.empty, typedEmpty)
-            assertEquals(KeyTree.empty.hashCode(), typedEmpty.hashCode())
-            typedEmpty.keysByType().shouldBeEmptyMap()
+            assertFalse(typedEmpty == KeyTree.empty)
+            assertEquals(setOf(fooType), typedEmpty.keysByType().keys)
+            assertTrue(typedEmpty.keysByType().getValue(fooType).isEmpty())
         }
     }
 
@@ -216,8 +216,8 @@ class KeyTreeTest {
         }
 
         @Test
-        fun `typed empty object entries are empty`() {
-            assertTrue(KeyTree(mapOf(fooType to emptyMap())).isEmpty())
+        fun `empty type branches are not empty trees`() {
+            assertFalse(KeyTree(mapOf(fooType to emptyMap())).isEmpty())
         }
     }
 
@@ -234,11 +234,11 @@ class KeyTreeTest {
         }
 
         @Test
-        fun `typed empty is canonical empty when unioned`() {
+        fun `preserves empty type branch when unioned with empty tree`() {
             val typedEmpty = KeyTree(mapOf(fooType to emptyMap()))
 
-            assertEquals(KeyTree.empty, typedEmpty + KeyTree.empty)
-            assertEquals(KeyTree.empty, KeyTree.empty + typedEmpty)
+            assertEquals(typedEmpty, typedEmpty + KeyTree.empty)
+            assertEquals(typedEmpty, KeyTree.empty + typedEmpty)
             assertEquals(typedEmpty + KeyTree.empty, KeyTree.empty + typedEmpty)
         }
 
@@ -305,15 +305,15 @@ class KeyTreeTest {
         }
 
         @Test
-        fun `typed empty is canonical empty when intersected`() {
+        fun `empty type branch intersects a populated branch of the same type`() {
             val typedEmpty = KeyTree(mapOf(fooType to emptyMap()))
             val foo = KeyTree.build(schema) {
                 field("Foo", key("x"))
             }
 
             assertEquals(KeyTree.empty, typedEmpty.intersect(KeyTree.empty))
-            assertEquals(KeyTree.empty, typedEmpty.intersect(foo))
-            assertEquals(KeyTree.empty, foo.intersect(typedEmpty))
+            assertEquals(typedEmpty, typedEmpty.intersect(foo))
+            assertEquals(typedEmpty, foo.intersect(typedEmpty))
         }
 
         @Test
@@ -355,7 +355,7 @@ class KeyTreeTest {
                 field("Foo", key("b"))
             }
 
-            assertEquals(KeyTree.empty, a.intersect(b))
+            assertEquals(KeyTree(mapOf(fooType to emptyMap())), a.intersect(b))
         }
 
         @Test
@@ -386,7 +386,7 @@ class KeyTreeTest {
                 field("Foo", key("x", alias = "b"))
             }
 
-            assertEquals(KeyTree.empty, a.intersect(b))
+            assertEquals(KeyTree(mapOf(fooType to emptyMap())), a.intersect(b))
         }
 
         @Test
@@ -398,7 +398,7 @@ class KeyTreeTest {
                 field("Foo", key("x", arguments = mapOf("id" to 2)))
             }
 
-            assertEquals(KeyTree.empty, a.intersect(b))
+            assertEquals(KeyTree(mapOf(fooType to emptyMap())), a.intersect(b))
         }
 
         @Test
@@ -413,9 +413,10 @@ class KeyTreeTest {
             }
 
             assertEquals(
-                KeyTree.build(schema) {
-                    field("Bar", key("a"))
-                },
+                KeyTree(mapOf(fooType to emptyMap())) +
+                    KeyTree.build(schema) {
+                        field("Bar", key("a"))
+                    },
                 a.intersect(b),
             )
         }
@@ -457,9 +458,13 @@ class KeyTreeTest {
                     field("Bar", key("b"))
                 }
             }
-            val expected = KeyTree.build(schema) {
-                field("Foo", key("x"))
-            }
+            val expected = KeyTree(
+                mapOf(
+                    fooType to mapOf(
+                        ObjectEngineResult.Key("x") to KeyTree(mapOf(barType to emptyMap()))
+                    )
+                )
+            )
 
             assertEquals(expected, a.intersect(b))
             assertEquals(expected, b.intersect(a))
@@ -513,6 +518,20 @@ class KeyTreeTest {
             assertEquals(KeyTree.empty, KeyTree.empty - KeyTree.empty)
             assertEquals(KeyTree.empty, KeyTree.empty - foo)
             assertEquals(foo, foo - KeyTree.empty)
+        }
+
+        @Test
+        fun `empty type branches participate in subtraction`() {
+            val typedEmpty = KeyTree(mapOf(fooType to emptyMap()))
+            val foo = KeyTree.build(schema) {
+                field("Foo", key("a"))
+            }
+
+            assertEquals(typedEmpty, typedEmpty - KeyTree.empty)
+            assertEquals(KeyTree.empty, KeyTree.empty - typedEmpty)
+            assertEquals(KeyTree.empty, typedEmpty - typedEmpty)
+            assertEquals(foo, foo - typedEmpty)
+            assertEquals(KeyTree.empty, typedEmpty - foo)
         }
 
         @Test
@@ -713,13 +732,31 @@ class KeyTreeTest {
                 field("Foo", key("b"))
             }
             assertEquals(a, a.filter(FilterPredicate.KeepAll))
-            assertEquals(KeyTree.empty, a.filter(FilterPredicate.DropAll))
+            assertEquals(KeyTree(mapOf(fooType to emptyMap())), a.filter(FilterPredicate.DropAll))
             assertEquals(
                 KeyTree.build(schema) {
                     field("Foo", key("b"))
                 },
                 a.filter(dropA),
             )
+        }
+
+        @Test
+        fun `preserves nested type branch when all of its fields are dropped`() {
+            val tree = KeyTree.build(schema) {
+                field("Foo", key("b")) {
+                    field("Bar", key("a"))
+                }
+            }
+            val expected = KeyTree(
+                mapOf(
+                    fooType to mapOf(
+                        ObjectEngineResult.Key("b") to KeyTree(mapOf(barType to emptyMap()))
+                    )
+                )
+            )
+
+            assertEquals(expected, tree.filter(dropA))
         }
 
         @Test
@@ -774,17 +811,107 @@ class KeyTreeTest {
     }
 
     @Nested
+    inner class WithoutEmptyTypeBranches {
+        @Test
+        fun `empty tree remains empty`() {
+            assertEquals(KeyTree.empty, KeyTree.empty.withoutEmptyTypeBranches())
+        }
+
+        @Test
+        fun `removes empty root type branch`() {
+            val tree = KeyTree(mapOf(fooType to emptyMap()))
+
+            assertEquals(KeyTree.empty, tree.withoutEmptyTypeBranches())
+        }
+
+        @Test
+        fun `keeps populated sibling type branch`() {
+            val tree = KeyTree(
+                mapOf(
+                    fooType to emptyMap(),
+                    barType to mapOf(ObjectEngineResult.Key("a") to KeyTree.empty),
+                )
+            )
+
+            assertEquals(
+                KeyTree.build(schema) {
+                    field("Bar", key("a"))
+                },
+                tree.withoutEmptyTypeBranches(),
+            )
+        }
+
+        @Test
+        fun `keeps parent field when its empty child branch is removed`() {
+            val tree = KeyTree(
+                mapOf(
+                    fooType to mapOf(
+                        ObjectEngineResult.Key("b") to KeyTree(mapOf(barType to emptyMap()))
+                    ),
+                )
+            )
+
+            assertEquals(
+                KeyTree.build(schema) {
+                    field("Foo", key("b"))
+                },
+                tree.withoutEmptyTypeBranches(),
+            )
+        }
+
+        @Test
+        fun `removes deeply nested empty type branch`() {
+            val tree = KeyTree(
+                mapOf(
+                    fooType to mapOf(
+                        ObjectEngineResult.Key("b") to KeyTree(
+                            mapOf(
+                                barType to mapOf(
+                                    ObjectEngineResult.Key("a") to
+                                        KeyTree(mapOf(fooType to emptyMap()))
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+
+            assertEquals(
+                KeyTree.build(schema) {
+                    field("Foo", key("b")) {
+                        field("Bar", key("a"))
+                    }
+                },
+                tree.withoutEmptyTypeBranches(),
+            )
+        }
+
+        @Test
+        fun `tree without empty type branches is unchanged`() {
+            val tree = KeyTree.build(schema) {
+                field("Foo", key("a"))
+                field("Foo", key("b")) {
+                    field("Bar", key("a"))
+                }
+            }
+
+            assertEquals(tree, tree.withoutEmptyTypeBranches())
+        }
+    }
+
+    @Nested
     inner class KeyTreeFilter {
         @Test
         fun and() {
             val tree = KeyTree.build(schema) {
                 field("Foo", key("a"))
             }
+            val emptyFooBranch = KeyTree(mapOf(fooType to emptyMap()))
 
             assertEquals(tree, tree.filter(FilterPredicate.KeepAll and FilterPredicate.KeepAll))
-            assertEquals(KeyTree.empty, tree.filter(FilterPredicate.KeepAll and FilterPredicate.DropAll))
-            assertEquals(KeyTree.empty, tree.filter(FilterPredicate.DropAll and FilterPredicate.KeepAll))
-            assertEquals(KeyTree.empty, tree.filter(FilterPredicate.DropAll and FilterPredicate.DropAll))
+            assertEquals(emptyFooBranch, tree.filter(FilterPredicate.KeepAll and FilterPredicate.DropAll))
+            assertEquals(emptyFooBranch, tree.filter(FilterPredicate.DropAll and FilterPredicate.KeepAll))
+            assertEquals(emptyFooBranch, tree.filter(FilterPredicate.DropAll and FilterPredicate.DropAll))
         }
 
         @Test
@@ -792,11 +919,12 @@ class KeyTreeTest {
             val tree = KeyTree.build(schema) {
                 field("Foo", key("a"))
             }
+            val emptyFooBranch = KeyTree(mapOf(fooType to emptyMap()))
 
             assertEquals(tree, tree.filter(FilterPredicate.KeepAll or FilterPredicate.KeepAll))
             assertEquals(tree, tree.filter(FilterPredicate.KeepAll or FilterPredicate.DropAll))
             assertEquals(tree, tree.filter(FilterPredicate.DropAll or FilterPredicate.KeepAll))
-            assertEquals(KeyTree.empty, tree.filter(FilterPredicate.DropAll or FilterPredicate.DropAll))
+            assertEquals(emptyFooBranch, tree.filter(FilterPredicate.DropAll or FilterPredicate.DropAll))
         }
     }
 

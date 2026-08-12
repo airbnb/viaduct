@@ -875,6 +875,7 @@ class FieldResolver(
                 val materializationKeyTree = traversalParameters.queryPlan
                     .keyTree(traversalParameters)
                     .filter(nodeInitialResolutionFilter)
+                    .withoutEmptyTypeBranches()
                 if (materializationKeyTree.isEmpty()) {
                     engineResult.resolveToValue()
                     deferred.complete(engineResult)

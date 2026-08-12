@@ -74,7 +74,9 @@ internal class NodeMatImpl(
         keyTree: KeyTree,
         selectionParameters: ExecutionParameters,
     ): MatResult {
-        val outputKeyTree = keyTree.filter(outputSelectionSetFilter)
+        val outputKeyTree = keyTree
+            .filter(outputSelectionSetFilter)
+            .withoutEmptyTypeBranches()
 
         // A resolver-owned selection can still require the initial node lifecycle, even when the
         // node owns none of its fields.

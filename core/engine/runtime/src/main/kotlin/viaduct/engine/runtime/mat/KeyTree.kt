@@ -6,12 +6,16 @@ import viaduct.engine.runtime.ObjectEngineResult
 
 /**
  * A [KeyTree] represents the shape of a selection set using a normalized tree.
+ *
+ * A concrete type may have no fields. Such an entry represents an empty type branch and is
+ * distinct from a tree with no type branches.
  */
 class KeyTree(
     byType: Map<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>>
 ) {
     private val byType: Map<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>> = snapshotByType(byType)
 
+    /** Returns true when this tree has no concrete type branches. */
     fun isEmpty(): Boolean = byType.isEmpty()
 
     /** get an immutable view of this [KeyTree] */
@@ -36,7 +40,7 @@ class KeyTree(
                 val neededSub = sub - otherFields.getValue(key)
                 if (!neededSub.isEmpty()) needed[key] = neededSub
             }
-            result[type] = needed
+            if (needed.isNotEmpty()) result[type] = needed
         }
         return KeyTree(result)
     }
@@ -81,9 +85,9 @@ class KeyTree(
                     children.intersect(otherChildren)
                 }
             }
-            if (commonFields.isNotEmpty()) result[type] = commonFields
+            result[type] = commonFields
         }
-        return if (result.isEmpty()) empty else KeyTree(result)
+        return KeyTree(result)
     }
 
     /** Returns the child subtree under the exact field [key]. */
@@ -127,7 +131,6 @@ class KeyTree(
         when (filter) {
             // simple optimizations for known filters
             KeyTreeFilter.KeepAll -> this
-            KeyTreeFilter.DropAll -> empty
             else -> filterInternal(filter, true)
         }
 
@@ -143,6 +146,18 @@ class KeyTree(
                 kept[key] = sub.filterInternal(filter, false)
             }
             result[type] = kept
+        }
+        return KeyTree(result)
+    }
+
+    /** Recursively removes concrete type branches that contain no fields. */
+    internal fun withoutEmptyTypeBranches(): KeyTree {
+        val result = mutableMapOf<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>>()
+        for ((type, fields) in byType) {
+            if (fields.isEmpty()) continue
+            result[type] = fields.mapValues { (_, children) ->
+                children.withoutEmptyTypeBranches()
+            }
         }
         return KeyTree(result)
     }
@@ -175,9 +190,7 @@ class KeyTree(
         private fun snapshotByType(byType: Map<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>>): Map<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>> {
             val snapshot = LinkedHashMap<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>>()
             for ((type, fields) in byType) {
-                if (fields.isNotEmpty()) {
-                    snapshot[type] = Collections.unmodifiableMap(LinkedHashMap(fields))
-                }
+                snapshot[type] = Collections.unmodifiableMap(LinkedHashMap(fields))
             }
             return Collections.unmodifiableMap(snapshot)
         }

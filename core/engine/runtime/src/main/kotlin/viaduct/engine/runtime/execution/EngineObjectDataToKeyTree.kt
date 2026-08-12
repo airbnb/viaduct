@@ -78,7 +78,7 @@ private class EngineObjectDataKeyTreeBuilder(
             }
         }
 
-        return KeyTree(mapOf(type to returnedFields))
+        return KeyTree(mapOf(type to returnedFields)).withoutEmptyTypeBranches()
     }
 
     private fun selectionsForReturnedField(
@@ -148,7 +148,7 @@ private class EngineObjectDataKeyTreeBuilder(
         }
 
         visit(values)
-        return KeyTree(commonFieldsByType)
+        return KeyTree(commonFieldsByType).withoutEmptyTypeBranches()
     }
 
     private fun buildNodeReference(
@@ -165,6 +165,7 @@ private class EngineObjectDataKeyTreeBuilder(
             outputSelectionSetFilter(type, key, atOutputSelectionSetRoot)
         }
         return KeyTree(mapOf(type to returnedSelections.mapValues { KeyTree.empty }))
+            .withoutEmptyTypeBranches()
     }
 
     private fun KeyTree.withinOutputSelectionSet(atOutputSelectionSetRoot: Boolean): KeyTree =
@@ -174,7 +175,7 @@ private class EngineObjectDataKeyTreeBuilder(
                 key,
                 atOutputSelectionSetRoot && atKeyTreeRoot,
             )
-        }
+        }.withoutEmptyTypeBranches()
 
     private fun intersectFields(
         type: GraphQLObjectType,

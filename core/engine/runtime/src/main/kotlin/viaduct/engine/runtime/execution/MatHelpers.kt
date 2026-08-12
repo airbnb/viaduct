@@ -37,6 +37,7 @@ internal fun QueryPlan.keyTree(
         selectionSet = parameters.selectionSet,
         projectionType = parameters.currentObjectEngineResult.type,
     ).filter(outputSelectionSetFilter)
+        .withoutEmptyTypeBranches()
 
 /**
  * Converts the executable selections nested under [field] to their exact field keys.
@@ -54,6 +55,7 @@ internal fun QueryPlan.keyTree(
             parameters = parameters,
             selectionSet = it,
         ).filter(outputSelectionSetFilter)
+            .withoutEmptyTypeBranches()
     } ?: KeyTree.empty
 
 /** A collected field's schema definition and coerced arguments. */
@@ -203,9 +205,10 @@ internal fun materializationPlan(
     selectionParameters: ExecutionParameters,
     keyTree: KeyTree,
 ): QueryPlan {
+    val materializationShape = keyTree.withoutEmptyTypeBranches()
     val plan =
         selectionParameters.queryPlan.filterTo(
-            shape = keyTree,
+            shape = materializationShape,
             context = QueryPlanFilterCtx(selectionParameters),
             source = selectionParameters.selectionSet,
             projectionType = selectionParameters.currentObjectEngineResult.type,
@@ -216,7 +219,7 @@ internal fun materializationPlan(
             selectionSet = plan.selectionSet,
             projectionType = selectionParameters.currentObjectEngineResult.type,
         )
-    val missing = keyTree - projected
+    val missing = materializationShape - projected
     check(missing.isEmpty()) {
         "Materialization plan omitted requested selections $missing"
     }
