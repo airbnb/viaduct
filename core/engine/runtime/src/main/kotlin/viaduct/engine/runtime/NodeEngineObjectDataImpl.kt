@@ -1,6 +1,8 @@
 package viaduct.engine.runtime
 
 import graphql.schema.GraphQLObjectType
+import java.util.Collections
+import java.util.IdentityHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CompletableDeferred
@@ -46,13 +48,37 @@ class NodeEngineObjectDataImpl(
             val nodeResolver = checkNotNull(dispatcherRegistry.getNodeResolverDispatcher(type.name)) {
                 "No node resolver found for type ${type.name}"
             }
-            return nodeResolver.resolve(id, selections, context).also(::recordMaterialization)
+            return resolveLazyData(
+                nodeResolver.resolve(id, selections, context),
+                selections,
+                context,
+            ).also(::recordMaterialization)
         } catch (e: Exception) {
             if (isFirstResolution) {
                 recordInitialFailure(e)
             }
             throw e
         }
+    }
+
+    private suspend fun resolveLazyData(
+        data: EngineObjectData,
+        selections: EngineSelectionSet,
+        context: EngineExecutionContext,
+    ): EngineObjectData {
+        val seen = Collections.newSetFromMap(IdentityHashMap<EngineObjectData, Boolean>())
+        seen += this
+
+        var current = data
+        while (current is LazyEngineObjectData) {
+            check(seen.add(current)) {
+                "Node resolver for ${type.name}($id) returned a cycle of lazy object references"
+            }
+            current = checkNotNull(current.resolveData(selections, context)) {
+                "Node resolver for ${type.name}($id) returned a null lazy object reference"
+            }
+        }
+        return current
     }
 
     private suspend fun materializedData(): List<EngineObjectData> {

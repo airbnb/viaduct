@@ -83,6 +83,23 @@ class NodeEngineObjectDataImplTest {
         }
 
     @Test
+    fun `lazy object cycle fails resolution`(): Unit =
+        runBlocking {
+            val lazyData = mockk<LazyEngineObjectData>()
+            coEvery { nodeResolver.resolve("testID", selections, context) }.returns(lazyData)
+            coEvery { lazyData.resolveData(selections, context) }.returns(lazyData)
+
+            val error = assertThrows<IllegalStateException> {
+                nodeReference.resolveData(selections, context)
+            }
+
+            assertEquals(
+                "Node resolver for TestType(testID) returned a cycle of lazy object references",
+                error.message,
+            )
+        }
+
+    @Test
     fun testNodeResolverNotFound(): Unit =
         runBlocking {
             every { dispatcherRegistry.getNodeResolverDispatcher("TestType") }.returns(null)

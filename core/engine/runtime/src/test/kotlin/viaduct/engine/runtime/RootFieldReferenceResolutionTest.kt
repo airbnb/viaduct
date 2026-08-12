@@ -914,6 +914,52 @@ class RootFieldReferenceResolutionTest {
     }
 
     @Test
+    fun `node resolver returns a root field reference`() {
+        EngineTestModule(
+            """
+            type Foo implements Node {
+                id: ID!
+                x: Int
+            }
+            extend type Query {
+                foo1: Foo @resolver
+                foo2: Foo @resolver
+            }
+        """
+        ) {
+            field("Query" to "foo1") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx.createNodeReference("0", schema.schema.getObjectType("Foo"))
+                    }
+                }
+            }
+            field("Query" to "foo2") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Foo"),
+                            mapOf("x" to 2),
+                        )
+                    }
+                }
+            }
+            type("Foo") {
+                nodeUnbatchedExecutor { _, _, ctx ->
+                    ctx.createRootFieldReference(
+                        rootFieldPath = listOf("foo2"),
+                        type = objectType,
+                        args = emptyMap(),
+                    ) as EngineObjectData
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ foo1 { x } }")
+                .assertJson("{data: {foo1: {x: 2}}}")
+        }
+    }
+
+    @Test
     fun `factory returns a root field reference`() {
         EngineTestModule(
             """
