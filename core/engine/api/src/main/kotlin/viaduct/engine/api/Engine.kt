@@ -72,6 +72,26 @@ interface Engine {
     ): ExecutionResult
 
     /**
+     * Resolves the object-valued field at [rootFieldPath] without traversing its nested selections.
+     *
+     * @param executionHandle The opaque handle from the current execution context.
+     * @param rootFieldPath The path to the root object field, e.g. ["fooFactory", "create"]
+     * @param arguments Field arguments
+     * @param selectionSet The [EngineSelectionSet] to pass to the field resolver being executed, if it's
+     *        selective. This will not actually resolve the nested selections.
+     * @param options The [ResolveRootFieldReferenceOptions] controlling execution behavior.
+     * @return The original [EngineObjectData] returned by the referenced field resolver, or null
+     *         if the field resolves to null.
+     */
+    suspend fun resolveRootFieldReference(
+        executionHandle: EngineExecutionContext.ExecutionHandle,
+        rootFieldPath: List<String>,
+        arguments: Map<String, Any?>,
+        selectionSet: EngineSelectionSet,
+        options: ResolveRootFieldReferenceOptions,
+    ): EngineObjectData?
+
+    /**
      * The type of operation for selection execution.
      */
     enum class OperationType {

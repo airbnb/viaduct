@@ -15,6 +15,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionInput
 import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.ResolveRootFieldReferenceOptions
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.DispatcherRegistry
@@ -94,6 +95,14 @@ private object NoOpEngine : Engine {
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions,
     ): EngineObjectData.Sync = error("NoOpEngine: resolveSelectionSet not configured")
+
+    override suspend fun resolveRootFieldReference(
+        executionHandle: EngineExecutionContext.ExecutionHandle,
+        rootFieldPath: List<String>,
+        arguments: Map<String, Any?>,
+        selectionSet: EngineSelectionSet,
+        options: ResolveRootFieldReferenceOptions,
+    ): EngineObjectData? = error("NoOpEngine: resolveRootFieldReference not configured")
 
     override suspend fun completeSelectionSet(
         executionHandle: EngineExecutionContext.ExecutionHandle,

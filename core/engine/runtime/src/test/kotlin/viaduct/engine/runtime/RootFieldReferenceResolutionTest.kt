@@ -1,5 +1,6 @@
 package viaduct.engine.runtime
 
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -16,6 +17,66 @@ import viaduct.graphql.test.assertJson
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RootFieldReferenceResolutionTest {
+    @Test
+    fun `factory backing data remains available to child resolver RSS without duplicate execution`() {
+        val factoryCalls = AtomicInteger()
+        val localizedStringCalls = AtomicInteger()
+
+        EngineTestModule(
+            """
+            type UGCText {
+                translationConfig: String
+                localizedString: String @resolver
+            }
+            type UGCTextFactory @namespaceType {
+                create: UGCText @resolver
+            }
+            extend type Query {
+                ugcTextFactory: UGCTextFactory
+                description: UGCText @resolver
+            }
+        """
+        ) {
+            field("UGCTextFactory" to "create") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        factoryCalls.incrementAndGet()
+                        createEngineObjectData(
+                            schema.schema.getObjectType("UGCText"),
+                            mapOf("translationConfig" to "French")
+                        )
+                    }
+                }
+            }
+            field("UGCText" to "localizedString") {
+                resolver {
+                    objectSelections("translationConfig")
+                    fn { _, obj, _, _, _ ->
+                        localizedStringCalls.incrementAndGet()
+                        "Localized with ${obj.fetchAs<String>("translationConfig")}"
+                    }
+                }
+            }
+            field("Query" to "description") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx.createRootFieldReference(
+                            rootFieldPath = listOf("ugcTextFactory", "create"),
+                            type = schema.schema.getObjectType("UGCText"),
+                            args = emptyMap(),
+                        )
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ description { localizedString } }")
+                .assertJson("""{"data": {"description": {"localizedString": "Localized with French"}}}""")
+        }
+
+        assertEquals(1, factoryCalls.get())
+        assertEquals(1, localizedStringCalls.get())
+    }
+
     @Test
     fun `factory function with nested namespace types resolves correctly`() {
         EngineTestModule(
@@ -105,15 +166,125 @@ class RootFieldReferenceResolutionTest {
     }
 
     @Test
-    fun `list of factory function references resolves correctly`() {
+    fun `factory field access check failure is propagated`() {
+        EngineTestModule(
+            """
+            type Item {
+                label: String
+            }
+            type ItemFactory @namespaceType {
+                create: Item @resolver
+            }
+            extend type Query {
+                itemFactory: ItemFactory
+                item: Item @resolver
+            }
+        """
+        ) {
+            field("ItemFactory" to "create") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Item"),
+                            mapOf("label" to "restricted")
+                        )
+                    }
+                }
+                checker {
+                    fn { _, _ ->
+                        throw SecurityException("factory access denied")
+                    }
+                }
+            }
+            field("Query" to "item") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx.createRootFieldReference(
+                            rootFieldPath = listOf("itemFactory", "create"),
+                            type = schema.schema.getObjectType("Item"),
+                            args = emptyMap(),
+                        )
+                    }
+                }
+            }
+        }.runFeatureTest {
+            val result = runQuery("{ item { label } }")
+            assertEquals(mapOf("item" to null), result.getData())
+            val error = result.errors.single()
+            assertEquals(listOf("item"), error.path)
+            assertTrue(error.message.contains("factory access denied"))
+        }
+    }
+
+    @Test
+    fun `namespace access check failure prevents factory field execution`() {
+        val factoryCalls = AtomicInteger()
+
+        EngineTestModule(
+            """
+            type Item {
+                label: String
+            }
+            type ItemFactory @namespaceType {
+                create: Item @resolver
+            }
+            extend type Query {
+                itemFactory: ItemFactory
+                item: Item @resolver
+            }
+        """
+        ) {
+            field("Query" to "itemFactory") {
+                checker {
+                    fn { _, _ ->
+                        throw SecurityException("namespace access denied")
+                    }
+                }
+            }
+            field("ItemFactory" to "create") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        factoryCalls.incrementAndGet()
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Item"),
+                            mapOf("label" to "restricted")
+                        )
+                    }
+                }
+            }
+            field("Query" to "item") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx.createRootFieldReference(
+                            rootFieldPath = listOf("itemFactory", "create"),
+                            type = schema.schema.getObjectType("Item"),
+                            args = emptyMap(),
+                        )
+                    }
+                }
+            }
+        }.runFeatureTest {
+            val result = runQuery("{ item { label } }")
+            assertEquals(mapOf("item" to null), result.getData())
+            val error = result.errors.single()
+            assertEquals(listOf("item"), error.path)
+            assertTrue(error.message.contains("namespace access denied"))
+        }
+
+        assertEquals(0, factoryCalls.get())
+    }
+
+    @Test
+    fun `equivalent factory references share execution while distinct arguments resolve independently`() {
+        val factoryCalls = AtomicInteger()
+
         EngineTestModule(
             """
             type Color {
                 name: String
-                hex: String
             }
             type ColorFactory @namespaceType {
-                create: Color @resolver
+                create(name: String!): Color @resolver
             }
             extend type Query {
                 colorFactory: ColorFactory
@@ -123,10 +294,11 @@ class RootFieldReferenceResolutionTest {
         ) {
             field("ColorFactory" to "create") {
                 resolver {
-                    fn { _, _, _, _, _ ->
+                    fn { args, _, _, _, _ ->
+                        factoryCalls.incrementAndGet()
                         createEngineObjectData(
                             schema.schema.getObjectType("Color"),
-                            mapOf("name" to "Red", "hex" to "#FF0000")
+                            mapOf("name" to args.getAs<String>("name"))
                         )
                     }
                 }
@@ -138,21 +310,28 @@ class RootFieldReferenceResolutionTest {
                             ctx.createRootFieldReference(
                                 rootFieldPath = listOf("colorFactory", "create"),
                                 type = schema.schema.getObjectType("Color"),
-                                args = emptyMap(),
+                                args = mapOf("name" to "Red"),
                             ),
                             ctx.createRootFieldReference(
                                 rootFieldPath = listOf("colorFactory", "create"),
                                 type = schema.schema.getObjectType("Color"),
-                                args = emptyMap(),
+                                args = mapOf("name" to "Red"),
+                            ),
+                            ctx.createRootFieldReference(
+                                rootFieldPath = listOf("colorFactory", "create"),
+                                type = schema.schema.getObjectType("Color"),
+                                args = mapOf("name" to "Blue"),
                             ),
                         )
                     }
                 }
             }
         }.runFeatureTest {
-            runQuery("{ colors { name hex } }")
-                .assertJson("""{"data": {"colors": [{"name": "Red", "hex": "#FF0000"}, {"name": "Red", "hex": "#FF0000"}]}}""")
+            runQuery("{ colors { name } }")
+                .assertJson("""{"data": {"colors": [{"name": "Red"}, {"name": "Red"}, {"name": "Blue"}]}}""")
         }
+
+        assertEquals(2, factoryCalls.get())
     }
 
     @Test
@@ -573,10 +752,10 @@ class RootFieldReferenceResolutionTest {
         ) {
             field("ProductFactory" to "create") {
                 resolver {
-                    fn { _, _, _, _, _ ->
+                    fn { args, _, _, _, _ ->
                         createEngineObjectData(
                             schema.schema.getObjectType("Product"),
-                            mapOf("name" to "Widget")
+                            mapOf("name" to "Widget-${args.getAs<Int>("limit")}")
                         )
                     }
                 }
@@ -611,7 +790,7 @@ class RootFieldReferenceResolutionTest {
             runQuery(
                 "query(\$limit: Int!) { product { name reviews(limit: \$limit) { text } } }",
                 mapOf("limit" to 2),
-            ).assertJson("""{"data": {"product": {"name": "Widget", "reviews": [{"text": "Review 1"}, {"text": "Review 2"}]}}}""")
+            ).assertJson("""{"data": {"product": {"name": "Widget-999", "reviews": [{"text": "Review 1"}, {"text": "Review 2"}]}}}""")
         }
     }
 
@@ -794,17 +973,19 @@ class RootFieldReferenceResolutionTest {
     }
 
     @Test
-    fun `factory resolver with objectValueFragment reads sibling field`() {
+    fun `factory resolver reads object and query selection sets`() {
         EngineTestModule(
             """
             type Product {
-                name: String
+                objectName: String
+                queryName: String
             }
             type ProductFactory @namespaceType {
                 defaultName: String @resolver
                 create: Product @resolver
             }
             extend type Query {
+                defaultProductName: String @resolver
                 productFactory: ProductFactory
                 product: Product @resolver
             }
@@ -815,14 +996,22 @@ class RootFieldReferenceResolutionTest {
                     fn { _, _, _, _, _ -> "DefaultWidget" }
                 }
             }
+            field("Query" to "defaultProductName") {
+                resolver {
+                    fn { _, _, _, _, _ -> "QueryWidget" }
+                }
+            }
             field("ProductFactory" to "create") {
                 resolver {
                     objectSelections("defaultName")
-                    fn { _, obj, _, _, _ ->
-                        val defaultName = obj.fetchAs<String>("defaultName")
+                    querySelections("defaultProductName")
+                    fn { _, obj, qry, _, _ ->
                         createEngineObjectData(
                             schema.schema.getObjectType("Product"),
-                            mapOf("name" to defaultName)
+                            mapOf(
+                                "objectName" to obj.fetchAs<String>("defaultName"),
+                                "queryName" to qry.fetchAs<String>("defaultProductName"),
+                            )
                         )
                     }
                 }
@@ -839,8 +1028,8 @@ class RootFieldReferenceResolutionTest {
                 }
             }
         }.runFeatureTest {
-            runQuery("{ product { name } }")
-                .assertJson("""{"data": {"product": {"name": "DefaultWidget"}}}""")
+            runQuery("{ product { objectName queryName } }")
+                .assertJson("""{"data": {"product": {"objectName": "DefaultWidget", "queryName": "QueryWidget"}}}""")
         }
     }
 

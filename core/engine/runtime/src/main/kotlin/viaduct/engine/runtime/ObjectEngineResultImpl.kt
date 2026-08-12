@@ -9,6 +9,8 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import viaduct.deferred.completedDeferred
 import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.CheckerResultContext
+import viaduct.engine.api.FieldDirectives
 
 /**
  * Thread-safe data structure for memoizing field resolution results during GraphQL query execution.
@@ -273,5 +275,49 @@ class ObjectEngineResultImpl private constructor(
             type: GraphQLObjectType,
             matSource: MatSource? = null
         ) = ObjectEngineResultImpl(type, pending = true, matSource = matSource)
+    }
+}
+
+/**
+ * Fetches a field result for use by resolver code.
+ *
+ * Raw resolution errors take precedence over checker errors. Checker errors are evaluated using
+ * [CheckerResult.Error.isErrorForResolver] and the directives from the resolver's field selection.
+ */
+suspend fun ObjectEngineResultImpl.fetchFieldResultForResolver(
+    key: ObjectEngineResult.Key,
+    fieldDirectives: FieldDirectives?,
+): FieldResolutionResult {
+    val fieldResult = fetch(key, ObjectEngineResultImpl.RAW_VALUE_SLOT) as? FieldResolutionResult
+        ?: error("Expected raw slot for `$key` to contain a FieldResolutionResult")
+    if (fieldResult.errors.isNotEmpty()) {
+        throw FieldErrorsException(fieldResult.errors)
+    }
+    extractResolverCheckerException(
+        fetch(key, ObjectEngineResultImpl.ACCESS_CHECK_SLOT),
+        fieldDirectives,
+    )?.let { throw it }
+    return fieldResult
+}
+
+/**
+ * Returns the exception from [checkerResult] when it represents an error for a resolver read.
+ */
+internal fun extractResolverCheckerException(
+    checkerResult: Any?,
+    fieldDirectives: FieldDirectives?,
+): Exception? {
+    checkerResult ?: return null
+    if (checkerResult !is CheckerResult) {
+        return IllegalStateException(
+            "Expected access check slot to contain a CheckerResult, got $checkerResult"
+        )
+    }
+    return checkerResult.asError?.let { error ->
+        if (error.isErrorForResolver(CheckerResultContext(fieldDirectives = fieldDirectives))) {
+            error.error
+        } else {
+            null
+        }
     }
 }

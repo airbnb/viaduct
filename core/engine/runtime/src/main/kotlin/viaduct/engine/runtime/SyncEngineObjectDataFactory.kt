@@ -2,8 +2,6 @@ package viaduct.engine.runtime
 
 import graphql.execution.ResultPath
 import graphql.schema.GraphQLObjectType
-import viaduct.engine.api.CheckerResult
-import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.FieldDirectives
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
@@ -263,7 +261,7 @@ object SyncEngineObjectDataFactory {
                 if (cellRaw is Exception) return cellRaw
                 if (!skipAccessCheck) {
                     val cellChecker = value.fetch(ACCESS_CHECK_SLOT)
-                    val checkerException = extractCheckerException(cellChecker, fieldDirectives)
+                    val checkerException = extractResolverCheckerException(cellChecker, fieldDirectives)
                     if (checkerException != null) {
                         return checkerException // Store extracted exception, don't throw
                     }
@@ -296,33 +294,6 @@ object SyncEngineObjectDataFactory {
         //
         // So unwrap handles: Cell -> FieldResolutionResult -> ObjectEngineResultImpl (for nested objects).
         // List elements are also wrapped in Cells.
-    }
-
-    /**
-     * Extracts the exception from a [CheckerResult] if it represents an error that
-     * should be thrown for resolvers.
-     *
-     * @param checkerResult The checker result to examine
-     * @param fieldDirectives directives from the field selection being read, if available
-     * @return The exception to store, or null if no error
-     */
-    private fun extractCheckerException(
-        checkerResult: Any?,
-        fieldDirectives: FieldDirectives?,
-    ): Exception? {
-        checkerResult ?: return null
-        if (checkerResult !is CheckerResult) {
-            return IllegalStateException(
-                "Expected access check slot to contain a CheckerResult, got $checkerResult"
-            )
-        }
-        return checkerResult.asError?.let { error ->
-            if (error.isErrorForResolver(CheckerResultContext(fieldDirectives = fieldDirectives))) {
-                error.error
-            } else {
-                null
-            }
-        }
     }
 
     private fun maybeSelections(

@@ -34,9 +34,12 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.CheckerResultContext
+import viaduct.engine.api.FieldDirectives
 import viaduct.engine.api.mocks.MockCheckerErrorResult
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
+import viaduct.engine.runtime.context.CompositeLocalContext
 
 class ObjectEngineResultImplTest {
     private val testScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -727,6 +730,77 @@ class ObjectEngineResultImplTest {
             engine.resolveToValue()
             assertFalse(engine.isResolvedToNull())
         }
+
+    @Nested
+    inner class FetchFieldResultForResolver {
+        private val key = ObjectEngineResult.Key("field")
+
+        @Test
+        fun `returns successful field result`() =
+            runBlocking {
+                val result = fieldResult()
+                val engine = newOER().withFieldResult(result, CheckerResult.Success)
+
+                assertEquals(result, engine.fetchFieldResultForResolver(key, fieldDirectives = null))
+            }
+
+        @Test
+        fun `raw field errors take precedence over checker errors`() =
+            runBlocking {
+                val fieldError = mockk<graphql.GraphQLError>()
+                val engine = newOER().withFieldResult(
+                    fieldResult(errors = listOf(fieldError)),
+                    MockCheckerErrorResult(IllegalAccessException("denied")),
+                )
+
+                val thrown = assertThrows<FieldErrorsException> {
+                    engine.fetchFieldResultForResolver(key, fieldDirectives = null)
+                }
+
+                assertEquals(listOf(fieldError), thrown.graphQLErrors)
+            }
+
+        @Test
+        fun `passes field directives to checker policy`() =
+            runBlocking {
+                val result = fieldResult()
+                val checker = object : CheckerResult.Error {
+                    override val error = IllegalAccessException("denied")
+
+                    override fun isErrorForResolver(ctx: CheckerResultContext): Boolean = ctx.fieldDirectives?.hasDirective("bypassPolicyCheck") != true
+
+                    override fun combine(fieldResult: CheckerResult.Error): CheckerResult.Error = this
+                }
+                val bypassDirective = object : FieldDirectives {
+                    override fun hasDirective(
+                        name: String,
+                        args: ((Map<String, Any?>) -> Boolean)?,
+                    ): Boolean = name == "bypassPolicyCheck"
+                }
+                val engine = newOER().withFieldResult(result, checker)
+
+                assertEquals(result, engine.fetchFieldResultForResolver(key, bypassDirective))
+            }
+
+        private fun fieldResult(errors: List<graphql.GraphQLError> = emptyList()) =
+            FieldResolutionResult(
+                engineResult = "value",
+                errors = errors,
+                localContext = CompositeLocalContext.empty,
+                extensions = emptyMap(),
+                originalSource = "value",
+            )
+
+        private fun ObjectEngineResultImpl.withFieldResult(
+            result: FieldResolutionResult,
+            checkerResult: CheckerResult,
+        ) = apply {
+            computeIfAbsent(key) { setter ->
+                setter.set(RAW_VALUE_SLOT, Value.fromValue(result))
+                setter.set(ACCESS_CHECK_SLOT, Value.fromValue(checkerResult))
+            }
+        }
+    }
 
     @Nested
     inner class NewFromMap {

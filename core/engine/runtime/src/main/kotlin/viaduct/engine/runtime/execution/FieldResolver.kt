@@ -49,6 +49,7 @@ import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildDataFetchingE
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildOERKeyForField
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.collectFields
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.executionStepInfoFactory
+import viaduct.engine.runtime.fetchFieldResultForResolver
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.LedgerReader
 import viaduct.utils.slf4j.ifDebug
@@ -294,11 +295,13 @@ class FieldResolver(
      *
      * @param parameters ExecutionParameters containing the context and execution state
      * @param field The field from the query plans to resolve
+     * @param resolveNestedSelections Whether to traverse selections on the resolved field value
      */
     internal fun resolveField(
         parameters: ExecutionParameters,
         field: QueryPlan.CollectedField,
         ledgerReader: LedgerReader? = null,
+        resolveNestedSelections: Boolean = true,
     ): FieldDispatch {
         if (!parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled) {
             val runtimeObjectType = checkNotNull(parameters.executionStepInfo.objectType) {
@@ -316,7 +319,7 @@ class FieldResolver(
                 }
             }
         }
-        return executeField(parameters, field, ledgerReader)
+        return executeField(parameters, field, ledgerReader, resolveNestedSelections)
     }
 
     private fun launchFieldChildPlans(
@@ -360,9 +363,9 @@ class FieldResolver(
      * @property immediate A [Value] that completes when the field's data fetcher has finished
      *   and the [FieldResolutionResult] is available. This signals that the field's "immediate"
      *   value is ready, though nested objects or lazy data may still be pending.
-     * @property overall A [Value] that completes when the field and all of its nested objects
-     *   and lazy data have been fully resolved. Used to track when the entire field subtree
-     *   is complete.
+     * @property overall A [Value] that completes after [immediate] and field execution
+     *   instrumentation. When nested selection resolution is enabled, it also waits for nested
+     *   objects and lazy data; immediate-only dispatches do not traverse them.
      */
     internal data class FieldDispatch(
         val immediate: Value<FieldResolutionResult>,
@@ -455,6 +458,7 @@ class FieldResolver(
         parameters: ExecutionParameters,
         field: QueryPlan.CollectedField,
         ledgerReader: LedgerReader?,
+        resolveNestedSelections: Boolean,
     ): FieldDispatch {
         // We're fetching an individual field; the current engine result will always be an ObjectEngineResult
         val currentOER = parameters.currentObjectEngineResult
@@ -500,9 +504,8 @@ class FieldResolver(
 
         val overall = fieldResolutionResultValue.thenCompose { v, e ->
             fieldInstrumentationCtx?.onCompletedNullable(v, e)
-            if (e != null) {
-                // if the field resolution failed, don't attempt to fetch lazy data or nested objects
-                // and mark this field as completed
+            if (e != null || !resolveNestedSelections) {
+                // Failed fields and immediate-only callers do not traverse nested objects.
                 Value.fromValue(Unit)
             } else {
                 // otherwise, proceed with nested object resolution
@@ -520,6 +523,42 @@ class FieldResolver(
         return FieldDispatch(
             immediate = fieldResolutionResultValue,
             overall = overall
+        )
+    }
+
+    /**
+     * Resolves a field through the normal data-fetcher pipeline and returns its immediate result
+     * without traversing the returned value's nested selections.
+     *
+     * Required selection plans, Mats, access checks, and instrumentation still run normally.
+     * Resolver and access-check errors are thrown rather than returned in the result.
+     */
+    suspend fun resolveImmediateFieldResult(
+        parameters: ExecutionParameters,
+        field: QueryPlan.CollectedField,
+    ): FieldResolutionResult {
+        val dispatch = resolveField(
+            parameters = parameters,
+            field = field,
+            ledgerReader = null,
+            resolveNestedSelections = false,
+        )
+
+        // Await overall first so fatal instrumentation completion errors take precedence.
+        dispatch.overall.await()
+        val oerKey = buildOERKeyForField(parameters, field)
+        val fieldDirectives = FieldExecutionHelpers.engineSelectionSet(
+            parameters = parameters,
+            projectionType = parameters.currentObjectEngineResult.type,
+            selectionSet = parameters.selectionSet,
+            fragments = parameters.queryPlan.fragments,
+        ).fieldDirectivesOfSelection(
+            parameters.currentObjectEngineResult.type.name,
+            field.responseKey,
+        )
+        return parameters.currentObjectEngineResult.fetchFieldResultForResolver(
+            oerKey,
+            fieldDirectives,
         )
     }
 

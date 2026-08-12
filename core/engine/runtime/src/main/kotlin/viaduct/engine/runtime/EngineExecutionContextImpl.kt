@@ -16,6 +16,7 @@ import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolutionPolicy
+import viaduct.engine.api.ResolveRootFieldReferenceOptions
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.SubqueryExecutionException
@@ -126,6 +127,11 @@ class EngineExecutionContextImpl internal constructor(
     override val executionHandle: EngineExecutionContext.ExecutionHandle?
         get() = _executionHandle
 
+    /** Returns [executionHandle], or throws if called before execution started. */
+    private fun requireExecutionHandle(): EngineExecutionContext.ExecutionHandle =
+        executionHandle
+            ?: throw SubqueryExecutionException.invalidExecutionHandle()
+
     override val fieldScope: EngineExecutionContext.FieldExecutionScope by lazy { fieldScopeSupplier.get() }
 
     /**
@@ -177,12 +183,7 @@ class EngineExecutionContextImpl internal constructor(
         options: ResolveSelectionSetOptions,
         instrumentationContext: ResolverInstrumentationContext?,
     ): EngineObjectData.Sync {
-        val handle = executionHandle
-            ?: throw SubqueryExecutionException(
-                "resolveSelectionSet requires an executionHandle. " +
-                    "This typically means resolveSelectionSet was called before execution started " +
-                    "or from a context that doesn't have access to the current execution."
-            )
+        val handle = requireExecutionHandle()
 
         val effectiveOptions = options.copy(attribution = fieldScope.attribution)
 
@@ -201,17 +202,38 @@ class EngineExecutionContextImpl internal constructor(
         }
     }
 
+    /**
+     * Resolves a root field reference within this context's active execution.
+     *
+     * This bridge preserves the current execution handle and field attribution while delegating
+     * engine-internal planning and field resolution to [Engine].
+     */
+    internal suspend fun resolveRootFieldReference(
+        rootFieldPath: List<String>,
+        arguments: Map<String, Any?>,
+        selectionSet: EngineSelectionSet,
+    ): EngineObjectData? {
+        val handle = requireExecutionHandle()
+
+        return executeWithMetrics {
+            engine.resolveRootFieldReference(
+                executionHandle = handle,
+                rootFieldPath = rootFieldPath,
+                arguments = arguments,
+                selectionSet = selectionSet,
+                options = ResolveRootFieldReferenceOptions(
+                    attribution = fieldScope.attribution,
+                ),
+            )
+        }
+    }
+
     override suspend fun completeSelectionSet(
         selectionSet: RequiredSelectionSet,
         arguments: Map<String, Any?>,
         options: CompleteSelectionSetOptions,
     ): graphql.ExecutionResult {
-        val handle = executionHandle
-            ?: throw SubqueryExecutionException(
-                "completeSelectionSet requires an executionHandle. " +
-                    "This typically means completeSelectionSet was called before execution started " +
-                    "or from a context that doesn't have access to the current execution."
-            )
+        val handle = requireExecutionHandle()
         return engine.completeSelectionSet(handle, selectionSet, null, arguments, options)
     }
 
@@ -221,16 +243,11 @@ class EngineExecutionContextImpl internal constructor(
         arguments: Map<String, Any?>,
         options: CompleteSelectionSetOptions,
     ): graphql.ExecutionResult {
-        val handle = executionHandle
-            ?: throw SubqueryExecutionException(
-                "completeSelectionSet requires an executionHandle. " +
-                    "This typically means completeSelectionSet was called before execution started " +
-                    "or from a context that doesn't have access to the current execution."
-            )
+        val handle = requireExecutionHandle()
         return engine.completeSelectionSet(handle, selectionSet, targetResult, arguments, options)
     }
 
-    private inline fun <T : EngineObjectData> executeWithMetrics(block: () -> T): T {
+    private inline fun <T : EngineObjectData?> executeWithMetrics(block: () -> T): T {
         return try {
             block().also { incrementSubqueryExecutionCounter(success = true) }
         } catch (e: Exception) {

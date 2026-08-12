@@ -19,8 +19,10 @@ import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ExecutionInput
 import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.ResolveRootFieldReferenceOptions
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.SubqueryExecutionException
 import viaduct.engine.api.ViaductSchema
@@ -47,11 +49,13 @@ import viaduct.engine.runtime.execution.QueryPlanFactory
 import viaduct.engine.runtime.execution.ViaductExecutionStrategy
 import viaduct.engine.runtime.execution.WrappedCoroutineExecutionStrategy
 import viaduct.engine.runtime.execution.asExecutionParameters
+import viaduct.engine.runtime.fetchFieldResultForResolver
 import viaduct.engine.runtime.graphql_java.GraphQLJavaConfig
 import viaduct.engine.runtime.instrumentation.ResolverDataFetcherInstrumentation
 import viaduct.engine.runtime.instrumentation.ScopeInstrumentation
 import viaduct.engine.runtime.instrumentation.TaggedMetricInstrumentation
 import viaduct.service.api.spi.FlagManager
+import viaduct.utils.string.sha256Hash
 
 @Deprecated("Airbnb use only")
 interface EngineGraphQLJavaCompat {
@@ -191,6 +195,122 @@ class EngineImpl(
         )
     }
 
+    override suspend fun resolveRootFieldReference(
+        executionHandle: EngineExecutionContext.ExecutionHandle,
+        rootFieldPath: List<String>,
+        arguments: Map<String, Any?>,
+        selectionSet: EngineSelectionSet,
+        options: ResolveRootFieldReferenceOptions,
+    ): EngineObjectData? {
+        require(rootFieldPath.isNotEmpty()) { "rootFieldPath must not be empty" }
+        val parentParams = executionHandle.asExecutionParameters()
+        val namespacePrefix = rootFieldPath.dropLast(1)
+        // Reuse the request's Query result so references with the same namespace share execution.
+        val namespaceParentResult = materializeNamespacePrefix(
+            executionHandle = executionHandle,
+            parentParams = parentParams,
+            namespacePrefix = namespacePrefix,
+            attribution = options.attribution,
+        )
+        val variables = selectionSet.variables.toMutableMap()
+        val leafArguments = arguments.toSortedMap().entries.joinToString(", ") { (argumentName, value) ->
+            var variableName = "__rfr_$argumentName"
+            while (variableName in variables) {
+                variableName += "_"
+            }
+            variables[variableName] = value
+            "$argumentName: \$$variableName"
+        }
+        val argumentList = leafArguments.takeIf(String::isNotEmpty)?.let { "($it)" }.orEmpty()
+        val leafSelectionsText = selectionSet.printAsFieldSet()
+        // Child selections choose the selective resolver implementation, but are not resolved here.
+        val leafSelection = parentParams.engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(
+            namespaceParentResult.type.name,
+            "_rfr_${leafSelectionsText.sha256Hash()}: " +
+                "${rootFieldPath.last()}$argumentList { $leafSelectionsText }",
+            variables,
+        )
+
+        val leafRootParams = parametersForSelectionSet(
+            parentParams = parentParams,
+            selectionSet = leafSelection,
+            attribution = options.attribution,
+            target = ChildQueryPlanTarget.ExplicitObjectResult(namespaceParentResult),
+        )
+        val leafFieldPlan = FieldExecutionHelpers.collectFields(namespaceParentResult.type, leafRootParams)
+            .selections
+            .single() as QueryPlan.CollectedField
+        val leafParams = leafRootParams.forField(namespaceParentResult.type, leafFieldPlan)
+        // Keep this shallow so the caller can resolve nested fields from the resolver's original object.
+        val result = fieldResolver.resolveImmediateFieldResult(
+            parameters = leafParams,
+            field = leafFieldPlan,
+        )
+        val source = result.originalSource ?: return null
+        check(source is EngineObjectData) {
+            "Expected object resolver to return EngineObjectData, found ${source::class.simpleName}"
+        }
+        return source
+    }
+
+    /**
+     * Executes [namespacePrefix] into the active Query result and returns the OER that owns the
+     * referenced leaf field.
+     *
+     * Passing the existing Query OER to [resolveSelectionSet] preserves normal namespace execution
+     * and memoizes shared prefixes across root field references.
+     */
+    private suspend fun materializeNamespacePrefix(
+        executionHandle: EngineExecutionContext.ExecutionHandle,
+        parentParams: ExecutionParameters,
+        namespacePrefix: List<String>,
+        attribution: ExecutionAttribution,
+    ): ObjectEngineResultImpl {
+        if (namespacePrefix.isEmpty()) {
+            return parentParams.queryEngineResult
+        }
+
+        val nestedSelection = namespacePrefix.asReversed().fold("__typename") { childSelection, fieldName ->
+            "$fieldName { $childSelection }"
+        }
+        val prefixSelectionSet = parentParams.engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(
+            fullSchema.schema.queryType.name,
+            nestedSelection,
+            emptyMap(),
+        )
+        resolveSelectionSet(
+            executionHandle = executionHandle,
+            selectionSet = prefixSelectionSet,
+            options = ResolveSelectionSetOptions(
+                targetResult = parentParams.queryEngineResult,
+                attribution = attribution,
+            ),
+        )
+        return parentParams.queryEngineResult.requireNamespaceResult(namespacePrefix)
+    }
+
+    /**
+     * Traverses already-materialized object field results along [path].
+     *
+     * Resolver and access-check errors are surfaced at the segment that produced them, and every
+     * segment must resolve to an object because root-reference prefixes contain namespace fields
+     * only.
+     */
+    private suspend fun ObjectEngineResultImpl.requireNamespaceResult(path: List<String>): ObjectEngineResultImpl {
+        var current = this
+        path.forEach { fieldName ->
+            val fieldResult = current.fetchFieldResultForResolver(
+                ObjectEngineResult.Key(fieldName),
+                fieldDirectives = null,
+            )
+            current = fieldResult.engineResult as? ObjectEngineResultImpl
+                ?: throw SubqueryExecutionException(
+                    "Root field reference namespace `$fieldName` did not resolve to an object"
+                )
+        }
+        return current
+    }
+
     /**
      * Shared implementation that validates inputs, builds the query plan, and executes
      * field resolution. Returns the populated OER and execution parameters.
@@ -226,32 +346,22 @@ class EngineImpl(
             )
         }
 
-        val eecImpl = parentParams.engineExecutionContext as EngineExecutionContextImpl
-
-        val selectionParams = try {
-            val queryPlan = queryPlanFactory.buildFromSelections(
-                parameters = eecImpl.queryPlanParameters(),
-                rss = selectionSet,
-                attribution = options.attribution,
-            )
-            // Mutation selection executions have a Mutation root result, but
-            // querySelections inside them still execute against Query. Keep that
-            // Query result isolated from the parent request and sibling subqueries.
-            val queryOER = when (options.operationType) {
-                Engine.OperationType.QUERY -> targetOER
-                Engine.OperationType.MUTATION -> ObjectEngineResultImpl.newForType(fullSchema.schema.queryType)
-            }
-            parentParams.forChildPlan(
-                childPlan = queryPlan,
-                variables = CoercedVariables.of(selectionSet.variables),
-                target = ChildQueryPlanTarget.IsolatedRootResults(
-                    rootResult = targetOER,
-                    queryResult = queryOER,
-                ),
-            )
-        } catch (e: Exception) {
-            throw SubqueryExecutionException.queryPlanBuildFailed(e)
+        // Mutation selection executions have a Mutation root result, but querySelections inside
+        // them still execute against Query. Keep that Query result isolated from the parent request
+        // and sibling subqueries.
+        val queryOER = when (options.operationType) {
+            Engine.OperationType.QUERY -> targetOER
+            Engine.OperationType.MUTATION -> ObjectEngineResultImpl.newForType(fullSchema.schema.queryType)
         }
+        val selectionParams = parametersForSelectionSet(
+            parentParams = parentParams,
+            selectionSet = selectionSet,
+            attribution = options.attribution,
+            target = ChildQueryPlanTarget.IsolatedRootResults(
+                rootResult = targetOER,
+                queryResult = queryOER,
+            ),
+        )
 
         try {
             when (options.operationType) {
@@ -266,6 +376,28 @@ class EngineImpl(
     }
 
     private data class SubqueryExecution(val targetOER: ObjectEngineResultImpl)
+
+    /** Builds child execution parameters for an executable [selectionSet]. */
+    private suspend fun parametersForSelectionSet(
+        parentParams: ExecutionParameters,
+        selectionSet: EngineSelectionSet,
+        attribution: ExecutionAttribution,
+        target: ChildQueryPlanTarget,
+    ): ExecutionParameters =
+        try {
+            val queryPlan = queryPlanFactory.buildFromSelections(
+                parameters = (parentParams.engineExecutionContext as EngineExecutionContextImpl).queryPlanParameters(),
+                rss = selectionSet,
+                attribution = attribution,
+            )
+            parentParams.forChildPlan(
+                childPlan = queryPlan,
+                variables = CoercedVariables.of(selectionSet.variables),
+                target = target,
+            )
+        } catch (e: Exception) {
+            throw SubqueryExecutionException.queryPlanBuildFailed(e)
+        }
 
     override suspend fun completeSelectionSet(
         executionHandle: EngineExecutionContext.ExecutionHandle,

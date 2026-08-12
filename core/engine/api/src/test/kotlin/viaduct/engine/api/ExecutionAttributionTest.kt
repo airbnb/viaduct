@@ -51,6 +51,24 @@ class ExecutionAttributionTest {
     }
 
     @Test
+    fun `root field reference options default to DEFAULT attribution`() {
+        assertSame(
+            ExecutionAttribution.DEFAULT,
+            ResolveRootFieldReferenceOptions.DEFAULT.attribution,
+        )
+    }
+
+    @Test
+    fun `root field reference options preserve explicit attribution`() {
+        val attribution = ExecutionAttribution.fromResolver("myResolver")
+
+        assertSame(
+            attribution,
+            ResolveRootFieldReferenceOptions(attribution = attribution).attribution,
+        )
+    }
+
+    @Test
     fun `toTagString should work with all attribution types`() {
         ExecutionAttribution.Type.values().forEach { type ->
             val name = "testName"
