@@ -97,6 +97,14 @@ re-runs it.
 files under `META-INF/viaduct/modules/` in its output directory. This ensures that stale config
 files (e.g., from a renamed tenant package) do not accumulate across builds.
 
+**How the assembled config is identified:**  The config emitted here is one entry in a map keyed by
+`<tenantName, apiName>` — the tenant module plus the tenant API that produced it (`kotlin` for this
+pipeline). That key, not the `executorFactory` FQN recorded in the file, determines which
+configuration a later regenerated source replaces, and it is why one tenant can carry a config per
+tenant API without either displacing the other. See
+[`execution-registry-bootstrap.md`](execution-registry-bootstrap.md) for the identity model, the
+one-config-per-key build invariant, and the overlay protocol.
+
 ---
 
 ## Summary: what happens in each scenario

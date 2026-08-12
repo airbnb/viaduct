@@ -57,6 +57,7 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
                                 {
                                   "version": "1",
                                   "tenantName": "inline",
+                                  "apiName": "kotlin",
                                   "executorFactory": "viaduct.engine.runtime.tenantloading.TestExecutorFactory",
                                   "nodes": [],
                                   "fields": []
@@ -116,6 +117,7 @@ class ExecutionRegistryTenantAPIBootstrapperTest {
             {
               "version": "1",
               "tenantName": "unknown",
+              "apiName": "kotlin",
               "executorFactory": "com.nonexistent.DoesNotExist",
               "nodes": [],
               "fields": []

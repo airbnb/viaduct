@@ -83,6 +83,15 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
     @get:Optional
     abstract val executorFactory: Property<String>
 
+    /**
+     * Stable name of the tenant API producing these configs — the tenant-API half of the config key
+     * that identifies which config a hotswap source replaces. Conventions to [KOTLIN_API_NAME];
+     * the Java contract wiring overrides it with [JAVA_API_NAME]. Independent of [executorFactory],
+     * which selects only how a config is materialized.
+     */
+    @get:Input
+    abstract val apiName: Property<String>
+
     /** Output directory for generated config files. */
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
@@ -142,6 +151,8 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
                 pkg,
                 "--executor-factory",
                 executorFactory.getOrElse(MODERN_KOTLIN_EXECUTOR_FACTORY),
+                "--api-name",
+                apiName.get(),
                 "--output-dir",
                 outputDir.get().asFile.absolutePath,
             ),
@@ -221,6 +232,15 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
 internal const val MODERN_KOTLIN_EXECUTOR_FACTORY = "viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory"
 
 internal const val JAVA_EXECUTOR_FACTORY = "viaduct.java.runtime.bootstrap.ViaductJavaExecutorFactory"
+
+/**
+ * Stable `apiName` values for the tenant APIs assembled here — the tenant-API half of the
+ * `<tenantName, apiName>` config key. Deliberately independent of the executor-factory FQNs above:
+ * an API implementation may rename or replace its factory without changing its API identity.
+ */
+internal const val KOTLIN_API_NAME = "kotlin"
+
+internal const val JAVA_API_NAME = "java"
 
 /**
  * Actions that the incremental logic can perform. The task implements this

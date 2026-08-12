@@ -26,6 +26,7 @@ class QueryNodeModuleConfigFactory(
 
         return buildBuiltinModuleConfigSource(
             tenantName = TENANT_NAME,
+            apiName = API_NAME,
             executorFactoryName = QueryNodeExecutorFactory::class.java.name,
             fields = fields,
         )
@@ -34,6 +35,9 @@ class QueryNodeModuleConfigFactory(
     companion object {
         /** Stable generated source name for this built-in module. */
         const val TENANT_NAME = "viaduct.builtin.query_node"
+
+        /** Stable API name for this built-in producer; see [buildBuiltinModuleConfigSource]. */
+        const val API_NAME = "builtin_query_node"
         private const val ATTRIBUTION = "query-node-resolver"
     }
 }

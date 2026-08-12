@@ -23,6 +23,7 @@ class AssembleTenantModuleConfigFileTest {
         tenantPkg: String = "com.example.feature",
         tenantPackagePrefix: String? = "com.example",
         executorFactory: String = "com.example.feature.ExampleExecutorFactory",
+        apiName: String = "kotlin",
         out: File = outputDir(),
         schemaBinary: File? = null,
         schemaFiles: List<File> = emptyList(),
@@ -34,6 +35,8 @@ class AssembleTenantModuleConfigFileTest {
             tenantPkg,
             "--executor-factory",
             executorFactory,
+            "--api-name",
+            apiName,
             "--output-dir",
             out.absolutePath,
         )
@@ -168,6 +171,48 @@ class AssembleTenantModuleConfigFileTest {
         assertTrue(json.contains("\"executorFactory\""), json)
         assertTrue(json.contains("\"tenantName\""), json)
         assertTrue(json.contains("feature"), json)
+    }
+
+    @Test
+    fun `output JSON records the kotlin apiName`() {
+        val out = outputDir()
+        runCli(apiName = "kotlin", out = out)
+
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("\"apiName\" : \"kotlin\""), json)
+    }
+
+    @Test
+    fun `output JSON records apiName from CLI arg independently of executorFactory`() {
+        val out = outputDir()
+        // A config's API identity is not derived from its factory FQN: an unrelated factory name must
+        // not change the recorded apiName.
+        runCli(executorFactory = "com.example.SomeRenamedFactory", apiName = "java", out = out)
+
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("\"apiName\" : \"java\""), json)
+        assertTrue(json.contains("com.example.SomeRenamedFactory"), json)
+    }
+
+    @Test
+    fun `fails with clear error when apiName is not a Java identifier`() {
+        // apiName travels through build args, diagnostics, and generated artifacts, so it is
+        // restricted to identifier syntax rather than any nonblank string.
+        listOf("", "  ", "my api", "kotlin-api", "kotlin.api", "1kotlin").forEach { apiName ->
+            val exception = assertThrows<IllegalArgumentException> {
+                runCli(apiName = apiName, out = outputDir())
+            }
+            assertTrue(exception.message!!.contains("apiName must be a valid Java identifier"), exception.message)
+        }
+    }
+
+    @Test
+    fun `accepts apiName with underscores and digits`() {
+        val out = outputDir()
+        runCli(apiName = "builtin_query_node2", out = out)
+
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        assertTrue(json.contains("\"apiName\" : \"builtin_query_node2\""), json)
     }
 
     @Test

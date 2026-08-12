@@ -13,6 +13,7 @@ class ModuleConfigBootstrapperTest {
     private fun source(
         tenantName: String,
         name: String,
+        apiName: String = "kotlin",
         bootstrapClass: Class<*>? = null,
     ): ModuleConfigSource =
         ModuleConfigSource.from(
@@ -21,6 +22,7 @@ class ModuleConfigBootstrapperTest {
                 {
                   "version": "1",
                   "tenantName": "$tenantName",
+                  "apiName": "$apiName",
                   "executorFactory": "$executorFactoryFqn",
                   ${bootstrapClass?.let { "\"bootstrapClass\": \"${it.name}\"," } ?: ""}
                   "nodes": [],
@@ -35,11 +37,11 @@ class ModuleConfigBootstrapperTest {
     fun `a tenant with multiple sources is bootstrapped exactly once`() =
         runTest {
             val recording = RecordingTenantModuleInjectorFactory()
-            // A single tenant contributes both a modern and a classic source (same tenantName).
+            // A single tenant contributes two configs from different tenant APIs (same tenantName).
             val bootstrappers = ModuleConfigBootstrapper(tenantModuleInjectorFactory = recording).bootstrap(
                 listOf(
-                    source(tenantName = "alpha", name = "com.example.alpha"),
-                    source(tenantName = "alpha", name = "com.example.alpha.classic"),
+                    source(tenantName = "alpha", name = "com.example.alpha", apiName = "kotlin"),
+                    source(tenantName = "alpha", name = "com.example.alpha.other", apiName = "other"),
                 ),
             )
 
@@ -57,7 +59,7 @@ class ModuleConfigBootstrapperTest {
                 listOf(
                     source(tenantName = "alpha", name = "com.example.alpha"),
                     source(tenantName = "beta", name = "com.example.beta"),
-                    source(tenantName = "alpha", name = "com.example.alpha.classic"),
+                    source(tenantName = "alpha", name = "com.example.alpha.other", apiName = "other"),
                 ),
             )
 
@@ -73,7 +75,8 @@ class ModuleConfigBootstrapperTest {
                     source(tenantName = "alpha", name = "com.example.alpha"),
                     source(
                         tenantName = "alpha",
-                        name = "com.example.alpha.classic",
+                        name = "com.example.alpha.other",
+                        apiName = "other",
                         bootstrapClass = TestBootstrapClass::class.java,
                     ),
                 ),
@@ -81,6 +84,25 @@ class ModuleConfigBootstrapperTest {
 
             assertEquals(listOf("alpha" to TestBootstrapClass::class.java), recording.calls)
         }
+
+    @Test
+    fun `two sources claiming the same config key throw`() {
+        val recording = RecordingTenantModuleInjectorFactory()
+
+        // The bootstrapper is the choke point every source producer converges on, so it rejects
+        // duplicate <tenantName, apiName> keys regardless of which producer built the list.
+        val ex = assertThrows<IllegalArgumentException> {
+            runTest {
+                ModuleConfigBootstrapper(tenantModuleInjectorFactory = recording).bootstrap(
+                    listOf(
+                        source(tenantName = "alpha", name = "com.example.alpha"),
+                        source(tenantName = "alpha", name = "com.example.alpha.duplicate"),
+                    ),
+                )
+            }
+        }
+        assertEquals(true, ex.message!!.contains("<alpha, kotlin>"), ex.message)
+    }
 
     @Test
     fun `conflicting bootstrap classes for one tenant throw`() {
@@ -97,7 +119,8 @@ class ModuleConfigBootstrapperTest {
                         ),
                         source(
                             tenantName = "alpha",
-                            name = "com.example.alpha.classic",
+                            name = "com.example.alpha.other",
+                            apiName = "other",
                             bootstrapClass = OtherTestBootstrapClass::class.java,
                         ),
                     ),

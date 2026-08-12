@@ -25,6 +25,7 @@ class NamespaceTypeModuleConfigFactory(
 
         return buildBuiltinModuleConfigSource(
             tenantName = TENANT_NAME,
+            apiName = API_NAME,
             executorFactoryName = NamespaceTypeExecutorFactory::class.java.name,
             fields = fields,
         )
@@ -33,6 +34,9 @@ class NamespaceTypeModuleConfigFactory(
     companion object {
         /** Stable generated source name for this built-in module. */
         const val TENANT_NAME = "viaduct.builtin.namespace_type"
+
+        /** Stable API name for this built-in producer; see [buildBuiltinModuleConfigSource]. */
+        const val API_NAME = "builtin_namespace_type"
         private const val ATTRIBUTION = "namespace-type-resolver"
     }
 }

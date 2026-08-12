@@ -71,11 +71,34 @@ class RemoteResolverSelectionTest {
         assertThat(selection.fieldCoordinates).containsExactly("User.name")
     }
 
+    @Test
+    fun `non-kotlin configs are not proxied because the remote process does not load them`() {
+        // A tenant's second-API config lives beside its `kotlin` one on the classpath, but RRS only loads
+        // <pkg>.json — proxying those coordinates would route them to a process that cannot resolve
+        // them.
+        val selection = RemoteResolverSelection.fromModuleConfigSources(
+            selectedTenantNames = setOf("alpha"),
+            moduleConfigSources = listOf(
+                registrySource(tenantName = "alpha", nodeType = "User", fieldCoordinate = "User.name"),
+                registrySource(
+                    tenantName = "alpha",
+                    nodeType = "Legacy",
+                    fieldCoordinate = "Legacy.derived",
+                    apiName = "other",
+                ),
+            ),
+        )
+
+        assertThat(selection.nodeTypes).containsExactly("User")
+        assertThat(selection.fieldCoordinates).containsExactly("User.name")
+    }
+
     private fun registrySource(
         tenantName: String,
         nodeType: String,
         fieldCoordinate: String,
         isSelective: Boolean = false,
+        apiName: String = "kotlin",
     ): ModuleConfigSource {
         val (fieldType, fieldName) = fieldCoordinate.split(".", limit = 2)
         return ModuleConfigSource.from(
@@ -84,6 +107,7 @@ class RemoteResolverSelectionTest {
                 {
                   "version": "1",
                   "tenantName": "$tenantName",
+                  "apiName": "$apiName",
                   "executorFactory": "unused",
                   "nodes": [{
                     "typeName": "$nodeType",

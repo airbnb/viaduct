@@ -134,6 +134,7 @@ class ViaductModulePlugin : Plugin<Project> {
 
                 descriptorDir.set(layout.buildDirectory.dir("intermediates/viaduct-registry-descriptors"))
                 executorFactory.set(AssembleTenantModuleConfigFileTask.EXECUTOR_FACTORY)
+                apiName.set(AssembleTenantModuleConfigFileTask.API_NAME)
                 this.codegenClasspath.from(codegenClasspath)
                 centralSchemaFiles.from(
                     centralSchemaIncomingCfg.incoming.artifactView {}.files.asFileTree.matching {

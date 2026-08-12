@@ -44,12 +44,15 @@ class AssembleTenantModuleConfigJarTest {
         tenantPackagePrefix: String? = "com.example",
         out: File = outputJar(),
         requireNonEmpty: Boolean = false,
+        apiName: String = "kotlin",
     ) {
         val args = mutableListOf(
             "--descriptor-jars-list",
             jarsListFile(jars).absolutePath,
             "--tenant-package",
             tenantPkg,
+            "--api-name",
+            apiName,
             "--output-jar",
             out.absolutePath,
         )
@@ -120,6 +123,7 @@ class AssembleTenantModuleConfigJarTest {
         assertTrue(json!!.contains("\"version\""), json)
         assertTrue(json.contains("\"executorFactory\""), json)
         assertTrue(json.contains("\"tenantName\""), json)
+        assertTrue(json.contains("\"apiName\" : \"kotlin\""), json)
         assertTrue(json.contains("feature"), json)
         assertTrue(json.contains("\"nodes\""), json)
         assertTrue(json.contains("\"fields\""), json)

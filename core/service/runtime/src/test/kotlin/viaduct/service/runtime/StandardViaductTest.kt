@@ -475,6 +475,7 @@ private fun generatedRegistryConfigSource(value: String): ModuleConfigSource =
             {
               "version": "1",
               "tenantName": "generatedregistrytest",
+              "apiName": "kotlin",
               "executorFactory": "${GeneratedRegistryTestExecutorFactory::class.java.name}",
               "nodes": [],
               "fields": [

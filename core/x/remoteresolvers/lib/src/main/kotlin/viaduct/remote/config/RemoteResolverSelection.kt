@@ -3,6 +3,7 @@ package viaduct.remote.config
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
+import viaduct.engine.api.bootstrap.executionregistry.KOTLIN_API_NAME
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 
 /**
@@ -24,12 +25,22 @@ data class RemoteResolverSelection(
                 return RemoteResolverSelection()
             }
 
-            val registrySourcesByTenant = moduleConfigSources.associateBy { it.tenantName }
+            // A tenant may contribute one config per tenant API implementation, but the remote process
+            // only bootstraps the `kotlin` `<pkg>.json` config (see RrsTenantBootstrapper's registry
+            // loader). Proxying coordinates from a config the remote side never registers would route
+            // those fields to a process that cannot resolve them, so select only the API RRS loads.
+            val registrySourcesByTenant = moduleConfigSources
+                .filter { it.apiName == PROXYABLE_API_NAME }
+                .groupBy { it.tenantName }
             val selectedRegistries =
                 selectedTenantNames.map { tenantName ->
-                    val source =
-                        registrySourcesByTenant[tenantName]
-                            ?: error("No execution registry config found for selected tenant '$tenantName'")
+                    val sources = registrySourcesByTenant[tenantName]
+                        ?: error("No execution registry config found for selected tenant '$tenantName'")
+                    val source = sources.singleOrNull()
+                        ?: error(
+                            "Expected one '$PROXYABLE_API_NAME' execution registry config for selected " +
+                                "tenant '$tenantName', found ${sources.size}",
+                        )
                     source.source.openStream().use {
                         objectMapper.readValue<ExecutionRegistryConfigFile>(it)
                     }
@@ -52,6 +63,13 @@ data class RemoteResolverSelection(
                         .toSet(),
             )
         }
+
+        /**
+         * The only tenant API whose resolvers can be proxied remotely, because it is the only one the
+         * remote process bootstraps. Widening this requires teaching that loader to load the
+         * corresponding config resource first.
+         */
+        private const val PROXYABLE_API_NAME = KOTLIN_API_NAME
 
         private val objectMapper = jacksonObjectMapper()
     }

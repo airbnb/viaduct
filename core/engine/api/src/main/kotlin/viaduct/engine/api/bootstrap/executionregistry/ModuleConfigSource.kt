@@ -5,57 +5,117 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import viaduct.service.api.spi.InputStreamSource
 
 /**
+ * Identity of a single execution registry configuration: the tenant module that owns it plus the
+ * tenant API implementation that produced it.
+ *
+ * The inputs to one dispatcher-registry build form a map keyed by this type — at most one
+ * configuration per key. Notably absent is the executor factory: it selects *how* a configuration is
+ * materialized into executors, but an API implementation may rename or replace its factory class
+ * without becoming a different API, so the factory cannot identify the configuration slot.
+ *
+ * See `projects/viaduct/oss/impldocs/execution-registry-bootstrap.md`.
+ */
+data class ConfigKey(
+    val tenantName: String,
+    val apiName: String,
+) {
+    /** Renders as `<tenantName, apiName>`, the form used in diagnostics and the impldoc. */
+    override fun toString(): String = "<$tenantName, $apiName>"
+}
+
+/**
  * Internal representation of a single tenant module's configuration input, prior to parsing.
  *
- * This is the unit of input for engine-owned, file-based bootstrapping. Each source pairs a
- * tenant name with a lazily-openable stream that yields the module's [ExecutionRegistryConfigFile]
- * JSON. The service layer (e.g. `StandardViaduct`) is responsible for discovering resource-backed
- * sources and for generating built-in sources via [ModuleConfigFactory]; the engine consumes the
- * resulting `List<ModuleConfigSource>` and parses each [source] into an
- * [ExecutionRegistryConfigFile].
+ * This is the unit of input for engine-owned, file-based bootstrapping. Each source is exactly one
+ * source of one [ExecutionRegistryConfigFile] for one `<tenantName, apiName>` pair, paired with a
+ * lazily-openable stream that yields that config's JSON. The service layer (e.g. `StandardViaduct`)
+ * is responsible for discovering resource-backed sources and for generating built-in sources via
+ * [ModuleConfigFactory]; the engine consumes the resulting `List<ModuleConfigSource>` and parses
+ * each [source] into an [ExecutionRegistryConfigFile].
  *
- * Unlike [ExecutionRegistryConfigFile.tenantName], which is nullable because it is deserialized
- * from JSON, [tenantName] here is required: a source without a tenant name cannot be bootstrapped.
+ * Identified by [key]; see [ConfigKey] and
+ * `projects/viaduct/oss/impldocs/execution-registry-bootstrap.md` for the identity model.
  *
- * The primary constructor is private so that [tenantName] can only ever come from the [source]
- * itself: instances are created via [from], which reads the name out of the config JSON. This makes
- * it impossible to pair a [source] with a [tenantName] that disagrees with the JSON it contains.
+ * The word "source" is load-bearing: a classpath URL and a hotswap filesystem file may be different
+ * source objects for the same logical [key]. Object identity, path, and content are not the key.
  *
- * A single tenant may contribute more than one config source that share a [tenantName] — e.g. a
- * modern `<pkg>.json` and a classic `<pkg>.classic.json` naming different executor factories. Such
- * sources are distinguished by [executorFactory] so hotswap merging (see
- * `ViaductExecutionRegistryConfigSources.merged`) does not collapse them into one.
+ * The primary constructor is private so that both key fields can only ever come from the [source]
+ * itself: instances are created via [from], which reads them out of the config JSON. This makes it
+ * impossible to pair a [source] with a key that disagrees with the JSON it contains.
  *
- * @property tenantName Slash-separated tenant module name associated with this config source.
- * @property source Lazily-openable stream yielding the module's registry config JSON.
- * @property executorFactory FQN of the [ExecutionRegistryConfigFile.executorFactory] this source
- *   declares, when known. Used together with [tenantName] to identify a source during merge dedup.
+ * @property tenantName Slash-separated tenant module name; the tenant-module half of the key.
+ * @property apiName Stable tenant-API name (e.g. [KOTLIN_API_NAME]); the tenant-API half of the key.
+ * @property source Lazily-openable stream yielding this config's registry JSON.
  */
 data class ModuleConfigSource private constructor(
     val tenantName: String,
+    val apiName: String,
     val source: InputStreamSource,
-    val executorFactory: String? = null,
 ) {
+    /**
+     * This source's configuration key.
+     *
+     * Every place that decides "is this the same configuration?" — duplicate rejection, hotswap
+     * replacement — keys off this. Code that deliberately groups more coarsely (e.g.
+     * `ModuleConfigBootstrapper`, which scopes code injectors per tenant module) projects the
+     * narrower field explicitly, which is what makes that choice visible rather than looking like
+     * an incomplete version of this one.
+     */
+    val key: ConfigKey get() = ConfigKey(tenantName, apiName)
+
     companion object {
         private val objectMapper = jacksonObjectMapper()
 
         /**
          * Parses [source] just enough to extract its [ExecutionRegistryConfigFile.tenantName] and
-         * [ExecutionRegistryConfigFile.executorFactory], pairing them into a [ModuleConfigSource].
-         * This is the single place that enforces the "a config source must name its tenant"
-         * invariant for discovered sources.
+         * [ExecutionRegistryConfigFile.apiName], pairing them into a [ModuleConfigSource]. This is
+         * the single place that enforces the "a config source must identify its key" invariant for
+         * discovered sources.
          *
-         * @throws IllegalArgumentException if the config JSON has no `tenantName`.
+         * Both fields are nullable on [ExecutionRegistryConfigFile] for wire compatibility, but a
+         * source that omits or blanks either one cannot be keyed and is rejected here.
+         *
+         * @throws IllegalArgumentException if the config JSON has no `tenantName`, or no non-blank
+         *   `apiName`.
          */
         fun from(source: InputStreamSource): ModuleConfigSource {
             val config = source.openStream().use { objectMapper.readValue<ExecutionRegistryConfigFile>(it) }
             val tenantName = config.tenantName
                 ?: throw IllegalArgumentException("Execution registry config source must include tenantName: $source")
+            val apiName = config.apiName?.takeIf { it.isNotBlank() }
+                ?: throw IllegalArgumentException(
+                    "Execution registry config source must include a non-blank apiName: $source. " +
+                        "A config missing it was generated by a build predating the field; when this " +
+                        "surfaces while overlaying sources onto a running process, restart that process " +
+                        "on a newer build instead of overlaying onto it.",
+                )
             return ModuleConfigSource(
                 tenantName = tenantName,
+                apiName = apiName,
                 source = source,
-                executorFactory = config.executorFactory,
             )
+        }
+
+        /**
+         * Requires that [sources] contains at most one source per [ConfigKey], returning them
+         * unchanged.
+         *
+         * Duplicate keys are malformed build inputs: two sources claiming one configuration slot
+         * cannot both be materialized, and resolving the collision by list order would make which
+         * resolvers get registered depend on discovery order. Distinct from resolver-coordinate
+         * validation, which handles conflicts between *different* keys.
+         *
+         * @throws IllegalArgumentException if any key appears more than once.
+         */
+        fun requireUniqueKeys(sources: List<ModuleConfigSource>): List<ModuleConfigSource> {
+            val duplicates = sources.groupBy { it.key }.filterValues { it.size > 1 }
+            require(duplicates.isEmpty()) {
+                val detail = duplicates.entries.joinToString("; ") { (key, dupes) ->
+                    "$key from ${dupes.map { it.source }}"
+                }
+                "Duplicate execution registry config sources for the same <tenantName, apiName>: $detail"
+            }
+            return sources
         }
     }
 }

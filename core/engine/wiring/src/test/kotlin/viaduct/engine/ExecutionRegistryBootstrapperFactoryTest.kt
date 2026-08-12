@@ -73,6 +73,7 @@ class ExecutionRegistryBootstrapperFactoryTest {
                                 {
                                   "version": "1",
                                   "tenantName": "inline",
+                                  "apiName": "kotlin",
                                   "executorFactory": "viaduct.engine.WiringTestExecutorFactory",
                                   "nodes": [],
                                   "fields": []

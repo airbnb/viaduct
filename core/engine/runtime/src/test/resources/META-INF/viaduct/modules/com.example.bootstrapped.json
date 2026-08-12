@@ -1,6 +1,7 @@
 {
   "version" : "1",
   "tenantName" : "bootstrapped",
+  "apiName" : "kotlin",
   "executorFactory" : "viaduct.engine.runtime.tenantloading.TestExecutorFactory",
   "bootstrapClass" : "viaduct.engine.runtime.tenantloading.TestBootstrapClass",
   "nodes" : [ ],

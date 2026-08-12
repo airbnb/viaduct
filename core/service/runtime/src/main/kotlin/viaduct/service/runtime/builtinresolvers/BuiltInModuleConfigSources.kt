@@ -59,9 +59,14 @@ internal fun builtinFieldEntry(
  * Serializes [fields] into an [ExecutionRegistryConfigFile] for [executorFactoryName] and wraps it
  * in an in-memory [ModuleConfigSource] named after [tenantName], so generated built-ins flow through
  * the same file-based bootstrap path as resource-backed tenant modules.
+ *
+ * [apiName] is the tenant-API half of the config key. Built-ins pass an explicit stable name for their
+ * producer rather than deriving one from [executorFactoryName] — a synthetic built-in factory is not
+ * itself a tenant API identity.
  */
 internal fun buildBuiltinModuleConfigSource(
     tenantName: String,
+    apiName: String,
     executorFactoryName: String,
     fields: List<FieldEntryConfig>,
 ): ModuleConfigSource {
@@ -69,6 +74,7 @@ internal fun buildBuiltinModuleConfigSource(
         version = BUILTIN_CONFIG_VERSION,
         executorFactory = executorFactoryName,
         tenantName = tenantName,
+        apiName = apiName,
         fields = fields,
     )
     return ModuleConfigSource.from(

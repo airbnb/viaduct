@@ -40,6 +40,7 @@ internal object TenantModuleConfigAssembler {
     fun writeRegistry(
         descriptorJsons: List<String>,
         executorFactory: String,
+        apiName: String,
         tenantPackage: String,
         tenantPackagePrefix: String? = null,
         outputDir: File,
@@ -49,6 +50,7 @@ internal object TenantModuleConfigAssembler {
         writeRegistryFromDescriptors(
             descriptors = descriptorJsons.map(codec::decode),
             executorFactory = executorFactory,
+            apiName = apiName,
             tenantPackage = tenantPackage,
             tenantPackagePrefix = tenantPackagePrefix,
             outputDir = outputDir,
@@ -60,12 +62,18 @@ internal object TenantModuleConfigAssembler {
     private fun writeRegistryFromDescriptors(
         descriptors: List<PerSourceDescriptorFile>,
         executorFactory: String,
+        apiName: String,
         tenantPackage: String,
         tenantPackagePrefix: String?,
         outputDir: File,
         schemaBinary: File? = null,
         schemaFiles: List<File> = emptyList(),
     ) {
+        require(apiName.isJavaIdentifier()) {
+            "apiName must be a valid Java identifier, but was '$apiName': it is half of the " +
+                "<tenantName, apiName> config key (see ExecutionRegistryConfigFile.apiName)"
+        }
+
         val bootstrapClasses = descriptors.mapNotNull { it.bootstrapClass }
         if (bootstrapClasses.size > 1) {
             error(
@@ -99,6 +107,7 @@ internal object TenantModuleConfigAssembler {
             outputFile,
             buildExecutionRegistry(
                 executorFactory = executorFactory,
+                apiName = apiName,
                 tenantPackage = tenantPackage,
                 tenantPackagePrefix = tenantPackagePrefix,
                 descriptors = descriptors,
@@ -107,6 +116,13 @@ internal object TenantModuleConfigAssembler {
             ),
         )
     }
+
+    /**
+     * Java identifier syntax: a non-empty string whose first character is a Java identifier start and
+     * whose remaining characters are Java identifier parts (every start character is also a part).
+     * This is the shape required of `apiName`; see [ExecutionRegistryConfigFile.apiName] for why.
+     */
+    private fun String.isJavaIdentifier(): Boolean = isNotEmpty() && Character.isJavaIdentifierStart(first()) && all { Character.isJavaIdentifierPart(it) }
 
     private fun validateAgainstSchema(
         descriptors: List<PerSourceDescriptorFile>,
@@ -258,6 +274,7 @@ internal object TenantModuleConfigAssembler {
 
     private fun buildExecutionRegistry(
         executorFactory: String,
+        apiName: String,
         tenantPackage: String,
         tenantPackagePrefix: String?,
         descriptors: List<PerSourceDescriptorFile>,
@@ -299,6 +316,7 @@ internal object TenantModuleConfigAssembler {
         return ExecutionRegistryConfigFile(
             version = REGISTRY_VERSION,
             tenantName = tenantModuleNameFromPackage(tenantPackage, tenantPackagePrefix),
+            apiName = apiName,
             executorFactory = executorFactory,
             nodes = nodes,
             fields = fields,

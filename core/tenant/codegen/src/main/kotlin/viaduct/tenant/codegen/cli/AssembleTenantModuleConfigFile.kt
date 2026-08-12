@@ -35,6 +35,19 @@ class AssembleTenantModuleConfigFile : CliktCommand(
     private val executorFactory: String by option("--executor-factory")
         .default("")
 
+    /**
+     * Stable name of the tenant API producing this config — the tenant-API half of the config key.
+     * Independent of `--executor-factory`, which selects only how the config is materialized.
+     *
+     * Required, matching [AssembleTenantModuleConfigJar]: each build system keeps exactly one default
+     * (the Bazel attr, the Gradle task convention), so this tool is never ambiguous about which slot
+     * it writes.
+     *
+     * Must be a valid Java identifier — see `ExecutionRegistryConfigFile.apiName` for why.
+     */
+    private val apiName: String by option("--api-name")
+        .required()
+
     private val schemaBinary: File? by option("--schema-binary")
         .file(mustExist = true, canBeFile = true)
 
@@ -60,6 +73,7 @@ class AssembleTenantModuleConfigFile : CliktCommand(
         TenantModuleConfigAssembler.writeRegistry(
             descriptorJsons = descriptorJsons,
             executorFactory = executorFactory,
+            apiName = apiName,
             tenantPackage = tenantPackage,
             tenantPackagePrefix = tenantPackagePrefix,
             schemaBinary = schemaBinary,

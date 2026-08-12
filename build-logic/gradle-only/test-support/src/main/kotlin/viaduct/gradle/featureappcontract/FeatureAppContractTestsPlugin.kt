@@ -127,6 +127,7 @@ class FeatureAppContractTestsPlugin : Plugin<Project> {
             descriptorDir.set(project.layout.buildDirectory.dir("intermediates/viaduct-test-registry-descriptors"))
             contractSchemaDir.set(project.layout.dir(project.provider { contractSchemas.singleFile }))
             this.codegenClasspath.from(codegenClasspath)
+            apiName.convention(KOTLIN_API_NAME)
             outputDir.set(
                 project.layout.buildDirectory.dir("generated-resources/viaduct-test-registry")
             )
@@ -229,6 +230,7 @@ class FeatureAppContractTestsPlugin : Plugin<Project> {
             contractSchemaDir.set(mergedContractSchemasDir)
             this.codegenClasspath.from(codegenClasspath)
             executorFactory.set(JAVA_EXECUTOR_FACTORY)
+            apiName.set(JAVA_API_NAME)
             outputDir.set(
                 project.layout.buildDirectory.dir("generated-resources/viaduct-java-test-registry")
             )

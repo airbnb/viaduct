@@ -1,6 +1,7 @@
 {
   "version": "1",
   "tenantName": "generatedregistrytest",
+  "apiName": "kotlin",
   "executorFactory": "viaduct.service.runtime.GeneratedRegistryTestExecutorFactory",
   "nodes": [],
   "fields": [

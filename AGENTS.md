@@ -15,6 +15,7 @@ For more information about the details of how Viaduct executes GraphQL operation
 - [`impldocs/gradle-build-architecture.md`](impldocs/gradle-build-architecture.md) - Documents Viaduct's included-build architecture.
 - [`impldocs/e2e-snapshot-test.md`](impldocs/e2e-snapshot-test.md) - Test publication process using a snapshot (good to use when you've changes the Gradle artifact logic)
 - [`impldocs/execution-registry-ksp-pipeline.md`](impldocs/execution-registry-ksp-pipeline.md) - KSP three-stage pipeline for generating the tenant module config: isolation mode, stale-output cleanup, and why assembly is non-incremental.
+- [`impldocs/execution-registry-bootstrap.md`](impldocs/execution-registry-bootstrap.md) - Execution-registry bootstrap identity: the `<tenantName, apiName>` config key, the one-config-per-key build invariant, `ModuleConfigSource` semantics, and the right-biased hotswap overlay.
 
 ## Shell notes
 

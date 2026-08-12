@@ -61,6 +61,14 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
     @get:Input
     abstract val executorFactory: Property<String>
 
+    /**
+     * Stable name of the tenant API producing this config (e.g. `kotlin`) — the tenant-API half of the
+     * key identifying which config a hotswap source replaces. Independent of [executorFactory], which
+     * selects only how the config is materialized.
+     */
+    @get:Input
+    abstract val apiName: Property<String>
+
     @get:Classpath
     abstract val codegenClasspath: ConfigurableFileCollection
 
@@ -130,6 +138,8 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
             tenantPackage.get(),
             "--executor-factory",
             executorFactory.get(),
+            "--api-name",
+            apiName.get(),
             "--output-dir",
             outputDir.get().asFile.absolutePath,
         )
@@ -162,6 +172,12 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
 
     companion object {
         const val EXECUTOR_FACTORY = "viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory"
+
+        /**
+         * Stable `apiName` for configs assembled by this task. The Gradle module plugin is the Kotlin
+         * tenant path; deliberately independent of [EXECUTOR_FACTORY].
+         */
+        const val API_NAME = "kotlin"
 
         // TODO: Keep this routing helper for future re-enablement of true task-internal
         // incrementality once execution-style tests exist. It is intentionally not used

@@ -1,6 +1,7 @@
 {
   "version" : "1",
   "tenantName" : "beta",
+  "apiName" : "kotlin",
   "executorFactory" : "viaduct.engine.WiringTestExecutorFactory",
   "nodes" : [ ],
   "fields" : [ ]

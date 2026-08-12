@@ -23,6 +23,9 @@ class EngineTestModule(
     val typeCheckerExecutors: Map<String, CheckerExecutor> = emptyMap(),
 ) {
     companion object {
+        /** Stable `apiName` for configs built by this test fixture. */
+        const val API_NAME = "engine_test_module"
+
         operator fun invoke(
             schemaSDL: String,
             block: MockTenantModuleDSL<Unit>.() -> Unit,
@@ -61,6 +64,7 @@ class EngineTestModule(
         return ExecutionRegistryConfigFile(
             version = "1",
             executorFactory = EngineTestModuleExecutorFactory::class.java.name,
+            apiName = API_NAME,
             fields = fieldEntries,
             nodes = nodeEntries,
         )

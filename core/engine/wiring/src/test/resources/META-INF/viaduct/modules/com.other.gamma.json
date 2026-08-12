@@ -1,6 +1,7 @@
 {
   "version" : "1",
   "tenantName" : "gamma",
+  "apiName" : "kotlin",
   "executorFactory" : "viaduct.engine.WiringTestExecutorFactory",
   "nodes" : [ ],
   "fields" : [ ]

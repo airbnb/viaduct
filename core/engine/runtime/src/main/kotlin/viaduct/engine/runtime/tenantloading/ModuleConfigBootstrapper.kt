@@ -43,6 +43,12 @@ class ModuleConfigBootstrapper(
      * [TenantModuleBootstrapper] per source.
      */
     suspend fun bootstrap(moduleConfigSources: List<ModuleConfigSource>): List<TenantModuleBootstrapper> {
+        // The inputs to one registry build must form a map: at most one config per
+        // <tenantName, apiName>. Enforced here because every bootstrap path converges on this call
+        // (classpath discovery, hotswap overlay, generated built-ins, and callers that hand
+        // StandardViaduct.Builder a list directly), so no producer can bypass it.
+        ModuleConfigSource.requireUniqueKeys(moduleConfigSources)
+
         val parsedRegistries = coroutineScope {
             moduleConfigSources.map { moduleConfigSource ->
                 async {
@@ -57,10 +63,13 @@ class ModuleConfigBootstrapper(
             }.awaitAll()
         }
 
-        // A single tenant may contribute more than one source (e.g. a modern `<pkg>.json` and a
+        // A single tenant may contribute more than one source (e.g. a `kotlin` `<pkg>.json` and a
         // classic `<pkg>.classic.json`), but the TenantModuleInjectorFactory SPI contract is to
         // bootstrap each tenant exactly once. Group sources by tenant and bootstrap once per tenant,
         // reusing the one CodeInjector across all of that tenant's sources.
+        // Note this projects tenantName out of the config key deliberately: injector scope and
+        // bootstrap-class agreement are tenant-module concerns, so keying them by the full
+        // <tenantName, apiName> would give a tenant's per-API configs one injector each.
         //
         // Keep bootstrap calls sequential so service-owned TenantModuleInjectorFactory implementations
         // do not need to be thread-safe when accumulating cross-tenant state prior to onBootstrapComplete().

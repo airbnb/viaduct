@@ -44,6 +44,17 @@ class AssembleTenantModuleConfigJar : CliktCommand(
     private val executorFactory: String by option("--executor-factory")
         .default(MODERN_KOTLIN_EXECUTOR_FACTORY)
 
+    /**
+     * Stable name of the tenant API producing this config — the tenant-API half of the config key.
+     *
+     * Required so the tool is never ambiguous about which slot it writes; the convenience default for
+     * Kotlin callers lives upstream in the Bazel rule's `api_name` attr.
+     *
+     * Must be a valid Java identifier — see `ExecutionRegistryConfigFile.apiName` for why.
+     */
+    private val apiName: String by option("--api-name")
+        .required()
+
     private val requireNonEmpty: Boolean by option(
         "--require-non-empty",
         help = "Fail if no descriptors are found. Use for contract tests where an empty registry " +
@@ -72,6 +83,7 @@ class AssembleTenantModuleConfigJar : CliktCommand(
             TenantModuleConfigAssembler.writeRegistry(
                 descriptorJsons = descriptorJsons,
                 executorFactory = executorFactory,
+                apiName = apiName,
                 tenantPackage = tenantPackage,
                 tenantPackagePrefix = tenantPackagePrefix,
                 schemaBinary = schemaBinary,
