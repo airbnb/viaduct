@@ -18,6 +18,7 @@ import viaduct.arbitrary.common.Config
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.VariablesResolver as EngineVariablesResolver
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.select.SelectionsParser
@@ -84,6 +85,56 @@ class ViaductDescriptorTest {
         assertTrue(rendered.contains("class:"))
         assertTrue(rendered.contains("requiredSelectionSet:"))
     }
+
+    @Test
+    fun `descriptor includes root field reference parameters without resolving it`(): Unit =
+        runBlocking {
+            val schema = """
+                type Foo { x: Int }
+                extend type Query { factory: Foo }
+            """.asViaductSchema
+            val reference = TestRootFieldReference(
+                rootFieldPath = listOf("_factories", "foo", "create"),
+                type = schema.schema.getObjectType("Foo"),
+                args = mapOf(
+                    "input" to mapOf(
+                        "enabled" to true,
+                        "limit" to 3,
+                    )
+                ),
+            )
+            val variablesResolver = VariablesResolver.Instrumented(
+                object : EngineVariablesResolver {
+                    override val variableNames: Set<String> = setOf("reference")
+
+                    override suspend fun resolve(
+                        ctx: EngineVariablesResolver.ResolveCtx,
+                        context: EngineExecutionContext,
+                    ): Map<String, Any?> = mapOf("reference" to reference)
+                }
+            )
+            variablesResolver.resolve(
+                EngineVariablesResolver.ResolveCtx(
+                    objectData = syncObjectData(schema.schema.queryType, emptyMap()),
+                    arguments = emptyMap(),
+                ),
+                fakeEngineExecutionContext(),
+            )
+
+            val rendered = variablesResolver.describe().toString()
+
+            assertTrue(rendered.contains("TestRootFieldReference {"))
+            assertTrue(rendered.contains("rootFieldPath:"))
+            assertTrue(rendered.contains("\"_factories\""))
+            assertTrue(rendered.contains("\"foo\""))
+            assertTrue(rendered.contains("\"create\""))
+            assertTrue(rendered.contains("type: Foo"))
+            assertTrue(rendered.contains("args:"))
+            assertTrue(rendered.contains("\"input\":"))
+            assertTrue(rendered.contains("\"enabled\": true"))
+            assertTrue(rendered.contains("\"limit\": 3"))
+            assertFalse(rendered.contains("<async>"))
+        }
 
     @Test
     fun `RequiredSelectionSet descriptor includes variables resolver calls when resolver is instrumented`(): Unit =
@@ -287,6 +338,18 @@ class ViaductDescriptorTest {
         (VariablesResolverExceptionWeight to 0.0) +
         (CheckerExceptionWeight to 0.0) +
         (CheckerErrorWeight to 0.0)
+
+    private class TestRootFieldReference(
+        override val rootFieldPath: List<String>,
+        override val type: GraphQLObjectType,
+        override val args: Map<String, Any?>,
+    ) : RootFieldReference, EngineObjectData {
+        override suspend fun fetch(selection: String): Any? = error("Reference must not be resolved")
+
+        override suspend fun fetchOrNull(selection: String): Any? = error("Reference must not be resolved")
+
+        override suspend fun fetchSelections(): Iterable<String> = error("Reference must not be resolved")
+    }
 
     private fun syncObjectData(
         objectType: GraphQLObjectType,

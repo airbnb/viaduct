@@ -8,6 +8,7 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.CheckerExecutor
@@ -549,9 +550,22 @@ private fun describeValue(
         is Map<*, *> -> describeMap(value, seen)
         is Iterable<*> -> describeIterable(value, seen)
         is Array<*> -> describeIterable(value.asList(), seen)
+        is RootFieldReference -> describeRootFieldReference(value, seen)
         is EngineObjectData.Sync -> describeEngineObjectData(value, seen)
         is EngineObjectData -> "${value.debugClassName()}(<async>)"
         else -> value.toString()
+    }
+
+private fun describeRootFieldReference(
+    value: RootFieldReference,
+    seen: MutableSet<Int>,
+): String =
+    buildString {
+        line("${value.debugClassName()} {")
+        appendDumpEntry("  rootFieldPath: ", describeValue(value.rootFieldPath, seen))
+        line("  type: ${value.type.name}")
+        appendDumpEntry("  args: ", describeValue(value.args, seen))
+        append("}")
     }
 
 private fun describeMap(
