@@ -21,12 +21,28 @@ fun readTypesFromURLs(inputFiles: List<URL>): TypeDefinitionRegistry =
         { url -> url.path }
     )
 
+/** Reads all the files in `inputFiles` and parses all of them into a
+ * TypeDefinitionRegistry.  Like [readTypesFromURLs], it is meant for a set of
+ * files known to be parse-able - it will fail with a random exception upon
+ * first encountering a parsing error.  Source names on the result are
+ * '/'-separated on every platform, as [readTypesFromURLs] source names already
+ * are; source names from other producers carry no such guarantee. */
 fun readTypesFromFiles(inputFiles: List<File>): TypeDefinitionRegistry =
     readTypes(
         inputFiles,
         { file -> InputStreamReader(file.inputStream()) },
-        { file -> file.path }
+        { file -> file.invariantSourceName() }
     )
+
+/**
+ * This file's path with the platform separator rewritten to '/', for use as a parse-time source name.
+ *
+ * Only the platform separator is rewritten: where '/' is already the separator, a backslash is a
+ * legal filename character.
+ *
+ * @param separator overridable so tests can exercise Windows-shaped paths on any platform.
+ */
+internal fun File.invariantSourceName(separator: Char = File.separatorChar): String = path.replace(separator, '/')
 
 private fun <T> readTypes(
     inputFiles: List<T>,

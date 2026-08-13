@@ -61,14 +61,41 @@ class ReadFilesTest {
         val registry = readTypesFromFiles(listOf(base, extension))
 
         val userDefinition = registry.types().getValue("User")
-        assertEquals(base.path, userDefinition.sourceLocation.sourceName)
+        assertEquals(base.invariantSeparatorsPath, userDefinition.sourceLocation.sourceName)
         val userExtension = registry.objectTypeExtensions().getValue("User").single()
-        assertEquals(extension.path, userExtension.sourceLocation.sourceName)
-        assertEquals(extension.path, userExtension.fieldDefinitions.single().sourceLocation.sourceName)
+        assertEquals(extension.invariantSeparatorsPath, userExtension.sourceLocation.sourceName)
+        assertEquals(extension.invariantSeparatorsPath, userExtension.fieldDefinitions.single().sourceLocation.sourceName)
 
         val schema = ViaductSchema.fromTypeDefinitionRegistry(registry)
         val user = schema.types.getValue("User") as ViaductSchema.Record
-        assertEquals(base.path, user.fields.single { it.name == "id" }.sourceLocation?.sourceName)
-        assertEquals(extension.path, user.fields.single { it.name == "name" }.sourceLocation?.sourceName)
+        assertEquals(base.invariantSeparatorsPath, user.fields.single { it.name == "id" }.sourceLocation?.sourceName)
+        assertEquals(extension.invariantSeparatorsPath, user.fields.single { it.name == "name" }.sourceLocation?.sourceName)
+    }
+
+    @Test
+    fun `invariantSourceName normalizes a backslash-separated path`() {
+        val file = File("central-schema\\partition\\mymodule\\schema.graphqls")
+
+        assertEquals(
+            "central-schema/partition/mymodule/schema.graphqls",
+            file.invariantSourceName(separator = '\\')
+        )
+    }
+
+    @Test
+    fun `invariantSourceName normalizes a path with mixed separators`() {
+        val file = File("central-schema/partition\\mymodule/schema.graphqls")
+
+        assertEquals(
+            "central-schema/partition/mymodule/schema.graphqls",
+            file.invariantSourceName(separator = '\\')
+        )
+    }
+
+    @Test
+    fun `invariantSourceName does not rewrite backslashes that are not the separator`() {
+        val file = File("weird\\name.graphqls")
+
+        assertEquals("weird\\name.graphqls", file.invariantSourceName(separator = '/'))
     }
 }
