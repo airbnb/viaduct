@@ -408,7 +408,7 @@ class ResolverSelectionSetProcessorTest {
 
             assertEquals(emptyList<Any>(), result)
             verify { mockCodeGenerator.createNewFile(any(), "", TEST_FRAGMENTS_OUTPUT_FILE, "graphql") }
-            verify { mockLogger.info("[ResolverSelectionSetProcessor] Generated resolver fragments GraphQL schema with 2 resolvers") }
+            verify { mockLogger.logging("[ResolverSelectionSetProcessor] Generated resolver fragments GraphQL schema with 2 resolvers") }
 
             val generatedContent = outputStream.toString()
 

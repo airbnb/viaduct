@@ -10,11 +10,11 @@ import com.google.devtools.ksp.symbol.KSNode
  * `SLF4J_NON_TEMPLATED_LOGGING_RULE_INFO` validation while still using KSP's
  * logger APIs, which only accept fully-rendered strings.
  */
-internal fun KSPLogger.infoRegistryExtractor(
+internal fun KSPLogger.loggingRegistryExtractor(
     message: String,
     vararg args: Any?,
 ) {
-    info("[RegistryExtractor] ${formatSlf4j(message, *args)}")
+    logging("[RegistryExtractor] ${formatSlf4j(message, *args)}")
 }
 
 internal fun KSPLogger.warnRegistryExtractor(

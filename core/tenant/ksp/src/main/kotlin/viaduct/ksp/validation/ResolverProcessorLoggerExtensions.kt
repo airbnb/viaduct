@@ -10,11 +10,11 @@ import java.text.MessageFormat
  * KSP's logger accepts only fully-rendered strings, so MessageFormat patterns are
  * rendered here before the string is handed off to the logger.
  */
-internal fun KSPLogger.infoResolverProcessor(
+internal fun KSPLogger.loggingResolverProcessor(
     message: String,
     vararg args: Any?,
 ) {
-    info("[ResolverSelectionSetProcessor] ${MessageFormat.format(message, *args)}")
+    logging("[ResolverSelectionSetProcessor] ${MessageFormat.format(message, *args)}")
 }
 
 internal fun KSPLogger.errorResolverProcessor(

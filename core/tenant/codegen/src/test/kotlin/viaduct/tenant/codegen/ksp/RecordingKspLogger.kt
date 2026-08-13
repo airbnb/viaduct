@@ -4,6 +4,7 @@ import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSNode
 
 internal class RecordingKspLogger : KSPLogger {
+    val loggings = mutableListOf<String>()
     val infos = mutableListOf<String>()
     val warns = mutableListOf<String>()
     val errors = mutableListOf<String>()
@@ -12,7 +13,7 @@ internal class RecordingKspLogger : KSPLogger {
         message: String,
         symbol: KSNode?,
     ) {
-        infos += message
+        loggings += message
     }
 
     override fun info(

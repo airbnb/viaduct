@@ -91,7 +91,7 @@ internal class ResolverParamsExtractor(
             )
         }.toSortedMap(compareBy { file -> file.filePath })
 
-        logger.infoRegistryExtractor(
+        logger.loggingRegistryExtractor(
             "Descriptor files extracted: {}",
             descriptorsByFile.size,
         )

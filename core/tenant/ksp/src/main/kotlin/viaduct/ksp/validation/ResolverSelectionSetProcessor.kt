@@ -89,7 +89,7 @@ class ResolverSelectionSetProcessor(
                 resolverSpecs.forEach { writer.write(it.toString()) }
             }
 
-            logger.infoResolverProcessor("Generated resolver fragments GraphQL schema with {0} resolvers", resolverSpecs.size)
+            logger.loggingResolverProcessor("Generated resolver fragments GraphQL schema with {0} resolvers", resolverSpecs.size)
         } catch (e: Exception) {
             logger.errorResolverProcessor("Failed to generate resolver fragments GraphQL: {0}", e)
         }

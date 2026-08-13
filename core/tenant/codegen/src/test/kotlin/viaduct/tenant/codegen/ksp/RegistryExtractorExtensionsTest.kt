@@ -184,10 +184,10 @@ class RegistryExtractorExtensionsTest {
 
         assertNull(result)
         assertTrue(
-            logger.infos.any {
+            logger.loggings.any {
                 it.contains("no direct supertype is annotated with @NodeResolverFor or @ResolverFor")
             },
-            logger.infos.joinToString("\n"),
+            logger.loggings.joinToString("\n"),
         )
     }
 
@@ -246,8 +246,8 @@ class RegistryExtractorExtensionsTest {
 
         assertNull(result)
         assertTrue(
-            logger.infos.any { it.contains("no direct supertype is annotated with") },
-            logger.infos.joinToString("\n"),
+            logger.loggings.any { it.contains("no direct supertype is annotated with") },
+            logger.loggings.joinToString("\n"),
         )
     }
 
@@ -267,8 +267,8 @@ class RegistryExtractorExtensionsTest {
 
         assertNull(result)
         assertTrue(
-            logger.infos.any { it.contains("no direct supertype is annotated") },
-            logger.infos.joinToString("\n"),
+            logger.loggings.any { it.contains("no direct supertype is annotated") },
+            logger.loggings.joinToString("\n"),
         )
     }
 
@@ -572,8 +572,8 @@ class RegistryExtractorExtensionsTest {
 
         assertNull(result)
         assertTrue(
-            logger.infos.any { it.contains("not annotated with @Resolver") },
-            logger.infos.joinToString("\n"),
+            logger.loggings.any { it.contains("not annotated with @Resolver") },
+            logger.loggings.joinToString("\n"),
         )
         assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
     }

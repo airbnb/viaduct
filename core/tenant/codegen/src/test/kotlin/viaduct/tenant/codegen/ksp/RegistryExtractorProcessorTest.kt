@@ -123,8 +123,8 @@ class RegistryExtractorProcessorTest {
 
         assertEquals(firstOutputCount, codeGenerator.outputs.size)
         assertTrue(
-            logger.infos.any { it.contains("already generated") },
-            "Expected skip message on second invocation: ${logger.infos}",
+            logger.loggings.any { it.contains("already generated") },
+            "Expected skip message on second invocation: ${logger.loggings}",
         )
     }
 
@@ -157,8 +157,8 @@ class RegistryExtractorProcessorTest {
         processor.process(resolver)
 
         assertTrue(
-            logger.infos.any { it.contains("Generated") && it.contains("registry descriptor file") },
-            "Expected generated count log: ${logger.infos}",
+            logger.loggings.any { it.contains("Generated") && it.contains("registry descriptor file") },
+            "Expected generated count log: ${logger.loggings}",
         )
     }
 

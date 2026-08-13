@@ -51,7 +51,7 @@ internal fun KSClassDeclaration.toResolverParams(logger: KSPLogger): ResolverPar
     if (nodeResolverAnnotation != null) {
         val resolverAnnotation = firstAnnotationNamed(resolverAnnotationName)
         if (resolverAnnotation == null) {
-            logger.infoRegistryExtractor(
+            logger.loggingRegistryExtractor(
                 "Skipping {} because it extends a @{} base but is not annotated with @{}",
                 implFqn,
                 nodeResolverForAnnotationName,
@@ -108,7 +108,7 @@ private fun KSClassDeclaration.directResolverBaseDeclaration(
         }
 
     if (annotatedBase == null) {
-        logger.infoRegistryExtractor(
+        logger.loggingRegistryExtractor(
             "Skipping {} because no direct supertype is annotated with @{} or @{}",
             implFqn,
             nodeResolverForAnnotationName,

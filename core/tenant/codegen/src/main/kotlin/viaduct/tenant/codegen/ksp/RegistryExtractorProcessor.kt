@@ -29,7 +29,7 @@ class RegistryExtractorProcessor(
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
         if (generated) {
-            logger.infoRegistryExtractor("Skipping because output was already generated")
+            logger.loggingRegistryExtractor("Skipping because output was already generated")
             return emptyList()
         }
 
@@ -50,7 +50,7 @@ class RegistryExtractorProcessor(
             }
         }
 
-        logger.infoRegistryExtractor(
+        logger.loggingRegistryExtractor(
             "Generated {} registry descriptor file(s)",
             writtenCount,
         )

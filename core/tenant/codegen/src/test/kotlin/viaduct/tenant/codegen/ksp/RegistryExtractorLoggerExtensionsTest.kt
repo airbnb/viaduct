@@ -5,14 +5,14 @@ import org.junit.jupiter.api.Test
 
 class RegistryExtractorLoggerExtensionsTest {
     @Test
-    fun `info formats placeholders`() {
+    fun `logging formats placeholders`() {
         val logger = RecordingKspLogger()
 
-        logger.infoRegistryExtractor("Hello {}, {}", "A", "B")
+        logger.loggingRegistryExtractor("Hello {}, {}", "A", "B")
 
         assertEquals(
             "[RegistryExtractor] Hello A, B",
-            logger.infos.single(),
+            logger.loggings.single(),
         )
     }
 
@@ -41,14 +41,14 @@ class RegistryExtractorLoggerExtensionsTest {
     }
 
     @Test
-    fun `info renders null values`() {
+    fun `logging renders null values`() {
         val logger = RecordingKspLogger()
 
-        logger.infoRegistryExtractor("Value is {}", null)
+        logger.loggingRegistryExtractor("Value is {}", null)
 
         assertEquals(
             "[RegistryExtractor] Value is null",
-            logger.infos.single(),
+            logger.loggings.single(),
         )
     }
 
