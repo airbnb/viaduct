@@ -14,6 +14,8 @@ import viaduct.graphql.schema.validation.ValidationErrorCodes
 class NamespaceTypeConstraintsRuleTest {
     private val preamble = """
         directive @namespaceType on OBJECT
+        directive @connection on OBJECT
+        directive @edge on OBJECT
     """.trimIndent()
 
     private fun validate(
@@ -314,6 +316,52 @@ class NamespaceTypeConstraintsRuleTest {
         errors shouldHaveSize 1
         errors[0].code shouldBe ValidationErrorCodes.NAMESPACE_TYPE_FIELD_HAS_CONFLICTING_RESOLVER
         errors[0].message shouldContain "@customResolver"
+    }
+
+    @Test
+    fun `invalid - namespace type is also a connection type`() {
+        val errors = validate(
+            """
+            type Query { listings: Listings }
+            type Listings @namespaceType @connection { availableRoomTypes: [RoomType] }
+            type RoomType { id: ID! }
+            """.trimIndent()
+        )
+
+        errors shouldHaveSize 1
+        errors[0].code shouldBe ValidationErrorCodes.NAMESPACE_TYPE_HAS_CONFLICTING_DIRECTIVE
+        errors[0].message shouldContain "Listings"
+        errors[0].message shouldContain "@namespaceType"
+        errors[0].message shouldContain "@connection"
+    }
+
+    @Test
+    fun `invalid - namespace type is also an edge type`() {
+        val errors = validate(
+            """
+            type Query { listings: Listings }
+            type Listings @namespaceType @edge { node: RoomType }
+            type RoomType { id: ID! }
+            """.trimIndent()
+        )
+
+        errors shouldHaveSize 1
+        errors[0].code shouldBe ValidationErrorCodes.NAMESPACE_TYPE_HAS_CONFLICTING_DIRECTIVE
+        errors[0].message shouldContain "Listings"
+        errors[0].message shouldContain "@edge"
+    }
+
+    @Test
+    fun `valid - namespace type may contain a field returning a connection type`() {
+        val errors = validate(
+            """
+            type Query { listings: Listings }
+            type Listings @namespaceType { rooms: RoomTypeConnection }
+            type RoomTypeConnection @connection { id: ID! }
+            """.trimIndent()
+        )
+
+        errors.shouldBeEmpty()
     }
 
     @Test

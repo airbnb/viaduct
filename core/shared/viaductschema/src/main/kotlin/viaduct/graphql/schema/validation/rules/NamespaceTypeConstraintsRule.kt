@@ -17,6 +17,8 @@ import viaduct.graphql.utils.DefaultSchemaFactory.DefaultDirective
  * 5. Namespace fields can only appear in the root query/mutation type or other namespace types.
  * 6. Fields returning a namespace type must not carry directives that conflict with the synthetic resolver
  *    registered by the engine for fields returning a namespace type.
+ * 7. Namespace types must not also carry `@connection` or `@edge` — a type cannot be both a namespace
+ *    container and a Relay connection or edge type.
  *
  * @param conflictingFieldDirectives
  *   Raw directive names (no `@` prefix) that conflict with the synthetic namespace resolver registered
@@ -26,7 +28,7 @@ class NamespaceTypeConstraintsRule(
     internal val conflictingFieldDirectives: Set<String> = setOf(DefaultDirective.RESOLVER.directiveName),
 ) : ValidationRule(
         id = "NamespaceTypeConstraints",
-        description = "@$DIRECTIVE_NAME types must have no-arg, non-list, nullable fields, a single namespace/root parent, and no conflicting resolver directives"
+        description = "@$DIRECTIVE_NAME types must have no-arg, non-list, nullable fields, a single namespace/root parent, no conflicting resolver directives, and must not also be @connection or @edge types"
     ) {
     override fun visitField(
         ctx: ValidationContext,
@@ -118,6 +120,15 @@ class NamespaceTypeConstraintsRule(
     ) {
         if (!obj.hasAppliedDirective(DIRECTIVE_NAME)) return
 
+        CONFLICTING_TYPE_DIRECTIVES.filter { obj.hasAppliedDirective(it) }.forEach { directive ->
+            ctx.reportError(
+                code = ValidationErrorCodes.NAMESPACE_TYPE_HAS_CONFLICTING_DIRECTIVE,
+                message = "@$DIRECTIVE_NAME type '${obj.name}' also has @$directive. A namespace container " +
+                    "cannot also be a Relay connection or edge type — remove one of the two directives.",
+                location = SchemaLocation.ofType(obj.name).withSourceLocation(obj.sourceLocation)
+            )
+        }
+
         val inboundFields = ctx.reverseSchema.inboundFields(obj)
         if (inboundFields.size != 1) {
             val message = if (inboundFields.isEmpty()) {
@@ -136,5 +147,11 @@ class NamespaceTypeConstraintsRule(
 
     companion object {
         const val DIRECTIVE_NAME = "namespaceType"
+
+        /** Directives that declare what a type *is*, and so cannot coexist with @$DIRECTIVE_NAME. */
+        private val CONFLICTING_TYPE_DIRECTIVES = listOf(
+            DefaultDirective.CONNECTION.directiveName,
+            DefaultDirective.EDGE.directiveName,
+        )
     }
 }
