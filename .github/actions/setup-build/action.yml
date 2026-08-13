@@ -10,6 +10,12 @@ inputs:
     description: 'Whether to use read-only Gradle cache mode'
     required: false
     default: 'false'
+  cache-demoapp-distributions:
+    description: >-
+      Cache the Gradle distributions the demo app wrappers use. The root build pins a
+      different Gradle version, so demo app jobs otherwise fetch theirs on every run.
+    required: false
+    default: 'false'
 
 runs:
   using: composite
@@ -24,3 +30,16 @@ runs:
       uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5
       with:
         cache-read-only: ${{ inputs.cache-read-only }}
+
+    # Distributions pinned by the demo app wrappers, keyed on those wrapper properties so
+    # a version bump invalidates the entry. The key is deliberately not OS-scoped: a
+    # distribution unpacks to a URL-derived path that is identical on every platform and
+    # holds only JARs and scripts, so one entry serves every runner. setup-gradle only
+    # offers a job the distributions recorded against its own OS, so without this the
+    # runners that never populate it fetch theirs from services.gradle.org each run.
+    - name: Cache demo app Gradle distributions
+      if: inputs.cache-demoapp-distributions == 'true'
+      uses: actions/cache@v4
+      with:
+        path: ~/.gradle/wrapper/dists
+        key: gradle-demoapp-dists-v1-${{ hashFiles('demoapps/*/gradle/wrapper/gradle-wrapper.properties') }}

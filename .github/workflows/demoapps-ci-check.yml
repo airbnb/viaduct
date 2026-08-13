@@ -56,6 +56,18 @@ jobs:
       - uses: ./.github/actions/setup-build
         with:
           java-version: '17'
+          cache-demoapp-distributions: 'true'
+
+      # The only job here that writes the Gradle cache, and every test job waits on it.
+      # Resolving each demo app's distribution here is what makes it available to those
+      # jobs, which read the cache read-only. Output is kept so the log shows whether a
+      # distribution was fetched or served from cache.
+      - name: Warm demo app Gradle distributions
+        run: |
+          for dir in demoapps/*/; do
+            (cd "$dir" && ./gradlew --version)
+          done
+        shell: bash
 
       - name: Publish to Maven Local
         run: ./gradlew publishToMavenLocal -PpublishMinimal --no-daemon
@@ -88,6 +100,7 @@ jobs:
         with:
           java-version: ${{ matrix.java }}
           cache-read-only: 'true'
+          cache-demoapp-distributions: 'true'
 
       - name: Download Maven Local repository
         uses: actions/download-artifact@v7
@@ -118,6 +131,7 @@ jobs:
         with:
           java-version: ${{ matrix.java }}
           cache-read-only: 'true'
+          cache-demoapp-distributions: 'true'
 
       - name: Download Maven Local repository
         uses: actions/download-artifact@v7
@@ -162,6 +176,7 @@ jobs:
         with:
           java-version: '17'
           cache-read-only: 'true'
+          cache-demoapp-distributions: 'true'
 
       - name: Download Maven Local repository
         uses: actions/download-artifact@v7
@@ -203,6 +218,7 @@ jobs:
         with:
           java-version: '17'
           cache-read-only: 'true'
+          cache-demoapp-distributions: 'true'
 
       - name: Download Maven Local repository
         uses: actions/download-artifact@v7
@@ -214,7 +230,9 @@ jobs:
         # Edit gradle-wrapper.properties directly instead of running
         # `./gradlew wrapper`, which would evaluate build.gradle.kts and try to
         # resolve the Viaduct SNAPSHOT plugin before USE_MAVEN_LOCAL is in scope.
-        # Both the URL and the SHA256 checksum must be updated together.
+        # Both the URL and the SHA256 checksum must be updated together. A version that
+        # no demo app commits is fetched at run time, because the distribution cache is
+        # keyed on the committed wrapper properties rather than on this matrix.
         run: |
           sed -i \
             -e 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-${{ matrix.gradle_version }}-bin.zip|' \
