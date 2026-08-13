@@ -1,6 +1,0 @@
-type T1 {
-  f1: Int
-}
-type Query {
-  foo: T1
-}
