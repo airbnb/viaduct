@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.arbitrary.common.mapNotNull
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.RootFieldReference
@@ -170,21 +171,27 @@ class ResolverValueGenTest : KotestPropertyBase() {
                 type Foo implements Node @resolver { id:ID! }
                 type Obj { x:Int!, y:Int! @resolver, z:Foo! }
             """.trimIndent().asViaductSchema
-            val arb = Arb.fieldResolverValue(
-                schema = schema,
-                coord = "Query" to "obj",
-                selections = schema.mkEngineSelectionSet(
-                    "Obj",
-                    "x, y, z { id }"
-                ),
-                ctx = MockEngineCtx(),
-            )
-            arb.checkAll {
-                it as EngineObjectData
-                assertEquals(setOf("x", "z"), it.fetchSelections())
+            val resolverCoordinate = "Query" to "obj"
+            val arb = arbitrary { rs ->
+                val env = ViaductGenEnv(schema, Config.default, rs)
+                val value = env.fieldResolverValueGen.gen(
+                    coord = resolverCoordinate,
+                    selective = false,
+                    selections = schema.mkEngineSelectionSet(
+                        "Obj",
+                        "x, y, z { id }"
+                    ),
+                    ctx = MockEngineCtx(),
+                )
+                env.coordinateIndex to value
+            }
+            arb.checkAll { (coordinateIndex, value) ->
+                value as EngineObjectData
+                assertEquals(setOf("x", "z"), value.fetchSelections())
 
-                // also check that z is a node reference
-                assertTrue(it.fetch("z") is NodeReference)
+                val nodeRefIsAllowed =
+                    coordinateIndex.comparator.compare("Foo" to null, resolverCoordinate) < 0
+                assertEquals(nodeRefIsAllowed, value.fetch("z") is NodeReference)
             }
         }
 
@@ -733,7 +740,38 @@ class ResolverValueGenTest : KotestPropertyBase() {
         }
 
         @Test
-        fun `mixed nullability`() {
+        fun `nullable position can reference nullable root`() {
+            runBlocking {
+                val schema = """
+                  | extend type Query { ns:Ns, obj:Obj }
+                  | type Ns @namespaceType { obj:Obj }
+                  | type Obj { x:Int }
+                """.trimMargin().asViaductSchema
+
+                val cfg = Config.default +
+                    (ResolverFieldRefWeight to 1.0) +
+                    (ExplicitNullValueWeight to 0.0)
+                val arb = arbitrary { rs ->
+                    val env = ViaductGenEnv(schema, cfg, rs)
+                    val value = env.fieldResolverValueGen.gen(
+                        coord = "Query" to "obj",
+                        selective = false,
+                        selections = schema.mkEngineSelectionSet("Obj", "x"),
+                        ctx = MockEngineCtx(schema)
+                    )
+                    env.coordinateIndex to value
+                }
+
+                arb
+                    .mapNotNull { (index, value) ->
+                        value.takeIf { index.comparator.compare("Ns" to "obj", "Query" to "obj") < 0 }
+                    }
+                    .forAll { it is RootFieldReference }
+            }
+        }
+
+        @Test
+        fun `nullable position can reference non-nullable root`() {
             runBlocking {
                 val schema = """
                   | extend type Query { ns:Ns, obj:Obj }
@@ -744,7 +782,7 @@ class ResolverValueGenTest : KotestPropertyBase() {
                 val cfg = Config.default +
                     (ResolverFieldRefWeight to 1.0) +
                     (ExplicitNullValueWeight to 0.0)
-                arbitrary { rs ->
+                val arb = arbitrary { rs ->
                     val env = ViaductGenEnv(schema, cfg, rs)
                     val value = env.fieldResolverValueGen.gen(
                         coord = "Query" to "obj",
@@ -753,10 +791,38 @@ class ResolverValueGenTest : KotestPropertyBase() {
                         ctx = MockEngineCtx(schema)
                     )
                     env.coordinateIndex to value
-                }.forAll { (coordinateIndex, value) ->
-                    val refIsAllowed =
-                        coordinateIndex.comparator.compare("Ns" to "obj", "Query" to "obj") < 0
-                    (value is RootFieldReference) == refIsAllowed
+                }
+
+                arb
+                    .mapNotNull { (index, value) ->
+                        value.takeIf { index.comparator.compare("Ns" to "obj", "Query" to "obj") < 0 }
+                    }
+                    .forAll { it is RootFieldReference }
+            }
+        }
+
+        @Test
+        fun `non-null position cannot reference nullable root`() {
+            runBlocking {
+                val schema = """
+                  | extend type Query { ns:Ns, obj:Obj! }
+                  | type Ns @namespaceType { obj:Obj }
+                  | type Obj { x:Int }
+                """.trimMargin().asViaductSchema
+
+                val cfg = Config.default +
+                    (ResolverFieldRefWeight to 1.0) +
+                    (ExplicitNullValueWeight to 0.0)
+                arbitrary { rs ->
+                    val env = ViaductGenEnv(schema, cfg, rs)
+                    env.fieldResolverValueGen.gen(
+                        coord = "Query" to "obj",
+                        selective = false,
+                        selections = schema.mkEngineSelectionSet("Obj", "x"),
+                        ctx = MockEngineCtx(schema)
+                    )
+                }.forAll { value ->
+                    value !is RootFieldReference
                 }
             }
         }
@@ -905,17 +971,21 @@ class ResolverValueGenTest : KotestPropertyBase() {
                     val value = env.fieldResolverValueGen.gen(
                         coord = "Query" to "foo",
                         selective = false,
-                        selections = schema.mkEngineSelectionSet("Foo", "x"),
+                        selections = schema.mkEngineSelectionSet("Foo", "id"),
                         ctx = MockEngineCtx(schema)
                     )
                     env.coordinateIndex to value
                 }.forAll { (coordinateIndex, value) ->
-                    val refIsAllowed =
+                    val rootRefIsAllowed =
                         coordinateIndex.comparator.compare("Ns" to "foo", "Query" to "foo") < 0
-                    if (refIsAllowed) {
-                        value is RootFieldReference && value.rootFieldPath == listOf("ns", "foo")
-                    } else {
-                        value is NodeReference
+                    val nodeRefIsAllowed =
+                        coordinateIndex.comparator.compare("Foo" to null, "Query" to "foo") < 0
+                    when {
+                        rootRefIsAllowed ->
+                            value is RootFieldReference &&
+                                value.rootFieldPath == listOf("ns", "foo")
+                        nodeRefIsAllowed -> value is NodeReference
+                        else -> value is EngineObjectData
                     }
                 }
 
@@ -924,17 +994,20 @@ class ResolverValueGenTest : KotestPropertyBase() {
                     val value = env.fieldResolverValueGen.gen(
                         coord = "Ns" to "foo",
                         selective = false,
-                        selections = schema.mkEngineSelectionSet("Foo", "x"),
+                        selections = schema.mkEngineSelectionSet("Foo", "id"),
                         ctx = MockEngineCtx(schema)
                     )
                     env.coordinateIndex to value
                 }.forAll { (coordinateIndex, value) ->
-                    val refIsAllowed =
+                    val rootRefIsAllowed =
                         coordinateIndex.comparator.compare("Query" to "foo", "Ns" to "foo") < 0
-                    if (refIsAllowed) {
-                        value is RootFieldReference && value.rootFieldPath == listOf("foo")
-                    } else {
-                        value is NodeReference
+                    val nodeRefIsAllowed =
+                        coordinateIndex.comparator.compare("Foo" to null, "Ns" to "foo") < 0
+                    when {
+                        rootRefIsAllowed ->
+                            value is RootFieldReference && value.rootFieldPath == listOf("foo")
+                        nodeRefIsAllowed -> value is NodeReference
+                        else -> value is EngineObjectData
                     }
                 }
             }

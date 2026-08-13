@@ -165,7 +165,7 @@ internal class ResolverValueGen(
             rootCtx(
                 TypeCtx(def),
                 resolverCoordinate = type to null,
-                nonNullable = true,
+                nullability = NonNullable,
                 genForNodeResolver = true
             ),
             selective,
@@ -180,30 +180,34 @@ internal class ResolverValueGen(
         val resolverCoordinate: TypeOrFieldCoordinate,
         val depth: Int = 0,
         val maxDepth: Int = MaxValueDepth.default,
-        val nonNullable: Boolean = false,
+        val nullability: Nullability = Nullability(tc.type),
         val genForNodeResolver: Boolean = false,
     ) {
         fun traverse(field: GraphQLFieldDefinition): Ctx = push(tc.traverse(field)).copy(genForNodeResolver = false)
 
         fun traverse(type: GraphQLType): Ctx = copy(tc = tc.traverse(type))
 
-        private fun push(type: TypeCtx): Ctx = copy(tc = type, depth = depth + 1, nonNullable = type.type is GraphQLNonNull)
+        private fun push(type: TypeCtx): Ctx =
+            copy(
+                tc = type,
+                depth = depth + 1,
+                nullability = Nullability(type.type),
+            )
 
-        val nullable: Boolean get() = !nonNullable
         val overBudget: Boolean get() = depth >= maxDepth
     }
 
     private fun rootCtx(
         tc: TypeCtx,
         resolverCoordinate: TypeOrFieldCoordinate,
-        nonNullable: Boolean = false,
+        nullability: Nullability = Nullability(tc.type),
         genForNodeResolver: Boolean = false
     ): Ctx =
         Ctx(
             tc = tc,
             resolverCoordinate = resolverCoordinate,
             maxDepth = cfg[MaxValueDepth],
-            nonNullable = nonNullable,
+            nullability = nullability,
             genForNodeResolver = genForNodeResolver,
         )
 
@@ -213,17 +217,17 @@ internal class ResolverValueGen(
         selections: EngineSelectionSet?,
         ctx: EngineCtx
     ): Any? {
-        if (GraphQLTypeUtil.isNullable(valueCtx.tc.type) && valueCtx.nullable) {
+        if (valueCtx.nullability is Nullable && valueCtx.nullability.canBeNull) {
             return if (valueCtx.overBudget || rs.sampleWeight(cfg[ExplicitNullValueWeight])) {
                 null
             } else {
-                genValue(valueCtx.copy(nonNullable = true), selective, selections, ctx)
+                genValue(valueCtx.copy(nullability = Nullable(canBeNull = false)), selective, selections, ctx)
             }
         }
 
         return when (val type = valueCtx.tc.type) {
             is GraphQLNonNull -> genValue(
-                valueCtx.traverse(type.wrappedType).copy(nonNullable = true),
+                valueCtx.traverse(type.wrappedType).copy(nullability = NonNullable),
                 selective,
                 selections,
                 ctx
@@ -231,7 +235,7 @@ internal class ResolverValueGen(
             is GraphQLList -> {
                 val innerCtx = valueCtx.copy(
                     tc = valueCtx.tc.traverse(type.wrappedType),
-                    nonNullable = type.wrappedType is GraphQLNonNull,
+                    nullability = Nullability(type.wrappedType),
                     depth = valueCtx.depth + 1,
                 )
                 val listSize = if (innerCtx.overBudget) 0 else Arb.int(cfg[ListValueSize]).next(rs)
@@ -253,14 +257,10 @@ internal class ResolverValueGen(
                     return ref
                 }
 
-                // return a node reference if asked to generate a type for a node with a resolver
-                // and we're not currently generating a value for that very resolver
-                if (type.name in resolverConfig.nodeResolvers && !valueCtx.genForNodeResolver) {
-                    val globalId = ctx.globalIDCodec.serialize(
-                        type.name,
-                        Arb.string(cfg[StringValueSize]).next(rs),
-                    )
-                    return ctx.createNodeReference(globalId, type)
+                // try to return a node reference if possible
+                val nodeRef = maybeGenNodeRef(valueCtx, ctx, type)
+                if (nodeRef != null) {
+                    return nodeRef
                 }
 
                 // build the set of fields for which we need to generate a value.
@@ -364,6 +364,13 @@ internal class ResolverValueGen(
         // try to return a root field reference if possible
         val availRefs = ctx.fieldRefs.refFieldsFor(type)
             .filter { ref ->
+                // if the current position is non-nullable, then require that the ref type is also non-nullable
+                if (valueCtx.nullability is NonNullable) {
+                    GraphQLTypeUtil.isNonNull(ref.refField.type)
+                } else {
+                    true
+                }
+            }.filter { ref ->
                 // restrict refs to those that have an index lower than the current coordinate
                 // This ensures that references always form a DAG and do not create cycles.
                 // RequiredSelectionSetGen must use the same ordering to keep the combined graph acyclic.
@@ -388,6 +395,49 @@ internal class ResolverValueGen(
         }
         return ctx.createRootFieldReference(ref.rootFieldPath, ref.refType, args)
     }
+
+    private fun maybeGenNodeRef(
+        valueCtx: Ctx,
+        ctx: EngineCtx,
+        type: GraphQLObjectType
+    ): NodeReference? =
+        when {
+            // a node reference cannot be created for node types without resolvers
+            type.name !in resolverConfig.nodeResolvers -> null
+
+            // a node reference cannot be created if we are generating for a node resolver
+            valueCtx.genForNodeResolver -> null
+
+            // cycle avoidance: do not generate a node reference for higher resolver coordinates
+            coordinateIndex.comparator.compare(type.name to null, valueCtx.resolverCoordinate) > 0 -> null
+
+            // generate a node reference
+            else -> {
+                val globalId = ctx.globalIDCodec.serialize(
+                    type.name,
+                    Arb.string(cfg[StringValueSize]).next(rs),
+                )
+                ctx.createNodeReference(globalId, type)
+            }
+        }
+
+    /** Describe nullability requirements during value generation. */
+    private sealed interface Nullability {
+        companion object {
+            operator fun invoke(type: GraphQLType): Nullability =
+                if (type is GraphQLNonNull) {
+                    NonNullable
+                } else {
+                    Nullable(canBeNull = true)
+                }
+        }
+    }
+
+    /** A position is non-nullable, so a null value may not be returned. */
+    private object NonNullable : Nullability
+
+    /** A position is nullable, and the ability to return null is determined by [canBeNull]. */
+    private data class Nullable(val canBeNull: Boolean) : Nullability
 }
 
 interface EngineCtx {
