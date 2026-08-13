@@ -95,6 +95,17 @@ val demoappsStandaloneTest by tasks.registering {
         "Shells out to independent per-demoapp Gradle builds; not representable as a task graph."
     )
 
+    // Nested builds go through the wrapper scripts, not the wrapper jar: the root script injects
+    // flags this task relies on, including the --project-cache-dir noted below. `exec` provides no
+    // shell to resolve a script name, so the name is platform-specific and the path absolute — a
+    // relative executable resolves against a different directory depending on the launcher.
+    val wrapperScript = if (System.getProperty("os.name").startsWith("Windows", ignoreCase = true)) {
+        "gradlew.bat"
+    } else {
+        "gradlew"
+    }
+    val rootWrapper = layout.projectDirectory.file(wrapperScript).asFile.absolutePath
+
     doLast {
         // Explicitly forward the CI mirror across the nested Gradle process boundary. These builds
         // use fresh dependency caches, so losing it would fall back to Plugin Portal/Maven Central.
@@ -124,7 +135,7 @@ val demoappsStandaloneTest by tasks.registering {
             exec {
                 environment(nestedGradleEnvironment)
                 commandLine(
-                    "./gradlew", "clean",
+                    rootWrapper, "clean",
                     "--gradle-user-home", publishGradleHome.absolutePath,
                     "-Dviaduct.distDir=${publishDistDir.absolutePath}",
                     "--no-build-cache", "--no-daemon"
@@ -135,7 +146,7 @@ val demoappsStandaloneTest by tasks.registering {
             exec {
                 environment(nestedGradleEnvironment)
                 commandLine(
-                    "./gradlew", "publishToMavenLocal", "-PpublishMinimal",
+                    rootWrapper, "publishToMavenLocal", "-PpublishMinimal",
                     "-Dmaven.repo.local=${mavenLocalRepo.absolutePath}",
                     "--gradle-user-home", publishGradleHome.absolutePath,
                     "-Dviaduct.distDir=${publishDistDir.absolutePath}",
@@ -158,7 +169,7 @@ val demoappsStandaloneTest by tasks.registering {
                     environment(nestedGradleEnvironment)
                     environment("USE_MAVEN_LOCAL", "true")
                     commandLine(
-                        "./gradlew", "test",
+                        File(demoappWorkspace, wrapperScript).absolutePath, "test",
                         "-Dmaven.repo.local=${mavenLocalRepo.absolutePath}",
                         "--gradle-user-home", demoappGradleHome.absolutePath,
                         "--project-cache-dir", demoappCacheDir.absolutePath,
