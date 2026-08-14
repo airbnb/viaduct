@@ -54,7 +54,13 @@ val smokeTestDist by tasks.registering(Exec::class) {
     group = "verification"
     description = "Builds the application dist and runs its start script (installDist smoke test)."
     dependsOn("installDist")
-    val startScript = layout.buildDirectory.file("install/${rootProject.name}/bin/${rootProject.name}")
+    // The dist ships one launcher per platform, and only the matching one is executable here.
+    val launcher = if (System.getProperty("os.name").startsWith("Windows", ignoreCase = true)) {
+        "${rootProject.name}.bat"
+    } else {
+        rootProject.name
+    }
+    val startScript = layout.buildDirectory.file("install/${rootProject.name}/bin/$launcher")
     inputs.file(startScript)
     commandLine(startScript.get().asFile.absolutePath)
 }

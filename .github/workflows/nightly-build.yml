@@ -1,6 +1,6 @@
 name: Nightly Build
-# Thin cron wrapper — delegates to demoapps-nightly-check.yml.
-# No domain logic belongs here. This is just a scheduling entrypoint.
+# Weekday scheduling entrypoint. Snapshot validation is delegated to demoapps-nightly-check.yml;
+# the Windows jobs live here because no pull request triggers them.
 
 on:
   schedule:
@@ -48,4 +48,38 @@ jobs:
 
       - name: Check
         run: ./gradlew check --scan
+        shell: bash
+
+  # Exercises demoappsStandaloneTest on its own. As a finalizer of root `check` it is skipped
+  # whenever anything else in that build fails, so windows-check alone leaves it unreported.
+  demoapps-standalone-windows:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ["17", "21"]
+    name: Demoapps Standalone (Windows, Java ${{ matrix.java }})
+    env:
+      # fromEnv lets Gradle's daemon JVM discovery find Java 21 via JAVA_HOME_21_X64 when JAVA_HOME != Java 21.
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64"
+      BUILDSCAN_PUBLISH: "true"
+      BUILDSCAN_AUTOACCEPTTERMS: "true"
+    steps:
+      # Ensure Windows runners use core.autocrlf=false for parity with Linux/macOS.
+      - name: Disable autocrlf
+        shell: bash
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: ${{ matrix.java }}
+          cache-read-only: 'true'
+
+      # --stacktrace because the task's failures are process-start failures, and Gradle reports
+      # those naming only the executable — the working directory and the OS error live in the
+      # cause, so without it a failure here cannot be diagnosed from the log alone.
+      - name: Demoapps standalone test
+        run: ./gradlew :demoappsStandaloneTest --stacktrace
         shell: bash
