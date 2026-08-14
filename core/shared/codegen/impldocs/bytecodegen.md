@@ -11,7 +11,7 @@ To help prevent regressions, we've carefully structured it to improve its mainta
 
 # Testing practices
 
-Before getting into the details of our design and testing strategy, here's a simple overview of our testing practices.  As will be discussed in the testing section, our test suite includes tests that run on the entire central schema.  These can take 10-20 minutes to complete -- too long for the inner-loop of development.  Therefore, these tests have been marked `manual` and aren't automatically run from the command-line (`bazel ...`) or from the IDE.
+Before getting into the details of our design and testing strategy, here's a simple overview of our testing practices.  As will be discussed in the testing section, our test suite includes tests that run on the entire central schema.  These can take tens of minutes to complete -- too long for the inner-loop of development.  Therefore, these tests have been marked `manual`, which keeps them out of wildcard command-line targets (`bazel ...`) and IDE test discovery.  The prepush script invokes these targets explicitly.
 
 Instead, we've created a `yak` script for running the full suite of tests:
 
@@ -109,7 +109,7 @@ In addition to unit testing, we do extensive integration testing on bytecode gen
 
 The test schema is a relatively small schema found in [this file](https://git.musta.ch/airbnb/treehouse/blob/master/projects/viaduct/build-src/src/test/resources/graphql/schema.graphqls) which is intended to cover all cases the bytecode generator is expected to handle.  Whenever a bug is found in the bytecode generator, it's important to put a reproducing test into the test schema to mitigate regressions.
 
-The central schema is the actual Viaduct central schema checked into Treehouse by tenants.  The schema is very large, and running our integration tests over it can take over ten minutes - not something we want on the "inner edit-compile-test" loop of developers.  Thus, in Bazel, central schema tests are marked as "manual" and "no_ide" - meaning they aren't run by `...` targets, or in the IDE, or in CI.  Instead, as mentioned earlier, we have a "prepush" script in `yak`, which developers are expected to run before pushing bytecodegen changes to github.
+The central schema is the actual Viaduct central schema checked into Treehouse by tenants.  The schema is very large, and running our integration tests over it can take tens of minutes - not something we want on the "inner edit-compile-test" loop of developers.  Thus, in Bazel, central schema tests are marked as "manual" and "no_ide", meaning they aren't run by `...` targets or in the IDE.  As mentioned earlier, developers are expected to run them before pushing bytecodegen changes through the prepush script in `yak`.
 
 The central schema tests are _highly_ redundant.  For example, we run the same battery of tests against every `enum` GRT in the central schema, of which there are a few hundred.  It's highly unlikely that the 101-th `enum` in the schema represents a test case any different from the 100 prior `enum`s already tested.  You might call this "needle in the hay stack" testing.  While the 101-th `enum` is not likely to expose a bug, it just might.  Tenants do crazy things - which makes them awesome testcase generators.  We don't yet know how to separate the needle/crazy-tenant-thing from the hay-stack/super-redundant-testing, so we test the central schema exhaustively, using our tenants as test-case generators.  (Again, when a crazy tenant thing triggers a bug in our code, we turn that "crazy" thing into a regression case in the test schema.)
 
@@ -220,4 +220,3 @@ The deployable jar for the Viaduct service. A good source of truth for what's ac
 ```
 //projects/viaduct/services/viaduct:viaduct_bin_deploy.jar
 ```
-
