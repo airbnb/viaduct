@@ -45,7 +45,8 @@ import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.instrumentation.ViaductModernInstrumentation
+import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
+import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.CheckerDispatcher
@@ -53,7 +54,6 @@ import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineObjectDataFactory
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.context.CompositeLocalContext
-import viaduct.engine.runtime.instrumentation.ChainedViaductModernInstrumentation
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.service.api.spi.FlagManager
 
@@ -67,7 +67,7 @@ object ExecutionTestHelpers {
         typeResolvers: Map<String, TypeResolver> = emptyMap(),
         fieldCheckerDispatchers: Map<Coordinate, CheckerDispatcher> = emptyMap(),
         typeCheckerDispatchers: Map<String, CheckerDispatcher> = emptyMap(),
-        instrumentations: List<ViaductModernInstrumentation> = emptyList(),
+        instrumentations: List<Instrumentation> = emptyList(),
         queryPlanFactory: QueryPlanFactory = QueryPlanFactory.Default,
         dispatcherRegistry: DispatcherRegistry? = null,
         requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty,
@@ -179,8 +179,7 @@ object ExecutionTestHelpers {
     fun createViaductGraphQL(
         schema: ViaductSchema,
         preparsedDocumentProvider: PreparsedDocumentProvider = DocumentCache(),
-        instrumentations: List<ViaductModernInstrumentation> = emptyList(),
-        gjInstrumentations: List<Instrumentation> = emptyList(),
+        instrumentations: List<Instrumentation> = emptyList(),
         coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
         queryPlanFactory: QueryPlanFactory = QueryPlanFactory.Default,
         airbnbBypassPolicyCheckDuringCompletion: Boolean = false,
@@ -209,29 +208,18 @@ object ExecutionTestHelpers {
             .subscriptionExecutionStrategy(
                 executionStrategyFactory.create(isSerial = false)
             )
-            .instrumentation(mkInstrumentation(instrumentations, gjInstrumentations))
+            .instrumentation(mkInstrumentation(instrumentations))
             .build()
     }
 
-    private fun mkInstrumentation(
-        viaductModernInstrumentations: List<ViaductModernInstrumentation> = emptyList(),
-        gjInstrumentations: List<Instrumentation> = emptyList()
-    ): Instrumentation =
-        // The different instrumentation interfaces are not compatible, particularly when multiple instances of
-        // one flavor are merged into a chained representation which has to coexist with any instrumentations
-        // of the other flavor.
-        // As a cheap workaround to allow providing either form of interface to these fixtures, require that
-        // only one flavor is provided
-        if (viaductModernInstrumentations.isNotEmpty()) {
-            require(gjInstrumentations.isEmpty()) {
-                "Cannot combine viaductModernInstrumentations with gjInstrumentations"
-            }
-            ChainedViaductModernInstrumentation(viaductModernInstrumentations)
-        } else if (gjInstrumentations.isNotEmpty()) {
-            require(viaductModernInstrumentations.isEmpty()) {
-                "Cannot combine viaductModernInstrumentations with gjInstrumentations"
-            }
-            ChainedInstrumentation(gjInstrumentations)
+    private fun mkInstrumentation(instrumentations: List<Instrumentation>): Instrumentation =
+        if (instrumentations.isNotEmpty()) {
+            ChainedModernGJInstrumentation(
+                instrumentations.map {
+                    it as? ViaductModernGJInstrumentation
+                        ?: ViaductModernGJInstrumentation.fromStandardInstrumentation(it)
+                }
+            )
         } else {
             SimplePerformantInstrumentation.INSTANCE
         }

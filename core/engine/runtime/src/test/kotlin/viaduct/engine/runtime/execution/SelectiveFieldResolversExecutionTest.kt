@@ -2614,7 +2614,7 @@ class SelectiveFieldResolversExecutionTest {
                 }
             }.runFeatureTest(
                 engineConfig = EngineConfiguration.featureTestDefault.copy(
-                    additionalInstrumentation = instrumentation.asGJInstrumentation(),
+                    additionalInstrumentation = instrumentation,
                 )
             ) {
                 runQueryWithTimeout("{ foo { x } }")
@@ -2664,7 +2664,7 @@ class SelectiveFieldResolversExecutionTest {
                 }
             }.runFeatureTest(
                 engineConfig = EngineConfiguration.featureTestDefault.copy(
-                    additionalInstrumentation = instrumentation.asGJInstrumentation(),
+                    additionalInstrumentation = instrumentation,
                 )
             ) {
                 runQueryWithTimeout("{ foo { x } }")

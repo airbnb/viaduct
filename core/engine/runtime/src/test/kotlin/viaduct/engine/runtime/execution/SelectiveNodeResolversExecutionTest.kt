@@ -2395,7 +2395,7 @@ class SelectiveNodeResolversExecutionTest {
             }.runFeatureTest(
                 withoutDefaultQueryNodeResolvers = true,
                 engineConfig = EngineConfiguration.featureTestDefault.copy(
-                    additionalInstrumentation = instrumentation.asGJInstrumentation(),
+                    additionalInstrumentation = instrumentation,
                 )
             ) {
                 runQueryWithTimeout("query FetchFoo { foo { x } }")
@@ -2448,7 +2448,7 @@ class SelectiveNodeResolversExecutionTest {
                 }
             }.runFeatureTest(
                 engineConfig = EngineConfiguration.featureTestDefault.copy(
-                    additionalInstrumentation = instrumentation.asGJInstrumentation(),
+                    additionalInstrumentation = instrumentation,
                 )
             ) {
                 runQueryWithTimeout("{ foo { x } }")
@@ -2492,7 +2492,7 @@ class SelectiveNodeResolversExecutionTest {
                 }
             }.runFeatureTest(
                 engineConfig = EngineConfiguration.featureTestDefault.copy(
-                    additionalInstrumentation = instrumentation.asGJInstrumentation(),
+                    additionalInstrumentation = instrumentation,
                 )
             ) {
                 runQueryWithTimeout("{ foo { x } }").assertMatches {

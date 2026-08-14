@@ -24,7 +24,7 @@ import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
-import viaduct.engine.api.instrumentation.ViaductModernInstrumentation
+import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.runtime.CheckerDispatcher
@@ -61,7 +61,7 @@ class FieldResolverInstrumentationTest {
         private fun fieldInstrumentation(
             targetPath: String,
             onCompleted: (Any?, Throwable?) -> Unit
-        ) = object : ViaductModernInstrumentation.WithBeginFieldFetching {
+        ) = object : ViaductModernGJInstrumentation {
             override fun beginFieldFetching(
                 parameters: InstrumentationFieldFetchParameters,
                 state: InstrumentationState?
@@ -149,7 +149,7 @@ class FieldResolverInstrumentationTest {
                     CheckerResult.Success
                 }
 
-                val instrumentation = object : ViaductModernInstrumentation.WithBeginFieldFetching {
+                val instrumentation = object : ViaductModernGJInstrumentation {
                     override fun beginFieldFetching(
                         parameters: InstrumentationFieldFetchParameters,
                         state: InstrumentationState?
@@ -299,7 +299,7 @@ class FieldResolverInstrumentationTest {
         private fun nodeInstrumentation(
             onBeginFetching: (InstrumentNodeFetchingParameters) -> Unit = {},
             onCompleted: (Any?, Throwable?) -> Unit = { _, _ -> }
-        ) = object : ViaductModernInstrumentation.WithBeginNodeFetching {
+        ) = object : ViaductModernGJInstrumentation {
             override fun beginNodeFetching(
                 parameters: InstrumentNodeFetchingParameters,
                 state: InstrumentationState?

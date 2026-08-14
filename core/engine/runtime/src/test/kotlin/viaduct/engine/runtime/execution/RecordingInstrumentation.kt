@@ -12,18 +12,9 @@ import graphql.schema.DataFetchingEnvironment
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
-import viaduct.engine.api.instrumentation.ViaductModernInstrumentation
+import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 
-class RecordingInstrumentation :
-    ViaductModernInstrumentation,
-    ViaductModernInstrumentation.WithBeginFetchObject,
-    ViaductModernInstrumentation.WithBeginFieldExecution,
-    ViaductModernInstrumentation.WithBeginFieldFetching,
-    ViaductModernInstrumentation.WithBeginCompleteObject,
-    ViaductModernInstrumentation.WithBeginFieldCompletion,
-    ViaductModernInstrumentation.WithBeginFieldListCompletion,
-    ViaductModernInstrumentation.WithBeginNodeFetching,
-    ViaductModernInstrumentation.WithInstrumentDataFetcher {
+class RecordingInstrumentation : ViaductModernGJInstrumentation {
     // Base class for recording contexts
     open class RecordingInstrumentationContext<T : Any>(
         val parameters: Any

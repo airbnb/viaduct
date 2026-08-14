@@ -106,7 +106,7 @@ internal class Conformer private constructor(
     val sharedDocumentCache = DocumentCache()
 
     val modernGraphQL = createViaductGraphQL(schema, preparsedDocumentProvider = sharedDocumentCache, instrumentations = listOf(modernRecorder))
-    val gjGraphQL = createGJGraphQL(schema, preparsedDocumentProvider = sharedDocumentCache, instrumentations = listOf(gjRecorder.asGJInstrumentation()))
+    val gjGraphQL = createGJGraphQL(schema, preparsedDocumentProvider = sharedDocumentCache, instrumentations = listOf(gjRecorder))
 
     init {
         runBlocking {

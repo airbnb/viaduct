@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.instrumentation.ViaductModernInstrumentation
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.featureTestDefault
@@ -570,7 +569,7 @@ class ParentFieldRequiredSelectionsExecutionTest {
             }
         }.runFeatureTest(
             engineConfig = EngineConfiguration.featureTestDefault.copy(
-                additionalInstrumentation = ViaductModernInstrumentation.asGJInstrumentation(recordingInstrumentation),
+                additionalInstrumentation = recordingInstrumentation,
             )
         ) {
             runQuery("{ company { user { parentCompanyName } } }")

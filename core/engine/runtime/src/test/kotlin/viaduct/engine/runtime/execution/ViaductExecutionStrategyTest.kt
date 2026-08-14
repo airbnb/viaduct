@@ -45,7 +45,7 @@ import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.instrumentation.ViaductModernInstrumentation
+import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.spi.CheckerExecutor
@@ -150,8 +150,7 @@ class ViaductExecutionStrategyTest {
                 """
 
             // Define a custom instrumentation that fails during field completion.
-            // We implement the ViaductModernInstrumentation.WithBeginFieldCompletion interface.
-            class FailingFieldCompletionInstrumentation : ViaductModernInstrumentation.WithBeginFieldCompletion {
+            class FailingFieldCompletionInstrumentation : ViaductModernGJInstrumentation {
                 override fun beginFieldCompletion(
                     parameters: InstrumentationFieldCompleteParameters,
                     state: InstrumentationState?
@@ -171,7 +170,7 @@ class ViaductExecutionStrategyTest {
                     }
             }
             // Create a list of instrumentations containing our failing instrumentation.
-            val instrumentations = listOf<ViaductModernInstrumentation>(FailingFieldCompletionInstrumentation())
+            val instrumentations = listOf<ViaductModernGJInstrumentation>(FailingFieldCompletionInstrumentation())
             val schema = createSchema(sdl, resolvers)
             // Build the GraphQL engine with our schema, resolvers, and instrumentation.
             val graphQL = createViaductGraphQL(schema, instrumentations = instrumentations)
@@ -1962,8 +1961,8 @@ class ViaductExecutionStrategyTest {
     inner class FieldCompletionInstrumentationTest {
         private val sdl = "type Query { field: String }"
 
-        private fun completionInstrumentation(onCompleted: (Any?, Throwable?) -> Unit): ViaductModernInstrumentation =
-            object : ViaductModernInstrumentation.WithBeginFieldCompletion {
+        private fun completionInstrumentation(onCompleted: (Any?, Throwable?) -> Unit): ViaductModernGJInstrumentation =
+            object : ViaductModernGJInstrumentation {
                 override fun beginFieldCompletion(
                     parameters: InstrumentationFieldCompleteParameters,
                     state: InstrumentationState?

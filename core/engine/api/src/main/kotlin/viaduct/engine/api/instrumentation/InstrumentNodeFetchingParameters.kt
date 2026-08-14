@@ -4,7 +4,7 @@ import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ResolverMetadata
 
 /**
- * Parameters passed to [ViaductModernInstrumentation.WithBeginNodeFetching.beginNodeFetching].
+ * Parameters passed to [ViaductModernGJInstrumentation.beginNodeFetching].
  */
 class InstrumentNodeFetchingParameters(
     val requiredBy: ExecutionAttribution?,
