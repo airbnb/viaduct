@@ -77,6 +77,9 @@ jobs:
           java-version: ${{ matrix.java }}
           cache-read-only: 'true'
 
+      # --stacktrace because the task's failures are process-start failures, and Gradle reports
+      # those naming only the executable — the working directory and the OS error live in the
+      # cause, so without it a failure here cannot be diagnosed from the log alone.
       - name: Demoapps standalone test
-        run: ./gradlew :demoappsStandaloneTest
+        run: ./gradlew :demoappsStandaloneTest --stacktrace
         shell: bash

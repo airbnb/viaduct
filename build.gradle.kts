@@ -96,9 +96,8 @@ val demoappsStandaloneTest by tasks.registering {
     )
 
     // Nested builds go through the wrapper scripts, not the wrapper jar: the root script injects
-    // flags this task relies on, including the --project-cache-dir noted below. `exec` provides no
-    // shell to resolve a script name, so the name is platform-specific and the path absolute — a
-    // relative executable resolves against a different directory depending on the launcher.
+    // flags this task relies on, including the --project-cache-dir noted below. Each platform has
+    // its own wrapper script and `exec` launches it directly, so the name must match the platform.
     val wrapperScript = if (System.getProperty("os.name").startsWith("Windows", ignoreCase = true)) {
         "gradlew.bat"
     } else {
@@ -113,10 +112,14 @@ val demoappsStandaloneTest by tasks.registering {
             providers.environmentVariable("VIADUCT_ARTIFACTORY_MIRROR").orNull
                 ?.let { mapOf("VIADUCT_ARTIFACTORY_MIRROR" to it) }
                 .orEmpty()
+        // Absolute, because paths derived from this are consumed two ways that resolve
+        // non-absolute paths differently: Gradle's `exec` resolves workingDir against the project
+        // directory, while plain File I/O resolves against the JVM's startup directory. On Windows
+        // "/tmp/mlc" is drive-relative, so the two would resolve to different places.
         val runRoot = Files.createTempDirectory(
             Files.createDirectories(Path.of("/tmp/mlc")),
             "demoapps-standalone-"
-        ).toFile()
+        ).toAbsolutePath().toFile()
         val mavenLocalRepo = File(runRoot, "m2").apply { mkdirs() }
         // Run-scoped --gradle-user-home + --no-build-cache so the publish step can't reuse
         // Gradle's dependency/build cache from a prior invocation or ambient developer state.
