@@ -26,6 +26,7 @@ jobs:
   windows-check:
     runs-on: windows-latest
     strategy:
+      fail-fast: false
       matrix:
         java: ["17", "21"]
     name: Full Check (Windows, Java ${{ matrix.java }})
@@ -46,8 +47,10 @@ jobs:
         with:
           java-version: ${{ matrix.java }}
 
+      # --continue because this is the only job running the unscoped root `check`: without it a
+      # single failing task hides the rest of the platform's health until the next nightly.
       - name: Check
-        run: ./gradlew check --scan
+        run: ./gradlew check --scan --continue
         shell: bash
 
   # Exercises demoappsStandaloneTest on its own. As a finalizer of root `check` it is skipped
