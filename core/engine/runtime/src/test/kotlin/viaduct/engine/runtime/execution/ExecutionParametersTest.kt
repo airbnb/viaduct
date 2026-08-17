@@ -49,6 +49,7 @@ import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.context.getLocalContextForType
+import viaduct.engine.runtime.dfe.engineExecutionContext
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createLocalContext
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createSchema
 import viaduct.engine.runtime.execution.constraints.Constraints
@@ -749,6 +750,50 @@ class ExecutionParametersTest {
     }
 
     @Test
+    fun `Query-rooted child plan keeps shadow loader scope in DFE local context`() {
+        val productionEngineExecutionContext =
+            checkNotNull(defaultLocalContext.get<EngineExecutionContextImpl>())
+        val rootParameters = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo()
+                .type(queryType)
+                .path(ResultPath.rootPath())
+                .build(),
+            queryPlan = queryPlanFor(type = queryType),
+            engineExecutionContext = productionEngineExecutionContext,
+        )
+        val collectedField = collectedFooField(mergedField("foo", selectionSet("id")))
+        val shadowParameters = rootParameters
+            .forField(queryType, collectedField)
+            .forShadowFieldExecution(EmptyCoroutineContext)
+        val queryRssParameters = shadowParameters
+            .forChildPlan(
+                queryPlanFor(type = queryType),
+                emptyVariables,
+                ChildQueryPlanTarget.CurrentQueryResult,
+            )
+            .forField(queryType, collectedField)
+
+        val dfe = FieldExecutionHelpers.buildDataFetchingEnvironment(
+            queryRssParameters,
+            collectedField,
+            queryRssParameters.currentObjectEngineResult,
+        )
+        val shadowContext = dfe.engineExecutionContext as EngineExecutionContextImpl
+        val localContext = checkNotNull(dfe.getLocalContextForType<EngineExecutionContextImpl>())
+
+        assertNotSame(
+            productionEngineExecutionContext.fieldDataLoaders,
+            shadowContext.fieldDataLoaders,
+        )
+        assertSame(
+            shadowContext.fieldDataLoaders,
+            localContext.fieldDataLoaders,
+            "DFE context views must use the same shadow field-loader scope",
+        )
+    }
+
+    @Test
     fun `forChildPlan throws when plan type is not an object`() {
         val interfacePlan = queryPlanFor(
             type = GraphQLInterfaceType.newInterface()
@@ -818,6 +863,7 @@ class ExecutionParametersTest {
         rootEngineResult: ObjectEngineResultImpl = ObjectEngineResultImpl.newForType(queryType),
         rootExecutionJob: Job = Job(),
         coroutineContext: CoroutineContext = EmptyCoroutineContext,
+        engineExecutionContext: EngineExecutionContextImpl = mockk(relaxed = true),
     ): ExecutionParameters {
         val executionContext = executionContext(rootValue, localContext)
         val constants = ExecutionParameters.Constants(
@@ -827,7 +873,7 @@ class ExecutionParametersTest {
             rootCoroutineContext = coroutineContext,
         )
         return ExecutionParameters(
-            _engineExecutionContext = mockk<EngineExecutionContextImpl>(relaxed = true),
+            _engineExecutionContext = engineExecutionContext,
             constants = constants,
             currentObjectEngineResult = currentObjectEngineResult,
             queryEngineResult = queryEngineResult,

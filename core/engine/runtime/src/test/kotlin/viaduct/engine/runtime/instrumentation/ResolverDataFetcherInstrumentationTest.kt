@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.dfe.ViaductDataFetchingEnvironment
@@ -66,17 +67,42 @@ internal class ResolverDataFetcherInstrumentationTest {
     }
 
     @Test
+    fun `parent managed policy preserves data fetcher`() {
+        val mockParams: InstrumentationFieldFetchParameters = mockk()
+        val mockDataFetcher: DataFetcher<*> = mockk()
+        mockDfEnv(
+            mockParams,
+            EngineExecutionContextImpl.FieldExecutionScopeImpl(
+                resolutionPolicy = ResolutionPolicy.PARENT_MANAGED,
+            ),
+        )
+        every { mockDispatcherRegistry.getFieldResolverDispatcher(typeName, fieldName) } returns mockk()
+
+        val receivedFetcher = testClass.instrumentDataFetcher(
+            dataFetcher = mockDataFetcher,
+            parameters = mockParams,
+            state = null,
+        )
+
+        assertEquals(mockDataFetcher, receivedFetcher)
+    }
+
+    @Test
     fun `test hasResolver`() {
         every { mockDispatcherRegistry.getFieldResolverDispatcher(typeName, fieldName) } returns mockk()
         assertTrue(testClass.hasResolver(typeName, fieldName))
     }
 
-    private fun mockDfEnv(mockParams: InstrumentationFieldFetchParameters) {
+    private fun mockDfEnv(
+        mockParams: InstrumentationFieldFetchParameters,
+        fieldScope: EngineExecutionContext.FieldExecutionScope =
+            EngineExecutionContextImpl.FieldExecutionScopeImpl(),
+    ) {
         val dfEnv: ViaductDataFetchingEnvironment = mockk()
         every { mockParams.environment } returns dfEnv
 
         val eec: EngineExecutionContext = mockk()
-        every { eec.fieldScope } returns EngineExecutionContextImpl.FieldExecutionScopeImpl()
+        every { eec.fieldScope } returns fieldScope
         every { dfEnv.engineExecutionContext } returns eec
 
         val parentType: GraphQLScalarType = mockk()

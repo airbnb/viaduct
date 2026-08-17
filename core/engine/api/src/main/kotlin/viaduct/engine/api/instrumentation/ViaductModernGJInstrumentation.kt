@@ -24,7 +24,9 @@ import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLSchema
 import graphql.validation.ValidationError
 import java.util.concurrent.CompletableFuture
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.spi.CheckerExecutor
+import viaduct.engine.api.spi.ShadowFieldExecutionComparison
 
 /**
  * A GraphQL Java [Instrumentation] with the additional lifecycle hooks used by Viaduct's
@@ -175,6 +177,13 @@ interface ViaductModernGJInstrumentation : Instrumentation {
     ): InstrumentationContext<Unit> {
         return noOp()
     }
+
+    /** Returns `null` unless instrumentation opts into the temporary shadow execution mechanism. */
+    @InternalApi
+    fun requestShadowFieldExecution(
+        parameters: InstrumentationFieldParameters,
+        state: InstrumentationState?,
+    ): ShadowFieldExecutionComparison? = null
 
     fun beginCompleteObject(
         parameters: InstrumentationExecutionStrategyParameters,

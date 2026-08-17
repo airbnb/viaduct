@@ -24,7 +24,9 @@ import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLSchema
 import graphql.validation.ValidationError
 import java.util.concurrent.CompletableFuture
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.spi.CheckerExecutor
+import viaduct.engine.api.spi.ShadowFieldExecutionComparison
 
 /**
  * Adapts an optimized ViaductInstrumentation into a standard Instrumentation.
@@ -78,6 +80,17 @@ open class ViaductInstrumentationAdapter(
             viaductInstrumentation.beginFieldExecution(parameters, state)
         } else {
             default.beginFieldExecution(parameters, state)
+        }
+
+    @InternalApi
+    override fun requestShadowFieldExecution(
+        parameters: InstrumentationFieldParameters,
+        state: InstrumentationState?,
+    ): ShadowFieldExecutionComparison? =
+        if (viaductInstrumentation is IViaductInstrumentation.WithShadowFieldExecution) {
+            viaductInstrumentation.requestShadowFieldExecution(parameters, state)
+        } else {
+            null
         }
 
     @Deprecated("deprecated")

@@ -404,6 +404,7 @@ object FieldExecutionHelpers {
                     extant?.copy(
                         currentObjectEngineResult = currentOER,
                         queryEngineResult = parameters.queryEngineResult,
+                        rootEngineResult = parameters.rootEngineResult,
                     ) ?: EngineResultLocalContext(
                         // otherwise create it
                         currentObjectEngineResult = currentOER,

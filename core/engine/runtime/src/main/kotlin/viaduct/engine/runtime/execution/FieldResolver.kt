@@ -22,6 +22,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.supervisorScope
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeEngineObjectData
@@ -29,6 +30,8 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.api.spi.CoroutineInterop
+import viaduct.engine.api.spi.ShadowFieldExecutionComparison
+import viaduct.engine.api.spi.ShadowFieldExecutionResults
 import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
@@ -333,11 +336,20 @@ class FieldResolver(
             )
         val objectSelectionSetId = fieldResolverDispatcher?.objectSelectionSet?.id
         val querySelectionSetId = fieldResolverDispatcher?.querySelectionSet?.id
+        val resolverSelectionSetIds = setOfNotNull(objectSelectionSetId, querySelectionSetId)
+        // Shadow RSS children retain the marker so @parent can be rejected. Only the compared
+        // field bypasses its RSS execution condition.
+        val isShadowRootField =
+            parameters.isShadowFieldExecution &&
+                (parameters.executionOrigin as? ExecutionOrigin.Field)
+                    ?.parameters
+                    ?.isShadowFieldExecution == false
 
         field.childPlans.fold(emptySet<RequiredSelectionSet.Id>()) { seenRssIds, childPlan ->
             if (childPlan.requiredSelectionSetId in seenRssIds) {
                 return@fold seenRssIds
             }
+            val isResolverSelectionSet = childPlan.requiredSelectionSetId in resolverSelectionSetIds
             val childQueryPlan = FieldExecutionHelpers.findRssQueryPlan(childPlan.requiredSelectionSetId, parameters)
             log.ifDebug {
                 debug("Launching child plan for field ${field.fieldName} at path ${parameters.path}, selection set: ${childQueryPlan.selectionSet}")
@@ -352,6 +364,8 @@ class FieldResolver(
                 childQueryPlan,
                 target = target,
                 seenRssIds = seenRssIds,
+                forceExecution =
+                    isShadowRootField && isResolverSelectionSet,
             )
             seenRssIds + childPlan.requiredSelectionSetId
         }
@@ -381,6 +395,7 @@ class FieldResolver(
      * @param executionConditionEnv The DataFetchingEnvironment to evaluate the execution condition against, or null
      *        if no DFE is available at plan launch time. Null is a valid value per the QueryPlanExecutionCondition contract.
      * @param target Controls OER/source/stepInfo selection for non-Query plans
+     * @param forceExecution Whether to bypass this plan's execution condition
      */
     internal fun launchQueryPlan(
         parameters: ExecutionParameters,
@@ -388,13 +403,14 @@ class FieldResolver(
         executionConditionEnv: DataFetchingEnvironment? = null,
         target: ChildQueryPlanTarget,
         seenRssIds: Set<RequiredSelectionSet.Id> = emptySet(),
+        forceExecution: Boolean = false,
     ) {
         val requiredSelectionSetId = plan.requiredSelectionSetId
         if (requiredSelectionSetId != null && requiredSelectionSetId in seenRssIds) {
             return
         }
 
-        if (!plan.executionCondition.shouldExecute(executionConditionEnv)) {
+        if (!forceExecution && !plan.executionCondition.shouldExecute(executionConditionEnv)) {
             log.ifDebug {
                 debug(
                     "Skipping child plan for field '${parameters.field?.fieldName}' of type '${(plan.parentType as? GraphQLObjectType)?.name}' with selection set '${plan.selectionSet}' due to execution condition"
@@ -467,13 +483,17 @@ class FieldResolver(
             FpKit.intraThreadMemoize { buildDataFetchingEnvironment(parameters, field, currentOER) }
         val oerKey = buildOERKeyForField(parameters, field)
         val isParentField = executionStepInfoForField.fieldDefinition.isParentField()
+        val instrumentationParameters =
+            InstrumentationFieldParameters(parameters.executionContextWithLocalContext) {
+                executionStepInfoForField
+            }
         val fieldInstrumentationCtx =
             if (isParentField) {
                 null
             } else {
                 nonNullCtx(
                     parameters.instrumentation.beginFieldExecution(
-                        InstrumentationFieldParameters(parameters.executionContextWithLocalContext) { executionStepInfoForField },
+                        instrumentationParameters,
                         parameters.executionContext.instrumentationState
                     )
                 )
@@ -520,10 +540,166 @@ class FieldResolver(
             }
         }
 
-        return FieldDispatch(
+        val productionDispatch = FieldDispatch(
             immediate = fieldResolutionResultValue,
             overall = overall
         )
+        if (parameters.isShadowFieldExecution) {
+            return productionDispatch
+        }
+
+        val shadowComparison =
+            requestShadowFieldExecution(parameters, instrumentationParameters)
+        if (shadowComparison == null) {
+            return productionDispatch
+        }
+        if (isMutationOrSubscriptionField(parameters)) {
+            log.warn(
+                "Ignoring shadow field execution request for unsupported field {}.{}",
+                parameters.executionStepInfo.objectType.name,
+                field.fieldName,
+            )
+            return productionDispatch
+        }
+
+        launchShadowFieldExecution(
+            parameters,
+            field,
+            productionDispatch,
+            shadowComparison,
+        )
+        return productionDispatch
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun requestShadowFieldExecution(
+        parameters: ExecutionParameters,
+        instrumentationParameters: InstrumentationFieldParameters,
+    ): ShadowFieldExecutionComparison? =
+        try {
+            parameters.instrumentation.requestShadowFieldExecution(
+                instrumentationParameters,
+                parameters.executionContext.instrumentationState,
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log.warn(
+                "Failed to request shadow field execution for {}",
+                parameters.path,
+                e,
+            )
+            null
+        }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun launchShadowFieldExecution(
+        parameters: ExecutionParameters,
+        field: QueryPlan.CollectedField,
+        productionDispatch: FieldDispatch,
+        comparison: ShadowFieldExecutionComparison,
+    ) {
+        parameters.launchOnRootScope {
+            try {
+                val shadowOutcome = executeShadowField(parameters, field)
+                val results =
+                    ShadowFieldExecutionResults(
+                        production = productionDispatch.captureOutcome(),
+                        shadow = shadowOutcome,
+                    )
+                compareShadowFieldExecutionResults(parameters, comparison, results)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.error(
+                    "Unexpected failure while executing shadow field at {}",
+                    parameters.path,
+                    e,
+                )
+            } catch (e: Error) {
+                throw e
+            }
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun executeShadowField(
+        parameters: ExecutionParameters,
+        field: QueryPlan.CollectedField,
+    ): ShadowFieldExecutionResults.Outcome =
+        supervisorScope {
+            try {
+                validateRegisteredFieldResolver(parameters, field)
+                val shadowParameters =
+                    parameters.forShadowFieldExecution(coroutineContext)
+                resolveField(
+                    parameters = shadowParameters,
+                    field = field,
+                    resolveNestedSelections = false,
+                ).captureOutcome()
+            } catch (e: CancellationException) {
+                currentCoroutineContext().ensureActive()
+                failedFieldExecutionOutcome(e)
+            } catch (e: Exception) {
+                failedFieldExecutionOutcome(e)
+            }
+        }
+
+    private fun validateRegisteredFieldResolver(
+        parameters: ExecutionParameters,
+        field: QueryPlan.CollectedField,
+    ) {
+        val objectType = checkNotNull(parameters.executionStepInfo.objectType)
+        checkNotNull(
+            parameters.engineExecutionContext.dispatcherRegistry
+                .getFieldResolverDispatcher(objectType.name, field.fieldName)
+        ) {
+            "No registered field resolver exists for ${objectType.name}.${field.fieldName}"
+        }
+    }
+
+    private suspend fun FieldDispatch.captureOutcome(): ShadowFieldExecutionResults.Outcome {
+        val fieldResolutionResult = captureFieldExecutionResult { immediate.await() }
+        return ShadowFieldExecutionResults.Outcome(
+            rawValue = fieldResolutionResult.map { it.originalSource },
+            graphqlErrors = fieldResolutionResult.getOrNull()?.errors.orEmpty().toList(),
+        )
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun <T> captureFieldExecutionResult(block: suspend () -> T): Result<T> =
+        try {
+            Result.success(block())
+        } catch (e: CancellationException) {
+            currentCoroutineContext().ensureActive()
+            Result.failure(e)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+
+    private fun failedFieldExecutionOutcome(throwable: Throwable): ShadowFieldExecutionResults.Outcome =
+        ShadowFieldExecutionResults.Outcome(
+            rawValue = Result.failure(throwable),
+            graphqlErrors = emptyList(),
+        )
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun compareShadowFieldExecutionResults(
+        parameters: ExecutionParameters,
+        comparison: ShadowFieldExecutionComparison,
+        results: ShadowFieldExecutionResults,
+    ) {
+        try {
+            comparison.compare(results)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log.warn(
+                "Shadow field execution comparison failed for {}",
+                parameters.path,
+                e,
+            )
+        }
     }
 
     /**
@@ -567,6 +743,14 @@ class FieldResolver(
         parameters: ExecutionParameters,
         dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
     ): FieldFetchResult {
+        if (parameters.isShadowFieldExecution) {
+            val failure = IllegalStateException("@parent fields are not supported during shadow field execution")
+            return FieldFetchResult(
+                result = Value.fromThrowable(failure),
+                checkerResult = Value.fromThrowable(failure),
+            )
+        }
+
         val fieldCheckerResult = accessCheckRunner.fieldCheck(parameters, dataFetchingEnvironmentProvider)
         val result = fieldResolutionResultFromDataFetcherResult(
             field,
@@ -1436,7 +1620,7 @@ class FieldResolver(
         )
     }
 
-    private fun shouldExecuteCheckerSequentially(parameters: ExecutionParameters): Boolean {
+    private fun isMutationOrSubscriptionField(parameters: ExecutionParameters): Boolean {
         val parentType = parameters.executionStepInfo.objectType
         return when (parentType.name) {
             parameters.graphQLSchema.mutationType?.name,
@@ -1444,6 +1628,8 @@ class FieldResolver(
             else -> isMutationNamespace(parameters, parentType)
         }
     }
+
+    private fun shouldExecuteCheckerSequentially(parameters: ExecutionParameters): Boolean = isMutationOrSubscriptionField(parameters)
 
     private fun isMutationNamespace(
         parameters: ExecutionParameters,

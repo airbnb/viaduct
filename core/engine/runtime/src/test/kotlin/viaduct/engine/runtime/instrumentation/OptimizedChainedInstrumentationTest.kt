@@ -4,6 +4,7 @@ import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.SimpleInstrumentationContext.noOp
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
+import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import graphql.schema.DataFetchingEnvironment
 import io.mockk.Called
 import io.mockk.every
@@ -18,6 +19,7 @@ import viaduct.engine.api.instrumentation.IViaductInstrumentation
 import viaduct.engine.api.instrumentation.ViaductInstrumentationAdapter
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
 import viaduct.engine.api.spi.CheckerExecutor
+import viaduct.engine.api.spi.ShadowFieldExecutionComparison
 
 class OptimizedChainedInstrumentationTest {
     private lateinit var noInteractionInstrumentationBase: ViaductInstrumentationBase
@@ -58,6 +60,34 @@ class OptimizedChainedInstrumentationTest {
         val context = optimized.beginFetchObject(params, state)
         assertNotNull(context)
         assert(beginFetchObjectInstrumentation.called)
+        verify { noInteractionInstrumentation wasNot Called }
+    }
+
+    class TestShadowFieldExecutionInstrumentation :
+        ViaductInstrumentationBase(),
+        IViaductInstrumentation.WithShadowFieldExecution {
+        var called = false
+
+        override fun requestShadowFieldExecution(
+            parameters: InstrumentationFieldParameters,
+            state: InstrumentationState?,
+        ): ShadowFieldExecutionComparison? {
+            called = true
+            return null
+        }
+    }
+
+    @Test
+    fun `test shadow field execution optimization`() {
+        val instrumentation = TestShadowFieldExecutionInstrumentation()
+        val optimized =
+            OptimizedChainedInstrumentation(
+                listOf(instrumentation, noInteractionInstrumentationBase)
+            )
+
+        optimized.requestShadowFieldExecution(mockk(), mockk())
+
+        assert(instrumentation.called)
         verify { noInteractionInstrumentation wasNot Called }
     }
 

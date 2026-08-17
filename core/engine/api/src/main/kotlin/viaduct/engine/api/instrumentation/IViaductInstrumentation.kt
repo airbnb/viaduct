@@ -24,7 +24,9 @@ import graphql.schema.GraphQLSchema
 import graphql.validation.ValidationError
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.spi.CheckerExecutor
+import viaduct.engine.api.spi.ShadowFieldExecutionComparison
 
 /**
  * An optimized instrumentation interface for Viaduct. Provides specialized interface methods that
@@ -113,6 +115,24 @@ interface IViaductInstrumentation {
             parameters: InstrumentationFieldParameters,
             state: InstrumentationState?
         ): InstrumentationContext<Any>?
+    }
+
+    /**
+     * Temporary Airbnb-internal opt-in to field-level shadow execution.
+     *
+     * Returning `null` leaves the field on its normal execution path. Returning a comparison
+     * requests one additional execution of the field's registered resolver. Production completion
+     * does not wait for that execution. Unfinished shadow work is cancelled when the request
+     * completes, so the comparison may not receive results. Only test instrumentation opts in
+     * today; Airbnb runtime wiring does not currently request shadow execution. This hook is
+     * expected to be removed after its migration use.
+     */
+    @InternalApi
+    interface WithShadowFieldExecution : IViaductInstrumentation {
+        fun requestShadowFieldExecution(
+            parameters: InstrumentationFieldParameters,
+            state: InstrumentationState?,
+        ): ShadowFieldExecutionComparison?
     }
 
     interface WithBeginFieldFetch : IViaductInstrumentation {

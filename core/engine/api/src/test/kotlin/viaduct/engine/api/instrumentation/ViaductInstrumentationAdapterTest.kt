@@ -12,12 +12,14 @@ import graphql.schema.DataFetchingEnvironment
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.spi.CheckerExecutor
+import viaduct.engine.api.spi.ShadowFieldExecutionComparison
 
 class ViaductInstrumentationAdapterTest {
     class TestModernInstrumentation :
@@ -27,6 +29,7 @@ class ViaductInstrumentationAdapterTest {
         IViaductInstrumentation.WithInstrumentDataFetcher,
         IViaductInstrumentation.WithBeginFieldFetch,
         IViaductInstrumentation.WithBeginFieldExecution,
+        IViaductInstrumentation.WithShadowFieldExecution,
         IViaductInstrumentation.WithBeginFieldCompletion,
         IViaductInstrumentation.WithBeginFieldListCompletion,
         IViaductInstrumentation.WithInstrumentAccessCheck,
@@ -36,6 +39,7 @@ class ViaductInstrumentationAdapterTest {
         var instrumentDataFetcherCalled = false
         var beginFieldFetchCalled = false
         var beginFieldExecutionCalled = false
+        var shadowFieldExecutionCalled = false
         var beginFieldCompletionCalled = false
         var beginFieldListCompletionCalled = false
         var instrumentAccessCheckCalled = false
@@ -80,6 +84,14 @@ class ViaductInstrumentationAdapterTest {
         ): InstrumentationContext<Any>? {
             beginFieldExecutionCalled = true
             return noOp()
+        }
+
+        override fun requestShadowFieldExecution(
+            parameters: InstrumentationFieldParameters,
+            state: InstrumentationState?,
+        ): ShadowFieldExecutionComparison? {
+            shadowFieldExecutionCalled = true
+            return null
         }
 
         override fun beginFieldCompletion(
@@ -166,6 +178,13 @@ class ViaductInstrumentationAdapterTest {
     }
 
     @Test
+    fun `beginExecutionStrategy uses the base instrumentation default`() {
+        val instrumentation = ViaductInstrumentationBase().asStandardInstrumentation
+
+        assertNotNull(instrumentation.beginExecutionStrategy(mockk(), null))
+    }
+
+    @Test
     @Suppress("DEPRECATION")
     fun `delagation is called`() {
         val instrumentationBase = TestModernInstrumentation()
@@ -190,6 +209,9 @@ class ViaductInstrumentationAdapterTest {
         instrumentation.beginFieldExecution(mockk(), mockk())
         assert(instrumentationBase.beginFieldExecutionCalled)
 
+        instrumentation.requestShadowFieldExecution(mockk(), mockk())
+        assert(instrumentationBase.shadowFieldExecutionCalled)
+
         instrumentation.beginFieldCompletion(mockk(), mockk())
         assert(instrumentationBase.beginFieldCompletionCalled)
 
@@ -205,6 +227,17 @@ class ViaductInstrumentationAdapterTest {
         )
         instrumentation.beginNodeFetching(nodeFetchingParams, null)
         assert(instrumentationBase.beginNodeFetchingCalled)
+    }
+
+    @Test
+    fun `transformResult transforms synchronous data fetcher results`() {
+        val instrumentation = TestModernInstrumentation()
+        val transformedDataFetcher =
+            instrumentation.transformResult(DataFetcher<Any?> { "value" }) {
+                "$it transformed"
+            }
+
+        assertEquals("value transformed", transformedDataFetcher.get(mockk()))
     }
 
     @Suppress("USELESS_IS_CHECK") // intentional: verifies the adapter returns the expected type

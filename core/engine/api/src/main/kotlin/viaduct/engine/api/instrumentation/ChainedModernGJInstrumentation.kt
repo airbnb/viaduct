@@ -3,8 +3,11 @@ package viaduct.engine.api.instrumentation
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
+import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import graphql.schema.DataFetchingEnvironment
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.spi.CheckerExecutor
+import viaduct.engine.api.spi.ShadowFieldExecutionComparison
 
 /**
  * Composite [ViaductModernGJInstrumentation] that delegates each lifecycle hook to every
@@ -14,6 +17,8 @@ import viaduct.engine.api.spi.CheckerExecutor
  * delegate is threaded as the input to the next, producing a composed result. For hooks that
  * return an [graphql.execution.instrumentation.InstrumentationContext], each delegate's context
  * is collected into a [ChainedInstrumentationContext] that dispatches to all of them.
+ * Shadow execution callbacks are combined so all requesting instrumentations share one shadow
+ * execution.
  */
 open class ChainedModernGJInstrumentation(
     val gjInstrumentations: List<ViaductModernGJInstrumentation>
@@ -35,6 +40,20 @@ open class ChainedModernGJInstrumentation(
         ChainedInstrumentationContext(
             gjInstrumentations.map { instr ->
                 instr.beginCompleteObject(parameters, getState(instr, state))
+            }
+        )
+
+    @InternalApi
+    override fun requestShadowFieldExecution(
+        parameters: InstrumentationFieldParameters,
+        state: InstrumentationState?,
+    ): ShadowFieldExecutionComparison? =
+        ShadowFieldExecutionComparison.combine(
+            gjInstrumentations.mapNotNull { instrumentation ->
+                instrumentation.requestShadowFieldExecution(
+                    parameters,
+                    getState(instrumentation, state),
+                )
             }
         )
 

@@ -27,6 +27,7 @@ import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.gj
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
+import viaduct.engine.runtime.EngineExecutionContextExtensions.asImpl
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.setExecutionHandle
 import viaduct.engine.runtime.EngineExecutionContextImpl
@@ -141,6 +142,8 @@ sealed interface ExecutionOrigin {
  * @property matBatchDepth The number of field Mat re-runs leading to this execution. Each re-run
  *   increments the depth so it uses a separate batch from the call waiting for it. Mats started
  *   together keep the same depth and can still share a batch.
+ * @property isShadowFieldExecution Whether this scope belongs to the temporary shadow execution
+ *   subtree
  */
 data class ExecutionParameters(
     @Suppress("ConstructorParameterNaming")
@@ -162,6 +165,7 @@ data class ExecutionParameters(
     val resolutionPolicy: ResolutionPolicy = ResolutionPolicy.STANDARD,
     val attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
     val matBatchDepth: Int = 0,
+    val isShadowFieldExecution: Boolean = false,
 ) : EngineExecutionContext.ExecutionHandle {
     // Each ExecutionParameters gets its own EEC copy to prevent cross-contamination
     // between different execution contexts (e.g., parent vs child field resolution).
@@ -320,6 +324,49 @@ data class ExecutionParameters(
             executionStepInfo = executionStepInfo,
             executionOrigin = ExecutionOrigin.Field(this),
             resolutionPolicy = resolutionPolicy,
+        )
+    }
+
+    /**
+     * Forks this field's mutable execution state for a shadow rerun while preserving request inputs
+     * and source. Shadow traversal through `@parent` is rejected because ancestor state is not
+     * forked.
+     */
+    internal fun forShadowFieldExecution(coroutineContext: CoroutineContext): ExecutionParameters {
+        check(field != null) {
+            "Shadow field execution requires execution parameters for a current field"
+        }
+        check(!isShadowFieldExecution) {
+            "Shadow field execution cannot be nested"
+        }
+
+        val shadowRootResult = ObjectEngineResultImpl.newForType(rootEngineResult.type)
+        val shadowQueryResult =
+            if (queryEngineResult === rootEngineResult) {
+                shadowRootResult
+            } else {
+                ObjectEngineResultImpl.newForType(queryEngineResult.type)
+            }
+        val shadowCurrentObjectResult = when (currentObjectEngineResult) {
+            rootEngineResult -> shadowRootResult
+            queryEngineResult -> shadowQueryResult
+            else -> ObjectEngineResultImpl.newForType(currentObjectEngineResult.type)
+        }
+        val shadowContext = engineExecutionContext.asImpl().forkForShadowExecution()
+
+        return copy(
+            _engineExecutionContext = shadowContext,
+            constants = constants.copy(
+                rootEngineResult = shadowRootResult,
+                supervisorScopeFactory = { CoroutineScope(it) },
+                rootCoroutineContext = coroutineContext,
+            ),
+            currentObjectEngineResult = shadowCurrentObjectResult,
+            queryEngineResult = shadowQueryResult,
+            localContext = localContext.addOrUpdate(shadowContext),
+            errorAccumulator = ErrorAccumulator(),
+            isShadowFieldExecution = true,
+            matBatchDepth = 0,
         )
     }
 
@@ -488,7 +535,16 @@ data class ExecutionParameters(
         }
 
         val localContext = if (isRootQueryQueryPlan) {
-            executionContext.getLocalContext()
+            val operationLocalContext = executionContext.getLocalContext<CompositeLocalContext>()
+            if (isShadowFieldExecution) {
+                operationLocalContext.addOrUpdate(
+                    checkNotNull(localContext.get<EngineExecutionContextImpl>()) {
+                        "Shadow field execution requires an EngineExecutionContext in local context"
+                    }
+                )
+            } else {
+                operationLocalContext
+            }
         } else {
             localContext
         }

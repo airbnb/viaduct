@@ -331,6 +331,33 @@ class EngineExecutionContextImpl internal constructor(
             matBatchDepth = matBatchDepth ?: this.matBatchDepth,
         )
     }
+
+    /**
+     * Forks mutable engine execution state for one temporary shadow field execution.
+     *
+     * Schemas, request context, registry, and instrumentation are shared. Data-loader maps start
+     * fresh; field scope, DFE, and a shadow-local execution handle are established by the shadow
+     * execution parameters.
+     */
+    internal fun forkForShadowExecution(): EngineExecutionContextImpl =
+        EngineExecutionContextImpl(
+            fullSchema = fullSchema,
+            scopedSchema = scopedSchema,
+            requestContext = requestContext,
+            activeSchema = activeSchema,
+            engineSelectionSetFactory = engineSelectionSetFactory,
+            dispatcherRegistry = dispatcherRegistry,
+            resolverInstrumentation = resolverInstrumentation,
+            fieldDataLoaders = ConcurrentHashMap(),
+            nodeDataLoaders = ConcurrentHashMap(),
+            fieldRssOriginFilteringKillSwitchEnabled = fieldRssOriginFilteringKillSwitchEnabled,
+            matResolutionEnabled = matResolutionEnabled,
+            engine = engine,
+            globalIDCodec = globalIDCodec,
+            meterRegistry = meterRegistry,
+            isResolverSelective = isResolverSelective,
+            matBatchDepth = 0,
+        )
 }
 
 /**

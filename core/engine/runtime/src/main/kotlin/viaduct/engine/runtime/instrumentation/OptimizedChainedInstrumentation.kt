@@ -8,11 +8,13 @@ import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchPar
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import graphql.schema.DataFetcher
 import graphql.schema.DataFetchingEnvironment
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
 import viaduct.engine.api.instrumentation.IViaductInstrumentation
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
 import viaduct.engine.api.instrumentation.asStandardInstrumentations
 import viaduct.engine.api.spi.CheckerExecutor
+import viaduct.engine.api.spi.ShadowFieldExecutionComparison
 
 class OptimizedChainedInstrumentation(
     viaductInstrumentations: List<ViaductInstrumentationBase>
@@ -30,6 +32,24 @@ class OptimizedChainedInstrumentation(
         ChainedInstrumentationContext(
             beginFieldInstrumentations.map { instr ->
                 instr.beginFieldExecution(parameters, getState(instr, state))
+            }
+        )
+
+    private val shadowFieldExecutionInstrumentations by lazy {
+        mapInstrumentations<IViaductInstrumentation.WithShadowFieldExecution>()
+    }
+
+    @InternalApi
+    override fun requestShadowFieldExecution(
+        parameters: InstrumentationFieldParameters,
+        state: InstrumentationState?,
+    ): ShadowFieldExecutionComparison? =
+        ShadowFieldExecutionComparison.combine(
+            shadowFieldExecutionInstrumentations.mapNotNull { instrumentation ->
+                instrumentation.requestShadowFieldExecution(
+                    parameters,
+                    getState(instrumentation, state),
+                )
             }
         )
 

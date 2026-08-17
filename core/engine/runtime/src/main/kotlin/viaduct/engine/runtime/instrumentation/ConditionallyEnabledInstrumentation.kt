@@ -14,8 +14,10 @@ import graphql.execution.instrumentation.parameters.InstrumentationValidationPar
 import graphql.schema.DataFetcher
 import graphql.schema.GraphQLSchema
 import java.util.concurrent.CompletableFuture
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.instrumentation.ViaductInstrumentationAdapter
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
+import viaduct.engine.api.spi.ShadowFieldExecutionComparison
 
 /**
  * [ConditionallyEnabledInstrumentation] allows for a given instrumentation to implement the abstract
@@ -198,6 +200,17 @@ class ConditionallyEnabledInstrumentationAdapter(
         { super.beginFieldExecution(parameters, it) },
         { default.beginFieldExecution(parameters, it) }
     )
+
+    @InternalApi
+    override fun requestShadowFieldExecution(
+        parameters: InstrumentationFieldParameters,
+        state: InstrumentationState?,
+    ): ShadowFieldExecutionComparison? =
+        dispatch(
+            state,
+            { super.requestShadowFieldExecution(parameters, it) },
+            { null },
+        )
 
     @Suppress("DEPRECATION")
     @Deprecated("deprecated")

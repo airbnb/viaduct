@@ -32,6 +32,7 @@ import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
 import viaduct.engine.api.instrumentation.IViaductInstrumentation
+import viaduct.engine.api.spi.ShadowFieldExecutionComparison
 import viaduct.engine.runtime.execution.withThreadLocalCoroutineContext
 
 class ConditionallyEnabledInstrumentationTest {
@@ -148,6 +149,19 @@ class ConditionallyEnabledInstrumentationTest {
             },
             runAdapter = { p, s -> beginFieldExecution(p, s) },
             verifyMock = { p, _ -> beginFieldExecution(p, null) }
+        )
+
+    @TestFactory
+    fun requestShadowFieldExecution() =
+        createTestCases<InstrumentationFieldParameters>(
+            createParameters = { ei ->
+                InstrumentationFieldParameters(
+                    mockk<ExecutionContext> { every { executionInput } returns ei },
+                    mockk()
+                )
+            },
+            runAdapter = { p, s -> requestShadowFieldExecution(p, s) },
+            verifyMock = { p, _ -> requestShadowFieldExecution(p, null) },
         )
 
     @TestFactory
@@ -329,6 +343,7 @@ class ConditionallyEnabledInstrumentationTest {
     ) : ConditionallyEnabledInstrumentation(),
         IViaductInstrumentation.WithBeginFieldExecution,
         IViaductInstrumentation.WithBeginFieldFetch,
+        IViaductInstrumentation.WithShadowFieldExecution,
         IViaductInstrumentation.WithBeginFieldCompletion,
         IViaductInstrumentation.WithBeginFieldListCompletion,
         IViaductInstrumentation.WithInstrumentDataFetcher {
@@ -338,6 +353,11 @@ class ConditionallyEnabledInstrumentationTest {
             parameters: InstrumentationFieldParameters,
             state: InstrumentationState?
         ) = default.beginFieldExecution(parameters, state)
+
+        override fun requestShadowFieldExecution(
+            parameters: InstrumentationFieldParameters,
+            state: InstrumentationState?,
+        ): ShadowFieldExecutionComparison? = null
 
         @Suppress("DEPRECATION")
         override fun beginFieldFetch(
