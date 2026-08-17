@@ -163,7 +163,7 @@ public abstract class InputBase implements GraphQLInput {
 
   /** Gets a scalar field value from the input data map. Like Kotlin: {@code get(fieldName)}. */
   @Nullable
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
   protected <T> T get(String fieldName) {
     return HandleErrors.framework("InputBase.get: " + fieldName, () -> (T) fieldValue(fieldName));
   }
@@ -176,7 +176,7 @@ public abstract class InputBase implements GraphQLInput {
    * @param scalarType the GraphQL scalar type name ("DateTime", "Date", or "Time")
    */
   @Nullable
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
   protected <T> T get(String fieldName, String scalarType) {
     return HandleErrors.framework(
         "InputBase.get: " + fieldName,

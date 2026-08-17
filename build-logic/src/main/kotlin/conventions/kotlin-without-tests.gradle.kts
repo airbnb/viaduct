@@ -7,6 +7,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     idea
     id("org.jetbrains.kotlin.jvm")
+    id("conventions.java-static-analysis")
 }
 
 kotlin {

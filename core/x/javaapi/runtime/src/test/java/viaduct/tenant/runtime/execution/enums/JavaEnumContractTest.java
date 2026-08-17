@@ -14,7 +14,7 @@ public class JavaEnumContractTest extends EnumContractTest {
   @Resolver
   public static class CurrentStatusResolver extends QueryResolvers.CurrentStatus {
     @Override
-    public CompletableFuture<Status> resolve(Context ctx) {
+    public CompletableFuture<Status> resolve(QueryResolvers.CurrentStatus.Context ctx) {
       return CompletableFuture.completedFuture(Status.ACTIVE);
     }
   }
@@ -23,7 +23,7 @@ public class JavaEnumContractTest extends EnumContractTest {
   public static class StatusFromRequestContextResolver
       extends QueryResolvers.StatusFromRequestContext {
     @Override
-    public CompletableFuture<Status> resolve(Context ctx) {
+    public CompletableFuture<Status> resolve(QueryResolvers.StatusFromRequestContext.Context ctx) {
       Object rc = ctx.getRequestContext();
       return CompletableFuture.completedFuture(rc instanceof String s ? Status.valueOf(s) : null);
     }

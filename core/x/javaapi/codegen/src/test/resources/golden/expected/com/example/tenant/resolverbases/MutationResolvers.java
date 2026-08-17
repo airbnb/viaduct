@@ -30,6 +30,7 @@ import com.example.grts.*;
 /**
  * Generated resolver base classes for Mutation type.
  */
+@SuppressWarnings({"JavaLangClash", "SameNameButDifferent"})
 public final class MutationResolvers {
 
     private MutationResolvers() {

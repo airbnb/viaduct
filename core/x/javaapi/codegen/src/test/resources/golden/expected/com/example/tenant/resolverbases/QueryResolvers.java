@@ -32,6 +32,7 @@ import com.example.grts.*;
 /**
  * Generated resolver base classes for Query type.
  */
+@SuppressWarnings({"JavaLangClash", "SameNameButDifferent"})
 public final class QueryResolvers {
 
     private QueryResolvers() {
@@ -532,7 +533,7 @@ public final class QueryResolvers {
                 return batchResolve(wrappedContexts)
                     .thenCompose(
                         results -> {
-                            Map<FieldExecutionContext<?, ?, ?, ?>, Object> translatedResults =
+                            IdentityHashMap<FieldExecutionContext<?, ?, ?, ?>, Object> translatedResults =
                                 new IdentityHashMap<>();
                             for (var result : results.entrySet()) {
                                 Context wrappedContext = result.getKey();
@@ -725,7 +726,7 @@ public final class QueryResolvers {
                 return batchResolve(wrappedContexts)
                     .thenCompose(
                         results -> {
-                            Map<FieldExecutionContext<?, ?, ?, ?>, Object> translatedResults =
+                            IdentityHashMap<FieldExecutionContext<?, ?, ?, ?>, Object> translatedResults =
                                 new IdentityHashMap<>();
                             for (var result : results.entrySet()) {
                                 Context wrappedContext = result.getKey();

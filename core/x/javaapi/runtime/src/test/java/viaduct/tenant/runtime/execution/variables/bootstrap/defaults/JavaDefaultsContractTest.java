@@ -14,7 +14,7 @@ public class JavaDefaultsContractTest extends DefaultsContractTest {
   @Resolver(objectValueFragment = "fragment _ on Query { inner(inp: {}) }")
   public static class Outer1Resolver extends QueryResolvers.Outer1 {
     @Override
-    public CompletableFuture<Integer> resolve(Context ctx) {
+    public CompletableFuture<Integer> resolve(QueryResolvers.Outer1.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getObjectValue().getInner() * 3);
     }
   }
@@ -24,7 +24,7 @@ public class JavaDefaultsContractTest extends DefaultsContractTest {
   @Resolver(objectValueFragment = "fragment _ on Query { inner }")
   public static class Outer2Resolver extends QueryResolvers.Outer2 {
     @Override
-    public CompletableFuture<Integer> resolve(Context ctx) {
+    public CompletableFuture<Integer> resolve(QueryResolvers.Outer2.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getObjectValue().getInner() * 5);
     }
   }
@@ -33,7 +33,7 @@ public class JavaDefaultsContractTest extends DefaultsContractTest {
   @Resolver
   public static class Outer3Resolver extends QueryResolvers.Outer3 {
     @Override
-    public CompletableFuture<Integer> resolve(Context ctx) {
+    public CompletableFuture<Integer> resolve(QueryResolvers.Outer3.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getArguments().getArg().getX() * 7);
     }
   }
@@ -44,7 +44,7 @@ public class JavaDefaultsContractTest extends DefaultsContractTest {
       variables = {@Variable(name = "var", fromArgument = "arg")})
   public static class Outer4Resolver extends QueryResolvers.Outer4 {
     @Override
-    public CompletableFuture<Integer> resolve(Context ctx) {
+    public CompletableFuture<Integer> resolve(QueryResolvers.Outer4.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getObjectValue().getInner() * 11);
     }
   }
@@ -53,7 +53,7 @@ public class JavaDefaultsContractTest extends DefaultsContractTest {
   @Resolver
   public static class InnerResolver extends QueryResolvers.Inner {
     @Override
-    public CompletableFuture<Integer> resolve(Context ctx) {
+    public CompletableFuture<Integer> resolve(QueryResolvers.Inner.Context ctx) {
       InputWithDefaults inp = ctx.getArguments().getInp();
       int result = inp != null ? inp.getX() * 2 : -1;
       return CompletableFuture.completedFuture(result);

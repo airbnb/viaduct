@@ -38,6 +38,7 @@ public sealed interface FieldValue<T> permits FieldValue.Success, FieldValue.Err
     }
   }
 
+  @SuppressWarnings("JavaLangClash")
   record Error<T>(Exception error) implements FieldValue<T> {
     @Override
     public T get() {

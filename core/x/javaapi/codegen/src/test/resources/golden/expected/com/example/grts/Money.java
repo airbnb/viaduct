@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("MissingOverride")
 public class Money extends ObjectBase implements SearchHit {
 
     public static final Type<Money> Reflection = Type.ofClass(Money.class);

@@ -111,6 +111,25 @@ Run tests with:
 ./gradlew check
 ```
 
+## Static analysis
+
+Viaduct uses parallel static-analysis stacks for Kotlin and Java:
+
+| Language | Formatting | Bug detection | Nullability |
+| --- | --- | --- | --- |
+| Kotlin | ktlint | detekt | Kotlin type system |
+| Java | Google Java Format 1.26.0 | Error Prone | JSpecify annotations enforced by NullAway |
+
+Run the formatting and standalone analysis tasks with:
+
+```bash
+./gradlew ktlintCheck detekt spotlessCheck
+```
+
+Error Prone and NullAway run as part of Java compilation, including `./gradlew check`, and Java
+compiler and Error Prone warnings fail compilation. Java packages opt in to NullAway by applying
+JSpecify's `@NullMarked`; use `@Nullable` for exceptions within a null-marked scope.
+
 ### Demo Apps
 
 Demo apps are standalone Gradle builds, not part of the root composite. `./gradlew check` runs all of them sequentially against published artifacts via the `demoappsStandaloneTest` task. To iterate on a single demo app, see `demoapps/AGENTS.md`.

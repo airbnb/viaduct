@@ -22,7 +22,7 @@ public class JavaFieldBatchResolverContractTest extends FieldBatchResolverContra
   @Resolver
   public static class ItemsResolver extends QueryResolvers.Items {
     @Override
-    public CompletableFuture<List<Item>> resolve(Context ctx) {
+    public CompletableFuture<List<Item>> resolve(QueryResolvers.Items.Context ctx) {
       int count = ctx.getArguments().getCount() != null ? ctx.getArguments().getCount() : 2;
       List<Item> items =
           IntStream.rangeClosed(1, count)
@@ -37,14 +37,15 @@ public class JavaFieldBatchResolverContractTest extends FieldBatchResolverContra
     static volatile boolean shouldReturnTenantException = false;
 
     @Override
-    public CompletableFuture<Map<Context, String>> batchResolve(List<Context> contexts) {
+    public CompletableFuture<Map<ItemResolvers.BatchedField.Context, String>> batchResolve(
+        List<ItemResolvers.BatchedField.Context> contexts) {
       if (shouldReturnTenantException) {
         // Sneaky-throw: TenantUsageException is checked in Java, but the base signature doesn't
         // declare it. The framework's error handler normalises it to a field error.
         sneakyThrow(new TenantUsageException("field api misuse", null));
       }
-      Map<Context, String> results = new LinkedHashMap<>();
-      for (Context ctx : contexts) {
+      Map<ItemResolvers.BatchedField.Context, String> results = new LinkedHashMap<>();
+      for (ItemResolvers.BatchedField.Context ctx : contexts) {
         String itemId = ctx.getObjectValue().getId();
         results.put(ctx, "batched-" + itemId + "-size-" + contexts.size());
       }
@@ -60,9 +61,10 @@ public class JavaFieldBatchResolverContractTest extends FieldBatchResolverContra
   @Resolver(objectValueFragment = "fragment _ on Item { id }")
   public static class ListFieldResolver extends ItemResolvers.ListField {
     @Override
-    public CompletableFuture<Map<Context, List<Item>>> batchResolve(List<Context> contexts) {
-      Map<Context, List<Item>> results = new LinkedHashMap<>();
-      for (Context ctx : contexts) {
+    public CompletableFuture<Map<ItemResolvers.ListField.Context, List<Item>>> batchResolve(
+        List<ItemResolvers.ListField.Context> contexts) {
+      Map<ItemResolvers.ListField.Context, List<Item>> results = new LinkedHashMap<>();
+      for (ItemResolvers.ListField.Context ctx : contexts) {
         String itemId = ctx.getObjectValue().getId();
         List<Item> subItems =
             IntStream.rangeClosed(1, contexts.size())

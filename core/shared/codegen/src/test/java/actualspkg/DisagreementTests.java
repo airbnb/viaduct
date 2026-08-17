@@ -11,6 +11,7 @@ import java.lang.annotation.Target;
   String value() default "";
 }
 
+@SuppressWarnings({"ClassCanBeStatic", "UnusedVariable"})
 public class DisagreementTests {
   @InvisibleAnnotation
   public class ClassAnnotationMismatch {}

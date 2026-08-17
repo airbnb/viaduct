@@ -62,6 +62,7 @@ public final class JavaResolverGenerator {
           /**
            * Generated resolver base classes for <mdl.typeName> type.
            */
+          @SuppressWarnings({"JavaLangClash", "SameNameButDifferent"})
           public final class <mdl.typeName>Resolvers {
 
               private <mdl.typeName>Resolvers() {

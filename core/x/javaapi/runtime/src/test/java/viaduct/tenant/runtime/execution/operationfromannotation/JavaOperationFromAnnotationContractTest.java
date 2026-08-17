@@ -32,7 +32,7 @@ public class JavaOperationFromAnnotationContractTest extends OperationFromAnnota
   @Resolver
   public static class ContainerResolver extends QueryResolvers.Container {
     @Override
-    public CompletableFuture<Container> resolve(Context ctx) {
+    public CompletableFuture<Container> resolve(QueryResolvers.Container.Context ctx) {
       return CompletableFuture.completedFuture(Container.builder(ctx).build());
     }
   }
@@ -40,7 +40,7 @@ public class JavaOperationFromAnnotationContractTest extends OperationFromAnnota
   @Resolver
   public static class EchoResolver extends QueryResolvers.Echo {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(QueryResolvers.Echo.Context ctx) {
       return CompletableFuture.completedFuture("echo:" + ctx.getArguments().getValue());
     }
   }
@@ -48,7 +48,7 @@ public class JavaOperationFromAnnotationContractTest extends OperationFromAnnota
   @Resolver
   public static class GreeterResolver extends QueryResolvers.Greeter {
     @Override
-    public CompletableFuture<Greeter> resolve(Context ctx) {
+    public CompletableFuture<Greeter> resolve(QueryResolvers.Greeter.Context ctx) {
       return CompletableFuture.completedFuture(Greeter.builder(ctx).text("hi").build());
     }
   }
@@ -56,7 +56,7 @@ public class JavaOperationFromAnnotationContractTest extends OperationFromAnnota
   @Resolver
   public static class RecordResolver extends MutationResolvers.Record {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(MutationResolvers.Record.Context ctx) {
       return CompletableFuture.completedFuture("record:" + ctx.getArguments().getValue());
     }
   }
@@ -64,7 +64,7 @@ public class JavaOperationFromAnnotationContractTest extends OperationFromAnnota
   @Resolver
   public static class RunQueryWithFragmentResolver extends ContainerResolvers.RunQueryWithFragment {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(ContainerResolvers.RunQueryWithFragment.Context ctx) {
       return ctx.query(GREETER_QUERY).thenApply(result -> result.getGreeter().getText());
     }
   }
@@ -72,7 +72,7 @@ public class JavaOperationFromAnnotationContractTest extends OperationFromAnnota
   @Resolver
   public static class RunQueryOperationResolver extends ContainerResolvers.RunQueryOperation {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(ContainerResolvers.RunQueryOperation.Context ctx) {
       return ctx.query(ECHO_QUERY, Map.of("value", ctx.getArguments().getValue()))
           .thenApply(Query::getEcho);
     }
@@ -81,7 +81,7 @@ public class JavaOperationFromAnnotationContractTest extends OperationFromAnnota
   @Resolver
   public static class RunMutationOperationResolver extends MutationResolvers.RunMutationOperation {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(MutationResolvers.RunMutationOperation.Context ctx) {
       return ctx.mutation(RECORD_MUTATION, Map.of("value", ctx.getArguments().getValue()))
           .thenApply(Mutation::getRecord);
     }

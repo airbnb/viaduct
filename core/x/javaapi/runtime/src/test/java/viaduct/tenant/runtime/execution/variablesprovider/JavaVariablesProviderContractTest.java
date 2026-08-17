@@ -36,7 +36,7 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
       variables = {@Variable(name = "myVar", fromArgument = "arg")})
   public static class FromArgumentFieldResolver extends QueryResolvers.FromArgumentField {
     @Override
-    public CompletableFuture<Integer> resolve(Context ctx) {
+    public CompletableFuture<Integer> resolve(QueryResolvers.FromArgumentField.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediary());
     }
   }
@@ -44,7 +44,7 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
   @Resolver
   public static class IntermediaryResolver extends QueryResolvers.Intermediary {
     @Override
-    public CompletableFuture<Integer> resolve(Context ctx) {
+    public CompletableFuture<Integer> resolve(QueryResolvers.Intermediary.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getArguments().getArg());
     }
   }
@@ -52,7 +52,7 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
   @Resolver
   public static class IntermediaryTakesInputResolver extends QueryResolvers.IntermediaryTakesInput {
     @Override
-    public CompletableFuture<Integer> resolve(Context ctx) {
+    public CompletableFuture<Integer> resolve(QueryResolvers.IntermediaryTakesInput.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getArguments().getInput().getX());
     }
   }
@@ -61,7 +61,7 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
   public static class IntermediaryTakesGlobalIDResolver
       extends QueryResolvers.IntermediaryTakesGlobalID {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(QueryResolvers.IntermediaryTakesGlobalID.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getArguments().getInput());
     }
   }
@@ -70,7 +70,8 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
   public static class IntermediaryTakesNestedComplexInputResolver
       extends QueryResolvers.IntermediaryTakesNestedComplexInput {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(
+        QueryResolvers.IntermediaryTakesNestedComplexInput.Context ctx) {
       ComplexInput complex = ctx.getArguments().getInput().getComplexInput();
       String values =
           complex.getIntArray().stream()
@@ -87,7 +88,7 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
   @Resolver(objectValueFragment = "fragment _ on Query { intermediary(arg: $x) }")
   public static class FromVariablesProviderResolver extends QueryResolvers.FromVariablesProvider {
     @Override
-    public CompletableFuture<Integer> resolve(Context ctx) {
+    public CompletableFuture<Integer> resolve(QueryResolvers.FromVariablesProvider.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediary());
     }
 
@@ -109,7 +110,8 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
   public static class FromVariablesProviderWithInputResolver
       extends QueryResolvers.FromVariablesProviderWithInput {
     @Override
-    public CompletableFuture<Integer> resolve(Context ctx) {
+    public CompletableFuture<Integer> resolve(
+        QueryResolvers.FromVariablesProviderWithInput.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediaryTakesInput());
     }
 
@@ -131,7 +133,8 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
   public static class FromVariablesProviderWithGlobalIDResolver
       extends QueryResolvers.FromVariablesProviderWithGlobalID {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(
+        QueryResolvers.FromVariablesProviderWithGlobalID.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediaryTakesGlobalID());
     }
 
@@ -156,7 +159,8 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
   public static class FromVariablesProviderWithNestedComplexInputResolver
       extends QueryResolvers.FromVariablesProviderWithNestedComplexInput {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(
+        QueryResolvers.FromVariablesProviderWithNestedComplexInput.Context ctx) {
       return CompletableFuture.completedFuture(
           ctx.getObjectValue().getIntermediaryTakesNestedComplexInput());
     }

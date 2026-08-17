@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("MissingOverride")
 public class Mutation extends ObjectBase implements viaduct.java.api.types.Mutation {
 
     public static final Type<Mutation> Reflection = Type.ofClass(Mutation.class);

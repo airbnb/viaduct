@@ -2,6 +2,7 @@ package expectedspkg;
 
 import actualspkg.Testing;
 
+@SuppressWarnings({"ClassCanBeStatic", "UnusedMethod", "UnusedNestedClass", "UnusedVariable"})
 public class AgreementTests {
   public class EmptyClass {}
 

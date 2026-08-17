@@ -17,7 +17,7 @@ public class JavaEmptyVariablesContractTest extends EmptyVariablesContractTest {
   @Resolver(objectValueFragment = "fragment _ on Query { intermediary(arg: $someVar) }")
   public static class FromVariablesProviderResolver extends QueryResolvers.FromVariablesProvider {
     @Override
-    public CompletableFuture<Integer> resolve(Context ctx) {
+    public CompletableFuture<Integer> resolve(QueryResolvers.FromVariablesProvider.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediary());
     }
 
@@ -34,7 +34,7 @@ public class JavaEmptyVariablesContractTest extends EmptyVariablesContractTest {
   @Resolver
   public static class IntermediaryResolver extends QueryResolvers.Intermediary {
     @Override
-    public CompletableFuture<Integer> resolve(Context ctx) {
+    public CompletableFuture<Integer> resolve(QueryResolvers.Intermediary.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getArguments().getArg());
     }
   }
@@ -42,7 +42,7 @@ public class JavaEmptyVariablesContractTest extends EmptyVariablesContractTest {
   @Resolver
   public static class FromArgumentFieldResolver extends QueryResolvers.FromArgumentField {
     @Override
-    public CompletableFuture<Integer> resolve(Context ctx) {
+    public CompletableFuture<Integer> resolve(QueryResolvers.FromArgumentField.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getArguments().getArg());
     }
   }

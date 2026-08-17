@@ -184,7 +184,7 @@ public abstract class ObjectBase implements GraphQLObject {
    * <p>Uses field cache with NULL_VALUE sentinel (identical to Kotlin ObjectBase.get()).
    */
   @Nullable
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
   protected <T> T fetchScalar(String fieldName) {
     return HandleErrors.framework(
         "ObjectBase.fetchScalar: " + fieldName,
@@ -210,7 +210,7 @@ public abstract class ObjectBase implements GraphQLObject {
    * @param scalarType the GraphQL scalar type name ("DateTime", "Date", or "Time")
    */
   @Nullable
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
   protected <T> T fetchScalar(String fieldName, String scalarType) {
     return HandleErrors.framework(
         "ObjectBase.fetchScalar: " + fieldName,

@@ -48,7 +48,7 @@ viaduct/                         ← root project (orchestration only)
 
 ## The Root Project
 
-The root `build.gradle.kts` owns no source code. It applies the `buildroot.orchestration` plugin, which creates lifecycle tasks (`check`, `test`, `build`, `detekt`, `ktlintCheck`, etc.) that delegate into the **participating included builds**: `core`, `gradle-plugins`, and `publications`. When you run `./gradlew check` at the root, Gradle fans out into those three builds.
+The root `build.gradle.kts` owns no source code. It applies the `buildroot.orchestration` plugin, which creates lifecycle tasks (`check`, `test`, `build`, `detekt`, `ktlintCheck`, `spotlessCheck`, etc.) that delegate into the **participating included builds**: `core`, `gradle-plugins`, and `publications`. When you run `./gradlew check` at the root, Gradle fans out into those three builds.
 
 Demoapps are not part of this composite build. `check` runs them by shelling out to a standalone build per demoapp via the `demoappsStandaloneTest` task — see demoapps/AGENTS.md.
 
@@ -82,7 +82,7 @@ As an included build, `publications` participates in Gradle's automatic dependen
 
 ## The `build-logic` Build
 
-`build-logic` is a special included build that provides precompiled script plugins (build conventions) used across all other builds. It defines conventions for Kotlin compilation, static analysis (detekt, ktlint), publishing, JaCoCo, and Dokka documentation. Every other `settings.gradle.kts` includes `build-logic` via `pluginManagement { includeBuild("../build-logic") }`.
+`build-logic` is a special included build that provides precompiled script plugins (build conventions) used across all other builds. It defines conventions for Kotlin static analysis (detekt and ktlint), Java static analysis (Error Prone, NullAway, and Google Java Format), publishing, JaCoCo, and Dokka documentation. Every other `settings.gradle.kts` includes `build-logic` via `pluginManagement { includeBuild("../build-logic") }`.
 
 ## Demoapps
 

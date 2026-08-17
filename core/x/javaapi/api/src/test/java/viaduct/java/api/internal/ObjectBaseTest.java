@@ -56,10 +56,12 @@ class ObjectBaseTest {
       super(context, ref);
     }
 
+    @SuppressWarnings("TypeParameterUnusedInFormals")
     <T> @Nullable T scalar(String field) {
       return fetchScalar(field);
     }
 
+    @SuppressWarnings("TypeParameterUnusedInFormals")
     <T> @Nullable T scalar(String field, String scalarType) {
       return fetchScalar(field, scalarType);
     }

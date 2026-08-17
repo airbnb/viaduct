@@ -34,7 +34,7 @@ public class JavaConnectionsContractTest extends ConnectionsContractTest {
   @Resolver
   public static class PostsResolver extends QueryResolvers.Posts {
     @Override
-    public CompletableFuture<PostConnection> resolve(Context ctx) {
+    public CompletableFuture<PostConnection> resolve(QueryResolvers.Posts.Context ctx) {
       return CompletableFuture.completedFuture(
           PostConnection.builder(ctx)
               .totalCount(ALL_POSTS.size())
@@ -48,7 +48,7 @@ public class JavaConnectionsContractTest extends ConnectionsContractTest {
   @Resolver
   public static class PagedPostsResolver extends QueryResolvers.PagedPosts {
     @Override
-    public CompletableFuture<PostConnection> resolve(Context ctx) {
+    public CompletableFuture<PostConnection> resolve(QueryResolvers.PagedPosts.Context ctx) {
       OffsetLimit offsetLimit =
           ctx.getArguments().requiresTotalCountForOffsetLimit()
               ? ctx.getArguments()
@@ -76,7 +76,7 @@ public class JavaConnectionsContractTest extends ConnectionsContractTest {
   @Resolver
   public static class RankedPostsResolver extends QueryResolvers.RankedPosts {
     @Override
-    public CompletableFuture<PostConnection> resolve(Context ctx) {
+    public CompletableFuture<PostConnection> resolve(QueryResolvers.RankedPosts.Context ctx) {
       int last = ctx.getArguments().getLast() != null ? ctx.getArguments().getLast() : 20;
       String before = ctx.getArguments().getBefore();
       int beforeOffset = before != null ? new OffsetCursor(before).toOffset() : ALL_POSTS.size();
@@ -107,7 +107,7 @@ public class JavaConnectionsContractTest extends ConnectionsContractTest {
   @Resolver
   public static class FirstOnlyPostsResolver extends QueryResolvers.FirstOnlyPosts {
     @Override
-    public CompletableFuture<PostConnection> resolve(Context ctx) {
+    public CompletableFuture<PostConnection> resolve(QueryResolvers.FirstOnlyPosts.Context ctx) {
       return CompletableFuture.completedFuture(
           PostConnection.builder(ctx)
               .fromList(ALL_POSTS, p -> Post.builder(ctx).id(p.id()).title(p.title()).build())
@@ -118,7 +118,7 @@ public class JavaConnectionsContractTest extends ConnectionsContractTest {
   @Resolver
   public static class LastOnlyPostsResolver extends QueryResolvers.LastOnlyPosts {
     @Override
-    public CompletableFuture<PostConnection> resolve(Context ctx) {
+    public CompletableFuture<PostConnection> resolve(QueryResolvers.LastOnlyPosts.Context ctx) {
       return CompletableFuture.completedFuture(
           PostConnection.builder(ctx)
               .fromList(ALL_POSTS, p -> Post.builder(ctx).id(p.id()).title(p.title()).build())
@@ -131,7 +131,7 @@ public class JavaConnectionsContractTest extends ConnectionsContractTest {
   @Resolver
   public static class SparsePostsResolver extends QueryResolvers.SparsePosts {
     @Override
-    public CompletableFuture<PostConnection> resolve(Context ctx) {
+    public CompletableFuture<PostConnection> resolve(QueryResolvers.SparsePosts.Context ctx) {
       return CompletableFuture.completedFuture(
           PostConnection.builder(ctx)
               .fromList(
@@ -150,7 +150,7 @@ public class JavaConnectionsContractTest extends ConnectionsContractTest {
   @Resolver
   public static class UnpagedPostsResolver extends QueryResolvers.UnpagedPosts {
     @Override
-    public CompletableFuture<PostConnection> resolve(Context ctx) {
+    public CompletableFuture<PostConnection> resolve(QueryResolvers.UnpagedPosts.Context ctx) {
       return CompletableFuture.completedFuture(
           PostConnection.builder(ctx)
               .status(ConnectionStatus.ACTIVE)
@@ -168,7 +168,7 @@ public class JavaConnectionsContractTest extends ConnectionsContractTest {
   @Resolver
   public static class FilteredPostsResolver extends QueryResolvers.FilteredPosts {
     @Override
-    public CompletableFuture<PostConnection> resolve(Context ctx) {
+    public CompletableFuture<PostConnection> resolve(QueryResolvers.FilteredPosts.Context ctx) {
       return CompletableFuture.completedFuture(
           PostConnection.builder(ctx).totalCount(0).fromEdges(List.of()).build());
     }

@@ -50,7 +50,7 @@ public class JavaRootFieldRefContractTest extends RootFieldRefContractTest {
   @Resolver
   public static class ProductFactoryCreateResolver extends ProductFactoryResolvers.Create {
     @Override
-    public CompletableFuture<Product> resolve(Context ctx) {
+    public CompletableFuture<Product> resolve(ProductFactoryResolvers.Create.Context ctx) {
       var arguments = productArguments(ctx);
       var related = ctx.rootFieldRef(ProductFactory.Fields.createWithArguments, arguments);
 
@@ -63,7 +63,8 @@ public class JavaRootFieldRefContractTest extends RootFieldRefContractTest {
   public static class ProductFactoryCreateWithArgumentsResolver
       extends ProductFactoryResolvers.CreateWithArguments {
     @Override
-    public CompletableFuture<Product> resolve(Context ctx) {
+    public CompletableFuture<Product> resolve(
+        ProductFactoryResolvers.CreateWithArguments.Context ctx) {
       var arguments = ctx.getArguments();
 
       assertEquals("Widget", arguments.getName());
@@ -85,7 +86,7 @@ public class JavaRootFieldRefContractTest extends RootFieldRefContractTest {
   @Resolver
   public static class ProductResolver extends QueryResolvers.Product {
     @Override
-    public CompletableFuture<Product> resolve(Context ctx) {
+    public CompletableFuture<Product> resolve(QueryResolvers.Product.Context ctx) {
       return CompletableFuture.completedFuture(
           ctx.rootFieldRef(ProductFactory.Fields.create, Arguments.None));
     }

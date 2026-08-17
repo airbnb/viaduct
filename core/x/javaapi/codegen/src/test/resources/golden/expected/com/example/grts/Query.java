@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("MissingOverride")
 public class Query extends ObjectBase implements viaduct.java.api.types.Query {
 
     public static final Type<Query> Reflection = Type.ofClass(Query.class);

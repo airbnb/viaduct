@@ -53,10 +53,12 @@ class InputBaseTest {
       super(context, data, type);
     }
 
+    @SuppressWarnings("TypeParameterUnusedInFormals")
     <T> @Nullable T scalar(String field) {
       return get(field);
     }
 
+    @SuppressWarnings("TypeParameterUnusedInFormals")
     <T> @Nullable T scalar(String field, String scalarType) {
       return get(field, scalarType);
     }

@@ -13,7 +13,7 @@ public class JavaIncludeDirectiveContractTest extends IncludeDirectiveContractTe
   @Resolver
   public static class FooResolver extends QueryResolvers.Foo {
     @Override
-    public CompletableFuture<Foo> resolve(Context ctx) {
+    public CompletableFuture<Foo> resolve(QueryResolvers.Foo.Context ctx) {
       return CompletableFuture.completedFuture(Foo.builder(ctx).build());
     }
   }
@@ -21,7 +21,7 @@ public class JavaIncludeDirectiveContractTest extends IncludeDirectiveContractTe
   @Resolver
   public static class ThrowerResolver extends QueryResolvers.Thrower {
     @Override
-    public CompletableFuture<Thrower> resolve(Context ctx) {
+    public CompletableFuture<Thrower> resolve(QueryResolvers.Thrower.Context ctx) {
       return CompletableFuture.completedFuture(Thrower.builder(ctx).build());
     }
   }
@@ -29,7 +29,7 @@ public class JavaIncludeDirectiveContractTest extends IncludeDirectiveContractTe
   @Resolver
   public static class BooleanValueResolver extends QueryResolvers.BooleanValue {
     @Override
-    public CompletableFuture<Boolean> resolve(Context ctx) {
+    public CompletableFuture<Boolean> resolve(QueryResolvers.BooleanValue.Context ctx) {
       return CompletableFuture.completedFuture(false);
     }
   }
@@ -37,7 +37,7 @@ public class JavaIncludeDirectiveContractTest extends IncludeDirectiveContractTe
   @Resolver
   public static class IntValueResolver extends FooResolvers.IntValue {
     @Override
-    public CompletableFuture<Integer> resolve(Context ctx) {
+    public CompletableFuture<Integer> resolve(FooResolvers.IntValue.Context ctx) {
       return CompletableFuture.completedFuture(10);
     }
   }
@@ -45,7 +45,7 @@ public class JavaIncludeDirectiveContractTest extends IncludeDirectiveContractTe
   @Resolver
   public static class SValueResolver extends FooResolvers.SValue {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(FooResolvers.SValue.Context ctx) {
       return CompletableFuture.completedFuture("result value");
     }
   }
@@ -53,7 +53,7 @@ public class JavaIncludeDirectiveContractTest extends IncludeDirectiveContractTe
   @Resolver
   public static class WillThrowResolver extends ThrowerResolvers.WillThrow {
     @Override
-    public CompletableFuture<Integer> resolve(Context ctx) {
+    public CompletableFuture<Integer> resolve(ThrowerResolvers.WillThrow.Context ctx) {
       throw new RuntimeException("asd");
     }
   }

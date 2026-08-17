@@ -14,7 +14,7 @@
  *
  * In the TOP-LEVEL ROOT ONLY (gradle.parent == null):
  *   - Adds repo-wide tasks spanning root subprojects + selected included builds’ aggregates:
- *       build, check, clean, test, dokka, jacoco, ci
+ *       build, check, clean, test, detekt, ktlintCheck, spotlessCheck, dokka, jacoco, ci
  *       publishToMavenLocal, publishToMavenCentral
  *
  * Root configuration:
@@ -181,6 +181,11 @@ registerSubprojectAggregate(
     taskNames = setOf("ktlintCheck")
 )
 registerSubprojectAggregate(
+    aggregateName = "orchestrationSpotlessCheckAll",
+    description = "[orchestration] Runs spotlessCheck on all SUBPROJECTS in THIS build.",
+    taskNames = setOf("spotlessCheck")
+)
+registerSubprojectAggregate(
     aggregateName = "orchestrationFindWarningsForCleanupAll",
     description = "[orchestration] Runs findWarningsForCleanup on all SUBPROJECTS in THIS build.",
     taskNames = setOf("findWarningsForCleanup")
@@ -273,6 +278,12 @@ if (gradle.parent != null) {
         description = "Runs ktlintCheck on all subprojects in this included build."
     )
     aliasConventionalTaskToAggregate(
+        conventionalName = "spotlessCheck",
+        aggregateName = "orchestrationSpotlessCheckAll",
+        group = "verification",
+        description = "Runs spotlessCheck on all subprojects in this included build."
+    )
+    aliasConventionalTaskToAggregate(
         conventionalName = "findWarningsForCleanup",
         aggregateName = "orchestrationFindWarningsForCleanupAll",
         group = "verification",
@@ -341,6 +352,12 @@ if (gradle.parent == null) {
     ensureTask("ktlintCheck", "verification", "Runs ktlintCheck across root and participating included builds.") {
         dependsOn(tasksNamedInSubprojects("ktlintCheck"))
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationKtlintCheckAll") })
+    }
+
+    // spotlessCheck: root subprojects + included builds' aggregate
+    ensureTask("spotlessCheck", "verification", "Runs spotlessCheck across root and participating included builds.") {
+        dependsOn(tasksNamedInSubprojects("spotlessCheck"))
+        dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationSpotlessCheckAll") })
     }
 
     // findWarningsForCleanup: root subprojects + included builds' aggregate

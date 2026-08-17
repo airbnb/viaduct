@@ -17,7 +17,7 @@ public class JavaTempOneOfViolationContractTest extends TempOneOfViolationContra
   @Resolver(objectValueFragment = "fragment _ on Query { intermediary(arg: $oneofVar) }")
   public static class FromVariablesProviderResolver extends QueryResolvers.FromVariablesProvider {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(QueryResolvers.FromVariablesProvider.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediary());
     }
 
@@ -35,7 +35,7 @@ public class JavaTempOneOfViolationContractTest extends TempOneOfViolationContra
   @Resolver
   public static class IntermediaryResolver extends QueryResolvers.Intermediary {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(QueryResolvers.Intermediary.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getArguments().getArg().toString());
     }
   }
@@ -43,7 +43,7 @@ public class JavaTempOneOfViolationContractTest extends TempOneOfViolationContra
   @Resolver
   public static class FromArgumentFieldResolver extends QueryResolvers.FromArgumentField {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(QueryResolvers.FromArgumentField.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getArguments().getArg().toString());
     }
   }
@@ -54,7 +54,7 @@ public class JavaTempOneOfViolationContractTest extends TempOneOfViolationContra
   public static class FromBuilderTwoKeysOneNullResolver
       extends QueryResolvers.FromBuilderTwoKeysOneNull {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(QueryResolvers.FromBuilderTwoKeysOneNull.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediary());
     }
 
@@ -74,7 +74,7 @@ public class JavaTempOneOfViolationContractTest extends TempOneOfViolationContra
   public static class FromBuilderSingleNullKeyResolver
       extends QueryResolvers.FromBuilderSingleNullKey {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(QueryResolvers.FromBuilderSingleNullKey.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediary());
     }
 

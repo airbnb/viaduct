@@ -12,7 +12,7 @@ public class JavaInvalidQueryFragmentContractTest extends InvalidQueryFragmentCo
   @Resolver
   public static class GreetingResolver extends QueryResolvers.Greeting {
     @Override
-    public CompletableFuture<Foo> resolve(Context ctx) {
+    public CompletableFuture<Foo> resolve(QueryResolvers.Greeting.Context ctx) {
       return CompletableFuture.completedFuture(Foo.builder(ctx).build());
     }
   }
@@ -20,7 +20,7 @@ public class JavaInvalidQueryFragmentContractTest extends InvalidQueryFragmentCo
   @Resolver
   public static class BazResolver extends FooResolvers.Baz {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(FooResolvers.Baz.Context ctx) {
       return CompletableFuture.completedFuture("world");
     }
   }
@@ -29,7 +29,7 @@ public class JavaInvalidQueryFragmentContractTest extends InvalidQueryFragmentCo
   @Resolver(queryValueFragment = "horse")
   public static class BarResolver extends FooResolvers.Bar {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(FooResolvers.Bar.Context ctx) {
       return CompletableFuture.completedFuture("unreachable");
     }
   }

@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("MissingOverride")
 public class Order extends NodeObjectBase implements Node, Auditable, Timestamped, SearchHit {
 
     public static final Type<Order> Reflection = Type.ofClass(Order.class);

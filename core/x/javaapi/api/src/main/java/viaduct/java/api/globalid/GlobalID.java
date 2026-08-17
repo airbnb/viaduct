@@ -17,13 +17,9 @@ import viaduct.java.api.types.NodeCompositeOutput;
  * @param <T> The type of NodeCompositeOutput this GlobalID refers to
  */
 public interface GlobalID<T extends NodeCompositeOutput> {
-  /**
-   * @return The type of the node object, e.g. User.
-   */
+  /** Returns the type of the node object, e.g. User. */
   Type<T> getType();
 
-  /**
-   * @return The internal ID of the node object, e.g. "123".
-   */
+  /** Returns the internal ID of the node object, e.g. "123". */
   String getInternalID();
 }

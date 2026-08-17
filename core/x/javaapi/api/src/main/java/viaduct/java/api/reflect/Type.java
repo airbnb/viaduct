@@ -9,14 +9,10 @@ import viaduct.java.api.types.GRT;
  */
 public interface Type<T extends GRT> {
 
-  /**
-   * @return The GraphQL name of this type
-   */
+  /** Returns the GraphQL name of this type. */
   String getName();
 
-  /**
-   * @return The Java Class that describes values for this type
-   */
+  /** Returns the Java Class that describes values for this type. */
   Class<? extends T> getJavaClass();
 
   /**

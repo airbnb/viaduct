@@ -2,6 +2,7 @@ package expectedspkg;
 
 import actualspkg.Testing;
 
+@SuppressWarnings({"ClassCanBeStatic", "UnusedVariable"})
 public class DisagreementTests {
   public class ClassAnnotationMismatch {}
 

@@ -19,6 +19,7 @@ import viaduct.java.api.internal.InputBase;
 import viaduct.java.api.internal.InternalContext;
 
 /** Generated arguments class for resolver field. */
+@SuppressWarnings("MissingOverride")
 public class Query_OrdersConnection_Arguments extends InputBase implements Arguments, viaduct.java.api.types.ForwardConnectionArguments {
 
     public static final Type<Query_OrdersConnection_Arguments> Reflection = Type.ofClass(Query_OrdersConnection_Arguments.class);

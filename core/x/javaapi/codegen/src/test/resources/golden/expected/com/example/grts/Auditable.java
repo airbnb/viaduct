@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.time.OffsetTime;
 import java.util.List;
 
+@SuppressWarnings("MissingOverride")
 public interface Auditable extends NodeCompositeOutput, Node, Timestamped {
 
     Type<Auditable> Reflection = Type.ofClass(Auditable.class);

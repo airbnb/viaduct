@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
@@ -171,11 +172,10 @@ abstract class AbstractClassDiffTest {
     try (StandardJavaFileManager fileManager =
         compiler.getStandardFileManager(diagnostics, null, null)) {
 
-      List<File> javaFiles =
-          Files.walk(sourceDir)
-              .filter(p -> p.toString().endsWith(".java"))
-              .map(Path::toFile)
-              .toList();
+      List<File> javaFiles;
+      try (Stream<Path> paths = Files.walk(sourceDir)) {
+        javaFiles = paths.filter(p -> p.toString().endsWith(".java")).map(Path::toFile).toList();
+      }
 
       if (javaFiles.isEmpty()) {
         throw new IOException("No Java files found in " + sourceDir);

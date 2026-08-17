@@ -1,5 +1,6 @@
 package actualspkg;
 
+@SuppressWarnings({"ClassCanBeStatic", "UnusedMethod", "UnusedNestedClass", "UnusedVariable"})
 public class AgreementTests {
   public class EmptyClass {}
 

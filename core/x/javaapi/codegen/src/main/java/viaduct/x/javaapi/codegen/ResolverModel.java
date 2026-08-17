@@ -365,7 +365,7 @@ public record ResolverModel(
   }
 
   public String getBatchInvokerResultMapType() {
-    return "Map<FieldExecutionContext<?, ?, ?, ?>, Object>";
+    return "IdentityHashMap<FieldExecutionContext<?, ?, ?, ?>, Object>";
   }
 
   public String getBatchInvokerContextType() {

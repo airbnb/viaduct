@@ -35,7 +35,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
   @Resolver
   public static class GreetingResolver extends QueryResolvers.Greeting {
     @Override
-    public CompletableFuture<Foo> resolve(Context ctx) {
+    public CompletableFuture<Foo> resolve(QueryResolvers.Greeting.Context ctx) {
       return CompletableFuture.completedFuture(Foo.builder(ctx).build());
     }
   }
@@ -43,7 +43,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
   @Resolver
   public static class BazResolver extends FooResolvers.Baz {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(FooResolvers.Baz.Context ctx) {
       return CompletableFuture.completedFuture("world");
     }
   }
@@ -51,7 +51,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
   @Resolver
   public static class NestedResolver extends FooResolvers.Nested {
     @Override
-    public CompletableFuture<NestedFoo> resolve(Context ctx) {
+    public CompletableFuture<NestedFoo> resolve(FooResolvers.Nested.Context ctx) {
       return CompletableFuture.completedFuture(NestedFoo.builder(ctx).build());
     }
   }
@@ -59,7 +59,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
   @Resolver
   public static class ValueResolver extends NestedFooResolvers.Value {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(NestedFooResolvers.Value.Context ctx) {
       return CompletableFuture.completedFuture("nested_value");
     }
   }
@@ -67,7 +67,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
   @Resolver(objectValueFragment = "baz")
   public static class ShorthandBarResolver extends FooResolvers.ShorthandBar {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(FooResolvers.ShorthandBar.Context ctx) {
       return CompletableFuture.completedFuture(ctx.getObjectValue().getBaz());
     }
   }
@@ -84,7 +84,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
           """)
   public static class FragmentBarResolver extends FooResolvers.FragmentBar {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(FooResolvers.FragmentBar.Context ctx) {
       String baz = ctx.getObjectValue().getBaz();
       NestedFoo nested = ctx.getObjectValue().getNested();
       return CompletableFuture.completedFuture(baz + "-" + nested.getValue());
@@ -94,7 +94,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
   @Resolver
   public static class FooListResolver extends QueryResolvers.FooList {
     @Override
-    public CompletableFuture<List<Foo>> resolve(Context ctx) {
+    public CompletableFuture<List<Foo>> resolve(QueryResolvers.FooList.Context ctx) {
       return CompletableFuture.completedFuture(
           List.of(Foo.builder(ctx).build(), Foo.builder(ctx).build(), Foo.builder(ctx).build()));
     }
@@ -103,7 +103,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
   @Resolver
   public static class NestedFooListResolver extends QueryResolvers.NestedFooList {
     @Override
-    public CompletableFuture<List<NestedFoo>> resolve(Context ctx) {
+    public CompletableFuture<List<NestedFoo>> resolve(QueryResolvers.NestedFooList.Context ctx) {
       return CompletableFuture.completedFuture(
           List.of(NestedFoo.builder(ctx).build(), NestedFoo.builder(ctx).build()));
     }
@@ -112,7 +112,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
   @Resolver
   public static class FooWithArgsResolver extends QueryResolvers.FooWithArgs {
     @Override
-    public CompletableFuture<Foo> resolve(Context ctx) {
+    public CompletableFuture<Foo> resolve(QueryResolvers.FooWithArgs.Context ctx) {
       ctx.getArguments().getMessage();
       ctx.getArguments().getCount();
       return CompletableFuture.completedFuture(Foo.builder(ctx).build());
@@ -122,7 +122,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
   @Resolver
   public static class MessageResolver extends FooResolvers.Message {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(FooResolvers.Message.Context ctx) {
       return CompletableFuture.completedFuture("message from resolver");
     }
   }
@@ -130,7 +130,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
   @Resolver
   public static class PersonByNameResolver extends QueryResolvers.PersonByName {
     @Override
-    public CompletableFuture<Person> resolve(Context ctx) {
+    public CompletableFuture<Person> resolve(QueryResolvers.PersonByName.Context ctx) {
       String name = ctx.getArguments().getName();
       Address address =
           Address.builder(ctx).street("123 Main St").city("San Francisco").country("USA").build();
@@ -142,7 +142,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
   @Resolver(objectValueFragment = "address { street city country }")
   public static class FullAddressResolver extends PersonResolvers.FullAddress {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(PersonResolvers.FullAddress.Context ctx) {
       Person person = ctx.getObjectValue();
       Address address = person.getAddress();
       if (address == null) {
@@ -157,7 +157,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
   @Resolver
   public static class PersonGreetingResolver extends PersonResolvers.Greeting {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(PersonResolvers.Greeting.Context ctx) {
       return CompletableFuture.completedFuture("Hello!");
     }
   }

@@ -36,7 +36,7 @@ public class JavaReflectionContractTest extends ReflectionContractTest {
   @Resolver
   public static class CategoryResolver extends QueryResolvers.Category {
     @Override
-    public CompletableFuture<Category> resolve(Context ctx) {
+    public CompletableFuture<Category> resolve(QueryResolvers.Category.Context ctx) {
       return CompletableFuture.completedFuture(
           Category.builder(ctx).id(ctx.getArguments().getId()).build());
     }
@@ -45,7 +45,7 @@ public class JavaReflectionContractTest extends ReflectionContractTest {
   @Resolver
   public static class ShelfResolver extends QueryResolvers.Shelf {
     @Override
-    public CompletableFuture<Shelf> resolve(Context ctx) {
+    public CompletableFuture<Shelf> resolve(QueryResolvers.Shelf.Context ctx) {
       return CompletableFuture.completedFuture(Shelf.builder(ctx).build());
     }
   }
@@ -53,7 +53,7 @@ public class JavaReflectionContractTest extends ReflectionContractTest {
   @Resolver
   public static class TopProductResolver extends ShelfResolvers.TopProduct {
     @Override
-    public CompletableFuture<Product> resolve(Context ctx) {
+    public CompletableFuture<Product> resolve(ShelfResolvers.TopProduct.Context ctx) {
       return CompletableFuture.completedFuture(
           Toy.builder(ctx).id(1).prodType("action_figure").build());
     }
@@ -71,7 +71,7 @@ public class JavaReflectionContractTest extends ReflectionContractTest {
           """)
   public static class TopProductDescriptionResolver extends ShelfResolvers.TopProductDescription {
     @Override
-    public CompletableFuture<String> resolve(Context ctx) {
+    public CompletableFuture<String> resolve(ShelfResolvers.TopProductDescription.Context ctx) {
       Product product = ctx.getObjectValue().getTopProduct();
       if (product instanceof Toy toy) {
         return CompletableFuture.completedFuture("Toy: " + toy.getProdType());
@@ -85,7 +85,7 @@ public class JavaReflectionContractTest extends ReflectionContractTest {
   @Resolver
   public static class CategoryProductsResolver extends CategoryResolvers.Products {
     @Override
-    public CompletableFuture<List<Product>> resolve(Context ctx) {
+    public CompletableFuture<List<Product>> resolve(CategoryResolvers.Products.Context ctx) {
       List<Product> products = new ArrayList<>();
       products.add(Toy.builder(ctx).id(123).prodType("Toy").build());
       products.add(Fruit.builder(ctx).id(123).prodType("Fruit").build());

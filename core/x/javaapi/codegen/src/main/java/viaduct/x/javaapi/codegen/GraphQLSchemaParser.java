@@ -82,7 +82,7 @@ public class GraphQLSchemaParser {
                 .map(ViaductSchema.EnumValue::getName)
                 .collect(Collectors.toList());
 
-        String description = getDescription(enumDef);
+        String description = getDescription();
 
         enums.add(new EnumModel(packageName, name, valueNames, description));
       }
@@ -183,7 +183,7 @@ public class GraphQLSchemaParser {
                 interfaces,
                 fields,
                 reflectedFields,
-                getDescription(objectDef),
+                getDescription(),
                 rootTypes.contains(name),
                 isNodeType,
                 isConnection,
@@ -224,8 +224,7 @@ public class GraphQLSchemaParser {
 
         boolean isOneOf = SchemaAnalysis.INSTANCE.hasOneOfDirective(inputDef);
         inputs.add(
-            new InputModel(
-                packageName, name, fields, reflectedFields, getDescription(inputDef), isOneOf));
+            new InputModel(packageName, name, fields, reflectedFields, getDescription(), isOneOf));
       }
     }
 
@@ -274,7 +273,7 @@ public class GraphQLSchemaParser {
                 extendedInterfaces,
                 fields,
                 reflectedFields,
-                getDescription(interfaceDef),
+                getDescription(),
                 isNodeInterface));
       }
     }
@@ -302,7 +301,7 @@ public class GraphQLSchemaParser {
                 .map(ViaductSchema.Object::getName)
                 .collect(Collectors.toCollection(ArrayList::new));
 
-        unions.add(new UnionModel(packageName, name, memberTypes, getDescription(unionDef)));
+        unions.add(new UnionModel(packageName, name, memberTypes, getDescription()));
       }
     }
 
@@ -780,7 +779,7 @@ public class GraphQLSchemaParser {
   }
 
   /** Extracts description from a type definition. Returns null for now. */
-  private String getDescription(ViaductSchema.TypeDef typeDef) {
+  private String getDescription() {
     // ViaductSchema doesn't expose description directly in the interface.
     // Description could be accessed through the underlying data if needed.
     return null;

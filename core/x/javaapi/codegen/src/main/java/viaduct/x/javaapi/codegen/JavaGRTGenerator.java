@@ -154,6 +154,8 @@ public final class JavaGRTGenerator {
              * <mdl.description>
              */
             <endif>
+            <if(mdl.hasImplementsClause)>@SuppressWarnings("MissingOverride")
+            <endif>
             public class <mdl.className> extends <if(mdl.isNodeType)>NodeObjectBase<else>ObjectBase<endif><if(mdl.hasImplementsClause)> implements <mdl.implementsClause><endif> {
 
                 public static final Type\\<<mdl.className>\\> Reflection = Type.ofClass(<mdl.className>.class);
@@ -267,6 +269,7 @@ public final class JavaGRTGenerator {
              * <mdl.description>
              */
             <endif>
+            @SuppressWarnings("MissingOverride")
             public class <mdl.className> extends ObjectBase implements <mdl.implementsClause> {
 
                 public static final Type\\<<mdl.className>\\> Reflection = Type.ofClass(<mdl.className>.class);
@@ -291,6 +294,7 @@ public final class JavaGRTGenerator {
                     super(context, data);
                 }
 
+                @SuppressWarnings("UnusedMethod")
                 private <mdl.className>(InternalContext context, Map\\<String, Object> data) {
                     super(context, data);
                 }
@@ -319,11 +323,8 @@ public final class JavaGRTGenerator {
                  * a pagination method and any setters can be combined in any order before {@code build()}.
                  */
                 public static class Builder extends <mdl.connectionBuilderSupertype> {
-                    private final InternalContext __context;
-
                     private Builder(ExecutionContext context) {
                         super(context, <mdl.className>.class, <mdl.edgeTypeName>.class);
-                        this.__context = InternalContext.from(context);
                     }
 
                     @Override
@@ -559,6 +560,8 @@ public final class JavaGRTGenerator {
              * <mdl.description>
              */
             <endif>
+            <if(mdl.hasExtendedInterfaces)>@SuppressWarnings("MissingOverride")
+            <endif>
             public interface <mdl.className> extends <mdl.extendsClause> {
 
                 Type\\<<mdl.className>\\> Reflection = Type.ofClass(<mdl.className>.class);
@@ -636,6 +639,8 @@ public final class JavaGRTGenerator {
             import viaduct.java.api.internal.InternalContext;
 
             /** Generated arguments class for resolver field. */
+            <if(mdl.isConnectionArguments)>@SuppressWarnings("MissingOverride")
+            <endif>
             public class <mdl.className> extends InputBase implements Arguments<if(mdl.isConnectionArguments)>, <mdl.connectionArgumentsClause><endif> {
 
                 public static final Type\\<<mdl.className>\\> Reflection = Type.ofClass(<mdl.className>.class);

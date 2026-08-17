@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+@SuppressWarnings("MissingOverride")
 public class OrderConnection extends ObjectBase implements viaduct.java.api.types.Connection<OrderEdge, Order> {
 
     public static final Type<OrderConnection> Reflection = Type.ofClass(OrderConnection.class);
@@ -46,6 +47,7 @@ public class OrderConnection extends ObjectBase implements viaduct.java.api.type
         super(context, data);
     }
 
+    @SuppressWarnings("UnusedMethod")
     private OrderConnection(InternalContext context, Map<String, Object> data) {
         super(context, data);
     }
@@ -80,11 +82,8 @@ public class OrderConnection extends ObjectBase implements viaduct.java.api.type
      * a pagination method and any setters can be combined in any order before {@code build()}.
      */
     public static class Builder extends ConnectionBuilder<OrderConnection, OrderEdge, Order> {
-        private final InternalContext __context;
-
         private Builder(ExecutionContext context) {
             super(context, OrderConnection.class, OrderEdge.class);
-            this.__context = InternalContext.from(context);
         }
 
         @Override

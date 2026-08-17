@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("MissingOverride")
 public class OrderEdge extends ObjectBase implements viaduct.java.api.types.Edge<Order> {
 
     public static final Type<OrderEdge> Reflection = Type.ofClass(OrderEdge.class);

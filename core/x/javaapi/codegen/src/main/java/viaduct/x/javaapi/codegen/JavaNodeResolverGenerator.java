@@ -84,6 +84,7 @@ public final class JavaNodeResolverGenerator {
           /**
            * Generated node resolver base classes.
            */
+          @SuppressWarnings("SameNameButDifferent")
           public final class NodeResolvers {
 
               private NodeResolvers() {}
