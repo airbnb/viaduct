@@ -49,5 +49,4 @@ include(":module-java")
 
 gradle.allprojects {
     group = "com.airbnb.viaduct.gradle"
-    extra["pluginIdPrefix"] = "com.airbnb.viaduct"
 }

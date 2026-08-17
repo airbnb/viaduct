@@ -31,11 +31,9 @@ gradlePlugin {
     website = "https://viaduct.airbnb.tech"
     vcsUrl = "https://github.com/airbnb/viaduct"
 
-    val pluginIdPrefix: String by rootProject.extra
-
     plugins {
         create("viaductSettings") {
-            id = "$pluginIdPrefix.settings-gradle-plugin"
+            id = "${libs.versions.pluginIdPrefix.get()}.settings-gradle-plugin"
             implementationClass = "viaduct.gradle.ViaductSettingsPlugin"
             displayName = "Viaduct :: Settings Plugin"
             description = "Settings plugin for declaring Viaduct application topology."

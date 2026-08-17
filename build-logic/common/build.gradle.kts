@@ -1,6 +1,7 @@
 plugins {
     kotlin("jvm")
     jacoco
+    id("build-logic.conventions")
     alias(libs.plugins.detekt)
 }
 

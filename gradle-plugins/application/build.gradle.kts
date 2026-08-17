@@ -44,11 +44,9 @@ gradlePlugin {
     website = "https://viaduct.airbnb.tech"
     vcsUrl = "https://github.com/airbnb/viaduct"
 
-    val pluginIdPrefix: String by rootProject.extra
-
     plugins {
         create("viaductApplication") {
-            id = "$pluginIdPrefix.application-gradle-plugin"
+            id = "${libs.versions.pluginIdPrefix.get()}.application-gradle-plugin"
             implementationClass = "viaduct.gradle.ViaductApplicationPlugin"
             displayName = "Viaduct :: Application Plugin"
             description = "Application plugin for Viaduct-based apps."

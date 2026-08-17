@@ -2,6 +2,7 @@ plugins {
     `kotlin-dsl`
     `java-test-fixtures`
     jacoco
+    id("build-logic.conventions")
     alias(libs.plugins.detekt)
 }
 

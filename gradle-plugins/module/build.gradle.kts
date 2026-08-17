@@ -49,11 +49,9 @@ gradlePlugin {
     website = "https://viaduct.airbnb.tech"
     vcsUrl = "https://github.com/airbnb/viaduct"
 
-    val pluginIdPrefix: String by rootProject.extra
-
     plugins {
         create("viaductModule") {
-            id = "$pluginIdPrefix.module-gradle-plugin"
+            id = "${libs.versions.pluginIdPrefix.get()}.module-gradle-plugin"
             implementationClass = "viaduct.gradle.ViaductModulePlugin"
             displayName = "Viaduct :: Module Plugin"
             description = "Module plugin for Viaduct tenant modules."

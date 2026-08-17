@@ -14,6 +14,9 @@ kotlin {
     jvmToolchain(17)
 }
 
+// Each project sets its own archive base name from its own path; not configured from a build root.
+base.archivesName.convention(project.path.removePrefix(":").replace(":", "-"))
+
 tasks.withType<KotlinCompile>().configureEach {
     // Treat Kotlin compiler warnings as errors (matches the Bazel -Werror) for every module applying
     // a Viaduct Kotlin convention — core, gradletestapps, remoteresolvers. :tenant:tutorials stays

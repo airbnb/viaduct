@@ -1,6 +1,7 @@
 [versions]
 # Project
 project = "INCLUDED"
+pluginIdPrefix = "com.airbnb.viaduct"
 
 # Libraries
 assertj = "3.27.7"

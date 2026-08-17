@@ -41,11 +41,3 @@ tasks.register<JacocoCoverageVerification>("testCodeCoverageVerification") {
         }
     }
 }
-
-subprojects {
-    pluginManager.withPlugin("base") {
-        extensions.configure<BasePluginExtension> {
-            archivesName.convention(path.removePrefix(":").replace(":", "-"))
-        }
-    }
-}
