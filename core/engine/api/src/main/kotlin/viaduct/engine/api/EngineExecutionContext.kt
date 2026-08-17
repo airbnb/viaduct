@@ -2,7 +2,6 @@ package viaduct.engine.api
 
 import graphql.language.FragmentDefinition
 import graphql.schema.GraphQLObjectType
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.service.api.spi.GlobalIDCodec
 
 /**
@@ -192,35 +191,6 @@ interface EngineExecutionContext {
      */
     suspend fun completeSelectionSet(
         selectionSet: RequiredSelectionSet,
-        arguments: Map<String, Any?> = emptyMap(),
-        options: CompleteSelectionSetOptions = CompleteSelectionSetOptions.DEFAULT,
-    ): graphql.ExecutionResult
-
-    /**
-     * Completes a selection set against an explicit target OER.
-     *
-     * This overload is used when you have a specific OER to complete against (e.g., a resolver
-     * result) rather than the parent OER from the execution handle.
-     *
-     * Unlike [resolveSelectionSet] which triggers field resolution, this method waits for
-     * already-in-progress resolution and transforms the OER values into a completed result.
-     *
-     * ## Execution Handle Requirements
-     *
-     * This method requires a non-null [executionHandle]. If the handle is null (e.g., because
-     * execution hasn't started yet), it will throw [SubqueryExecutionException].
-     *
-     * @param selectionSet The [RequiredSelectionSet] to complete.
-     * @param targetResult The explicit OER to complete against.
-     * @param arguments Field arguments for RSS variable resolution (e.g., from DataFetchingEnvironment.arguments).
-     * @param options Options controlling completion behavior.
-     * @return ExecutionResult containing the completed data Map and any errors.
-     * @throws SubqueryExecutionException if [executionHandle] is null.
-     * @see CompleteSelectionSetOptions For available options
-     */
-    suspend fun completeSelectionSet(
-        selectionSet: RequiredSelectionSet,
-        targetResult: ObjectEngineResult,
         arguments: Map<String, Any?> = emptyMap(),
         options: CompleteSelectionSetOptions = CompleteSelectionSetOptions.DEFAULT,
     ): graphql.ExecutionResult

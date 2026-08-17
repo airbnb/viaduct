@@ -265,13 +265,6 @@ class EngineExecutionContextExtensionsTest {
                 options: CompleteSelectionSetOptions
             ): ExecutionResult = mockk()
 
-            override suspend fun completeSelectionSet(
-                selectionSet: RequiredSelectionSet,
-                targetResult: ObjectEngineResult,
-                arguments: Map<String, Any?>,
-                options: CompleteSelectionSetOptions
-            ): ExecutionResult = mockk()
-
             override fun createNodeReference(
                 id: String,
                 graphQLObjectType: GraphQLObjectType

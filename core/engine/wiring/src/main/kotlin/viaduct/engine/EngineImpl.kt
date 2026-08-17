@@ -35,6 +35,7 @@ import viaduct.engine.runtime.EngineExecutionContextFactory
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
+import viaduct.engine.runtime.SelectionSetCompletionEngine
 import viaduct.engine.runtime.SubqueryInstrumentationEngine
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.context.CompositeLocalContext
@@ -70,7 +71,7 @@ class EngineImpl(
     documentProvider: PreparsedDocumentProvider,
     private val fullSchema: ViaductSchema,
     private val queryPlanFactory: QueryPlanFactory,
-) : Engine, EngineGraphQLJavaCompat, SubqueryInstrumentationEngine {
+) : Engine, EngineGraphQLJavaCompat, SubqueryInstrumentationEngine, SelectionSetCompletionEngine {
     private val coroutineInterop: CoroutineInterop = config.coroutineInterop
     private val airbnbBypassPolicyCheckDuringCompletion: Boolean = config.airbnbBypassPolicyCheckDuringCompletion
     private val dataFetcherExceptionHandler: DataFetcherExceptionHandler = config.dataFetcherExceptionHandler

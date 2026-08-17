@@ -29,6 +29,16 @@ import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
 
+interface SelectionSetCompletionEngine {
+    suspend fun completeSelectionSet(
+        executionHandle: EngineExecutionContext.ExecutionHandle,
+        selectionSet: RequiredSelectionSet,
+        targetResult: ObjectEngineResult?,
+        arguments: Map<String, Any?>,
+        options: CompleteSelectionSetOptions,
+    ): graphql.ExecutionResult
+}
+
 /**
  * Factory for creating an engine-execution context.
  * Basically holds version-scoped state.
@@ -233,18 +243,19 @@ class EngineExecutionContextImpl internal constructor(
         arguments: Map<String, Any?>,
         options: CompleteSelectionSetOptions,
     ): graphql.ExecutionResult {
-        val handle = requireExecutionHandle()
-        return engine.completeSelectionSet(handle, selectionSet, null, arguments, options)
+        return completeSelectionSet(selectionSet, null, arguments, options)
     }
 
-    override suspend fun completeSelectionSet(
+    internal suspend fun completeSelectionSet(
         selectionSet: RequiredSelectionSet,
-        targetResult: ObjectEngineResult,
-        arguments: Map<String, Any?>,
-        options: CompleteSelectionSetOptions,
+        targetResult: ObjectEngineResult?,
+        arguments: Map<String, Any?> = emptyMap(),
+        options: CompleteSelectionSetOptions = CompleteSelectionSetOptions.DEFAULT,
     ): graphql.ExecutionResult {
         val handle = requireExecutionHandle()
-        return engine.completeSelectionSet(handle, selectionSet, targetResult, arguments, options)
+        val completionEngine = engine as? SelectionSetCompletionEngine
+            ?: error("Expected SelectionSetCompletionEngine but got ${engine::class.qualifiedName}")
+        return completionEngine.completeSelectionSet(handle, selectionSet, targetResult, arguments, options)
     }
 
     private inline fun <T : EngineObjectData?> executeWithMetrics(block: () -> T): T {

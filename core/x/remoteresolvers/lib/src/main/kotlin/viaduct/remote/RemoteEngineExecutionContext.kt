@@ -12,7 +12,6 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.remote.grpc.EngineCallbackServiceGrpcKt
 import viaduct.remote.grpc.QueryRequest
@@ -99,13 +98,6 @@ abstract class RemoteEngineExecutionContext(
         arguments: Map<String, Any?>,
         options: CompleteSelectionSetOptions
     ): graphql.ExecutionResult = requireDelegate("completeSelectionSet").completeSelectionSet(selectionSet, arguments, options)
-
-    override suspend fun completeSelectionSet(
-        selectionSet: RequiredSelectionSet,
-        targetResult: ObjectEngineResult,
-        arguments: Map<String, Any?>,
-        options: CompleteSelectionSetOptions
-    ): graphql.ExecutionResult = requireDelegate("completeSelectionSet").completeSelectionSet(selectionSet, targetResult, arguments, options)
 
     abstract override suspend fun resolveSelectionSet(
         selectionSet: EngineSelectionSet,

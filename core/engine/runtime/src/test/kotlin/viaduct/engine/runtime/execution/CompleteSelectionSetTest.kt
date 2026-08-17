@@ -11,6 +11,8 @@ import viaduct.engine.api.mocks.MockVariablesResolver
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.runFeatureTest
+import viaduct.engine.runtime.CheckerSyncEngineObjectData
+import viaduct.engine.runtime.EngineExecutionContextExtensions.asImpl
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 
@@ -117,9 +119,16 @@ class CompleteSelectionSetTest {
                         val containerOER = params.currentObjectEngineResult
 
                         val rss = createRSS("Container", "value")
-                        val result = ctx.completeSelectionSet(
-                            rss,
-                            targetResult = containerOER,
+                        val checkerData = CheckerSyncEngineObjectData.resolve(
+                            objectEngineResult = containerOER,
+                            errorMessage = "missing from checker RSS",
+                            selectionSet = null,
+                        )
+                        val result = checkerData.completeSelectionSet(
+                            context = ctx,
+                            selectionSet = rss,
+                            arguments = emptyMap(),
+                            options = CompleteSelectionSetOptions.DEFAULT,
                         )
 
                         val data = result.getData<Map<String, Any?>>()
@@ -388,7 +397,7 @@ class CompleteSelectionSetTest {
                         )
 
                         val requiredSS = createRSS("Query", "rootValue name")
-                        val result = ctx.completeSelectionSet(requiredSS, targetResult = oer)
+                        val result = ctx.asImpl().completeSelectionSet(requiredSS, targetResult = oer)
 
                         val data = result.getData<Map<String, Any?>>()
                         "rootValue=${data["rootValue"]}, name=${data["name"]}"
@@ -446,7 +455,7 @@ class CompleteSelectionSetTest {
                             }
                         }
 
-                        ctx.completeSelectionSet(requiredSS, targetResult = fakeOER)
+                        ctx.asImpl().completeSelectionSet(requiredSS, targetResult = fakeOER)
                         0
                     }
                 }
@@ -502,7 +511,7 @@ class CompleteSelectionSetTest {
                             schema.schema.getObjectType("User")
                         )
                         val rss = createRSS("Container", "value")
-                        ctx.completeSelectionSet(rss, targetResult = userOER)
+                        ctx.asImpl().completeSelectionSet(rss, targetResult = userOER)
                         0
                     }
                 }
