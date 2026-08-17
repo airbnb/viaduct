@@ -1,5 +1,6 @@
 package conventions
 
+import buildroot.registerForOrchestrationAggregate
 import io.gitlab.arturbosch.detekt.Detekt
 import org.jlleitschuh.gradle.ktlint.tasks.BaseKtLintCheckTask
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -10,6 +11,12 @@ plugins {
     id("org.jlleitschuh.gradle.ktlint")
     id("detekt.viaduct-detekt-rules")
 }
+
+// Self-report each task to the orchestration registry instead of having a root project's
+// `subprojects { }` block read this project's task container.
+registerForOrchestrationAggregate("detekt", "detekt")
+registerForOrchestrationAggregate("ktlintCheck", "ktlintCheck")
+registerForOrchestrationAggregate("findWarningsForCleanup", "findWarningsForCleanup")
 
 val detektConfigFile = providers.provider { repoRoot().file("detekt.yml") }
 val detektViaductConfigFile = providers.provider { repoRoot().file("detekt-viaduct.yml") }

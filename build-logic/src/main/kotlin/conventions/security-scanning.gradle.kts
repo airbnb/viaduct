@@ -18,6 +18,7 @@ package conventions
 // Defaults are tuned for advisory rollout: `severityFloor = "HIGH,CRITICAL"`
 // surfaces findings without failing the build (`isIgnoreExitValue = true`).
 
+import buildroot.registerForOrchestrationAggregate
 import com.github.jk1.license.LicenseReportExtension
 import com.github.jk1.license.filter.LicenseBundleNormalizer
 import com.github.jk1.license.render.InventoryHtmlReportRenderer
@@ -134,4 +135,7 @@ pluginManager.withPlugin("java") {
         description = "[security] Runs CVE scan, SBOM gen, and license report for this module."
         dependsOn("trivyScanSbom", "cyclonedxBom", "generateLicenseReport")
     }
+    // Self-report to the orchestration registry instead of having a root project's
+    // `subprojects { }` block read this project's task container.
+    registerForOrchestrationAggregate("securityScan", "securityScan")
 }

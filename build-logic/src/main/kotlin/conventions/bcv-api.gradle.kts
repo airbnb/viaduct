@@ -9,6 +9,7 @@ package conventions
 // - apiCheck: runs apiCheck on all subprojects that define an apiCheck task
 //
 
+import buildroot.registerForOrchestrationAggregate
 import kotlinx.validation.ApiValidationExtension
 import io.gitlab.arturbosch.detekt.Detekt
 import viaduct.gradle.internal.repoRoot
@@ -16,6 +17,11 @@ import viaduct.gradle.internal.repoRoot
 plugins {
     id("org.jetbrains.kotlinx.binary-compatibility-validator")
 }
+
+// Self-report to the orchestration registry instead of having a root project's
+// `subprojects { }` block read this project's task container.
+registerForOrchestrationAggregate("apiDump", "apiDump")
+registerForOrchestrationAggregate("apiCheck", "apiCheck")
 
 configure<ApiValidationExtension> {
     publicMarkers.add("viaduct.apiannotations.StableApi")

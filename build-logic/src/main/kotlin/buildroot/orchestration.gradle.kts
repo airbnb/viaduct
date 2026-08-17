@@ -33,6 +33,26 @@ import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.create
 
+val orchestrationRegistry = orchestrationRegistryService()
+
+/**
+ * Registers an aggregate that depends on every task self-reported under [aggregateKey] via
+ * [registerForOrchestrationAggregate], read from the shared [OrchestrationRegistryService]
+ * instead of scanning `subprojects { }`'s live task containers.
+ */
+private fun Project.registerServiceBackedAggregate(
+    aggregateName: String,
+    aggregateKey: String,
+    description: String
+) {
+    tasks.register(aggregateName) {
+        this.group = null
+        this.description = description
+        usesService(orchestrationRegistry)
+        dependsOn(provider { orchestrationRegistry.get().tasksFor(aggregateKey) })
+    }
+}
+
 // ---------------- Extension (root-only allowlist) ----------------
 
 abstract class OrchestrationExtension {
@@ -170,30 +190,34 @@ registerSubprojectAggregate(
     description = "[orchestration] Tests all SUBPROJECTS in THIS build.",
     taskTypes = listOf(Test::class.java)
 )
-registerSubprojectAggregate(
+// detekt, ktlintCheck, findWarningsForCleanup, and securityScan are each added by exactly one
+// convention plugin, which self-reports its task to the shared OrchestrationRegistryService
+// (see conventions.kotlin-static-analysis / conventions.security-scanning). Reading the registry
+// here avoids this root project scanning every subproject's live task container.
+registerServiceBackedAggregate(
     aggregateName = "orchestrationDetektAll",
+    aggregateKey = "detekt",
     description = "[orchestration] Runs detekt on all SUBPROJECTS in THIS build.",
-    taskNames = setOf("detekt")
 )
-registerSubprojectAggregate(
+registerServiceBackedAggregate(
     aggregateName = "orchestrationKtlintCheckAll",
+    aggregateKey = "ktlintCheck",
     description = "[orchestration] Runs ktlintCheck on all SUBPROJECTS in THIS build.",
-    taskNames = setOf("ktlintCheck")
 )
 registerSubprojectAggregate(
     aggregateName = "orchestrationSpotlessCheckAll",
     description = "[orchestration] Runs spotlessCheck on all SUBPROJECTS in THIS build.",
     taskNames = setOf("spotlessCheck")
 )
-registerSubprojectAggregate(
+registerServiceBackedAggregate(
     aggregateName = "orchestrationFindWarningsForCleanupAll",
+    aggregateKey = "findWarningsForCleanup",
     description = "[orchestration] Runs findWarningsForCleanup on all SUBPROJECTS in THIS build.",
-    taskNames = setOf("findWarningsForCleanup")
 )
-registerSubprojectAggregate(
+registerServiceBackedAggregate(
     aggregateName = "orchestrationSecurityScanAll",
+    aggregateKey = "securityScan",
     description = "[orchestration] Runs CVE/SBOM/license scans on all SUBPROJECTS in THIS build.",
-    taskNames = setOf("securityScan")
 )
 
 // CI-oriented aggregate: compile main + test sources without running tests or producing jars
@@ -203,21 +227,22 @@ registerSubprojectAggregate(
     taskNames = setOf("classes", "testClasses")
 )
 
-// Publishing
-registerSubprojectAggregate(
+// Publishing: each publish task is added by conventions.viaduct-publishing, which self-reports
+// to the registry -- see the note above the static-analysis aggregates.
+registerServiceBackedAggregate(
     aggregateName = "orchestrationPublishAllToMavenLocal",
+    aggregateKey = "publishToMavenLocal",
     description = "[orchestration] Publishes all publishable SUBPROJECTS in THIS build to mavenLocal.",
-    taskNames = setOf("publishToMavenLocal")
 )
-registerSubprojectAggregate(
+registerServiceBackedAggregate(
     aggregateName = "orchestrationPublishAllToMavenCentral",
+    aggregateKey = "publishToMavenCentral",
     description = "[orchestration] Publishes all publishable SUBPROJECTS in THIS build to Maven Central.",
-    taskNames = setOf("publishAllPublicationsToMavenCentralRepository")
 )
-registerSubprojectAggregate(
+registerServiceBackedAggregate(
     aggregateName = "orchestrationPublishAllToSnapshots",
+    aggregateKey = "publishToSnapshots",
     description = "[orchestration] Publishes all publishable SUBPROJECTS in THIS build to Central Portal snapshots.",
-    taskNames = setOf("publishAllPublicationsToSnapshotsRepository")
 )
 
 // ---------------- In INCLUDED BUILDS: alias conventional tasks to aggregates ----------------
@@ -324,33 +349,38 @@ if (gradle.parent == null) {
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationTestAll") })
     }
 
-    // publish local: root subprojects + included builds' aggregate (NO dependency on root aggregate)
+    // publish local: root subprojects (via registry) + included builds' aggregate (NO dependency on root aggregate)
     ensureTask("publishToMavenLocal", "publishing", "Publishes root subprojects + participating included builds to mavenLocal.") {
-        dependsOn(tasksNamedInSubprojects("publishToMavenLocal"))
+        usesService(orchestrationRegistry)
+        dependsOn(provider { orchestrationRegistry.get().tasksFor("publishToMavenLocal") })
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationPublishAllToMavenLocal") })
     }
 
-    // publish central: root subprojects + included builds' aggregate (NO dependency on root aggregate)
+    // publish central: root subprojects (via registry) + included builds' aggregate (NO dependency on root aggregate)
     ensureTask("publishToMavenCentral", "publishing", "Publishes root subprojects + participating included builds to Maven Central.") {
-        dependsOn(tasksNamedInSubprojects("publishAllPublicationsToMavenCentralRepository"))
+        usesService(orchestrationRegistry)
+        dependsOn(provider { orchestrationRegistry.get().tasksFor("publishToMavenCentral") })
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationPublishAllToMavenCentral") })
     }
 
-    // publish snapshots: root subprojects + included builds' aggregate
+    // publish snapshots: root subprojects (via registry) + included builds' aggregate
     ensureTask("publishToSnapshots", "publishing", "Publishes root subprojects + participating included builds to Central Portal snapshots.") {
-        dependsOn(tasksNamedInSubprojects("publishAllPublicationsToSnapshotsRepository"))
+        usesService(orchestrationRegistry)
+        dependsOn(provider { orchestrationRegistry.get().tasksFor("publishToSnapshots") })
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationPublishAllToSnapshots") })
     }
 
-    // detekt: root subprojects + included builds' aggregate
+    // detekt: root subprojects (via registry) + included builds' aggregate
     ensureTask("detekt", "verification", "Runs detekt across root and participating included builds.") {
-        dependsOn(tasksNamedInSubprojects("detekt"))
+        usesService(orchestrationRegistry)
+        dependsOn(provider { orchestrationRegistry.get().tasksFor("detekt") })
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationDetektAll") })
     }
 
-    // ktlintCheck: root subprojects + included builds' aggregate
+    // ktlintCheck: root subprojects (via registry) + included builds' aggregate
     ensureTask("ktlintCheck", "verification", "Runs ktlintCheck across root and participating included builds.") {
-        dependsOn(tasksNamedInSubprojects("ktlintCheck"))
+        usesService(orchestrationRegistry)
+        dependsOn(provider { orchestrationRegistry.get().tasksFor("ktlintCheck") })
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationKtlintCheckAll") })
     }
 
@@ -360,15 +390,17 @@ if (gradle.parent == null) {
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationSpotlessCheckAll") })
     }
 
-    // findWarningsForCleanup: root subprojects + included builds' aggregate
+    // findWarningsForCleanup: root subprojects (via registry) + included builds' aggregate
     ensureTask("findWarningsForCleanup", "verification", "Runs findWarningsForCleanup across root and participating included builds.") {
-        dependsOn(tasksNamedInSubprojects("findWarningsForCleanup"))
+        usesService(orchestrationRegistry)
+        dependsOn(provider { orchestrationRegistry.get().tasksFor("findWarningsForCleanup") })
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationFindWarningsForCleanupAll") })
     }
 
-    // securityScan: root subprojects + included builds' aggregate
+    // securityScan: root subprojects (via registry) + included builds' aggregate
     ensureTask("securityScan", "verification", "Runs CVE/SBOM/license scans across root and participating included builds.") {
-        dependsOn(tasksNamedInSubprojects("securityScan"))
+        usesService(orchestrationRegistry)
+        dependsOn(provider { orchestrationRegistry.get().tasksFor("securityScan") })
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationSecurityScanAll") })
     }
 

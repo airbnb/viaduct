@@ -1,5 +1,6 @@
 package conventions
 
+import buildroot.registerForOrchestrationAggregate
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
 import com.vanniktech.maven.publish.*
 import javax.inject.Inject
@@ -29,6 +30,12 @@ abstract class ViaductPublishingExtension @Inject constructor(objects: ObjectFac
 val viaductPublishing = extensions.create<ViaductPublishingExtension>("viaductPublishing")
 
 val publishMinimal = providers.gradleProperty("publishMinimal").isPresent
+
+// Self-report each publish task to the orchestration registry instead of having a root
+// project's `subprojects { }` block read this project's task container.
+registerForOrchestrationAggregate("publishToMavenLocal", "publishToMavenLocal")
+registerForOrchestrationAggregate("publishToMavenCentral", "publishAllPublicationsToMavenCentralRepository")
+registerForOrchestrationAggregate("publishToSnapshots", "publishAllPublicationsToSnapshotsRepository")
 
 // Apply standard Viaduct POM metadata to all Maven publications.
 pluginManager.withPlugin("maven-publish") {
