@@ -1,5 +1,7 @@
 package conventions
 
+import buildroot.registerForOrchestrationAggregate
+
 plugins {
     id("conventions.kotlin-compile-config")
     id("conventions.kotlin-without-tests")
@@ -20,3 +22,6 @@ dependencies {
 tasks.named<Test>("test") {
     useJUnitPlatform()
 }
+
+registerForOrchestrationAggregate("test", "test")
+registerForOrchestrationAggregate("testClasses", "testClasses")

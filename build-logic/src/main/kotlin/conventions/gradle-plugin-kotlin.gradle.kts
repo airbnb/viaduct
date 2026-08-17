@@ -26,6 +26,7 @@
  */
 package conventions
 
+import buildroot.registerForOrchestrationAggregate
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -52,6 +53,13 @@ dependencies {
 tasks.named<Test>("test") {
     useJUnitPlatform()
 }
+
+registerForOrchestrationAggregate("build", "build")
+registerForOrchestrationAggregate("check", "check")
+registerForOrchestrationAggregate("clean", "clean")
+registerForOrchestrationAggregate("classes", "classes")
+registerForOrchestrationAggregate("test", "test")
+registerForOrchestrationAggregate("testClasses", "testClasses")
 
 // A Kotlin plugin is applied before this convention, so the KotlinCompile tasks exist. This block:
 //  - opts in to the Viaduct stability markers used by gradle-plugins' own sources (see header);

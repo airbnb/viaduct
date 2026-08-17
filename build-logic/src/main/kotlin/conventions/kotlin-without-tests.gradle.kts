@@ -1,5 +1,6 @@
 package conventions
 
+import buildroot.registerForOrchestrationAggregate
 import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -16,6 +17,12 @@ kotlin {
 
 // Each project sets its own archive base name from its own path; not configured from a build root.
 base.archivesName.convention(project.path.removePrefix(":").replace(":", "-"))
+
+// Self-report this project's lifecycle-base tasks for orchestration aggregation.
+registerForOrchestrationAggregate("build", "build")
+registerForOrchestrationAggregate("check", "check")
+registerForOrchestrationAggregate("clean", "clean")
+registerForOrchestrationAggregate("classes", "classes")
 
 tasks.withType<KotlinCompile>().configureEach {
     // Treat Kotlin compiler warnings as errors (matches the Bazel -Werror) for every module applying

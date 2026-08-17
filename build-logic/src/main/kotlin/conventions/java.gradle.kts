@@ -1,5 +1,7 @@
 package conventions
 
+import buildroot.registerForOrchestrationAggregate
+
 plugins {
     id("conventions.java-without-tests")
     id("conventions.jacoco")
@@ -18,3 +20,6 @@ dependencies {
 tasks.named<Test>("test") {
     useJUnitPlatform()
 }
+
+registerForOrchestrationAggregate("test", "test")
+registerForOrchestrationAggregate("testClasses", "testClasses")
