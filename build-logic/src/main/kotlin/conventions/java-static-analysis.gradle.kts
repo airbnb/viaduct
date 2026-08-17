@@ -1,5 +1,6 @@
 package conventions
 
+import com.diffplug.spotless.LineEnding
 import net.ltgt.gradle.errorprone.errorprone
 import org.gradle.api.tasks.compile.JavaCompile
 
@@ -11,6 +12,8 @@ plugins {
 val libs = extensions.getByType(VersionCatalogsExtension::class.java).named("libs")
 
 spotless {
+    // Enforce the repository's LF policy for Java sources independently of host Git settings
+    lineEndings = LineEnding.UNIX
     java {
         target("src/*/java/**/*.java")
         googleJavaFormat(libs.findVersion("googleJavaFormat").get().requiredVersion)
