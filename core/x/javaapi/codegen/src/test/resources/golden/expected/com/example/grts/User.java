@@ -8,6 +8,7 @@ import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.NodeObjectBase;
 import viaduct.java.api.internal.ObjectBase;
+import viaduct.java.api.internal.OutputBuilderTypeChecker;
 import viaduct.java.api.reflect.CompositeField;
 import viaduct.java.api.reflect.Field;
 import viaduct.java.api.reflect.RootObjectField;
@@ -121,41 +122,49 @@ public class User extends NodeObjectBase implements Node, SearchHit {
         }
 
                 public Builder id(GlobalID<User> id) {
+                    id = OutputBuilderTypeChecker.checkField(__context, "User", "id", id);
                     data.put("id", id == null ? null : __context.getGlobalIDCodec().serialize(id.getType().getName(), id.getInternalID()));
         return this;
                 }
 
                 public Builder name(String name) {
+                    name = OutputBuilderTypeChecker.checkField(__context, "User", "name", name);
                     data.put("name", name);
         return this;
                 }
 
                 public Builder nickname(String nickname) {
+                    nickname = OutputBuilderTypeChecker.checkField(__context, "User", "nickname", nickname);
                     data.put("nickname", nickname);
         return this;
                 }
 
                 public Builder age(Integer age) {
+                    age = OutputBuilderTypeChecker.checkField(__context, "User", "age", age);
                     data.put("age", age);
         return this;
                 }
 
                 public Builder active(boolean active) {
+                    active = OutputBuilderTypeChecker.checkField(__context, "User", "active", active);
                     data.put("active", active);
         return this;
                 }
 
                 public Builder favoriteColor(Color favoriteColor) {
+                    favoriteColor = OutputBuilderTypeChecker.checkField(__context, "User", "favoriteColor", favoriteColor);
                     data.put("favoriteColor", favoriteColor);
         return this;
                 }
 
                 public Builder scores(List<Integer> scores) {
+                    scores = OutputBuilderTypeChecker.checkField(__context, "User", "scores", scores);
                     data.put("scores", scores);
         return this;
                 }
 
                 public Builder lastOrder(GlobalID<Order> lastOrder) {
+                    lastOrder = OutputBuilderTypeChecker.checkField(__context, "User", "lastOrder", lastOrder);
                     data.put("lastOrder", lastOrder == null ? null : __context.getGlobalIDCodec().serialize(lastOrder.getType().getName(), lastOrder.getInternalID()));
         return this;
                 }

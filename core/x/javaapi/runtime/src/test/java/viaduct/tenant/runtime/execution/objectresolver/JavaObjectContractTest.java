@@ -4,7 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import graphql.Scalars;
+import graphql.schema.GraphQLFieldDefinition;
 import graphql.schema.GraphQLInputObjectType;
+import graphql.schema.GraphQLNonNull;
+import graphql.schema.GraphQLObjectType;
+import graphql.schema.GraphQLSchema;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
@@ -161,6 +166,34 @@ public class JavaObjectContractTest extends ObjectContractTest {
 
   private interface StubContext extends ExecutionContext, InternalContext {}
 
+  private static final ViaductSchema STUB_SCHEMA =
+      new ViaductSchema(
+          GraphQLSchema.newSchema()
+              .query(
+                  GraphQLObjectType.newObject()
+                      .name("Query")
+                      .field(
+                          GraphQLFieldDefinition.newFieldDefinition()
+                              .name("placeholder")
+                              .type(Scalars.GraphQLString)))
+              .additionalType(
+                  GraphQLObjectType.newObject()
+                      .name("Address")
+                      .field(
+                          GraphQLFieldDefinition.newFieldDefinition()
+                              .name("street")
+                              .type(GraphQLNonNull.nonNull(Scalars.GraphQLString)))
+                      .field(
+                          GraphQLFieldDefinition.newFieldDefinition()
+                              .name("city")
+                              .type(GraphQLNonNull.nonNull(Scalars.GraphQLString)))
+                      .field(
+                          GraphQLFieldDefinition.newFieldDefinition()
+                              .name("country")
+                              .type(Scalars.GraphQLString))
+                      .build())
+              .build());
+
   private static final ExecutionContext STUB_CTX =
       new StubContext() {
         @Override
@@ -180,7 +213,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
 
         @Override
         public ViaductSchema getSchema() {
-          throw new UnsupportedOperationException();
+          return STUB_SCHEMA;
         }
 
         @Override

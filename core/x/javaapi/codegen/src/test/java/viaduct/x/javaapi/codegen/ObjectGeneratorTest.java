@@ -204,6 +204,9 @@ class ObjectGeneratorTest {
 
     assertTrue(generated.contains("public Builder name(String name)"));
     assertTrue(generated.contains("public Builder age(Integer age)"));
+    assertTrue(
+        generated.contains(
+            "name = OutputBuilderTypeChecker.checkField(__context, \"User\", \"name\", name)"));
     assertTrue(generated.contains("public User build()"));
   }
 
@@ -237,6 +240,7 @@ class ObjectGeneratorTest {
     assertTrue(generated.contains("super.fromSlice(items, offsetLimit, hasNextPage, buildNode);"));
     assertTrue(generated.contains("public <I> Builder fromList("));
     assertTrue(generated.contains("Function<I, Post> buildNode"));
+    assertTrue(generated.contains("putField(\"totalCount\", totalCount)"));
   }
 
   @Test
@@ -338,17 +342,8 @@ class ObjectGeneratorTest {
     assertTrue(generated.contains("return fetchGlobalIDList(\"ownerIDs\")"));
     assertTrue(generated.contains("import viaduct.java.api.globalid.GlobalID;"));
     assertTrue(generated.contains("import java.time.Instant;"));
-    assertTrue(
-        generated.contains(
-            "putField(\"ownerID\", ownerID == null ? null : "
-                + "__context.getGlobalIDCodec().serialize(ownerID.getType().getName(), "
-                + "ownerID.getInternalID()))"));
-    assertTrue(
-        generated.contains(
-            "putField(\"ownerIDs\", ownerIDs == null ? null : ownerIDs.stream()"
-                + ".map(__id -> __context.getGlobalIDCodec().serialize("
-                + "__id.getType().getName(), __id.getInternalID()))"
-                + ".collect(java.util.stream.Collectors.toList()))"));
+    assertTrue(generated.contains("putGlobalIDField(\"ownerID\", ownerID)"));
+    assertTrue(generated.contains("putGlobalIDListField(\"ownerIDs\", ownerIDs)"));
   }
 
   @Test

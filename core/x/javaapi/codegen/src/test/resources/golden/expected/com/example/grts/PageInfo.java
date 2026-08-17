@@ -8,6 +8,7 @@ import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.NodeObjectBase;
 import viaduct.java.api.internal.ObjectBase;
+import viaduct.java.api.internal.OutputBuilderTypeChecker;
 import viaduct.java.api.reflect.CompositeField;
 import viaduct.java.api.reflect.Field;
 import viaduct.java.api.reflect.RootObjectField;
@@ -85,21 +86,25 @@ public class PageInfo extends ObjectBase {
         }
 
                 public Builder hasNextPage(boolean hasNextPage) {
+                    hasNextPage = OutputBuilderTypeChecker.checkField(__context, "PageInfo", "hasNextPage", hasNextPage);
                     data.put("hasNextPage", hasNextPage);
         return this;
                 }
 
                 public Builder hasPreviousPage(boolean hasPreviousPage) {
+                    hasPreviousPage = OutputBuilderTypeChecker.checkField(__context, "PageInfo", "hasPreviousPage", hasPreviousPage);
                     data.put("hasPreviousPage", hasPreviousPage);
         return this;
                 }
 
                 public Builder startCursor(String startCursor) {
+                    startCursor = OutputBuilderTypeChecker.checkField(__context, "PageInfo", "startCursor", startCursor);
                     data.put("startCursor", startCursor);
         return this;
                 }
 
                 public Builder endCursor(String endCursor) {
+                    endCursor = OutputBuilderTypeChecker.checkField(__context, "PageInfo", "endCursor", endCursor);
                     data.put("endCursor", endCursor);
         return this;
                 }

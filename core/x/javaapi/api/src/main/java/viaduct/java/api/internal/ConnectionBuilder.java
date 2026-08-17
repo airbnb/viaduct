@@ -9,6 +9,7 @@ import java.util.function.Function;
 import viaduct.errors.HandleErrors;
 import viaduct.java.api.context.ConnectionFieldExecutionContext;
 import viaduct.java.api.context.ExecutionContext;
+import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.types.Connection;
 import viaduct.java.api.types.ConnectionArguments;
 import viaduct.java.api.types.Edge;
@@ -65,7 +66,42 @@ public abstract class ConnectionBuilder<C extends Connection<E, N>, E extends Ed
    * builder's {@code data.put}.
    */
   protected void putField(String fieldName, Object value) {
-    data.put(fieldName, value);
+    data.put(fieldName, checkField(fieldName, value));
+  }
+
+  /** Validates and stores a generated connection GlobalID setter value in wire format. */
+  protected final void putGlobalIDField(String fieldName, GlobalID<?> value) {
+    GlobalID<?> checkedValue = checkField(fieldName, value);
+    data.put(
+        fieldName,
+        checkedValue == null
+            ? null
+            : internalContext
+                .getGlobalIDCodec()
+                .serialize(checkedValue.getType().getName(), checkedValue.getInternalID()));
+  }
+
+  /** Validates and stores a generated connection GlobalID-list setter value in wire format. */
+  protected final void putGlobalIDListField(String fieldName, List<? extends GlobalID<?>> value) {
+    List<? extends GlobalID<?>> checkedValue = checkField(fieldName, value);
+    data.put(
+        fieldName,
+        checkedValue == null
+            ? null
+            : checkedValue.stream()
+                .map(
+                    id ->
+                        id == null
+                            ? null
+                            : internalContext
+                                .getGlobalIDCodec()
+                                .serialize(id.getType().getName(), id.getInternalID()))
+                .toList());
+  }
+
+  private <T> T checkField(String fieldName, T value) {
+    return OutputBuilderTypeChecker.checkField(
+        internalContext, connectionClass.getSimpleName(), fieldName, value);
   }
 
   /** Finalizes and returns the connection GRT from the accumulated fields. */
@@ -114,11 +150,14 @@ public abstract class ConnectionBuilder<C extends Connection<E, N>, E extends Ed
     return HandleErrors.framework(
         "ConnectionBuilder.fromEdges",
         () -> {
-          String startCursor = edges.isEmpty() ? null : cursorOf(edges.get(0));
-          String endCursor = edges.isEmpty() ? null : cursorOf(edges.get(edges.size() - 1));
+          List<E> checkedEdges = checkField("edges", edges);
+          String startCursor = checkedEdges.isEmpty() ? null : cursorOf(checkedEdges.get(0));
+          String endCursor =
+              checkedEdges.isEmpty() ? null : cursorOf(checkedEdges.get(checkedEdges.size() - 1));
           Object pageInfo = buildPageInfo(hasNextPage, hasPreviousPage, startCursor, endCursor);
-          data.put("edges", edges);
-          data.put("pageInfo", pageInfo);
+          Object checkedPageInfo = checkField("pageInfo", pageInfo);
+          data.put("edges", checkedEdges);
+          data.put("pageInfo", checkedPageInfo);
           return this;
         });
   }

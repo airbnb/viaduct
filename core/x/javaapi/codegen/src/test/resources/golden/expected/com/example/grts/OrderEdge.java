@@ -8,6 +8,7 @@ import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.NodeObjectBase;
 import viaduct.java.api.internal.ObjectBase;
+import viaduct.java.api.internal.OutputBuilderTypeChecker;
 import viaduct.java.api.reflect.CompositeField;
 import viaduct.java.api.reflect.Field;
 import viaduct.java.api.reflect.RootObjectField;
@@ -71,11 +72,13 @@ public class OrderEdge extends ObjectBase implements viaduct.java.api.types.Edge
         }
 
                 public Builder cursor(String cursor) {
+                    cursor = OutputBuilderTypeChecker.checkField(__context, "OrderEdge", "cursor", cursor);
                     data.put("cursor", cursor);
         return this;
                 }
 
                 public Builder node(Order node) {
+                    node = OutputBuilderTypeChecker.checkField(__context, "OrderEdge", "node", node);
                     data.put("node", node);
         return this;
                 }

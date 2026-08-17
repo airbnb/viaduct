@@ -18,8 +18,12 @@ dependencies {
     api(libs.viaduct.shared.apiannotations)
     // Shared connection pagination math (OffsetCursorCodec, ConnectionArgumentsSupport).
     implementation(libs.viaduct.tenant.shared)
+    implementation(libs.viaduct.shared.graphql)
+    implementation(libs.viaduct.shared.viaductschema)
 
     compileOnly(libs.jspecify)
+
+    testImplementation(libs.assertj.core)
 
     /** Test fixtures - Viaduct dependencies **/
     testFixturesImplementation(testFixtures(libs.viaduct.engine.api))

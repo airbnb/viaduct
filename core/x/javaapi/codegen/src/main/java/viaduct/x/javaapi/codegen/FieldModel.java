@@ -324,7 +324,10 @@ public record FieldModel(
    * engine-space wire representation; every other field is stored unchanged.
    */
   public String getBuilderValueExpression() {
-    String value = getSafeName();
+    return builderValueExpression(getSafeName());
+  }
+
+  private String builderValueExpression(String value) {
     if (getGlobalIDBuilderSerialize()) {
       return value
           + " == null ? null : __context.getGlobalIDCodec().serialize("
@@ -337,7 +340,7 @@ public record FieldModel(
       return value
           + " == null ? null : "
           + value
-          + ".stream().map(__id -> __context.getGlobalIDCodec().serialize("
+          + ".stream().map(__id -> __id == null ? null : __context.getGlobalIDCodec().serialize("
           + "__id.getType().getName(), __id.getInternalID()))"
           + ".collect(java.util.stream.Collectors.toList())";
     }

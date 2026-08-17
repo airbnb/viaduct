@@ -8,6 +8,21 @@ import graphql.schema.GraphQLObjectType
 
 private val idOf: String = "idOf"
 
+/** Java-friendly entry points for GlobalID field metadata. */
+object Ids {
+    @JvmStatic
+    fun isGlobalID(
+        field: GraphQLFieldDefinition,
+        parentType: GraphQLObjectType
+    ): Boolean = viaduct.graphql.isGlobalID(field, parentType)
+
+    @JvmStatic
+    fun globalIDType(
+        field: GraphQLFieldDefinition,
+        parentType: GraphQLObjectType
+    ): String = viaduct.graphql.globalIDType(field, parentType)
+}
+
 /** return true if the provided field should have a GlobalID GRT type */
 fun isGlobalID(
     field: GraphQLFieldDefinition,

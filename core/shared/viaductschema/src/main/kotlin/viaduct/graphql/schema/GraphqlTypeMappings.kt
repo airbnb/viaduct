@@ -5,7 +5,10 @@ import java.math.BigInteger
 import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetTime
+import java.util.Collections
+import kotlin.jvm.javaObjectType
 import kotlin.reflect.KClass
+import viaduct.apiannotations.InternalApi
 
 val baseGraphqlScalarTypeMapping = mapOf<String, KClass<*>>(
     "BigDecimal" to BigDecimal::class,
@@ -22,3 +25,10 @@ val baseGraphqlScalarTypeMapping = mapOf<String, KClass<*>>(
     "String" to String::class,
     "Time" to OffsetTime::class,
 )
+
+/** Java-friendly boxed classes for the canonical GraphQL scalar mapping. */
+@InternalApi
+val baseGraphqlScalarJavaTypeMapping: Map<String, Class<*>> =
+    Collections.unmodifiableMap(
+        baseGraphqlScalarTypeMapping.mapValues { (_, type) -> type.javaObjectType }
+    )

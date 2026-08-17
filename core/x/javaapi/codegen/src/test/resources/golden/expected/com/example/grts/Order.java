@@ -8,6 +8,7 @@ import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.NodeObjectBase;
 import viaduct.java.api.internal.ObjectBase;
+import viaduct.java.api.internal.OutputBuilderTypeChecker;
 import viaduct.java.api.reflect.CompositeField;
 import viaduct.java.api.reflect.Field;
 import viaduct.java.api.reflect.RootObjectField;
@@ -111,36 +112,43 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
         }
 
                 public Builder id(GlobalID<Order> id) {
+                    id = OutputBuilderTypeChecker.checkField(__context, "Order", "id", id);
                     data.put("id", id == null ? null : __context.getGlobalIDCodec().serialize(id.getType().getName(), id.getInternalID()));
         return this;
                 }
 
                 public Builder status(OrderStatus status) {
+                    status = OutputBuilderTypeChecker.checkField(__context, "Order", "status", status);
                     data.put("status", status);
         return this;
                 }
 
                 public Builder total(Money total) {
+                    total = OutputBuilderTypeChecker.checkField(__context, "Order", "total", total);
                     data.put("total", total);
         return this;
                 }
 
                 public Builder createdAt(String createdAt) {
+                    createdAt = OutputBuilderTypeChecker.checkField(__context, "Order", "createdAt", createdAt);
                     data.put("createdAt", createdAt);
         return this;
                 }
 
                 public Builder updatedAt(String updatedAt) {
+                    updatedAt = OutputBuilderTypeChecker.checkField(__context, "Order", "updatedAt", updatedAt);
                     data.put("updatedAt", updatedAt);
         return this;
                 }
 
                 public Builder auditTrail(List<String> auditTrail) {
+                    auditTrail = OutputBuilderTypeChecker.checkField(__context, "Order", "auditTrail", auditTrail);
                     data.put("auditTrail", auditTrail);
         return this;
                 }
 
                 public Builder buyer(User buyer) {
+                    buyer = OutputBuilderTypeChecker.checkField(__context, "Order", "buyer", buyer);
                     data.put("buyer", buyer);
         return this;
                 }

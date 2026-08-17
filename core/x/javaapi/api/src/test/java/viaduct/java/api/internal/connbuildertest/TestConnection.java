@@ -5,6 +5,7 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import viaduct.engine.api.EngineObjectData;
 import viaduct.java.api.context.ExecutionContext;
+import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.ConnectionBuilder;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.ObjectBase;
@@ -32,6 +33,11 @@ final class TestConnection extends ObjectBase implements Connection<TestEdge, Te
   static final class Builder extends ConnectionBuilder<TestConnection, TestEdge, TestNode> {
     Builder(ExecutionContext ctx) {
       super(ctx, TestConnection.class, TestEdge.class);
+    }
+
+    Builder ownerIDs(List<? extends GlobalID<?>> ownerIDs) {
+      putGlobalIDListField("ownerIDs", ownerIDs);
+      return this;
     }
   }
 }

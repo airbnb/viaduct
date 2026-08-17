@@ -35,7 +35,7 @@ public final class JavaGRTGenerator {
               <mdl.fields: {f |
               public Builder <f.safeName>(<f.builderType> <f.safeName>) {
                   <if(f.globalIDBuilderSerialize)>data.put("<f.name>", <f.safeName> == null ? null : __context.getGlobalIDCodec().serialize(<f.safeName>.getType().getName(), <f.safeName>.getInternalID()));
-                  <elseif(f.globalIDListBuilderSerialize)>data.put("<f.name>", <f.safeName> == null ? null : <f.safeName>.stream().map(__id -> __context.getGlobalIDCodec().serialize(__id.getType().getName(), __id.getInternalID())).collect(java.util.stream.Collectors.toList()));
+                  <elseif(f.globalIDListBuilderSerialize)>data.put("<f.name>", <f.safeName> == null ? null : <f.safeName>.stream().map(__id -> __id == null ? null : __context.getGlobalIDCodec().serialize(__id.getType().getName(), __id.getInternalID())).collect(java.util.stream.Collectors.toList()));
                   <else>data.put("<f.name>", <f.safeName>);
                   <endif>return this;
               \\}
@@ -135,6 +135,7 @@ public final class JavaGRTGenerator {
             import viaduct.java.api.internal.InternalContext;
             import viaduct.java.api.internal.NodeObjectBase;
             import viaduct.java.api.internal.ObjectBase;
+            import viaduct.java.api.internal.OutputBuilderTypeChecker;
             import viaduct.java.api.reflect.CompositeField;
             import viaduct.java.api.reflect.Field;
             import viaduct.java.api.reflect.RootObjectField;
@@ -212,6 +213,7 @@ public final class JavaGRTGenerator {
 
                     <mdl.fields: {f |
                     public Builder <f.safeName>(<f.builderType> <f.safeName>) {
+                        <f.safeName> = OutputBuilderTypeChecker.checkField(__context, "<mdl.className>", "<f.name>", <f.safeName>);
                         <if(f.globalIDBuilderSerialize)>data.put("<f.name>", <f.builderValueExpression>);
                         <elseif(f.globalIDListBuilderSerialize)>data.put("<f.name>", <f.builderValueExpression>);
                         <else>data.put("<f.name>", <f.builderValueExpression>);
@@ -368,8 +370,10 @@ public final class JavaGRTGenerator {
 
                     <mdl.fields: {f |
                     public Builder <f.safeName>(<f.builderType> <f.safeName>) {
-                        putField("<f.name>", <f.builderValueExpression>);
-                        return this;
+                        <if(f.globalIDBuilderSerialize)>putGlobalIDField("<f.name>", <f.safeName>);
+                        <elseif(f.globalIDListBuilderSerialize)>putGlobalIDListField("<f.name>", <f.safeName>);
+                        <else>putField("<f.name>", <f.safeName>);
+                        <endif>return this;
                     \\}
                     }; separator="
             ">

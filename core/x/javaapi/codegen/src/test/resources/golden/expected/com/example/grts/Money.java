@@ -8,6 +8,7 @@ import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.NodeObjectBase;
 import viaduct.java.api.internal.ObjectBase;
+import viaduct.java.api.internal.OutputBuilderTypeChecker;
 import viaduct.java.api.reflect.CompositeField;
 import viaduct.java.api.reflect.Field;
 import viaduct.java.api.reflect.RootObjectField;
@@ -71,11 +72,13 @@ public class Money extends ObjectBase implements SearchHit {
         }
 
                 public Builder amount(double amount) {
+                    amount = OutputBuilderTypeChecker.checkField(__context, "Money", "amount", amount);
                     data.put("amount", amount);
         return this;
                 }
 
                 public Builder currency(String currency) {
+                    currency = OutputBuilderTypeChecker.checkField(__context, "Money", "currency", currency);
                     data.put("currency", currency);
         return this;
                 }
