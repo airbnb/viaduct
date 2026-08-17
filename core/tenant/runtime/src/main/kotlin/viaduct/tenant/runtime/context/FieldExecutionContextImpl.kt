@@ -2,6 +2,7 @@ package viaduct.tenant.runtime.context
 
 import kotlin.reflect.KClass
 import viaduct.api.context.FieldExecutionContext
+import viaduct.api.context.ResolverOwnedSelectionsContext
 import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.internal.InternalContext
 import viaduct.api.select.SelectionSet
@@ -37,8 +38,10 @@ class FieldExecutionContextImpl<Q : Query>(
     syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)?,
     private val objectCls: KClass<Object>,
     queryCls: KClass<Q>,
+    ownedSelections: Lazy<SelectionSet<CompositeOutput>> = lazyOf(selections),
 ) : FieldExecutionContext<Object, Q, Arguments, CompositeOutput>,
     SelectiveFieldExecutionContext<CompositeOutput>,
+    ResolverOwnedSelectionsContext<CompositeOutput>,
     BaseFieldExecutionContextImpl<Q, Arguments, CompositeOutput>(
         baseData,
         engineExecutionContextWrapper,
@@ -47,8 +50,11 @@ class FieldExecutionContextImpl<Q : Query>(
         arguments,
         syncQueryValueGetter,
         queryCls,
+        ownedSelections,
     ) {
     override fun selections(): SelectionSet<CompositeOutput> = selectionSet()
+
+    override fun ownedSelections(): SelectionSet<CompositeOutput> = ownedSelectionSet()
 
     override suspend fun getObjectValue(): Object =
         handleFrameworkErrorsSuspend("getObjectValue") {

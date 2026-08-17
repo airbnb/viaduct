@@ -2,6 +2,7 @@ package viaduct.engine.runtime.execution
 
 import graphql.GraphQLContext
 import graphql.execution.CoercedVariables
+import graphql.language.Field as GJField
 import graphql.language.InlineFragment as GJInlineFragment
 import graphql.language.TypeName as GJTypeName
 import graphql.schema.GraphQLCompositeType
@@ -35,7 +36,11 @@ internal fun QueryPlan.filterTo(
     projectionType: GraphQLObjectType? = null,
 ): QueryPlan {
     val effectiveSource = source ?: selectionSet
-    val filtered = QueryPlanFilter(this, shape, context)
+    val filtered = QueryPlanFilter(
+        this,
+        shape,
+        context,
+    )
         .filter(effectiveSource, projectionType)
     val newVariablesResolvers = variablesResolvers
         .filter { vr -> vr.variableNames.any { it in filtered.activeVariableNames } }
@@ -105,16 +110,14 @@ private class QueryPlanFilter(
             check(fieldsByType.keys.all { it == concreteSourceType }) {
                 "Selection set on `${concreteSourceType.name}` cannot be projected to another concrete type"
             }
-            val fields = fieldsByType[concreteSourceType].orEmpty()
-            if (fields.isNotEmpty()) {
+            val fields = fieldsByType[concreteSourceType]
+            if (fields != null) {
                 val branch = projectForType(source, concreteSourceType, fields)
                 selections += branch.selectionSet.selections
             }
         } else {
             for ((concreteType, fields) in fieldsByType) {
-                if (fields.isEmpty()) continue
                 val branch = projectForType(source, concreteType, fields)
-                if (branch.selectionSet.selections.isEmpty()) continue
 
                 val inlineAst = GJInlineFragment.newInlineFragment()
                     .typeCondition(GJTypeName(concreteType.name))
@@ -152,9 +155,9 @@ private class QueryPlanFilter(
             fieldRssOriginFilteringKillSwitchEnabled = context.fieldRssOriginFilteringKillSwitchEnabled,
         )
         val selections = mutableListOf<QueryPlan.Selection>()
+        val collectedFields = collected.selections.map { it as QueryPlan.CollectedField }
 
-        for (selection in collected.selections) {
-            val field = selection as QueryPlan.CollectedField
+        for (field in collectedFields) {
             val resolvedField = field.resolveField(
                 schema = context.schema,
                 parentType = concreteType,
@@ -163,29 +166,37 @@ private class QueryPlanFilter(
                 locale = context.locale,
             )
             val childShape = fields[field.oerKey(resolvedField.arguments)] ?: continue
-            val childType = GraphQLTypeUtil.unwrapAll(resolvedField.fieldDefinition.type) as? GraphQLCompositeType
+            val childType =
+                GraphQLTypeUtil.unwrapAll(resolvedField.fieldDefinition.type)
+                    as? GraphQLCompositeType
             require(childShape.isEmpty() || childType != null) {
                 "Field `${concreteType.name}.${field.fieldName}` has child selections but is not composite"
             }
             val sources = fieldSources.getValue(field.responseKey)
             val collectedSource = sources.singleOrNull() as? QueryPlan.CollectedField
-            val projection = if (collectedSource == null) {
-                projectFieldOccurrences(
-                    field = field,
-                    sourceFields = sources.map { it as QueryPlan.Field },
-                    concreteType = concreteType,
-                    childShape = childShape,
-                    childType = childType,
-                )
-            } else {
-                projectCollectedField(
-                    field = collectedSource,
-                    concreteType = concreteType,
-                    childShape = childShape,
-                    childType = childType,
-                )
-            }
+            val projection =
+                if (collectedSource == null) {
+                    projectFieldOccurrences(
+                        field = field,
+                        sourceFields = sources.map { it as QueryPlan.Field },
+                        concreteType = concreteType,
+                        childShape = childShape,
+                        childType = childType,
+                    )
+                } else {
+                    projectCollectedField(
+                        field = collectedSource,
+                        concreteType = concreteType,
+                        childShape = childShape,
+                        childType = childType,
+                    )
+                }
             selections += projection.selectionSet.selections
+        }
+        // Every retained type branch must remain valid GraphQL, including branches whose
+        // selections were removed by runtime directives or resolver-boundary projection.
+        if (selections.isEmpty()) {
+            selections += emptyCompositeSelectionSet(concreteType).selections
         }
 
         return FilteredSelectionSet(
@@ -268,6 +279,24 @@ private class QueryPlanFilter(
         )
     }
 
+    private fun emptyCompositeSelectionSet(type: GraphQLCompositeType): QueryPlan.SelectionSet {
+        val field = GJField.newField("__typename").build()
+        return QueryPlan.SelectionSet(
+            parentType = type,
+            selections =
+                listOf(
+                    QueryPlan.Field(
+                        resultKey = "__typename",
+                        constraints = Constraints.Unconstrained,
+                        field = field,
+                        selectionSet = null,
+                        childPlans = emptyList(),
+                        fieldTypeChildPlans = FieldTypeChildPlans.empty,
+                    )
+                ),
+        )
+    }
+
     private fun activeFieldSourcesByResponseKey(
         selectionSet: QueryPlan.SelectionSet,
         concreteType: GraphQLObjectType,
@@ -290,12 +319,18 @@ private class QueryPlanFilter(
                     result[selection.responseKey] = mutableListOf(selection)
                 is QueryPlan.Field -> {
                     val sources = result.getOrPut(selection.resultKey) { mutableListOf() }
-                    if (sources.firstOrNull() !is QueryPlan.CollectedField) sources += selection
+                    if (sources.firstOrNull() !is QueryPlan.CollectedField) {
+                        sources += selection
+                    }
                 }
-                is QueryPlan.InlineFragment -> pending.addAll(0, selection.selectionSet.selections)
+                is QueryPlan.InlineFragment ->
+                    pending.addAll(0, selection.selectionSet.selections)
                 is QueryPlan.FragmentSpread -> {
                     if (!visitedFragments.add(selection.name)) continue
-                    pending.addAll(0, sourcePlan.fragments.getValue(selection.name).selectionSet.selections)
+                    pending.addAll(
+                        0,
+                        sourcePlan.fragments.getValue(selection.name).selectionSet.selections,
+                    )
                 }
             }
         }

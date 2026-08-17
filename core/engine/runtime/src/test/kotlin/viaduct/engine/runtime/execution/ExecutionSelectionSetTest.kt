@@ -1,6 +1,7 @@
 package viaduct.engine.runtime.execution
 
 import graphql.language.AstPrinter
+import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
@@ -12,12 +13,17 @@ import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.ResolverType
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.FieldResolverDispatcher
+import viaduct.engine.runtime.NodeResolverDispatcher
+import viaduct.engine.runtime.ResolverSelectionProjector
 import viaduct.engine.runtime.select.typeFields
 import viaduct.service.api.spi.mocks.MockFlagManager
 
@@ -49,6 +55,236 @@ class ExecutionSelectionSetTest {
                 union: FooOrStruct
             }
         """
+
+    @Test
+    fun `resolver owned projection accepts execution backed selections`() {
+        val selections = mk("Foo", "int struct { int }")
+
+        val projected = ResolverSelectionProjector(
+            selections.schema,
+            DispatcherRegistry.Empty,
+        ).project(selections, ResolverType.FIELD)
+
+        assertTrue(projected.containsField("Foo", "int"))
+        assertTrue(projected.selectionSetForField("Foo", "struct").containsField("Struct", "int"))
+    }
+
+    @Test
+    fun `resolver owned projection preserves accumulated abstract constraints`() {
+        val selections = mk(
+            "B",
+            "... on A { ... on B { value } }",
+            """
+                interface A { value: String }
+                interface B { value: String }
+                type Both implements A & B { value: String }
+                type BOnly implements B { value: String }
+                extend type Query { value: B }
+            """.trimIndent(),
+        )
+
+        val projected = projectOwned(selections)
+
+        assertTrue(projected.selectionSetForType("Both").containsField("Both", "value"))
+        assertTrue(projected.selectionSetForType("BOnly").isEmpty())
+    }
+
+    @Test
+    fun `resolver owned projection preserves conditional exclusions`() {
+        val selections = mk("Foo", "id @skip(if: true) int")
+
+        val projected = projectOwned(selections)
+
+        assertEquals(setOf("id"), projected.conditionallyExcludedResultKeys())
+        assertEquals(listOf("int"), projected.selections().map { it.fieldName })
+    }
+
+    @Test
+    fun `resolver owned projection preserves interleaved source order`() {
+        val selections = mk(
+            "Ordered",
+            "first ... on ConcreteOrdered { middle } last",
+            """
+                interface Ordered { first: String, last: String }
+                type ConcreteOrdered implements Ordered {
+                  first: String
+                  middle: String
+                  last: String
+                }
+                extend type Query { ordered: Ordered }
+            """.trimIndent(),
+        )
+
+        val projected = projectOwned(selections)
+            .selectionSetForType("ConcreteOrdered")
+
+        assertEquals(
+            listOf("first", "middle", "last"),
+            projected.selections().map { it.fieldName },
+        )
+    }
+
+    @Test
+    fun `resolver owned projection preserves first occurrence order across merged parents`() {
+        val selections = mk(
+            "Root",
+            """
+                item {
+                  nested { __typename }
+                  middle
+                }
+                item {
+                  nested { kept }
+                }
+            """.trimIndent(),
+            """
+                type Root { item: Item }
+                type Item { nested: Nested, middle: String }
+                type Nested { kept: String }
+                extend type Query { root: Root }
+            """.trimIndent(),
+        )
+
+        val projected = projectOwned(selections)
+            .selectionSetForField("Root", "item")
+
+        assertEquals(
+            listOf("nested", "middle"),
+            projected.selections().map { it.fieldName }.distinct(),
+        )
+    }
+
+    @Test
+    fun `resolver owned projection distinguishes field and node roots`() {
+        val selections = mk("Foo", "id int")
+        val registry = FakeDispatcherRegistry(nodeBoundaries = setOf("Foo"))
+
+        val fieldProjection = projectOwned(selections, registry, ResolverType.FIELD)
+        val nodeProjection = projectOwned(selections, registry, ResolverType.NODE)
+
+        assertTrue(fieldProjection.isEmpty())
+        assertEquals(listOf("int"), nodeProjection.selections().map { it.fieldName })
+    }
+
+    @Test
+    fun `resolver owned projection keeps empty embedded object valid`() {
+        val selections = mk("Foo", "struct { int }")
+        val registry = FakeDispatcherRegistry(
+            fieldBoundaries = setOf("Struct" to "int"),
+        )
+
+        val projected = projectOwned(selections, registry)
+        val struct = projected.selectionSetForField("Foo", "struct")
+
+        assertEquals(listOf("struct"), projected.selections().map { it.fieldName })
+        assertEquals(listOf("__typename"), struct.selections().map { it.fieldName })
+    }
+
+    @Test
+    fun `resolver owned projection keeps empty abstract branches concrete`() {
+        val selections = mk(
+            "Wrapper",
+            "contact { label }",
+            """
+                interface Contact { label: String }
+                type User implements Contact & Node {
+                  id: ID!
+                  label: String
+                }
+                type LocalContact implements Contact { label: String }
+                type Wrapper { contact: Contact }
+                extend type Query { wrapper: Wrapper }
+            """.trimIndent(),
+        )
+        val registry = FakeDispatcherRegistry(
+            fieldBoundaries = setOf("LocalContact" to "label"),
+            nodeBoundaries = setOf("User"),
+        )
+
+        val projected = projectOwned(selections, registry)
+            .selectionSetForField("Wrapper", "contact")
+
+        assertTrue(projected.selectionSetForType("User").isEmpty())
+        assertEquals(
+            listOf("__typename"),
+            projected.selectionSetForType("LocalContact").selections().map { it.fieldName },
+        )
+    }
+
+    @Test
+    fun `resolver owned projection keeps abstract field when runtime directives remove every child`() {
+        val selections = mk(
+            "Wrapper",
+            "contact { label @skip(if: \$skipLabel) }",
+            """
+                interface Contact { label: String }
+                type User implements Contact & Node {
+                  id: ID!
+                  label: String
+                }
+                type LocalContact implements Contact { label: String }
+                type Wrapper { contact: Contact }
+                extend type Query { wrapper: Wrapper }
+            """.trimIndent(),
+            vars = mapOf("skipLabel" to true),
+        )
+        val projected = projectOwned(
+            selections,
+            FakeDispatcherRegistry(nodeBoundaries = setOf("User")),
+        )
+        val contact = projected.selectionSetForField("Wrapper", "contact")
+
+        assertTrue(projected.containsField("Wrapper", "contact"))
+        assertTrue(contact.selectionSetForType("User").isEmpty())
+        assertEquals(
+            listOf("__typename"),
+            contact.selectionSetForType("LocalContact").selections().map { it.fieldName },
+        )
+    }
+
+    @Test
+    fun `resolver owned projection retains only the narrowed abstract branch emptied by directives`() {
+        val selections = mk(
+            "Wrapper",
+            "contact { ... on LocalContact { label @skip(if: true) } }",
+            """
+                interface Contact { label: String }
+                type LocalContact implements Contact { label: String }
+                type OtherContact implements Contact { label: String }
+                type Wrapper { contact: Contact }
+                extend type Query { wrapper: Wrapper }
+            """.trimIndent(),
+        )
+        val contact = projectOwned(selections)
+            .selectionSetForField("Wrapper", "contact")
+
+        assertEquals(
+            listOf("__typename"),
+            contact.selectionSetForType("LocalContact").selections().map { it.fieldName },
+        )
+        assertEquals(
+            emptyList<EngineSelection>(),
+            contact.selectionSetForType("OtherContact").selections(),
+        )
+    }
+
+    @Test
+    fun `resolver owned projection preserves aliases and argument variants`() {
+        val selections = mk(
+            "Item",
+            "one: value(size: 1) two: value(size: 2)",
+            """
+                type Item { value(size: Int): String }
+                extend type Query { item: Item }
+            """.trimIndent(),
+        )
+
+        val projected = projectOwned(selections)
+
+        assertEquals(listOf("one", "two"), projected.selections().map { it.selectionName })
+        assertEquals(mapOf("size" to 1), projected.argumentsOfSelection("Item", "one"))
+        assertEquals(mapOf("size" to 2), projected.argumentsOfSelection("Item", "two"))
+    }
 
     @Nested
     inner class Creation {
@@ -1938,6 +2174,14 @@ class ExecutionSelectionSetTest {
         }
     }
 
+    private fun projectOwned(
+        selections: EngineSelectionSet,
+        dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
+        resolverType: ResolverType = ResolverType.FIELD,
+    ): EngineSelectionSet =
+        ResolverSelectionProjector(selections.schema, dispatcherRegistry)
+            .project(selections, resolverType)
+
     private fun mk(
         typeName: String,
         selections: String,
@@ -1967,5 +2211,20 @@ class ExecutionSelectionSetTest {
             queryPlan = queryPlan.copy(fragments = QueryPlan.Fragments.empty),
             variables = vars,
         )
+    }
+
+    private class FakeDispatcherRegistry(
+        private val fieldBoundaries: Set<Coordinate> = emptySet(),
+        private val nodeBoundaries: Set<String> = emptySet(),
+    ) : DispatcherRegistry by DispatcherRegistry.Empty {
+        private val fieldDispatcher = mockk<FieldResolverDispatcher>()
+        private val nodeDispatcher = mockk<NodeResolverDispatcher>()
+
+        override fun getFieldResolverDispatcher(
+            typeName: String,
+            fieldName: String,
+        ): FieldResolverDispatcher? = fieldDispatcher.takeIf { typeName to fieldName in fieldBoundaries }
+
+        override fun getNodeResolverDispatcher(typeName: String): NodeResolverDispatcher? = nodeDispatcher.takeIf { typeName in nodeBoundaries }
     }
 }

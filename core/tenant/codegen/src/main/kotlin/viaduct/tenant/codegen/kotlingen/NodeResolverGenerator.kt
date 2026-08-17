@@ -169,6 +169,9 @@ private val nodeSt = stTemplate(
             ) : <mdl.ctxInterface>\<<mdl.grtPackage>.<mdl.typeName>\> by inner, InternalContext by (inner as InternalContext) {
                 <if(mdl.selective)>
                 override fun selections(): SelectionSet\<<mdl.grtPackage>.<mdl.typeName>\> = inner.selections()
+
+                override fun ownedSelections(): viaduct.api.select.SelectionSet\<<mdl.grtPackage>.<mdl.typeName>\> =
+                    inner.ownedSelections()
                 <endif>
             }
         }

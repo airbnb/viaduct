@@ -31,6 +31,7 @@ class FieldExecutionContextImplTest : ContextTestBase() {
         args: Arguments = Args,
         globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
         selectionSet: SelectionSet<CompositeOutput> = noSelections,
+        ownedSelections: Lazy<SelectionSet<CompositeOutput>> = lazyOf(selectionSet),
     ): FieldExecutionContextImpl<QueryType> {
         val wrapper = createMockingWrapper(
             schema = ExecutionContextTestSchema.schema,
@@ -51,6 +52,7 @@ class FieldExecutionContextImplTest : ContextTestBase() {
             syncQueryValueGetter = null,
             objectCls = Object::class,
             queryCls = QueryType::class,
+            ownedSelections = ownedSelections,
         )
     }
 
@@ -61,6 +63,24 @@ class FieldExecutionContextImplTest : ContextTestBase() {
             assertEquals(Args, ctx.arguments)
             assertEquals(SelectionSet.NoSelections, ctx.selections())
         }
+
+    @Test
+    fun `owned selections are projected only on first access`() {
+        var projectionCount = 0
+        val projected = noSelections
+        val ownedSelections = lazy {
+            projectionCount += 1
+            projected
+        }
+        val context = mk(ownedSelections = ownedSelections)
+
+        context.selections()
+        assertEquals(0, projectionCount)
+
+        assertEquals(projected, context.ownedSelections())
+        assertEquals(projected, context.ownedSelections())
+        assertEquals(1, projectionCount)
+    }
 
     @Test
     fun `selectionsFor -- no variables`() {

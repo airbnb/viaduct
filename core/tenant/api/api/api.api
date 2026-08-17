@@ -56,11 +56,15 @@ public final class viaduct/api/context/ResolverExecutionContext$DefaultImpls {
 	public static synthetic fun selectionsFor$default (Lviaduct/api/context/ResolverExecutionContext;Lviaduct/api/reflect/Type;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lviaduct/api/select/SelectionSet;
 }
 
+public abstract interface class viaduct/api/context/ResolverOwnedSelectionsContext {
+	public abstract fun ownedSelections ()Lviaduct/api/select/SelectionSet;
+}
+
 public abstract interface class viaduct/api/context/SelectiveFieldExecutionContext {
 	public abstract fun selections ()Lviaduct/api/select/SelectionSet;
 }
 
-public abstract interface class viaduct/api/context/SelectiveNodeExecutionContext : viaduct/api/context/NodeExecutionContext {
+public abstract interface class viaduct/api/context/SelectiveNodeExecutionContext : viaduct/api/context/NodeExecutionContext, viaduct/api/context/ResolverOwnedSelectionsContext {
 	public abstract fun selections ()Lviaduct/api/select/SelectionSet;
 }
 
@@ -160,6 +164,21 @@ public abstract interface class viaduct/api/resolver/VariablesProvider {
 	public abstract fun provide (Lviaduct/api/context/VariablesProviderContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
+public final class viaduct/api/select/OutputSelectionFragment {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/util/Map;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lviaduct/api/select/OutputSelectionFragment;
+	public static synthetic fun copy$default (Lviaduct/api/select/OutputSelectionFragment;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lviaduct/api/select/OutputSelectionFragment;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDocument ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getVariables ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public abstract interface class viaduct/api/select/SelectionSet {
 	public static final field Companion Lviaduct/api/select/SelectionSet$Companion;
 	public abstract fun contains (Lviaduct/api/reflect/Field;)Z
@@ -168,10 +187,15 @@ public abstract interface class viaduct/api/select/SelectionSet {
 	public abstract fun requestsType (Lviaduct/api/reflect/Type;)Z
 	public abstract fun selectionSetFor (Lviaduct/api/reflect/CompositeField;)Lviaduct/api/select/SelectionSet;
 	public abstract fun selectionSetFor (Lviaduct/api/reflect/Type;)Lviaduct/api/select/SelectionSet;
+	public abstract fun toFragment ()Lviaduct/api/select/OutputSelectionFragment;
 }
 
 public final class viaduct/api/select/SelectionSet$Companion {
 	public final fun empty (Lviaduct/api/reflect/Type;)Lviaduct/api/select/SelectionSet;
+}
+
+public final class viaduct/api/select/SelectionSet$DefaultImpls {
+	public static fun toFragment (Lviaduct/api/select/SelectionSet;)Lviaduct/api/select/OutputSelectionFragment;
 }
 
 public final class viaduct/api/select/SelectionSet$NoSelections : viaduct/api/select/SelectionSet {
@@ -183,6 +207,7 @@ public final class viaduct/api/select/SelectionSet$NoSelections : viaduct/api/se
 	public fun selectedFieldCoordinates ()Ljava/util/Set;
 	public fun selectionSetFor (Lviaduct/api/reflect/CompositeField;)Lviaduct/api/select/SelectionSet;
 	public fun selectionSetFor (Lviaduct/api/reflect/Type;)Lviaduct/api/select/SelectionSet;
+	public fun toFragment ()Lviaduct/api/select/OutputSelectionFragment;
 }
 
 public abstract interface class viaduct/api/types/Arguments : viaduct/api/types/InputLike {

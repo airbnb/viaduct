@@ -13,6 +13,9 @@ class NodeExecutionContextImpl(
     private val selections: SelectionSet<NodeObject>,
     override val requestContext: Any?,
     override val id: GlobalID<NodeObject>,
+    private val ownedSelections: Lazy<SelectionSet<NodeObject>> = lazyOf(selections),
 ) : SelectiveNodeExecutionContext<NodeObject>, ResolverExecutionContextImpl<Query>(baseData, engineExecutionContextWrapper) {
     override fun selections() = selections
+
+    override fun ownedSelections() = ownedSelections.value
 }

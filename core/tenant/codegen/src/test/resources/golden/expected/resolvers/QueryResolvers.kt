@@ -29,10 +29,14 @@ object QueryResolvers {
     abstract class TopUser : viaduct.api.ResolverBase<viaduct.api.grts.User?>, viaduct.api.FieldResolverBase<viaduct.api.grts.Query, viaduct.api.grts.Query, viaduct.api.types.Arguments.NoArguments, viaduct.api.grts.User?>, viaduct.api.internal.BaseUnbatchedFieldResolver {
         class Context(
             private val inner: viaduct.api.context.FieldExecutionContext<viaduct.api.grts.Query, viaduct.api.grts.Query, viaduct.api.types.Arguments.NoArguments, viaduct.api.grts.User>
-        ) : viaduct.api.context.FieldExecutionContext<viaduct.api.grts.Query, viaduct.api.grts.Query, viaduct.api.types.Arguments.NoArguments, viaduct.api.grts.User> by inner, viaduct.api.context.SelectiveFieldExecutionContext<viaduct.api.grts.User>, InternalContext by (inner as InternalContext) {
+        ) : viaduct.api.context.FieldExecutionContext<viaduct.api.grts.Query, viaduct.api.grts.Query, viaduct.api.types.Arguments.NoArguments, viaduct.api.grts.User> by inner, viaduct.api.context.SelectiveFieldExecutionContext<viaduct.api.grts.User>, viaduct.api.context.ResolverOwnedSelectionsContext<viaduct.api.grts.User>, InternalContext by (inner as InternalContext) {
             @Suppress("UNCHECKED_CAST")
             override fun selections(): viaduct.api.select.SelectionSet<viaduct.api.grts.User> =
                 (inner as viaduct.api.context.SelectiveFieldExecutionContext<viaduct.api.grts.User>).selections()
+
+            @Suppress("UNCHECKED_CAST")
+            override fun ownedSelections(): viaduct.api.select.SelectionSet<viaduct.api.grts.User> =
+                (inner as viaduct.api.context.ResolverOwnedSelectionsContext<viaduct.api.grts.User>).ownedSelections()
         }
         abstract suspend fun resolve(ctx: Context): viaduct.api.grts.User?
 
@@ -58,10 +62,14 @@ object QueryResolvers {
     abstract class TrendingUsers : viaduct.api.ResolverBase<kotlin.collections.List<viaduct.api.grts.User>>, viaduct.api.FieldResolverBase<viaduct.api.grts.Query, viaduct.api.grts.Query, viaduct.api.types.Arguments.NoArguments, kotlin.collections.List<viaduct.api.grts.User>>, viaduct.api.internal.BaseBatchedFieldResolver {
         class Context(
             private val inner: viaduct.api.context.FieldExecutionContext<viaduct.api.grts.Query, viaduct.api.grts.Query, viaduct.api.types.Arguments.NoArguments, viaduct.api.grts.User>
-        ) : viaduct.api.context.FieldExecutionContext<viaduct.api.grts.Query, viaduct.api.grts.Query, viaduct.api.types.Arguments.NoArguments, viaduct.api.grts.User> by inner, viaduct.api.context.SelectiveFieldExecutionContext<viaduct.api.grts.User>, InternalContext by (inner as InternalContext) {
+        ) : viaduct.api.context.FieldExecutionContext<viaduct.api.grts.Query, viaduct.api.grts.Query, viaduct.api.types.Arguments.NoArguments, viaduct.api.grts.User> by inner, viaduct.api.context.SelectiveFieldExecutionContext<viaduct.api.grts.User>, viaduct.api.context.ResolverOwnedSelectionsContext<viaduct.api.grts.User>, InternalContext by (inner as InternalContext) {
             @Suppress("UNCHECKED_CAST")
             override fun selections(): viaduct.api.select.SelectionSet<viaduct.api.grts.User> =
                 (inner as viaduct.api.context.SelectiveFieldExecutionContext<viaduct.api.grts.User>).selections()
+
+            @Suppress("UNCHECKED_CAST")
+            override fun ownedSelections(): viaduct.api.select.SelectionSet<viaduct.api.grts.User> =
+                (inner as viaduct.api.context.ResolverOwnedSelectionsContext<viaduct.api.grts.User>).ownedSelections()
         }
         abstract suspend fun batchResolve(contexts: List<Context>): List<FieldValue<kotlin.collections.List<viaduct.api.grts.User>>>
 

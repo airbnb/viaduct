@@ -6,7 +6,8 @@ import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
 
 /**
- * Contract test for resolvers that use ctx.selections() reflection API.
+ * Contract test for resolvers that use the ctx.selections() and ctx.ownedSelections()
+ * reflection APIs.
  *
  * Defines the SDL and assertions for:
  * - Static reflective types: requestsType() on union member types
@@ -50,6 +51,38 @@ import viaduct.graphql.test.assertEquals
     extend type Query {
       "Return a Shelf object"
       shelf: Shelf @resolver
+    }
+
+    type OwnedSelectionPayload {
+      local: String
+      delegated: String @resolver
+      child(limit: Int): OwnedSelectionChild
+      contact: OwnedSelectionContact
+    }
+
+    type OwnedSelectionChild {
+      kept: String
+      delegated: String @resolver
+    }
+
+    interface OwnedSelectionContact {
+      label: String
+    }
+
+    type OwnedSelectionLocalContact implements OwnedSelectionContact {
+      label: String
+    }
+
+    type OwnedSelectionNode implements Node @resolver(isSelective: true) {
+      id: ID!
+      local: String
+      delegated: String @resolver
+    }
+
+    extend type Query {
+      ownedSelectionPayload: OwnedSelectionPayload @resolver(isSelective: true)
+      ownedSelectionNode: OwnedSelectionNode! @resolver
+      ownedSelectionScalar: String @resolver(isSelective: true)
     }
 """
 )

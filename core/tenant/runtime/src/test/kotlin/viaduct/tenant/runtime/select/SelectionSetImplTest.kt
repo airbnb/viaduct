@@ -41,6 +41,28 @@ class SelectionSetImplTest {
         )
 
     @Test
+    fun `selection set renders a complete named fragment and variables`() {
+        val fragment = mk(Foo.Reflection, "id", mapOf("limit" to 2)).toFragment()
+
+        assertEquals("Main", fragment.name)
+        assertTrue(fragment.document.startsWith("fragment Main on Foo"))
+        assertTrue(fragment.document.contains("id"))
+        assertEquals(mapOf("limit" to 2), fragment.variables)
+    }
+
+    @Test
+    fun `empty selection set fragment uses typename to remain valid GraphQL`() {
+        val fragment = mk(
+            Foo.Reflection,
+            "__typename @skip(if: \$skip)",
+            mapOf("skip" to true),
+        ).toFragment()
+
+        assertEquals("fragment Main on Foo { __typename }", fragment.document)
+        assertEquals(emptyMap<String, Any?>(), fragment.variables)
+    }
+
+    @Test
     fun `selectedFieldCoordinates -- returns unique own fields independent of aliases and order`() {
         val fields = mk(Foo.Reflection, "fooSelf { id }, id, alias: id").selectedFieldCoordinates()
 

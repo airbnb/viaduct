@@ -23,6 +23,7 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 import viaduct.engine.api.mocks.MockVariablesResolver
 import viaduct.engine.api.mocks.createRSS
+import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
 import viaduct.engine.runtime.mat.KeyTree
@@ -114,7 +115,7 @@ class QueryPlanFilterTest {
     }
 
     @Test
-    fun `filterTo skips overlapping field without requested descendants`() {
+    fun `filterTo retains overlapping field occurrences in source order`() {
         Fixture(
             """
                 type Query { foo:Foo }
@@ -144,9 +145,14 @@ class QueryPlanFilterTest {
                 source = fooSelectionSet,
             )
 
-            val first = filtered.selectionSet.fieldSelectionSet("next")!!
-            val second = first.fieldSelectionSet("next")!!
-            second.fieldSelectionSet("next").shouldNotBe(null)
+            val occurrences = filtered.selectionSet.selections.filterIsInstance<QueryPlan.Field>()
+            occurrences.shouldHaveSize(2)
+
+            val firstNested = occurrences[0].selectionSet!!.fieldSelectionSet("next")!!
+            firstNested.fieldResultKeys().shouldContainExactly("__typename")
+
+            val secondNested = occurrences[1].selectionSet!!.fieldSelectionSet("next")!!
+            secondNested.fieldSelectionSet("next").shouldNotBe(null)
         }
     }
 
@@ -789,6 +795,36 @@ class QueryPlanFilterTest {
             filtered.selectionSet.fieldSelectionSet("foo").shouldNotBe(null)
             val fooAst = filtered.selectionSet.toAstSelectionSet().selections.single() as GJField
             fooAst.selectionSet.shouldNotBe(null)
+        }
+    }
+
+    @Test
+    fun `filterTo retains valid typename for an empty composite branch`() {
+        Fixture(
+            """
+                type Query { foo: Foo }
+                type Foo { x: ID }
+            """.trimIndent()
+        ) {
+            val plan = buildPlan("{ foo { x @skip(if: true) } }")
+
+            val filtered = plan.filterTo(
+                shape =
+                    KeyTree(
+                        mapOf(
+                            query to
+                                mapOf(
+                                    ObjectEngineResult.Key("foo") to
+                                        KeyTree(mapOf(foo to emptyMap()))
+                                )
+                        )
+                    ),
+            )
+
+            filtered.selectionSet
+                .fieldSelectionSet("foo")!!
+                .fieldResultKeys()
+                .shouldContainExactly("__typename")
         }
     }
 

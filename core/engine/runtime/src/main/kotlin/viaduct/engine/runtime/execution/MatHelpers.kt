@@ -10,6 +10,7 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import java.util.Locale
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
 import viaduct.engine.runtime.EngineExecutionContextExtensions.matResolutionEnabled
@@ -105,37 +106,88 @@ internal fun QueryPlan.keyTree(
     parameters: ExecutionParameters,
     selectionSet: QueryPlan.SelectionSet,
     projectionType: GraphQLObjectType? = null,
+): KeyTree =
+    keyTree(
+        schema = parameters.engineExecutionContext.activeSchema,
+        context = QueryPlanFilterCtx(parameters),
+        selectionSet = selectionSet,
+        projectionType = projectionType,
+    )
+
+/** Converts executable selections to a [KeyTree] */
+internal fun QueryPlan.keyTree(
+    schema: ViaductSchema,
+    context: QueryPlanFilterCtx,
+    selectionSet: QueryPlan.SelectionSet,
+    projectionType: GraphQLObjectType? = null,
 ): KeyTree {
     val composite = projectionType ?: selectionSet.parentType
     val fieldsByType = mutableMapOf<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>>()
-    for (type in parameters.engineExecutionContext.activeSchema.rels.possibleObjectTypes(composite)) {
-        val fields = keyTreeForType(parameters, selectionSet, type)
-        if (fields.isNotEmpty()) fieldsByType[type] = fields
+    for (type in schema.rels.possibleObjectTypes(composite)) {
+        val fields = keyTreeForType(
+            schema,
+            context,
+            selectionSet,
+            type,
+        )
+        if (
+            fields.isNotEmpty() ||
+            hasConditionallyExcludedSelectionForType(schema, context, selectionSet, type)
+        ) {
+            fieldsByType[type] = fields
+        }
     }
     return KeyTree(fieldsByType)
 }
 
+private fun QueryPlan.hasConditionallyExcludedSelectionForType(
+    schema: ViaductSchema,
+    context: QueryPlanFilterCtx,
+    selectionSet: QueryPlan.SelectionSet,
+    type: GraphQLObjectType,
+): Boolean =
+    ExecutionSelectionSet.create(
+        schema = schema,
+        typeName = type.name,
+        selectionSet = selectionSet,
+        fragments = fragments,
+        variables = context.variables.toMap(),
+        graphQLContext = context.graphQLContext,
+        locale = context.locale,
+        queryPlan = this,
+        fieldRssOriginFilteringKillSwitchEnabled =
+            context.fieldRssOriginFilteringKillSwitchEnabled,
+        collectCache = context.collectCache,
+    ).conditionallyExcludedResultKeys().isNotEmpty()
+
 private fun QueryPlan.keyTreeForType(
-    parameters: ExecutionParameters,
+    schema: ViaductSchema,
+    context: QueryPlanFilterCtx,
     selectionSet: QueryPlan.SelectionSet,
     type: GraphQLObjectType,
 ): Map<ObjectEngineResult.Key, KeyTree> {
-    val collected = parameters.constants.collectCache.collect(
-        schema = parameters.graphQLSchema,
+    val collected = context.collectCache.collect(
+        schema = context.schema,
         selectionSet = selectionSet,
-        variables = parameters.coercedVariables,
+        variables = context.variables,
         parentType = type,
         fragments = fragments,
-        fieldRssOriginFilteringKillSwitchEnabled =
-            parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled,
+        fieldRssOriginFilteringKillSwitchEnabled = context.fieldRssOriginFilteringKillSwitchEnabled,
     )
     val fields = mutableMapOf<ObjectEngineResult.Key, KeyTree>()
     for (selection in collected.selections) {
         val field = selection as QueryPlan.CollectedField
-        val resolvedField = field.resolveField(parameters, type)
+        val resolvedField = field.resolveField(
+            schema = context.schema,
+            parentType = type,
+            variables = context.variables,
+            graphQLContext = context.graphQLContext,
+            locale = context.locale,
+        )
         val children = field.selectionSet?.let {
             keyTree(
-                parameters = parameters,
+                schema = schema,
+                context = context,
                 selectionSet = it,
             )
         } ?: KeyTree.empty

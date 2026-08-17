@@ -44,6 +44,7 @@ class NodeResolverGeneratorTest {
         assertTrue(contents.contains("abstract class Bar : viaduct.api.ResolverBase<pkg.grts.Bar>, NodeResolverBase<pkg.grts.Bar>, viaduct.api.internal.BaseUnbatchedNodeResolver"))
         assertTrue(contents.contains("viaduct.api.context.SelectiveNodeExecutionContext<pkg.grts.Bar>"))
         assertTrue(contents.contains("override fun selections(): SelectionSet<pkg.grts.Bar> = inner.selections()"))
+        assertTrue(contents.contains("override fun ownedSelections(): viaduct.api.select.SelectionSet<pkg.grts.Bar>"))
     }
 
     @Test

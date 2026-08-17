@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.context.ConnectionFieldExecutionContext
 import viaduct.api.context.ExecutionContext
+import viaduct.api.context.ResolverOwnedSelectionsContext
 import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.globalid.GlobalID
@@ -122,12 +123,15 @@ class ConnectionBuilderTest {
         override val arguments: ConnectionArguments
     ) : ConnectionFieldExecutionContext<Object, Query, ConnectionArguments, TestConnection>,
         SelectiveFieldExecutionContext<TestConnection>,
+        ResolverOwnedSelectionsContext<TestConnection>,
         InternalContext by internalCtx {
         override suspend fun getObjectValue(): Object = throw NotImplementedError("Not needed for tests")
 
         override suspend fun getQueryValue(): Query = throw NotImplementedError("Not needed for tests")
 
         override fun selections(): SelectionSet<TestConnection> = throw NotImplementedError("Not needed for tests")
+
+        override fun ownedSelections(): SelectionSet<TestConnection> = throw NotImplementedError("Not needed for tests")
 
         @Deprecated("This API is not supported and will be deleted. Use the GraphQLOperation-based query(operation, variables) instead.")
         override suspend fun query(

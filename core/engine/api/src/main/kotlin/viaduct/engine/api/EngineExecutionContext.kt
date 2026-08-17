@@ -161,6 +161,15 @@ interface EngineExecutionContext {
     ): EngineObjectData.Sync
 
     /**
+     * Returns the portion of [selectionSet] owned by the current resolver, stopping at field and
+     * node resolver boundaries.
+     */
+    fun projectOwnedSelections(
+        selectionSet: EngineSelectionSet,
+        resolverType: ResolverType,
+    ): EngineSelectionSet = throw UnsupportedOperationException("Owned selection projection is not available in this engine context")
+
+    /**
      * Completes a selection set against the parent OER from the execution handle.
      *
      * Unlike [resolveSelectionSet] which triggers field resolution, this method waits for

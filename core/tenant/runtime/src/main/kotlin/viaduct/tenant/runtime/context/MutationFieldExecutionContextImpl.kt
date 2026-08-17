@@ -2,6 +2,7 @@ package viaduct.tenant.runtime.context
 
 import kotlin.reflect.KClass
 import viaduct.api.context.MutationFieldExecutionContext
+import viaduct.api.context.ResolverOwnedSelectionsContext
 import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.documents.MutationFromAnnotation
 import viaduct.api.internal.InternalContext
@@ -33,8 +34,10 @@ class MutationFieldExecutionContextImpl<Q : Query, M : Mutation>(
     arguments: Arguments,
     syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)?,
     queryCls: KClass<Q>,
+    ownedSelections: Lazy<SelectionSet<CompositeOutput>> = lazyOf(selections),
 ) : MutationFieldExecutionContext<Q, M, Arguments, CompositeOutput>,
     SelectiveFieldExecutionContext<CompositeOutput>,
+    ResolverOwnedSelectionsContext<CompositeOutput>,
     BaseFieldExecutionContextImpl<Q, Arguments, CompositeOutput>(
         baseData,
         engineExecutionContextWrapper,
@@ -43,8 +46,11 @@ class MutationFieldExecutionContextImpl<Q : Query, M : Mutation>(
         arguments,
         syncQueryValueGetter,
         queryCls,
+        ownedSelections,
     ) {
     override fun selections(): SelectionSet<CompositeOutput> = selectionSet()
+
+    override fun ownedSelections(): SelectionSet<CompositeOutput> = ownedSelectionSet()
 
     @Deprecated("This API is not supported and will be deleted. Use the GraphQLOperation-based mutation(operation, variables) instead.")
     override suspend fun mutation(

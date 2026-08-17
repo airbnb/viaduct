@@ -39,3 +39,20 @@ interface SelectiveFieldExecutionContext<R : CompositeOutput> {
      */
     fun selections(): SelectionSet<R>
 }
+
+/**
+ * Selection projection available to selective resolvers with composite GraphQL output types.
+ */
+@StableApi
+interface ResolverOwnedSelectionsContext<R : CompositeOutput> {
+    /**
+     * The portion of the request selection owned by this resolver. Traversal stops before fields
+     * and object types owned by another resolver.
+     *
+     * Rendering the returned selection set with [SelectionSet.toFragment] may produce a synthetic
+     * `__typename` where filtering would otherwise leave an invalid empty composite selection.
+     * That field preserves valid GraphQL shape and does not represent additional resolver-owned
+     * data.
+     */
+    fun ownedSelections(): SelectionSet<R>
+}

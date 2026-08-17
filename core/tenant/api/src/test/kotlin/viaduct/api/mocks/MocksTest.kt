@@ -15,6 +15,7 @@ import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.RootObjectFieldImpl
 import viaduct.api.internal.internal
 import viaduct.api.reflect.Type
+import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
 import viaduct.api.types.GRT
 import viaduct.api.types.Object
@@ -177,6 +178,24 @@ class MocksTest {
         )
 
         assertSame(stub, ctx.rootFieldRef(field, Arguments.NoArguments))
+    }
+
+    @Test
+    fun `MockFieldExecutionContext exposes independently supplied owned selections`() {
+        val requested = SelectionSet.empty(fooResult)
+        val owned = SelectionSet.empty(fooResult)
+        val ctx = MockFieldExecutionContext(
+            objectValue = NullObject,
+            queryValue = NullQuery,
+            arguments = Arguments.NoArguments,
+            requestContext = null,
+            selectionsValue = requested,
+            internalContext = MockInternalContext(MockSchema.minimal),
+            ownedSelectionsValue = owned,
+        )
+
+        assertSame(requested, ctx.selections())
+        assertSame(owned, ctx.ownedSelections())
     }
 
     private object NullObject : Object

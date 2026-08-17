@@ -350,6 +350,30 @@ class FieldResolverGeneratorTest {
             )
         )
         assertTrue(contents.contains("override fun selections(): viaduct.api.select.SelectionSet<viaduct.api.grts.Foo>"))
+        assertTrue(contents.contains("viaduct.api.context.ResolverOwnedSelectionsContext<viaduct.api.grts.Foo>"))
+        assertTrue(contents.contains("override fun ownedSelections(): viaduct.api.select.SelectionSet<viaduct.api.grts.Foo>"))
+    }
+
+    @Test
+    fun `selective non-composite contexts expose selections without an output fragment`() {
+        val contents = gen(
+            """
+                directive @resolver(isSelective: Boolean! = false) on FIELD_DEFINITION | OBJECT
+                enum Choice { ONE }
+                type Query {
+                  scalarValue: String @resolver(isSelective: true)
+                  enumValue: Choice @resolver(isSelective: true)
+                }
+                type Mutation { placeholder: Int }
+                type Subscription { placeholder: Int }
+            """.trimIndent(),
+            "Query"
+        )
+
+        assertTrue(contents.contains("SelectiveFieldExecutionContext<viaduct.api.types.CompositeOutput.NotComposite>"))
+        assertTrue(contents.contains("override fun selections(): viaduct.api.select.SelectionSet<viaduct.api.types.CompositeOutput.NotComposite>"))
+        assertFalse(contents.contains("ResolverOwnedSelectionsContext"))
+        assertFalse(contents.contains("ownedSelections()"))
     }
 
     @Test

@@ -61,6 +61,24 @@ data class FieldSelection(
 }
 
 /**
+ * Typed view of a selected field whose child type information is resolved only when requested.
+ */
+internal class TypedFieldSelection(
+    val selection: FieldSelection,
+    private val source: EngineSelectionSetImpl,
+) {
+    val fieldName: String
+        get() = selection.field.name
+
+    val hasSubselections: Boolean
+        get() = selection.field.selectionSet != null
+
+    fun outputType(parentType: GraphQLObjectType): GraphQLCompositeType = source.outputType(selection, parentType)
+
+    fun childSelectionSet(outputType: GraphQLCompositeType): EngineSelectionSetImpl = source.childSelectionSet(selection, outputType)
+}
+
+/**
  * EngineSelectionSetImpl provides an untyped interface for SelectionSet manipulation. It is intended for direct
  * use by the Viaduct engine or indirect use by tenants via a [SelectionSetImpl].
  *
@@ -268,6 +286,41 @@ data class EngineSelectionSetImpl(
      */
     internal operator fun plus(selectionSet: GJSelectionSet): EngineSelectionSetImpl = withTypedSelections(def, selectionSet)
 
+    internal fun typedSelections(): List<TypedFieldSelection> = selections.map { TypedFieldSelection(it, this) }
+
+    internal fun withProjectedSelections(projectedSelections: List<FieldSelection>): EngineSelectionSetImpl =
+        copy(
+            selections = projectedSelections,
+            requestedTypes = buildSet {
+                add(def)
+                projectedSelections.mapTo(this) { it.typeCondition }
+            },
+        )
+
+    internal fun childSelectionSet(
+        selection: FieldSelection,
+        outputType: GraphQLCompositeType,
+    ): EngineSelectionSetImpl {
+        val fieldSelectionSet = requireNotNull(selection.field.selectionSet) {
+            "Field ${selection.typeCondition.name}.${selection.field.name} does not have subselections"
+        }
+        val base = EngineSelectionSetImpl(
+            def = outputType,
+            selections = emptyList(),
+            requestedTypes = emptySet(),
+            constraints = Constraints.Unconstrained.narrowToImpls(outputType, ctx.schema),
+            ctx = ctx,
+        )
+        return base + fieldSelectionSet
+    }
+
+    internal fun outputType(
+        selection: FieldSelection,
+        parentType: GraphQLObjectType,
+    ): GraphQLCompositeType =
+        GraphQLTypeUtil.unwrapAll(fieldDefinition(parentType.name, selection.field.name).type) as? GraphQLCompositeType
+            ?: throw IllegalArgumentException("Field ${parentType.name}.${selection.field.name} does not support subselections")
+
     /** Recursively extract the [FieldSelection]s that apply to the provided type. */
     private fun withTypedSelections(
         type: GraphQLCompositeType,
@@ -279,18 +332,51 @@ data class EngineSelectionSetImpl(
         val newRequestedTypes = mutableSetOf<GraphQLCompositeType>()
         val newExcluded = mutableMapOf<String, MutableSet<GraphQLCompositeType>>()
 
-        fun collectDropped(
+        fun applicableTypes(
             type: GraphQLCompositeType,
+            constraints: Constraints,
+        ): Set<GraphQLObjectType> =
+            ctx.schema.rels.possibleObjectTypes(type)
+                .filterTo(linkedSetOf()) { objectType ->
+                    !constraints.solve(
+                        ctx.constraintsCtx.copy(
+                            parentTypes = ctx.schema.rels.possibleObjectTypes(objectType)
+                        )
+                    ).isDrop
+                }
+
+        fun collectDropped(
+            applicableTypes: Set<GraphQLObjectType>,
             sel: Selection<*>
         ) {
             when (sel) {
-                is Field -> newExcluded.getOrPut(sel.resultKey) { mutableSetOf() } += type
-                is InlineFragment -> sel.selectionSet.selections.forEach {
-                    collectDropped(inlineFragmentType(sel, type), it)
+                is Field ->
+                    newExcluded.getOrPut(sel.resultKey) { mutableSetOf() } += applicableTypes
+                is InlineFragment -> {
+                    val narrowedTypes =
+                        sel.typeCondition?.name
+                            ?.let(::compositeType)
+                            ?.let(ctx.schema.rels::possibleObjectTypes)
+                            ?.let { fragmentTypes ->
+                                applicableTypes.filterTo(linkedSetOf()) {
+                                    it in fragmentTypes
+                                }
+                            }
+                            ?: applicableTypes
+                    sel.selectionSet.selections.forEach {
+                        collectDropped(narrowedTypes, it)
+                    }
                 }
                 is FragmentSpread -> ctx.fragmentDefinitions[sel.name]?.let { frag ->
+                    val fragmentTypes =
+                        ctx.schema.rels.possibleObjectTypes(
+                            compositeType(frag.typeCondition.name)
+                        )
+                    val narrowedTypes = applicableTypes.filterTo(linkedSetOf()) {
+                        it in fragmentTypes
+                    }
                     frag.selectionSet.selections.forEach {
-                        collectDropped(compositeType(frag.typeCondition.name), it)
+                        collectDropped(narrowedTypes, it)
                     }
                 }
             }
@@ -304,14 +390,13 @@ data class EngineSelectionSetImpl(
         ) {
             newRequestedTypes += type
             for (sel in ss.selections) {
-                if (sel is FragmentSpread && constraints.isDroppedByDirectives(sel)) {
-                    collectDropped(type, sel)
+                if (constraints.isDroppedByDirectives(sel)) {
+                    collectDropped(applicableTypes(type, constraints), sel)
                     continue
                 }
 
                 val child = constraints.descend(sel)
                 if (child.solve(ctx.constraintsCtx).isDrop) {
-                    collectDropped(type, sel)
                     continue
                 }
                 when (sel) {

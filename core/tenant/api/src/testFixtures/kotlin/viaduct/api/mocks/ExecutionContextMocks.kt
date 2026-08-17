@@ -10,6 +10,7 @@ import viaduct.api.context.ExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.ResolverExecutionContext
+import viaduct.api.context.ResolverOwnedSelectionsContext
 import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.context.SelectiveNodeExecutionContext
 import viaduct.api.documents.MutationFromAnnotation
@@ -311,10 +312,14 @@ class MockFieldExecutionContext<O : Object, Q : Query, A : Arguments, R : Compos
     queryResults: PrebakedResults<Query> = EmptyPrebakedResults<Query>(),
     selectionSetFactory: SelectionSetFactory? = null,
     rootFieldRefResults: PrebakedRootFieldRefResults = EmptyPrebakedRootFieldRefResults,
+    private val ownedSelectionsValue: SelectionSet<R> = selectionsValue,
 ) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory, rootFieldRefResults),
     FieldExecutionContext<O, Q, A, R>,
-    SelectiveFieldExecutionContext<R> {
+    SelectiveFieldExecutionContext<R>,
+    ResolverOwnedSelectionsContext<R> {
     override fun selections() = selectionsValue
+
+    override fun ownedSelections() = ownedSelectionsValue
 
     // In mock contexts, sync and lazy values are the same
     override suspend fun getObjectValue(): O = objectValue
@@ -341,10 +346,14 @@ class MockConnectionFieldExecutionContext<O : Object, Q : Query, A : ConnectionA
     queryResults: PrebakedResults<Query> = EmptyPrebakedResults<Query>(),
     selectionSetFactory: SelectionSetFactory? = null,
     rootFieldRefResults: PrebakedRootFieldRefResults = EmptyPrebakedRootFieldRefResults,
+    private val ownedSelectionsValue: SelectionSet<R> = selectionsValue,
 ) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory, rootFieldRefResults),
     ConnectionFieldExecutionContext<O, Q, A, R>,
-    SelectiveFieldExecutionContext<R> {
+    SelectiveFieldExecutionContext<R>,
+    ResolverOwnedSelectionsContext<R> {
     override fun selections() = selectionsValue
+
+    override fun ownedSelections() = ownedSelectionsValue
 
     // In mock contexts, sync and lazy values are the same
     override suspend fun getObjectValue(): O = objectValue
@@ -371,10 +380,14 @@ class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, 
     private val mutationResults: PrebakedResults<Mutation> = EmptyPrebakedResults<Mutation>(),
     selectionSetFactory: SelectionSetFactory? = null,
     rootFieldRefResults: PrebakedRootFieldRefResults = EmptyPrebakedRootFieldRefResults,
+    private val ownedSelectionsValue: SelectionSet<R> = selectionsValue,
 ) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory, rootFieldRefResults),
     MutationFieldExecutionContext<Q, M, A, R>,
-    SelectiveFieldExecutionContext<R> {
+    SelectiveFieldExecutionContext<R>,
+    ResolverOwnedSelectionsContext<R> {
     override fun selections() = selectionsValue
+
+    override fun ownedSelections() = ownedSelectionsValue
 
     // In mock contexts, sync and lazy values are the same
     override suspend fun getQueryValue(): Q = queryValue
@@ -428,7 +441,10 @@ class MockNodeExecutionContext<R : NodeObject>(
     queryResults: PrebakedResults<Query> = EmptyPrebakedResults<Query>(),
     selectionSetFactory: SelectionSetFactory? = null,
     rootFieldRefResults: PrebakedRootFieldRefResults = EmptyPrebakedRootFieldRefResults,
+    private val ownedSelectionsValue: SelectionSet<R> = selectionsValue,
 ) : MockResolverExecutionContext<Query>(internalContext, queryResults, selectionSetFactory, rootFieldRefResults),
     SelectiveNodeExecutionContext<R> {
     override fun selections() = selectionsValue
+
+    override fun ownedSelections() = ownedSelectionsValue
 }

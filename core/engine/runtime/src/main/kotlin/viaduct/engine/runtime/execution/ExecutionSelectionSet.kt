@@ -16,17 +16,21 @@ import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLFieldsContainer
 import graphql.schema.GraphQLImplementingType
+import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLTypeUtil
 import java.util.Locale
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.FieldDirectives
+import viaduct.engine.api.ResolverType
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.fragment.FragmentSource
 import viaduct.engine.api.fragment.FragmentVariables
 import viaduct.engine.api.gj
+import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.ResolverOwnedSelectionProjectable
 import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.graphql.utils.GraphQLTypeRelation
 import viaduct.graphql.utils.SelectionsParserUtils.EntryPointFragmentName
@@ -37,18 +41,33 @@ internal data class ExecutionSelectionSet(
     private val projectionType: GraphQLCompositeType,
     private val source: QueryPlan.SelectionSet,
     private val requestsBaseType: Boolean,
-) : EngineSelectionSet {
+) : EngineSelectionSet, ResolverOwnedSelectionProjectable {
     data class Ctx(
         val schema: ViaductSchema,
         val fragments: QueryPlan.Fragments,
         val variables: Map<String, Any?>,
         val graphQLContext: GraphQLContext,
         val locale: Locale = Locale.getDefault(),
+        val queryPlan: QueryPlan? = null,
+        val fieldRssOriginFilteringKillSwitchEnabled: Boolean = true,
+        val collectCache: CollectCache = CollectCache(),
     ) {
         val coercedVariables: CoercedVariables = CoercedVariables.of(variables)
         val constraintsCtxWithoutTypes: Constraints.Ctx = Constraints.Ctx(coercedVariables, null)
 
         fun constraintsCtxFor(type: GraphQLCompositeType): Constraints.Ctx = Constraints.Ctx(coercedVariables, schema.rels.possibleObjectTypes(type))
+
+        val queryPlanFilterCtx: QueryPlanFilterCtx
+            get() =
+                QueryPlanFilterCtx(
+                    schema = schema.schema,
+                    variables = coercedVariables,
+                    graphQLContext = graphQLContext,
+                    locale = locale,
+                    fieldRssOriginFilteringKillSwitchEnabled =
+                    fieldRssOriginFilteringKillSwitchEnabled,
+                    collectCache = collectCache,
+                )
     }
 
     override val schema: ViaductSchema get() = ctx.schema
@@ -75,11 +94,13 @@ internal data class ExecutionSelectionSet(
             if (selectionType is GraphQLCompositeType) selection.toEngineSelection() else null
         }
 
-    override fun toSelectionSet(): GJSelectionSet {
+    override fun toSelectionSet(): GJSelectionSet = toSelectionSet(retainEmptyCompositeFields = false)
+
+    private fun toSelectionSet(retainEmptyCompositeFields: Boolean): GJSelectionSet {
         val selections = fieldSelections
             .groupBy { it.typeCondition }
             .mapNotNull { (type, selections) ->
-                val fields = selections.mapNotNull { it.toAstField() }
+                val fields = selections.mapNotNull { it.toAstField(retainEmptyCompositeFields) }
                 if (fields.isEmpty()) return@mapNotNull null
 
                 GJInlineFragment.newInlineFragment()
@@ -88,6 +109,31 @@ internal data class ExecutionSelectionSet(
                     .build()
             }
         return GJSelectionSet(selections)
+    }
+
+    override fun projectOwnedSelections(
+        dispatcherRegistry: DispatcherRegistry,
+        resolverType: ResolverType,
+    ): EngineSelectionSet {
+        val queryPlan = requireNotNull(ctx.queryPlan) {
+            "Execution-backed selections require their source query plan for ownership projection"
+        }
+        val projectionObjectType = projectionType as? GraphQLObjectType
+        val projectedPlan = queryPlan.projectResolverOwnedSelections(
+            schema = schema,
+            context = ctx.queryPlanFilterCtx,
+            source = source,
+            projectionType = projectionObjectType,
+            dispatcherRegistry = dispatcherRegistry,
+            resolverType = resolverType,
+        )
+        return copy(
+            ctx = ctx.copy(
+                fragments = projectedPlan.fragments,
+                queryPlan = projectedPlan,
+            ),
+            source = projectedPlan.selectionSet,
+        )
     }
 
     override fun addVariables(variables: Map<String, Any?>): EngineSelectionSet {
@@ -457,18 +503,15 @@ internal data class ExecutionSelectionSet(
             )
         }
 
-    private fun FieldSelection.toAstField(): GJField? {
+    private fun FieldSelection.toAstField(retainEmptyCompositeFields: Boolean): GJField? {
         val childSelectionSet = selectionSet ?: return field
         val childType = fieldDefinition(this).compositeOutputType(typeCondition.name, fieldName)
-        val childAst = create(
-            schema = schema,
-            typeName = childType.name,
-            selectionSet = childSelectionSet,
-            fragments = ctx.fragments,
-            variables = variables,
-            graphQLContext = ctx.graphQLContext,
-        ).toSelectionSet()
-        if (childAst.selections.isEmpty()) return null
+        val childAst = copy(
+            projectionType = childType,
+            source = childSelectionSet,
+            requestsBaseType = true,
+        ).toSelectionSet(retainEmptyCompositeFields)
+        if (childAst.selections.isEmpty() && !retainEmptyCompositeFields) return null
         return field.transform { builder -> builder.selectionSet(childAst) }
     }
 
@@ -478,6 +521,7 @@ internal data class ExecutionSelectionSet(
             queryPlan: QueryPlan,
             variables: Map<String, Any?> = emptyMap(),
             graphQLContext: GraphQLContext = GraphQLContext.getDefault(),
+            locale: Locale = Locale.getDefault(),
         ): EngineSelectionSet {
             val parentType = requireNotNull(GraphQLTypeUtil.unwrapAll(queryPlan.parentType) as? GraphQLCompositeType) {
                 "QueryPlan parent type `${queryPlan.parentType}` is not composite"
@@ -489,6 +533,8 @@ internal data class ExecutionSelectionSet(
                 fragments = queryPlan.fragments,
                 variables = variables,
                 graphQLContext = graphQLContext,
+                locale = locale,
+                queryPlan = queryPlan,
             )
         }
 
@@ -499,6 +545,10 @@ internal data class ExecutionSelectionSet(
             fragments: QueryPlan.Fragments,
             variables: Map<String, Any?> = emptyMap(),
             graphQLContext: GraphQLContext = GraphQLContext.getDefault(),
+            locale: Locale = Locale.getDefault(),
+            queryPlan: QueryPlan? = null,
+            fieldRssOriginFilteringKillSwitchEnabled: Boolean = true,
+            collectCache: CollectCache = CollectCache(),
         ): EngineSelectionSet? {
             val compositeType = GraphQLTypeUtil.unwrapAll(fieldType) as? GraphQLCompositeType ?: return null
             return create(
@@ -508,6 +558,11 @@ internal data class ExecutionSelectionSet(
                 fragments = fragments,
                 variables = variables,
                 graphQLContext = graphQLContext,
+                locale = locale,
+                queryPlan = queryPlan,
+                fieldRssOriginFilteringKillSwitchEnabled =
+                fieldRssOriginFilteringKillSwitchEnabled,
+                collectCache = collectCache,
             )
         }
 
@@ -518,6 +573,10 @@ internal data class ExecutionSelectionSet(
             fragments: QueryPlan.Fragments,
             variables: Map<String, Any?> = emptyMap(),
             graphQLContext: GraphQLContext = GraphQLContext.getDefault(),
+            locale: Locale = Locale.getDefault(),
+            queryPlan: QueryPlan? = null,
+            fieldRssOriginFilteringKillSwitchEnabled: Boolean = true,
+            collectCache: CollectCache = CollectCache(),
         ): EngineSelectionSet {
             val projectionType = schema.schema.getTypeAs<GraphQLCompositeType>(typeName)
             require(schema.rels.isSpreadable(selectionSet.parentType, projectionType)) {
@@ -529,6 +588,11 @@ internal data class ExecutionSelectionSet(
                     fragments = fragments,
                     variables = variables,
                     graphQLContext = graphQLContext,
+                    locale = locale,
+                    queryPlan = queryPlan,
+                    fieldRssOriginFilteringKillSwitchEnabled =
+                    fieldRssOriginFilteringKillSwitchEnabled,
+                    collectCache = collectCache,
                 ),
                 projectionType = projectionType,
                 source = selectionSet,

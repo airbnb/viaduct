@@ -26,6 +26,14 @@ class SelectionSetTest {
         assertFalse(ss.requestsType(fooType))
         assertTrue(ss.selectionSetFor(fooType).isEmpty())
         assertTrue(ss.selectionSetFor(barType).isEmpty())
+        assertEquals(
+            OutputSelectionFragment(
+                name = "Main",
+                document = "fragment Main on Foo { __typename }",
+                variables = emptyMap(),
+            ),
+            ss.toFragment(),
+        )
     }
 
     @Test

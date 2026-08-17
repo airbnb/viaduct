@@ -2,6 +2,7 @@ package viaduct.tenant.runtime.context
 
 import kotlin.reflect.KClass
 import viaduct.api.context.ConnectionFieldExecutionContext
+import viaduct.api.context.ResolverOwnedSelectionsContext
 import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.internal.InternalContext
 import viaduct.api.select.SelectionSet
@@ -30,8 +31,10 @@ class ConnectionFieldExecutionContextImpl<Q : Query>(
     syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)?,
     private val objectCls: KClass<Object>,
     queryCls: KClass<Q>,
+    ownedSelections: Lazy<SelectionSet<Connection<*, *>>> = lazyOf(selections),
 ) : ConnectionFieldExecutionContext<Object, Q, ConnectionArguments, Connection<*, *>>,
     SelectiveFieldExecutionContext<Connection<*, *>>,
+    ResolverOwnedSelectionsContext<Connection<*, *>>,
     BaseFieldExecutionContextImpl<Q, ConnectionArguments, Connection<*, *>>(
         baseData,
         engineExecutionContextWrapper,
@@ -40,8 +43,11 @@ class ConnectionFieldExecutionContextImpl<Q : Query>(
         arguments,
         syncQueryValueGetter,
         queryCls,
+        ownedSelections,
     ) {
     override fun selections(): SelectionSet<Connection<*, *>> = selectionSet()
+
+    override fun ownedSelections(): SelectionSet<Connection<*, *>> = ownedSelectionSet()
 
     /**
      * Resolves and returns the parent object value for this connection field.

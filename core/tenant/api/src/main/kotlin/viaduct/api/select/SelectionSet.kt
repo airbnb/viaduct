@@ -17,6 +17,16 @@ import viaduct.apiannotations.StableApi
 @StableApi
 interface SelectionSet<T : CompositeOutput> {
     /**
+     * Renders this selection set as a GraphQL fragment.
+     *
+     * The fragment preserves aliases, arguments, directives, and request variables. A synthetic
+     * `__typename` is used when this selection set is empty so the document remains valid GraphQL.
+     *
+     * @throws UnsupportedOperationException if this selection set cannot be rendered.
+     */
+    fun toFragment(): OutputSelectionFragment = throw UnsupportedOperationException("This SelectionSet cannot be rendered as a GraphQL fragment")
+
+    /**
      * Returns the schema field coordinates selected directly at this selection set's current level.
      *
      * Field order, aliases, and repeated selections do not affect the returned set. Coordinates
@@ -201,6 +211,13 @@ interface SelectionSet<T : CompositeOutput> {
                 override fun <U : T> selectionSetFor(type: Type<U>): SelectionSet<U> = empty(type)
 
                 override fun isEmpty(): Boolean = true
+
+                override fun toFragment(): OutputSelectionFragment =
+                    OutputSelectionFragment(
+                        name = "Main",
+                        document = "fragment Main on ${type.name} { __typename }",
+                        variables = emptyMap(),
+                    )
 
                 override val type: Type<T> = type
             }

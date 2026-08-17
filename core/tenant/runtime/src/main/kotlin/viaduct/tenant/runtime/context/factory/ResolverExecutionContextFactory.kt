@@ -30,6 +30,7 @@ import viaduct.api.types.Query
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.ResolverType
 import viaduct.engine.api.ViaductSchema
 import viaduct.tenant.runtime.context.ConnectionFieldExecutionContextImpl
 import viaduct.tenant.runtime.context.EngineExecutionContextWrapperImpl
@@ -66,6 +67,22 @@ sealed class ResolverExecutionContextFactoryBase<R : CompositeOutput>(
         } else {
             toCompositeSelectionSet
         }
+
+    protected fun ownedSelectionSet(
+        engineExecutionContext: EngineExecutionContext,
+        selections: EngineSelectionSet?,
+        resolverType: ResolverType,
+    ): Lazy<SelectionSet<R>> =
+        lazy {
+            require(resultType.kcls != CompositeOutput.NotComposite::class && selections != null) {
+                "resolver-owned selections require a composite output type"
+            }
+            @Suppress("UNCHECKED_CAST")
+            SelectionSetImpl(
+                resultType,
+                engineExecutionContext.projectOwnedSelections(selections, resolverType),
+            ) as SelectionSet<R>
+        }
 }
 
 class NodeExecutionContextFactory(
@@ -86,7 +103,8 @@ class NodeExecutionContextFactory(
             EngineExecutionContextWrapperImpl(engineExecutionContext, knownFragments),
             this.toSelectionSet(selections),
             requestContext,
-            internalContext.deserializeGlobalID(id)
+            internalContext.deserializeGlobalID(id),
+            ownedSelectionSet(engineExecutionContext, selections, ResolverType.NODE),
         )
     }
 }
@@ -125,6 +143,11 @@ class FieldExecutionContextFactory internal constructor(
     ): BaseFieldExecutionContext<*, *, *> {
         val internalContext = InternalContextImpl(engineExecutionContext.fullSchema, engineExecutionContext.globalIDCodec, reflectionLoader, grtConvFactory)
         val engineExecutionContextWrapper = EngineExecutionContextWrapperImpl(engineExecutionContext, knownFragments)
+        val ownedSelections = ownedSelectionSet(
+            engineExecutionContext,
+            engineSelections,
+            ResolverType.FIELD,
+        )
 
         return when (expectedContextInterface) {
             ConnectionFieldExecutionContext::class.java -> ConnectionFieldExecutionContextImpl(
@@ -137,6 +160,7 @@ class FieldExecutionContextFactory internal constructor(
                 syncQueryValueGetter,
                 objectCls,
                 queryCls,
+                ownedSelections as Lazy<SelectionSet<Connection<*, *>>>,
             )
 
             FieldExecutionContext::class.java -> FieldExecutionContextImpl(
@@ -149,6 +173,7 @@ class FieldExecutionContextFactory internal constructor(
                 syncQueryValueGetter,
                 objectCls,
                 queryCls,
+                ownedSelections,
             )
 
             MutationFieldExecutionContext::class.java -> MutationFieldExecutionContextImpl<Query, Mutation>(
@@ -159,6 +184,7 @@ class FieldExecutionContextFactory internal constructor(
                 rawArguments.toInputLikeGRT(internalContext, argumentsCls, graphqlTypeName, graphqlFieldName),
                 syncQueryValueGetter,
                 queryCls,
+                ownedSelections,
             )
 
             else -> throw IllegalArgumentException(

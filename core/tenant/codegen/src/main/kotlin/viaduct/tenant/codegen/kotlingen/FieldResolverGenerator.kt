@@ -125,6 +125,7 @@ private interface ResolverModel {
     val ctxInterface: String
     val selectiveCtxInterface: String
     val ctxOutputType: String
+    val ownsSelections: Boolean
     val resolverBase: String
     val resolverBaseGeneric: String
 }
@@ -207,6 +208,7 @@ private class ResolverModelImpl(
 
     override val typeSpecifier: String = field.kmType(JavaName(grtPackage).asKmName, baseTypeMapper).kotlinTypeString
     override val ctxOutputType: String = grtOutputName
+    override val ownsSelections: Boolean = selective && field.type.baseTypeDef.isComposite
     override val ctxInterface: String
         get() = when {
             mutationTypeName != null && this.field.containingDef.name == mutationTypeName ->
@@ -258,11 +260,17 @@ private val resolverST = stTemplate(
     abstract class <mdl.resolverName> : <mdl.resolverBaseGeneric>, <mdl.resolverBase><if(mdl.batching)>, viaduct.api.internal.BaseBatchedFieldResolver<else>, viaduct.api.internal.BaseUnbatchedFieldResolver<endif> {
         class Context(
             private val inner: <mdl.ctxInterface>
-        ) : <mdl.ctxInterface> by inner<if(mdl.selective)>, <mdl.selectiveCtxInterface><endif>, InternalContext by (inner as InternalContext) {
+        ) : <mdl.ctxInterface> by inner<if(mdl.selective)>, <mdl.selectiveCtxInterface><endif><if(mdl.ownsSelections)>, viaduct.api.context.ResolverOwnedSelectionsContext\<<mdl.ctxOutputType>\><endif>, InternalContext by (inner as InternalContext) {
             <if(mdl.selective)>
             @Suppress("UNCHECKED_CAST")
             override fun selections(): viaduct.api.select.SelectionSet\<<mdl.ctxOutputType>\> =
                 (inner as <mdl.selectiveCtxInterface>).selections()
+            <if(mdl.ownsSelections)>
+
+            @Suppress("UNCHECKED_CAST")
+            override fun ownedSelections(): viaduct.api.select.SelectionSet\<<mdl.ctxOutputType>\> =
+                (inner as viaduct.api.context.ResolverOwnedSelectionsContext\<<mdl.ctxOutputType>\>).ownedSelections()
+            <endif>
             <endif>
         }
         <if(!mdl.batching)>

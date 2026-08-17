@@ -87,6 +87,7 @@ internal class NodeMatImpl(
             projectionType = ref.type,
             selectionSet = matPlan.selectionSet,
             fragments = matPlan.fragments,
+            queryPlan = matPlan,
         )
         val source = materialize(selections, selectionParameters)
         val returnedCoverage = source.toKeyTree(

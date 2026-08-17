@@ -37,9 +37,12 @@ sealed class BaseFieldExecutionContextImpl<Q : Query, A : Arguments, R : Composi
     override val arguments: A,
     private val syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)?,
     private val queryCls: KClass<Q>,
+    private val ownedSelectionSet: Lazy<SelectionSet<R>>,
 ) : BaseFieldExecutionContext<Q, A, R>,
     ResolverExecutionContextImpl<Q>(baseData, engineExecutionContextWrapper) {
     protected fun selectionSet(): SelectionSet<R> = selectionSet
+
+    protected fun ownedSelectionSet(): SelectionSet<R> = ownedSelectionSet.value
 
     override suspend fun getQueryValue(): Q =
         handleFrameworkErrorsSuspend("getQueryValue") {

@@ -305,6 +305,7 @@ object FieldExecutionHelpers {
         projectionType: GraphQLCompositeType,
         selectionSet: QueryPlan.SelectionSet,
         fragments: QueryPlan.Fragments,
+        queryPlan: QueryPlan = parameters.queryPlan,
     ): EngineSelectionSet =
         ExecutionSelectionSet.create(
             schema = parameters.engineExecutionContext.activeSchema,
@@ -313,6 +314,11 @@ object FieldExecutionHelpers {
             fragments = fragments,
             variables = parameters.coercedVariables.toMap(),
             graphQLContext = parameters.executionContext.graphQLContext,
+            locale = parameters.executionContext.locale,
+            queryPlan = queryPlan,
+            fieldRssOriginFilteringKillSwitchEnabled =
+                parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled,
+            collectCache = parameters.constants.collectCache,
         )
 
     private fun engineSelectionSet(
@@ -331,6 +337,7 @@ object FieldExecutionHelpers {
                 projectionType,
                 field.selectionSet ?: QueryPlan.SelectionSet.empty(projectionType),
                 parameters.queryPlan.fragments,
+                parameters.queryPlan,
             )
         }
 

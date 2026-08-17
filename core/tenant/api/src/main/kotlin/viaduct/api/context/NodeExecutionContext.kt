@@ -33,7 +33,9 @@ interface NodeExecutionContext<R : NodeObject> : ResolverExecutionContext<Query>
  * @see NodeExecutionContext for the base context without `selections()`
  */
 @StableApi
-interface SelectiveNodeExecutionContext<R : NodeObject> : NodeExecutionContext<R> {
+interface SelectiveNodeExecutionContext<R : NodeObject> :
+    NodeExecutionContext<R>,
+    ResolverOwnedSelectionsContext<R> {
     /**
      * The [SelectionSet] for [R] that the caller provided
      */

@@ -18,6 +18,7 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.ResolveRootFieldReferenceOptions
 import viaduct.engine.api.ResolveSelectionSetOptions
+import viaduct.engine.api.ResolverType
 import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.SubqueryExecutionException
 import viaduct.engine.api.ViaductSchema
@@ -56,6 +57,7 @@ class EngineExecutionContextFactory(
     // Constructing this is expensive, so do it just once per schema-version
     private val engineSelectionSetFactory: EngineSelectionSet.Factory = EngineSelectionSetFactoryImpl(fullSchema)
     private val fieldSelectivity: IsResolverSelective = IsResolverSelective(fieldSelectivityProvider::isSelective)
+    private val ownedSelectionProjector = ResolverSelectionProjector(fullSchema, dispatcherRegistry)
 
     fun create(
         scopedSchema: ViaductSchema,
@@ -78,6 +80,7 @@ class EngineExecutionContextFactory(
             globalIDCodec,
             meterRegistry,
             isResolverSelective,
+            ownedSelectionProjector,
         )
     }
 }
@@ -119,6 +122,7 @@ class EngineExecutionContextImpl internal constructor(
     override val globalIDCodec: GlobalIDCodec,
     private val meterRegistry: MeterRegistry?,
     val isResolverSelective: IsResolverSelective,
+    private val ownedSelectionProjector: ResolverSelectionProjector,
     var dataFetchingEnvironment: DataFetchingEnvironment? = null,
     override val activeSchema: ViaductSchema = fullSchema,
     internal val fieldScopeSupplier: Supplier<out EngineExecutionContext.FieldExecutionScope> = FpKit.intraThreadMemoize { FieldExecutionScopeImpl() },
@@ -173,6 +177,11 @@ class EngineExecutionContextImpl internal constructor(
     override fun hasModernNodeResolver(typeName: String): Boolean {
         return dispatcherRegistry.getNodeResolverDispatcher(typeName) != null
     }
+
+    override fun projectOwnedSelections(
+        selectionSet: EngineSelectionSet,
+        resolverType: ResolverType,
+    ): EngineSelectionSet = ownedSelectionProjector.project(selectionSet, resolverType)
 
     override suspend fun resolveSelectionSet(
         selectionSet: EngineSelectionSet,
@@ -336,6 +345,7 @@ class EngineExecutionContextImpl internal constructor(
             globalIDCodec = this.globalIDCodec,
             meterRegistry = this.meterRegistry,
             isResolverSelective = this.isResolverSelective,
+            ownedSelectionProjector = this.ownedSelectionProjector,
             dataFetchingEnvironment = dataFetchingEnvironment,
             fieldScopeSupplier = fieldScopeSupplier,
             executionHandle = this._executionHandle,
@@ -367,6 +377,7 @@ class EngineExecutionContextImpl internal constructor(
             globalIDCodec = globalIDCodec,
             meterRegistry = meterRegistry,
             isResolverSelective = isResolverSelective,
+            ownedSelectionProjector = ownedSelectionProjector,
             matBatchDepth = 0,
         )
 }
