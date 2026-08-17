@@ -4,40 +4,25 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Collections;
-import java.util.List;
 import org.slf4j.LoggerFactory;
-import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder;
-import viaduct.java.runtime.bridge.DefaultResolverClassFinder;
-import viaduct.java.runtime.bridge.JavaTenantAPIBootstrapper;
-import viaduct.java.runtime.bridge.ModuleBootstrapper;
 import viaduct.service.api.ExecutionInput;
 import viaduct.service.api.ExecutionResult;
 import viaduct.service.api.SchemaId;
 import viaduct.service.api.Viaduct;
-import viaduct.service.api.spi.CodeInjector;
+import viaduct.service.api.spi.NaiveTenantModuleInjectorFactory;
 import viaduct.service.runtime.SchemaConfiguration;
 import viaduct.service.runtime.StandardViaduct;
 
 public class ViaductApplication {
 
-  private static final String TENANT_PACKAGE = "com.example.viadapp.resolvers";
-
-  @SuppressWarnings("deprecation")
+  @SuppressWarnings("deprecation") // withSchemaConfiguration
   public static void main(String[] argv) throws Exception {
     Logger rootLogger = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
     rootLogger.setLevel(Level.ERROR);
 
-    DefaultResolverClassFinder classFinder =
-        new DefaultResolverClassFinder(TENANT_PACKAGE, TENANT_PACKAGE);
-    ModuleBootstrapper bootstrapper =
-        new ModuleBootstrapper(classFinder, CodeInjector.Companion.getNaive());
-
-    TenantAPIBootstrapperBuilder bootstrapperBuilder =
-        () -> new JavaTenantAPIBootstrapper(List.of(bootstrapper));
-
     Viaduct viaduct =
         new StandardViaduct.Builder()
-            .withTenantAPIBootstrapperBuilder(bootstrapperBuilder)
+            .withTenantModuleInjectorFactory(NaiveTenantModuleInjectorFactory.INSTANCE)
             .withSchemaConfiguration(SchemaConfiguration.Companion.getDEFAULT())
             .build();
 

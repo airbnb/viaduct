@@ -19,9 +19,10 @@ These tests should stay narrow and deterministic. In particular in-project tests
 
 ### 2. Tests inside the "gradle test apps" build
 
-The included build under `gradle-plugins/gradletestapps/` contains small Viaduct test applications used to test the kind of task executions we do not want to test with TestKit. There are three test applications there:
+The included build under `gradle-plugins/gradletestapps/` contains small Viaduct test applications used to test the kind of task executions we do not want to test with TestKit. There are four test applications there:
 
 - `:one-project` - a single Gradle project containing both the application and module plugins
+- `:java-one-project` - the Java counterpart of `:one-project`: one Gradle project applying the application and Java module plugins, covering Java resolver-base codegen, the APT-driven registry pipeline, and what the module jar ships
 - `:two-project` - an application project with a nested `:two-project:resolvers` module project, focused on minimal cross-project runtime execution
 - `:multi-project` - an application project with two nested module projects, `:multi-project:alpha` and `:multi-project:beta`
 

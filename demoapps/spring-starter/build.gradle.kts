@@ -15,6 +15,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.jackson.databind)
 
+    // A Kotlin app gets this transitively; a Java-only app must ask.
+    runtimeOnly(libs.kotlin.reflect)
+
     implementation(libs.kotlinx.coroutines.jdk8)
     implementation(libs.reactive.streams)
 

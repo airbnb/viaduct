@@ -12,10 +12,12 @@ import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
 import org.gradle.api.file.RegularFile
+import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.kotlin.dsl.register
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
@@ -253,6 +255,19 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             destinationDirectory.set(javaGrtClassesDirectory())
             classpath = grtCompileClasspath
             options.isIncremental = true
+        }
+
+        // Gradle only sets the `javaCompiler` convention on source-set compile tasks, and a manually
+        // registered `JavaCompile` falls back to the build JVM rather than `java.toolchain`. Without
+        // this, an application that pins a toolchain older than its build JVM gets GRT bytecode that
+        // its own `compileJava` cannot read. When no toolchain is declared this resolves to the same
+        // build JVM used today, so existing consumers are unaffected.
+        pluginManager.withPlugin("java") {
+            val toolchain = extensions.getByType(JavaPluginExtension::class.java).toolchain
+            val toolchains = extensions.getByType(JavaToolchainService::class.java)
+            compileGRTJavaTask.configure {
+                javaCompiler.set(toolchains.compilerFor(toolchain))
+            }
         }
 
         val generateGRTsTask = tasks.register<Jar>("generateViaductJavaGRTs") {

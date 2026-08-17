@@ -38,6 +38,16 @@ includeViaductApplication {
 }
 
 includeViaductApplication {
+    project(":java-one-project")
+    modulePackagePrefix("com.example.execution.javaoneproject")
+
+    includeModule {
+        project(":java-one-project")
+        modulePackageSuffix("resolvers")
+    }
+}
+
+includeViaductApplication {
     project(":multi-project")
     modulePackagePrefix("com.example.execution.multiproject")
 

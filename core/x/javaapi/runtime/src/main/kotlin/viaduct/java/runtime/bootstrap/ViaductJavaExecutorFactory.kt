@@ -53,6 +53,9 @@ class ViaductJavaExecutorFactory(
     private val grtPackagePrefix: String,
     private val registry: ExecutionRegistryConfigFile,
 ) : ExecutorFactory {
+    constructor(codeInjector: CodeInjector, registry: ExecutionRegistryConfigFile) :
+        this(codeInjector, JAVA_GRT_PACKAGE_PREFIX, registry)
+
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory()
 
     // Resolves GRT/Arguments classes by name for the per-request InternalContext attached to GRTs.
@@ -251,6 +254,8 @@ class ViaductJavaExecutorFactory(
 
     companion object {
         private val log = LoggerFactory.getLogger(ViaductJavaExecutorFactory::class.java)
+
+        const val JAVA_GRT_PACKAGE_PREFIX = "viaduct.java.grts"
     }
 }
 

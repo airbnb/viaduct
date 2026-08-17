@@ -27,7 +27,7 @@ import viaduct.gradle.runCodegen
 /**
  * Assembles the tenant module config file by invoking the aggregation CLI.
  *
- * Reads KSP-generated descriptor JSON files from [descriptorDir] and produces
+ * Reads per-source descriptor JSON files from [descriptorDir] and produces
  * a single `META-INF/viaduct/modules/<tenantPackage>.json` in [outputDir].
  *
  * Gradle's up-to-date checking handles skipping this task when inputs haven't
@@ -38,7 +38,7 @@ import viaduct.gradle.runCodegen
 @CacheableTask
 abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalActions {
     /**
-     * KSP descriptor root directory containing per-file JSON descriptors.
+     * Descriptor root directory containing per-file JSON descriptors.
      *
      * Annotated with `@InputFiles` (not `@InputDirectory`) because the directory may not
      * exist if no `@Resolver` classes are present. `@Optional` prevents Gradle from failing
@@ -178,6 +178,11 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
          * tenant path; deliberately independent of [EXECUTOR_FACTORY].
          */
         const val API_NAME = "kotlin"
+
+        const val JAVA_EXECUTOR_FACTORY = "viaduct.java.runtime.bootstrap.ViaductJavaExecutorFactory"
+
+        /** [apiName] counterpart of [JAVA_EXECUTOR_FACTORY] for the Java module plugin's tenant path. */
+        const val JAVA_API_NAME = "java"
 
         // TODO: Keep this routing helper for future re-enablement of true task-internal
         // incrementality once execution-style tests exist. It is intentionally not used
