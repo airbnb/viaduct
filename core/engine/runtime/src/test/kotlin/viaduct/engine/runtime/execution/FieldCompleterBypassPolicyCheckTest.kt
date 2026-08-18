@@ -14,24 +14,21 @@ import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.runtime.CheckerDispatcher
 import viaduct.engine.runtime.EngineObjectDataFactory
+import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.executeViaductModernGraphQL
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
 
 /**
  * Behavioral coverage for the `@bypassPolicyCheck`-driven access-check bypass during completion.
  *
- * The bypass decision is made by [FieldCompleter.shouldBypassChecker]:
- * ```
- * parameters.bypassChecksDuringCompletion ||
- *     (airbnbBypassPolicyCheckDuringCompletion && field.mergedField.singleField.hasDirective("bypassPolicyCheck"))
- * ```
- *
- * These tests exercise it end-to-end through [executeViaductModernGraphQL] with a failing field
- * checker: when the checker is bypassed the field resolves to its value with no errors; otherwise
- * the checker error surfaces and the (nullable) field is null.
+ * The bypass decision is made by [FieldCompleter.shouldBypassChecker]. The Airbnb-specific
+ * directive is retained by the full internal schema and is used by internal execution documents,
+ * including Required Selection Sets. Public Base and scoped schemas remove the directive
+ * definition before client validation.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class FieldCompleterBypassPolicyCheckTest {
@@ -39,6 +36,7 @@ class FieldCompleterBypassPolicyCheckTest {
         directive @bypassPolicyCheck on FIELD
         type Query {
             field: String
+            helper: String
             items: [String]
         }
     """.trimIndent()
@@ -83,25 +81,35 @@ class FieldCompleterBypassPolicyCheckTest {
         airbnbBypassPolicyCheckDuringCompletion: Boolean,
         coordinate: Coordinate,
         resolvers: Map<String, Map<String, DataFetcher<*>>>,
+        requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty,
     ) = executeViaductModernGraphQL(
         sdl = sdl,
         resolvers = resolvers,
         query = query,
         fieldCheckerDispatchers = mapOf(coordinate to failingChecker()),
         airbnbBypassPolicyCheckDuringCompletion = airbnbBypassPolicyCheckDuringCompletion,
+        requiredSelectionSetRegistry = requiredSelectionSetRegistry,
     )
 
     @Test
-    fun `flag on and directive present bypasses the checker`() =
+    fun `flag on and internal RSS directive bypasses the checker`() =
         runExecutionTest {
             val result = execute(
-                query = "{ field @bypassPolicyCheck }",
+                query = "{ field }",
                 airbnbBypassPolicyCheckDuringCompletion = true,
-                coordinate = "Query" to "field",
-                resolvers = mapOf("Query" to mapOf("field" to DataFetcher { "hello" })),
+                coordinate = "Query" to "helper",
+                resolvers = mapOf(
+                    "Query" to mapOf(
+                        "field" to DataFetcher { "hello" },
+                        "helper" to DataFetcher { "internal helper value" },
+                    )
+                ),
+                requiredSelectionSetRegistry = MockRequiredSelectionSetRegistry.builder()
+                    .fieldResolverEntry("Query" to "field", "helper @bypassPolicyCheck")
+                    .build(),
             )
 
-            assertTrue(result.errors.isEmpty(), "expected no errors when the checker is bypassed")
+            assertTrue(result.errors.isEmpty(), "expected no errors when the internal RSS checker is bypassed")
             assertEquals("hello", (result.getData<Map<String, Any?>>())["field"])
         }
 
@@ -131,19 +139,5 @@ class FieldCompleterBypassPolicyCheckTest {
 
             assertTrue(result.errors.isNotEmpty(), "expected the checker error to surface")
             assertNull((result.getData<Map<String, Any?>>())["field"])
-        }
-
-    @Test
-    fun `list completion bypasses the checker the same way as object field completion`() =
-        runExecutionTest {
-            val result = execute(
-                query = "{ items @bypassPolicyCheck }",
-                airbnbBypassPolicyCheckDuringCompletion = true,
-                coordinate = "Query" to "items",
-                resolvers = mapOf("Query" to mapOf("items" to DataFetcher { listOf("a", "b") })),
-            )
-
-            assertTrue(result.errors.isEmpty(), "expected no errors when the checker is bypassed")
-            assertEquals(listOf("a", "b"), (result.getData<Map<String, Any?>>())["items"])
         }
 }

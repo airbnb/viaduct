@@ -51,9 +51,11 @@ internal fun <T : ViaductSchema.TypeDef> filteredSchema(
     }
 
     // Create directive shells
-    val directives = directiveEntries.associate { (k, v) ->
-        k to SchemaWithData.Directive(schema, v.name, v)
-    }
+    val directives = directiveEntries
+        .filter { (_, value) -> filter.includeDirective(value) }
+        .associate { (k, v) ->
+            k to SchemaWithData.Directive(schema, v.name, v)
+        }
 
     // Phase 2: Create decoder and populate all types and directives
     val decoder = FilteredSchemaDecoder(filter, defs, directives)
@@ -389,14 +391,19 @@ internal class FilteredSchemaDecoder(
  * Encapsulates logic for projecting a schema. Allows one to
  * remove type-defs, fields, and enumeration values from
  * schemas. You can also remove the supertypes of object
- * and interface types. You cannot remove directive
- * definitions nor can you remove applied directives from
- * any schema element.
+ * and interface types. You can also remove directive definitions, but cannot remove applied
+ * directives from any schema element.
  */
 interface SchemaFilter {
     fun includeTypeDef(typeDef: ViaductSchema.TypeDef): Boolean
 
     fun includeField(field: ViaductSchema.Field): Boolean
+
+    /**
+     * Whether to include a directive definition in the filtered schema.
+     * Defaults to true for backward compatibility.
+     */
+    fun includeDirective(directive: ViaductSchema.Directive): Boolean = true
 
     /**
      * Whether to include a specific field argument in the filtered schema.

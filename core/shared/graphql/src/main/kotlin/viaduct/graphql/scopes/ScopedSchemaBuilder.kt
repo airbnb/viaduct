@@ -86,7 +86,14 @@ class ScopedSchemaBuilder(
      */
     fun build(view: SchemaView): ScopedGraphQLSchema {
         if (view == SchemaView.Base && !hasTenantLocalFields(inputSchema)) {
-            return ScopedGraphQLSchema(inputSchema, inputSchema)
+            val baseSchema = if (
+                inputSchema.directives.any { it.name == AIRBNB_BYPASS_POLICY_CHECK_DIRECTIVE }
+            ) {
+                inputSchema.withPublicDirectivesFiltered()
+            } else {
+                inputSchema
+            }
+            return ScopedGraphQLSchema(inputSchema, baseSchema)
         }
         val scopeTransformer = SchemaScopeTransformer(scopingMode, additionalVisitorConstructors)
         val preparedSchema = replaceAllTypesWithReferences(inputSchema)
@@ -288,9 +295,21 @@ class ScopedSchemaBuilder(
                 isTenantLocalEquivalentField(child)
             } == true
         }
+
+    private fun GraphQLSchema.withPublicDirectivesFiltered(): GraphQLSchema =
+        transform {
+            it.clearDirectives()
+            it.additionalDirectives(
+                directives.filterNot { directive ->
+                    directive.name == AIRBNB_BYPASS_POLICY_CHECK_DIRECTIVE
+                }.toSet()
+            )
+        }
 }
 
 data class ScopedGraphQLSchema(
     val original: GraphQLSchema,
     val filtered: GraphQLSchema
 )
+
+private const val AIRBNB_BYPASS_POLICY_CHECK_DIRECTIVE = "bypassPolicyCheck"
