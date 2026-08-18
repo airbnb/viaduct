@@ -54,3 +54,12 @@ fun Project.registerForOrchestrationAggregate(
         }
     }
 }
+
+/**
+ * Registers this project's own PATH (not a task path) under [aggregateKey]. For aggregating
+ * projects that need to depend on other *projects* -- e.g. adding them to a resolvable
+ * configuration -- rather than on a specific task path.
+ */
+fun Project.registerProjectPathForOrchestrationAggregate(aggregateKey: String) {
+    orchestrationRegistryService().get().register(aggregateKey, path)
+}

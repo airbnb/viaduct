@@ -1,3 +1,6 @@
+import conventions.JacocoCoverageDataKind
+import conventions.jacocoCoverageDataIncoming
+
 plugins {
     id("buildroot.orchestration")
     id("buildroot.versioning")
@@ -10,19 +13,17 @@ jacoco {
     toolVersion = libs.versions.jacoco.get()
 }
 
+val jacocoExecutionData = jacocoCoverageDataIncoming("ExecutionData", JacocoCoverageDataKind.EXECUTION_DATA, "jacocoExecutionDataElements")
+val jacocoClassDirectories = jacocoCoverageDataIncoming("ClassDirectories", JacocoCoverageDataKind.CLASS_DIRECTORIES, "jacocoClassDirectoriesElements")
+val jacocoSourceDirectories = jacocoCoverageDataIncoming("SourceDirectories", JacocoCoverageDataKind.SOURCE_DIRECTORIES, "jacocoSourceDirectoriesElements")
+
 tasks.register<JacocoCoverageVerification>("testCodeCoverageVerification") {
     group = "verification"
     description = "Verifies coverage thresholds across all core subprojects"
 
-    subprojects.forEach { sp ->
-        sp.pluginManager.withPlugin("conventions.jacoco") {
-            val reportTask = sp.tasks.named<JacocoReport>("jacocoTestReport")
-            dependsOn(reportTask)
-            executionData.from(reportTask.map { it.executionData })
-            classDirectories.from(reportTask.map { it.classDirectories })
-            sourceDirectories.from(reportTask.map { it.sourceDirectories })
-        }
-    }
+    executionData.from(jacocoExecutionData)
+    classDirectories.from(jacocoClassDirectories)
+    sourceDirectories.from(jacocoSourceDirectories)
 
     violationRules {
         rule {
