@@ -121,6 +121,8 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      # Nothing in this workflow needs: test, and each OS/JDK pair is an independent observation.
+      fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.os || '["ubuntu-latest","macos-latest"]') }}
         java: ${{ fromJSON(inputs.java_versions || '["11", "17", "21"]') }}
@@ -160,6 +162,8 @@ jobs:
   core-windows:
     runs-on: windows-latest
     strategy:
+      # Push/PR CI's only Windows coverage of core; the nightly runs the root check there separately.
+      fail-fast: false
       matrix:
         java: ${{ fromJSON(inputs.java_versions || '["17", "21"]') }}
     name: Core Check (Windows, Java ${{ matrix.java }})
@@ -181,7 +185,7 @@ jobs:
           java-version: ${{ matrix.java }}
 
       - name: Check core
-        run: ./gradlew -p core check --scan
+        run: ./gradlew -p core check --scan --continue
         shell: bash
 
   verify-publication-classpaths:
@@ -205,12 +209,14 @@ jobs:
       # if two would collide when a consumer flattens the classpath into a distribution lib/.
       # Replaces the heavier composite demoapp assemble; resolves from source, no Maven Local.
       - name: Check publication runtime classpath filenames are unique
-        run: ./gradlew -p publications checkRuntimeClasspathArtifactNamesAreUnique --scan
+        run: ./gradlew -p publications checkRuntimeClasspathArtifactNamesAreUnique --scan --continue
         shell: bash
 
   coverage-reports:
     runs-on: ${{ matrix.os }}
     strategy:
+      # Independent per-project runs; an infra failure in one shouldn't cancel the others.
+      fail-fast: false
       matrix:
         os: ${{ inputs.os && fromJSON(format('["{0}"]', fromJSON(inputs.os)[0])) || fromJSON('["ubuntu-latest"]') }}
         java: ${{ inputs.java_versions && fromJSON(format('["{0}"]', fromJSON(inputs.java_versions)[0])) || fromJSON('["17"]') }}
@@ -332,8 +338,8 @@ jobs:
         run: |
           echo "🧹 Running Detekt static analysis..."
           EXIT=0
-          ./gradlew detekt --scan --no-daemon || EXIT=1
-          ./gradlew -p build-logic detekt --no-daemon || EXIT=1
+          ./gradlew detekt --scan --no-daemon --continue || EXIT=1
+          ./gradlew -p build-logic detekt --no-daemon --continue || EXIT=1
           if [ $EXIT -eq 0 ]; then
             echo "✅ Detekt analysis passed"
           else
@@ -373,7 +379,7 @@ jobs:
         id: run_ktlint
         run: |
           echo "🧹 Running Ktlint code formatting check..."
-          if ./gradlew ktlintCheck --scan --no-daemon; then
+          if ./gradlew ktlintCheck --scan --no-daemon --continue; then
             echo "✅ Ktlint formatting check passed"
           else
             echo "❌ Ktlint found code formatting violations"
@@ -419,7 +425,7 @@ jobs:
           cd ..
 
           echo "🔨 Generating Dokka API documentation..."
-          ./gradlew :core:tenant:api:dokkaGenerate :core:service:dokkaGenerate :core:x:javaapi:api:dokkaGenerate || { echo "❌ Dokka failed"; exit 1; }
+          ./gradlew :core:tenant:api:dokkaGenerate :core:service:dokkaGenerate :core:x:javaapi:api:dokkaGenerate --continue || { echo "❌ Dokka failed"; exit 1; }
 
           echo "📖 Verifying Dokka documentation output..."
 
