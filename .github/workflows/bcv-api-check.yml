@@ -13,7 +13,9 @@ permissions:
     contents: read
 
 concurrency:
-    group: bcv-api-check-${{ github.ref }}
+    # A called workflow's `github` context is the invoking run's, so `github.workflow` is the top-level
+    # workflow name — keying on it stops distinct entry points sharing one group and cancelling each other.
+    group: bcv-api-check-${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:

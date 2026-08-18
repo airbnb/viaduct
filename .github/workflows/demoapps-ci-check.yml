@@ -22,7 +22,9 @@ permissions:
   actions: read
 
 concurrency:
-  group: demoapps-ci-${{ github.ref }}
+  # A called workflow's `github` context is the invoking run's, so `github.workflow` is the top-level
+  # workflow name — keying on it stops distinct entry points sharing one group and cancelling each other.
+  group: demoapps-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
@@ -85,6 +87,7 @@ jobs:
     needs: publish-to-maven-local
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         demoapp: [cli-starter, jetty-starter, ktor-starter, micronaut-starter, spring-starter]
         java: ['17', '21']
@@ -116,6 +119,7 @@ jobs:
     needs: publish-to-maven-local
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.os || '["ubuntu-latest","macos-latest"]') }}
         java: ${{ fromJSON(inputs.java_versions || '["17","21"]') }}
@@ -200,6 +204,7 @@ jobs:
     needs: publish-to-maven-local
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
           - gradle_version: "8.11"
