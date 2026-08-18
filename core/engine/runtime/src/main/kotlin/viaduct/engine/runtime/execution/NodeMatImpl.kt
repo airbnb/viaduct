@@ -95,7 +95,7 @@ internal class NodeMatImpl(
             selections = outputKeyTree,
             filter = outputSelectionSetFilter,
         )
-        // Launched work re-enters this ledger and waits on its mutex until this result is recorded.
+        // Launched work may re-enter the ledger while this result is being recorded.
         launch(selectionParameters, matPlan, matKeyTree)
 
         return MatResult(

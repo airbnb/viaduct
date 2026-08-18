@@ -8,8 +8,14 @@ import io.mockk.mockk
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -597,6 +603,367 @@ class MatLedgerImplTest {
 
                 assertEquals(1, matCalls.get())
                 assertEquals("A", ledger.fetchField(mkMatPath(foo), "a"))
+            }
+
+        @Test
+        fun `concurrent disjoint requests are materialized concurrently`(): Unit =
+            runBlocking {
+                val first = KeyTree.build(schema) {
+                    field(foo.name, key("a"))
+                }
+                val second = KeyTree.build(schema) {
+                    field(foo.name, key("b"))
+                }
+                val firstStarted = CompletableDeferred<Unit>()
+                val releaseFirst = CompletableDeferred<Unit>()
+                val secondStarted = CompletableDeferred<Unit>()
+                val requestedShapes = mutableListOf<KeyTree>()
+                val matCalls = AtomicInteger()
+                val ledger = MatLedgerImpl { tree, _ ->
+                    requestedShapes += tree
+                    when (matCalls.incrementAndGet()) {
+                        1 -> {
+                            firstStarted.complete(Unit)
+                            releaseFirst.await()
+                        }
+                        2 -> secondStarted.complete(Unit)
+                    }
+                    MatResult(
+                        tree,
+                        Result.success(
+                            ResolvedEngineObjectData(
+                                foo,
+                                mapOf(
+                                    "a" to "A",
+                                    "b" to "B",
+                                ),
+                            )
+                        ),
+                    )
+                }
+                val parameters = testParameters()
+
+                val firstRequest = async(start = CoroutineStart.UNDISPATCHED) {
+                    ledger.ensureCoverage(first, parameters)
+                }
+                firstStarted.await()
+                val secondRequest = async(start = CoroutineStart.UNDISPATCHED) {
+                    ledger.ensureCoverage(second, parameters)
+                }
+
+                assertTrue(secondStarted.isCompleted)
+                releaseFirst.complete(Unit)
+                awaitAll(firstRequest, secondRequest)
+
+                assertEquals(listOf(first, second), requestedShapes)
+                assertEquals(2, matCalls.get())
+                assertEquals("A", ledger.fetchField(mkMatPath(foo), "a"))
+                assertEquals("B", ledger.fetchField(mkMatPath(foo), "b"))
+            }
+
+        @Test
+        fun `mixed request materializes coverage absent from all pending requests`(): Unit =
+            runBlocking {
+                val first = KeyTree.build(schema) {
+                    field(foo.name, key("a"))
+                }
+                val second = KeyTree.build(schema) {
+                    field(foo.name, key("b"))
+                }
+                val third = KeyTree.build(schema) {
+                    field(foo.name, key("c"))
+                }
+                val firstStarted = CompletableDeferred<Unit>()
+                val releaseFirst = CompletableDeferred<Unit>()
+                val secondStarted = CompletableDeferred<Unit>()
+                val releaseSecond = CompletableDeferred<Unit>()
+                val thirdStarted = CompletableDeferred<Unit>()
+                val requestedShapes = mutableListOf<KeyTree>()
+                val matCalls = AtomicInteger()
+                val ledger = MatLedgerImpl { tree, _ ->
+                    requestedShapes += tree
+                    when (matCalls.incrementAndGet()) {
+                        1 -> {
+                            firstStarted.complete(Unit)
+                            releaseFirst.await()
+                        }
+                        2 -> {
+                            secondStarted.complete(Unit)
+                            releaseSecond.await()
+                        }
+                        3 -> thirdStarted.complete(Unit)
+                    }
+                    MatResult(
+                        tree,
+                        Result.success(
+                            ResolvedEngineObjectData(
+                                foo,
+                                mapOf(
+                                    "a" to "A",
+                                    "b" to "B",
+                                    "c" to "C",
+                                ),
+                            )
+                        ),
+                    )
+                }
+                val parameters = testParameters()
+
+                val firstRequest = async(start = CoroutineStart.UNDISPATCHED) {
+                    ledger.ensureCoverage(first, parameters)
+                }
+                firstStarted.await()
+                val secondRequest = async(start = CoroutineStart.UNDISPATCHED) {
+                    ledger.ensureCoverage(second, parameters)
+                }
+                secondStarted.await()
+                val mixedRequest = async(start = CoroutineStart.UNDISPATCHED) {
+                    ledger.ensureCoverage(first + second + third, parameters)
+                }
+
+                assertTrue(thirdStarted.isCompleted)
+                releaseFirst.complete(Unit)
+                releaseSecond.complete(Unit)
+                awaitAll(firstRequest, secondRequest, mixedRequest)
+
+                assertEquals(listOf(first, second, third), requestedShapes)
+                assertEquals(3, matCalls.get())
+            }
+
+        @Test
+        fun `direct Mat exceptions wake waiters and permit retry`(): Unit =
+            runBlocking {
+                val requested = KeyTree.build(schema) {
+                    field(foo.name, key("a"))
+                }
+                val failure = IllegalStateException("mat exploded")
+                val firstStarted = CompletableDeferred<Unit>()
+                val releaseFirst = CompletableDeferred<Unit>()
+                val matCalls = AtomicInteger()
+                val ledger = MatLedgerImpl { tree, _ ->
+                    if (matCalls.incrementAndGet() == 1) {
+                        firstStarted.complete(Unit)
+                        releaseFirst.await()
+                        throw failure
+                    }
+                    MatResult(
+                        tree,
+                        Result.success(ResolvedEngineObjectData(foo, mapOf("a" to "A"))),
+                    )
+                }
+                val parameters = testParameters()
+
+                val firstRequest = async(start = CoroutineStart.UNDISPATCHED) {
+                    assertThrows<IllegalStateException> {
+                        ledger.ensureCoverage(requested, parameters)
+                    }
+                }
+                firstStarted.await()
+                val waiter = async(start = CoroutineStart.UNDISPATCHED) {
+                    assertThrows<IllegalStateException> {
+                        ledger.ensureCoverage(requested, parameters)
+                    }
+                }
+                releaseFirst.complete(Unit)
+
+                assertSame(failure, firstRequest.await())
+                val waiterFailure = waiter.await()
+                assertEquals(failure::class, waiterFailure::class)
+                assertEquals(failure.message, waiterFailure.message)
+
+                ledger.ensureCoverage(requested, parameters)
+
+                assertEquals(2, matCalls.get())
+                assertEquals("A", ledger.fetchField(mkMatPath(foo), "a"))
+            }
+
+        @Test
+        fun `cancellation during Mat wakes waiters and permits retry`(): Unit =
+            runBlocking {
+                val requested = KeyTree.build(schema) {
+                    field(foo.name, key("a"))
+                }
+                val firstStarted = CompletableDeferred<Unit>()
+                val matCalls = AtomicInteger()
+                val ledger = MatLedgerImpl { tree, _ ->
+                    if (matCalls.incrementAndGet() == 1) {
+                        firstStarted.complete(Unit)
+                        awaitCancellation()
+                    }
+                    MatResult(
+                        tree,
+                        Result.success(ResolvedEngineObjectData(foo, mapOf("a" to "A"))),
+                    )
+                }
+                val parameters = testParameters()
+
+                val firstRequest = async(start = CoroutineStart.UNDISPATCHED) {
+                    ledger.ensureCoverage(requested, parameters)
+                }
+                firstStarted.await()
+                val waiter = async(start = CoroutineStart.UNDISPATCHED) {
+                    ledger.ensureCoverage(requested, parameters)
+                }
+                firstRequest.cancel(CancellationException("owner cancelled"))
+
+                val firstFailure = assertThrows<CancellationException> {
+                    firstRequest.await()
+                }
+                val waiterFailure = assertThrows<CancellationException> {
+                    waiter.await()
+                }
+                assertEquals("owner cancelled", firstFailure.message)
+                assertEquals("owner cancelled", waiterFailure.message)
+
+                ledger.ensureCoverage(requested, parameters)
+
+                assertEquals(2, matCalls.get())
+                assertEquals("A", ledger.fetchField(mkMatPath(foo), "a"))
+            }
+
+        @Test
+        fun `cancellation after Mat result still records coverage`(): Unit =
+            runBlocking {
+                val requested = KeyTree.build(schema) {
+                    field(foo.name, key("a"))
+                }
+                val matCalls = AtomicInteger()
+                val ledger = MatLedgerImpl { tree, _ ->
+                    matCalls.incrementAndGet()
+                    currentCoroutineContext().cancel(CancellationException("owner cancelled"))
+                    MatResult(
+                        tree,
+                        Result.success(ResolvedEngineObjectData(foo, mapOf("a" to "A"))),
+                    )
+                }
+                val parameters = testParameters()
+
+                val request = async(start = CoroutineStart.UNDISPATCHED) {
+                    ledger.ensureCoverage(requested, parameters)
+                }
+
+                val failure = assertThrows<CancellationException> {
+                    request.await()
+                }
+                assertEquals("owner cancelled", failure.message)
+
+                ledger.ensureCoverage(requested, parameters)
+
+                assertEquals(1, matCalls.get())
+                assertEquals("A", ledger.fetchField(mkMatPath(foo), "a"))
+            }
+
+        @Test
+        fun `concurrent initial materializations invoke Mat once`(): Unit =
+            runBlocking {
+                val requested = KeyTree.build(schema) {
+                    field(foo.name, key("a"))
+                }
+                val firstStarted = CompletableDeferred<Unit>()
+                val releaseFirst = CompletableDeferred<Unit>()
+                val matCalls = AtomicInteger()
+                val ledger = MatLedgerImpl { tree, _ ->
+                    matCalls.incrementAndGet()
+                    firstStarted.complete(Unit)
+                    releaseFirst.await()
+                    MatResult(
+                        tree,
+                        Result.success(ResolvedEngineObjectData(foo, mapOf("a" to "A"))),
+                    )
+                }
+                val parameters = testParameters()
+
+                val firstRequest = async(start = CoroutineStart.UNDISPATCHED) {
+                    ledger.materializeInitial(requested, parameters)
+                }
+                firstStarted.await()
+
+                val thrown = assertThrows<IllegalStateException> {
+                    withTimeout(1.seconds) {
+                        ledger.materializeInitial(requested, parameters)
+                    }
+                }
+                assertEquals(IllegalStateException::class, thrown::class)
+
+                releaseFirst.complete(Unit)
+                firstRequest.await()
+
+                assertEquals(1, matCalls.get())
+            }
+
+        @Test
+        fun `empty coverage completes during initial materialization`(): Unit =
+            runBlocking {
+                val requested = KeyTree.build(schema) {
+                    field(foo.name, key("a"))
+                }
+                val matCalls = AtomicInteger()
+                lateinit var ledger: MatLedgerImpl
+                ledger = MatLedgerImpl { tree, selectionHandle ->
+                    matCalls.incrementAndGet()
+                    ledger.ensureCoverage(KeyTree.empty, selectionHandle)
+                    MatResult(
+                        tree,
+                        Result.success(ResolvedEngineObjectData(foo, mapOf("a" to "A"))),
+                    )
+                }
+
+                withTimeout(2.seconds) {
+                    ledger.materializeInitial(requested, testParameters())
+                }
+
+                assertEquals(1, matCalls.get())
+                assertEquals("A", ledger.fetchField(mkMatPath(foo), "a"))
+            }
+
+        @Test
+        fun `Mat can materialize disjoint missing coverage`(): Unit =
+            runBlocking {
+                val parameters = mkExecutionParameters(
+                    schemaSDL = "extend type Query { a: String b: String }",
+                    coordinate = "Query" to "a",
+                    query = "{ a }",
+                )
+                val rootType = parameters.currentObjectEngineResult.type
+                val initial = KeyTree.build(parameters) {
+                    field(rootType.name, key("a"))
+                }
+                val nested = KeyTree.build(parameters) {
+                    field(rootType.name, key("b"))
+                }
+                val nestedParameters = parameters.copy(
+                    executionOrigin = ExecutionOrigin.ChildQueryPlan(
+                        parameters,
+                        ChildQueryPlanTarget.CurrentQueryResult,
+                    )
+                )
+                val matCalls = AtomicInteger()
+                lateinit var ledger: MatLedgerImpl
+                ledger = MatLedgerImpl { tree, _ ->
+                    if (matCalls.incrementAndGet() == 1) {
+                        ledger.ensureCoverage(nested, nestedParameters)
+                    }
+                    MatResult(
+                        tree,
+                        Result.success(
+                            ResolvedEngineObjectData(
+                                rootType,
+                                mapOf(
+                                    "a" to "A",
+                                    "b" to "B",
+                                ),
+                            )
+                        ),
+                    )
+                }
+
+                withTimeout(2.seconds) {
+                    ledger.materializeInitial(initial, parameters)
+                }
+
+                assertEquals(2, matCalls.get())
+                assertEquals("A", ledger.fetchField(mkMatPath(rootType), "a"))
+                assertEquals("B", ledger.fetchField(mkMatPath(rootType), "b"))
             }
     }
 

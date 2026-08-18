@@ -1,8 +1,11 @@
 package viaduct.engine.runtime.execution
 
 import graphql.schema.GraphQLObjectType
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime.ObjectEngineResult
@@ -16,27 +19,30 @@ import viaduct.engine.runtime.mat.subtreeAt
 /**
  * Stores the results produced by one [Mat] and reads fields from those results.
  *
+ * # Concurrency notes
+ * This implementation is safe for concurrent use.
+ *
+ * Concurrent requests for disjoint KeyTrees will be executed in parallel. This has the effect
+ * that keys in a requested KeyTree will be materialized once, though surplus key materializations
+ * (ie a resolver materializes fields that were not requested) may be inconsistent.
+ * In these cases, the first writer of these fields win.
+ *
+ * If a requested KeyTree overlaps with concurrent materializations, the request materializes any
+ * unreserved keys in parallel, then waits for the overlapping materializations to complete.
+ *
  * @param mat The ledger calls this value when it needs to load missing fields.
  */
-internal class MatLedgerImpl(
-    private val mat: Mat,
-) : MatLedger {
+internal class MatLedgerImpl(private val mat: Mat) : MatLedger {
     /**
      * Guards the ledger's materialization state.
      *
-     * Only one caller may invoke [mat] and record a result in this ledger.
-     * Other callers suspend while they wait for this mutex.
+     * Materialization runs outside this mutex. In-flight reservations serialize ordinary callers
+     * while allowing nested execution to materialize disjoint selections.
      */
     private val mutex = Mutex()
 
     @Volatile
-    private var results: List<MatResult> = emptyList()
-
-    @Volatile
-    private var coverage: KeyTree = KeyTree.empty
-
-    @Volatile
-    private var rootType: GraphQLObjectType? = null
+    private var state: State = State()
 
     /**
      * Records the result available when this ledger is created.
@@ -45,8 +51,8 @@ internal class MatLedgerImpl(
      */
     suspend fun initialize(result: MatResult) {
         mutex.withLock {
-            check(results.isEmpty()) { "Mat ledger for $mat is already initialized" }
-            recordResultUnsafe(result)
+            checkUninitializedUnsafe()
+            state = state.record(result)
         }
     }
 
@@ -59,29 +65,72 @@ internal class MatLedgerImpl(
     suspend fun materializeInitial(
         requested: KeyTree,
         selectionHandle: EngineExecutionContext.ExecutionHandle,
-    ): MatResult =
-        mutex.withLock {
-            check(results.isEmpty()) { "Mat ledger for $mat is already initialized" }
-            invokeAndRecordUnsafe(requested, selectionHandle)
+    ): MatResult {
+        val reservation = mutex.withLock {
+            checkUninitializedUnsafe()
+            reserveUnsafe(requested)
         }
-
-    /** Records a result after the caller has locked [mutex]. */
-    private fun recordResultUnsafe(result: MatResult) {
-        if (rootType == null) {
-            rootType = result.source.getOrNull()?.type
-        }
-        results = results + result
-        coverage += result.coverage
+        return invokeAndRecord(reservation, selectionHandle)
     }
 
-    /** Invokes [mat] and records its result after the caller has locked [mutex]. */
-    private suspend fun invokeAndRecordUnsafe(
-        requested: KeyTree,
+    /**
+     * Invokes [mat] outside [mutex], then publishes the result and wakes waiting callers.
+     *
+     * A Mat may re-enter this ledger through nested graph work, so invoking it while holding the
+     * mutex can deadlock.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun invokeAndRecord(
+        reservation: Pending,
         selectionHandle: EngineExecutionContext.ExecutionHandle,
     ): MatResult {
-        val result = mat(requested, selectionHandle)
-        recordResultUnsafe(result)
+        val result = try {
+            mat(reservation.requested, selectionHandle)
+        } catch (failure: Throwable) {
+            completeFailure(reservation, failure)
+            throw failure
+        }
+        completeSuccess(reservation, result)
         return result
+    }
+
+    /** Publishes a completed materialization and wakes its waiters. */
+    private suspend fun completeSuccess(
+        reservation: Pending,
+        result: MatResult,
+    ) {
+        /**
+         * A Mat may finish at the same moment its request is canceled.
+         *
+         * For example:
+         * 1. Callers A and B both call ensureCoverage. Caller A starts the Mat while caller B waits.
+         * 2. The Mat returns a result.
+         * 3. Caller A's coroutine is canceled before the result is saved.
+         *
+         * In this case, we must still save the result and wake caller B. NonCancellable lets this
+         * block finish even though caller A was canceled.
+         */
+        withContext(NonCancellable) {
+            mutex.withLock {
+                check(state.pendings.any { it === reservation })
+                state = state.record(result).remove(reservation)
+            }
+            reservation.completion.complete(Unit)
+        }
+    }
+
+    /** Clears a failed materialization and wakes its waiters. See [completeSuccess]. */
+    private suspend fun completeFailure(
+        reservation: Pending,
+        failure: Throwable,
+    ) {
+        withContext(NonCancellable) {
+            mutex.withLock {
+                check(state.pendings.any { it === reservation })
+                state = state.remove(reservation)
+            }
+            reservation.completion.completeExceptionally(failure)
+        }
     }
 
     /**
@@ -99,12 +148,51 @@ internal class MatLedgerImpl(
         requested: KeyTree,
         selectionHandle: EngineExecutionContext.ExecutionHandle,
     ) {
-        mutex.withLock {
-            val missing = requested - coverage
+        while (true) {
+            val action = mutex.withLock {
+                buildCoverageActionUnsafe(requested)
+            }
+            when (action) {
+                CoverageAction.Complete -> return
+                is CoverageAction.Await -> action.promise.await()
+                is CoverageAction.Invoke -> invokeAndRecord(action.pending, selectionHandle)
+            }
+        }
+    }
 
-            if (missing.isEmpty()) return@withLock
+    /** Chooses the next coverage action after the caller has locked [mutex]. */
+    private fun buildCoverageActionUnsafe(requested: KeyTree): CoverageAction {
+        val missing = requested - state.coverage
 
-            invokeAndRecordUnsafe(missing, selectionHandle)
+        if (missing.isEmpty()) {
+            return CoverageAction.Complete
+        }
+
+        val unreserved = state.pendings.fold(missing) { remaining, pending ->
+            remaining - pending.requested
+        }
+        if (!unreserved.isEmpty()) {
+            return CoverageAction.Invoke(reserveUnsafe(unreserved))
+        }
+
+        val overlapping = checkNotNull(
+            state.pendings.firstOrNull { missing - it.requested != missing }
+        )
+        return CoverageAction.Await(overlapping.completion)
+    }
+
+    /** Registers one [Pending] after the caller has locked [mutex]. */
+    private fun reserveUnsafe(requested: KeyTree): Pending {
+        check(!requested.isEmpty())
+        val pending = Pending(requested)
+        state = state.add(pending)
+        return pending
+    }
+
+    /** Verifies initial materialization has not begun after the caller has locked [mutex]. */
+    private fun checkUninitializedUnsafe() {
+        check(state.results.isEmpty() && state.pendings.isEmpty()) {
+            "Mat ledger for $mat is already initialized"
         }
     }
 
@@ -118,11 +206,12 @@ internal class MatLedgerImpl(
         path: MatPath,
         key: ObjectEngineResult.Key,
     ): EngineObjectData? {
-        val expectedRootType = rootType ?: path.rootType
+        val snapshot = state
+        val expectedRootType = snapshot.rootType ?: path.rootType
         requireMaterializedType(path.rootType, expectedRootType)
 
         val matResult = requireMaterializedNotNull(
-            results.firstOrNull { result ->
+            snapshot.results.firstOrNull { result ->
                 result.coverage.subtreeAt(path).containsKey(path.terminalType, key)
             }
         ) {
@@ -183,5 +272,36 @@ internal class MatLedgerImpl(
      *
      * @param path is the path to the object whose available selections should be returned.
      */
-    override fun subtreeAt(path: MatPath): KeyTree = coverage.subtreeAt(path)
+    override fun subtreeAt(path: MatPath): KeyTree = state.coverage.subtreeAt(path)
+
+    private data class State(
+        val results: List<MatResult> = emptyList(),
+        val coverage: KeyTree = KeyTree.empty,
+        val rootType: GraphQLObjectType? = null,
+        val pendings: List<Pending> = emptyList(),
+    ) {
+        fun record(result: MatResult): State =
+            copy(
+                results = results + result,
+                coverage = coverage + result.coverage,
+                rootType = rootType ?: result.source.getOrNull()?.type,
+            )
+
+        fun remove(pending: Pending): State = copy(pendings = pendings.filterNot { it === pending })
+
+        fun add(pending: Pending): State = copy(pendings = pendings + pending)
+    }
+
+    private class Pending(
+        val requested: KeyTree,
+        val completion: CompletableDeferred<Unit> = CompletableDeferred(),
+    )
+
+    private sealed interface CoverageAction {
+        data object Complete : CoverageAction
+
+        data class Await(val promise: CompletableDeferred<Unit>) : CoverageAction
+
+        data class Invoke(val pending: Pending) : CoverageAction
+    }
 }

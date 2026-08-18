@@ -10,6 +10,7 @@ import io.kotest.property.arbitrary.arbitrary
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
+import kotlinx.coroutines.CompletableDeferred
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -717,8 +718,9 @@ class SelectiveFieldResolversExecutionTest {
         }
 
         @Test
-        fun `surplus coverage from a later materialization prevents another resolver call`() {
-            val fooCalls = AtomicInteger()
+        fun `surplus coverage uses values from the first covering result`() {
+            val resultNumber = AtomicInteger()
+            val firstResultConsumed = CompletableDeferred<Unit>()
 
             MockTenantModuleBootstrapper(
                 """
@@ -732,13 +734,15 @@ class SelectiveFieldResolversExecutionTest {
                             isSelective = true,
                             resolverId = resolverId,
                             unbatchedResolveFn = { _, _, _, _, _ ->
-                                val call = fooCalls.incrementAndGet()
                                 createEngineObjectData(
                                     "Foo",
-                                    if (call == 1) {
-                                        emptyMap()
-                                    } else {
-                                        mapOf("z" to 2, "w" to 3)
+                                    when (resultNumber.getAndIncrement()) {
+                                        0 -> emptyMap()
+                                        1 -> mapOf("z" to 2, "w" to 3)
+                                        else -> {
+                                            firstResultConsumed.await()
+                                            mapOf("z" to 4, "w" to 5)
+                                        }
                                     },
                                 )
                             }
@@ -749,22 +753,28 @@ class SelectiveFieldResolversExecutionTest {
                 field("Foo" to "x") {
                     resolver {
                         objectSelections("z")
-                        fn { _, obj, _, _, _ -> obj.fetchAs<Int>("z") * 5 }
+                        fn { _, obj, _, _, _ ->
+                            val z = obj.fetchAs<Int>("z")
+                            firstResultConsumed.complete(Unit)
+                            z * 5
+                        }
                     }
                 }
 
                 field("Foo" to "y") {
                     resolver {
                         objectSelections("w")
-                        fn { _, obj, _, _, _ -> obj.fetchAs<Int>("w") * 7 }
+                        fn { _, obj, _, _, _ ->
+                            val w = obj.fetchAs<Int>("w")
+                            firstResultConsumed.complete(Unit)
+                            w * 7
+                        }
                     }
                 }
             }.runFeatureTest {
                 runQueryWithTimeout("{ foo { x y } }")
                     .assertJson("{data: {foo: {x: 10, y: 21}}}")
             }
-
-            assertEquals(2, fooCalls.get())
         }
 
         @Test
