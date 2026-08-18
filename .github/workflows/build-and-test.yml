@@ -158,6 +158,55 @@ jobs:
           name: junit-results-java-${{ matrix.java }}-${{ matrix.os }}
           path: '**/build/test-results/test/*.xml'
 
+      # Build outputs live only on the runner, so a compile failure that blames a classpath or a
+      # generated source leaves no evidence behind. The manifest's size and second-resolution mtime
+      # distinguish an absent class from a truncated one and order writes against the failing task;
+      # generated sources are archived whole because their content is the thing under suspicion;
+      # disk and memory rule resource exhaustion in or out.
+      - name: Capture build output state
+        if: failure()
+        run: |
+          echo "🔍 Capturing build output state..."
+          out=build/failure-state
+          mkdir -p "$out"
+
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            stat_cmd=(stat -f '%z %Sm %N' -t '%FT%T')
+          else
+            stat_cmd=(stat -c '%s %y %n')
+          fi
+
+          find . -type f \
+            \( -path "*/build/classes/*" \
+               -o -path "*/build/libs/*.jar" \
+               -o -path "*/build/contract-tests/*" \
+               -o -path "*/build/generated/*" \) -print0 \
+            | xargs -0 -r "${stat_cmd[@]}" \
+            | gzip > "$out/build-outputs.txt.gz"
+
+          find . -type d \( -name contract-tests -o -name generated \) -path "*/build/*" \
+            > "$out/generated-dirs.txt"
+          if [ -s "$out/generated-dirs.txt" ]; then
+            tar czf "$out/generated-sources.tgz" -T "$out/generated-dirs.txt"
+          fi
+
+          df -h > "$out/disk.txt"
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            vm_stat > "$out/memory.txt"
+          else
+            free -m > "$out/memory.txt"
+          fi
+
+          echo "✅ Captured $(gzip -dc "$out/build-outputs.txt.gz" | wc -l) build output files"
+        shell: bash
+
+      - name: Upload build output state
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: failure-state-java-${{ matrix.java }}-${{ matrix.os }}
+          path: build/failure-state
+
 
   core-windows:
     runs-on: windows-latest
