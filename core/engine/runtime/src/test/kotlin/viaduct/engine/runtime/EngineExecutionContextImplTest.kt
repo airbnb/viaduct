@@ -10,17 +10,31 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.Engine
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
+import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.FieldSelectivityProvider
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.engine.runtime.mocks.createDispatcherRegistry
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.service.api.spi.mocks.MockFlagManager
 
 class EngineExecutionContextImplTest {
-    private val selectiveCoordinate = Coordinate("Query", "empty")
-    private val otherCoordinate = Coordinate("Query", "other")
+    private val providerSelectiveCoordinate = Coordinate("Query", "empty")
+    private val registrySelectiveCoordinate = Coordinate("Query", "registrySelective")
+    private val nonSelectiveCoordinate = Coordinate("Query", "nonSelective")
+    private val fullSchema =
+        MockSchema.mk(
+            """
+                extend type Query {
+                    empty: Int
+                    registrySelective: Int
+                    nonSelective: Int
+                }
+            """.trimIndent()
+        )
 
     @Test
     fun `copy keeps dataloaders request-scoped`() {
@@ -35,11 +49,32 @@ class EngineExecutionContextImplTest {
     }
 
     @Test
-    fun `field selectivity provider determines resolver selectivity`() {
-        val context = engineExecutionContext(flagManager = MockFlagManager.Disabled)
+    fun `combines field selectivity provider and registry metadata`() {
+        val dispatcherRegistry =
+            createDispatcherRegistry(
+                fieldResolverExecutors =
+                    mapOf(
+                        registrySelectiveCoordinate to
+                            MockFieldUnbatchedResolverExecutor(
+                                isSelective = true,
+                                resolverId = "registry-selective",
+                            ),
+                        nonSelectiveCoordinate to
+                            MockFieldUnbatchedResolverExecutor(
+                                isSelective = false,
+                                resolverId = "non-selective",
+                            ),
+                    )
+            )
+        val context =
+            engineExecutionContext(
+                flagManager = MockFlagManager.Disabled,
+                dispatcherRegistry = dispatcherRegistry,
+            )
 
-        assertTrue(context.isResolverSelective(selectiveCoordinate))
-        assertFalse(context.isResolverSelective(otherCoordinate))
+        assertTrue(context.isResolverSelective(providerSelectiveCoordinate))
+        assertTrue(context.isResolverSelective(registrySelectiveCoordinate))
+        assertFalse(context.isResolverSelective(nonSelectiveCoordinate))
     }
 
     @Test
@@ -59,20 +94,21 @@ class EngineExecutionContextImplTest {
 
     private fun engineExecutionContext(
         flagManager: FlagManager,
-        fullSchema: ViaductSchema = ContextMocks().fullSchema,
+        fullSchema: ViaductSchema = this.fullSchema,
         globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
+        dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
     ): EngineExecutionContextImpl {
         val factory =
             EngineExecutionContextFactory(
                 fullSchema,
-                DispatcherRegistry.Empty,
+                dispatcherRegistry,
                 SimplePerformantInstrumentation(),
                 flagManager,
                 mockk<Engine>(),
                 globalIDCodec,
                 meterRegistry = null,
                 fieldSelectivityProvider = FieldSelectivityProvider { coordinate ->
-                    coordinate == selectiveCoordinate
+                    coordinate == providerSelectiveCoordinate
                 },
             )
 

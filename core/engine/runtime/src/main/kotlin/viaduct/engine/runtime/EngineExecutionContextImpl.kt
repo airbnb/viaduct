@@ -56,7 +56,9 @@ class EngineExecutionContextFactory(
 ) {
     // Constructing this is expensive, so do it just once per schema-version
     private val engineSelectionSetFactory: EngineSelectionSet.Factory = EngineSelectionSetFactoryImpl(fullSchema)
-    private val fieldSelectivity: IsResolverSelective = IsResolverSelective(fieldSelectivityProvider::isSelective)
+    private val fieldSelectivity: IsResolverSelective =
+        IsResolverSelective.fromRegistry(dispatcherRegistry) or
+            IsResolverSelective(fieldSelectivityProvider::isSelective)
     private val ownedSelectionProjector = ResolverSelectionProjector(fullSchema, dispatcherRegistry)
 
     fun create(

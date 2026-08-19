@@ -54,6 +54,7 @@ import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest as runEngineFeatureTest
+import viaduct.engine.api.spi.FieldSelectivityProvider
 import viaduct.graphql.test.assertMatches
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.Viaduct
@@ -163,6 +164,69 @@ class SelectiveFieldResolversExecutionTest {
             }.runFeatureTest {
                 runQueryWithTimeout("{b}")
                     .assertJson("{data: {b: 6}}")
+            }
+        }
+
+        @Test
+        fun `field selectivity provider enables selective execution`() {
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { foo: Foo }
+                    type Foo { x: String, y: String, z: String, w: String }
+                """.trimIndent()
+            ) {
+                field("Query" to "foo") {
+                    resolverExecutor {
+                        MockFieldUnbatchedResolverExecutor(
+                            isSelective = false,
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { _, _, _, selections, _ ->
+                                createEngineObjectData(
+                                    "Foo",
+                                    buildMap {
+                                        if (selections!!.containsField("Foo", "z")) {
+                                            put("z", "z-value")
+                                        }
+                                        if (selections.containsField("Foo", "w")) {
+                                            put("w", "w-value")
+                                        }
+                                    },
+                                )
+                            },
+                        )
+                    }
+                }
+
+                field("Foo" to "x") {
+                    resolver {
+                        objectSelections("z")
+                        fn { _, objectValue, _, _, _ ->
+                            check(objectValue.fetchAs<String>("z") == "z-value")
+                            "x-value"
+                        }
+                    }
+                }
+
+                field("Foo" to "y") {
+                    resolver {
+                        objectSelections("w")
+                        fn { _, objectValue, _, _, _ ->
+                            check(objectValue.fetchAs<String>("w") == "w-value")
+                            "y-value"
+                        }
+                    }
+                }
+            }.runFeatureTest(
+                engineConfig =
+                    EngineConfiguration.featureTestDefault.copy(
+                        fieldSelectivityProvider =
+                            FieldSelectivityProvider { coordinate ->
+                                coordinate == ("Query" to "foo")
+                            }
+                    )
+            ) {
+                runQueryWithTimeout("{ foo { x y } }")
+                    .assertJson("{data: {foo: {x: \"x-value\", y: \"y-value\"}}}")
             }
         }
 

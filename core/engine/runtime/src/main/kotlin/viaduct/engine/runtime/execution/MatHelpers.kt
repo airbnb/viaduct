@@ -13,6 +13,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
+import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
 import viaduct.engine.runtime.EngineExecutionContextExtensions.matResolutionEnabled
 import viaduct.engine.runtime.HasResolver
 import viaduct.engine.runtime.MatSource
@@ -236,9 +237,7 @@ internal fun isFieldMatBacked(
     if (effectiveData !is EngineObjectData) return false
 
     val parentTypeName = parameters.executionStepInfo.objectType.name
-    return parameters.engineExecutionContext.dispatcherRegistry
-        .getFieldResolverDispatcher(parentTypeName, field.fieldName)
-        ?.isSelective == true
+    return parameters.engineExecutionContext.isResolverSelective(parentTypeName to field.fieldName)
 }
 
 internal fun isNodeMatBacked(
