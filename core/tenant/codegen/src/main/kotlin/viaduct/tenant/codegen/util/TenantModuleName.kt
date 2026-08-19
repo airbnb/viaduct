@@ -5,7 +5,7 @@ package viaduct.tenant.codegen.util
  *
  * This is the single source of truth for tenant identity across generated tenant module configs: the
  * modern config (`TenantModuleConfigAssembler`) and the classic derived-field config
- * (`ClassicDerivedFieldRegistryEmitter`) MUST agree on this name, because the engine groups a tenant's
+ * (`ClassicRegistryEmitter`) MUST agree on this name, because the engine groups a tenant's
  * modern `<pkg>.json` and classic `<pkg>.classic.json` sources by tenant name and bootstraps each
  * tenant exactly once. Deriving the name from anything other than the tenant package — e.g. from the
  * normalized `schemaModuleFullyQualifiedName`, which maps both `/` and `-` to `_` and cannot be
