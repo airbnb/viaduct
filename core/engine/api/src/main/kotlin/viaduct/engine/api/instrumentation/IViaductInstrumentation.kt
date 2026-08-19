@@ -121,11 +121,7 @@ interface IViaductInstrumentation {
      * Temporary Airbnb-internal opt-in to field-level shadow execution.
      *
      * Returning `null` leaves the field on its normal execution path. Returning a comparison
-     * requests one additional execution of the field's registered resolver. Production completion
-     * does not wait for that execution. Unfinished shadow work is cancelled when the request
-     * completes, so the comparison may not receive results. Only test instrumentation opts in
-     * today; Airbnb runtime wiring does not currently request shadow execution. This hook is
-     * expected to be removed after its migration use.
+     * requests one additional execution of the field's registered resolver.
      */
     @InternalApi
     interface WithShadowFieldExecution : IViaductInstrumentation {
