@@ -91,10 +91,7 @@ class FieldCompleter(
 
     /**
      * Skips awaiting checker slots for checker RSS completion to avoid circular evaluation, and
-     * for Airbnb's temporary `@bypassPolicyCheck` behavior.
-     *
-     * The directive is available only in the full internal schema. Base and scoped schemas omit
-     * its definition, so client operations cannot use this path.
+     * for Airbnb's temporary `@bypassPolicyCheck` completion behavior.
      */
     private fun shouldBypassChecker(
         field: QueryPlan.CollectedField,

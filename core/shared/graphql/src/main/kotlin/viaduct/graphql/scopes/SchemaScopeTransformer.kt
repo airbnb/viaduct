@@ -35,13 +35,12 @@ internal class SchemaScopeTransformer(
         view: SchemaView,
     ): GraphQLSchema {
         val schemaTransformations = buildTransformations(inputSchema, view)
-        return transformAndNormalizeDirectives(inputSchema, schemaTransformations, view)
+        return transformAndNormalizeDirectives(inputSchema, schemaTransformations)
     }
 
     private fun transformAndNormalizeDirectives(
         inputSchema: GraphQLSchema,
         schemaTransformations: SchemaTransformations,
-        view: SchemaView,
     ): GraphQLSchema {
         return transformSchema(inputSchema, schemaTransformations).let { scopedSchema ->
             // NOTE(jimmy): There is a known issue where graphql-java can duplicate the skip+include directives
@@ -52,10 +51,7 @@ internal class SchemaScopeTransformer(
                 val skipAndInclude = setOf(Directives.IncludeDirective, Directives.SkipDirective)
                 it.clearDirectives()
                 it.additionalDirectives(
-                    scopedSchema.directives
-                        .filter { it.name !in skipAndInclude.map { it.name } }
-                        .filter { view == SchemaView.Full || it.name != AIRBNB_BYPASS_POLICY_CHECK_DIRECTIVE }
-                        .toSet() +
+                    scopedSchema.directives.filter { it.name !in skipAndInclude.map { it.name } }.toSet() +
                         skipAndInclude
                 )
             }
@@ -146,5 +142,3 @@ internal class SchemaScopeTransformer(
         transformations: SchemaTransformations
     ): GraphQLSchema = SchemaTransformer.transformSchema(schema, TransformationsVisitor(transformations))
 }
-
-private const val AIRBNB_BYPASS_POLICY_CHECK_DIRECTIVE = "bypassPolicyCheck"

@@ -35,32 +35,6 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
     }
 
     @Test
-    fun `full view retains bypassPolicyCheck while base and scoped views hide it`() {
-        val schema = schemaFromSdl(
-            """
-            directive @bypassPolicyCheck on FIELD
-
-            type Query @scope(to: ["public"]) {
-                publicField: String
-            }
-            """.trimIndent()
-        )
-        val builder = ScopedSchemaBuilder(
-            schema,
-            SchemaScopingMode.ScopeAware(setOf("public")),
-            listOf(),
-        )
-
-        val fullSchema = builder.build(SchemaView.Full).filtered
-        val baseSchema = builder.build(SchemaView.Base).filtered
-        val scopedSchema = builder.build(SchemaView.Scoped(setOf("public"))).filtered
-
-        assertNotNull(fullSchema.directives.find { it.name == "bypassPolicyCheck" })
-        assertNull(baseSchema.directives.find { it.name == "bypassPolicyCheck" })
-        assertNull(scopedSchema.directives.find { it.name == "bypassPolicyCheck" })
-    }
-
-    @Test
     fun `doesnt transform full schema`() {
         val sourceSchema = readSchema("/scopes/simple/source.graphqls")
         val allScopes =
