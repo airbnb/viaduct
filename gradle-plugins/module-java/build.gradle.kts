@@ -22,6 +22,7 @@ dependencies {
     testImplementation(gradleTestKit())
     testImplementation(project(":application"))
     testImplementation(project(":settings"))
+    testImplementation(libs.viaduct.javaapi.runtime)
 }
 
 tasks.jar {

@@ -20,7 +20,6 @@ import viaduct.graphql.utils.SelectionsParserUtils
 import viaduct.java.api.globalid.GlobalID
 import viaduct.java.api.internal.InputBase
 import viaduct.java.api.internal.InternalContext
-import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.reflect.RootObjectField
 import viaduct.java.api.reflect.Type
 import viaduct.java.api.types.Arguments
@@ -35,21 +34,21 @@ import viaduct.service.api.spi.GlobalIDCodec
  *
  * The three Java execution contexts ([SimpleFieldExecutionContext], [SimpleNodeExecutionContext],
  * [SimpleVariablesProviderContext]) all wrap the same engine handles — a nullable
- * [EngineExecutionContext], a [ResolverClassFinder], and (for the ones that support subqueries) a
- * [CoroutineScope]. This delegate holds the [InternalContext] surface plus `query`/`mutation`/`nodeRef`
- * once; the contexts forward to it while keeping their own public, typed API shapes.
+ * [EngineExecutionContext] and (for the ones that support subqueries) a [CoroutineScope]. This
+ * delegate holds the [InternalContext] surface plus `query`/`mutation`/`nodeRef` once; the contexts
+ * forward to it while keeping their own public, typed API shapes.
  *
  * The "requires engineExecutionContext" [FrameworkException] messages are part of the contract:
  * callers and tests rely on them.
  *
  * @param engineExecutionContext the engine execution context, or null outside a live execution
- * @param classFinder resolves GRT classes by type name; may be null outside a live execution
+ * @param grtPackagePrefix package containing generated GRT classes
  * @param coroutineScope scope for launching subquery coroutines; only required by [query]/[mutation]
  */
 @Suppress("UNCHECKED_CAST")
 internal class JavaEngineContextDelegate(
     private val engineExecutionContext: EngineExecutionContext? = null,
-    private val classFinder: ResolverClassFinder? = null,
+    private val grtPackagePrefix: String? = null,
     private val coroutineScope: CoroutineScope? = null,
     private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
 ) {
@@ -69,8 +68,6 @@ internal class JavaEngineContextDelegate(
 
     fun getGlobalIDCodec(): GlobalIDCodec = requireEngineContext("getGlobalIDCodec()").globalIDCodec
 
-    fun getClassFinder(): ResolverClassFinder = classFinder ?: throw FrameworkException("getClassFinder() requires classFinder.")
-
     fun <T : NodeCompositeOutput> deserializeGlobalID(serialized: String): GlobalID<T> {
         val codec = requireEngineContext("deserializeGlobalID").globalIDCodec
         val (typeName, internalId) = try {
@@ -78,7 +75,7 @@ internal class JavaEngineContextDelegate(
         } catch (e: IllegalArgumentException) {
             throw TenantUsageException("Invalid GlobalID: \"$serialized\"", e)
         }
-        return GlobalIDImpl(type = typeFromName(typeName), internalId = internalId)
+        return GlobalIDImpl(type = typeFromName(typeName, grtPackagePrefix), internalId = internalId)
     }
 
     fun <T : NodeCompositeOutput> globalIDFor(
@@ -99,9 +96,7 @@ internal class JavaEngineContextDelegate(
      * Build a node-reference GRT for [id], instantiating [grtClass] with the per-request
      * [InternalContext] and a [NodeReference].
      *
-     * The concrete GRT class is supplied by the caller because the two callers resolve it
-     * differently: the field context prefers the [ResolverClassFinder] (falling back to the GlobalID
-     * type's Java class), while the node context uses the GlobalID type's Java class directly.
+     * The concrete GRT class is supplied by the caller from the [GlobalID] type.
      */
     fun <T : NodeCompositeOutput> nodeRef(
         id: GlobalID<T>,
@@ -113,7 +108,7 @@ internal class JavaEngineContextDelegate(
         val graphqlType = engineCtx.activeSchema.schema.getObjectType(typeName)
             ?: throw FrameworkException("GraphQL type '$typeName' not found in schema for nodeRef.")
         val nodeReference = engineCtx.createNodeReference(serializedId, graphqlType)
-        val internalContext = classFinder?.let { buildInternalContext(engineCtx, it) }
+        val internalContext = buildInternalContext(engineCtx, grtPackagePrefix)
         return grtClass
             .getDeclaredConstructor(InternalContext::class.java, NodeReference::class.java)
             .newInstance(internalContext, nodeReference) as T
@@ -141,7 +136,7 @@ internal class JavaEngineContextDelegate(
             graphqlType,
             argsMap,
         )
-        val internalContext = classFinder?.let { buildInternalContext(engineCtx, it) }
+        val internalContext = buildInternalContext(engineCtx, grtPackagePrefix)
         return field.type.javaClass
             .getDeclaredConstructor(InternalContext::class.java, RootFieldReference::class.java)
             .newInstance(internalContext, rootFieldReference) as T
@@ -241,7 +236,7 @@ internal class JavaEngineContextDelegate(
                 convertSyncEngineDataToJavaObject(
                     targetClass,
                     result,
-                    classFinder?.let { buildInternalContext(engineCtx, it) }
+                    buildInternalContext(engineCtx, grtPackagePrefix)
                 ) as T
             }
         }

@@ -73,13 +73,23 @@ public class OrderEdge extends ObjectBase implements viaduct.java.api.types.Edge
         }
 
                 public Builder cursor(String cursor) {
-                    cursor = OutputBuilderTypeChecker.checkField(__context, "OrderEdge", "cursor", cursor);
+                    cursor = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "OrderEdge",
+                            "cursor",
+                            null,
+                            cursor);
                     data.put("cursor", cursor);
         return this;
                 }
 
                 public Builder node(Order node) {
-                    node = OutputBuilderTypeChecker.checkField(__context, "OrderEdge", "node", node);
+                    node = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "OrderEdge",
+                            "node",
+                            Order.class,
+                            node);
                     data.put("node", node);
         return this;
                 }

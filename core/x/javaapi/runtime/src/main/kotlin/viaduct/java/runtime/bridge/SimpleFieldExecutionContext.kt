@@ -13,7 +13,6 @@ import viaduct.java.api.context.SelectiveFieldExecutionContext
 import viaduct.java.api.documents.MutationFromAnnotation
 import viaduct.java.api.documents.QueryFromAnnotation
 import viaduct.java.api.internal.InternalContext
-import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.reflect.RootObjectField
 import viaduct.java.api.resolvers.FieldResolverBase
 import viaduct.java.api.types.Arguments
@@ -46,9 +45,7 @@ object AnySelections : CompositeOutput
  * @param queryValue The query root value (populated from the queryValueFragment result), or null
  * @param engineExecutionContext The engine execution context, required for ctx.query() and ctx.mutation()
  * @param coroutineScope The coroutine scope for launching subquery coroutines, required for ctx.query() and ctx.mutation()
- * @param classFinder Resolves GRT classes by type name; used to build the [InternalContext] attached
- *        to GRTs returned by ctx.query()/ctx.mutation() and ctx.nodeRef(). May be null outside a
- *        live execution context.
+ * @param grtPackagePrefix package containing generated GRT classes
  */
 @Suppress("UNCHECKED_CAST", "TooManyFunctions")
 class SimpleFieldExecutionContext(
@@ -58,13 +55,13 @@ class SimpleFieldExecutionContext(
     private val queryValue: Any? = null,
     private val engineExecutionContext: EngineExecutionContext? = null,
     private val coroutineScope: CoroutineScope? = null,
-    private val classFinder: ResolverClassFinder? = null,
+    private val grtPackagePrefix: String? = null,
     private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
 ) : FieldExecutionContext<GraphQLObject, Query, Arguments, AnySelections>,
     SelectiveFieldExecutionContext<AnySelections>,
     FieldResolverBase.Context<GraphQLObject, Query, Arguments, AnySelections>,
     InternalContext {
-    private val delegate = JavaEngineContextDelegate(engineExecutionContext, classFinder, coroutineScope, knownFragments)
+    private val delegate = JavaEngineContextDelegate(engineExecutionContext, grtPackagePrefix, coroutineScope, knownFragments)
 
     override fun getObjectValue(): GraphQLObject =
         handleFrameworkErrors("getObjectValue") {
@@ -104,8 +101,6 @@ class SimpleFieldExecutionContext(
 
     override fun getGlobalIDCodec(): GlobalIDCodec = delegate.getGlobalIDCodec()
 
-    override fun getClassFinder(): ResolverClassFinder = delegate.getClassFinder()
-
     override fun <T : viaduct.java.api.types.NodeCompositeOutput> deserializeGlobalID(serialized: String): viaduct.java.api.globalid.GlobalID<T> = delegate.deserializeGlobalID(serialized)
 
     override fun <T : viaduct.java.api.types.NodeCompositeOutput> globalIDFor(
@@ -122,11 +117,7 @@ class SimpleFieldExecutionContext(
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : viaduct.java.api.types.NodeCompositeOutput> nodeRef(id: viaduct.java.api.globalid.GlobalID<T>): T {
-        // Field contexts resolve the GRT class via the classFinder, falling back to the GlobalID
-        // type's Java class.
-        val typeName = id.getType().name
-        val grtClass = classFinder?.grtClassForName(typeName) as? Class<T>
-            ?: id.getType().getJavaClass() as Class<T>
+        val grtClass = id.getType().getJavaClass() as Class<T>
         return delegate.nodeRef(id, grtClass)
     }
 

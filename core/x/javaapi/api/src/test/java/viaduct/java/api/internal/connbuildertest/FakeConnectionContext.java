@@ -8,7 +8,6 @@ import graphql.schema.GraphQLList;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLSchema;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.jspecify.annotations.Nullable;
 import viaduct.engine.api.ViaductSchema;
@@ -16,13 +15,11 @@ import viaduct.java.api.context.ConnectionFieldExecutionContext;
 import viaduct.java.api.context.ResolverExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
-import viaduct.java.api.internal.ResolverClassFinder;
 import viaduct.java.api.reflect.RootObjectField;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.types.Arguments;
 import viaduct.java.api.types.Connection;
 import viaduct.java.api.types.ConnectionArguments;
-import viaduct.java.api.types.GRT;
 import viaduct.java.api.types.GraphQLObject;
 import viaduct.java.api.types.NodeCompositeOutput;
 import viaduct.java.api.types.NodeObject;
@@ -125,7 +122,6 @@ class FakeExecutionContext implements ResolverExecutionContext, InternalContext 
               .additionalType(FAKE_NODE_TYPE)
               .build());
 
-  private static final ResolverClassFinder CLASS_FINDER = new FakeClassFinder();
   private static final GlobalIDCodec GLOBAL_ID_CODEC =
       new GlobalIDCodec() {
         @Override
@@ -199,50 +195,7 @@ class FakeExecutionContext implements ResolverExecutionContext, InternalContext 
   }
 
   @Override
-  public ResolverClassFinder getClassFinder() {
-    return CLASS_FINDER;
-  }
-
-  @Override
   public <T extends NodeCompositeOutput> GlobalID<T> deserializeGlobalID(String serialized) {
     throw new UnsupportedOperationException();
-  }
-
-  private static final class FakeClassFinder implements ResolverClassFinder {
-    private static final Map<String, Class<? extends GRT>> GRT_CLASSES =
-        Map.of(
-            "TestConnection", TestConnection.class,
-            "TestEdge", TestEdge.class,
-            "PageInfo", PageInfo.class);
-
-    @Override
-    public Set<Class<?>> resolverClassesInPackage() {
-      return Set.of();
-    }
-
-    @Override
-    public Set<Class<?>> nodeResolverForClassesInPackage() {
-      return Set.of();
-    }
-
-    @Override
-    public <T> Set<Class<? extends T>> getSubTypesOf(Class<T> type) {
-      return Set.of();
-    }
-
-    @Override
-    public Class<? extends GRT> grtClassForName(String typeName) throws ClassNotFoundException {
-      Class<? extends GRT> result = GRT_CLASSES.get(typeName);
-      if (result == null) {
-        throw new ClassNotFoundException(typeName);
-      }
-      return result;
-    }
-
-    @Override
-    public Class<? extends Arguments> argumentClassForName(String className)
-        throws ClassNotFoundException {
-      throw new ClassNotFoundException(className);
-    }
   }
 }

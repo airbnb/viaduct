@@ -73,13 +73,23 @@ public class Money extends ObjectBase implements SearchHit {
         }
 
                 public Builder amount(double amount) {
-                    amount = OutputBuilderTypeChecker.checkField(__context, "Money", "amount", amount);
+                    amount = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Money",
+                            "amount",
+                            null,
+                            amount);
                     data.put("amount", amount);
         return this;
                 }
 
                 public Builder currency(String currency) {
-                    currency = OutputBuilderTypeChecker.checkField(__context, "Money", "currency", currency);
+                    currency = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Money",
+                            "currency",
+                            null,
+                            currency);
                     data.put("currency", currency);
         return this;
                 }

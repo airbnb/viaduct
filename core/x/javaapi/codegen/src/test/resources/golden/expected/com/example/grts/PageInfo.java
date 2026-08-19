@@ -86,25 +86,45 @@ public class PageInfo extends ObjectBase {
         }
 
                 public Builder hasNextPage(boolean hasNextPage) {
-                    hasNextPage = OutputBuilderTypeChecker.checkField(__context, "PageInfo", "hasNextPage", hasNextPage);
+                    hasNextPage = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "PageInfo",
+                            "hasNextPage",
+                            null,
+                            hasNextPage);
                     data.put("hasNextPage", hasNextPage);
         return this;
                 }
 
                 public Builder hasPreviousPage(boolean hasPreviousPage) {
-                    hasPreviousPage = OutputBuilderTypeChecker.checkField(__context, "PageInfo", "hasPreviousPage", hasPreviousPage);
+                    hasPreviousPage = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "PageInfo",
+                            "hasPreviousPage",
+                            null,
+                            hasPreviousPage);
                     data.put("hasPreviousPage", hasPreviousPage);
         return this;
                 }
 
                 public Builder startCursor(String startCursor) {
-                    startCursor = OutputBuilderTypeChecker.checkField(__context, "PageInfo", "startCursor", startCursor);
+                    startCursor = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "PageInfo",
+                            "startCursor",
+                            null,
+                            startCursor);
                     data.put("startCursor", startCursor);
         return this;
                 }
 
                 public Builder endCursor(String endCursor) {
-                    endCursor = OutputBuilderTypeChecker.checkField(__context, "PageInfo", "endCursor", endCursor);
+                    endCursor = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "PageInfo",
+                            "endCursor",
+                            null,
+                            endCursor);
                     data.put("endCursor", endCursor);
         return this;
                 }

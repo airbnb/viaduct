@@ -174,6 +174,11 @@ public record FieldModel(
     return baseTypeName;
   }
 
+  /** Returns whether generated builders should pass a generated type token for this field. */
+  public boolean getHasGeneratedType() {
+    return compositeType || enumType || abstractType;
+  }
+
   /** Returns whether this field's unwrapped type has a generated reflection descriptor. */
   public boolean getHasReflectedType() {
     return reflectedTypeName != null;

@@ -14,7 +14,6 @@ import viaduct.java.api.documents.MutationFromAnnotation
 import viaduct.java.api.documents.QueryFromAnnotation
 import viaduct.java.api.globalid.GlobalID
 import viaduct.java.api.internal.InternalContext
-import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.reflect.RootObjectField
 import viaduct.java.api.reflect.Type
 import viaduct.java.api.resolvers.NodeResolverBase
@@ -40,8 +39,7 @@ import viaduct.service.api.spi.GlobalIDCodec
  * @param engineExecutionContext the engine execution context, required for ctx.query, ctx.mutation
  *     and ctx.nodeRef
  * @param coroutineScope the coroutine scope for launching subquery coroutines
- * @param classFinder resolves GRT classes by type name; used to build the [InternalContext] attached
- *     to GRTs returned by ctx.query()/ctx.mutation(). May be null outside a live execution context.
+ * @param grtPackagePrefix package containing generated GRT classes
  */
 @Suppress("UNCHECKED_CAST")
 class SimpleNodeExecutionContext(
@@ -50,19 +48,19 @@ class SimpleNodeExecutionContext(
     private val requestContext: Any?,
     private val engineExecutionContext: EngineExecutionContext? = null,
     private val coroutineScope: CoroutineScope? = null,
-    private val classFinder: ResolverClassFinder? = null,
+    private val grtPackagePrefix: String? = null,
     private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
 ) : NodeExecutionContext<NodeObject>,
     SelectiveNodeExecutionContext<NodeObject>,
     NodeResolverBase.Context<NodeObject>,
     InternalContext {
-    private val delegate = JavaEngineContextDelegate(engineExecutionContext, classFinder, coroutineScope, knownFragments)
+    private val delegate = JavaEngineContextDelegate(engineExecutionContext, grtPackagePrefix, coroutineScope, knownFragments)
 
     override fun getId(): GlobalID<NodeObject> {
         val codec = engineExecutionContext?.globalIDCodec
             ?: throw FrameworkException("getId requires engineExecutionContext.")
         val (_, internalId) = codec.deserialize(serializedId)
-        return GlobalIDImpl(type = typeFromName(typeName), internalId = internalId)
+        return GlobalIDImpl(type = typeFromName(typeName, grtPackagePrefix), internalId = internalId)
     }
 
     override fun getRequestContext(): Any? = requestContext
@@ -78,8 +76,6 @@ class SimpleNodeExecutionContext(
     ): GraphQLInputObjectType = delegate.getArgumentsInputType(name, containingTypeName, fieldName)
 
     override fun getGlobalIDCodec(): GlobalIDCodec = delegate.getGlobalIDCodec()
-
-    override fun getClassFinder(): ResolverClassFinder = delegate.getClassFinder()
 
     override fun <T : NodeCompositeOutput> deserializeGlobalID(serialized: String): GlobalID<T> = delegate.deserializeGlobalID(serialized)
 
@@ -97,8 +93,6 @@ class SimpleNodeExecutionContext(
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : NodeCompositeOutput> nodeRef(id: GlobalID<T>): T {
-        // Node contexts resolve the GRT class directly from the GlobalID type (no classFinder
-        // lookup).
         val grtClass = id.getType().getJavaClass() as Class<T>
         return delegate.nodeRef(id, grtClass)
     }

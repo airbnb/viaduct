@@ -16,7 +16,6 @@ import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.BaseBatchedFieldResolver;
 import viaduct.java.api.internal.BaseUnbatchedFieldResolver;
-import viaduct.java.api.internal.ResolverClassFinder;
 import viaduct.java.api.reflect.RootObjectField;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.resolvers.ConnectionResolverBase;
@@ -168,11 +167,6 @@ public final class QueryResolvers {
                 @Override
                 public GlobalIDCodec getGlobalIDCodec() {
                     return InternalContext.from(inner).getGlobalIDCodec();
-                }
-
-                @Override
-                public ResolverClassFinder getClassFinder() {
-                    return InternalContext.from(inner).getClassFinder();
                 }
 
                 @Override
@@ -335,11 +329,6 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public ResolverClassFinder getClassFinder() {
-                    return InternalContext.from(inner).getClassFinder();
-                }
-
-                @Override
                 public <T extends NodeCompositeOutput> GlobalID<T> deserializeGlobalID(String serialized) {
                     return InternalContext.from(inner).deserializeGlobalID(serialized);
                 }
@@ -491,11 +480,6 @@ public final class QueryResolvers {
                 @Override
                 public GlobalIDCodec getGlobalIDCodec() {
                     return InternalContext.from(inner).getGlobalIDCodec();
-                }
-
-                @Override
-                public ResolverClassFinder getClassFinder() {
-                    return InternalContext.from(inner).getClassFinder();
                 }
 
                 @Override
@@ -687,11 +671,6 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public ResolverClassFinder getClassFinder() {
-                    return InternalContext.from(inner).getClassFinder();
-                }
-
-                @Override
                 public <T extends NodeCompositeOutput> GlobalID<T> deserializeGlobalID(String serialized) {
                     return InternalContext.from(inner).deserializeGlobalID(serialized);
                 }
@@ -875,11 +854,6 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public ResolverClassFinder getClassFinder() {
-                    return InternalContext.from(inner).getClassFinder();
-                }
-
-                @Override
                 public <T extends NodeCompositeOutput> GlobalID<T> deserializeGlobalID(String serialized) {
                     return InternalContext.from(inner).deserializeGlobalID(serialized);
                 }
@@ -1031,11 +1005,6 @@ public final class QueryResolvers {
                 @Override
                 public GlobalIDCodec getGlobalIDCodec() {
                     return InternalContext.from(inner).getGlobalIDCodec();
-                }
-
-                @Override
-                public ResolverClassFinder getClassFinder() {
-                    return InternalContext.from(inner).getClassFinder();
                 }
 
                 @Override
@@ -1193,11 +1162,6 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public ResolverClassFinder getClassFinder() {
-                    return InternalContext.from(inner).getClassFinder();
-                }
-
-                @Override
                 public <T extends NodeCompositeOutput> GlobalID<T> deserializeGlobalID(String serialized) {
                     return InternalContext.from(inner).deserializeGlobalID(serialized);
                 }
@@ -1349,11 +1313,6 @@ public final class QueryResolvers {
                 @Override
                 public GlobalIDCodec getGlobalIDCodec() {
                     return InternalContext.from(inner).getGlobalIDCodec();
-                }
-
-                @Override
-                public ResolverClassFinder getClassFinder() {
-                    return InternalContext.from(inner).getClassFinder();
                 }
 
                 @Override

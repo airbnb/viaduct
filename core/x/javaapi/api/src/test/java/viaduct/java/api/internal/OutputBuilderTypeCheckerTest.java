@@ -20,19 +20,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
 import viaduct.engine.api.ViaductSchema;
 import viaduct.errors.TenantUsageException;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.reflect.Type;
-import viaduct.java.api.types.Arguments;
-import viaduct.java.api.types.GRT;
-import viaduct.java.api.types.GraphQLEnum;
 import viaduct.java.api.types.GraphQLInterface;
 import viaduct.java.api.types.GraphQLObject;
-import viaduct.java.api.types.GraphQLUnion;
 import viaduct.java.api.types.NodeCompositeOutput;
+import viaduct.java.grts.GeneratedGRTs;
 import viaduct.service.api.spi.GlobalIDCodec;
 
 class OutputBuilderTypeCheckerTest {
@@ -225,7 +221,7 @@ class OutputBuilderTypeCheckerTest {
 
   @Test
   void acceptsMatchingObjectInterfaceAndUnionValues() {
-    TagValue tag = new TagValue();
+    ObjectBase tag = GeneratedGRTs.tag();
 
     assertThatCode(
             () -> OutputBuilderTypeChecker.checkField(CONTEXT, "Container", "tags", List.of(tag)))
@@ -238,7 +234,7 @@ class OutputBuilderTypeCheckerTest {
     assertThatCode(
             () ->
                 OutputBuilderTypeChecker.checkField(
-                    CONTEXT, "Container", "searchResults", List.of(tag, new ItemValue())))
+                    CONTEXT, "Container", "searchResults", List.of(tag, GeneratedGRTs.item())))
         .doesNotThrowAnyException();
   }
 
@@ -247,9 +243,9 @@ class OutputBuilderTypeCheckerTest {
     assertThatThrownBy(
             () ->
                 OutputBuilderTypeChecker.checkField(
-                    CONTEXT, "Container", "nestedTags", List.of(List.of(new OtherValue()))))
+                    CONTEXT, "Container", "nestedTags", List.of(List.of(GeneratedGRTs.other()))))
         .isInstanceOf(TenantUsageException.class)
-        .hasMessage("Expected object of type Tag for builder value, got OtherValue");
+        .hasMessage("Expected object of type Tag for builder value, got Other");
   }
 
   @Test
@@ -283,19 +279,34 @@ class OutputBuilderTypeCheckerTest {
   }
 
   @Test
+  void usesExpectedGeneratedTypeInsteadOfFixedPackage() {
+    assertThatCode(
+            () ->
+                OutputBuilderTypeChecker.checkField(
+                    CONTEXT, "Container", "tags", Tag.class, List.of(new Tag())))
+        .doesNotThrowAnyException();
+    assertThatThrownBy(
+            () ->
+                OutputBuilderTypeChecker.checkField(
+                    CONTEXT, "Container", "tags", Tag.class, List.of(GeneratedGRTs.tag())))
+        .isInstanceOf(TenantUsageException.class)
+        .hasMessage("Expected object of type Tag for builder value, got Tag");
+  }
+
+  @Test
   void rejectsCompiledAbstractRelationshipsMissingFromRuntimeSchema() {
     assertThatThrownBy(
             () ->
                 OutputBuilderTypeChecker.checkField(
-                    CONTEXT, "Container", "namedValues", List.of(new StaleValue())))
+                    CONTEXT, "Container", "namedValues", List.of(GeneratedGRTs.stale())))
         .isInstanceOf(TenantUsageException.class)
-        .hasMessage("Expected object of type Named for builder value, got StaleValue");
+        .hasMessage("Expected object of type Named for builder value, got Stale");
     assertThatThrownBy(
             () ->
                 OutputBuilderTypeChecker.checkField(
-                    CONTEXT, "Container", "searchResults", List.of(new StaleValue())))
+                    CONTEXT, "Container", "searchResults", List.of(GeneratedGRTs.stale())))
         .isInstanceOf(TenantUsageException.class)
-        .hasMessage("Expected object of type SearchResult for builder value, got StaleValue");
+        .hasMessage("Expected object of type SearchResult for builder value, got Stale");
   }
 
   @Test
@@ -346,49 +357,20 @@ class OutputBuilderTypeCheckerTest {
     List<List<Object>> snapshot =
         OutputBuilderTypeChecker.checkField(CONTEXT, "Container", "nestedTags", source);
 
-    inner.add(new OtherValue());
-    source.add(List.of(new OtherValue()));
+    inner.add(GeneratedGRTs.other());
+    source.add(List.of(GeneratedGRTs.other()));
 
     assertThat(snapshot).containsExactly(Collections.emptyList());
     assertThatThrownBy(() -> snapshot.add(List.of()))
         .isInstanceOf(UnsupportedOperationException.class);
-    assertThatThrownBy(() -> snapshot.get(0).add(new TagValue()))
+    assertThatThrownBy(() -> snapshot.get(0).add(GeneratedGRTs.tag()))
         .isInstanceOf(UnsupportedOperationException.class);
   }
 
   private interface NamedValue extends GraphQLInterface {}
 
-  private interface SearchResultValue extends GraphQLUnion {}
-
-  private static final class TagValue extends ObjectBase
-      implements GraphQLObject, NamedValue, SearchResultValue {
-    private TagValue() {
-      super(null, Map.of());
-    }
-  }
-
-  private static final class ItemValue extends ObjectBase
-      implements GraphQLObject, SearchResultValue {
-    private ItemValue() {
-      super(null, Map.of());
-    }
-  }
-
-  private static final class OtherValue extends ObjectBase implements GraphQLObject {
-    private OtherValue() {
-      super(null, Map.of());
-    }
-  }
-
   private static final class Tag extends ObjectBase implements GraphQLObject {
     private Tag() {
-      super(null, Map.of());
-    }
-  }
-
-  private static final class StaleValue extends ObjectBase
-      implements GraphQLObject, NamedValue, SearchResultValue {
-    private StaleValue() {
       super(null, Map.of());
     }
   }
@@ -417,10 +399,6 @@ class OutputBuilderTypeCheckerTest {
     }
   }
 
-  private enum StatusValue implements GraphQLEnum {
-    ACTIVE
-  }
-
   private enum OtherStatus {
     ACTIVE
   }
@@ -438,8 +416,6 @@ class OutputBuilderTypeCheckerTest {
   }
 
   private static final class FakeContext implements InternalContext {
-    private final ResolverClassFinder classFinder = new FakeClassFinder();
-
     @Override
     public ViaductSchema getSchema() {
       return new ViaductSchema(GRAPHQL_SCHEMA);
@@ -457,55 +433,8 @@ class OutputBuilderTypeCheckerTest {
     }
 
     @Override
-    public ResolverClassFinder getClassFinder() {
-      return classFinder;
-    }
-
-    @Override
     public <T extends NodeCompositeOutput> GlobalID<T> deserializeGlobalID(String serialized) {
       throw new UnsupportedOperationException();
-    }
-  }
-
-  private static final class FakeClassFinder implements ResolverClassFinder {
-    private static final Map<String, Class<? extends GRT>> GRT_CLASSES =
-        Map.of(
-            "Tag", TagValue.class,
-            "Item", ItemValue.class,
-            "Other", OtherValue.class,
-            "Stale", StaleValue.class,
-            "Named", NamedValue.class,
-            "SearchResult", SearchResultValue.class,
-            "Status", StatusValue.class);
-
-    @Override
-    public Set<Class<?>> resolverClassesInPackage() {
-      return Set.of();
-    }
-
-    @Override
-    public Set<Class<?>> nodeResolverForClassesInPackage() {
-      return Set.of();
-    }
-
-    @Override
-    public <T> Set<Class<? extends T>> getSubTypesOf(Class<T> type) {
-      return Set.of();
-    }
-
-    @Override
-    public Class<? extends GRT> grtClassForName(String typeName) throws ClassNotFoundException {
-      Class<? extends GRT> result = GRT_CLASSES.get(typeName);
-      if (result == null) {
-        throw new ClassNotFoundException(typeName);
-      }
-      return result;
-    }
-
-    @Override
-    public Class<? extends Arguments> argumentClassForName(String className)
-        throws ClassNotFoundException {
-      throw new ClassNotFoundException(className);
     }
   }
 }

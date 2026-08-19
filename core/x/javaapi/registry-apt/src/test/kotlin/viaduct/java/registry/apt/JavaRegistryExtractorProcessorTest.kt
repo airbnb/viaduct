@@ -189,14 +189,35 @@ class JavaRegistryExtractorProcessorTest {
     }
 
     @Test
-    fun `ignores a variable that declares no source field`(
+    fun `reports an error when a variable declares no source field`(
         @TempDir tempDir: File
     ) {
-        val descriptors =
-            compileAndReadDescriptors(tempDir, GRT_STUBS, QUERY_RESOLVER_BASES, EMPTY_VARIABLE_RESOLVER_SOURCE)
+        val (success, diagnostics) =
+            compile(tempDir, GRT_STUBS, QUERY_RESOLVER_BASES, EMPTY_VARIABLE_RESOLVER_SOURCE)
 
-        val field = descriptors.getValue("com/example/tenant/EmptyVarResolvers.json").path("fields")[0]
-        field.path("objectSelections").path("variablesProviders").shouldBeEmpty()
+        success.shouldBeFalse()
+        assertTrue(
+            diagnostics.any {
+                it.contains("Variable named `v` must set exactly one")
+            }
+        )
+    }
+
+    @Test
+    fun `reports an error when a variable declares multiple source fields`(
+        @TempDir tempDir: File
+    ) {
+        val (success, diagnostics) =
+            compile(tempDir, GRT_STUBS, QUERY_RESOLVER_BASES, MULTIPLE_SOURCE_VARIABLE_RESOLVER_SOURCE)
+
+        success.shouldBeFalse()
+        assertTrue(
+            diagnostics.any {
+                it.contains("Variable named `v` must set exactly one") &&
+                    it.contains("fromObjectField=author.id") &&
+                    it.contains("fromArgument=limit")
+            }
+        )
     }
 
     @Test
@@ -570,6 +591,36 @@ class JavaRegistryExtractorProcessorTest {
                     variables = { @Variable(name = "v") }
                 )
                 public static class WithEmptyVar extends QueryResolvers.Frag {
+                    @Override
+                    public CompletableFuture<String> resolve(Context ctx) {
+                        return CompletableFuture.completedFuture("x");
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val MULTIPLE_SOURCE_VARIABLE_RESOLVER_SOURCE = SourceFile(
+            "com.example.tenant.MultipleSourceVarResolvers",
+            """
+            package com.example.tenant;
+
+            import java.util.concurrent.CompletableFuture;
+            import viaduct.java.api.annotations.Resolver;
+            import viaduct.java.api.annotations.Variable;
+
+            public final class MultipleSourceVarResolvers {
+                @Resolver(
+                    objectValueFragment = "author { id }",
+                    variables = {
+                        @Variable(
+                            name = "v",
+                            fromObjectField = "author.id",
+                            fromArgument = "limit"
+                        )
+                    }
+                )
+                public static class WithMultipleSourceVar extends QueryResolvers.Frag {
                     @Override
                     public CompletableFuture<String> resolve(Context ctx) {
                         return CompletableFuture.completedFuture("x");

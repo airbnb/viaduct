@@ -2,9 +2,6 @@ package viaduct.java.runtime.bridge
 
 import javax.inject.Provider
 import viaduct.engine.api.ExecutionAttribution
-import viaduct.engine.api.FromArgumentVariable
-import viaduct.engine.api.FromObjectFieldVariable
-import viaduct.engine.api.FromQueryFieldVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.RequiredSelectionSets
 import viaduct.engine.api.SelectionSetVariable
@@ -17,10 +14,7 @@ import viaduct.engine.api.checkDisjoint
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.graphql.utils.ParsedSelections
 import viaduct.graphql.utils.collectVariableReferences
-import viaduct.java.api.annotations.Resolver
-import viaduct.java.api.annotations.Variable
 import viaduct.java.api.annotations.Variables
-import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.variables.VariablesProvider
 import viaduct.service.api.spi.CodeInjector
@@ -29,23 +23,16 @@ import viaduct.service.api.spi.CodeInjector
  * Factory for creating [RequiredSelectionSets] for Java resolvers.
  *
  * This is the Java equivalent of the Kotlin [viaduct.tenant.runtime.bootstrap.RequiredSelectionSetFactory].
- * There are two entry points:
- *  - [mkRequiredSelectionSets] from a build-time [FieldEntryConfig] registry descriptor — the
- *    preferred path used by [viaduct.java.runtime.bootstrap.ViaductJavaExecutorFactory], keeping the
- *    JSON registry as the single source of truth for bootstrap data.
- *  - [mkRequiredSelectionSets] from a runtime [Resolver] annotation — retained for the legacy
- *    classpath-scanning bootstrap (`ModuleBootstrapper`).
- *
- * Both parse the object/query selection fragments, convert their variable declarations to
- * [SelectionSetVariable] instances, and discover nested [VariablesProvider] classes (annotated with
- * [Variables]) for dynamic variable provisioning.
+ * Parses build-time [FieldEntryConfig] registry descriptors, converts their variable declarations
+ * to [SelectionSetVariable] instances, and discovers nested [VariablesProvider] classes for
+ * dynamic variable provisioning.
  */
 class RequiredSelectionSetFactory {
     /**
      * Create a [RequiredSelectionSets] from a build-time [FieldEntryConfig] registry descriptor.
      *
-     * The selection fragments and [Variable] declarations are read from the registry JSON (the same
-     * data the APT extractor emitted from the [Resolver] annotation), rather than re-reading the
+     * The selection fragments and variable declarations are read from the registry JSON (the same
+     * data the APT extractor emitted from the `@Resolver` annotation), rather than re-reading the
      * runtime annotation. The nested [VariablesProvider] class, however, is still discovered
      * reflectively from [resolverClass] since it is not represented in the registry.
      *
@@ -65,7 +52,7 @@ class RequiredSelectionSetFactory {
         resolverClass: Class<*>,
         injector: CodeInjector,
         argumentsClass: Class<out Arguments>? = null,
-        classFinder: ResolverClassFinder? = null,
+        grtPackagePrefix: String? = null,
     ): RequiredSelectionSets {
         val objectSelections = entry.objectSelections?.selections
             ?.takeIf { it.isNotBlank() }
@@ -79,53 +66,7 @@ class RequiredSelectionSetFactory {
         }
 
         val variables = buildVariables(entry.objectSelections, entry.querySelections)
-        return build(objectSelections, querySelections, variables, resolverClass, injector, argumentsClass, classFinder)
-    }
-
-    /**
-     * Create a [RequiredSelectionSets] from the provided [Resolver] annotation.
-     *
-     * @param schema The Viaduct schema containing type definitions
-     * @param annotation The @Resolver annotation from the resolver class
-     * @param resolverForType The GraphQL type name this resolver is for (e.g., "Person")
-     * @param resolverClass The resolver implementation class. Used both for attribution and for
-     *        discovering nested [VariablesProvider] classes.
-     * @param injector The injector used to obtain instances of the discovered VariablesProvider.
-     * @param argumentsClass The Arguments class for the field this resolver targets, or null if
-     *        the field has no arguments. Forwarded to the VariablesProvider executor so the
-     *        provider receives a typed Arguments instance.
-     * @return A [RequiredSelectionSets] containing the parsed object and query selections
-     */
-    fun mkRequiredSelectionSets(
-        schema: ViaductSchema,
-        annotation: Resolver,
-        resolverForType: String,
-        resolverClass: Class<*>,
-        injector: CodeInjector,
-        argumentsClass: Class<out Arguments>? = null,
-        classFinder: ResolverClassFinder? = null,
-    ): RequiredSelectionSets {
-        val objectValueFragment = annotation.objectValueFragment
-        val queryValueFragment = annotation.queryValueFragment
-
-        val objectSelections = if (objectValueFragment.isNotBlank()) {
-            SelectionsParser.parse(resolverForType, objectValueFragment)
-        } else {
-            null
-        }
-
-        val querySelections = if (queryValueFragment.isNotBlank()) {
-            SelectionsParser.parse(schema.schema.queryType.name, queryValueFragment)
-        } else {
-            null
-        }
-
-        if (objectSelections == null && querySelections == null) {
-            return RequiredSelectionSets.empty()
-        }
-
-        val variables = annotation.variables.map { v -> v.toSelectionSetVariable() }
-        return build(objectSelections, querySelections, variables, resolverClass, injector, argumentsClass, classFinder)
+        return build(objectSelections, querySelections, variables, resolverClass, injector, argumentsClass, grtPackagePrefix)
     }
 
     /**
@@ -140,9 +81,9 @@ class RequiredSelectionSetFactory {
         resolverClass: Class<*>,
         injector: CodeInjector,
         argumentsClass: Class<out Arguments>?,
-        classFinder: ResolverClassFinder?,
+        grtPackagePrefix: String?,
     ): RequiredSelectionSets {
-        val variablesProviderExecutor = mkVariablesProviderExecutor(resolverClass, injector, argumentsClass, classFinder)
+        val variablesProviderExecutor = mkVariablesProviderExecutor(resolverClass, injector, argumentsClass, grtPackagePrefix)
 
         val variableConsumers = buildSet<String> {
             objectSelections?.selections?.collectVariableReferences()?.let(::addAll)
@@ -220,7 +161,7 @@ class RequiredSelectionSetFactory {
         resolverClass: Class<*>,
         injector: CodeInjector,
         argumentsClass: Class<out Arguments>?,
-        classFinder: ResolverClassFinder?,
+        grtPackagePrefix: String?,
     ): VariablesProviderExecutorImpl? {
         val candidate = resolverClass.declaredClasses.firstOrNull { it.isAnnotationPresent(Variables::class.java) }
             ?: return null
@@ -234,33 +175,8 @@ class RequiredSelectionSetFactory {
             variableNames = variableNames,
             provider = provider,
             argumentsClass = argumentsClass,
-            classFinder = classFinder,
+            grtPackagePrefix = grtPackagePrefix,
         )
-    }
-}
-
-/**
- * Convert a Java [Variable] annotation to a [SelectionSetVariable].
- *
- * Exactly one of fromArgument, fromObjectField, or fromQueryField must be set.
- */
-private fun Variable.toSelectionSetVariable(): SelectionSetVariable {
-    val objectFieldIsSet = fromObjectField.isNotEmpty()
-    val queryFieldIsSet = fromQueryField.isNotEmpty()
-    val argIsSet = fromArgument.isNotEmpty()
-
-    val setCount = listOf(objectFieldIsSet, queryFieldIsSet, argIsSet).count { it }
-
-    check(setCount == 1) {
-        "Variable named `$name` must set exactly one of `fromObjectField`, `fromQueryField`, or `fromArgument`. " +
-            "It set fromObjectField=$fromObjectField, fromQueryField=$fromQueryField, fromArgument=$fromArgument"
-    }
-
-    return when {
-        objectFieldIsSet -> FromObjectFieldVariable(name, fromObjectField)
-        queryFieldIsSet -> FromQueryFieldVariable(name, fromQueryField)
-        argIsSet -> FromArgumentVariable(name, fromArgument)
-        else -> error("Unreachable: exactly one field should be set")
     }
 }
 

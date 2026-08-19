@@ -222,11 +222,6 @@ class ObjectBaseTest {
     }
 
     @Override
-    public ResolverClassFinder getClassFinder() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
     @SuppressWarnings("unchecked")
     public <T extends NodeCompositeOutput> GlobalID<T> deserializeGlobalID(String serialized) {
       return (GlobalID<T>) new FakeGlobalID(serialized);

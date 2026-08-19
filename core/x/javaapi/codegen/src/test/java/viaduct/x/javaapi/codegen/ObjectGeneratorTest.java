@@ -201,12 +201,13 @@ class ObjectGeneratorTest {
             false);
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
+    String normalized = normalizeWhitespace(generated);
 
     assertTrue(generated.contains("public Builder name(String name)"));
     assertTrue(generated.contains("public Builder age(Integer age)"));
     assertTrue(
-        generated.contains(
-            "name = OutputBuilderTypeChecker.checkField(__context, \"User\", \"name\", name)"));
+        normalized.contains(
+            "OutputBuilderTypeChecker.checkField( __context, \"User\", \"name\", null, name);"));
     assertTrue(generated.contains("public User build()"));
   }
 
@@ -227,6 +228,7 @@ class ObjectGeneratorTest {
             "Post");
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
+    String normalized = normalizeWhitespace(generated);
 
     assertTrue(generated.contains("extends ConnectionBuilder<PostConnection, PostEdge, Post>"));
     assertTrue(generated.contains("public static Builder builder(ExecutionContext context)"));
@@ -240,7 +242,7 @@ class ObjectGeneratorTest {
     assertTrue(generated.contains("super.fromSlice(items, offsetLimit, hasNextPage, buildNode);"));
     assertTrue(generated.contains("public <I> Builder fromList("));
     assertTrue(generated.contains("Function<I, Post> buildNode"));
-    assertTrue(generated.contains("putField(\"totalCount\", totalCount)"));
+    assertTrue(normalized.contains("putField( \"totalCount\", totalCount, null);"));
   }
 
   @Test
@@ -262,8 +264,10 @@ class ObjectGeneratorTest {
             "Post");
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
+    String normalized = normalizeWhitespace(generated);
 
     assertTrue(generated.contains("return fetchEnum(\"status\", PostStatus.class)"));
+    assertTrue(normalized.contains("putField( \"status\", status, PostStatus.class);"));
   }
 
   @Test
@@ -482,5 +486,9 @@ class ObjectGeneratorTest {
     assertTrue(
         generated.contains(
             "RootObjectField.of(\"viewer\", Reflection, User.Reflection, List.of(\"viewer\"))"));
+  }
+
+  private static String normalizeWhitespace(String value) {
+    return value.replaceAll("\\s+", " ");
   }
 }

@@ -18,7 +18,6 @@ import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.errors.resultOfSuspend
 import viaduct.java.api.internal.BaseUnbatchedFieldResolver
 import viaduct.java.api.internal.InternalContext
-import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.Arguments
 
 /**
@@ -56,7 +55,7 @@ class JavaFieldResolverExecutorImpl(
     private val objectValueClass: Class<*>? = null,
     private val queryValueClass: Class<*>? = null,
     private val graphqlSchema: GraphQLSchema? = null,
-    private val classFinder: ResolverClassFinder? = null,
+    private val grtPackagePrefix: String? = null,
     private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
 ) : FieldResolverExecutor {
     override val metadata: ResolverMetadata = ResolverMetadata.forModern(resolverName, ResolverType.FIELD)
@@ -85,7 +84,7 @@ class JavaFieldResolverExecutorImpl(
     ): Any? {
         // ── Framework→Tenant boundary: context setup ──
         // Per-request InternalContext attached to GRTs and propagated to nested GRTs.
-        val internalContext = classFinder?.let { buildInternalContext(context, it) }
+        val internalContext = buildInternalContext(context, grtPackagePrefix)
         val arguments = handleFrameworkErrors("$resolverId: createArguments") {
             createArguments(selector.arguments, internalContext)
         }
@@ -104,7 +103,7 @@ class JavaFieldResolverExecutorImpl(
             queryValue = queryValue,
             engineExecutionContext = context,
             coroutineScope = scope,
-            classFinder = classFinder,
+            grtPackagePrefix = grtPackagePrefix,
             knownFragments = knownFragments,
         )
 

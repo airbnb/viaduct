@@ -30,9 +30,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.jdk8) // For CompletableFuture integration
 
-    // Shared ClassGraph scanner utility for classpath scanning
-    implementation(libs.viaduct.shared.utils)
-
     // javax.inject for Provider interface
     implementation(libs.javax.inject)
 
@@ -60,6 +57,7 @@ dependencies {
     testImplementation(libs.viaduct.engine.wiring)
     testImplementation(testFixtures(libs.viaduct.engine.api))
     testImplementation(testFixtures(libs.viaduct.shared.graphql))
+    testImplementation(testFixtures(project(":x:javaapi:api")))
     testImplementation(libs.graphql.java)
 
     // Dependencies for JavaFeatureAppTestContractBase

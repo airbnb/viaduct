@@ -56,12 +56,6 @@ public interface InternalContext {
   GlobalIDCodec getGlobalIDCodec();
 
   /**
-   * Resolves GRT classes and type information by GraphQL type name. Java analog of Kotlin's {@code
-   * ReflectionLoader}.
-   */
-  ResolverClassFinder getClassFinder();
-
-  /**
    * Deserializes a GlobalID string into a typed {@link GlobalID} instance.
    *
    * <p>Mirrors Kotlin's {@code InternalContext.deserializeGlobalID()}. Decodes the serialized

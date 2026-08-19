@@ -126,11 +126,6 @@ class InputBaseTest {
     }
 
     @Override
-    public ResolverClassFinder getClassFinder() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
     @SuppressWarnings("unchecked")
     public <T extends NodeCompositeOutput> GlobalID<T> deserializeGlobalID(String serialized) {
       if ("bad".equals(serialized)) {

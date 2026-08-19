@@ -129,17 +129,26 @@ public class OrderConnection extends ObjectBase implements viaduct.java.api.type
         }
 
                 public Builder edges(List<OrderEdge> edges) {
-                    putField("edges", edges);
+                    putField(
+                                        "edges",
+                                        edges,
+                                        OrderEdge.class);
         return this;
                 }
 
                 public Builder pageInfo(PageInfo pageInfo) {
-                    putField("pageInfo", pageInfo);
+                    putField(
+                                        "pageInfo",
+                                        pageInfo,
+                                        PageInfo.class);
         return this;
                 }
 
                 public Builder totalCount(Integer totalCount) {
-                    putField("totalCount", totalCount);
+                    putField(
+                                        "totalCount",
+                                        totalCount,
+                                        null);
         return this;
                 }
 

@@ -115,49 +115,89 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
         }
 
                 public Builder order(Order order) {
-                    order = OutputBuilderTypeChecker.checkField(__context, "Query", "order", order);
+                    order = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Query",
+                            "order",
+                            Order.class,
+                            order);
                     data.put("order", order);
         return this;
                 }
 
                 public Builder topUser(User topUser) {
-                    topUser = OutputBuilderTypeChecker.checkField(__context, "Query", "topUser", topUser);
+                    topUser = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Query",
+                            "topUser",
+                            User.class,
+                            topUser);
                     data.put("topUser", topUser);
         return this;
                 }
 
                 public Builder popularOrders(List<Order> popularOrders) {
-                    popularOrders = OutputBuilderTypeChecker.checkField(__context, "Query", "popularOrders", popularOrders);
+                    popularOrders = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Query",
+                            "popularOrders",
+                            Order.class,
+                            popularOrders);
                     data.put("popularOrders", popularOrders);
         return this;
                 }
 
                 public Builder trendingUsers(List<User> trendingUsers) {
-                    trendingUsers = OutputBuilderTypeChecker.checkField(__context, "Query", "trendingUsers", trendingUsers);
+                    trendingUsers = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Query",
+                            "trendingUsers",
+                            User.class,
+                            trendingUsers);
                     data.put("trendingUsers", trendingUsers);
         return this;
                 }
 
                 public Builder ordersConnection(OrderConnection ordersConnection) {
-                    ordersConnection = OutputBuilderTypeChecker.checkField(__context, "Query", "ordersConnection", ordersConnection);
+                    ordersConnection = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Query",
+                            "ordersConnection",
+                            OrderConnection.class,
+                            ordersConnection);
                     data.put("ordersConnection", ordersConnection);
         return this;
                 }
 
                 public Builder lookupOrder(Order lookupOrder) {
-                    lookupOrder = OutputBuilderTypeChecker.checkField(__context, "Query", "lookupOrder", lookupOrder);
+                    lookupOrder = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Query",
+                            "lookupOrder",
+                            Order.class,
+                            lookupOrder);
                     data.put("lookupOrder", lookupOrder);
         return this;
                 }
 
                 public Builder node(Node node) {
-                    node = OutputBuilderTypeChecker.checkField(__context, "Query", "node", node);
+                    node = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Query",
+                            "node",
+                            Node.class,
+                            node);
                     data.put("node", node);
         return this;
                 }
 
                 public Builder nodes(List<Node> nodes) {
-                    nodes = OutputBuilderTypeChecker.checkField(__context, "Query", "nodes", nodes);
+                    nodes = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Query",
+                            "nodes",
+                            Node.class,
+                            nodes);
                     data.put("nodes", nodes);
         return this;
                 }

@@ -19,7 +19,6 @@ import viaduct.errors.TenantUsageException
 import viaduct.java.api.globalid.GlobalID
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ObjectBase
-import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.reflect.Type
 import viaduct.java.api.types.NodeObject
 import viaduct.service.api.spi.GlobalIDCodec
@@ -41,11 +40,13 @@ class SimpleNodeExecutionContextTest {
         typeName: String = "NodeObj",
         requestContext: Any? = null,
         engineCtx: EngineExecutionContext? = mockEngineContext(),
+        grtPackagePrefix: String? = null,
     ) = SimpleNodeExecutionContext(
         serializedId = serializedId,
         typeName = typeName,
         requestContext = requestContext,
         engineExecutionContext = engineCtx,
+        grtPackagePrefix = grtPackagePrefix,
     )
 
     private fun nodeType(name: String = "NodeObj"): Type<NodeObject> =
@@ -57,11 +58,16 @@ class SimpleNodeExecutionContextTest {
 
     @Test
     fun `getId deserializes the serialized id and returns a GlobalIDImpl`() {
-        val ctx = newContext()
+        val ctx = newContext(
+            serializedId = GlobalIDCodecDefault.serialize("TestNodeObject", "tenant1"),
+            typeName = "TestNodeObject",
+            grtPackagePrefix = "viaduct.java.runtime.bridge",
+        )
         val id = ctx.getId()
         assertEquals("tenant1", id.getInternalID())
         id.shouldBeInstanceOf<GlobalIDImpl<*>>()
-        assertEquals("NodeObj", id.getType().name)
+        assertEquals("TestNodeObject", id.getType().name)
+        assertSame(TestNodeObject::class.java, id.getType().getJavaClass())
     }
 
     @Test
@@ -163,6 +169,7 @@ class SimpleNodeExecutionContextTest {
         val engineCtx = mockk<EngineExecutionContext> {
             every { requestContext } returns null
             every { globalIDCodec } returns GlobalIDCodecDefault
+            every { fullSchema } returns viaductSchema
             every { activeSchema } returns viaductSchema
             every { createNodeReference(any(), gqlType) } returns nodeRef
         }
@@ -237,25 +244,5 @@ class SimpleNodeExecutionContextTest {
         val ctx = newContext(engineCtx = null)
         val ex = assertThrows<FrameworkException> { ctx.getGlobalIDCodec() }
         assertTrue(ex.message!!.contains("engineExecutionContext"))
-    }
-
-    @Test
-    fun `getClassFinder returns provided classFinder`() {
-        val finder = mockk<ResolverClassFinder>()
-        val ctx = SimpleNodeExecutionContext(
-            serializedId = GlobalIDCodecDefault.serialize("NodeObj", "tenant1"),
-            typeName = "NodeObj",
-            requestContext = null,
-            engineExecutionContext = mockEngineContext(),
-            classFinder = finder
-        )
-        assertSame(finder, ctx.getClassFinder())
-    }
-
-    @Test
-    fun `getClassFinder throws when classFinder is null`() {
-        val ctx = newContext(engineCtx = null)
-        val ex = assertThrows<FrameworkException> { ctx.getClassFinder() }
-        assertTrue(ex.message!!.contains("classFinder"))
     }
 }

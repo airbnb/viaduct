@@ -215,7 +215,12 @@ public final class JavaGRTGenerator {
 
                     <mdl.fields: {f |
                     public Builder <f.safeName>(<f.builderType> <f.safeName>) {
-                        <f.safeName> = OutputBuilderTypeChecker.checkField(__context, "<mdl.className>", "<f.name>", <f.safeName>);
+                        <f.safeName> = OutputBuilderTypeChecker.checkField(
+                                __context,
+                                "<mdl.className>",
+                                "<f.name>",
+                                <if(f.hasGeneratedType)><f.baseTypeName>.class<else>null<endif>,
+                                <f.safeName>);
                         <if(f.globalIDBuilderSerialize)>data.put("<f.name>", <f.builderValueExpression>);
                         <elseif(f.globalIDListBuilderSerialize)>data.put("<f.name>", <f.builderValueExpression>);
                         <else>data.put("<f.name>", <f.builderValueExpression>);
@@ -373,7 +378,10 @@ public final class JavaGRTGenerator {
                     public Builder <f.safeName>(<f.builderType> <f.safeName>) {
                         <if(f.globalIDBuilderSerialize)>putGlobalIDField("<f.name>", <f.safeName>);
                         <elseif(f.globalIDListBuilderSerialize)>putGlobalIDListField("<f.name>", <f.safeName>);
-                        <else>putField("<f.name>", <f.safeName>);
+                        <else>putField(
+                                "<f.name>",
+                                <f.safeName>,
+                                <if(f.hasGeneratedType)><f.baseTypeName>.class<else>null<endif>);
                         <endif>return this;
                     \\}
                     }; separator="

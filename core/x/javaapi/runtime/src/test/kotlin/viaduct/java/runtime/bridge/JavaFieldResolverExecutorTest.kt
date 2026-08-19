@@ -21,10 +21,12 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.errors.TenantResolverException
 import viaduct.java.api.internal.BaseUnbatchedFieldResolver
+import viaduct.service.api.spi.GlobalIDCodec
 
 class JavaFieldResolverExecutorTest {
     @Test
@@ -40,9 +42,7 @@ class JavaFieldResolverExecutorTest {
             // Create mock selector and context
             val mockObjectValue = mockk<EngineObjectData.Sync>()
             val mockQueryValue = mockk<EngineObjectData.Sync>()
-            val mockEngineContext = mockk<EngineExecutionContext> {
-                every { requestContext } returns null
-            }
+            val mockEngineContext = mockEngineContext()
 
             val selector = FieldResolverExecutor.Selector(
                 arguments = emptyMap(),
@@ -93,9 +93,7 @@ class JavaFieldResolverExecutorTest {
 
             val mockObjectValue = mockk<EngineObjectData.Sync>()
             val mockQueryValue = mockk<EngineObjectData.Sync>()
-            val mockEngineContext = mockk<EngineExecutionContext> {
-                every { requestContext } returns null
-            }
+            val mockEngineContext = mockEngineContext()
 
             val selector = FieldResolverExecutor.Selector(
                 arguments = emptyMap(),
@@ -127,9 +125,7 @@ class JavaFieldResolverExecutorTest {
 
         val mockObjectValue = mockk<EngineObjectData.Sync>()
         val mockQueryValue = mockk<EngineObjectData.Sync>()
-        val mockEngineContext = mockk<EngineExecutionContext> {
-            every { requestContext } returns null
-        }
+        val mockEngineContext = mockEngineContext()
 
         val selector = FieldResolverExecutor.Selector(
             arguments = emptyMap(),
@@ -227,5 +223,12 @@ class JavaFieldResolverExecutorTest {
     private fun fieldResolver(resolve: () -> CompletableFuture<*>): Provider<BaseUnbatchedFieldResolver> =
         Provider {
             BaseUnbatchedFieldResolver { resolve() }
+        }
+
+    private fun mockEngineContext(): EngineExecutionContext =
+        mockk {
+            every { requestContext } returns null
+            every { fullSchema } returns mockk<ViaductSchema>()
+            every { globalIDCodec } returns mockk<GlobalIDCodec>()
         }
 }

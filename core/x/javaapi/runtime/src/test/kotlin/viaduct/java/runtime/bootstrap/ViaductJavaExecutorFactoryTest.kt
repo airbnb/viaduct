@@ -82,6 +82,17 @@ class ViaductJavaExecutorFactoryTest {
             registry = ExecutionRegistryConfigFile(version = "1", executorFactory = ViaductJavaExecutorFactory::class.java.name),
         )
 
+    @Test
+    fun `production constructor uses fixed GRT package`() {
+        ViaductJavaExecutorFactory(
+            CodeInjector.Naive,
+            ExecutionRegistryConfigFile(
+                version = "1",
+                executorFactory = ViaductJavaExecutorFactory::class.java.name,
+            ),
+        ).shouldNotBeNull()
+    }
+
     // ── Test fixtures ───────────────────────────────────────────────────────
 
     interface TestQuery : Query

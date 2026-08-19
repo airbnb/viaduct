@@ -113,43 +113,78 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
         }
 
                 public Builder id(GlobalID<Order> id) {
-                    id = OutputBuilderTypeChecker.checkField(__context, "Order", "id", id);
+                    id = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Order",
+                            "id",
+                            null,
+                            id);
                     data.put("id", id == null ? null : __context.getGlobalIDCodec().serialize(id.getType().getName(), id.getInternalID()));
         return this;
                 }
 
                 public Builder status(OrderStatus status) {
-                    status = OutputBuilderTypeChecker.checkField(__context, "Order", "status", status);
+                    status = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Order",
+                            "status",
+                            OrderStatus.class,
+                            status);
                     data.put("status", status);
         return this;
                 }
 
                 public Builder total(Money total) {
-                    total = OutputBuilderTypeChecker.checkField(__context, "Order", "total", total);
+                    total = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Order",
+                            "total",
+                            Money.class,
+                            total);
                     data.put("total", total);
         return this;
                 }
 
                 public Builder createdAt(String createdAt) {
-                    createdAt = OutputBuilderTypeChecker.checkField(__context, "Order", "createdAt", createdAt);
+                    createdAt = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Order",
+                            "createdAt",
+                            null,
+                            createdAt);
                     data.put("createdAt", createdAt);
         return this;
                 }
 
                 public Builder updatedAt(String updatedAt) {
-                    updatedAt = OutputBuilderTypeChecker.checkField(__context, "Order", "updatedAt", updatedAt);
+                    updatedAt = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Order",
+                            "updatedAt",
+                            null,
+                            updatedAt);
                     data.put("updatedAt", updatedAt);
         return this;
                 }
 
                 public Builder auditTrail(List<String> auditTrail) {
-                    auditTrail = OutputBuilderTypeChecker.checkField(__context, "Order", "auditTrail", auditTrail);
+                    auditTrail = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Order",
+                            "auditTrail",
+                            null,
+                            auditTrail);
                     data.put("auditTrail", auditTrail);
         return this;
                 }
 
                 public Builder buyer(User buyer) {
-                    buyer = OutputBuilderTypeChecker.checkField(__context, "Order", "buyer", buyer);
+                    buyer = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Order",
+                            "buyer",
+                            User.class,
+                            buyer);
                     data.put("buyer", buyer);
         return this;
                 }

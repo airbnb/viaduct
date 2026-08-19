@@ -49,11 +49,6 @@ class InternalContextTest {
     }
 
     @Override
-    public ResolverClassFinder getClassFinder() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
     public <T extends NodeCompositeOutput> GlobalID<T> deserializeGlobalID(String serialized) {
       throw new UnsupportedOperationException();
     }

@@ -20,7 +20,6 @@ import viaduct.errors.resultOfSuspend
 import viaduct.java.api.context.FieldExecutionContext
 import viaduct.java.api.internal.BaseBatchedFieldResolver
 import viaduct.java.api.internal.InternalContext
-import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.Arguments
 
 /**
@@ -42,7 +41,7 @@ class FieldBatchResolverExecutorImpl(
     private val objectValueClass: Class<*>? = null,
     private val queryValueClass: Class<*>? = null,
     private val graphqlSchema: GraphQLSchema? = null,
-    private val classFinder: ResolverClassFinder? = null,
+    private val grtPackagePrefix: String? = null,
     private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
 ) : FieldResolverExecutor {
     override val metadata: ResolverMetadata = ResolverMetadata.forModern(resolverName, ResolverType.FIELD)
@@ -55,7 +54,7 @@ class FieldBatchResolverExecutorImpl(
         val scope = CoroutineScope(currentCoroutineContext())
 
         // Per-request InternalContext attached to GRTs and propagated to nested GRTs.
-        val internalContext = classFinder?.let { buildInternalContext(context, it) }
+        val internalContext = buildInternalContext(context, grtPackagePrefix)
 
         // Build one typed context per selector
         val javaContexts: List<FieldExecutionContext<*, *, *, *>> = selectors.map { selector ->
@@ -75,7 +74,7 @@ class FieldBatchResolverExecutorImpl(
                 queryValue = queryValue,
                 engineExecutionContext = context,
                 coroutineScope = scope,
-                classFinder = classFinder,
+                grtPackagePrefix = grtPackagePrefix,
                 knownFragments = knownFragments,
             )
         }

@@ -10,19 +10,17 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.ViaductSchema
 import viaduct.errors.TenantUsageException
 import viaduct.java.api.globalid.GlobalID
-import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.NodeObject
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 class InternalContextImplTest {
     private val schema = mockk<ViaductSchema>()
-    private val classFinder = mockk<ResolverClassFinder>()
 
     private fun newContext() =
         InternalContextImpl(
             schema = schema,
             globalIDCodec = GlobalIDCodecDefault,
-            classFinder = classFinder,
+            grtPackagePrefix = "viaduct.java.runtime.bridge",
         )
 
     @Test
@@ -36,18 +34,14 @@ class InternalContextImplTest {
     }
 
     @Test
-    fun `getClassFinder returns the provided classFinder`() {
-        assertSame(classFinder, newContext().getClassFinder())
-    }
-
-    @Test
     fun `deserializeGlobalID deserializes a serialized id into a typed GlobalID`() {
         val gid: GlobalID<NodeObject> =
-            newContext().deserializeGlobalID(GlobalIDCodecDefault.serialize("NodeObj", "tenant1"))
+            newContext().deserializeGlobalID(GlobalIDCodecDefault.serialize("TestNodeObject", "tenant1"))
 
         gid.shouldBeInstanceOf<GlobalIDImpl<*>>()
         assertEquals("tenant1", gid.getInternalID())
-        assertEquals("NodeObj", gid.getType().name)
+        assertEquals("TestNodeObject", gid.getType().name)
+        assertSame(TestNodeObject::class.java, gid.getType().getJavaClass())
     }
 
     @Test

@@ -19,7 +19,6 @@ import viaduct.java.api.annotations.Resolver;
 import viaduct.java.api.context.ExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
-import viaduct.java.api.internal.ResolverClassFinder;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.types.NodeCompositeOutput;
 import viaduct.service.api.spi.GlobalIDCodec;
@@ -224,11 +223,6 @@ public class JavaObjectContractTest extends ObjectContractTest {
 
         @Override
         public GlobalIDCodec getGlobalIDCodec() {
-          throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public ResolverClassFinder getClassFinder() {
           throw new UnsupportedOperationException();
         }
 

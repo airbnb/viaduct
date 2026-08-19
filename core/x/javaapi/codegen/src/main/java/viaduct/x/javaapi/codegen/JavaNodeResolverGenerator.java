@@ -69,7 +69,6 @@ public final class JavaNodeResolverGenerator {
           <if(mdl.hasUnbatchedResolvers)>
           import viaduct.java.api.internal.BaseUnbatchedNodeResolver;
           <endif>
-          import viaduct.java.api.internal.ResolverClassFinder;
           import viaduct.java.api.reflect.RootObjectField;
           import viaduct.java.api.reflect.Type;
           import viaduct.java.api.resolvers.FieldValue;
@@ -176,11 +175,6 @@ public final class JavaNodeResolverGenerator {
                       @Override
                       public GlobalIDCodec getGlobalIDCodec() {
                           return InternalContext.from(inner).getGlobalIDCodec();
-                      \\}
-
-                      @Override
-                      public ResolverClassFinder getClassFinder() {
-                          return InternalContext.from(inner).getClassFinder();
                       \\}
 
                       @Override

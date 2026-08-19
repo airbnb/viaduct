@@ -120,7 +120,7 @@ internal class JavaResolverParamsExtractor(
 
         val resolverAnn = resolverAnnotation(impl)
         val variablesTypeMap = variablesTypeMap(impl)
-        val variableProviders = resolverAnn?.let { variableProviders(it, variablesTypeMap) } ?: emptyList()
+        val variableProviders = resolverAnn?.let { variableProviders(it, variablesTypeMap, impl) } ?: emptyList()
 
         val objectFragment = resolverAnn?.stringValue("objectValueFragment")?.takeIf { it.isNotBlank() }
         val queryFragment = resolverAnn?.stringValue("queryValueFragment")?.takeIf { it.isNotBlank() }
@@ -171,6 +171,7 @@ internal class JavaResolverParamsExtractor(
     private fun variableProviders(
         resolverAnn: AnnotationMirror,
         variablesTypeMap: Map<String, String>,
+        resolver: TypeElement,
     ): List<VariableProviderDescriptor> =
         resolverAnn.arrayValue("variables").mapNotNull { varValue ->
             val varAnn = varValue.value as? AnnotationMirror ?: return@mapNotNull null
@@ -179,12 +180,23 @@ internal class JavaResolverParamsExtractor(
             val fromQueryField = varAnn.stringValue("fromQueryField")?.takeIf { it.isNotEmpty() }
             val fromArgument = varAnn.stringValue("fromArgument")?.takeIf { it.isNotEmpty() }
 
-            val (kind, path) = when {
-                fromObjectField != null -> "fromObjectField" to fromObjectField
-                fromQueryField != null -> "fromQueryField" to fromQueryField
-                fromArgument != null -> "fromArgument" to fromArgument
-                else -> return@mapNotNull null
+            val sources = listOfNotNull(
+                fromObjectField?.let { "fromObjectField" to it },
+                fromQueryField?.let { "fromQueryField" to it },
+                fromArgument?.let { "fromArgument" to it },
+            )
+            if (sources.size != 1) {
+                onError(
+                    "Variable named `$name` must set exactly one of `fromObjectField`, " +
+                        "`fromQueryField`, or `fromArgument`. It set " +
+                        "fromObjectField=${fromObjectField.orEmpty()}, " +
+                        "fromQueryField=${fromQueryField.orEmpty()}, " +
+                        "fromArgument=${fromArgument.orEmpty()}",
+                    resolver,
+                )
+                return@mapNotNull null
             }
+            val (kind, path) = sources.single()
 
             VariableProviderDescriptor(
                 kind = kind,

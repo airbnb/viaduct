@@ -7,7 +7,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -20,7 +19,6 @@ import viaduct.errors.FrameworkException
 import viaduct.java.api.internal.InputBase
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ObjectBase
-import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.reflect.RootObjectField
 import viaduct.java.api.reflect.Type
 import viaduct.java.api.types.Arguments
@@ -31,14 +29,12 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 /**
  * Direct tests for [JavaEngineContextDelegate].
  *
- * Most of the delegate's surface — getSchema/getGlobalIDCodec/getClassFinder, deserializeGlobalID
+ * Most of the delegate's surface — getSchema/getGlobalIDCodec, deserializeGlobalID
  * (incl. TenantUsageException wrapping), globalIDFor, serialize, and globalIDStringFor's happy path
  * — is already pinned transitively by the three Simple*ContextTest suites, so it is intentionally
  * not duplicated here. This suite covers only the behaviors those suites do not reach:
  *
- *  - [nodeRef]'s new `grtClass` parameterization and its classFinder → InternalContext threading
- *    (the Simple* suites only exercise nodeRef with a null classFinder, so the context attached to
- *    the GRT is always null there).
+ *  - [nodeRef]'s `grtClass` parameterization and its InternalContext threading.
  *  - the missing-coroutineScope throw paths of [query]/[mutation] (the Simple* suites only cover
  *    the missing-engineExecutionContext path).
  *  - globalIDStringFor's missing-engineExecutionContext throw path.
@@ -92,10 +88,9 @@ class JavaEngineContextDelegateTest {
     }
 
     @Test
-    fun `nodeRef threads an InternalContext built from the classFinder onto the GRT`() {
+    fun `nodeRef attaches an InternalContext to the GRT`() {
         val engineCtx = engineContextResolvingNodeRef()
-        val classFinder = mockk<ResolverClassFinder>()
-        val delegate = JavaEngineContextDelegate(engineCtx, classFinder)
+        val delegate = JavaEngineContextDelegate(engineCtx)
 
         val node = delegate.nodeRef(
             GlobalIDImpl(contextExposingNodeType(), "abc"),
@@ -104,20 +99,8 @@ class JavaEngineContextDelegateTest {
 
         val context = node.exposedContext()
         context.shouldBeInstanceOf<InternalContext>()
-        assertSame(classFinder, context.classFinder)
-    }
-
-    @Test
-    fun `nodeRef threads a null context onto the GRT when no classFinder is present`() {
-        val engineCtx = engineContextResolvingNodeRef()
-        val delegate = JavaEngineContextDelegate(engineCtx, classFinder = null)
-
-        val node = delegate.nodeRef(
-            GlobalIDImpl(contextExposingNodeType(), "abc"),
-            ContextExposingNode::class.java,
-        )
-
-        assertNull(node.exposedContext())
+        assertSame(engineCtx.fullSchema, context.schema)
+        assertSame(engineCtx.globalIDCodec, context.globalIDCodec)
     }
 
     @Test
@@ -174,7 +157,7 @@ class JavaEngineContextDelegateTest {
         val engineCtx = mockk<EngineExecutionContext> {
             every { globalIDCodec } returns GlobalIDCodecDefault
         }
-        val delegate = JavaEngineContextDelegate(engineCtx, classFinder = null, coroutineScope = null)
+        val delegate = JavaEngineContextDelegate(engineCtx, grtPackagePrefix = null, coroutineScope = null)
 
         val ex = assertThrows<FrameworkException> {
             delegate.query("{ id }", emptyMap(), Any::class.java)
@@ -187,7 +170,7 @@ class JavaEngineContextDelegateTest {
         val engineCtx = mockk<EngineExecutionContext> {
             every { globalIDCodec } returns GlobalIDCodecDefault
         }
-        val delegate = JavaEngineContextDelegate(engineCtx, classFinder = null, coroutineScope = null)
+        val delegate = JavaEngineContextDelegate(engineCtx, grtPackagePrefix = null, coroutineScope = null)
 
         val ex = assertThrows<FrameworkException> {
             delegate.mutation("{ id }", emptyMap(), Any::class.java)

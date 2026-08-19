@@ -69,6 +69,11 @@ public abstract class ConnectionBuilder<C extends Connection<E, N>, E extends Ed
     data.put(fieldName, checkField(fieldName, value));
   }
 
+  /** Stores a connection field using its generated unwrapped GraphQL type for validation. */
+  protected void putField(String fieldName, Object value, Class<?> expectedGeneratedType) {
+    data.put(fieldName, checkField(fieldName, expectedGeneratedType, value));
+  }
+
   /** Validates and stores a generated connection GlobalID setter value in wire format. */
   protected final void putGlobalIDField(String fieldName, GlobalID<?> value) {
     GlobalID<?> checkedValue = checkField(fieldName, value);
@@ -102,6 +107,11 @@ public abstract class ConnectionBuilder<C extends Connection<E, N>, E extends Ed
   private <T> T checkField(String fieldName, T value) {
     return OutputBuilderTypeChecker.checkField(
         internalContext, connectionClass.getSimpleName(), fieldName, value);
+  }
+
+  private <T> T checkField(String fieldName, Class<?> expectedGeneratedType, T value) {
+    return OutputBuilderTypeChecker.checkField(
+        internalContext, connectionClass.getSimpleName(), fieldName, expectedGeneratedType, value);
   }
 
   /** Finalizes and returns the connection GRT from the accumulated fields. */
@@ -150,12 +160,12 @@ public abstract class ConnectionBuilder<C extends Connection<E, N>, E extends Ed
     return HandleErrors.framework(
         "ConnectionBuilder.fromEdges",
         () -> {
-          List<E> checkedEdges = checkField("edges", edges);
+          List<E> checkedEdges = checkField("edges", edgeClass, edges);
           String startCursor = checkedEdges.isEmpty() ? null : cursorOf(checkedEdges.get(0));
           String endCursor =
               checkedEdges.isEmpty() ? null : cursorOf(checkedEdges.get(checkedEdges.size() - 1));
           Object pageInfo = buildPageInfo(hasNextPage, hasPreviousPage, startCursor, endCursor);
-          Object checkedPageInfo = checkField("pageInfo", pageInfo);
+          Object checkedPageInfo = checkField("pageInfo", pageInfo.getClass(), pageInfo);
           data.put("edges", checkedEdges);
           data.put("pageInfo", checkedPageInfo);
           return this;

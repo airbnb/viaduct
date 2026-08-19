@@ -32,11 +32,33 @@ internal data class GlobalIDImpl<T : NodeCompositeOutput>(
  * at the bridge layer.
  */
 @Suppress("UNCHECKED_CAST")
-internal fun <T : NodeCompositeOutput> typeFromName(name: String): Type<T> =
+internal fun <T : NodeCompositeOutput> typeFromName(name: String): Type<T> = typeFromName(name, null)
+
+/**
+ * Returns a [Type] backed by the generated GRT class when [grtPackagePrefix] is available.
+ *
+ * The executor factory supplies the package prefix so live execution can load the concrete class
+ * directly without a classpath scanner.
+ */
+@Suppress("UNCHECKED_CAST")
+internal fun <T : NodeCompositeOutput> typeFromName(
+    name: String,
+    grtPackagePrefix: String?,
+): Type<T> =
     object : Type<T> {
         override fun getName(): String = name
 
-        override fun getJavaClass(): Class<out T> = NodeObject::class.java as Class<out T>
+        override fun getJavaClass(): Class<out T> {
+            if (grtPackagePrefix == null) {
+                return NodeObject::class.java as Class<out T>
+            }
+            val className = "$grtPackagePrefix.$name"
+            val clazz = Class.forName(className)
+            require(NodeCompositeOutput::class.java.isAssignableFrom(clazz)) {
+                "Class $className exists but does not implement NodeCompositeOutput"
+            }
+            return clazz as Class<out T>
+        }
 
         override fun toString(): String = "Type($name)"
     }

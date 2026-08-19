@@ -16,10 +16,9 @@ import viaduct.java.api.internal.BaseBatchedFieldResolver
 import viaduct.java.api.internal.BaseBatchedNodeResolver
 import viaduct.java.api.internal.BaseUnbatchedFieldResolver
 import viaduct.java.api.internal.BaseUnbatchedNodeResolver
-import viaduct.java.api.internal.ResolverClassFinder
+import viaduct.java.api.internal.OutputBuilderTypeChecker
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.GRT
-import viaduct.java.runtime.bridge.DefaultResolverClassFinder
 import viaduct.java.runtime.bridge.FieldBatchResolverExecutorImpl
 import viaduct.java.runtime.bridge.JavaFieldResolverExecutorImpl
 import viaduct.java.runtime.bridge.JavaNodeResolverExecutorImpl
@@ -31,17 +30,16 @@ import viaduct.service.api.spi.CodeInjector
  * [ExecutorFactory] for Java resolvers, built from a file-based [ExecutionRegistry].
  *
  * This is the Java twin of [viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory]. The
- * engine (via [viaduct.engine.runtime.tenantloading.ExecutionRegistryTenantAPIBootstrapper])
- * instantiates this class reflectively using the 3-arg constructor
- * `(CodeInjector, String grtPackagePrefix, ExecutionRegistryConfigFile registry)` named in each
- * `META-INF/viaduct/modules/<pkg>.json` registry file, then calls
- * [createFieldResolverExecutor] / [createNodeResolverExecutor] once per entry.
+ * engine (via [viaduct.engine.runtime.tenantloading.ModuleConfigBootstrapper])
+ * instantiates this class reflectively using the production
+ * `(CodeInjector, ExecutionRegistryConfigFile)` constructor named in each
+ * `META-INF/viaduct/modules/<pkg>.json` registry file. Production uses the fixed Java GRT package;
+ * tests may override that package through the primary three-argument constructor. The engine then
+ * calls [createFieldResolverExecutor] / [createNodeResolverExecutor] once per entry.
  *
- * Unlike the legacy `ModuleBootstrapper`, this factory does NOT scan the classpath: discovery
- * happens at build time (the Java APT registry extractor), and this factory constructs executors
- * purely from the already-discovered [FieldEntryConfig] / [NodeEntryConfig] config — including the
- * required selection sets, which are read from the registry JSON rather than the runtime `@Resolver`
- * annotation, keeping the registry as the single source of bootstrap data.
+ * Discovery happens at build time in the Java APT registry extractor. This factory constructs
+ * executors purely from the already-discovered [FieldEntryConfig] / [NodeEntryConfig] config,
+ * keeping the registry as the single source of bootstrap data.
  *
  * The engine model carries tenant-specific bootstrap data as an opaque `tenantAPIData` map; this
  * factory reads the keys it owns ([resolverClass], [queryTypeName], [hasArguments]) via the typed
@@ -53,16 +51,11 @@ class ViaductJavaExecutorFactory(
     private val grtPackagePrefix: String,
     private val registry: ExecutionRegistryConfigFile,
 ) : ExecutorFactory {
+    /** Production constructor using the compile-time Java GRT package. */
     constructor(codeInjector: CodeInjector, registry: ExecutionRegistryConfigFile) :
         this(codeInjector, JAVA_GRT_PACKAGE_PREFIX, registry)
 
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory()
-
-    // Resolves GRT/Arguments classes by name for the per-request InternalContext attached to GRTs.
-    // The tenant package is irrelevant here: this factory discovers resolvers from the file-based
-    // registry, so only the name-only lookups (grtClassForName/argumentClassForName) are used and
-    // the scanner is never triggered.
-    private val classFinder: ResolverClassFinder = DefaultResolverClassFinder(grtPackagePrefix, grtPackagePrefix)
 
     private val namedFragments: Map<String, FragmentDefinition> by lazy {
         registry.namedFragments
@@ -86,7 +79,7 @@ class ViaductJavaExecutorFactory(
             throw TenantModuleException("Resolver class $resolverClass could not be injected", e)
         }
 
-        // Derive type classes from the registry entry + grtPackagePrefix (no schema scan needed).
+        // Derive type classes from the registry entry and fixed package (no schema scan needed).
         val objectValueClass = tryOrNull { grtClassForName(configData.typeName) }
         val queryValueClass = tryOrNull { grtClassForName(apiData.queryTypeName) }
         val argumentsClass = if (apiData.hasArguments) {
@@ -110,7 +103,7 @@ class ViaductJavaExecutorFactory(
             resolverClass = resolverClass,
             injector = codeInjector,
             argumentsClass = argumentsClass,
-            classFinder = classFinder,
+            grtPackagePrefix = grtPackagePrefix,
         )
 
         return if (configData.isBatching) {
@@ -132,7 +125,7 @@ class ViaductJavaExecutorFactory(
                 objectValueClass = objectValueClass,
                 queryValueClass = queryValueClass,
                 graphqlSchema = schema.schema,
-                classFinder = classFinder,
+                grtPackagePrefix = grtPackagePrefix,
                 knownFragments = namedFragments,
             )
         } else {
@@ -154,7 +147,7 @@ class ViaductJavaExecutorFactory(
                 objectValueClass = objectValueClass,
                 queryValueClass = queryValueClass,
                 graphqlSchema = schema.schema,
-                classFinder = classFinder,
+                grtPackagePrefix = grtPackagePrefix,
                 knownFragments = namedFragments,
             )
         }
@@ -192,7 +185,7 @@ class ViaductJavaExecutorFactory(
                 resolverName = resolverName,
                 isSelective = configData.isSelective,
                 graphqlSchema = graphqlSchema,
-                classFinder = classFinder,
+                grtPackagePrefix = grtPackagePrefix,
                 knownFragments = namedFragments,
             )
         } else {
@@ -209,15 +202,15 @@ class ViaductJavaExecutorFactory(
                 resolverName = resolverName,
                 isSelective = configData.isSelective,
                 graphqlSchema = graphqlSchema,
-                classFinder = classFinder,
+                grtPackagePrefix = grtPackagePrefix,
                 knownFragments = namedFragments,
             )
         }
     }
 
-    private fun grtClassForName(typeName: String): Class<out GRT> = classFinder.grtClassForName(typeName)
+    private fun grtClassForName(typeName: String): Class<out GRT> = loadTypedClass("$grtPackagePrefix.$typeName", GRT::class.java)
 
-    private fun argumentClassForName(className: String): Class<out Arguments> = classFinder.argumentClassForName(className)
+    private fun argumentClassForName(className: String): Class<out Arguments> = loadTypedClass("$grtPackagePrefix.$className", Arguments::class.java)
 
     private fun loadClass(
         fqn: String,
@@ -228,6 +221,18 @@ class ViaductJavaExecutorFactory(
         } catch (e: ClassNotFoundException) {
             throw ClassNotFoundException("Cannot load class '$fqn' for $context", e)
         }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> loadTypedClass(
+        fqn: String,
+        expectedType: Class<T>,
+    ): Class<out T> {
+        val clazz = Class.forName(fqn)
+        require(expectedType.isAssignableFrom(clazz)) {
+            "Class $fqn exists but does not implement ${expectedType.simpleName}"
+        }
+        return clazz as Class<out T>
+    }
 
     private inline fun <T> tryOrNull(block: () -> T): T? =
         try {
@@ -255,7 +260,7 @@ class ViaductJavaExecutorFactory(
     companion object {
         private val log = LoggerFactory.getLogger(ViaductJavaExecutorFactory::class.java)
 
-        const val JAVA_GRT_PACKAGE_PREFIX = "viaduct.java.grts"
+        const val JAVA_GRT_PACKAGE_PREFIX = OutputBuilderTypeChecker.GENERATED_GRT_PACKAGE
     }
 }
 

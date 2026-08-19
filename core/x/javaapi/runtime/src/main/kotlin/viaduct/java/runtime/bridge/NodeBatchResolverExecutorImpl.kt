@@ -23,7 +23,6 @@ import viaduct.errors.resultOfSuspend
 import viaduct.java.api.context.NodeExecutionContext
 import viaduct.java.api.internal.BaseBatchedNodeResolver
 import viaduct.java.api.internal.ObjectBase
-import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.resolvers.FieldValue
 import viaduct.java.api.types.NodeObject
 import viaduct.tenant.runtime.support.partitionByUniqueKey
@@ -47,7 +46,7 @@ class NodeBatchResolverExecutorImpl(
     private val resolverName: String,
     override val isSelective: Boolean = false,
     private val graphqlSchema: graphql.schema.GraphQLSchema? = null,
-    private val classFinder: ResolverClassFinder? = null,
+    private val grtPackagePrefix: String? = null,
     private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
 ) : NodeResolverExecutor {
     override val metadata: ResolverMetadata = ResolverMetadata.forModern(resolverName, ResolverType.NODE)
@@ -78,7 +77,7 @@ class NodeBatchResolverExecutorImpl(
                     requestContext = context.requestContext,
                     engineExecutionContext = context,
                     coroutineScope = scope,
-                    classFinder = classFinder,
+                    grtPackagePrefix = grtPackagePrefix,
                     knownFragments = knownFragments,
                 ),
                 internalID = context.globalIDCodec.deserialize(selector.id).localID,

@@ -66,7 +66,12 @@ public class Mutation extends ObjectBase implements viaduct.java.api.types.Mutat
         }
 
                 public Builder createOrder(Order createOrder) {
-                    createOrder = OutputBuilderTypeChecker.checkField(__context, "Mutation", "createOrder", createOrder);
+                    createOrder = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "Mutation",
+                            "createOrder",
+                            Order.class,
+                            createOrder);
                     data.put("createOrder", createOrder);
         return this;
                 }

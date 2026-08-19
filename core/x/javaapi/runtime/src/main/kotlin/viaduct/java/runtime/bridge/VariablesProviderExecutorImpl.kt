@@ -9,7 +9,6 @@ import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.java.api.context.VariablesProviderContext
 import viaduct.java.api.internal.InternalContext
-import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.variables.VariablesProvider
 
@@ -27,14 +26,14 @@ class VariablesProviderExecutorImpl(
     override val variableNames: Set<String>,
     private val provider: Provider<out VariablesProvider<*>>,
     private val argumentsClass: Class<out Arguments>? = null,
-    private val classFinder: ResolverClassFinder? = null,
+    private val grtPackagePrefix: String? = null,
 ) : VariablesResolver {
     override suspend fun resolve(
         ctx: VariablesResolver.ResolveCtx,
         context: EngineExecutionContext
     ): Map<String, Any?> {
         // Per-request InternalContext attached to the typed Arguments and its nested input GRTs.
-        val internalContext = classFinder?.let { buildInternalContext(context, it) }
+        val internalContext = buildInternalContext(context, grtPackagePrefix)
         val arguments = handleFrameworkErrors("VariablesProvider: createArguments") {
             createArguments(ctx.arguments, internalContext)
         }
@@ -42,6 +41,7 @@ class VariablesProviderExecutorImpl(
             requestContext = context.requestContext,
             arguments = arguments,
             engineExecutionContext = context,
+            grtPackagePrefix = grtPackagePrefix,
         )
 
         val raw = handleTenantErrorsSuspend("VariablesProvider") {

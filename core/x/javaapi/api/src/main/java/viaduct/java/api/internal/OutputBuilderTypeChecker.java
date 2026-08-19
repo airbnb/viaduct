@@ -28,6 +28,9 @@ import viaduct.java.api.globalid.GlobalID;
  */
 public final class OutputBuilderTypeChecker {
 
+  /** Fixed package containing generated Java GRT classes. */
+  public static final String GENERATED_GRT_PACKAGE = "viaduct.java.grts";
+
   private static final Map<String, Class<?>> SCALAR_CLASSES =
       GraphqlTypeMappingsKt.getBaseGraphqlScalarJavaTypeMapping();
 
@@ -44,6 +47,22 @@ public final class OutputBuilderTypeChecker {
   @SuppressWarnings("unchecked")
   public static <T> T checkField(
       InternalContext context, String parentTypeName, String fieldName, T value) {
+    return checkField(context, parentTypeName, fieldName, null, value);
+  }
+
+  /**
+   * Validates a generated builder field using the generated class for its unwrapped GraphQL type.
+   *
+   * <p>The class token keeps generated-code validation exact without resolving classes from a
+   * configurable package. Scalar and GlobalID fields pass {@code null}.
+   */
+  @SuppressWarnings("unchecked")
+  public static <T> T checkField(
+      InternalContext context,
+      String parentTypeName,
+      String fieldName,
+      Class<?> expectedGeneratedType,
+      T value) {
     return (T)
         HandleErrors.framework(
             "OutputBuilderTypeChecker.checkField failed",
@@ -60,7 +79,8 @@ public final class OutputBuilderTypeChecker {
                     "Field " + fieldName + " not found on GraphQL object type " + parentTypeName,
                     null);
               }
-              return checkType(context, parentType, field, field.getType(), value);
+              return checkType(
+                  context, parentType, field, field.getType(), expectedGeneratedType, value);
             });
   }
 
@@ -69,6 +89,7 @@ public final class OutputBuilderTypeChecker {
       GraphQLObjectType parentType,
       GraphQLFieldDefinition field,
       GraphQLType type,
+      Class<?> expectedGeneratedType,
       Object value)
       throws Exception {
     if (value == null) {
@@ -93,15 +114,16 @@ public final class OutputBuilderTypeChecker {
       GraphQLType elementType = GraphQLTypeUtil.unwrapOne(listType);
       List<Object> checkedValues = new ArrayList<>(values.size());
       for (Object element : values) {
-        checkedValues.add(checkType(context, parentType, field, elementType, element));
+        checkedValues.add(
+            checkType(context, parentType, field, elementType, expectedGeneratedType, element));
       }
       return Collections.unmodifiableList(checkedValues);
     } else if (unwrappedType instanceof GraphQLScalarType scalarType) {
       checkScalar(context, parentType, field, scalarType, value);
     } else if (unwrappedType instanceof GraphQLEnumType enumType) {
-      checkEnum(context, field, enumType, value);
+      checkEnum(field, enumType, expectedGeneratedType, value);
     } else if (unwrappedType instanceof GraphQLCompositeType compositeType) {
-      checkComposite(context, compositeType, value);
+      checkComposite(context, compositeType, expectedGeneratedType, value);
     }
     return value;
   }
@@ -145,12 +167,15 @@ public final class OutputBuilderTypeChecker {
   }
 
   private static void checkComposite(
-      InternalContext context, GraphQLCompositeType expectedType, Object value)
+      InternalContext context,
+      GraphQLCompositeType expectedType,
+      Class<?> expectedGeneratedType,
+      Object value)
       throws TenantUsageException {
     GraphQLSchema schema = context.getSchema().getSchema();
     GraphQLObjectType actualType =
         value instanceof ObjectBase objectValue
-            ? concreteObjectType(context, schema, objectValue)
+            ? concreteObjectType(schema, objectValue, expectedGeneratedType)
             : null;
     if (actualType == null || !isValidObjectType(schema, expectedType, actualType)) {
       throw new TenantUsageException(
@@ -163,7 +188,7 @@ public final class OutputBuilderTypeChecker {
   }
 
   private static GraphQLObjectType concreteObjectType(
-      InternalContext context, GraphQLSchema schema, ObjectBase value) {
+      GraphQLSchema schema, ObjectBase value, Class<?> expectedGeneratedType) {
     if (value.getJavaEngineObjectData() != null) {
       return value.getJavaEngineObjectData().getType();
     }
@@ -177,12 +202,12 @@ public final class OutputBuilderTypeChecker {
 
     GraphQLObjectType conventionType = schema.getObjectType(value.getClass().getSimpleName());
     if (conventionType != null
-        && isGeneratedClassForType(context, conventionType.getName(), value)) {
+        && isGeneratedClassForType(conventionType.getName(), value, expectedGeneratedType)) {
       return conventionType;
     }
     for (GraphQLType schemaType : schema.getAllTypesAsList()) {
       if (schemaType instanceof GraphQLObjectType objectType) {
-        if (isGeneratedClassForType(context, objectType.getName(), value)) {
+        if (isGeneratedClassForType(objectType.getName(), value, expectedGeneratedType)) {
           return objectType;
         }
       }
@@ -191,13 +216,12 @@ public final class OutputBuilderTypeChecker {
   }
 
   private static boolean isGeneratedClassForType(
-      InternalContext context, String typeName, ObjectBase value) {
-    try {
-      return context.getClassFinder().grtClassForName(typeName).isInstance(value);
-    } catch (ClassNotFoundException ignored) {
-      // Not every runtime schema type has a generated class in this tenant package.
-      return false;
+      String typeName, Object value, Class<?> expectedGeneratedType) {
+    if (expectedGeneratedType != null) {
+      return expectedGeneratedType.isInstance(value)
+          && value.getClass().getSimpleName().equals(typeName);
     }
+    return value.getClass().getName().equals(GENERATED_GRT_PACKAGE + "." + typeName);
   }
 
   private static boolean isValidObjectType(
@@ -249,14 +273,16 @@ public final class OutputBuilderTypeChecker {
   }
 
   private static void checkEnum(
-      InternalContext context, GraphQLFieldDefinition field, GraphQLEnumType enumType, Object value)
-      throws ClassNotFoundException, TenantUsageException {
+      GraphQLFieldDefinition field,
+      GraphQLEnumType enumType,
+      Class<?> expectedGeneratedType,
+      Object value)
+      throws TenantUsageException {
     String valueName;
     if (value instanceof String stringValue) {
       valueName = stringValue;
     } else {
-      Class<?> expectedClass = context.getClassFinder().grtClassForName(enumType.getName());
-      if (!expectedClass.isInstance(value)) {
+      if (!isGeneratedClassForType(enumType.getName(), value, expectedGeneratedType)) {
         throw new TenantUsageException(
             "Expected value of type "
                 + enumType.getName()

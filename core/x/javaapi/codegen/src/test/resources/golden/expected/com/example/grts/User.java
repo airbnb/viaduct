@@ -123,49 +123,89 @@ public class User extends NodeObjectBase implements Node, SearchHit {
         }
 
                 public Builder id(GlobalID<User> id) {
-                    id = OutputBuilderTypeChecker.checkField(__context, "User", "id", id);
+                    id = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "User",
+                            "id",
+                            null,
+                            id);
                     data.put("id", id == null ? null : __context.getGlobalIDCodec().serialize(id.getType().getName(), id.getInternalID()));
         return this;
                 }
 
                 public Builder name(String name) {
-                    name = OutputBuilderTypeChecker.checkField(__context, "User", "name", name);
+                    name = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "User",
+                            "name",
+                            null,
+                            name);
                     data.put("name", name);
         return this;
                 }
 
                 public Builder nickname(String nickname) {
-                    nickname = OutputBuilderTypeChecker.checkField(__context, "User", "nickname", nickname);
+                    nickname = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "User",
+                            "nickname",
+                            null,
+                            nickname);
                     data.put("nickname", nickname);
         return this;
                 }
 
                 public Builder age(Integer age) {
-                    age = OutputBuilderTypeChecker.checkField(__context, "User", "age", age);
+                    age = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "User",
+                            "age",
+                            null,
+                            age);
                     data.put("age", age);
         return this;
                 }
 
                 public Builder active(boolean active) {
-                    active = OutputBuilderTypeChecker.checkField(__context, "User", "active", active);
+                    active = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "User",
+                            "active",
+                            null,
+                            active);
                     data.put("active", active);
         return this;
                 }
 
                 public Builder favoriteColor(Color favoriteColor) {
-                    favoriteColor = OutputBuilderTypeChecker.checkField(__context, "User", "favoriteColor", favoriteColor);
+                    favoriteColor = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "User",
+                            "favoriteColor",
+                            Color.class,
+                            favoriteColor);
                     data.put("favoriteColor", favoriteColor);
         return this;
                 }
 
                 public Builder scores(List<Integer> scores) {
-                    scores = OutputBuilderTypeChecker.checkField(__context, "User", "scores", scores);
+                    scores = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "User",
+                            "scores",
+                            null,
+                            scores);
                     data.put("scores", scores);
         return this;
                 }
 
                 public Builder lastOrder(GlobalID<Order> lastOrder) {
-                    lastOrder = OutputBuilderTypeChecker.checkField(__context, "User", "lastOrder", lastOrder);
+                    lastOrder = OutputBuilderTypeChecker.checkField(
+                            __context,
+                            "User",
+                            "lastOrder",
+                            null,
+                            lastOrder);
                     data.put("lastOrder", lastOrder == null ? null : __context.getGlobalIDCodec().serialize(lastOrder.getType().getName(), lastOrder.getInternalID()));
         return this;
                 }

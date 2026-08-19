@@ -10,7 +10,6 @@ import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.errors.FrameworkException
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ObjectBase
-import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.GraphQLObject
 
@@ -107,12 +106,12 @@ private fun convertValue(
  * Builds the per-request [InternalContext] attached to top-level GRTs and propagated to nested GRTs.
  *
  * Java mirror of how Kotlin builds [viaduct.tenant.runtime.internal.InternalContextImpl] per resolve
- * from the [EngineExecutionContext]'s schema and codec, plus the bridge's [ResolverClassFinder].
+ * from the [EngineExecutionContext]'s schema and codec.
  */
 internal fun buildInternalContext(
     context: EngineExecutionContext,
-    classFinder: ResolverClassFinder
-): InternalContext = InternalContextImpl(context.fullSchema, context.globalIDCodec, classFinder)
+    grtPackagePrefix: String? = null,
+): InternalContext = InternalContextImpl(context.fullSchema, context.globalIDCodec, grtPackagePrefix)
 
 /**
  * Converts an [EngineObjectData.Sync] into a Java object instance using a single constructor call.

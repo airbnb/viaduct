@@ -16,7 +16,6 @@ import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.errors.resultOfSuspend
 import viaduct.java.api.internal.BaseUnbatchedNodeResolver
 import viaduct.java.api.internal.ObjectBase
-import viaduct.java.api.internal.ResolverClassFinder
 
 /**
  * Kotlin bridge that wraps an unbatched Java node resolver and implements [NodeResolverExecutor].
@@ -31,7 +30,7 @@ class JavaNodeResolverExecutorImpl(
     private val resolverName: String,
     override val isSelective: Boolean = false,
     private val graphqlSchema: graphql.schema.GraphQLSchema? = null,
-    private val classFinder: ResolverClassFinder? = null,
+    private val grtPackagePrefix: String? = null,
     private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
 ) : NodeResolverExecutor {
     override val metadata: ResolverMetadata = ResolverMetadata.forModern(resolverName, ResolverType.NODE)
@@ -63,7 +62,7 @@ class JavaNodeResolverExecutorImpl(
             requestContext = context.requestContext,
             engineExecutionContext = context,
             coroutineScope = scope,
-            classFinder = classFinder,
+            grtPackagePrefix = grtPackagePrefix,
             knownFragments = knownFragments,
         )
 

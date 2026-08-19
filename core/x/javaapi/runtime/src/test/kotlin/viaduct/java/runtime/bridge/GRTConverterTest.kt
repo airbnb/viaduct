@@ -16,7 +16,6 @@ import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.ViaductSchema
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ObjectBase
-import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.GraphQLObject
 import viaduct.service.api.spi.GlobalIDCodec
@@ -39,17 +38,15 @@ class GRTConverterTest {
     fun `buildInternalContext creates InternalContextImpl from engine context`() {
         val schema = mockk<ViaductSchema>()
         val codec = mockk<GlobalIDCodec>()
-        val classFinder = mockk<ResolverClassFinder>()
         val engineCtx = mockk<EngineExecutionContext> {
             every { fullSchema } returns schema
             every { globalIDCodec } returns codec
         }
 
-        val result: InternalContext = buildInternalContext(engineCtx, classFinder)
+        val result: InternalContext = buildInternalContext(engineCtx)
 
         assertSame(schema, result.schema)
         assertSame(codec, result.globalIDCodec)
-        assertSame(classFinder, result.classFinder)
     }
 
     @Test

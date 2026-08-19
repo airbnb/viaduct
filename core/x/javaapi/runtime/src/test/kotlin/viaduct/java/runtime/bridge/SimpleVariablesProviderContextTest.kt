@@ -14,7 +14,6 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
 import viaduct.java.api.globalid.GlobalID
-import viaduct.java.api.internal.ResolverClassFinder
 import viaduct.java.api.reflect.Type
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.NodeObject
@@ -148,22 +147,5 @@ class SimpleVariablesProviderContextTest {
     fun `getGlobalIDCodec throws when engineExecutionContext is null`() {
         val ex = assertThrows<FrameworkException> { newContext(engineCtx = null).getGlobalIDCodec() }
         assertTrue(ex.message!!.contains("engineExecutionContext"))
-    }
-
-    @Test
-    fun `getClassFinder returns provided classFinder`() {
-        val finder = mockk<ResolverClassFinder>()
-        val ctx = SimpleVariablesProviderContext(
-            requestContext = null,
-            engineExecutionContext = mockEngineContext(),
-            classFinder = finder,
-        )
-        assertSame(finder, ctx.getClassFinder())
-    }
-
-    @Test
-    fun `getClassFinder throws when classFinder is null`() {
-        val ex = assertThrows<FrameworkException> { newContext().getClassFinder() }
-        assertTrue(ex.message!!.contains("classFinder"))
     }
 }
