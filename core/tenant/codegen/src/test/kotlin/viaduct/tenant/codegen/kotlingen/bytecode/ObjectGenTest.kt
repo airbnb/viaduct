@@ -76,6 +76,91 @@ class ObjectGenTest {
     }
 
     @Test
+    fun `root field reference exposes all arguments through lambda receiver`() {
+        val sdl = """
+            directive @namespaceType on OBJECT
+            directive @resolver on FIELD_DEFINITION
+            type Product { name: String }
+            type ProductFactory @namespaceType {
+                create(required: String!, optional: String, enabled: Boolean! = false): Product @resolver
+            }
+            type Query { products: ProductFactory }
+        """.trimIndent()
+
+        val result = genObject(sdl, "ProductFactory").toString()
+
+        assertTrue(result.contains("companion object"))
+        assertTrue(result.contains("configure: CreateArguments.() -> Unit"))
+        assertTrue(result.contains("fun required(value: kotlin.String): CreateArguments"))
+        assertTrue(result.contains("fun optional(value: kotlin.String?): CreateArguments"))
+        assertTrue(result.contains("fun enabled(value: kotlin.Boolean): CreateArguments"))
+        assertTrue(result.contains("viaduct.api.context.RootFieldCall<pkg.Product>"))
+        assertTrue(result.contains("internal class CreateRootFieldCall("))
+        assertTrue(result.contains("arguments.required(value)"))
+        assertTrue(result.contains("arguments.optional(value)"))
+        assertTrue(result.contains("configure.invoke(CreateArguments(arguments))"))
+        assertFalse(result.contains("required: kotlin.String"))
+        assertFalse(result.contains(".required(required)"))
+        assertFalse(result.contains("configure?.invoke"))
+        assertFalse(result.contains("class FactoryMethods"))
+        assertFalse(result.contains("optional: kotlin.String? = null"))
+    }
+
+    @Test
+    fun `root field reference maps list and input object arguments as input types`() {
+        val sdl = """
+            directive @namespaceType on OBJECT
+            directive @resolver on FIELD_DEFINITION
+            enum ProductKind { PHYSICAL DIGITAL }
+            input ProductInput { name: String! }
+            type Product { name: String }
+            type ProductFactory @namespaceType {
+                create(kinds: [ProductKind!]!, product: ProductInput!): Product @resolver
+            }
+            type Query { products: ProductFactory }
+        """.trimIndent()
+
+        val result = genObject(sdl, "ProductFactory").toString()
+
+        assertTrue(result.contains("fun kinds(value: kotlin.collections.List<out pkg.ProductKind>): CreateArguments"))
+        assertTrue(result.contains("fun product(value: pkg.ProductInput): CreateArguments"))
+    }
+
+    @Test
+    fun `root field reference without arguments is an object`() {
+        val sdl = """
+            directive @namespaceType on OBJECT
+            directive @resolver on FIELD_DEFINITION
+            type Product { name: String }
+            type ProductFactory @namespaceType {
+                create: Product @resolver
+            }
+            type Query { products: ProductFactory }
+        """.trimIndent()
+
+        val result = genObject(sdl, "ProductFactory").toString()
+
+        assertTrue(result.contains("fun create(): viaduct.api.context.RootFieldCall<pkg.Product> = CreateRootFieldCall"))
+        assertTrue(result.contains("internal object CreateRootFieldCall"))
+        assertFalse(result.contains("CreateRootFieldCall()"))
+    }
+
+    @Test
+    fun `namespace fields without resolver do not get root field reference methods`() {
+        val sdl = """
+            directive @namespaceType on OBJECT
+            type Product { name: String }
+            type ProductFactory @namespaceType { create: Product }
+            type Query { products: ProductFactory }
+        """.trimIndent()
+
+        val result = genObject(sdl, "ProductFactory").toString()
+
+        assertFalse(result.contains("companion object"))
+        assertFalse(result.contains("class FactoryMethods"))
+    }
+
+    @Test
     fun `root enum field stays CompositeField not RootObjectField`() {
         val sdl = """
             enum Status { ACTIVE INACTIVE }

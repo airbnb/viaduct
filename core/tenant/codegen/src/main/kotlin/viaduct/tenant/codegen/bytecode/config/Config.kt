@@ -163,6 +163,10 @@ object cfg {
         JavaBinaryName("graphql.schema.GraphQLObjectType")
     val EXECUTION_CONTEXT =
         JavaBinaryName("viaduct.api.context.ExecutionContext")
+    val RESOLVER_EXECUTION_CONTEXT =
+        JavaBinaryName("viaduct.api.context.ResolverExecutionContext")
+    val ROOT_FIELD_CALL =
+        JavaBinaryName("viaduct.api.context.RootFieldCall")
     val INTERNAL_CONTEXT =
         JavaBinaryName("viaduct.api.internal.InternalContext")
     val INPUT_LIKE_BASE =

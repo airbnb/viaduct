@@ -14,6 +14,7 @@ import viaduct.tenant.codegen.bytecode.config.hasConnectionDirective
 import viaduct.tenant.codegen.bytecode.config.hasEdgeDirective
 import viaduct.tenant.codegen.bytecode.config.isNode
 import viaduct.tenant.codegen.bytecode.config.kmType
+import viaduct.tenant.codegen.bytecode.config.rootFieldReferenceFields
 import viaduct.tenant.codegen.bytecode.config.typeOfNodeField
 
 @VisibleForTest
@@ -29,6 +30,7 @@ fun KotlinGRTFilesBuilder.objectKotlinGen(typeDef: ViaductSchema.Object): STCont
         isQueryType = typeDef.isQueryType(),
         isMutationType = typeDef.isMutationType(),
         connectionInfo = connectionInfo,
+        rootFieldReferences = rootFieldReferences(typeDef),
     )
 
     val template = if (connectionInfo != null) connectionObjectSTGroup else objectSTGroup
@@ -84,6 +86,9 @@ private interface ObjectModel {
     /** A rendered template string that describes this type's Fields object. */
     val fieldsObject: String
 
+    /** Generated root field references for resolver-backed namespace fields. */
+    val rootFieldReferences: String
+
     /** Whether this is a @connection type. */
     val isConnection: Boolean
 
@@ -123,6 +128,87 @@ private interface ObjectModel {
     }
 }
 
+private interface RootFieldReferencesModel {
+    val fields: List<FieldModel>
+    val fieldsWithArguments: List<FieldModel>
+
+    class FieldModel(
+        pkg: String,
+        field: ViaductSchema.Field,
+        baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
+    ) {
+        val methodName: String = getEscapedFieldName(field.name)
+        val returnType: String = "$pkg.${field.type.baseTypeDef.name}"
+        val callClass: String = rootFieldCallName(field)
+        val argumentsReceiverName: String = rootFieldReferenceArgumentsName(field)
+        val argumentsType: String = "$pkg.${cfg.argumentTypeName(field)}"
+        val arguments: List<ArgumentModel> = field.args
+            .map { ArgumentModel(pkg, it, baseTypeMapper, argumentsReceiverName) }
+        val hasArguments: Boolean = field.args.isNotEmpty()
+    }
+
+    class ArgumentModel(
+        pkg: String,
+        arg: ViaductSchema.FieldArg,
+        baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
+        val argumentsReceiverName: String,
+    ) {
+        val name: String = getEscapedFieldName(arg.name)
+        val type: String = arg.kmType(JavaName(pkg).asKmName, baseTypeMapper, isInput = true).kotlinTypeString
+    }
+}
+
+private val rootFieldReferencesST = stTemplate(
+    """
+    companion object {
+        <mdl.fields: { field |
+        <if(field.hasArguments)>
+        fun <field.methodName>(
+            configure: <field.argumentsReceiverName>.() -> Unit,
+        ): viaduct.api.context.RootFieldCall\<<field.returnType>\> =
+            <field.callClass>(configure)
+        <else>
+        fun <field.methodName>(): viaduct.api.context.RootFieldCall\<<field.returnType>\> = <field.callClass>
+        <endif>
+        }; separator="\n">
+    }
+
+    <mdl.fieldsWithArguments: { field |
+    class <field.argumentsReceiverName> internal constructor(
+        private val arguments: <field.argumentsType>.Builder
+    ) {
+        <field.arguments: { arg |
+        fun <arg.name>(value: <arg.type>): <arg.argumentsReceiverName> = apply {
+            arguments.<arg.name>(value)
+        }
+        }; separator="\n">
+    }
+    }; separator="\n\n">
+
+    <mdl.fields: { field |
+    <if(field.hasArguments)>
+    internal class <field.callClass>(
+        private val configure: <field.argumentsReceiverName>.() -> Unit
+    ) : viaduct.api.context.RootFieldCall\<<field.returnType>\> {
+    <else>
+    internal object <field.callClass> : viaduct.api.context.RootFieldCall\<<field.returnType>\> {
+    <endif>
+        override fun resolve(
+            context: viaduct.api.context.ResolverExecutionContext\<*>
+        ): <field.returnType> {
+    <if(field.hasArguments)>
+            val arguments = <field.argumentsType>.Builder(context)
+            configure.invoke(<field.argumentsReceiverName>(arguments))
+            return context.rootFieldRef(Fields.<field.methodName>, arguments.build())
+    <else>
+            return context.rootFieldRef(Fields.<field.methodName>, viaduct.api.types.Arguments.NoArguments)
+    <endif>
+        }
+    }
+    }; separator="\n\n">
+"""
+)
+
 private val objectSTGroup = stTemplate(
     """
     @file:Suppress("warnings")
@@ -150,6 +236,9 @@ private val objectSTGroup = stTemplate(
         fun toBuilder(): Builder =
             Builder(__context, __engineObject.type, toBuilderEOD())
 
+        <if(mdl.rootFieldReferences)>
+        <mdl.rootFieldReferences>
+        <endif>
         object of {
             operator fun invoke(context: ExecutionContext, block: Builder.() -> Unit): <mdl.className> =
                 Builder(context).apply(block).build()
@@ -262,6 +351,7 @@ private class ObjectModelImpl(
     private val isQueryType: Boolean,
     private val isMutationType: Boolean,
     private val connectionInfo: ConnectionInfo?,
+    override val rootFieldReferences: String,
 ) : ObjectModel {
     override val className: String get() = typeDef.name
 
@@ -306,3 +396,20 @@ private class ObjectModelImpl(
         return result.joinToString(",")
     }
 }
+
+private fun KotlinGRTFilesBuilder.rootFieldReferences(typeDef: ViaductSchema.Object): String {
+    val fields = typeDef.rootFieldReferenceFields(reverseSchema, schema.queryTypeDef)
+    if (fields.isEmpty()) return ""
+
+    val model = object : RootFieldReferencesModel {
+        override val fields: List<RootFieldReferencesModel.FieldModel> =
+            fields.map { RootFieldReferencesModel.FieldModel(pkg, it, baseTypeMapper) }
+        override val fieldsWithArguments: List<RootFieldReferencesModel.FieldModel> =
+            this.fields.filter { it.hasArguments }
+    }
+    return STContents(rootFieldReferencesST, model).toString()
+}
+
+private fun rootFieldReferenceArgumentsName(field: ViaductSchema.Field): String = field.name.replaceFirstChar { it.uppercase() } + "Arguments"
+
+private fun rootFieldCallName(field: ViaductSchema.Field): String = field.name.replaceFirstChar { it.uppercase() } + "RootFieldCall"

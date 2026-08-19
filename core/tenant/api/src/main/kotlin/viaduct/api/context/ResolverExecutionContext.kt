@@ -101,4 +101,8 @@ interface ResolverExecutionContext<Q : QueryType> : ExecutionContext {
         field: RootObjectField<*, BR, A>,
         arguments: A
     ): BR
+
+    /** Creates a lazy root field reference. */
+    @ExperimentalApi
+    fun <T : Object> ref(call: RootFieldCall<T>): T = call.resolve(this)
 }

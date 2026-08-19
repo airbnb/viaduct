@@ -76,3 +76,50 @@ internal fun CtGenContext.kmToCtObject(kmClassWrapper: KmClassWrapper): CtClass 
 
     return result
 }
+
+internal fun CtGenContext.kmToCtCompanionObject(
+    kmClassWrapper: KmClassWrapper,
+    outer: KmClassWrapper,
+): CtClass {
+    val kmName = kmClassWrapper.kmClass.kmName
+    val javaBinaryName = kmName.asJavaBinaryName
+    val result = getClass(javaBinaryName)
+    result.classFile.accessFlags = kmClassWrapper.kmClass.jvmAccessFlags
+    result.applySupers(this, kmClassWrapper)
+
+    kmClassWrapper.constructors.forEach { ctor ->
+        result.addConstructorFromKm(this, ctor)
+    }
+    result.declaredConstructors.forEach { constructor ->
+        constructor.modifiers = 0
+    }
+    kmClassWrapper.properties.forEach { prop ->
+        result.addPropertyFromKm(this, prop)
+    }
+    kmClassWrapper.functions.forEach { fn ->
+        result.addClassFunctionFromKm(this, fn)
+    }
+
+    val outerClass = getClass(outer.kmClass.kmName.asJavaBinaryName)
+    val companionName = checkNotNull(outer.kmClass.companionObject)
+    CtField
+        .make(
+            "public static final $javaBinaryName $companionName = new $javaBinaryName();",
+            outerClass,
+        )
+        .also { field ->
+            val notNull = outerClass.classFile.constPool.asCtAnnotation(
+                KmAnnotation(Km.NOT_NULL.toString(), emptyMap())
+            )
+            field.fieldInfo.addAttribute(
+                AnnotationsAttribute(outerClass.classFile.constPool, AnnotationsAttribute.invisibleTag)
+                    .also {
+                        it.addAnnotation(notNull)
+                    }
+            )
+        }.let {
+            outerClass.addField(it)
+        }
+
+    return result
+}

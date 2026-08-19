@@ -35,10 +35,24 @@ internal fun checkKmClassInvariants(
             val outerNames = kmOuter.name.split(".")
             check.containsExactlyElementsIn(outerNames, nestedNames.dropLast(1), "NESTED_CLASS_PROPER_FQN")
             check.contains(nestedNames.last(), kmOuter.nestedClasses, "OUTER_CLASS_KNOWS_NESTED_CLASS")
-            check.isEqualTo(ClassKind.CLASS, kmClass.kind, "NESTED_CLASS_RESTRICTION: must be class")
+            check.contains(
+                kmClass.kind,
+                setOf(ClassKind.CLASS, ClassKind.OBJECT, ClassKind.COMPANION_OBJECT),
+                "NESTED_CLASS_RESTRICTION: must be class or object"
+            )
         }
     } else {
         check.isNull(kmOuter, "NON_NESTED_CLASS_HAS_NO_OUTER")
+        check.contains(
+            kmClass.kind,
+            setOf(
+                ClassKind.CLASS,
+                ClassKind.ENUM_CLASS,
+                ClassKind.INTERFACE,
+                ClassKind.OBJECT,
+            ),
+            "CLASS_KIND_RESTRICTION: class, interface, enum, or object only."
+        )
     }
 
     // Visibility flags
@@ -54,11 +68,6 @@ internal fun checkKmClassInvariants(
     }
 
     // Class flags
-    check.contains(
-        kmClass.kind,
-        setOf(ClassKind.CLASS, ClassKind.ENUM_CLASS, ClassKind.INTERFACE),
-        "CLASS_KIND_RESTRICTION: class, interface, or enum only."
-    )
     check.isFalse(kmClass.isInner, "NO_INNER_CLASSES")
     check.isFalse(kmClass.isExternal, "NO_EXTERNAL_CLASSES")
     check.isFalse(kmClass.isExpect, "NO_EXPECT_CLASSES")

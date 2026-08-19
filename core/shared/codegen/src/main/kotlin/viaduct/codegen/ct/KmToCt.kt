@@ -218,6 +218,11 @@ private fun CtGenContext.kmToCt(
                 ClassKind.ENUM_CLASS -> kmToCtEnum(kmClassWrapper, outer)
                 ClassKind.CLASS -> kmToCtClass(kmClassWrapper)
                 ClassKind.OBJECT -> kmToCtObject(kmClassWrapper)
+                ClassKind.COMPANION_OBJECT ->
+                    kmToCtCompanionObject(
+                        kmClassWrapper,
+                        requireNotNull(outer) { "Companion object ${kmClassWrapper.kmClass.name} must be nested" },
+                    )
                 else -> throw IllegalArgumentException("Can't handle $kmClassWrapper")
             }
         result

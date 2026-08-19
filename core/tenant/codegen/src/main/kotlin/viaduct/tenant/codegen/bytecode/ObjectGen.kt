@@ -12,14 +12,18 @@ import kotlinx.metadata.Visibility
 import kotlinx.metadata.hasAnnotations
 import kotlinx.metadata.isNullable
 import kotlinx.metadata.isSuspend
+import kotlinx.metadata.jvm.annotations
 import kotlinx.metadata.modality
 import kotlinx.metadata.visibility
 import viaduct.codegen.ct.javaTypeName
 import viaduct.codegen.km.CustomClassBuilder
+import viaduct.codegen.km.KmPropertyBuilder
 import viaduct.codegen.km.boxedJavaName
 import viaduct.codegen.km.castObjectExpression
 import viaduct.codegen.km.checkNotNullParameterExpression
+import viaduct.codegen.km.checkNotNullParameterExpressions
 import viaduct.codegen.km.getterName
+import viaduct.codegen.utils.JavaIdName
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.graphql.schema.ViaductSchema
@@ -31,6 +35,7 @@ import viaduct.tenant.codegen.bytecode.config.hasConnectionDirective
 import viaduct.tenant.codegen.bytecode.config.hasEdgeDirective
 import viaduct.tenant.codegen.bytecode.config.isNode
 import viaduct.tenant.codegen.bytecode.config.kmType
+import viaduct.tenant.codegen.bytecode.config.rootFieldReferenceFields
 import viaduct.tenant.codegen.bytecode.config.typeOfNodeField
 
 internal fun GRTClassFilesBuilder.objectGenV2(def: ViaductSchema.Object) {
@@ -98,6 +103,7 @@ private class ObjectClassGenV2(
             .addFieldGetters()
             .addToBuilderFun()
             .addOfObject()
+            .addRootFieldReferences()
     }
 
     /**
@@ -329,6 +335,198 @@ private class ObjectClassGenV2(
         return this
     }
 
+    private fun CustomClassBuilder.addRootFieldReferences(): CustomClassBuilder {
+        val fields = def.rootFieldReferenceFields(grtClassFilesBuilder.reverseSchema, grtClassFilesBuilder.schema.queryTypeDef)
+        if (fields.isEmpty()) return this
+
+        val companion = companionObjectBuilder()
+
+        fields.forEach { field ->
+            val argumentsClass = field.args.takeIf { it.isNotEmpty() }?.let { arguments ->
+                nestedClassBuilder(JavaIdName(rootFieldReferenceArgumentsName(field))).also { argumentsReceiver ->
+                    val argumentsBuilderType = KmName("$pkg/${cfg.argumentTypeName(field)}.Builder").asType()
+                    argumentsReceiver.addStoredProperty("arguments", argumentsBuilderType)
+                    argumentsReceiver.addPropertiesConstructor(listOf("arguments" to argumentsBuilderType))
+                    arguments.forEach { arg -> argumentsReceiver.addArgumentSetter(arg) }
+                }
+            }
+            val callClass = nestedClassBuilder(
+                JavaIdName(rootFieldCallName(field)),
+                kind = if (argumentsClass == null) ClassKind.OBJECT else ClassKind.CLASS,
+            )
+            callClass.addRootFieldCall(field, argumentsClass)
+            companion.addRootFieldReferenceMethod(field, argumentsClass, callClass)
+        }
+        return this
+    }
+
+    private fun CustomClassBuilder.addStoredProperty(
+        name: String,
+        type: KmType,
+    ) {
+        addProperty(
+            KmPropertyBuilder(
+                JavaIdName(name),
+                type,
+                type,
+                isVariable = false,
+                constructorProperty = true,
+            ).apply {
+                getterVisibility(Visibility.PRIVATE)
+                propertyModality(Modality.FINAL)
+            }
+        )
+    }
+
+    private fun CustomClassBuilder.addRootFieldReferenceMethod(
+        field: ViaductSchema.Field,
+        argumentsClass: CustomClassBuilder?,
+        callClass: CustomClassBuilder,
+    ) {
+        val returnType = rootFieldCallType(field)
+        val function = KmFunction(field.name).apply {
+            visibility = Visibility.PUBLIC
+            modality = Modality.FINAL
+            this.returnType = returnType
+            argumentsClass?.let { argumentsReceiver ->
+                valueParameters += KmValueParameter("configure").also {
+                    it.type = rootFieldReferenceConfigureType(argumentsReceiver)
+                }
+            }
+        }
+
+        addFunction(
+            function,
+            body = buildString {
+                append("{\n")
+                if (argumentsClass != null) {
+                    append("return new ${callClass.kmName.asJavaName}($1);\n")
+                } else {
+                    append("return ${callClass.kmName.asJavaBinaryName}.INSTANCE;\n")
+                }
+                append("}")
+            }
+        )
+    }
+
+    private fun CustomClassBuilder.addRootFieldCall(
+        field: ViaductSchema.Field,
+        argumentsClass: CustomClassBuilder?,
+    ) {
+        val returnType = field.kmType(pkg, baseTypeMapper).also { it.isNullable = false }
+        addSupertype(rootFieldCallType(field))
+
+        argumentsClass?.let {
+            val storedProperties = listOf("configure" to rootFieldReferenceConfigureType(it))
+            storedProperties.forEach { (name, type) -> addStoredProperty(name, type) }
+            addPropertiesConstructor(storedProperties)
+        }
+
+        val resolverContextType = cfg.RESOLVER_EXECUTION_CONTEXT.asKmName.asType().also {
+            it.arguments += KmTypeProjection.STAR
+        }
+        val function = KmFunction("resolve").apply {
+            visibility = Visibility.PUBLIC
+            modality = Modality.FINAL
+            this.returnType = returnType
+            valueParameters += KmValueParameter("context").also { it.type = resolverContextType }
+        }
+        addFunction(
+            function,
+            body = rootFieldCallBody(field, argumentsClass, returnType),
+            bridgeParameters = setOf(-1),
+            bridgeReturnType = cfg.OBJECT_GRT.asKmName.asType(),
+        )
+    }
+
+    private fun CustomClassBuilder.addPropertiesConstructor(properties: List<Pair<String, KmType>>) {
+        val constructor = KmConstructor().apply {
+            visibility = Visibility.INTERNAL
+            properties.forEach { (name, type) ->
+                valueParameters += KmValueParameter(name).also { it.type = type }
+            }
+        }
+        addConstructor(
+            constructor,
+            body = buildString {
+                append("{\n")
+                append(checkNotNullParameterExpressions(constructor.valueParameters))
+                properties.forEachIndexed { index, (name, _) ->
+                    append("this.$name = $${index + 1};\n")
+                }
+                append("}")
+            }
+        )
+    }
+
+    private fun rootFieldCallBody(
+        field: ViaductSchema.Field,
+        argumentsClass: CustomClassBuilder?,
+        returnType: KmType,
+    ): String =
+        buildString {
+            val fieldsName = objectClass.kmName.append(".Fields").asJavaBinaryName
+            val fieldExpression = "$fieldsName.INSTANCE.${getterName(field.name)}()"
+            val contextExpression = "((viaduct.api.context.ResolverExecutionContext)$1)"
+
+            append("{\n")
+            if (field.args.none()) {
+                append(
+                    "return (${returnType.boxedJavaName()})$contextExpression.rootFieldRef(" +
+                        "$fieldExpression, viaduct.api.types.Arguments${'$'}NoArguments.INSTANCE);\n"
+                )
+                append("}")
+                return@buildString
+            }
+
+            val argumentsReceiver = checkNotNull(argumentsClass) {
+                "Root field reference '${field.name}' has arguments but no arguments receiver class"
+            }
+            val argumentsBuilderType = KmName("$pkg/${cfg.argumentTypeName(field)}.Builder")
+            append(
+                "${argumentsBuilderType.asJavaName} arguments = new ${argumentsBuilderType.asJavaName}" +
+                    "((viaduct.api.context.ExecutionContext)$1);\n"
+            )
+            append("this.configure.invoke(new ${argumentsReceiver.kmName.asJavaName}(arguments));\n")
+            append(
+                "return (${returnType.boxedJavaName()})$contextExpression.rootFieldRef(" +
+                    "$fieldExpression, arguments.build());\n"
+            )
+            append("}")
+        }
+
+    private fun rootFieldCallType(field: ViaductSchema.Field): KmType =
+        cfg.ROOT_FIELD_CALL.asKmName.asType().also {
+            val returnType = field.kmType(pkg, baseTypeMapper).also { type -> type.isNullable = false }
+            it.arguments += KmTypeProjection(KmVariance.INVARIANT, returnType)
+        }
+
+    private fun rootFieldReferenceConfigureType(argumentsClass: CustomClassBuilder): KmType =
+        Km.FUNCTION1.asType().also {
+            it.annotations.add(kotlinx.metadata.KmAnnotation("kotlin/ExtensionFunctionType", emptyMap()))
+            it.arguments += KmTypeProjection(KmVariance.IN, argumentsClass.kmType)
+            it.arguments += KmTypeProjection(KmVariance.INVARIANT, Km.UNIT.asType())
+        }
+
+    private fun CustomClassBuilder.addArgumentSetter(arg: ViaductSchema.FieldArg) {
+        val argType = arg.kmType(pkg, baseTypeMapper, isInput = true)
+        val function = KmFunction(arg.name).apply {
+            visibility = Visibility.PUBLIC
+            modality = Modality.FINAL
+            returnType = this@addArgumentSetter.kmType
+            valueParameters += KmValueParameter("value").also { it.type = argType }
+        }
+        addFunction(
+            function,
+            body = buildString {
+                append("{\n")
+                append("this.arguments.${arg.name}($1);\n")
+                append("return this;\n")
+                append("}")
+            }
+        )
+    }
+
     private fun CustomClassBuilder.addToBuilderFun(): CustomClassBuilder {
         val builderName = this.kmName.append(".Builder")
         val kmFun = KmFunction("toBuilder").also {
@@ -351,4 +549,8 @@ private class ObjectClassGenV2(
         )
         return this
     }
+
+    private fun rootFieldReferenceArgumentsName(field: ViaductSchema.Field): String = field.name.replaceFirstChar { it.uppercase() } + "Arguments"
+
+    private fun rootFieldCallName(field: ViaductSchema.Field): String = field.name.replaceFirstChar { it.uppercase() } + "RootFieldCall"
 }

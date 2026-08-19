@@ -1,10 +1,12 @@
 package viaduct.codegen.km
 
 import io.kotest.matchers.collections.shouldExist
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.property.shouldBeImmutable
 import io.kotest.matchers.reflection.shouldHaveFunction
 import io.kotest.matchers.reflection.shouldHaveMemberProperty
 import kotlin.reflect.KClass
+import kotlin.reflect.full.companionObjectInstance
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.javaType
@@ -12,7 +14,11 @@ import kotlinx.metadata.ClassKind
 import kotlinx.metadata.KmAnnotation
 import kotlinx.metadata.KmAnnotationArgument
 import kotlinx.metadata.KmConstructor
+import kotlinx.metadata.KmFunction
+import kotlinx.metadata.Modality
 import kotlinx.metadata.Visibility
+import kotlinx.metadata.isOperator
+import kotlinx.metadata.modality
 import kotlinx.metadata.visibility
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -190,6 +196,44 @@ class ObjectTest {
                     assertEquals("MYFUN", method.invoke(it))
                 }
             }
+        }
+    }
+
+    @Test
+    fun `class with companion object`() {
+        Fixture {
+            addBuilder(kmKind = ClassKind.CLASS).also { outer ->
+                outer.companionObjectBuilder().addFunction(
+                    KmFunction("invoke").apply {
+                        visibility = Visibility.PUBLIC
+                        modality = Modality.FINAL
+                        isOperator = true
+                        returnType = String::class.kmType
+                    },
+                    body = """{ return "COMPANION"; }"""
+                )
+            }
+
+            loadKClass().also { kcls ->
+                val companion = kcls.companionObjectInstance!!
+                assertEquals(companion, kcls.java.getField("Companion").get(null))
+                assertEquals(
+                    "COMPANION",
+                    companion::class.java.getDeclaredMethod("invoke").invoke(companion)
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `top-level companion object is invalid`() {
+        Fixture {
+            addBuilder(kmKind = ClassKind.COMPANION_OBJECT)
+
+            val failures = builders.checkInvariants()
+
+            failures shouldHaveSize 1
+            assertEquals("CLASS_KIND_RESTRICTION", failures.single().label)
         }
     }
 

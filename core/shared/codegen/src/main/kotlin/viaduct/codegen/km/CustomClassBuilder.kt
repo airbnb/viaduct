@@ -53,12 +53,13 @@ class CustomClassBuilder internal constructor(
     private val properties = mutableListOf<KmPropertyWrapper>()
     private val nestedClasses = mutableListOf<CustomClassBuilder>()
     private val enumEntries = mutableListOf<String>()
+    private var companionObjectName: String? = null
 
     init {
         if (tier != 0 && tier != 1) {
             throw IllegalArgumentException("Only tiers 0 and 1 are supported ($kmName: $tier)")
         }
-        if (kmKind == ClassKind.OBJECT) {
+        if (kmKind == ClassKind.OBJECT || kmKind == ClassKind.COMPANION_OBJECT) {
             addObjectBoilerplate()
         }
     }
@@ -82,6 +83,7 @@ class CustomClassBuilder internal constructor(
                 it.kind = kmKind
                 it.hasAnnotations = classAnnotations.isNotEmpty()
                 it.isData = isDataClass
+                it.companionObject = companionObjectName
                 kmType.arguments.forEachIndexed { i, proj ->
                     val param = KmTypeParameter("T$i", i, proj.variance ?: KmVariance.INVARIANT).also {
                         proj.type?.let { t ->
@@ -156,7 +158,10 @@ class CustomClassBuilder internal constructor(
         visibleParameterAnnotations: Map<JavaIdName, List<KmAnnotation>> = emptyMap(),
         genSyntheticAccessor: Boolean = false
     ): CustomClassBuilder {
-        if (kmKind != ClassKind.CLASS && kmKind != ClassKind.ENUM_CLASS) {
+        if (kmKind != ClassKind.CLASS &&
+            kmKind != ClassKind.ENUM_CLASS &&
+            kmKind != ClassKind.COMPANION_OBJECT
+        ) {
             throw IllegalArgumentException("Only classes and enums can have constructors ($kmName: $constructor)")
         }
         constructors.add(
@@ -237,7 +242,10 @@ class CustomClassBuilder internal constructor(
             builder.static(true)
         }
         val prop = builder.build()
-        if (kmKind != ClassKind.CLASS && kmKind != ClassKind.OBJECT) {
+        if (kmKind != ClassKind.CLASS &&
+            kmKind != ClassKind.OBJECT &&
+            kmKind != ClassKind.COMPANION_OBJECT
+        ) {
             throw IllegalArgumentException(
                 "Only classes and objects can have properties ($kmName: ${prop.property})"
             )
@@ -259,6 +267,13 @@ class CustomClassBuilder internal constructor(
         return CustomClassBuilder(kind, nestedName, annotations, isNested = true).also {
             nestedClasses.add(it)
         }
+    }
+
+    fun companionObjectBuilder(annotations: Set<Pair<KmAnnotation, Boolean>> = emptySet()): CustomClassBuilder {
+        check(companionObjectName == null) { "Companion object already defined for $kmName" }
+        val simpleName = JavaIdName("Companion")
+        companionObjectName = simpleName.toString()
+        return nestedClassBuilder(simpleName, annotations, ClassKind.COMPANION_OBJECT)
     }
 
     /**

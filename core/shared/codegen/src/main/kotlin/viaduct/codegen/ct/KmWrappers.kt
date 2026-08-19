@@ -102,7 +102,8 @@ class KmClassWrapper(
         if (kmClass.kind != ClassKind.CLASS &&
             kmClass.kind != ClassKind.INTERFACE &&
             kmClass.kind != ClassKind.ENUM_CLASS &&
-            kmClass.kind != ClassKind.OBJECT
+            kmClass.kind != ClassKind.OBJECT &&
+            kmClass.kind != ClassKind.COMPANION_OBJECT
         ) {
             throw IllegalArgumentException("Can only wrap classes, interfaces, enums, and objects (${kmClass.name}: ${kmClass.kind})")
         }

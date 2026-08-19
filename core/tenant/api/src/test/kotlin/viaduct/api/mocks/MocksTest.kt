@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.api.context.ResolverExecutionContext
+import viaduct.api.context.RootFieldCall
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.RootObjectFieldImpl
 import viaduct.api.internal.internal
@@ -127,6 +129,22 @@ class MocksTest {
         )
 
         assertSame(stub, ctx.rootFieldRef(field, Arguments.NoArguments))
+    }
+
+    @Test
+    fun `ref resolves the typed root field call with this context`() {
+        val ctx = MockResolverExecutionContext.create()
+        val expected = FooResult()
+        var receivedContext: ResolverExecutionContext<*>? = null
+        val call = object : RootFieldCall<FooResult> {
+            override fun resolve(context: ResolverExecutionContext<*>): FooResult {
+                receivedContext = context
+                return expected
+            }
+        }
+
+        assertSame(expected, ctx.ref(call))
+        assertSame(ctx, receivedContext)
     }
 
     @Test

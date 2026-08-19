@@ -41,6 +41,7 @@ dependencies {
     testImplementation(libs.kotest.assertions.core.jvm)
     // Classpath resource scanning for golden snapshots (works under both Gradle and Bazel).
     testImplementation(libs.classgraph)
+    testImplementation(testFixtures(libs.viaduct.engine.api))
     testImplementation(testFixtures(libs.viaduct.shared.viaductschema))
     testImplementation(testFixtures(libs.viaduct.tenant.api))
     testImplementation(libs.kotlinx.coroutines.test)

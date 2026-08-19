@@ -5,7 +5,6 @@ package viaduct.tenant.tutorial13
 
 import org.junit.jupiter.api.Test
 import viaduct.api.resolver.Resolver
-import viaduct.api.types.Arguments
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.graphql.test.assertEquals
 import viaduct.tenant.tutorial13.resolverbases.ProductFactoryResolvers
@@ -21,6 +20,18 @@ class RootFieldRefFeatureAppTest : RootFieldRefContractTest() {
             return Product.of(ctx) {
                 name("Widget")
                 price(42)
+                related(
+                    ctx.ref(
+                        ProductFactory.createWithArguments {
+                            name("Related widget")
+                            metadata(mapOf("source" to "catalog", "scores" to listOf(1, 2)))
+                            spec(ProductSpecInput.Builder(ctx).quantity(3).build())
+                            kind(ProductKind.PHYSICAL)
+                            tags(listOf("featured", "new"))
+                            ownerId(ctx.globalIDFor(Owner.Reflection, "owner-1"))
+                        }
+                    )
+                )
             }
         }
     }
@@ -39,15 +50,12 @@ class RootFieldRefFeatureAppTest : RootFieldRefContractTest() {
     @Resolver
     class productResolver : QueryResolvers.Product() {
         override suspend fun resolve(ctx: Context): Product? {
-            return ctx.rootFieldRef(
-                ProductFactory.Fields.create,
-                Arguments.NoArguments
-            )
+            return ctx.ref(ProductFactory.create())
         }
     }
 
     @Test
-    fun `rootFieldRef resolves through namespace types`() {
+    fun `generated root field reference resolves through namespace types`() {
         execute(
             query = """{ product { name price } }"""
         ).assertEquals {
@@ -55,6 +63,26 @@ class RootFieldRefFeatureAppTest : RootFieldRefContractTest() {
                 "product" to {
                     "name" to "Widget"
                     "price" to 42
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `generated root field reference forwards arguments`() {
+        execute(
+            query = """{ product { related { name price metadata } } }"""
+        ).assertEquals {
+            "data" to {
+                "product" to {
+                    "related" to {
+                        "name" to "Related widget"
+                        "price" to 3
+                        "metadata" to {
+                            "source" to "catalog"
+                            "scores" to listOf(1, 2)
+                        }
+                    }
                 }
             }
         }

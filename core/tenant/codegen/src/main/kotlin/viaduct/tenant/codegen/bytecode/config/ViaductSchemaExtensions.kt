@@ -246,6 +246,23 @@ val ViaductSchema.TypeDef.reflectedFields: Iterable<ViaductSchema.HasDefaultValu
 fun ViaductSchema.Field.isRootObjectFieldEligible(pathToParentObject: List<String>?): Boolean = pathToParentObject != null && !type.isList && type.baseTypeDef.kind == ViaductSchema.TypeDefKind.OBJECT
 
 /**
+ * Fields exposed through the generated root field reference API.
+ *
+ * Root field references are generated only for resolver-backed fields on query-reachable namespace
+ * objects that can already be represented as [RootObjectField] values.
+ */
+fun ViaductSchema.Object.rootFieldReferenceFields(
+    reverseSchema: ViaductReverseSchema,
+    queryTypeDef: ViaductSchema.Object?,
+): List<ViaductSchema.Field> {
+    if (!hasAppliedDirective("namespaceType")) return emptyList()
+    val pathToParentObject = pathFromQueryRoot(reverseSchema, queryTypeDef) ?: return emptyList()
+    return fields.filter {
+        it.hasAppliedDirective("resolver") && it.isRootObjectFieldEligible(pathToParentObject)
+    }
+}
+
+/**
  * Returns the field path from the root query type to this root type:
  * - root query itself: returns `emptyList()`
  * - `@namespaceType` reachable from root query (e.g., `Bar` via `Query.foo.bar`):
