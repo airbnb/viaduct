@@ -256,17 +256,17 @@ limit to apply at all.
 
 `UnaryRemoteEngineExecutionContext` implements `resolveSelectionSet()` by calling back to the main process:
 
-1. Register the requested `EngineSelectionSet` in `SelectionsRegistry`.
-2. Send both handles to `ExecuteMutation` or `ExecuteQuery`, chosen from the operation type.
-3. The main callback service looks up both handles.
-4. Call the original main `EngineExecutionContext.resolveSelectionSet()`.
-5. Serialize the resulting `EngineObjectData`.
-6. Deserialize it in the remote process against the selection set's own type, which the remote side already knows.
-7. Unregister the remote selection handle in `finally`.
+1. Convert the requested `EngineSelectionSet` to a fragment and serialize its type, document, and variables into `QueryRequest.selections`.
+2. Send the serialized selection set and the main server's context handle to `ExecuteMutation` or `ExecuteQuery`, chosen from the operation type.
+3. Resolve the `ContextRegistry.Registration` on the main server and reconstruct the selection set with the registered engine context. A process-local selection handle remains as a fallback for callers that do not send serialized selections.
+4. Restore the request-scoped coroutine elements captured when the context was registered while retaining the callback RPC's `Job` and dispatcher.
+5. Call the original main `EngineExecutionContext.resolveSelectionSet()`.
+6. Serialize the resulting `EngineObjectData`.
+7. Deserialize it in the remote process against the remote schema and the selection set's original type.
 
-The context handle works across the callback because it was created and remains registered in the main process; the callback request merely returns that string to its owner.
+The context handle works across the callback because it was created and remains registered in the main process; the callback request returns that string to its owner. The registration also holds the coroutine context captured by the outbound proxy so request-scoped context is available during re-entrant execution.
 
-The selection handle does **not** currently work across a real process boundary. It is created in the remote process, while `EngineCallbackServiceImpl` looks it up in the main process's independent `SelectionsRegistry`. Current callback integration tests use in-process gRPC and one JVM, so both services see the same singleton registry. In a separate RRS process, `ctx.query()` and `ctx.mutation()` fail with a selection-handle `NOT_FOUND` until the callback request carries a serialized selection set or another cross-process representation.
+Unary `ctx.query()` and `ctx.mutation()` callbacks do not depend on a shared `SelectionsRegistry`. The serialized selection set crosses the process boundary and the main server reconstructs it before execution.
 
 Other context behavior in a separate process is intentionally partial:
 
@@ -286,8 +286,8 @@ All registries are in-memory JVM singletons:
 
 | Registry | Key | Value | Typical owner and lifetime |
 | --- | --- | --- | --- |
-| `ContextRegistry` | Random UUID | `EngineExecutionContext` | Main server, one outbound RPC; removed in proxy `finally` |
-| `SelectionsRegistry` | Random UUID | `EngineSelectionSet` | One outbound RPC or callback; removed in `finally` |
+| `ContextRegistry` | Random UUID | `ContextRegistry.Registration` (`EngineExecutionContext` and captured coroutine context) | Main server, one outbound RPC; removed in proxy `finally` |
+| `SelectionsRegistry` | Random UUID | `EngineSelectionSet` | Main server node or field proxy call; removed in proxy `finally`; same-JVM callback fallback |
 | `NodeExecutorRegistry` | GraphQL type name | `NodeResolverExecutor` | Both processes, bootstrap to shutdown |
 | `FieldExecutorRegistry` | `Type.field` | `FieldResolverExecutor` | Both processes, bootstrap to shutdown |
 | `SchemaRegistry` | Singleton slot | `ViaductSchema` | Remote process, bootstrap to shutdown |
@@ -350,12 +350,13 @@ The test suite covers several different layers:
 - `RemoteProxyIntegrationTest`: Node proxying, batching, error propagation, node serialization isolation, and callback initiation.
 - `RemoteFieldProxyIntegrationTest`: Field inputs and results, RSS data, selection reconstruction, batching, per-selector isolation, and callback initiation.
 - `RemoteSelectionSetWireTest`: Fragment and variable round-tripping for field sub-selections.
+- `UnaryCallbackSelectionWireTest`: Unary query and mutation callback reconstruction without selection handles, including variables and callback thread-local context setup.
 - `EngineObjectDataSerializerTest`, `FieldValueSerializerTest` and `EmptyEngineSelectionSetTest`: Wire codec and empty-selection behavior.
 - Registry tests: Stable executor registration and schema publication.
 - Configuration and initializer tests: Parsing, selection policy, lifecycle, and built-in exclusions.
 - StarWars remote-server tests: Tenant bootstrap and server lifecycle.
 
-Most end-to-end library tests use gRPC's in-process transport and run both services in one JVM. They validate RPC wiring and serialization but can accidentally resolve process-local handles. Tests that explicitly pass unregistered context or selection handles exercise selected network fallbacks, especially field selection-set reconstruction, but they are not a full two-process callback test.
+Most end-to-end library tests use gRPC's in-process transport and run both services in one JVM. They validate RPC wiring and serialization but can accidentally resolve process-local handles. `UnaryCallbackSelectionWireTest` avoids that false positive by executing query and mutation callbacks without a registered selection handle. It still does not launch separate JVMs.
 
 For a behavior that depends on process separation, add a test that prevents shared registry access or launches separate JVMs. In particular, a successful in-process callback test does not establish that re-entrant execution works over the deployed network topology.
 

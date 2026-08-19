@@ -1,5 +1,6 @@
 package viaduct.remote
 
+import com.google.protobuf.ByteString
 import graphql.schema.GraphQLObjectType
 import io.grpc.ManagedChannel
 import viaduct.engine.api.CompleteSelectionSetOptions
@@ -15,7 +16,7 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.remote.grpc.EngineCallbackServiceGrpcKt
 import viaduct.remote.grpc.QueryRequest
-import viaduct.remote.registry.SelectionsRegistry
+import viaduct.remote.grpc.SerializedSelectionSet
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
@@ -122,20 +123,23 @@ class UnaryRemoteEngineExecutionContext(
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions
     ): EngineObjectData.Sync {
-        val selectionsHandle = SelectionsRegistry.register(selectionSet)
+        // Serialize selections for the cross-process callback.
+        val fragment = selectionSet.toFragment()
+        val serializedSelections = SerializedSelectionSet.newBuilder()
+            .setType(selectionSet.type)
+            .setDocument(fragment.document)
+            .setVariablesJson(ByteString.copyFrom(FieldValueSerializer.serializeArguments(fragment.variables.asMap())))
+            .build()
         val request = QueryRequest.newBuilder()
             .setContextHandle(contextHandle)
-            .setSelectionsHandle(selectionsHandle)
+            .setSelections(serializedSelections)
             .build()
-        val response = try {
+        val response =
             if (options.operationType == Engine.OperationType.MUTATION) {
                 callbackStub.executeMutation(request)
             } else {
                 callbackStub.executeQuery(request)
             }
-        } finally {
-            SelectionsRegistry.unregister(selectionsHandle)
-        }
         // The result's root type is the selection set's own type, which is known locally — no need to
         // trust (or invent) a type name for it. Resolve nested names against this receiver's own
         // schema, like every other decode site (selectionSet.schema is equivalent today but throws

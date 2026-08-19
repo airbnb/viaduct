@@ -6,6 +6,7 @@ import java.time.Duration
 import java.util.IdentityHashMap
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import org.slf4j.LoggerFactory
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineSelectionSet
@@ -73,7 +74,7 @@ class RemoteFieldProxyExecutor(
 
         // Register handles up front and unregister in finally, so a failure below — selector
         // serialization (which can throw) or the RPC — can't leak them in the process-global registries.
-        val contextHandle = ContextRegistry.register(context)
+        val contextHandle = ContextRegistry.register(context, currentCoroutineContext())
         val selectionsHandles = mutableListOf<String>()
         try {
             // Correlate results positionally via selector_key: a field Selector has no natural id and

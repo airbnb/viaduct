@@ -185,11 +185,14 @@ message QueryRequest {
   // Handle to the EngineExecutionContext
   string context_handle = 1;
 
-  // Handle to RawSelectionSet for the query
+  // Same-JVM selection-set handle.
   string selections_handle = 2;
 
   // Resolver ID for instrumentation
   string resolver_id = 3;
+
+  // Serialized selection set for cross-process callbacks.
+  SerializedSelectionSet selections = 4;
 }
 
 // Response from query/mutation execution

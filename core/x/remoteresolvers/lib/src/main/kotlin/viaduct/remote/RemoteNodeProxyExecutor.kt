@@ -4,6 +4,7 @@ import io.grpc.ManagedChannel
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import org.slf4j.LoggerFactory
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
@@ -137,7 +138,7 @@ class UnaryRemoteNodeProxyExecutor(
         context: EngineExecutionContext
     ): BatchResolveNodeResponse {
         val capturedContext = contextCapturerProvider.get().capture(RemoteResolverContextCaptureInput.EMPTY)
-        val contextHandle = ContextRegistry.register(context)
+        val contextHandle = ContextRegistry.register(context, currentCoroutineContext())
         val fullRequest = request.toBuilder()
             .setContextHandle(contextHandle)
             .setCallbackEndpoint(callbackEndpoint)

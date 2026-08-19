@@ -2,6 +2,7 @@ package viaduct.remote.registry
 
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.CoroutineContext
 import viaduct.engine.api.EngineExecutionContext
 
 /**
@@ -14,17 +15,27 @@ import viaduct.engine.api.EngineExecutionContext
  * cannot remove each other's entry during their `finally` cleanup.
  */
 object ContextRegistry {
-    private val contexts = ConcurrentHashMap<String, EngineExecutionContext>()
+    data class Registration(
+        val context: EngineExecutionContext,
+        val coroutineContext: CoroutineContext?,
+    )
 
-    fun register(context: EngineExecutionContext): String {
+    private val contexts = ConcurrentHashMap<String, Registration>()
+
+    fun register(
+        context: EngineExecutionContext,
+        coroutineContext: CoroutineContext? = null,
+    ): String {
         val handle = UUID.randomUUID().toString()
-        contexts[handle] = context
+        contexts[handle] = Registration(context, coroutineContext)
         return handle
     }
 
-    fun get(handle: String): EngineExecutionContext? = contexts[handle]
+    fun get(handle: String): EngineExecutionContext? = contexts[handle]?.context
 
-    fun unregister(handle: String): EngineExecutionContext? = contexts.remove(handle)
+    fun getRegistration(handle: String): Registration? = contexts[handle]
+
+    fun unregister(handle: String): EngineExecutionContext? = contexts.remove(handle)?.context
 
     /** Number of live handles. Intended for tests, e.g. to assert no handles leaked. */
     val size: Int get() = contexts.size

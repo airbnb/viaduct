@@ -14,9 +14,10 @@ constraints, see [`impldocs/architecture.md`](impldocs/architecture.md).
 
 A small proxy on the engine side intercepts node and field resolution and forwards it
 to a `RemoteResolverService` over gRPC. That service runs the resolver, and if the
-resolver needs to fan back out (`ctx.query(...)`) it uses a callback service to
-re-enter the main engine. The callback transport is wired, but re-entrant selection
-sets are still referenced through a process-local handle; see the limitation below.
+resolver needs to call `ctx.query(...)` or `ctx.mutation(...)`, the unary transport
+serializes the requested selection set and uses a callback service to re-enter the main
+engine. The main server reconstructs the selection set against the original engine
+context before executing it.
 The main server dials a separate remote server process over a shaded Netty gRPC
 channel; the remote server calls back through a plaintext server bound by the main server.
 
@@ -116,12 +117,6 @@ curl -X POST http://localhost:8080/graphql -H "Content-Type: application/json" \
 
 ## Limitations
 
-- **Re-entrant selection execution is not yet cross-process:** `ctx.query()` and
-  `ctx.mutation()` register their selection set in the remote JVM and send only that
-  process-local handle to the main callback service. In-process integration tests share
-  the registry and reach the callback, but a separate remote server gets
-  `selections handle not registered` until the callback RPC carries a serialized
-  selection set (or another cross-process representation).
 - A proxied field result carries scalars,
   `null`, node references, resolved objects, and lists thereof; a field returning an arbitrary
   non-JSON, non-`EngineObjectData` value (or a `Map`/list-leaf containing one) is rejected at
