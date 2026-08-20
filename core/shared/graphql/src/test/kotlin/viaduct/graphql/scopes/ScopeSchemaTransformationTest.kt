@@ -163,6 +163,7 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
 
             extend type Query @scope(to: ["internal"]) {
                 internal: String
+                internalTenantOnly: String @tenantLocal
             }
             """.trimIndent()
         )
@@ -186,6 +187,38 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
         assertNotNull(publicSchema.queryType.getFieldDefinition("shared"))
         assertNull(allScopesSchema.queryType.getFieldDefinition("tenantOnly"))
         assertNotNull(allScopesSchema.queryType.getFieldDefinition("internal"))
+    }
+
+    @Test
+    fun `buildScopedFull includes tenant-local fields for requested scopes`() {
+        val schema = schemaFromSdl(
+            """
+            type Query @scope(to: ["public", "internal"]) {
+                shared: String
+                tenantOnly: String @tenantLocal
+            }
+
+            extend type Query @scope(to: ["internal"]) {
+                internal: String
+                internalTenantOnly: String @tenantLocal
+            }
+            """.trimIndent()
+        )
+        val builder = ScopedSchemaBuilder(
+            schema,
+            SchemaScopingMode.ScopeAware(setOf("public", "internal")),
+            listOf(),
+        )
+
+        val publicSchema = builder.buildScopedFull(setOf("public")).filtered
+        val internalSchema = builder.buildScopedFull(setOf("internal")).filtered
+
+        assertNotNull(publicSchema.queryType.getFieldDefinition("tenantOnly"))
+        assertNull(publicSchema.queryType.getFieldDefinition("internal"))
+        assertNull(publicSchema.queryType.getFieldDefinition("internalTenantOnly"))
+        assertNotNull(internalSchema.queryType.getFieldDefinition("tenantOnly"))
+        assertNotNull(internalSchema.queryType.getFieldDefinition("internal"))
+        assertNotNull(internalSchema.queryType.getFieldDefinition("internalTenantOnly"))
     }
 
     @Test
@@ -261,7 +294,7 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
     }
 
     @Test
-    fun `tenant-local-only extensions do not require scope directives`() {
+    fun `unscoped tenant-local-only extensions are omitted from scoped schemas`() {
         val schema = schemaFromSdl(
             """
             type Query @scope(to: ["public"]) {
@@ -286,7 +319,36 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
     }
 
     @Test
-    fun `backing-data-only extensions do not require scope directives`() {
+    fun `buildScopedFull requires explicit scopes for tenant-local-only extensions`() {
+        val schema = schemaFromSdl(
+            """
+            type Query @scope(to: ["public"]) {
+                publicField: String
+            }
+
+            extend type Query {
+                internalOnly: String @tenantLocal
+            }
+
+            extend type Query @scope(to: ["public"]) {
+                scopedInternalOnly: String @tenantLocal
+            }
+            """.trimIndent()
+        )
+
+        val fullSchema = ScopedSchemaBuilder(
+            schema,
+            SchemaScopingMode.ScopeAware(setOf("public")),
+            listOf(),
+        ).buildScopedFull(setOf("public"))
+            .filtered
+
+        assertNull(fullSchema.queryType.getFieldDefinition("internalOnly"))
+        assertNotNull(fullSchema.queryType.getFieldDefinition("scopedInternalOnly"))
+    }
+
+    @Test
+    fun `unscoped backing-data-only extensions are omitted from scoped schemas`() {
         val schema = schemaFromSdl(
             """
             type Query @scope(to: ["public"]) {
@@ -312,7 +374,7 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
     }
 
     @Test
-    fun `parent-only extensions do not require scope directives`() {
+    fun `unscoped parent-only extensions are omitted from scoped schemas`() {
         val schema = schemaFromSdl(
             """
             type Query @scope(to: ["public"]) {
@@ -339,6 +401,39 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
 
         assertNotNull(filteredSchema.queryType.getFieldDefinition("publicField"))
         assertNull(filteredSchema.queryType.getFieldDefinition("parent"))
+    }
+
+    @Test
+    fun `buildScopedFull omits unscoped tenant-local-equivalent extensions`() {
+        val schema = schemaFromSdl(
+            """
+            type Query @scope(to: ["public"]) {
+                publicField: String
+            }
+
+            type Parent @scope(to: ["public"]) {
+                value: String
+            }
+
+            extend type Query {
+                internalOnly: String @tenantLocal
+                backingData: BackingData @backingData(class: "com.airbnb.TestBackingData")
+                parent: Parent @parent
+            }
+            """.trimIndent()
+        )
+
+        val fullSchema = ScopedSchemaBuilder(
+            schema,
+            SchemaScopingMode.ScopeAware(setOf("public")),
+            listOf(),
+        )
+            .buildScopedFull(setOf("public"))
+            .filtered
+
+        assertNull(fullSchema.queryType.getFieldDefinition("internalOnly"))
+        assertNull(fullSchema.queryType.getFieldDefinition("backingData"))
+        assertNull(fullSchema.queryType.getFieldDefinition("parent"))
     }
 
     @Test

@@ -127,7 +127,7 @@ internal class ScopeDirectiveParser(
             )
         }
 
-        val childNodes = getScopeMetadataChildNodes(element.definition!!)
+        val (tenantLocalChildNodes, childNodes) = partitionChildNodes(element.definition!!)
         val scopesForType = getScopesFromDirective(element, "scope")
         val elementsForScopes =
             mutableMapOf<
@@ -136,6 +136,8 @@ internal class ScopeDirectiveParser(
                 // field/value/type names
                 MutableList<NamedNode<*>>
             >()
+        val tenantLocalElementsForScopes =
+            mutableMapOf<String, MutableList<NamedNode<*>>>()
 
         scopesForType.forEach { scope ->
             if (elementsForScopes[scope] == null) {
@@ -157,11 +159,13 @@ internal class ScopeDirectiveParser(
 //            } else {
             elementsForScopes[scope]?.addAll(childNodes)
 //            }
+            tenantLocalElementsForScopes.getOrPut(scope) { mutableListOf() }.addAll(tenantLocalChildNodes)
         }
         val extensionDefinitions = getExtensions(element)
         extensionDefinitions?.forEach { node ->
-            val extensionChildElementNames = getScopeMetadataChildNodes(node)
-            if (extensionChildElementNames.isEmpty()) {
+            val (extensionTenantLocalElementNames, extensionChildElementNames) = partitionChildNodes(node)
+            val extensionHasScopeDirective = (node as DirectivesContainer<*>).getDirectives("scope").isNotEmpty()
+            if (extensionChildElementNames.isEmpty() && (extensionTenantLocalElementNames.isEmpty() || !extensionHasScopeDirective)) {
                 return@forEach
             }
             val scopesForExtension = getScopesFromDirective(node, "scope")
@@ -177,13 +181,15 @@ internal class ScopeDirectiveParser(
             }
             scopesForExtension.forEach {
                 elementsForScopes[it]?.addAll(extensionChildElementNames)
+                tenantLocalElementsForScopes[it]?.addAll(extensionTenantLocalElementNames)
             }
         }
 
-        return ElementScopeMetadata(element.name, elementsForScopes)
+        return ElementScopeMetadata(element.name, elementsForScopes, tenantLocalElementsForScopes)
     }
 
-    private fun getScopeMetadataChildNodes(node: Node<*>): List<NamedNode<*>> = getChildNodes(node).filterNot(::isTenantLocalEquivalentFieldNode)
+    /** Splits [node]'s child nodes into (tenant-local, ordinary) lists. */
+    private fun partitionChildNodes(node: Node<*>): Pair<List<NamedNode<*>>, List<NamedNode<*>>> = getChildNodes(node).partition(::isTenantLocalEquivalentFieldNode)
 
     private fun getChildNodes(node: Node<*>): List<NamedNode<*>> =
         when (node) {
@@ -311,7 +317,8 @@ internal class ScopeDirectiveParser(
 
 internal data class ElementScopeMetadata(
     val typeName: String,
-    val elementsForScopes: Map<String, List<NamedNode<*>>>
+    val elementsForScopes: Map<String, List<NamedNode<*>>>,
+    val tenantLocalElementsForScopes: Map<String, List<NamedNode<*>>> = emptyMap()
 ) {
     fun scopesForType(): Set<String> = elementsForScopes.keys
 }

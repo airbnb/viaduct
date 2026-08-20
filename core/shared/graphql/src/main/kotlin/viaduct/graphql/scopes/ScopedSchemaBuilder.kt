@@ -16,6 +16,7 @@ import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeReference
 import graphql.schema.GraphQLUnionType
+import viaduct.apiannotations.InternalApi
 import viaduct.graphql.scopes.utils.getChildrenForElement
 import viaduct.graphql.scopes.utils.isIntrospectionType
 import viaduct.graphql.scopes.utils.isTenantLocalEquivalentField
@@ -49,7 +50,7 @@ sealed interface SchemaView {
     /** The complete schema with tenant-local fields removed. */
     data object Base : SchemaView
 
-    /** A projection containing fields visible to at least one of [scopes]. */
+    /** A projection containing fields visible to at least one of [scopes], excluding tenant-local fields. */
     data class Scoped(
         val scopes: Set<String>,
     ) : SchemaView {
@@ -84,7 +85,21 @@ class ScopedSchemaBuilder(
      *
      * The resulting schema is not executable; it only contains type metadata, not wiring.
      */
-    fun build(view: SchemaView): ScopedGraphQLSchema {
+    fun build(view: SchemaView): ScopedGraphQLSchema = build(view, includeTenantLocalFields = false)
+
+    /**
+     * Builds the full schema view for the selected scopes, including tenant-local fields.
+     *
+     * This Airbnb-only API is used by subgraph services for their internal schema. Request schemas
+     * should use [SchemaView.Scoped] so tenant-local fields remain hidden from clients.
+     */
+    @InternalApi
+    fun buildScopedFull(scopes: Set<String>): ScopedGraphQLSchema = build(SchemaView.Scoped(scopes), includeTenantLocalFields = true)
+
+    private fun build(
+        view: SchemaView,
+        includeTenantLocalFields: Boolean,
+    ): ScopedGraphQLSchema {
         if (view == SchemaView.Base && !hasTenantLocalFields(inputSchema)) {
             return ScopedGraphQLSchema(inputSchema, inputSchema)
         }
@@ -92,7 +107,7 @@ class ScopedSchemaBuilder(
         val preparedSchema = replaceAllTypesWithReferences(inputSchema)
         return ScopedGraphQLSchema(
             inputSchema,
-            scopeTransformer.transform(preparedSchema, view),
+            scopeTransformer.transform(preparedSchema, view, includeTenantLocalFields),
         )
     }
 

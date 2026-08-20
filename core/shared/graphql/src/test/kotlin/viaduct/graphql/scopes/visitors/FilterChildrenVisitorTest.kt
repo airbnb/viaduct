@@ -69,6 +69,41 @@ class FilterChildrenVisitorTest {
         getChildrenForElement(elementChildren, "AType").shouldBeEmpty()
     }
 
+    @Test
+    fun `scoped full view only retains tenant-local fields in applied scopes`() {
+        val schema =
+            toSchema(
+                """
+            schema {
+              query: RootQuery
+            }
+
+            directive @tenantLocal on FIELD_DEFINITION
+
+            type RootQuery {
+              publicTenantField: String @tenantLocal
+              internalTenantField: String @tenantLocal
+            }
+        """
+            )
+
+        val elementChildren =
+            filterSchema(schema, includeTenantLocalFields = true) {
+                every { it.metadataForElement(schemaElementNamed("RootQuery")) } returns
+                    buildElementScopeMetadata(
+                        "RootQuery",
+                        mapOf("test-scope" to emptyList()),
+                        mapOf(
+                            "test-scope" to listOf("publicTenantField"),
+                            "other-scope" to listOf("internalTenantField")
+                        )
+                    )
+            }
+
+        getChildrenForElement(elementChildren, "RootQuery")?.map { it.name }
+            .shouldContainExactly("publicTenantField")
+    }
+
     /**
      * Ensures type extensions don't screw up transformation
      */
@@ -426,6 +461,7 @@ class FilterChildrenVisitorTest {
 
     private fun filterSchema(
         schema: GraphQLSchema,
+        includeTenantLocalFields: Boolean = false,
         mockBlock: (mockScopeDirectiveParser: ScopeDirectiveParser) -> Unit
     ): Map<GraphQLSchemaElement, List<GraphQLNamedSchemaElement>?> {
         val mockScopeDirectiveParser = spyk(ScopeDirectiveParser(setOf("test-scope")))
@@ -440,7 +476,8 @@ class FilterChildrenVisitorTest {
             FilterChildrenVisitor(
                 appliedScopes = setOf("test-scope"),
                 scopeDirectiveParser = mockScopeDirectiveParser,
-                elementChildren = elementChildren
+                elementChildren = elementChildren,
+                includeTenantLocalFields = includeTenantLocalFields
             )
         buildSchemaTraverser(schema).traverse(StubRoot(schema), visitor)
         return elementChildren
@@ -461,7 +498,8 @@ class FilterChildrenVisitorTest {
 
     private fun buildElementScopeMetadata(
         name: String,
-        elementNamesForScopes: Map<String, List<String>>
+        elementNamesForScopes: Map<String, List<String>>,
+        tenantLocalElementNamesForScopes: Map<String, List<String>> = emptyMap()
     ) = ElementScopeMetadata(
         name,
         elementNamesForScopes.mapValues {
@@ -472,6 +510,9 @@ class FilterChildrenVisitorTest {
                     FieldDefinition(name, null)
                 }
             }
+        },
+        tenantLocalElementNamesForScopes.mapValues {
+            it.value.map { name -> FieldDefinition(name, null) }
         }
     )
 }

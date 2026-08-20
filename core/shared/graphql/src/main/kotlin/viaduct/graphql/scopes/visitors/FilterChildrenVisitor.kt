@@ -19,6 +19,7 @@ internal class FilterChildrenVisitor(
     private val appliedScopes: Set<String>,
     private val scopeDirectiveParser: ScopeDirectiveParser,
     private val elementChildren: MutableMap<GraphQLSchemaElement, List<GraphQLNamedSchemaElement>?>,
+    private val includeTenantLocalFields: Boolean = false,
 ) : TraverserVisitorStub<GraphQLSchemaElement>() {
     override fun enter(context: TraverserContext<GraphQLSchemaElement>): TraversalControl {
         if (isIntrospectionField(context.thisNode())) {
@@ -50,7 +51,8 @@ internal class FilterChildrenVisitor(
         val metadata = scopeDirectiveParser.metadataForElement(element) ?: return
 
         // Get the element names in the _applied_ scopes
-        val elementNamesInAppliedScopes = getElementNamesInScopes(metadata, appliedScopes)
+        val elementNamesInAppliedScopes =
+            getElementNamesInScopes(metadata, appliedScopes, includeTenantLocalFields)
         val newChildElements = children.filter { el ->
             elementNamesInAppliedScopes.contains(getKeyForElement(el))
         }
@@ -65,11 +67,16 @@ internal class FilterChildrenVisitor(
     private fun getElementNamesInScopes(
         elementScopeMetadata: ElementScopeMetadata,
         scopes: Set<String>,
+        includeTenantLocalFields: Boolean,
     ) = scopes.fold(setOf<String>()) { acc, scope ->
-        val elementNamesForScope =
-            elementScopeMetadata.elementsForScopes[scope]?.map { getKeyForNode(it) }?.toSet()
-                ?: setOf()
-        acc + elementNamesForScope
+        val ordinaryElements = elementScopeMetadata.elementsForScopes[scope].orEmpty()
+        val tenantLocalElements =
+            if (includeTenantLocalFields) {
+                elementScopeMetadata.tenantLocalElementsForScopes[scope].orEmpty()
+            } else {
+                emptyList()
+            }
+        acc + (ordinaryElements + tenantLocalElements).map(::getKeyForNode)
     }
 
     private fun getKeyForNode(node: NamedNode<*>): String =

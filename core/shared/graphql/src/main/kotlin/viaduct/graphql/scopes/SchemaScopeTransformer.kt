@@ -33,8 +33,9 @@ internal class SchemaScopeTransformer(
     fun transform(
         inputSchema: GraphQLSchema,
         view: SchemaView,
+        includeTenantLocalFields: Boolean = false,
     ): GraphQLSchema {
-        val schemaTransformations = buildTransformations(inputSchema, view)
+        val schemaTransformations = buildTransformations(inputSchema, view, includeTenantLocalFields)
         return transformAndNormalizeDirectives(inputSchema, schemaTransformations)
     }
 
@@ -61,6 +62,7 @@ internal class SchemaScopeTransformer(
     private fun buildTransformations(
         schema: GraphQLSchema,
         view: SchemaView,
+        includeTenantLocalFields: Boolean,
     ): SchemaTransformations {
         val stubRoot = StubRoot(schema)
         val elementChildren =
@@ -99,6 +101,7 @@ internal class SchemaScopeTransformer(
                         appliedScopes = appliedScopes,
                         scopeDirectiveParser = scopeDirectiveParser,
                         elementChildren = elementChildren,
+                        includeTenantLocalFields = includeTenantLocalFields,
                     ),
                     TypeRemovalVisitor(typesToRemove, elementChildren),
                     *additionalVisitors,
