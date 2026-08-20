@@ -16,6 +16,7 @@ import viaduct.api.internal.BaseBatchedNodeResolver
 import viaduct.api.internal.BaseUnbatchedFieldResolver
 import viaduct.api.internal.BaseUnbatchedNodeResolver
 import viaduct.api.internal.InternalContext
+import viaduct.api.internal.NodeResolverFor
 import viaduct.api.resolver.Resolver
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
@@ -75,6 +76,7 @@ class ViaductModernExecutorFactoryTest {
         override suspend fun batchResolve(ctxs: List<Context>): List<FieldValue<String>> = emptyList()
     }
 
+    @NodeResolverFor(typeName = "TestNode", isSelective = false, isBatching = false)
     abstract class TestNodeResolverBase : NodeResolverBase<TestNode>, BaseUnbatchedNodeResolver {
         abstract suspend fun resolve(ctx: Context): TestNode
 
@@ -91,6 +93,7 @@ class ViaductModernExecutorFactoryTest {
         override suspend fun resolve(ctx: Context): TestNode = TestNode()
     }
 
+    @NodeResolverFor(typeName = "TestBatchNode", isSelective = false, isBatching = true)
     abstract class TestBatchNodeResolverBase :
         NodeResolverBase<TestBatchNode>,
         BaseBatchedNodeResolver {

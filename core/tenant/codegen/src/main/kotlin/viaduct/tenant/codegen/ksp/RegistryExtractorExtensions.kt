@@ -33,21 +33,21 @@ private val RESOLVER_BASE_SIMPLE_NAMES = setOf(
 internal fun KSClassDeclaration.toResolverParams(logger: KSPLogger): ResolverParams? {
     val implFqn = qualifiedResolverName(logger) ?: return null
 
-    val directBaseDeclaration = directResolverBaseDeclaration(
+    val baseDeclaration = resolverBaseDeclaration(
         implFqn = implFqn,
         logger = logger,
     ) ?: return null
 
-    if (directBaseDeclaration.qualifiedName == null) {
+    if (baseDeclaration.qualifiedName == null) {
         logger.warnRegistryExtractor(
             "Skipping {} because base class has no qualified name",
             implFqn,
         )
         return null
     }
-    val resolverBaseClass = directBaseDeclaration.jvmBinaryName()
+    val resolverBaseClass = baseDeclaration.jvmBinaryName()
 
-    val nodeResolverAnnotation = directBaseDeclaration.firstAnnotationNamed(nodeResolverForAnnotationName)
+    val nodeResolverAnnotation = baseDeclaration.firstAnnotationNamed(nodeResolverForAnnotationName)
     if (nodeResolverAnnotation != null) {
         val resolverAnnotation = firstAnnotationNamed(resolverAnnotationName)
         if (resolverAnnotation == null) {
@@ -82,13 +82,13 @@ internal fun KSClassDeclaration.toResolverParams(logger: KSPLogger): ResolverPar
         )
     }
 
-    val resolverForAnnotation = directBaseDeclaration.firstAnnotationNamed(resolverForAnnotationName)
+    val resolverForAnnotation = baseDeclaration.firstAnnotationNamed(resolverForAnnotationName)
     if (resolverForAnnotation != null) {
         return toFieldResolverParams(
             implFqn = implFqn,
             resolverForAnnotation = resolverForAnnotation,
             resolverBaseClass = resolverBaseClass,
-            baseDeclaration = directBaseDeclaration,
+            baseDeclaration = baseDeclaration,
             logger = logger,
         )
     }
@@ -96,27 +96,63 @@ internal fun KSClassDeclaration.toResolverParams(logger: KSPLogger): ResolverPar
     return null
 }
 
-private fun KSClassDeclaration.directResolverBaseDeclaration(
+private fun KSClassDeclaration.resolverBaseDeclaration(
     implFqn: String,
     logger: KSPLogger,
 ): KSClassDeclaration? {
-    val annotatedBase = superTypes.toList()
-        .mapNotNull { it.resolve().declaration as? KSClassDeclaration }
-        .firstOrNull { base ->
-            base.firstAnnotationNamed(nodeResolverForAnnotationName) != null ||
-                base.firstAnnotationNamed(resolverForAnnotationName) != null
-        }
-
-    if (annotatedBase == null) {
-        logger.loggingRegistryExtractor(
-            "Skipping {} because no direct supertype is annotated with @{} or @{}",
-            implFqn,
-            nodeResolverForAnnotationName,
-            resolverForAnnotationName,
-        )
+    val annotatedBases = annotatedResolverBaseDeclarations()
+    if (annotatedBases.size == 1) {
+        return annotatedBases.single()
     }
 
-    return annotatedBase
+    val annotationNames = "@$nodeResolverForAnnotationName or @$resolverForAnnotationName"
+    if (annotatedBases.isEmpty()) {
+        logger.errorRegistryExtractor(
+            "@$resolverAnnotationName class {} must inherit from exactly one resolver base annotated " +
+                "with {}, but none were found.",
+            implFqn,
+            annotationNames,
+        )
+    } else {
+        val baseNames = annotatedBases
+            .map { it.qualifiedName?.asString() ?: it.simpleName.asString() }
+            .sorted()
+        logger.errorRegistryExtractor(
+            "@$resolverAnnotationName class {} must inherit from exactly one resolver base annotated " +
+                "with {}, but found {}: {}",
+            implFqn,
+            annotationNames,
+            annotatedBases.size,
+            baseNames,
+        )
+    }
+    return null
+}
+
+private fun KSClassDeclaration.annotatedResolverBaseDeclarations(): List<KSClassDeclaration> {
+    val pending = ArrayDeque<KSClassDeclaration>()
+    superTypes
+        .mapNotNullTo(pending) { it.resolve().declaration as? KSClassDeclaration }
+    val visited = mutableSetOf<String>()
+    val annotatedBases = linkedMapOf<String, KSClassDeclaration>()
+
+    while (pending.isNotEmpty()) {
+        val declaration = pending.removeFirst()
+        val declarationName = declaration.qualifiedName?.asString() ?: declaration.toString()
+        if (!visited.add(declarationName)) continue
+
+        if (
+            declaration.firstAnnotationNamed(nodeResolverForAnnotationName) != null ||
+            declaration.firstAnnotationNamed(resolverForAnnotationName) != null
+        ) {
+            annotatedBases[declarationName] = declaration
+        }
+
+        declaration.superTypes
+            .mapNotNullTo(pending) { it.resolve().declaration as? KSClassDeclaration }
+    }
+
+    return annotatedBases.values.toList()
 }
 
 private fun KSClassDeclaration.toNodeResolverParams(
@@ -371,7 +407,7 @@ internal fun extractGrtPackagePrefix(classDeclarations: List<KSClassDeclaration>
     return classDeclarations
         .asSequence()
         .flatMap { it.selfAndNestedClasses() }
-        .mapNotNull { it.directResolverBasePkg() }
+        .mapNotNull { it.resolverBasePkg() }
         .firstOrNull()
 }
 
@@ -383,13 +419,8 @@ private fun KSClassDeclaration.selfAndNestedClasses(): Sequence<KSClassDeclarati
         }
     }
 
-private fun KSClassDeclaration.directResolverBasePkg(): String? {
-    val base = superTypes.toList()
-        .mapNotNull { it.resolve().declaration as? KSClassDeclaration }
-        .firstOrNull { base ->
-            base.firstAnnotationNamed(nodeResolverForAnnotationName) != null ||
-                base.firstAnnotationNamed(resolverForAnnotationName) != null
-        } ?: return null
+private fun KSClassDeclaration.resolverBasePkg(): String? {
+    val base = annotatedResolverBaseDeclarations().singleOrNull() ?: return null
 
     return pkgFromContextClass(base) ?: pkgFromNodeResolverBase(base)
 }

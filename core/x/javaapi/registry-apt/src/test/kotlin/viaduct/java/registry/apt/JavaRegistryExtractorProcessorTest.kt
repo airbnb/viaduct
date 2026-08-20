@@ -51,6 +51,25 @@ class JavaRegistryExtractorProcessorTest {
     }
 
     @Test
+    fun `emits the generated field resolver base metadata through an intermediate class`(
+        @TempDir tempDir: File
+    ) {
+        val descriptors =
+            compileAndReadDescriptors(tempDir, GRT_STUBS, QUERY_RESOLVER_BASES, INDIRECT_FIELD_RESOLVER_SOURCE)
+
+        val json = descriptors.getValue("com/example/tenant/IndirectFieldResolvers.json")
+        val field = json.path("fields").single()
+        field.path("typeName").asText() shouldBe "Query"
+        field.path("fieldName").asText() shouldBe "greeting"
+        field.path("implFqn").asText() shouldBe "com.example.tenant.IndirectFieldResolvers\$GreetingResolver"
+        field.path("resolverBaseClass").asText() shouldBe "com.example.tenant.QueryResolvers\$Greeting"
+        field.path("hasArguments").asBoolean().shouldBeFalse()
+        field.path("queryTypeName").asText() shouldBe "MyQuery"
+        field.path("returnTypeName").asText() shouldBe "String"
+        json.path("grtPackagePrefix").asText() shouldBe "com.example.grts"
+    }
+
+    @Test
     fun `captures objectValueFragment and a fromArgument variable`(
         @TempDir tempDir: File
     ) {
@@ -162,6 +181,21 @@ class JavaRegistryExtractorProcessorTest {
     }
 
     @Test
+    fun `emits the generated node resolver base metadata through an intermediate class`(
+        @TempDir tempDir: File
+    ) {
+        val descriptors =
+            compileAndReadDescriptors(tempDir, GRT_STUBS, NODE_RESOLVER_BASES, INDIRECT_NODE_RESOLVER_SOURCE)
+
+        val json = descriptors.getValue("com/example/tenant/IndirectNodeResolvers.json")
+        val node = json.path("nodes").single()
+        node.path("typeName").asText() shouldBe "User"
+        node.path("implFqn").asText() shouldBe "com.example.tenant.IndirectNodeResolvers\$UserNodeResolver"
+        node.path("resolverBaseClass").asText() shouldBe "com.example.tenant.UserNodeResolvers\$UserNode"
+        json.path("grtPackagePrefix").asText() shouldBe "com.example.grts"
+    }
+
+    @Test
     fun `marks isBatching and isSelective true when the node base declares them`(
         @TempDir tempDir: File
     ) {
@@ -184,6 +218,38 @@ class JavaRegistryExtractorProcessorTest {
         assertTrue(
             diagnostics.any {
                 it.contains("Node resolvers do not support required selection sets")
+            }
+        )
+    }
+
+    @Test
+    fun `reports an error when no annotated resolver base ancestor exists`(
+        @TempDir tempDir: File
+    ) {
+        val (success, diagnostics) = compile(tempDir, MISSING_RESOLVER_BASE_SOURCE)
+
+        success.shouldBeFalse()
+        assertTrue(
+            diagnostics.any {
+                it.contains("must inherit from exactly one resolver base") &&
+                    it.contains("none were found")
+            }
+        )
+    }
+
+    @Test
+    fun `reports an error when multiple annotated resolver base ancestors exist`(
+        @TempDir tempDir: File
+    ) {
+        val (success, diagnostics) = compile(tempDir, GRT_STUBS, AMBIGUOUS_RESOLVER_BASES_SOURCE)
+
+        success.shouldBeFalse()
+        assertTrue(
+            diagnostics.any {
+                it.contains("must inherit from exactly one resolver base") &&
+                    it.contains("but found 2") &&
+                    it.contains("AmbiguousResolverBases\$First") &&
+                    it.contains("AmbiguousResolverBases\$Second")
             }
         )
     }
@@ -479,6 +545,28 @@ class JavaRegistryExtractorProcessorTest {
             """.trimIndent(),
         )
 
+        val INDIRECT_FIELD_RESOLVER_SOURCE = SourceFile(
+            "com.example.tenant.IndirectFieldResolvers",
+            """
+            package com.example.tenant;
+
+            import java.util.concurrent.CompletableFuture;
+            import viaduct.java.api.annotations.Resolver;
+
+            public final class IndirectFieldResolvers {
+                public abstract static class SharedResolver extends QueryResolvers.Greeting {}
+
+                @Resolver
+                public static class GreetingResolver extends SharedResolver {
+                    @Override
+                    public CompletableFuture<String> resolve(Context ctx) {
+                        return CompletableFuture.completedFuture("hi");
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
         val FRAGMENT_RESOLVER_SOURCE = SourceFile(
             "com.example.tenant.FragResolvers",
             """
@@ -754,6 +842,45 @@ class JavaRegistryExtractorProcessorTest {
             """.trimIndent(),
         )
 
+        val MISSING_RESOLVER_BASE_SOURCE = SourceFile(
+            "com.example.tenant.MissingResolverBase",
+            """
+            package com.example.tenant;
+
+            import viaduct.java.api.annotations.Resolver;
+
+            @Resolver
+            public final class MissingResolverBase {}
+            """.trimIndent(),
+        )
+
+        val AMBIGUOUS_RESOLVER_BASES_SOURCE = SourceFile(
+            "com.example.tenant.AmbiguousResolverBases",
+            """
+            package com.example.tenant;
+
+            import viaduct.java.api.annotations.Resolver;
+            import viaduct.java.api.annotations.ResolverFor;
+            import viaduct.java.api.resolvers.FieldResolverBase;
+            import viaduct.java.api.types.Arguments;
+            import viaduct.java.api.types.CompositeOutput;
+            import com.example.grts.Grts;
+
+            public final class AmbiguousResolverBases {
+                @ResolverFor(typeName = "Query", fieldName = "first", isSelective = false)
+                public interface First
+                    extends FieldResolverBase<String, Grts.MyQuery, Grts.MyQuery, Arguments.NoArguments, CompositeOutput> {}
+
+                @ResolverFor(typeName = "Query", fieldName = "second", isSelective = false)
+                public interface Second
+                    extends FieldResolverBase<String, Grts.MyQuery, Grts.MyQuery, Arguments.NoArguments, CompositeOutput> {}
+
+                @Resolver
+                public abstract static class AmbiguousResolver implements First, Second {}
+            }
+            """.trimIndent(),
+        )
+
         val DOCUMENTS_SOURCE = SourceFile(
             "com.example.tenant.Documents",
             """
@@ -803,6 +930,29 @@ class JavaRegistryExtractorProcessorTest {
             public final class NodeResolvers {
                 @Resolver
                 public static class UserNodeResolver extends UserNodeResolvers.UserNode {
+                    @Override
+                    public CompletableFuture<Grts.User> resolve(Context ctx) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val INDIRECT_NODE_RESOLVER_SOURCE = SourceFile(
+            "com.example.tenant.IndirectNodeResolvers",
+            """
+            package com.example.tenant;
+
+            import java.util.concurrent.CompletableFuture;
+            import viaduct.java.api.annotations.Resolver;
+            import com.example.grts.Grts;
+
+            public final class IndirectNodeResolvers {
+                public abstract static class SharedResolver extends UserNodeResolvers.UserNode {}
+
+                @Resolver
+                public static class UserNodeResolver extends SharedResolver {
                     @Override
                     public CompletableFuture<Grts.User> resolve(Context ctx) {
                         return CompletableFuture.completedFuture(null);

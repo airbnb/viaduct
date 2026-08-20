@@ -14,6 +14,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.api.ResolverBase
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.internal.DefaultGRTConvFactory
+import viaduct.api.internal.ResolverFor
 import viaduct.api.mocks.mockReflectionLoader
 import viaduct.api.resolver.Resolver
 import viaduct.api.resolver.Variable
@@ -90,6 +91,9 @@ class RequiredSelectionSetFactoryTest {
 
     class MockArguments : Arguments
 
+    @ResolverFor(typeName = "Query", fieldName = "testField", isSelective = false)
+    abstract class TestResolverBase : ResolverBase<Unit>
+
     private class MockVariablesProvider(val vars: Map<String, Any?> = emptyMap()) : VariablesProvider<MockArguments> {
         override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = vars
     }
@@ -117,7 +121,7 @@ class RequiredSelectionSetFactoryTest {
             Variable(name = "z", fromObjectField = "baz")
         ]
     )
-    class MyResolverBase : ResolverBase<Unit> {
+    class MyResolverBase : TestResolverBase() {
         @Suppress("unused")
         @Variables("y:Int!")
         class MyVariablesProvider : VariablesProvider<MockArguments> {
@@ -143,7 +147,7 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Resolver // No variables, no fragments - should work
-    class EmptyAnnotationResolver : ResolverBase<Unit>
+    class EmptyAnnotationResolver : TestResolverBase()
 
     @Test
     fun `createRequiredSelectionSets -- injector handles empty annotation`() {
@@ -161,7 +165,7 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Resolver(variables = [Variable("x", "baz")]) // Variable without fragment should throw
-    class VariableWithoutFragmentResolver : ResolverBase<Unit>
+    class VariableWithoutFragmentResolver : TestResolverBase()
 
     @Test
     fun `createRequiredSelectionSets -- injector validates variable requires fragment`() {
@@ -178,7 +182,7 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Resolver("bar", variables = [Variable("x")]) // Variable without fromField or fromArgument
-    class VariableWithoutSourceResolver : ResolverBase<Unit>
+    class VariableWithoutSourceResolver : TestResolverBase()
 
     @Test
     fun `createRequiredSelectionSets -- injector validates variable requires source`() {
@@ -198,7 +202,7 @@ class RequiredSelectionSetFactoryTest {
         "bar",
         variables = [Variable(name = "x", fromObjectField = "baz", fromArgument = "x")]
     ) // Variable with both fromField and fromArgument
-    class VariableWithBothSourcesResolver : ResolverBase<Unit>
+    class VariableWithBothSourcesResolver : TestResolverBase()
 
     @Test
     fun `createRequiredSelectionSets -- injector validates variable cannot have both sources`() {
@@ -218,7 +222,7 @@ class RequiredSelectionSetFactoryTest {
         "field(arg: \$z) baz",
         variables = [Variable("z", fromObjectField = "baz")]
     )
-    class ValidFromFieldResolver : ResolverBase<Unit>
+    class ValidFromFieldResolver : TestResolverBase()
 
     @Test
     fun `createRequiredSelectionSets -- injector handles valid fromField variable`() {
@@ -238,7 +242,7 @@ class RequiredSelectionSetFactoryTest {
         "field(arg: \$x)",
         variables = [Variable("x", fromArgument = "x")]
     )
-    class ValidFromArgumentResolver : ResolverBase<Unit>
+    class ValidFromArgumentResolver : TestResolverBase()
 
     @Test
     fun `createRequiredSelectionSets -- injector handles valid fromArgument variable`() {
@@ -520,7 +524,7 @@ class RequiredSelectionSetFactoryTest {
     // Test basic @Variables syntax validation
 
     @Resolver("__typename") // No variables used in selection
-    class EmptyVariablesResolver : ResolverBase<Unit> {
+    class EmptyVariablesResolver : TestResolverBase() {
         @Variables("")
         class EmptyVariablesProvider : VariablesProvider<MockArguments> {
             override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = emptyMap()
@@ -528,7 +532,7 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Resolver("__typename") // No variables used in selection
-    class BlankVariablesResolver : ResolverBase<Unit> {
+    class BlankVariablesResolver : TestResolverBase() {
         @Variables("", " ")
         class BlankVariablesProvider : VariablesProvider<MockArguments> {
             override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = emptyMap()
@@ -536,7 +540,7 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Resolver("foo(x: \$testVar)")
-    class InvalidSyntaxVariablesResolver : ResolverBase<Unit> {
+    class InvalidSyntaxVariablesResolver : TestResolverBase() {
         @Variables("invalidSyntax")
         class InvalidSyntaxVariablesProvider : VariablesProvider<MockArguments> {
             override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = emptyMap()
@@ -544,7 +548,7 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Resolver("foo(x: \$testVar)")
-    class NonExistentTypeVariablesResolver : ResolverBase<Unit> {
+    class NonExistentTypeVariablesResolver : TestResolverBase() {
         @Variables("testVar:NonExistentType!")
         class NonExistentTypeVariablesProvider : VariablesProvider<MockArguments> {
             override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = mapOf("testVar" to "someValue")
@@ -552,7 +556,7 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Resolver("foo(x: \$testVar)")
-    class UnionTypeVariablesResolver : ResolverBase<Unit> {
+    class UnionTypeVariablesResolver : TestResolverBase() {
         @Variables("testVar:SearchResult!")
         class UnionTypeVariablesProvider : VariablesProvider<MockArguments> {
             override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = mapOf("testVar" to mapOf("id" to "123"))
@@ -560,7 +564,7 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Resolver("foo(x: \$testVar)")
-    class InterfaceTypeVariablesResolver : ResolverBase<Unit> {
+    class InterfaceTypeVariablesResolver : TestResolverBase() {
         @Variables("testVar:Node!")
         class InterfaceTypeVariablesProvider : VariablesProvider<MockArguments> {
             override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = mapOf("testVar" to mapOf("id" to "123"))
@@ -568,7 +572,7 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Resolver("foo(x: \$testVar)")
-    class ObjectTypeVariablesResolver : ResolverBase<Unit> {
+    class ObjectTypeVariablesResolver : TestResolverBase() {
         @Variables("testVar:User!")
         class ObjectTypeVariablesProvider : VariablesProvider<MockArguments> {
             override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = mapOf("testVar" to mapOf("id" to "123", "name" to "Test"))
@@ -576,7 +580,7 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Resolver("foo(x: \$testVar)")
-    class ValidInputTypeVariablesResolver : ResolverBase<Unit> {
+    class ValidInputTypeVariablesResolver : TestResolverBase() {
         @Variables("testVar:UserInput!")
         class ValidInputTypeVariablesProvider : VariablesProvider<MockArguments> {
             override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = mapOf("testVar" to mapOf("name" to "Test"))
@@ -815,7 +819,7 @@ class RequiredSelectionSetFactoryTest {
         queryValueFragment = "bar(y: \$y) baz",
         variables = [Variable(name = "y", fromQueryField = "baz")]
     )
-    class QueryOnlyResolver : ResolverBase<Unit>
+    class QueryOnlyResolver : TestResolverBase()
 
     @Resolver(
         objectValueFragment = "foo(x: \$x) baz",
@@ -825,10 +829,10 @@ class RequiredSelectionSetFactoryTest {
             Variable(name = "y", fromObjectField = "baz")
         ]
     )
-    class DualFragmentResolver : ResolverBase<Unit>
+    class DualFragmentResolver : TestResolverBase()
 
     @Resolver("foo")
-    class InvalidVariablesClassResolver : ResolverBase<Unit> {
+    class InvalidVariablesClassResolver : TestResolverBase() {
         @Variables("x:Int!")
         class NotAVariablesProvider {
             // This class has @Variables but doesn't implement VariablesProvider
@@ -970,13 +974,13 @@ class RequiredSelectionSetFactoryTest {
             Variable(name = "queryVar", fromQueryField = "queryData")
         ]
     )
-    class MixedFieldSourceResolver : ResolverBase<Unit>
+    class MixedFieldSourceResolver : TestResolverBase()
 
     @Resolver(objectValueFragment = "obj")
-    class BadMultipleFieldsResolver : ResolverBase<Unit>
+    class BadMultipleFieldsResolver : TestResolverBase()
 
     @Resolver(objectValueFragment = "obj")
-    class BadNoFieldsResolver : ResolverBase<Unit>
+    class BadNoFieldsResolver : TestResolverBase()
 
     // ============================================================================
     // FromQueryFieldVariable Edge Case Tests
@@ -986,7 +990,7 @@ class RequiredSelectionSetFactoryTest {
         queryValueFragment = "fragment _ on Query { foo(var: \$emptyVar) }",
         variables = [Variable(name = "emptyVar", fromQueryField = "")]
     )
-    class EmptyQueryFieldPathResolver : ResolverBase<Unit>
+    class EmptyQueryFieldPathResolver : TestResolverBase()
 
     @Test
     fun `createRequiredSelectionSets -- validation error for empty fromQueryField path`() {
@@ -1006,7 +1010,7 @@ class RequiredSelectionSetFactoryTest {
         queryValueFragment = "fragment _ on Query { foo(x: \$invalidVar) }",
         variables = [Variable(name = "invalidVar", fromQueryField = "nonExistentField")]
     )
-    class InvalidQueryFieldPathResolver : ResolverBase<Unit>
+    class InvalidQueryFieldPathResolver : TestResolverBase()
 
     @Test
     fun `createRequiredSelectionSets -- validation error for invalid fromQueryField path`() {
@@ -1026,7 +1030,7 @@ class RequiredSelectionSetFactoryTest {
         queryValueFragment = "fragment _ on Query { foo(var: \$objectTypeVar) testField }",
         variables = [Variable(name = "objectTypeVar", fromQueryField = "testField")]
     )
-    class QueryFieldToObjectTypeResolver : ResolverBase<Unit>
+    class QueryFieldToObjectTypeResolver : TestResolverBase()
 
     @Test
     fun `createRequiredSelectionSets -- validation allows scalar query field paths`() {

@@ -36,6 +36,11 @@ internal data class ExtractedResolver(
     val grtPackagePrefix: String?,
 )
 
+private data class ResolverBase(
+    val type: DeclaredType,
+    val element: TypeElement,
+)
+
 /**
  * Converts a `@Resolver`-annotated Java [TypeElement] into a [ResolverParams] descriptor, mirroring
  * the Kotlin KSP `toResolverParams` logic in `RegistryExtractorExtensions.kt`.
@@ -54,13 +59,13 @@ internal class JavaResolverParamsExtractor(
     fun extract(impl: TypeElement): ExtractedResolver? {
         val implFqn = binaryName(impl) ?: return null
 
-        val base = directResolverBase(impl) ?: return null
-        val resolverBaseClass = binaryName(base) ?: return null
+        val base = resolverBase(impl, implFqn) ?: return null
+        val resolverBaseClass = binaryName(base.element) ?: return null
 
-        nodeResolverForAnnotation(base)?.let { nodeAnn ->
+        nodeResolverForAnnotation(base.element)?.let { nodeAnn ->
             return extractNode(impl, base, implFqn, resolverBaseClass, nodeAnn)
         }
-        resolverForAnnotation(base)?.let { fieldAnn ->
+        resolverForAnnotation(base.element)?.let { fieldAnn ->
             return extractField(impl, base, implFqn, resolverBaseClass, fieldAnn)
         }
         return null
@@ -70,7 +75,7 @@ internal class JavaResolverParamsExtractor(
 
     private fun extractNode(
         impl: TypeElement,
-        base: TypeElement,
+        base: ResolverBase,
         implFqn: String,
         resolverBaseClass: String,
         nodeAnn: AnnotationMirror,
@@ -108,7 +113,7 @@ internal class JavaResolverParamsExtractor(
 
     private fun extractField(
         impl: TypeElement,
-        base: TypeElement,
+        base: ResolverBase,
         implFqn: String,
         resolverBaseClass: String,
         fieldAnn: AnnotationMirror,
@@ -227,21 +232,53 @@ internal class JavaResolverParamsExtractor(
 
     // ── Supertype / type-argument inspection ──────────────────────────────────────
 
-    /** The direct supertype (superclass or interface) of [impl] carrying a resolver-base annotation. */
-    private fun directResolverBase(impl: TypeElement): TypeElement? {
-        val supers = buildList {
-            (impl.superclass as? DeclaredType)?.let { add(it) }
-            impl.interfaces.filterIsInstance<DeclaredType>().forEach { add(it) }
-        }
-        return supers.mapNotNull { it.asElement() as? TypeElement }
-            .firstOrNull { base ->
-                resolverForAnnotation(base) != null || nodeResolverForAnnotation(base) != null
+    /** The unique annotated resolver-base ancestor of [impl]. */
+    private fun resolverBase(
+        impl: TypeElement,
+        implFqn: String,
+    ): ResolverBase? {
+        val pending = ArrayDeque<TypeMirror>()
+        pending.addAll(types.directSupertypes(impl.asType()))
+        val visited = mutableSetOf<String>()
+        val annotatedBases = linkedMapOf<String, ResolverBase>()
+
+        while (pending.isNotEmpty()) {
+            val declared = pending.removeFirst() as? DeclaredType ?: continue
+            val element = declared.asElement() as? TypeElement ?: continue
+            val elementName = binaryName(element) ?: element.qualifiedName.toString()
+            if (!visited.add(elementName)) continue
+
+            if (resolverForAnnotation(element) != null || nodeResolverForAnnotation(element) != null) {
+                annotatedBases[elementName] = ResolverBase(declared, element)
             }
+            pending.addAll(types.directSupertypes(declared))
+        }
+
+        if (annotatedBases.size == 1) {
+            return annotatedBases.values.single()
+        }
+
+        val annotationNames = "@$RESOLVER_FOR_FQN or @$NODE_RESOLVER_FOR_FQN"
+        if (annotatedBases.isEmpty()) {
+            onError(
+                "@$RESOLVER_ANNOTATION_FQN class $implFqn must inherit from exactly one resolver base " +
+                    "annotated with $annotationNames, but none were found.",
+                impl,
+            )
+        } else {
+            onError(
+                "@$RESOLVER_ANNOTATION_FQN class $implFqn must inherit from exactly one resolver base " +
+                    "annotated with $annotationNames, but found ${annotatedBases.size}: " +
+                    annotatedBases.keys.sorted().joinToString(),
+                impl,
+            )
+        }
+        return null
     }
 
     /** Type arguments of the base's `FieldResolverBase<...>` interface, in declaration order. */
-    private fun fieldResolverBaseTypeArgs(base: TypeElement): List<TypeMirror> =
-        base.interfaces
+    private fun fieldResolverBaseTypeArgs(base: ResolverBase): List<TypeMirror> =
+        types.directSupertypes(base.type)
             .filterIsInstance<DeclaredType>()
             .firstOrNull {
                 val fqn = (it.asElement() as? TypeElement)?.qualifiedName?.toString()
@@ -251,8 +288,8 @@ internal class JavaResolverParamsExtractor(
             ?: emptyList()
 
     /** GRT package prefix for a node resolver: package of `NodeResolverBase<R>`'s R argument. */
-    private fun nodeResolverGrtPackagePrefix(base: TypeElement): String? =
-        base.interfaces
+    private fun nodeResolverGrtPackagePrefix(base: ResolverBase): String? =
+        types.directSupertypes(base.type)
             .filterIsInstance<DeclaredType>()
             .firstOrNull { (it.asElement() as? TypeElement)?.qualifiedName?.toString() == NODE_RESOLVER_BASE_FQN }
             ?.typeArguments?.firstOrNull()

@@ -67,6 +67,53 @@ class RegistryExtractorExtensionsTest {
     }
 
     @Test
+    fun `toResolverParams returns node params through an intermediate class`() {
+        val logger = RecordingKspLogger()
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.NodeResolvers.ExampleNode",
+            simpleName = "ExampleNode",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "NodeResolverFor",
+                    args = mapOf("typeName" to "ExampleNode", "isBatching" to true, "isSelective" to true),
+                ),
+            ),
+        )
+        val intermediateDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.SharedNodeResolver",
+            simpleName = "SharedNodeResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+        )
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNodeResolver",
+            simpleName = "ExampleNodeResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(intermediateDeclaration),
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "Resolver",
+                    args = mapOf(
+                        "objectValueFragment" to "",
+                        "queryValueFragment" to "",
+                        "variables" to emptyList<Any>(),
+                    ),
+                ),
+            ),
+        )
+
+        val node = resolverDeclaration.toResolverParams(logger).shouldBeInstanceOf<ResolverParams.Node>()
+
+        assertEquals("ExampleNode", node.typeName)
+        assertEquals("com.example.feature.resolverbases.NodeResolvers\$ExampleNode", node.resolverBaseClass)
+        assertEquals(true, node.isBatching)
+        assertEquals(true, node.isSelective)
+        assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
+    }
+
+    @Test
     fun `toResolverParams returns field params for field resolver`() {
         val logger = RecordingKspLogger()
 
@@ -109,6 +156,94 @@ class RegistryExtractorExtensionsTest {
         assertNull(field.objectSelections)
         assertNull(field.querySelections)
         assertTrue(logger.warns.isEmpty(), logger.warns.joinToString("\n"))
+        assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `toResolverParams returns field params through an intermediate class`() {
+        val logger = RecordingKspLogger()
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName",
+            simpleName = "ExampleName",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf(
+                        "typeName" to "ExampleNode",
+                        "fieldName" to "name",
+                        "isBatching" to true,
+                        "isSelective" to true,
+                    ),
+                ),
+            ),
+        )
+        val intermediateDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.SharedNameResolver",
+            simpleName = "SharedNameResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+        )
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver",
+            simpleName = "ExampleNameResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(intermediateDeclaration),
+        )
+
+        val field = resolverDeclaration.toResolverParams(logger).shouldBeInstanceOf<ResolverParams.Field>()
+
+        assertEquals("ExampleNode", field.typeName)
+        assertEquals("name", field.fieldName)
+        assertEquals("com.example.feature.resolverbases.ExampleName", field.resolverBaseClass)
+        assertEquals(true, field.isBatching)
+        assertEquals(true, field.isSelective)
+        assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `toResolverParams counts the same annotated base reached through two paths once`() {
+        val logger = RecordingKspLogger()
+
+        val baseDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.ExampleName",
+            simpleName = "ExampleName",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf(
+                        "typeName" to "ExampleNode",
+                        "fieldName" to "name",
+                        "isBatching" to false,
+                        "isSelective" to false,
+                    ),
+                ),
+            ),
+        )
+        val leftIntermediate = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.LeftIntermediate",
+            simpleName = "LeftIntermediate",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+        )
+        val rightIntermediate = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.RightIntermediate",
+            simpleName = "RightIntermediate",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(baseDeclaration),
+        )
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.ExampleNameResolver",
+            simpleName = "ExampleNameResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(leftIntermediate, rightIntermediate),
+        )
+
+        val field = resolverDeclaration.toResolverParams(logger).shouldBeInstanceOf<ResolverParams.Field>()
+
+        assertEquals("com.example.feature.resolverbases.ExampleName", field.resolverBaseClass)
         assertTrue(logger.errors.isEmpty(), logger.errors.joinToString("\n"))
     }
 
@@ -161,7 +296,7 @@ class RegistryExtractorExtensionsTest {
     }
 
     @Test
-    fun `toResolverParams returns null when direct resolver base is not annotated`() {
+    fun `toResolverParams errors when no annotated resolver base ancestor exists`() {
         val logger = RecordingKspLogger()
 
         val baseDeclaration = ksClassDeclaration(
@@ -184,10 +319,67 @@ class RegistryExtractorExtensionsTest {
 
         assertNull(result)
         assertTrue(
-            logger.loggings.any {
-                it.contains("no direct supertype is annotated with @NodeResolverFor or @ResolverFor")
+            logger.errors.any {
+                it.contains("must inherit from exactly one resolver base") &&
+                    it.contains("none were found")
             },
-            logger.loggings.joinToString("\n"),
+            logger.errors.joinToString("\n"),
+        )
+    }
+
+    @Test
+    fun `toResolverParams errors when multiple annotated resolver base ancestors exist`() {
+        val logger = RecordingKspLogger()
+
+        val firstBase = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.First",
+            simpleName = "First",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf(
+                        "typeName" to "ExampleNode",
+                        "fieldName" to "first",
+                        "isBatching" to false,
+                        "isSelective" to false,
+                    ),
+                ),
+            ),
+        )
+        val secondBase = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolverbases.Second",
+            simpleName = "Second",
+            packageName = "com.example.feature.resolverbases",
+            annotations = listOf(
+                ksAnnotation(
+                    simpleName = "ResolverFor",
+                    args = mapOf(
+                        "typeName" to "ExampleNode",
+                        "fieldName" to "second",
+                        "isBatching" to false,
+                        "isSelective" to false,
+                    ),
+                ),
+            ),
+        )
+        val resolverDeclaration = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.AmbiguousResolver",
+            simpleName = "AmbiguousResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(firstBase, secondBase),
+        )
+
+        val result = resolverDeclaration.toResolverParams(logger)
+
+        assertNull(result)
+        assertTrue(
+            logger.errors.any {
+                it.contains("but found 2") &&
+                    it.contains("com.example.feature.resolverbases.First") &&
+                    it.contains("com.example.feature.resolverbases.Second")
+            },
+            logger.errors.joinToString("\n"),
         )
     }
 
@@ -229,11 +421,11 @@ class RegistryExtractorExtensionsTest {
     }
 
     @Test
-    fun `toResolverParams returns null when direct supertype declaration is not a class`() {
+    fun `toResolverParams errors when supertype declaration is not a class`() {
         val logger = RecordingKspLogger()
 
         // A supertype whose declaration is not a KSClassDeclaration (e.g. a type alias)
-        // is filtered out silently; if no annotated class supertype remains, an info is emitted.
+        // is filtered out; if no annotated class ancestor remains, an error is emitted.
         val nonClassDeclaration = ksNonClassDeclaration(simpleName = "SomeTypeAlias")
         val resolverDeclaration = ksClassDeclarationWithNonClassSupertype(
             qualifiedName = "com.example.feature.resolvers.ExampleNodeResolver",
@@ -246,13 +438,13 @@ class RegistryExtractorExtensionsTest {
 
         assertNull(result)
         assertTrue(
-            logger.loggings.any { it.contains("no direct supertype is annotated with") },
-            logger.loggings.joinToString("\n"),
+            logger.errors.any { it.contains("none were found") },
+            logger.errors.joinToString("\n"),
         )
     }
 
     @Test
-    fun `toResolverParams returns null when class has no supertypes`() {
+    fun `toResolverParams errors when class has no supertypes`() {
         val logger = RecordingKspLogger()
 
         val resolverDeclaration = ksClassDeclaration(
@@ -267,8 +459,8 @@ class RegistryExtractorExtensionsTest {
 
         assertNull(result)
         assertTrue(
-            logger.loggings.any { it.contains("no direct supertype is annotated") },
-            logger.loggings.joinToString("\n"),
+            logger.errors.any { it.contains("none were found") },
+            logger.errors.joinToString("\n"),
         )
     }
 
@@ -1135,7 +1327,7 @@ class RegistryExtractorExtensionsTest {
     }
 
     @Test
-    fun `extractGrtPackagePrefix finds prefix from resolver nested more than two levels deep`() {
+    fun `extractGrtPackagePrefix finds prefix through an intermediate class for a deeply nested resolver`() {
         val grtClass = ksClassDeclaration(
             qualifiedName = "viaduct.api.grts.SomeGrtClass",
             simpleName = "SomeGrtClass",
@@ -1167,12 +1359,18 @@ class RegistryExtractorExtensionsTest {
             ),
             declarations = listOf(contextClass),
         )
-        // Resolver at depth 3: outerClass → middleClass → deepResolver
+        val sharedResolver = ksClassDeclaration(
+            qualifiedName = "com.example.feature.resolvers.SharedResolver",
+            simpleName = "SharedResolver",
+            packageName = "com.example.feature.resolvers",
+            superDeclarations = listOf(resolverBase),
+        )
+        // Resolver at depth 3: outerClass → middleClass → deepResolver.
         val deepResolver = ksClassDeclaration(
             qualifiedName = "com.example.feature.resolvers.outer.Middle.DeepResolver",
             simpleName = "DeepResolver",
             packageName = "com.example.feature.resolvers.outer",
-            superDeclarations = listOf(resolverBase),
+            superDeclarations = listOf(sharedResolver),
             declarations = emptyList(),
         )
         val middleClass = ksClassDeclaration(
@@ -1463,6 +1661,7 @@ private fun ksNodeBaseDeclarationWithNullQualifiedName(
             "getSimpleName" -> simpleNameValue
             "getQualifiedName" -> null
             "getAnnotations" -> sequenceOf(annotation)
+            "getSuperTypes" -> emptySequence<KSTypeReference>()
             "getParentDeclaration" -> null
             "toString" -> simpleName
             else -> unsupported("KSClassDeclaration.${method.name}")
