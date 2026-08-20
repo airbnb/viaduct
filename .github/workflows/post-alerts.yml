@@ -58,6 +58,7 @@ jobs:
           server_url: ${{ github.server_url }}
           repository: ${{ github.repository }}
           actor: ${{ github.actor }}
+          attempt: ${{ github.run_attempt }}
 
   test-post:
     needs: [format-test]

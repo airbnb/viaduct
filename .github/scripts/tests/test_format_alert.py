@@ -120,6 +120,45 @@ class TestFormatAlertMultiJob(unittest.TestCase):
         self.assertIn("`deadbee`", lines[0])
         self.assertIn("bob", lines[0])
 
+    def test_multi_job_attempt_label_on_header(self):
+        data = {**self.MULTI, "attempt": "3"}
+        lines = format_alert(data).splitlines()
+        self.assertIn("attempt 3", lines[0])
+        for line in lines[1:]:
+            self.assertNotIn("attempt", line)
+
+
+class TestAttemptLabel(unittest.TestCase):
+
+    def test_absent_attempt_has_no_label(self):
+        self.assertNotIn("attempt", format_alert(BASE))
+
+    def test_first_attempt_has_no_label(self):
+        self.assertNotIn("attempt", format_alert({**BASE, "attempt": "1"}))
+
+    def test_second_attempt_is_labeled(self):
+        self.assertIn(", attempt 2", format_alert({**BASE, "attempt": "2"}))
+
+    def test_integer_attempt_is_accepted(self):
+        self.assertIn("attempt 4", format_alert({**BASE, "attempt": 4}))
+
+    def test_unparseable_attempt_is_ignored(self):
+        self.assertNotIn("attempt", format_alert({**BASE, "attempt": ""}))
+        self.assertNotIn("attempt", format_alert({**BASE, "attempt": "later"}))
+
+    def test_label_precedes_the_url(self):
+        result = format_alert({**BASE, "attempt": "2"})
+        self.assertLess(result.index("attempt 2"), result.index(EXPECTED_URL))
+
+    def test_label_coexists_with_commit_info(self):
+        result = format_alert({**BASE, "sha": "deadbeef12", "actor": "bob", "attempt": "2"})
+        self.assertIn("`deadbee`", result)
+        self.assertIn("bob", result)
+        self.assertIn("by bob, attempt 2", result)
+
+    def test_alert_is_still_one_line(self):
+        self.assertEqual(1, len(format_alert({**BASE, "attempt": "2"}).splitlines()))
+
 
 class TestMainErrorHandling(unittest.TestCase):
 

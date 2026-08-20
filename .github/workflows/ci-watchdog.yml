@@ -29,6 +29,7 @@ jobs:
           server_url: ${{ github.server_url }}
           repository: ${{ github.repository }}
           actor: ${{ github.event.workflow_run.actor.login }}
+          attempt: ${{ github.event.workflow_run.run_attempt }}
 
   post:
     needs: [format-alerts]

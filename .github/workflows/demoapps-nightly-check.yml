@@ -159,6 +159,7 @@ jobs:
           repository: ${{ github.repository }}
           sha: ${{ github.sha }}
           actor: ${{ github.actor }}
+          attempt: ${{ github.run_attempt }}
 
   send-alerts:
     needs: [format-alerts]

@@ -94,6 +94,7 @@ jobs:
           branch: ${{ inputs.branch || 'main' }}
           server_url: ${{ github.server_url }}
           repository: ${{ github.repository }}
+          attempt: ${{ github.run_attempt }}
 
   send-staleness-alert:
     needs: [staleness-check]

@@ -289,21 +289,25 @@ jobs:
     runs-on: ubuntu-latest
     name: Coverage Summary
     needs: coverage-reports
-    if: needs.coverage-reports.result == 'success'
+    # coverage-reports downgrades its Gradle failures to warnings, so a project may publish no artifact.
+    if: ${{ !cancelled() }}
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/download-artifact@v7
+        continue-on-error: true
         with:
           name: coverage-core
           path: core
 
       - uses: actions/download-artifact@v7
+        continue-on-error: true
         with:
           name: coverage-build-logic
           path: build-logic
 
       - uses: actions/download-artifact@v7
+        continue-on-error: true
         with:
           name: coverage-gradle-plugins
           path: gradle-plugins

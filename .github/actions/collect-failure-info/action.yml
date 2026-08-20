@@ -22,6 +22,10 @@ inputs:
     description: 'GitHub actor (optional)'
     required: false
     default: ''
+  attempt:
+    description: 'Run attempt number (optional); labeled in the alert only when above 1'
+    required: false
+    default: ''
 
 outputs:
   text:
@@ -41,8 +45,9 @@ runs:
         REPOSITORY: ${{ inputs.repository }}
         SHA: ${{ inputs.sha }}
         ACTOR: ${{ inputs.actor }}
+        ATTEMPT: ${{ inputs.attempt }}
       run: |
-        # Build the full payload — format_alert.py handles empty sha/actor
+        # Build the full payload — format_alert.py handles empty sha/actor/attempt
         # gracefully via .get() + truthiness checks.
         text=$(jq -n \
           --arg branch "$BRANCH" \
@@ -50,11 +55,13 @@ runs:
           --arg repository "$REPOSITORY" \
           --arg sha "$SHA" \
           --arg actor "$ACTOR" \
+          --arg attempt "$ATTEMPT" \
           --argjson jobs "$JOBS_JSON" \
           '{ branch: $branch, server_url: $server_url, repository: $repository,
              jobs: $jobs }
            + (if $sha  != "" then { sha: $sha }   else {} end)
-           + (if $actor != "" then { actor: $actor } else {} end)' | \
+           + (if $actor != "" then { actor: $actor } else {} end)
+           + (if $attempt != "" then { attempt: $attempt } else {} end)' | \
           python3 .github/scripts/format_alert.py)
 
         {
