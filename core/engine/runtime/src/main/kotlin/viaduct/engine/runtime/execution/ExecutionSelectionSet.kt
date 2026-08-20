@@ -34,6 +34,7 @@ import viaduct.engine.runtime.ResolverOwnedSelectionProjectable
 import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.graphql.utils.GraphQLTypeRelation
 import viaduct.graphql.utils.SelectionsParserUtils.EntryPointFragmentName
+import viaduct.utils.collections.MaskedSet
 
 /** An [EngineSelectionSet] projection of a [QueryPlan] */
 internal data class ExecutionSelectionSet(
@@ -317,12 +318,16 @@ internal data class ExecutionSelectionSet(
         spreadFragments: Set<String>,
         requestsCurrentType: Boolean = true,
         inheritedConstraints: Constraints = Constraints.Unconstrained,
+        possibleObjectTypes: MaskedSet<GraphQLObjectType> = schema.rels.possibleObjectTypes(currentType),
     ): ProjectedSelectionSet {
         val fields = mutableListOf<FieldSelection>()
         val requestedTypes = mutableSetOf<GraphQLCompositeType>()
-        val excluded = selectionSet.conditionallyExcludedCoordinates
-            .groupBy({ it.second }, { compositeType(it.first) })
-            .mapValuesTo(mutableMapOf()) { (_, types) -> types.toMutableSet() }
+        val excluded = mutableMapOf<String, MutableSet<GraphQLCompositeType>>()
+        for ((typeName, resultKey) in selectionSet.conditionallyExcludedCoordinates) {
+            val narrowed = possibleObjectTypes.narrowTo(compositeType(typeName))
+            if (narrowed.isEmpty()) continue
+            excluded.getOrPut(resultKey) { mutableSetOf() } += narrowed
+        }
         if (requestsCurrentType) requestedTypes += currentType
 
         fun add(other: ProjectedSelectionSet) {
@@ -335,7 +340,7 @@ internal data class ExecutionSelectionSet(
 
         for (selection in selectionSet.selections) {
             if (selection.isDroppedByDirectives()) {
-                collectDropped(currentType, selection, excluded)
+                collectDropped(currentType, selection, excluded, possibleObjectTypes)
                 continue
             }
 
@@ -362,6 +367,7 @@ internal data class ExecutionSelectionSet(
                             fragmentType,
                             spreadFragments,
                             inheritedConstraints = inheritedConstraints,
+                            possibleObjectTypes = possibleObjectTypes.narrowTo(fragmentType),
                         )
                     )
                 }
@@ -377,6 +383,7 @@ internal data class ExecutionSelectionSet(
                             fragmentType,
                             spreadFragments + selection.name,
                             inheritedConstraints = inheritedConstraints.and(selection.constraints),
+                            possibleObjectTypes = possibleObjectTypes.narrowTo(fragmentType),
                         )
                     )
                 }
@@ -390,25 +397,30 @@ internal data class ExecutionSelectionSet(
         currentType: GraphQLCompositeType,
         selection: QueryPlan.Selection,
         excluded: MutableMap<String, MutableSet<GraphQLCompositeType>>,
+        possibleObjectTypes: MaskedSet<GraphQLObjectType>,
     ) {
         when (selection) {
             is QueryPlan.CollectedField ->
-                excluded.getOrPut(selection.responseKey) { mutableSetOf() } += currentType
+                excluded.getOrPut(selection.responseKey) { mutableSetOf() } += possibleObjectTypes
             is QueryPlan.Field ->
-                excluded.getOrPut(selection.resultKey) { mutableSetOf() } += currentType
+                excluded.getOrPut(selection.resultKey) { mutableSetOf() } += possibleObjectTypes
             is QueryPlan.InlineFragment -> {
                 val fragmentType = selection.inlineFragment?.typeCondition?.name
                     ?.let(::compositeType)
                     ?: currentType
-                selection.selectionSet.selections.forEach { collectDropped(fragmentType, it, excluded) }
+                val narrowed = possibleObjectTypes.narrowTo(fragmentType)
+                selection.selectionSet.selections.forEach { collectDropped(fragmentType, it, excluded, narrowed) }
             }
             is QueryPlan.FragmentSpread -> {
                 val fragment = ctx.fragments[selection.name] ?: return
                 val fragmentType = compositeType(fragment.gjDef.typeCondition.name)
-                fragment.selectionSet.selections.forEach { collectDropped(fragmentType, it, excluded) }
+                val narrowed = possibleObjectTypes.narrowTo(fragmentType)
+                fragment.selectionSet.selections.forEach { collectDropped(fragmentType, it, excluded, narrowed) }
             }
         }
     }
+
+    private fun MaskedSet<GraphQLObjectType>.narrowTo(type: GraphQLCompositeType): MaskedSet<GraphQLObjectType> = intersect(schema.rels.possibleObjectTypes(type))
 
     private fun subselections(
         selectionType: GraphQLCompositeType,

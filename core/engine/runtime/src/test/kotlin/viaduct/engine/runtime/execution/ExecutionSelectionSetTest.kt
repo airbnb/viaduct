@@ -268,6 +268,122 @@ class ExecutionSelectionSetTest {
         )
     }
 
+    @Nested
+    inner class ConditionalExclusionAttribution {
+        @Test
+        fun `resolver owned projection retains a sibling branch emptied by directives`() {
+            val selections = mk(
+                "Wrapper",
+                "i { ... on A { x } ... on B { x @skip(if: true) } }",
+                """
+                    interface I { x: String }
+                    type A implements I { x: String }
+                    type B implements I { x: String }
+                    type Wrapper { i: I }
+                    extend type Query { wrapper: Wrapper }
+                """.trimIndent(),
+            )
+
+            assertEquals(setOf("x"), selections.excludedKeysOf("i", "B"))
+
+            val i = projectOwned(selections).selectionSetForField("Wrapper", "i")
+            assertEquals(listOf("x"), i.selectionSetForType("A").selections().map { it.fieldName })
+            assertEquals(listOf("__typename"), i.selectionSetForType("B").selections().map { it.fieldName })
+        }
+
+        @Test
+        fun `resolver owned projection drops a branch a widening type condition never reached`() {
+            val selections = mk(
+                "Wrapper",
+                "u { ... on A { ... on U { __typename @skip(if: true) } x } }",
+                """
+                    type A { x: String }
+                    type B { y: String }
+                    union U = A | B
+                    type Wrapper { u: U }
+                    extend type Query { wrapper: Wrapper }
+                """.trimIndent(),
+            )
+
+            val u = selections.selectionSetForField("Wrapper", "u")
+            assertEquals(setOf("__typename"), u.selectionSetForType("A").conditionallyExcludedResultKeys())
+            assertEquals(emptySet<String>(), u.selectionSetForType("B").conditionallyExcludedResultKeys())
+
+            val projected = projectOwned(selections).selectionSetForField("Wrapper", "u")
+            assertEquals(listOf("x"), projected.selectionSetForType("A").selections().map { it.fieldName })
+            assertEquals(emptyList<EngineSelection>(), projected.selectionSetForType("B").selections())
+        }
+
+        @Test
+        fun `conditionally excluded keys are attributed to the types a selection reached`() {
+            val selections = mk(
+                "Wrapper",
+                "i { ... on A { ... on I { x @skip(if: true) } y } }",
+                """
+                    interface I { x: String }
+                    type A implements I { x: String, y: String }
+                    type B implements I { x: String }
+                    type Wrapper { i: I }
+                    extend type Query { wrapper: Wrapper }
+                """.trimIndent(),
+            )
+
+            assertEquals(setOf("x"), selections.excludedKeysOf("i", "A"))
+            assertEquals(emptySet<String>(), selections.excludedKeysOf("i", "B"))
+        }
+
+        @Test
+        fun `variable driven exclusions are attributed to the types a selection reached`() {
+            val selections = mk(
+                "Wrapper",
+                "i { ... on A { ... on I { x @skip(if: \$s) } y } }",
+                """
+                    interface I { x: String }
+                    type A implements I { x: String, y: String }
+                    type B implements I { x: String }
+                    type Wrapper { i: I }
+                    extend type Query { wrapper: Wrapper }
+                """.trimIndent(),
+                vars = mapOf("s" to true),
+            )
+
+            assertEquals(setOf("x"), selections.excludedKeysOf("i", "A"))
+            assertEquals(emptySet<String>(), selections.excludedKeysOf("i", "B"))
+
+            val i = projectOwned(selections).selectionSetForField("Wrapper", "i")
+            assertEquals(emptyList<EngineSelection>(), i.selectionSetForType("B").selections())
+        }
+
+        @Test
+        fun `an exclusion on the abstract type is attributed to every member`() {
+            val selections = mk(
+                "Wrapper",
+                "i { x @skip(if: true) ... on A { y } }",
+                """
+                    interface I { x: String }
+                    type A implements I { x: String, y: String }
+                    type B implements I { x: String }
+                    type Wrapper { i: I }
+                    extend type Query { wrapper: Wrapper }
+                """.trimIndent(),
+            )
+
+            assertEquals(setOf("x"), selections.excludedKeysOf("i", "A"))
+            assertEquals(setOf("x"), selections.excludedKeysOf("i", "B"))
+
+            val i = projectOwned(selections).selectionSetForField("Wrapper", "i")
+            assertEquals(listOf("__typename"), i.selectionSetForType("B").selections().map { it.fieldName })
+        }
+
+        private fun EngineSelectionSet.excludedKeysOf(
+            field: String,
+            branch: String,
+        ): Set<String> =
+            selectionSetForField("Wrapper", field)
+                .selectionSetForType(branch)
+                .conditionallyExcludedResultKeys()
+    }
+
     @Test
     fun `resolver owned projection preserves aliases and argument variants`() {
         val selections = mk(
