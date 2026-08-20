@@ -136,11 +136,13 @@ class FieldResolver(
     }
 
     /**
-     * Fetches an object by resolving all of its selected fields in parallel.
+     * Fetches an object by resolving all of its selected fields.
      *
      * This method:
      * 1. Runs CollectFields on the current uncollected selection set
-     * 2. Fires off field fetches for each merged object selection, in parallel
+     * 2. Fires off field fetches for each merged object selection, in parallel when [serialDispatch] is
+     *   false. When [serialDispatch] is true, a fetch is only initiated when the previous selection has
+     *   completed fetching (either successfully or exceptionally)
      *
      * Note on return value: This method returns `Value<Unit>` instead of `Value<Map<String, FieldResolutionResult>>`
      * because the actual resolved values are stored directly in the `ObjectEngineResult` associated with
@@ -152,14 +154,16 @@ class FieldResolver(
      * method should check for exceptional completion and handle it appropriately.
      *
      * @param parameters ExecutionParameters containing the execution context and selection set
+     * @param serialDispatch Whether the selected fields must be resolved one at a time, in selection order
      * @throws Exception Only if there's a fatal error in the supervisorScope itself
      */
     fun fetchObject(
         objectType: GraphQLObjectType,
-        parameters: ExecutionParameters
+        parameters: ExecutionParameters,
+        serialDispatch: Boolean = false,
     ): Value<Unit> =
         prepareLedgerReader(parameters).flatMap { ledgerReader ->
-            fetchObjectInternal(objectType, parameters, ledgerReader)
+            fetchObjectInternal(objectType, parameters, ledgerReader, serialDispatch)
         }
 
     @Suppress("UNUSED_EXPRESSION") // onCompleted calls are side-effects inside map/recover
@@ -167,6 +171,7 @@ class FieldResolver(
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters,
         ledgerReader: LedgerReader?,
+        serialDispatch: Boolean,
     ): Value<Unit> {
         val instrumentationParameters =
             InstrumentationExecutionStrategyParameters(parameters.executionContextWithLocalContext, parameters.gjParameters)
@@ -178,26 +183,22 @@ class FieldResolver(
         )
         resolveObjectCtx.onDispatched()
         try {
-            val results = collectFields(objectType, parameters)
-                .selections
-                .map { field ->
-                    field as QueryPlan.CollectedField
-                    val newParams = parameters.forField(objectType, field)
-                    resolveField(newParams, field, ledgerReader)
-                }
-
-            val immediate = Value.waitAll(results.map { it.immediate })
-            val overall = Value.waitAll(results.map { it.overall })
+            val fields = collectFields(objectType, parameters).selections
+            val dispatch = if (serialDispatch) {
+                dispatchFieldsSerially(objectType, parameters, fields, ledgerReader)
+            } else {
+                dispatchFieldsInParallel(objectType, parameters, fields, ledgerReader)
+            }
 
             val currentOER = parameters.currentObjectEngineResult
             // We don't use the result of this operation, but we need to ensure it's scheduled
-            // so that the resolution state is updated when the immediate values are ready.
-            immediate.thenApply { _, _ ->
+            // so that the resolution state is updated once every field's value is ready.
+            dispatch.shallow.thenApply { _, _ ->
                 currentOER.fieldResolutionState.complete(Unit)
             }
 
             // Wait for all values to be completed.
-            return overall
+            return dispatch.deep
                 .map {
                     resolveObjectCtx.onCompletedNullable(Unit, null)
                     it
@@ -211,80 +212,49 @@ class FieldResolver(
         }
     }
 
-    /**
-     * Fetches an object by resolving all of its selected fields serially.
-     *
-     * This method:
-     * 1. Runs CollectFields on the current uncollected selection set
-     * 2. Iteratively fires off field fetches for each selection. A fetch is only
-     *   initiated when the previous selection has completed fetching (either
-     *   successfully or exceptionally)
-     *
-     * Note on return value: This method returns `Value<Unit>` instead of `Value<Map<String, FieldResolutionResult>>`
-     * because the actual resolved values are stored directly in the `ObjectEngineResult` associated with
-     * the parent object. The `Value<Unit>` serves as a completion signal for the orchestration layer to
-     * know when all nested fetching (including any lazy data or nested objects) has finished.
-     *
-     * If the Value returned by this method is exceptionally completed, that means that there has been
-     * a fatal error in resolving this object, and the parent ObjectEngineResult may be incomplete. Thus, callers of this
-     * method should check for exceptional completion and handle it appropriately.
-     *
-     * @param parameters ExecutionParameters containing the execution context and selection set
-     * @throws Exception Only if there's a fatal error in the supervisorScope itself
-     */
-    fun fetchObjectSerially(
-        objectType: GraphQLObjectType,
-        parameters: ExecutionParameters
-    ): Value<Unit> =
-        prepareLedgerReader(parameters).flatMap { ledgerReader ->
-            fetchObjectSeriallyInternal(objectType, parameters, ledgerReader)
-        }
-
-    @Suppress("UNUSED_EXPRESSION") // onCompleted calls are side-effects inside map/recover
-    private fun fetchObjectSeriallyInternal(
+    /** Fires off a fetch for every field at once. */
+    private fun dispatchFieldsInParallel(
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters,
+        fields: List<QueryPlan.Selection>,
         ledgerReader: LedgerReader?,
-    ): Value<Unit> {
-        val instrumentationParameters =
-            InstrumentationExecutionStrategyParameters(parameters.executionContextWithLocalContext, parameters.gjParameters)
-        val resolveObjectCtx = nonNullCtx(
-            parameters.instrumentation.beginFetchObject(
-                instrumentationParameters,
-                parameters.executionContext.instrumentationState
-            )
-        )
-        resolveObjectCtx.onDispatched()
-        try {
-            val fields = collectFields(objectType, parameters).selections
-            val initial: Value<Unit> = Value.fromValue(Unit)
-            val immediateResults = mutableListOf<Value<FieldResolutionResult>>()
-
-            // iterate over each field to build a chained execution
-            // Each field will kick off only after the previous one completes
-            val overall = fields.fold(initial) { acc, field ->
-                field as QueryPlan.CollectedField
-                acc.flatMap { _ ->
-                    val fieldParameters = parameters.forField(objectType, field)
-                    val fd = resolveField(fieldParameters, field, ledgerReader)
-                    immediateResults.add(fd.immediate)
-                    fd.overall
-                }
-            }.map {
-                resolveObjectCtx.onCompletedNullable(Unit, null)
-                it
-            }.recover { t ->
-                resolveObjectCtx.onCompletedNullable(null, t)
-                Value.fromThrowable(t)
-            }
-            Value.waitAll(immediateResults).thenApply { _, _ ->
-                parameters.currentObjectEngineResult.fieldResolutionState.complete(Unit)
-            }
-            return overall
-        } catch (e: Exception) {
-            resolveObjectCtx.onCompletedNullable(null, e)
-            throw e
+    ): Dispatch<Unit> {
+        val results = fields.map { field ->
+            field as QueryPlan.CollectedField
+            val newParams = parameters.forField(objectType, field)
+            resolveField(newParams, field, ledgerReader)
         }
+        return Dispatch(
+            shallow = Value.waitAll(results.map { it.shallow }),
+            deep = Value.waitAll(results.map { it.deep }),
+        )
+    }
+
+    /** Chains the field fetches so that each one only starts once the previous one has completed. */
+    private fun dispatchFieldsSerially(
+        objectType: GraphQLObjectType,
+        parameters: ExecutionParameters,
+        fields: List<QueryPlan.Selection>,
+        ledgerReader: LedgerReader?,
+    ): Dispatch<Unit> {
+        val initial: Value<Unit> = Value.fromValue(Unit)
+        val fieldValues = mutableListOf<Value<FieldResolutionResult>>()
+
+        // iterate over each field to build a chained execution
+        // Each field will kick off only after the previous one completes
+        val deep = fields.fold(initial) { acc, field ->
+            field as QueryPlan.CollectedField
+            acc.flatMap { _ ->
+                val fieldParameters = parameters.forField(objectType, field)
+                val fd = resolveField(fieldParameters, field, ledgerReader)
+                fieldValues.add(fd.shallow)
+                fd.deep
+            }
+        }
+        return Dispatch(
+            shallow = Value.waitAll(fieldValues),
+            deep = deep,
+        )
     }
 
     /**
@@ -305,7 +275,7 @@ class FieldResolver(
         field: QueryPlan.CollectedField,
         ledgerReader: LedgerReader? = null,
         resolveNestedSelections: Boolean = true,
-    ): FieldDispatch {
+    ): Dispatch<FieldResolutionResult> {
         if (!parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled) {
             val runtimeObjectType = checkNotNull(parameters.executionStepInfo.objectType) {
                 "Expected executionStepInfo.objectType to be non-null while resolving ${field.fieldName}"
@@ -372,18 +342,25 @@ class FieldResolver(
     }
 
     /**
-     * Represents the result of dispatching a field for resolution.
+     * A handle on an in-flight dispatch of a field, or of a whole object's fields, for resolution.
+     * The two properties are the shallow and deep completion signals for that dispatch.
      *
-     * @property immediate A [Value] that completes when the field's data fetcher has finished
-     *   and the [FieldResolutionResult] is available. This signals that the field's "immediate"
-     *   value is ready, though nested objects or lazy data may still be pending.
-     * @property overall A [Value] that completes after [immediate] and field execution
+     * For a single field ([Dispatch]<[FieldResolutionResult]>, as returned by [resolveField]),
+     * [shallow] carries the field's own resolved value. For a whole object
+     * ([Dispatch]<[Unit]>, as returned by [dispatchFieldsInParallel] and [dispatchFieldsSerially]),
+     * the per-field values live in the [ObjectEngineResult] instead, so [shallow] is only a
+     * completion signal covering every field of the object.
+     *
+     * @property shallow A [Value] that completes when the field's data fetcher has finished
+     *   and the [FieldResolutionResult] is available. Nested objects and lazy data underneath the
+     *   field may still be pending.
+     * @property deep A [Value] that completes after [shallow] and field execution
      *   instrumentation. When nested selection resolution is enabled, it also waits for nested
-     *   objects and lazy data; immediate-only dispatches do not traverse them.
+     *   objects and lazy data; shallow-only dispatches do not traverse them.
      */
-    internal data class FieldDispatch(
-        val immediate: Value<FieldResolutionResult>,
-        val overall: Value<Unit>
+    internal data class Dispatch<T>(
+        val shallow: Value<T>,
+        val deep: Value<Unit>
     )
 
     /**
@@ -448,11 +425,7 @@ class FieldResolver(
             )
             val planParameters = parameters.forChildPlan(plan, variables, target)
             val objectType = planParameters.currentObjectEngineResult.type
-            if (isMutationNamespace(planParameters, objectType)) {
-                fetchObjectSerially(objectType, planParameters)
-            } else {
-                fetchObject(objectType, planParameters)
-            }
+            fetchObject(objectType, planParameters, serialDispatch = isMutationNamespace(planParameters, objectType))
         }
     }
 
@@ -475,7 +448,7 @@ class FieldResolver(
         field: QueryPlan.CollectedField,
         ledgerReader: LedgerReader?,
         resolveNestedSelections: Boolean,
-    ): FieldDispatch {
+    ): Dispatch<FieldResolutionResult> {
         // We're fetching an individual field; the current engine result will always be an ObjectEngineResult
         val currentOER = parameters.currentObjectEngineResult
         val executionStepInfoForField = parameters.executionStepInfo
@@ -522,10 +495,10 @@ class FieldResolver(
             slotSetter.setCheckerValue(fieldFetchResult.checkerResult)
         } as Value<FieldResolutionResult>
 
-        val overall = fieldResolutionResultValue.thenCompose { v, e ->
+        val deep = fieldResolutionResultValue.thenCompose { v, e ->
             fieldInstrumentationCtx?.onCompletedNullable(v, e)
             if (e != null || !resolveNestedSelections) {
-                // Failed fields and immediate-only callers do not traverse nested objects.
+                // Failed fields and shallow-only callers do not traverse nested objects.
                 Value.fromValue(Unit)
             } else {
                 // otherwise, proceed with nested object resolution
@@ -540,9 +513,9 @@ class FieldResolver(
             }
         }
 
-        val productionDispatch = FieldDispatch(
-            immediate = fieldResolutionResultValue,
-            overall = overall
+        val productionDispatch = Dispatch(
+            shallow = fieldResolutionResultValue,
+            deep = deep
         )
         if (parameters.isShadowFieldExecution) {
             return productionDispatch
@@ -596,7 +569,7 @@ class FieldResolver(
     private fun launchShadowFieldExecution(
         parameters: ExecutionParameters,
         field: QueryPlan.CollectedField,
-        productionDispatch: FieldDispatch,
+        productionDispatch: Dispatch<FieldResolutionResult>,
         comparison: ShadowFieldExecutionComparison,
     ) {
         parameters.launchOnRootScope {
@@ -658,8 +631,8 @@ class FieldResolver(
         }
     }
 
-    private suspend fun FieldDispatch.captureOutcome(): ShadowFieldExecutionResults.Outcome {
-        val fieldResolutionResult = captureFieldExecutionResult { immediate.await() }
+    private suspend fun Dispatch<FieldResolutionResult>.captureOutcome(): ShadowFieldExecutionResults.Outcome {
+        val fieldResolutionResult = captureFieldExecutionResult { shallow.await() }
         return ShadowFieldExecutionResults.Outcome(
             rawValue = fieldResolutionResult.map { it.originalSource },
             graphqlErrors = fieldResolutionResult.getOrNull()?.errors.orEmpty().toList(),
@@ -703,13 +676,13 @@ class FieldResolver(
     }
 
     /**
-     * Resolves a field through the normal data-fetcher pipeline and returns its immediate result
+     * Resolves a field through the normal data-fetcher pipeline and returns its shallow result
      * without traversing the returned value's nested selections.
      *
      * Required selection plans, Mats, access checks, and instrumentation still run normally.
      * Resolver and access-check errors are thrown rather than returned in the result.
      */
-    suspend fun resolveImmediateFieldResult(
+    suspend fun resolveShallowFieldResult(
         parameters: ExecutionParameters,
         field: QueryPlan.CollectedField,
     ): FieldResolutionResult {
@@ -720,8 +693,8 @@ class FieldResolver(
             resolveNestedSelections = false,
         )
 
-        // Await overall first so fatal instrumentation completion errors take precedence.
-        dispatch.overall.await()
+        // Await full resolution first so fatal instrumentation completion errors take precedence.
+        dispatch.deep.await()
         val oerKey = buildOERKeyForField(parameters, field)
         val fieldDirectives = FieldExecutionHelpers.engineSelectionSet(
             parameters = parameters,
@@ -1331,11 +1304,7 @@ class FieldResolver(
                     } else {
                         parameters.forObjectTraversal(field, oer, fieldResolutionResult.localContext, fieldResolutionResult.originalSource, fieldResolutionResult.resolutionPolicy)
                     }
-                if (isMutationNamespace(parameters, oer.type)) {
-                    fetchObjectSerially(oer.type, traversalParameters)
-                } else {
-                    fetchObject(oer.type, traversalParameters)
-                }
+                fetchObject(oer.type, traversalParameters, serialDispatch = isMutationNamespace(parameters, oer.type))
             }
         }
     }

@@ -243,7 +243,7 @@ class EngineImpl(
             .single() as QueryPlan.CollectedField
         val leafParams = leafRootParams.forField(namespaceParentResult.type, leafFieldPlan)
         // Keep this shallow so the caller can resolve nested fields from the resolver's original object.
-        val result = fieldResolver.resolveImmediateFieldResult(
+        val result = fieldResolver.resolveShallowFieldResult(
             parameters = leafParams,
             field = leafFieldPlan,
         )
@@ -365,10 +365,8 @@ class EngineImpl(
         )
 
         try {
-            when (options.operationType) {
-                Engine.OperationType.QUERY -> fieldResolver.fetchObject(rootType, selectionParams)
-                Engine.OperationType.MUTATION -> fieldResolver.fetchObjectSerially(rootType, selectionParams)
-            }.await()
+            val serialDispatch = options.operationType == Engine.OperationType.MUTATION
+            fieldResolver.fetchObject(rootType, selectionParams, serialDispatch = serialDispatch).await()
         } catch (e: Exception) {
             throw SubqueryExecutionException.fieldResolutionFailed(e)
         }

@@ -222,7 +222,7 @@ Plan caching keys on selection text, document key, and schema hash. Variables ar
 Once `forChildPlan()` produces child `ExecutionParameters`, the wiring layer runs the standard field-resolution pipeline:
 
 - `fieldResolver.fetchObject()` for queries
-- `fieldResolver.fetchObjectSerially()` for mutations
+- `fieldResolver.fetchObject(serialDispatch = true)` for mutations
 
 Selections execute from the selected operation root (`Query` or `Mutation`), not as nested fields under the resolver that issued them. Query-typed child plans get the execution root, a fresh root `ExecutionStepInfo`, and the isolated query result chosen for this selection execution. Mutation-typed root plans use the isolated mutation result as their parent result and execute serially.
 
