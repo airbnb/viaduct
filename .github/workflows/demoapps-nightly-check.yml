@@ -109,66 +109,6 @@ jobs:
       use_snapshot_repo: true
 
   # ---------------------------------------------------------------------------
-  # Alert on failure — post to Slack and Discord
-  # ---------------------------------------------------------------------------
-  format-alerts:
-    needs: [publish-snapshot, push-demoapps, wait-for-publication, check-demoapps]
-    runs-on: ubuntu-latest
-    if: >-
-      always()
-      && (needs.publish-snapshot.result == 'failure'
-          || needs.push-demoapps.result == 'failure'
-          || needs.wait-for-publication.result == 'failure'
-          || needs.check-demoapps.result == 'failure')
-    outputs:
-      text: ${{ steps.fmt.outputs.text }}
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Build failed-jobs list
-        id: jobs
-        env:
-          PUBLISH_RESULT: ${{ needs.publish-snapshot.result }}
-          PUSH_RESULT: ${{ needs.push-demoapps.result }}
-          WAIT_RESULT: ${{ needs.wait-for-publication.result }}
-          CHECK_RESULT: ${{ needs.check-demoapps.result }}
-        run: |
-          jobs_json='[]'
-          if [ "$PUBLISH_RESULT" = "failure" ]; then
-            jobs_json=$(echo "$jobs_json" | jq -c --arg name "Publish Snapshot" --arg run_id "${{ github.run_id }}" '. + [{"name": $name, "run_id": $run_id}]')
-          fi
-          if [ "$PUSH_RESULT" = "failure" ]; then
-            jobs_json=$(echo "$jobs_json" | jq -c --arg name "Push Demoapps" --arg run_id "${{ github.run_id }}" '. + [{"name": $name, "run_id": $run_id}]')
-          fi
-          if [ "$WAIT_RESULT" = "failure" ]; then
-            jobs_json=$(echo "$jobs_json" | jq -c --arg name "Wait for Publication" --arg run_id "${{ github.run_id }}" '. + [{"name": $name, "run_id": $run_id}]')
-          fi
-          if [ "$CHECK_RESULT" = "failure" ]; then
-            jobs_json=$(echo "$jobs_json" | jq -c --arg name "Check Demoapps" --arg run_id "${{ github.run_id }}" '. + [{"name": $name, "run_id": $run_id}]')
-          fi
-          echo "jobs_json=${jobs_json}" >> "$GITHUB_OUTPUT"
-        shell: bash
-
-      - name: Format alert
-        id: fmt
-        uses: ./.github/actions/collect-failure-info
-        with:
-          jobs_json: ${{ steps.jobs.outputs.jobs_json }}
-          branch: ${{ inputs.ref }}
-          server_url: ${{ github.server_url }}
-          repository: ${{ github.repository }}
-          sha: ${{ github.sha }}
-          actor: ${{ github.actor }}
-
-  send-alerts:
-    needs: [format-alerts]
-    if: always() && needs.format-alerts.result == 'success'
-    uses: ./.github/workflows/post-alerts.yml
-    with:
-      text: ${{ needs.format-alerts.outputs.text }}
-    secrets: inherit
-
-  # ---------------------------------------------------------------------------
   # Delete temporary branches in viaduct-dev/* repos (ephemeral refs only).
   # Runs only when check-demoapps succeeded, so a failed run keeps its branches and
   # "Re-run failed jobs" can re-clone them. Stale tmp/* branches from failed or

@@ -32,7 +32,7 @@ An atomic workflow performs one well-defined, coherent, loosely-coupled function
 
 - Must expose a `run_id` workflow output, always, unconditionally. This allows orchestrators to construct direct URLs to the atomic's run. The `run_id` is emitted early in the workflow (before any step that might fail) so it is available even when the workflow fails.
 
-- Must not send notifications. Atomics do not know whether they were launched by a human (who is watching) or by an orchestrator (which will handle notifications). Notification logic belongs exclusively in orchestrators.
+- Must not send notifications. Atomics do not know whether they were launched by a human who is watching. Notification logic belongs to the failure listener (see [Notification Architecture](#notification-architecture)).
 
 - Must be manually dispatchable via `workflow_dispatch`. Every atomic should be independently runnable by hand for debugging and validation.
 
@@ -55,11 +55,9 @@ An orchestrator composes atomics (and possibly inline jobs) into a higher-level 
 
 **Rules for orchestrators:**
 
-- Own all notification decisions. When an orchestrator detects that a child atomic failed, it formats an alert and routes it through the alert-posting helper (see [Notification Architecture](#notification-architecture)).
+- Must not send failure notifications either. A run's failure alerting belongs to `ci-retry-then-alert.yml`, which observes completed runs from outside them (see [Notification Architecture](#notification-architecture)). An orchestrator may still alert on a condition only it can detect, as `periodic-green-check.yml` does for branch staleness.
 
-- Must be manually dispatchable via `workflow_dispatch`. When launched manually, notifications are **never** sent. Notifications are reserved for automatic triggers (`push`, `schedule`, or `workflow_call` with `send_alerts: true`). This prevents noise when a human is already watching the run.
-
-- Not every orchestrator must notify. The rule is that only orchestrators *may* notify, and only on automatic triggers.
+- Must be manually dispatchable via `workflow_dispatch`. A manual dispatch does not alert, because whoever triggered it is watching.
 
 **Current orchestrators:**
 
@@ -76,7 +74,18 @@ An orchestrator helper is a reusable workflow that orchestrators delegate to for
 
 | Workflow | Purpose | Runs on |
 |---|---|---|
-| `post-alerts.yml` | Post pre-formatted alert text to Slack and Discord | called by orchestrators on failure, manual (test mode) |
+| `post-alerts.yml` | Post pre-formatted alert text to Slack and Discord | called by listeners and orchestrators on failure, manual (test mode) |
+
+### Listener Workflows
+
+A listener runs on `workflow_run`, after another run completes. It sees that run's conclusion and attempt number, which no job inside the run can observe.
+
+| Workflow | Purpose | Runs on |
+|---|---|---|
+| `ci-retry-then-alert.yml` | Retry a failed CI run once, then alert if the retry also fails | completion of CI Check, Nightly Build, Periodic Green Check |
+| `ci-watchdog.yml` | Alert on startup failures, which stop in-run jobs from running at all | completion of CI Check, Nightly Build, Periodic Green Check, Release |
+
+`ci-retry-then-alert.yml` holds `actions: write`, the only such grant in the repo, because re-running a run requires it. It is a sibling of `ci-watchdog.yml` rather than a job inside it so that a broken retry cannot take the watchdog down with it.
 
 ### Release Workflows
 
@@ -133,9 +142,11 @@ The emit step runs early so that `run_id` is available to the calling orchestrat
 
 - **Notifications link to diagnostic info; they do not contain it.** An alert message names the failed job and links to its run. It does not reproduce logs, stack traces, or error details.
 
-- **Only orchestrators send notifications.** Atomics never notify. This avoids double-alerting and keeps notification policy in one place per automation flow.
+- **One listener owns failure alerting.** `ci-retry-then-alert.yml` is the only place a run's failure becomes an alert. Neither atomics nor orchestrators notify on failure. A second alerting path anywhere means double-alerting.
 
-- **Manual runs never notify.** When a human triggers `workflow_dispatch`, they are watching. Alerts would be noise. Notifications fire only on automatic triggers: `push` events, `schedule` events, or `workflow_call` with explicit `send_alerts: true`.
+- **Manual runs never notify.** When a human triggers `workflow_dispatch`, they are watching. The listener therefore alerts only for `push` and `schedule` runs, and only on `main`.
+
+- **Transient failures are retried before they alert.** CI Check and Periodic Green Check are re-run once on their first failure and alert only if the retry also fails. Nightly Build is not retried: its failures have been real defects, and it is the only Windows signal, so delaying that alert by a full run buys nothing.
 
 ### Alert Formatting
 
@@ -153,12 +164,14 @@ All alerts are formatted by `.github/scripts/format_alert.py`, a pure Python scr
     { "name": "API Compatibility", "run_id": "12346" }
   ],
   "sha": "abc1234...",
-  "actor": "username"
+  "actor": "username",
+  "attempt": 2
 }
 ```
 
 - `branch`, `server_url`, `repository`, `jobs` are required.
 - `sha`, `actor` are optional (present for push-triggered failures).
+- `attempt` is optional and rendered only above 1, so the label means the run had already been retried.
 - `jobs` is a non-empty array. Each entry has a `name` (display label) and `run_id` (used to construct the URL `{server_url}/{repository}/actions/runs/{run_id}`).
 
 **Output format:**
@@ -166,46 +179,56 @@ All alerts are formatted by `.github/scripts/format_alert.py`, a pure Python scr
 - Single failed job: one-line message with job name, branch, optional commit info, and link.
 - Multiple failed jobs: header line followed by a bulleted list of `name: url` entries.
 
+Job names come from the run's job list, so an alert names the job that actually failed (`build-and-test / Test (Java 17) ubuntu-latest`) rather than the atomic that contained it.
+
 ### Alert Posting Protocol
 
-Orchestrators do not post to Slack or Discord directly. Instead they:
+Nothing posts to Slack or Discord directly. Instead:
 
-1. **Format** the alert text by piping JSON through `format_alert.py`. The JSON is constructed safely using `jq -n --arg` to prevent injection.
-2. **Set** the text as a job output. Multi-line output (from multi-job alerts) requires heredoc syntax in `$GITHUB_OUTPUT`.
+1. **Format** the alert text with `.github/actions/collect-failure-info`, which pipes JSON through `format_alert.py`. The JSON is constructed with `jq -n --arg` to prevent injection.
+2. **Set** the text as a job output. Multi-line output (from multi-job alerts) requires heredoc syntax in `$GITHUB_OUTPUT`, which the composite action handles.
 3. **Call** `post-alerts.yml` via `workflow_call` with the `text` input.
 
 `post-alerts.yml` is the sole workflow that holds Slack and Discord credentials. Its `post-call` job posts the text to both Slack (`chat.postMessage` API with `SLACK_BOT_TOKEN`) and Discord (webhook with `DISCORD_CI_WEBHOOK_URL`). Callers pass `secrets: inherit`.
 
-The orchestrator pattern in YAML:
+The listener pattern in YAML:
 
 ```yaml
-format-alerts:
-  needs: [child-a, child-b]
+triage:
   runs-on: ubuntu-latest
   if: >-
-    always()
-    && (needs.child-a.result == 'failure' || needs.child-b.result == 'failure')
-    && (github.event_name == 'push' || inputs.send_alerts == true)
+    github.event.workflow_run.conclusion == 'failure'
+    && github.event.workflow_run.head_branch == 'main'
+    && contains(fromJSON('["push", "schedule"]'), github.event.workflow_run.event)
   outputs:
     text: ${{ steps.fmt.outputs.text }}
   steps:
     - uses: actions/checkout@v6
+    - name: Retry once before alerting
+      id: retry
+      if: github.event.workflow_run.run_attempt == 1 && <workflow is retry-eligible>
+      run: |
+        # POST rerun-failed-jobs; set retried=true, or false if the call fails
+    - name: List failed jobs
+      id: jobs
+      if: steps.retry.outputs.retried != 'true'
+      run: |
+        # gh api --paginate .../attempts/$ATTEMPT/jobs, select failures, build the jobs array
     - name: Format alert
       id: fmt
-      run: |
-        # Build jobs array from failed children using jq
-        # Pipe to format_alert.py
-        # Write text to $GITHUB_OUTPUT using heredoc
-      shell: bash
+      if: steps.retry.outputs.retried != 'true'
+      uses: ./.github/actions/collect-failure-info
 
-send-alerts:
-  needs: [format-alerts]
-  if: always() && needs.format-alerts.result == 'success'
+post:
+  needs: [triage]
+  if: always() && needs.triage.outputs.text != ''
   uses: ./.github/workflows/post-alerts.yml
   with:
-    text: ${{ needs.format-alerts.outputs.text }}
+    text: ${{ needs.triage.outputs.text }}
   secrets: inherit
 ```
+
+Empty text is how a retried run stays quiet, so `post` keys off the text rather than `triage`'s result. A skipped retry step leaves `retried` unset, which also alerts. If the re-run call fails the listener alerts instead, because going silent is worse than one extra alert.
 
 ## Workflow Diagrams
 
@@ -229,11 +252,16 @@ ci-trigger.yml  [orchestrator]
   |                                                --> test-kotlin-matrix
   |                                                --> test-gradle-matrix
   |
-  |--- bcv-api-check.yml  [atomic]
-  |      api-compatibility
+  '--- bcv-api-check.yml  [atomic]
+         api-compatibility
+
+[on push, once the run completes with conclusion=failure]
   |
-  '--- [on push, if any atomic failed]
-         format-alerts --> send-alerts --> post-alerts.yml [helper] --> Slack + Discord
+  v
+ci-retry-then-alert.yml  [listener]
+  |
+  |--- attempt 1 --> rerun-failed-jobs, no alert
+  '--- attempt 2 --> post-alerts.yml [helper] --> Slack + Discord
 ```
 
 ### Daily Schedule (2pm UTC)
@@ -247,19 +275,21 @@ periodic-green-check.yml  [orchestrator]
   |--- ci-check
   |      |
   |      v
-  |    ci-trigger.yml  [orchestrator, send_alerts: true]
+  |    ci-trigger.yml  [orchestrator]
   |      |
   |      |--- build-and-test.yml  [atomic]
   |      |--- demoapps-ci-check.yml  [atomic]
-  |      |--- bcv-api-check.yml  [atomic]
-  |      |
-  |      '--- [if any atomic failed]
-  |             format-alerts --> send-alerts --> post-alerts.yml [helper] --> Slack + Discord
+  |      '--- bcv-api-check.yml  [atomic]
   |
   '--- staleness-check  [inline job]
          |
          '-- [if stale]
                format-alert --> send-staleness-alert --> post-alerts.yml [helper] --> Slack + Discord
+
+[once the run completes with conclusion=failure]
+  |
+  v
+ci-retry-then-alert.yml  [listener]   (retried once, like CI Check)
 ```
 
 ### Nightly Build (6am UTC weekdays)
@@ -269,6 +299,11 @@ schedule / manual dispatch
   |
   v
 nightly-build.yml  [orchestrator, thin wrapper]
+  |
+  |--- windows-check  [inline job, matrix: Java 17, 21]
+  |      the only place the unscoped root `check` runs on Windows
+  |
+  |--- demoapps-standalone-windows  [inline job, matrix: Java 17, 21]
   |
   v
 demoapps-nightly-check.yml  [orchestrator]
@@ -291,7 +326,15 @@ demoapps-nightly-check.yml  [orchestrator]
   |
   '--- cleanup (if tmp/* branch)
          delete tmp branches from viaduct-dev/* repos
+
+[once the run completes with conclusion=failure]
+  |
+  v
+ci-retry-then-alert.yml  [listener]
+  '--- post-alerts.yml [helper] --> Slack + Discord   (no retry; alerts on the first failure)
 ```
+
+The listener watches `nightly-build.yml`, so the Windows jobs are covered without any alerting inside the run. That is what they previously lacked: alerting used to live in `demoapps-nightly-check.yml` and was gated on its own four jobs, so a nightly that failed only on Windows was silent.
 
 ### CI Check (via `ci-trigger.yml`)
 
@@ -303,24 +346,23 @@ ci-trigger.yml  [orchestrator]
   |
   |--- build-and-test.yml  [atomic]
   |--- demoapps-ci-check.yml  [atomic]
-  |--- bcv-api-check.yml  [atomic]
-  |
-  '--- [if any atomic failed && send_alerts]
-         format-alerts --> send-alerts --> post-alerts.yml [helper] --> Slack + Discord
+  '--- bcv-api-check.yml  [atomic]
+
+A manual dispatch does not alert, because the listener only handles `push` and `schedule` runs.
 ```
 
 ### Manual Dispatch
 
 Every workflow supports `workflow_dispatch` so it can be run by hand independently. This serves two purposes: **testing** (validate a workflow change on a branch before merging) and **on-demand execution** (run a check or suite without waiting for its automatic trigger).
 
-Notifications are suppressed on manual dispatch — the person who triggered the run is already watching.
+Notifications are suppressed on manual dispatch, because the person who triggered the run is already watching.
 
 | Workflow | What you'd run it for | Key inputs |
 |---|---|---|
 | `build-and-test.yml` | Test a specific OS/Java combination | `os`, `java_versions` |
 | `demoapps-ci-check.yml` | Test demoapps against a specific OS/Java combination | `os`, `java_versions` |
 | `bcv-api-check.yml` | Check API compatibility on a branch | — |
-| `ci-trigger.yml` | Run the full CI suite on demand | `send_alerts` (default: off) |
+| `ci-trigger.yml` | Run the full CI suite on demand | — |
 | `demoapps-nightly-check.yml` | Run the end-to-end snapshot validation loop | `ref`, `run_ci_check` (default: off) |
 | `nightly-build.yml` | Trigger the nightly validation without waiting for cron | — |
 | `periodic-green-check.yml` | Run scheduled checks without waiting for cron | `branch`, `mode` (ci-check / staleness-check / all) |

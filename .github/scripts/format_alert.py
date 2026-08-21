@@ -14,6 +14,7 @@ Reads a JSON object from stdin with the following fields:
   Optional:
     sha         - commit SHA (for push-triggered failures)
     actor       - GitHub username who pushed (for push-triggered failures)
+    attempt     - run attempt number; labeled only when above 1
 
 Prints formatted alert text to stdout. Single-job alerts produce one line;
 multi-job alerts produce a header line followed by a bulleted list of jobs.
@@ -25,6 +26,14 @@ Exit codes:
 
 import json
 import sys
+
+
+def format_attempt_label(attempt) -> str:
+    try:
+        n = int(attempt)
+    except (TypeError, ValueError):
+        return ""
+    return f", attempt {n}" if n > 1 else ""
 
 
 def format_alert(data: dict) -> str:
@@ -43,6 +52,8 @@ def format_alert(data: dict) -> str:
         commit_info = f" — commit `{sha[:7]}`"
     elif actor:
         commit_info = f" — pushed by {actor}"
+
+    commit_info += format_attempt_label(data.get("attempt"))
 
     def job_url(job):
         return f"{server_url}/{repository}/actions/runs/{job['run_id']}"

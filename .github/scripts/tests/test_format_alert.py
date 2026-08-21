@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from format_alert import format_alert, main
+from format_alert import format_alert, format_attempt_label, main
 
 
 BASE = {
@@ -119,6 +119,45 @@ class TestFormatAlertMultiJob(unittest.TestCase):
         lines = format_alert(data).splitlines()
         self.assertIn("`deadbee`", lines[0])
         self.assertIn("bob", lines[0])
+
+    def test_multi_job_attempt_label_on_header_only(self):
+        data = {**self.MULTI, "attempt": 2}
+        lines = format_alert(data).splitlines()
+        self.assertIn(", attempt 2", lines[0])
+        for line in lines[1:]:
+            self.assertNotIn("attempt", line)
+
+
+class TestAttemptLabel(unittest.TestCase):
+
+    def test_absent_attempt_is_unlabeled(self):
+        self.assertNotIn("attempt", format_alert(BASE))
+
+    def test_first_attempt_is_unlabeled(self):
+        self.assertNotIn("attempt", format_alert({**BASE, "attempt": 1}))
+
+    def test_second_attempt_is_labeled(self):
+        self.assertIn(", attempt 2", format_alert({**BASE, "attempt": 2}))
+
+    def test_attempt_as_string_is_labeled(self):
+        self.assertIn(", attempt 3", format_alert({**BASE, "attempt": "3"}))
+
+    def test_unparseable_attempt_is_unlabeled(self):
+        self.assertNotIn("attempt", format_alert({**BASE, "attempt": ""}))
+
+    def test_label_precedes_the_url(self):
+        result = format_alert({**BASE, "sha": "abc1234567", "actor": "raymie", "attempt": 2})
+        self.assertLess(result.index(", attempt 2"), result.index(EXPECTED_URL))
+
+    def test_label_follows_the_actor(self):
+        result = format_alert({**BASE, "sha": "abc1234567", "actor": "raymie", "attempt": 2})
+        self.assertLess(result.index("raymie"), result.index(", attempt 2"))
+
+    def test_label_without_sha_or_actor(self):
+        self.assertIn("`main`, attempt 2", format_alert({**BASE, "attempt": 2}))
+
+    def test_label_helper_rejects_none(self):
+        self.assertEqual("", format_attempt_label(None))
 
 
 class TestMainErrorHandling(unittest.TestCase):
