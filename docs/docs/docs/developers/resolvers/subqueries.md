@@ -62,6 +62,12 @@ The field getters on a subquery result are suspend functions. Your resolver can 
 
 If you access a field that wasn't part of your selection string, you'll get an `UnsetFieldException` at runtime.
 
+### Subquery results are partial GRTs
+
+The GRT returned by `ctx.query()` contains exactly the fields in the subquery's selection set. It is not a complete snapshot of the GraphQL type.
+
+For guidance on returning subquery GRTs from resolvers, including when to use a builder, `nodeRef`, or `rootFieldRef`, see [Do not return a GRT with an incomplete selection set](field_resolvers.md#do-not-return-a-grt-with-an-incomplete-selection-set).
+
 ## ctx.mutation()
 
 Mutation field resolvers can execute submutations via `ctx.mutation()`. This works the same way as `ctx.query()`, but runs against the root `Mutation` type and executes top-level fields serially (matching standard GraphQL mutation semantics).
