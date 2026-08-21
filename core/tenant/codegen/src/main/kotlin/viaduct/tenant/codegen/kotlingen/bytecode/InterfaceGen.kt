@@ -65,6 +65,8 @@ private val interfaceSTGroup =
 
     interface <mdl.className> : <mdl.superTypes> {
         <mdl.fieldsNeedingGetter: { f |
+          fun <f.getterName>OrThrow(alias: String?): <f.kotlinType>
+          fun <f.getterName>OrThrow(): <f.kotlinType>
           fun <f.getterName>(alias: String?): <f.kotlinType>
           fun <f.getterName>(): <f.kotlinType>
           fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull>

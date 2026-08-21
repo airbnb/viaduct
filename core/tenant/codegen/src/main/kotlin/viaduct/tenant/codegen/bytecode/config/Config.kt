@@ -43,6 +43,11 @@ object cfg {
 
     val QUERY_SELECTIONS_FIELD_NAME = "querySelections"
 
+    /**
+     * The suffixes the Kotlin GRT generators append to a field's accessor name
+     */
+    val FIELD_ACCESSOR_SUFFIXES = AccessorForm.entries.map { it.suffix }
+
     val EDGES_QUERY_RESPONSE =
         JavaBinaryName("com.airbnb.viaduct.loaders.core.edges.EdgesQueryResponse")
 

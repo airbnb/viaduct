@@ -15,6 +15,7 @@ import kotlinx.metadata.isSuspend
 import kotlinx.metadata.jvm.annotations
 import kotlinx.metadata.modality
 import kotlinx.metadata.visibility
+import viaduct.codegen.GeneratedAccessorNames
 import viaduct.codegen.ct.javaTypeName
 import viaduct.codegen.km.CustomClassBuilder
 import viaduct.codegen.km.KmPropertyBuilder
@@ -27,6 +28,7 @@ import viaduct.codegen.utils.JavaIdName
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.tenant.codegen.bytecode.config.AccessorForm
 import viaduct.tenant.codegen.bytecode.config.baseTypeKmType
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.codegenIncludedFields
@@ -171,37 +173,35 @@ private class ObjectClassGenV2(
     }
 
     private fun CustomClassBuilder.addFieldGetters(): CustomClassBuilder {
-        for (field in def.codegenIncludedFields) {
-            // Generate two field getters per field.
-            // One to handle alias param and fetch the field value.
-            this.addFieldGetter(field, orNull = false)
-            // The other is just to pass default null as alias and
-            // invoke the first getter.
-            this.addFieldGetterToPassDefaultValue(field, orNull = false)
+        GeneratedAccessorNames.validateNoCollisions(
+            def.name,
+            def.codegenIncludedFields.associate { it.name to getterName(it.name) },
+            cfg.FIELD_ACCESSOR_SUFFIXES
+        )
 
-            // Emit OrNull variants that swallow exceptions and return null.
-            this.addFieldGetter(field, orNull = true)
-            this.addFieldGetterToPassDefaultValue(field, orNull = true)
+        for (field in def.codegenIncludedFields) {
+            for (form in AccessorForm.entries) {
+                this.addFieldGetter(field, form)
+                this.addFieldGetterToPassDefaultValue(field, form)
+            }
         }
         return this
     }
 
     private fun CustomClassBuilder.addFieldGetter(
         field: ViaductSchema.Field,
-        orNull: Boolean
+        form: AccessorForm
     ) {
         grtClassFilesBuilder.addSchemaGRTReference(field.type.baseTypeDef)
 
-        val fetchMethod = if (orNull) "getOrNullInternal" else "getInternal"
-        val getterSuffix = if (orNull) "OrNull" else ""
-        val methodName = getterName(field.name) + getterSuffix
+        val methodName = form.methodName(getterName(field.name))
 
         val kmFun = KmFunction(methodName).apply {
             visibility = Visibility.PUBLIC
             modality = Modality.FINAL
             isSuspend = false
             returnType = field.kmType(pkg, baseTypeMapper).also { t ->
-                if (orNull) t.isNullable = true
+                if (form.nullable) t.isNullable = true
             }
             valueParameters.add(
                 KmValueParameter("alias").apply {
@@ -211,9 +211,9 @@ private class ObjectClassGenV2(
         }
 
         val returnType = field.kmType(pkg, baseTypeMapper).also { t ->
-            if (orNull) t.isNullable = true
+            if (form.nullable) t.isNullable = true
         }
-        val fetchExpr = field.fetchExpression("$1", fetchMethod)
+        val fetchExpr = field.fetchExpression("$1", form.fetchMethod)
         val bridge = field.covariantReturnTypeBridge(returnType, fetchExpr)
         this.addFunctionWithReturnTypeBridge(
             kmFun,
@@ -224,23 +224,22 @@ private class ObjectClassGenV2(
 
     private fun CustomClassBuilder.addFieldGetterToPassDefaultValue(
         field: ViaductSchema.Field,
-        orNull: Boolean
+        form: AccessorForm
     ) {
         grtClassFilesBuilder.addSchemaGRTReference(field.type.baseTypeDef)
 
-        val methodName = if (orNull) "${getterName(field.name)}OrNull" else getterName(field.name)
+        val methodName = form.methodName(getterName(field.name))
 
         val kmFun = KmFunction(methodName).also {
             it.visibility = Visibility.PUBLIC
             it.modality = Modality.FINAL
             it.isSuspend = false
             it.returnType = field.kmType(pkg, baseTypeMapper).also { t ->
-                if (orNull) t.isNullable = true
+                if (form.nullable) t.isNullable = true
             }
         }
 
-        val fetchMethod = if (orNull) "getOrNullInternal" else "getInternal"
-        val bridge = field.covariantReturnTypeBridge(kmFun.returnType, field.fetchExpression("(String)null", fetchMethod))
+        val bridge = field.covariantReturnTypeBridge(kmFun.returnType, field.fetchExpression("(String)null", form.fetchMethod))
         this.addFunctionWithReturnTypeBridge(
             kmFun,
             body = buildString {

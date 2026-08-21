@@ -30,8 +30,13 @@ class User private constructor(...): NodeObject {
   suspend fun getLastName(alias: String? = null): String?
   suspend fun getDisplayName(alias: String? = null): String?
 
-  // For each getter, Viaduct also generates an `OrNull` variant — see
-  // "Soft-failing accessors with getXOrNull()" below.
+  // For each getter, Viaduct also generates `OrThrow` and `OrNull` variants — see
+  // "Strict and soft-failing accessors" below.
+  suspend fun getIdOrThrow(alias: String? = null): GlobalID<User>
+  suspend fun getFirstNameOrThrow(alias: String? = null): String?
+  suspend fun getLastNameOrThrow(alias: String? = null): String?
+  suspend fun getDisplayNameOrThrow(alias: String? = null): String?
+
   suspend fun getIdOrNull(alias: String? = null): GlobalID<User>?
   suspend fun getFirstNameOrNull(alias: String? = null): String?
   suspend fun getLastNameOrNull(alias: String? = null): String?
@@ -51,19 +56,28 @@ class User private constructor(...): NodeObject {
 
 The values from a fragment on `User` (for example) are accessed through the GRT for `User`.  As a result, the Viaduct GRTs for object types distinguish fields that are "not set," because they haven’t been requested for in the fragment, from fields that are in the fragment and thus are "set."  If you attempt to access a field that has not been set, a `UnsetFieldException` exception will be thrown, even if that field is nullable.  Also, when you build an object-type value, you do *not* have to set all fields, even if those fields are non-nullable.
 
-### Soft-failing accessors with `getXOrNull()`
+### Strict and soft-failing accessors
 
-For every generated `getX()` accessor, Viaduct also generates a matching `getXOrNull()` variant. The distinction is **not** about whether the field is nullable in the schema — both forms already return `T?` when the schema field is nullable. It is about how *errors* are surfaced: `getX()` throws on any failure, while `getXOrNull()` returns `null` for data-side failures (upstream resolver errors, field values stored as errors) so callers can degrade gracefully when a dependency fails. Tenant misuse (e.g. accessing a field that wasn't selected, throwing `UnsetFieldException`), framework bugs (`FrameworkException`), and `CancellationException` still propagate, so real bugs and coroutine cancellation remain visible.
+For every field, Viaduct generates three accessors: `getX()`, `getXOrThrow()`, and `getXOrNull()`. The distinction is **not** about whether the field is nullable in the schema — all three already return `T?` when the schema field is nullable. It is about how *errors* are surfaced.
+
+`getXOrThrow()` is the strict accessor: it throws on any failure. `getX()` behaves identically to it today. `getXOrNull()` returns `null` for data-side failures (upstream resolver errors, field values stored as errors) so callers can degrade gracefully when a dependency fails. Tenant misuse (e.g. accessing a field that wasn't selected, throwing `UnsetFieldException`), framework bugs (`FrameworkException`), and `CancellationException` still propagate from **all three**, so real bugs and coroutine cancellation remain visible. In particular, `getXOrNull()` does not return `null` for a field that was left out of the selection set — it throws, just as the strict accessors do.
 
 ```kotlin
 // Strict: throws on any failure.
-val name: String? = user.getDisplayName()
+val name: String? = user.getDisplayNameOrThrow()
 
 // Soft: returns null on data-side failures; tenant/framework bugs still throw.
 val nameOrNull: String? = user.getDisplayNameOrNull()
 ```
 
-Because `getXOrNull()` discards the underlying data-side error, a caller that needs to distinguish "field is genuinely null" from "field errored and was swallowed" should use `getX()` and handle the exception explicitly.
+Because `getXOrNull()` discards the underlying data-side error, a caller that needs to distinguish "field is genuinely null" from "field errored and was swallowed" should use `getXOrThrow()` and handle the exception explicitly.
+
+!!! note "`getX()` is being renamed"
+
+    `getXOrThrow()` exists so that an accessor which throws says so at the call site. A later
+    release removes `getX()` and reintroduces it with the data-side-tolerant behavior
+    `getXOrNull()` has today. Prefer `getXOrThrow()` for strict access and `getXOrNull()` for
+    tolerant access; avoid adding new `getX()` calls, because their meaning will change.
 
 The GRTs for interface types are Kotlin interfaces with suspending getters (but no builders), while the GRTs for union types are simply Kotlin "tagging" interfaces (i.e., Kotlin interfaces with no members).
 

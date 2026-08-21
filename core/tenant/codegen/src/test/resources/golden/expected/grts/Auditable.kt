@@ -3,6 +3,8 @@
 package viaduct.api.grts
 
 interface Auditable : viaduct.api.types.Interface, viaduct.api.types.NodeCompositeOutput, viaduct.api.grts.Node, viaduct.api.grts.Timestamped {
+          fun getAuditTrailOrThrow(alias: String?): kotlin.collections.List<kotlin.String>?
+          fun getAuditTrailOrThrow(): kotlin.collections.List<kotlin.String>?
           fun getAuditTrail(alias: String?): kotlin.collections.List<kotlin.String>?
           fun getAuditTrail(): kotlin.collections.List<kotlin.String>?
           fun getAuditTrailOrNull(alias: String?): kotlin.collections.List<kotlin.String>?

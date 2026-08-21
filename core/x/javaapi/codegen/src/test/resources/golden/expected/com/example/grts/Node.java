@@ -26,6 +26,7 @@ public interface Node extends NodeCompositeOutput {
 
     }
 
+        GlobalID<? extends Node> getIdOrThrow();
         GlobalID<? extends Node> getId();
 
 }

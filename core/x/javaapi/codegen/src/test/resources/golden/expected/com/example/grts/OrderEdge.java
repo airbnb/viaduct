@@ -51,10 +51,16 @@ public class OrderEdge extends ObjectBase implements viaduct.java.api.types.Edge
     public OrderEdge(InternalContext context, RootFieldReference rootFieldReference) {
         super(context, rootFieldReference);
     }
+        public String getCursorOrThrow() {
+            return fetchScalar("cursor");
+        }
         public String getCursor() {
             return fetchScalar("cursor");
         }
 
+        public Order getNodeOrThrow() {
+            return fetchObject("node", Order::new);
+        }
         public Order getNode() {
             return fetchObject("node", Order::new);
         }

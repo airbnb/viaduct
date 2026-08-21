@@ -13,6 +13,8 @@ import viaduct.engine.api.EngineObjectData
 class Mutation(context: InternalContext, engineObject: EngineObject)
     : ObjectBase(context, engineObject), viaduct.api.types.Object,viaduct.api.types.Mutation
 {
+     fun getCreateOrderOrThrow(alias: String?): viaduct.api.grts.Order? = TODO()
+     fun getCreateOrderOrThrow(): viaduct.api.grts.Order? = TODO()
      fun getCreateOrder(alias: String?): viaduct.api.grts.Order? = TODO()
      fun getCreateOrder(): viaduct.api.grts.Order? = TODO()
      fun getCreateOrderOrNull(alias: String?): viaduct.api.grts.Order? = TODO()

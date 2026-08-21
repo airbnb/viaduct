@@ -69,34 +69,58 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
     public Query(InternalContext context, RootFieldReference rootFieldReference) {
         super(context, rootFieldReference);
     }
+        public Order getOrderOrThrow() {
+            return fetchObject("order", Order::new);
+        }
         public Order getOrder() {
             return fetchObject("order", Order::new);
         }
 
+        public User getTopUserOrThrow() {
+            return fetchObject("topUser", User::new);
+        }
         public User getTopUser() {
             return fetchObject("topUser", User::new);
         }
 
+        public List<Order> getPopularOrdersOrThrow() {
+            return fetchObjectList("popularOrders", Order::new);
+        }
         public List<Order> getPopularOrders() {
             return fetchObjectList("popularOrders", Order::new);
         }
 
+        public List<User> getTrendingUsersOrThrow() {
+            return fetchObjectList("trendingUsers", User::new);
+        }
         public List<User> getTrendingUsers() {
             return fetchObjectList("trendingUsers", User::new);
         }
 
+        public OrderConnection getOrdersConnectionOrThrow() {
+            return fetchObject("ordersConnection", OrderConnection::new);
+        }
         public OrderConnection getOrdersConnection() {
             return fetchObject("ordersConnection", OrderConnection::new);
         }
 
+        public Order getLookupOrderOrThrow() {
+            return fetchObject("lookupOrder", Order::new);
+        }
         public Order getLookupOrder() {
             return fetchObject("lookupOrder", Order::new);
         }
 
+        public Node getNodeOrThrow() {
+            return fetchAbstractObject("node", Node.class);
+        }
         public Node getNode() {
             return fetchAbstractObject("node", Node.class);
         }
 
+        public List<Node> getNodesOrThrow() {
+            return fetchAbstractObjectList("nodes", Node.class);
+        }
         public List<Node> getNodes() {
             return fetchAbstractObjectList("nodes", Node.class);
         }

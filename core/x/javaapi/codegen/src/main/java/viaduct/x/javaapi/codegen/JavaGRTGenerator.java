@@ -2,6 +2,10 @@ package viaduct.x.javaapi.codegen;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import viaduct.codegen.GeneratedAccessorNames;
 import viaduct.codegen.st.STContents;
 import viaduct.codegen.st.STUtilsKt;
 
@@ -42,8 +46,28 @@ public final class JavaGRTGenerator {
               }; separator="\\n">
       """;
 
+  /**
+   * The suffixes appended to a field's accessor name on generated object and interface types.
+   * Unlike the Kotlin GRTs, the Java GRTs have no {@code OrNull} accessor.
+   */
+  static final List<String> FIELD_ACCESSOR_SUFFIXES = List.of("OrThrow", "");
+
   private JavaGRTGenerator() {
     // Static utility class
+  }
+
+  /**
+   * Fails when two fields of a composite type would generate the same accessor name — for instance
+   * a field {@code foo} and a sibling field named {@code fooOrThrow}, which both want {@code
+   * getFooOrThrow()}. Object and interface types only; input and argument accessors take no suffix.
+   */
+  private static void validateAccessorNames(String className, List<FieldModel> fields) {
+    Map<String, String> baseAccessorNames = new LinkedHashMap<>();
+    for (FieldModel field : fields) {
+      baseAccessorNames.put(field.name(), field.getGetterName());
+    }
+    GeneratedAccessorNames.validateNoCollisions(
+        className, baseAccessorNames, FIELD_ACCESSOR_SUFFIXES);
   }
 
   /**
@@ -195,6 +219,9 @@ public final class JavaGRTGenerator {
                 <endif>
 
                 <mdl.fields: {f |
+                public <f.javaType> <f.getterName>OrThrow() {
+                    return <f.getterExpression>;
+                \\}
                 public <f.javaType> <f.getterName>() {
                     return <f.getterExpression>;
                 \\}
@@ -309,6 +336,9 @@ public final class JavaGRTGenerator {
                 }
 
                 <mdl.fields: {f |
+                public <f.javaType> <f.getterName>OrThrow() {
+                    return <f.getterExpression>;
+                \\}
                 public <f.javaType> <f.getterName>() {
                     return <f.getterExpression>;
                 \\}
@@ -399,12 +429,17 @@ public final class JavaGRTGenerator {
      * @return the generated Java source code
      */
     public static String generate(ObjectModel model) {
-      return new STContents(templateFor(model), model).toString();
+      return validatedContentsFor(model).toString();
     }
 
     /** Connection object types use the pagination-aware {@link #CONNECTION_TEMPLATE}. */
     private static String templateFor(ObjectModel model) {
       return model.getIsConnection() ? CONNECTION_TEMPLATE : TEMPLATE;
+    }
+
+    private static STContents validatedContentsFor(ObjectModel model) {
+      validateAccessorNames(model.className(), model.fields());
+      return new STContents(templateFor(model), model);
     }
 
     /**
@@ -416,8 +451,8 @@ public final class JavaGRTGenerator {
      * @throws IOException if there's an error writing the file
      */
     public static File generateToFile(ObjectModel model, File outputDir) throws IOException {
-      STContents contents = new STContents(templateFor(model), model);
-      return writeToFile(contents, model.packageName(), model.className(), outputDir);
+      return writeToFile(
+          validatedContentsFor(model), model.packageName(), model.className(), outputDir);
     }
   }
 
@@ -589,6 +624,7 @@ public final class JavaGRTGenerator {
                 }
 
                 <mdl.fields: {f |
+                <f.javaType> <f.getterName>OrThrow();
                 <f.javaType> <f.getterName>();
                 }; separator="\\n">
             }
@@ -603,7 +639,12 @@ public final class JavaGRTGenerator {
      * @return the generated Java source code
      */
     public static String generate(InterfaceModel model) {
-      return new STContents(TEMPLATE, model).toString();
+      return validatedContentsFor(model).toString();
+    }
+
+    private static STContents validatedContentsFor(InterfaceModel model) {
+      validateAccessorNames(model.className(), model.fields());
+      return new STContents(TEMPLATE, model);
     }
 
     /**
@@ -615,8 +656,8 @@ public final class JavaGRTGenerator {
      * @throws IOException if there's an error writing the file
      */
     public static File generateToFile(InterfaceModel model, File outputDir) throws IOException {
-      STContents contents = new STContents(TEMPLATE, model);
-      return writeToFile(contents, model.packageName(), model.className(), outputDir);
+      return writeToFile(
+          validatedContentsFor(model), model.packageName(), model.className(), outputDir);
     }
   }
 

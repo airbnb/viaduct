@@ -51,10 +51,16 @@ public class Money extends ObjectBase implements SearchHit {
     public Money(InternalContext context, RootFieldReference rootFieldReference) {
         super(context, rootFieldReference);
     }
+        public double getAmountOrThrow() {
+            return fetchScalar("amount");
+        }
         public double getAmount() {
             return fetchScalar("amount");
         }
 
+        public String getCurrencyOrThrow() {
+            return fetchScalar("currency");
+        }
         public String getCurrency() {
             return fetchScalar("currency");
         }

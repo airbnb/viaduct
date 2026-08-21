@@ -48,6 +48,9 @@ public class Mutation extends ObjectBase implements viaduct.java.api.types.Mutat
     public Mutation(InternalContext context, RootFieldReference rootFieldReference) {
         super(context, rootFieldReference);
     }
+        public Order getCreateOrderOrThrow() {
+            return fetchObject("createOrder", Order::new);
+        }
         public Order getCreateOrder() {
             return fetchObject("createOrder", Order::new);
         }

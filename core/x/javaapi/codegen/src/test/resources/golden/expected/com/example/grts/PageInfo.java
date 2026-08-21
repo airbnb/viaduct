@@ -56,18 +56,30 @@ public class PageInfo extends ObjectBase {
     public PageInfo(InternalContext context, RootFieldReference rootFieldReference) {
         super(context, rootFieldReference);
     }
+        public boolean getHasNextPageOrThrow() {
+            return fetchScalar("hasNextPage");
+        }
         public boolean getHasNextPage() {
             return fetchScalar("hasNextPage");
         }
 
+        public boolean getHasPreviousPageOrThrow() {
+            return fetchScalar("hasPreviousPage");
+        }
         public boolean getHasPreviousPage() {
             return fetchScalar("hasPreviousPage");
         }
 
+        public String getStartCursorOrThrow() {
+            return fetchScalar("startCursor");
+        }
         public String getStartCursor() {
             return fetchScalar("startCursor");
         }
 
+        public String getEndCursorOrThrow() {
+            return fetchScalar("endCursor");
+        }
         public String getEndCursor() {
             return fetchScalar("endCursor");
         }

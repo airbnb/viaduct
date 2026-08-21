@@ -22,6 +22,7 @@ class InterfaceGeneratorTest {
 
     assertTrue(generated.contains("package com.example.types;"));
     assertTrue(generated.contains("public interface Node extends NodeCompositeOutput"));
+    assertTrue(generated.contains("String getIdOrThrow();"));
     assertTrue(generated.contains("String getId();"));
   }
 
@@ -82,6 +83,8 @@ class InterfaceGeneratorTest {
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
 
+    assertTrue(generated.contains("User getOwnerOrThrow();"));
+    assertTrue(generated.contains("List<User> getCollaboratorsOrThrow();"));
     assertTrue(generated.contains("User getOwner();"));
     assertTrue(generated.contains("List<User> getCollaborators();"));
   }
@@ -102,6 +105,10 @@ class InterfaceGeneratorTest {
 
     String generated = JavaGRTGenerator.InterfaceGenerator.generate(model);
 
+    assertTrue(generated.contains("String getIdOrThrow();"));
+    assertTrue(generated.contains("String getNameOrThrow();"));
+    assertTrue(generated.contains("boolean getIsActiveOrThrow();"));
+    // The bare names remain declared as aliases until call sites have moved over.
     assertTrue(generated.contains("String getId();"));
     assertTrue(generated.contains("String getName();"));
     assertTrue(generated.contains("boolean getIsActive();"));

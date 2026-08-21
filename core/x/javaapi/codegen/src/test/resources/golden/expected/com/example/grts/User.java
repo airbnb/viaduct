@@ -77,34 +77,58 @@ public class User extends NodeObjectBase implements Node, SearchHit {
         super(context, nodeReference);
     }
 
+        public GlobalID<User> getIdOrThrow() {
+            return fetchGlobalID("id");
+        }
         public GlobalID<User> getId() {
             return fetchGlobalID("id");
         }
 
+        public String getNameOrThrow() {
+            return fetchScalar("name");
+        }
         public String getName() {
             return fetchScalar("name");
         }
 
+        public String getNicknameOrThrow() {
+            return fetchScalar("nickname");
+        }
         public String getNickname() {
             return fetchScalar("nickname");
         }
 
+        public Integer getAgeOrThrow() {
+            return fetchScalar("age");
+        }
         public Integer getAge() {
             return fetchScalar("age");
         }
 
+        public boolean getActiveOrThrow() {
+            return fetchScalar("active");
+        }
         public boolean getActive() {
             return fetchScalar("active");
         }
 
+        public Color getFavoriteColorOrThrow() {
+            return fetchEnum("favoriteColor", Color.class);
+        }
         public Color getFavoriteColor() {
             return fetchEnum("favoriteColor", Color.class);
         }
 
+        public List<Integer> getScoresOrThrow() {
+            return fetchScalarList("scores");
+        }
         public List<Integer> getScores() {
             return fetchScalarList("scores");
         }
 
+        public GlobalID<Order> getLastOrderOrThrow() {
+            return fetchGlobalID("lastOrder");
+        }
         public GlobalID<Order> getLastOrder() {
             return fetchGlobalID("lastOrder");
         }

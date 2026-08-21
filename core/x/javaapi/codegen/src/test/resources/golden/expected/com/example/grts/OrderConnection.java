@@ -56,14 +56,23 @@ public class OrderConnection extends ObjectBase implements viaduct.java.api.type
         super(context, rootFieldReference);
     }
 
+        public List<OrderEdge> getEdgesOrThrow() {
+            return fetchObjectList("edges", OrderEdge::new);
+        }
         public List<OrderEdge> getEdges() {
             return fetchObjectList("edges", OrderEdge::new);
         }
 
+        public PageInfo getPageInfoOrThrow() {
+            return fetchObject("pageInfo", PageInfo::new);
+        }
         public PageInfo getPageInfo() {
             return fetchObject("pageInfo", PageInfo::new);
         }
 
+        public Integer getTotalCountOrThrow() {
+            return fetchScalar("totalCount");
+        }
         public Integer getTotalCount() {
             return fetchScalar("totalCount");
         }

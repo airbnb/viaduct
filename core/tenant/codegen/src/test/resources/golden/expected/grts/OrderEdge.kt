@@ -13,11 +13,15 @@ import viaduct.engine.api.EngineObjectData
 class OrderEdge(context: InternalContext, engineObject: EngineObject)
     : ObjectBase(context, engineObject), viaduct.api.types.Object,viaduct.api.types.Edge<viaduct.api.grts.Order>
 {
+     fun getCursorOrThrow(alias: String?): kotlin.String = TODO()
+     fun getCursorOrThrow(): kotlin.String = TODO()
      fun getCursor(alias: String?): kotlin.String = TODO()
      fun getCursor(): kotlin.String = TODO()
      fun getCursorOrNull(alias: String?): kotlin.String? = TODO()
      fun getCursorOrNull(): kotlin.String? = TODO()
 
+     fun getNodeOrThrow(alias: String?): viaduct.api.grts.Order? = TODO()
+     fun getNodeOrThrow(): viaduct.api.grts.Order? = TODO()
      fun getNode(alias: String?): viaduct.api.grts.Order? = TODO()
      fun getNode(): viaduct.api.grts.Order? = TODO()
      fun getNodeOrNull(alias: String?): viaduct.api.grts.Order? = TODO()

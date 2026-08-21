@@ -227,6 +227,8 @@ private val objectSTGroup = stTemplate(
         : ObjectBase(context, engineObject), <mdl.superTypes>
     {
         <mdl.fields: { f |
+          <f.overrideKeywords> fun <f.getterName>OrThrow(alias: String?): <f.kotlinType> = TODO()
+          <f.overrideKeywords> fun <f.getterName>OrThrow(): <f.kotlinType> = TODO()
           <f.overrideKeywords> fun <f.getterName>(alias: String?): <f.kotlinType> = TODO()
           <f.overrideKeywords> fun <f.getterName>(): <f.kotlinType> = TODO()
           <f.overrideKeywords> fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull> = TODO()
@@ -291,6 +293,8 @@ private val connectionObjectSTGroup = stTemplate(
         : ObjectBase(context, engineObject), <mdl.superTypes>
     {
         <mdl.fields: { f |
+          <f.overrideKeywords> fun <f.getterName>OrThrow(alias: String?): <f.kotlinType> = TODO()
+          <f.overrideKeywords> fun <f.getterName>OrThrow(): <f.kotlinType> = TODO()
           <f.overrideKeywords> fun <f.getterName>(alias: String?): <f.kotlinType> = TODO()
           <f.overrideKeywords> fun <f.getterName>(): <f.kotlinType> = TODO()
           <f.overrideKeywords> fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull> = TODO()

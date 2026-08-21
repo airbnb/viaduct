@@ -1,6 +1,8 @@
 package viaduct.x.javaapi.codegen;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static viaduct.x.javaapi.codegen.TestStrings.countOccurrences;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -27,8 +29,12 @@ class ObjectGeneratorTest {
     assertTrue(generated.contains("package com.example.types;"));
     assertTrue(generated.contains("public class User extends ObjectBase"));
     assertTrue(!generated.contains("implements GraphQLObject"));
-    assertTrue(generated.contains("public String getId()"));
+    assertTrue(generated.contains("public String getIdOrThrow()"));
     assertTrue(generated.contains("return fetchScalar(\"id\")"));
+    // Delegating instead would let a subclass declaring getIdOrThrow() change what getId() returns.
+    assertTrue(generated.contains("public String getId()"));
+    assertTrue(!generated.contains("return getIdOrThrow();"));
+    assertEquals(2, countOccurrences(generated, "return fetchScalar(\"id\");"));
     assertTrue(!generated.contains("private String id;"));
     assertTrue(!generated.contains("public void setId("));
     assertTrue(generated.contains("public static Builder builder(ExecutionContext context)"));
@@ -92,10 +98,13 @@ class ObjectGeneratorTest {
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
-    assertTrue(generated.contains("public User getHost()"));
+    assertTrue(generated.contains("public User getHostOrThrow()"));
     assertTrue(generated.contains("return fetchObject(\"host\", User::new)"));
-    assertTrue(generated.contains("public List<String> getAmenities()"));
+    assertTrue(generated.contains("public List<String> getAmenitiesOrThrow()"));
     assertTrue(generated.contains("return fetchScalar(\"amenities\")"));
+    assertTrue(generated.contains("public double getPricePerNightOrThrow()"));
+    assertTrue(generated.contains("public User getHost()"));
+    assertTrue(generated.contains("public List<String> getAmenities()"));
     assertTrue(generated.contains("public double getPricePerNight()"));
   }
 

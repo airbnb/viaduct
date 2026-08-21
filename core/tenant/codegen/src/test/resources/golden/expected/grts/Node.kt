@@ -3,6 +3,8 @@
 package viaduct.api.grts
 
 interface Node : viaduct.api.types.Interface, viaduct.api.types.NodeCompositeOutput {
+          fun getIdOrThrow(alias: String?): viaduct.api.globalid.GlobalID<viaduct.api.grts.Node>
+          fun getIdOrThrow(): viaduct.api.globalid.GlobalID<viaduct.api.grts.Node>
           fun getId(alias: String?): viaduct.api.globalid.GlobalID<viaduct.api.grts.Node>
           fun getId(): viaduct.api.globalid.GlobalID<viaduct.api.grts.Node>
           fun getIdOrNull(alias: String?): viaduct.api.globalid.GlobalID<viaduct.api.grts.Node>?

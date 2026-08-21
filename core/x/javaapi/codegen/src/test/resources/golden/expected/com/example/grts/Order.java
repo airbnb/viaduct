@@ -71,30 +71,51 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
         super(context, nodeReference);
     }
 
+        public GlobalID<Order> getIdOrThrow() {
+            return fetchGlobalID("id");
+        }
         public GlobalID<Order> getId() {
             return fetchGlobalID("id");
         }
 
+        public OrderStatus getStatusOrThrow() {
+            return fetchEnum("status", OrderStatus.class);
+        }
         public OrderStatus getStatus() {
             return fetchEnum("status", OrderStatus.class);
         }
 
+        public Money getTotalOrThrow() {
+            return fetchObject("total", Money::new);
+        }
         public Money getTotal() {
             return fetchObject("total", Money::new);
         }
 
+        public String getCreatedAtOrThrow() {
+            return fetchScalar("createdAt");
+        }
         public String getCreatedAt() {
             return fetchScalar("createdAt");
         }
 
+        public String getUpdatedAtOrThrow() {
+            return fetchScalar("updatedAt");
+        }
         public String getUpdatedAt() {
             return fetchScalar("updatedAt");
         }
 
+        public List<String> getAuditTrailOrThrow() {
+            return fetchScalarList("auditTrail");
+        }
         public List<String> getAuditTrail() {
             return fetchScalarList("auditTrail");
         }
 
+        public User getBuyerOrThrow() {
+            return fetchObject("buyer", User::new);
+        }
         public User getBuyer() {
             return fetchObject("buyer", User::new);
         }

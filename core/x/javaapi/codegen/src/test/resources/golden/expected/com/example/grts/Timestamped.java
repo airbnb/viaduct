@@ -29,8 +29,10 @@ public interface Timestamped extends GraphQLInterface {
 
     }
 
+        String getCreatedAtOrThrow();
         String getCreatedAt();
 
+        String getUpdatedAtOrThrow();
         String getUpdatedAt();
 
 }

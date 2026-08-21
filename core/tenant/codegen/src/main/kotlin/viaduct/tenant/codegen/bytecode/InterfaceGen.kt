@@ -9,11 +9,13 @@ import kotlinx.metadata.isNullable
 import kotlinx.metadata.isSuspend
 import kotlinx.metadata.modality
 import kotlinx.metadata.visibility
+import viaduct.codegen.GeneratedAccessorNames
 import viaduct.codegen.km.CustomClassBuilder
 import viaduct.codegen.km.getterName
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.tenant.codegen.bytecode.config.AccessorForm
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.codegenIncludedFields
 import viaduct.tenant.codegen.bytecode.config.isNode
@@ -38,25 +40,26 @@ internal fun GRTClassFilesBuilder.interfaceGen(def: ViaductSchema.Interface) {
             }
         }
 
-        for (f in def.codegenIncludedFields) {
-            if (f.isOverride) {
-                continue
+        // Override fields are checked but not emitted: they inherit an accessor that a sibling field
+        // can still collide with.
+        val fieldsToEmit = def.codegenIncludedFields.filterNot { f -> f.isOverride }
+        GeneratedAccessorNames.validateNoCollisions(
+            def.name,
+            def.codegenIncludedFields.associate { f -> f.name to getterName(f.name) },
+            cfg.FIELD_ACCESSOR_SUFFIXES
+        )
+
+        for (f in fieldsToEmit) {
+            for (form in AccessorForm.entries) {
+                it.addGetterFun(f, pkg, baseTypeMapper, form)
+                it.addGetterFun(
+                    f,
+                    pkg,
+                    baseTypeMapper,
+                    form,
+                    KmValueParameter("alias").also { p -> p.type = Km.STRING.asNullableType() }
+                )
             }
-            it.addGetterFun(f, pkg, baseTypeMapper)
-            it.addGetterFun(
-                f,
-                pkg,
-                baseTypeMapper,
-                KmValueParameter("alias").also { it.type = Km.STRING.asNullableType() }
-            )
-            it.addGetterFun(f, pkg, baseTypeMapper, orNull = true)
-            it.addGetterFun(
-                f,
-                pkg,
-                baseTypeMapper,
-                KmValueParameter("alias").also { it.type = Km.STRING.asNullableType() },
-                orNull = true
-            )
         }
 
         this.reflectedTypeGen(def, it)
@@ -68,17 +71,16 @@ private fun CustomClassBuilder.addGetterFun(
     field: ViaductSchema.Field,
     pkg: KmName,
     baseTypeMapper: viaduct.tenant.codegen.bytecode.config.BaseTypeMapper,
-    valueParam: KmValueParameter? = null,
-    orNull: Boolean = false
+    form: AccessorForm,
+    valueParam: KmValueParameter? = null
 ): CustomClassBuilder {
-    val suffix = if (orNull) "OrNull" else ""
-    val methodName = getterName(field.name) + suffix
+    val methodName = form.methodName(getterName(field.name))
     val getter = KmFunction(methodName).also {
         it.visibility = Visibility.PUBLIC
         it.modality = Modality.ABSTRACT
         it.isSuspend = false
         it.returnType = field.kmType(pkg, baseTypeMapper).also { t ->
-            if (orNull) t.isNullable = true
+            if (form.nullable) t.isNullable = true
         }
     }
     valueParam?.let { getter.valueParameters.add(it) }

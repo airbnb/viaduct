@@ -36,12 +36,16 @@ public interface Auditable extends NodeCompositeOutput, Node, Timestamped {
 
     }
 
+        GlobalID<? extends Auditable> getIdOrThrow();
         GlobalID<? extends Auditable> getId();
 
+        String getCreatedAtOrThrow();
         String getCreatedAt();
 
+        String getUpdatedAtOrThrow();
         String getUpdatedAt();
 
+        List<String> getAuditTrailOrThrow();
         List<String> getAuditTrail();
 
 }
