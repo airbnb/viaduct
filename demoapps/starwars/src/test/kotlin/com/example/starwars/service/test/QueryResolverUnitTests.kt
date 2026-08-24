@@ -22,6 +22,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.api.grts.Character
@@ -37,10 +38,13 @@ import viaduct.api.grts.Query_AllVehicles_Arguments
 import viaduct.api.grts.Query_SearchCharacter_Arguments
 import viaduct.api.grts.Species
 import viaduct.api.grts.Vehicle
+import viaduct.api.select.SelectionSet
 import viaduct.api.testing.ResolverTestBase
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.InternalApi
+import viaduct.errors.UnsetFieldException
 
-@OptIn(ExperimentalCoroutinesApi::class, ExperimentalApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, ExperimentalApi::class, InternalApi::class)
 class QueryResolverUnitTests : ResolverTestBase() {
     lateinit var characterRepository: CharacterRepository
     lateinit var filmsRepository: FilmsRepository
@@ -119,7 +123,7 @@ class QueryResolverUnitTests : ResolverTestBase() {
         }
 
     @Test
-    fun `allFilms respects limit and maps fields`(): Unit =
+    fun `allFilms respects limit and returns node references`(): Unit =
         runBlocking {
             val limit = 2
             val resolver = AllFilmsQueryResolver(filmsRepository)
@@ -134,8 +138,8 @@ class QueryResolverUnitTests : ResolverTestBase() {
             assertEquals(limit, result!!.size)
             val ref = filmsRepository.getAllFilms().first()
             val first = result.first()!!
-            assertEquals(ref.title, first.getTitleOrThrow())
-            assertEquals(ref.episodeID, first.getEpisodeIDOrThrow())
+            assertEquals(ref.id, first.getIdOrThrow().internalID)
+            assertThrows(UnsetFieldException::class.java) { first.getTitleOrThrow() }
         }
 
     @Test
@@ -219,11 +223,15 @@ class QueryResolverUnitTests : ResolverTestBase() {
 
             val result = runNodeResolver(FilmNodeResolver(filmsRepository)) {
                 id = globalIDFor(Film.Reflection, ref.id)
+                selections = filmSelections("openingCrawl")
             }
 
             assertNotNull(result)
-            assertEquals(ref.title, result.getTitleOrThrow())
+            assertEquals(ref.openingCrawl, result.getOpeningCrawlOrThrow())
+            assertThrows(UnsetFieldException::class.java) { result.getTitleOrThrow() }
         }
+
+    private fun filmSelections(fields: String): SelectionSet<Film> = mkSelectionSetFactory().selectionsOn(Film.Reflection, fields, emptyMap())
 
     @Test
     fun `planet by id returns the correct Planet using node resolver`(): Unit =

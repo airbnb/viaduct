@@ -55,6 +55,7 @@ class ResolverIntegrationTest {
                     allFilms(limit: 3) {
                         id
                         title
+                        openingCrawl
                     }
                 }
             """.trimIndent()
@@ -62,7 +63,10 @@ class ResolverIntegrationTest {
             val response = client.executeGraphQLQuery(query)
             val films = response.path("data").path("allFilms")
 
+            (response.path("errors").isMissingNode) shouldBe true
             (films.size() > 0) shouldBe true
+            films.first().path("title").asText() shouldBe "A New Hope"
+            films.first().path("openingCrawl").asText() shouldContain "period of civil war"
         }
 
         @Test
@@ -112,11 +116,38 @@ class ResolverIntegrationTest {
             val filmId = response.path("data").path("node").path("id").asText()
             val filmTitle = response.path("data").path("node").path("title").asText()
             val filmDirector = response.path("data").path("node").path("director").asText()
+            val openingCrawl = response.path("data").path("node").path("openingCrawl").asText()
 
             val expectedGlobalId = Film.Reflection.globalId("1")
+            (response.path("errors").isMissingNode) shouldBe true
             filmId shouldBe expectedGlobalId
             filmTitle shouldNotBe null
             filmDirector shouldNotBe null
+            openingCrawl shouldContain "period of civil war"
+        }
+
+        @Test
+        fun `should resolve selective film production details`() {
+            val encodedFilmId = Film.Reflection.globalId("1")
+            val query = """
+                query {
+                    node(id: "$encodedFilmId") {
+                        ... on Film {
+                            productionDetails {
+                                title
+                                director
+                            }
+                        }
+                    }
+                }
+            """.trimIndent()
+
+            val response = client.executeGraphQLQuery(query)
+            val productionDetails = response.path("data").path("node").path("productionDetails")
+
+            (response.path("errors").isMissingNode) shouldBe true
+            productionDetails.path("title").asText() shouldBe "A New Hope"
+            productionDetails.path("director").asText() shouldBe "George Lucas"
         }
     }
 

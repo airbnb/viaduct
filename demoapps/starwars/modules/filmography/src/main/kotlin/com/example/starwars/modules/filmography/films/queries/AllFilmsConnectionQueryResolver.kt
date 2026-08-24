@@ -1,10 +1,11 @@
 package com.example.starwars.modules.filmography.films.queries
 
 import com.example.starwars.filmography.resolverbases.QueryResolvers
-import com.example.starwars.modules.filmography.films.models.FilmBuilder
 import com.example.starwars.modules.filmography.films.models.FilmsRepository
 import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
+import viaduct.api.context.globalIDFor
+import viaduct.api.grts.Film
 import viaduct.api.grts.FilmsConnection
 import viaduct.api.resolver.Resolver
 import viaduct.apiannotations.ExperimentalApi
@@ -48,7 +49,9 @@ class AllFilmsConnectionQueryResolver
             val allFilms = filmsRepository.getAllFilms()
             return FilmsConnection.of(ctx) {
                 totalCount(allFilms.size)
-                fromList(allFilms) { FilmBuilder(ctx).build(it) }
+                fromList(allFilms) { film ->
+                    ctx.nodeRef(ctx.globalIDFor<Film>(film.id))
+                }
             }
         }
     }

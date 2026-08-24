@@ -1,7 +1,7 @@
 """
 A single film.
 """
-type Film implements Node @scope(to: ["default"]) @resolver {
+type Film implements Node @scope(to: ["default"]) @resolver(isSelective: true) {
   """
   The GlobalID of this film - uniquely identifies this Film in the graph (internal use only)
   """
@@ -73,9 +73,9 @@ type Film implements Node @scope(to: ["default"]) @resolver {
   summary: String @resolver
 
   """
-  Production details including cast and crew (demonstrates computed field)
+  Production details (demonstrates a selective field resolver)
   """
-  productionDetails: String @resolver
+  productionDetails: FilmProductionDetails @resolver(isSelective: true)
 
   """
   Character count summary (demonstrates relationship computation)
@@ -101,6 +101,16 @@ type Film implements Node @scope(to: ["default"]) @resolver {
   castData: BackingData
     @resolver
     @backingData(class: "com.example.starwars.modules.filmography.films.models.FilmCastData")
+}
+
+"""
+Production information for a film.
+"""
+type FilmProductionDetails @scope(to: ["default"]) {
+  title: String
+  director: String
+  producers: [String]
+  releaseDate: String
 }
 
 extend type Query @scope(to: ["default"]) {

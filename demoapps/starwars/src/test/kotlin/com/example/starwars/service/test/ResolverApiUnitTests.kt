@@ -232,7 +232,7 @@ class ResolverApiUnitTests : ResolverTestBase() {
         }
 
     @Test
-    fun `runMutationFieldResolver AddCharacterToFilm links character to film`(): Unit =
+    fun `runMutationFieldResolver AddCharacterToFilm links character to film and returns film reference`(): Unit =
         runBlocking {
             // Use a character not yet in film 1 — add a fresh one first
             val newCharacter = characterRepository.add(
@@ -270,6 +270,7 @@ class ResolverApiUnitTests : ResolverTestBase() {
             }
 
             assertNotNull(result)
-            assertEquals("Wedge Antilles", result!!.getCharacterOrThrow()!!.getNameOrThrow())
+            assertEquals("1", result!!.getFilmOrThrow()!!.getIdOrThrow().internalID)
+            assertEquals("Wedge Antilles", result.getCharacterOrThrow()!!.getNameOrThrow())
         }
 }

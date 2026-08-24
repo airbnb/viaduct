@@ -11,12 +11,19 @@ import com.example.starwars.modules.filmography.films.resolvers.FilmSummaryResol
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.api.globalid.GlobalID
 import viaduct.api.grts.Film
+import viaduct.api.grts.FilmProductionDetails
+import viaduct.api.select.SelectionSet
 import viaduct.api.testing.ResolverTestBase
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.InternalApi
+import viaduct.errors.UnsetFieldException
 
 /**
  * Integration tests for custom field resolvers on the Film type.
@@ -27,7 +34,7 @@ import viaduct.apiannotations.ExperimentalApi
  * Note: Integration tests that cover full query execution and authorization
  * are located in QueryResolverUnitTests.kt.
  */
-@OptIn(ExperimentalCoroutinesApi::class, ExperimentalApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, ExperimentalApi::class, InternalApi::class)
 class FilmResolverUnitTests : ResolverTestBase() {
     private lateinit var filmCharactersRepository: FilmCharactersRepository
 
@@ -65,11 +72,12 @@ class FilmResolverUnitTests : ResolverTestBase() {
         }
 
     @Test
-    fun `FilmProductionDetailsResolver formats release director and producers`(): Unit =
+    fun `FilmProductionDetailsResolver returns only selected fields`(): Unit =
         runBlocking {
             val resolver = FilmProductionDetailsResolver()
 
             val result = runFieldResolver(resolver) {
+                selections = productionDetailsSelections("title director")
                 objectValue = Film.of(context) {
                     title("Return of the Jedi")
                     director("Richard Marquand")
@@ -78,31 +86,33 @@ class FilmResolverUnitTests : ResolverTestBase() {
                 }
             }
 
-            assertEquals(
-                "Return of the Jedi was released on 1983-05-25, directed by Richard Marquand and produced by Howard Kazanjian, George Lucas, Rick McCallum",
-                result
-            )
+            assertNotNull(result)
+            assertEquals("Return of the Jedi", result!!.getTitleOrThrow())
+            assertEquals("Richard Marquand", result.getDirectorOrThrow())
+            assertThrows(UnsetFieldException::class.java) { result.getProducersOrThrow() }
+            assertThrows(UnsetFieldException::class.java) { result.getReleaseDateOrThrow() }
         }
 
     @Test
-    fun `FilmProductionDetailsResolver handles missing producers gracefully`(): Unit =
+    fun `FilmProductionDetailsResolver preserves null selected fields`(): Unit =
         runBlocking {
             val resolver = FilmProductionDetailsResolver()
 
             val result = runFieldResolver(resolver) {
+                selections = productionDetailsSelections("producers")
                 objectValue = Film.of(context) {
                     title("Rogue One")
                     director("Gareth Edwards")
-                    producers(null) // triggers "Unknown producers"
+                    producers(null)
                     releaseDate("2016-12-16")
                 }
             }
 
-            assertEquals(
-                "Rogue One was released on 2016-12-16, directed by Gareth Edwards and produced by Unknown producers",
-                result
-            )
+            assertNotNull(result)
+            assertNull(result!!.getProducersOrThrow())
         }
+
+    private fun productionDetailsSelections(fields: String): SelectionSet<FilmProductionDetails> = mkSelectionSetFactory().selectionsOn(FilmProductionDetails.Reflection, fields, emptyMap())
 
     @Test
     fun `FilmCastDataResolver returns character IDs from repository`(): Unit =

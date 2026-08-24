@@ -5,12 +5,13 @@ import com.example.starwars.filmography.resolverbases.MutationResolvers
 import com.example.starwars.modules.filmography.characters.models.CharacterBuilder
 import com.example.starwars.modules.filmography.characters.models.CharacterFilmsRepository
 import com.example.starwars.modules.filmography.characters.models.CharacterRepository
-import com.example.starwars.modules.filmography.films.models.FilmBuilder
 import com.example.starwars.modules.filmography.films.models.FilmCharactersRepository
 import com.example.starwars.modules.filmography.films.models.FilmsRepository
 import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
+import viaduct.api.context.globalIDFor
 import viaduct.api.grts.AddCharacterToFilmPayload
+import viaduct.api.grts.Film
 import viaduct.api.resolver.Resolver
 
 /**
@@ -46,10 +47,10 @@ class AddCharacterToFilmMutation
                     val character = characterRepository.findById(characterId)
                         ?: throw IllegalArgumentException("Character with ID $characterId not found")
 
-                    val filmGrt = FilmBuilder(ctx).build(film)
+                    val filmRef = ctx.nodeRef(ctx.globalIDFor<Film>(film.id))
                     val characterGrt = CharacterBuilder(ctx).build(character)
 
-                    film(filmGrt)
+                    film(filmRef)
                     character(characterGrt)
                 }
             }

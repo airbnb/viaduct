@@ -1,10 +1,10 @@
 package com.example.starwars.modules.filmography.films.queries
 
 import com.example.starwars.filmography.resolverbases.QueryResolvers
-import com.example.starwars.modules.filmography.films.models.FilmBuilder
 import com.example.starwars.modules.filmography.films.models.FilmsRepository
 import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
+import viaduct.api.context.globalIDFor
 import viaduct.api.grts.Film
 import viaduct.api.resolver.Resolver
 
@@ -24,9 +24,12 @@ class AllFilmsQueryResolver
     ) : QueryResolvers.AllFilms() {
         override suspend fun resolve(ctx: Context): List<Film?>? {
             val limit = ctx.arguments.limit ?: DEFAULT_PAGE_SIZE
-            val films = filmsRepository.getAllFilms().take(limit)
 
-            // Convert StarWarsData.Film objects to Film objects
-            return films.map { FilmBuilder(ctx).build(it) }
+            // return references to Film nodes, to be resolved by the Film node resolver
+            return filmsRepository.getAllFilms()
+                .take(limit)
+                .map { film ->
+                    ctx.nodeRef(ctx.globalIDFor<Film>(film.id))
+                }
         }
     }
