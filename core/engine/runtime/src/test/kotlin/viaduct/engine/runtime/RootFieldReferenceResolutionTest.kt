@@ -1,11 +1,13 @@
 package viaduct.engine.runtime
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.Caller
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.mocks.EngineTestModule
@@ -18,9 +20,54 @@ import viaduct.graphql.test.assertJson
 @OptIn(ExperimentalCoroutinesApi::class)
 class RootFieldReferenceResolutionTest {
     @Test
+    fun `caller is derived from resolver object traversal`() {
+        var caller: Caller? = null
+
+        EngineTestModule(
+            """
+            type UGCText {
+                localizedString: String @resolver
+            }
+            extend type Query {
+                description: UGCText @resolver
+            }
+        """
+        ) {
+            field("UGCText" to "localizedString") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        caller = ctx.fieldScope.caller
+                        "localized"
+                    }
+                }
+            }
+            field("Query" to "description") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("UGCText"),
+                            emptyMap(),
+                        )
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ description { localizedString } }")
+                .assertJson("""{"data": {"description": {"localizedString": "localized"}}}""")
+        }
+
+        assertEquals(
+            Caller(null, "Query", "description"),
+            caller,
+        )
+    }
+
+    @Test
     fun `factory backing data remains available to child resolver RSS without duplicate execution`() {
         val factoryCalls = AtomicInteger()
         val localizedStringCalls = AtomicInteger()
+        var factoryCaller: Caller? = null
+        var localizedStringCaller: Caller? = null
 
         EngineTestModule(
             """
@@ -39,8 +86,9 @@ class RootFieldReferenceResolutionTest {
         ) {
             field("UGCTextFactory" to "create") {
                 resolver {
-                    fn { _, _, _, _, _ ->
+                    fn { _, _, _, _, ctx ->
                         factoryCalls.incrementAndGet()
+                        factoryCaller = ctx.fieldScope.caller
                         createEngineObjectData(
                             schema.schema.getObjectType("UGCText"),
                             mapOf("translationConfig" to "French")
@@ -51,8 +99,9 @@ class RootFieldReferenceResolutionTest {
             field("UGCText" to "localizedString") {
                 resolver {
                     objectSelections("translationConfig")
-                    fn { _, obj, _, _, _ ->
+                    fn { _, obj, _, _, ctx ->
                         localizedStringCalls.incrementAndGet()
+                        localizedStringCaller = ctx.fieldScope.caller
                         "Localized with ${obj.fetchAs<String>("translationConfig")}"
                     }
                 }
@@ -75,6 +124,102 @@ class RootFieldReferenceResolutionTest {
 
         assertEquals(1, factoryCalls.get())
         assertEquals(1, localizedStringCalls.get())
+        val expectedCaller = Caller(
+            tenantName = null,
+            typeName = "Query",
+            fieldName = "description",
+        )
+        assertEquals(expectedCaller, factoryCaller)
+        assertEquals(expectedCaller, localizedStringCaller)
+    }
+
+    @Test
+    fun `caller survives a chain of resolver RSS dependencies`() {
+        val callers = ConcurrentHashMap<String, Caller>()
+
+        EngineTestModule(
+            """
+            type UGCText {
+                sourceText: String
+                normalizedText: String @resolver
+                renderedText: String @resolver
+                localizedString: String @resolver
+            }
+            type UGCTextFactory @namespaceType {
+                create: UGCText @resolver
+            }
+            extend type Query {
+                ugcTextFactory: UGCTextFactory
+                description: UGCText @resolver
+            }
+        """
+        ) {
+            field("UGCTextFactory" to "create") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("UGCText"),
+                            mapOf("sourceText" to "hello"),
+                        )
+                    }
+                }
+            }
+            field("UGCText" to "normalizedText") {
+                resolver {
+                    objectSelections("sourceText")
+                    fn { _, obj, _, _, ctx ->
+                        callers["normalizedText"] = requireNotNull(ctx.fieldScope.caller)
+                        obj.fetchAs<String>("sourceText").uppercase()
+                    }
+                }
+            }
+            field("UGCText" to "renderedText") {
+                resolver {
+                    objectSelections("normalizedText")
+                    fn { _, obj, _, _, ctx ->
+                        callers["renderedText"] = requireNotNull(ctx.fieldScope.caller)
+                        "[${obj.fetchAs<String>("normalizedText")}]"
+                    }
+                }
+            }
+            field("UGCText" to "localizedString") {
+                resolver {
+                    objectSelections("renderedText")
+                    fn { _, obj, _, _, ctx ->
+                        callers["localizedString"] = requireNotNull(ctx.fieldScope.caller)
+                        obj.fetchAs<String>("renderedText")
+                    }
+                }
+            }
+            field("Query" to "description") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx.createRootFieldReference(
+                            rootFieldPath = listOf("ugcTextFactory", "create"),
+                            type = schema.schema.getObjectType("UGCText"),
+                            args = emptyMap(),
+                        )
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("{ description { localizedString } }")
+                .assertJson("""{"data": {"description": {"localizedString": "[HELLO]"}}}""")
+        }
+
+        val expectedCaller = Caller(
+            tenantName = null,
+            typeName = "Query",
+            fieldName = "description",
+        )
+        assertEquals(
+            mapOf(
+                "normalizedText" to expectedCaller,
+                "renderedText" to expectedCaller,
+                "localizedString" to expectedCaller,
+            ),
+            callers,
+        )
     }
 
     @Test

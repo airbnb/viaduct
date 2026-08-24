@@ -22,8 +22,10 @@ import kotlin.time.measureTimedValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
+import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ExecutionAttribution
+import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.gj
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
@@ -166,6 +168,8 @@ data class ExecutionParameters(
     val attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
     val matBatchDepth: Int = 0,
     val isShadowFieldExecution: Boolean = false,
+    @Suppress("ConstructorParameterNaming")
+    private val _caller: Caller? = null,
 ) : EngineExecutionContext.ExecutionHandle {
     // Each ExecutionParameters gets its own EEC copy to prevent cross-contamination
     // between different execution contexts (e.g., parent vs child field resolution).
@@ -223,6 +227,97 @@ data class ExecutionParameters(
     val engineExecutionContext: EngineExecutionContext
         get() = _engineExecutionContext
 
+    /**
+     * Returns a copy that attributes execution to [caller], not to the resolver found through
+     * [executionOrigin].
+     *
+     * Returns this instance when [caller] is null.
+     */
+    fun withCaller(caller: Caller?): ExecutionParameters = if (caller == null) this else copy(_caller = caller)
+
+    /**
+     * The field resolver for the field that these parameters execute. Null when that field has no
+     * resolver.
+     *
+     * Uses the coordinate that the field's metadata records as the resolving coordinate. Falls back
+     * to the field's own type and name. A plain data field has no resolver, so it returns null.
+     */
+    private val currentFieldResolverCaller: Caller?
+        get() {
+            val currentField = this@ExecutionParameters.field ?: return null
+            val coordinate =
+                currentField.collectedFieldMetadata?.resolvedByCoordinate
+                    ?: (executionStepInfo.objectType.name to currentField.mergedField.name)
+            val resolver =
+                engineExecutionContext
+                    .asImpl()
+                    .dispatcherRegistry
+                    .getFieldResolverDispatcher(coordinate.first, coordinate.second)
+                    ?: return null
+            return Caller(
+                tenantName = resolver.resolverMetadata.tenantMetadata?.name,
+                typeName = coordinate.first,
+                fieldName = coordinate.second,
+            )
+        }
+
+    /**
+     * The node resolver that produced the object being traversed. Null unless this traversal
+     * entered an object fetched by a node resolver.
+     *
+     * A node resolver resolves a whole type, so it has no field name. The field that created the
+     * node reference is not the caller: it only supplied an id, and the node resolver is what
+     * produced the data these selections read.
+     */
+    private val currentNodeResolverCaller: Caller?
+        get() {
+            val node = source as? NodeEngineObjectData ?: return null
+            val resolver = engineExecutionContext
+                .asImpl()
+                .dispatcherRegistry
+                .getNodeResolverDispatcher(node.type.name)
+                ?: return null
+            return Caller(
+                tenantName = resolver.resolverMetadata.tenantMetadata?.name,
+                typeName = node.type.name,
+                fieldName = null,
+            )
+        }
+
+    /**
+     * The resolver that caused this execution to run.
+     *
+     * Returns [_caller] when it is set. If it is not set, searches outward through
+     * [executionOrigin] for the nearest resolver. Returns null at the root of a request.
+     */
+    internal val caller: Caller?
+        get() =
+            _caller ?: when (val origin = executionOrigin) {
+                ExecutionOrigin.Root -> null
+                is ExecutionOrigin.Field -> origin.parameters.caller
+                is ExecutionOrigin.ObjectTraversal ->
+                    currentNodeResolverCaller
+                        ?: origin.parameters.caller
+                        ?: origin.parameters.currentFieldResolverCaller
+                is ExecutionOrigin.ChildQueryPlan ->
+                    origin.parameters.caller ?: resolverCaller(origin.parameters)
+            }
+
+    /**
+     * The field resolver that owns the child query plan these parameters execute.
+     *
+     * Returns null unless the plan belongs to a resolver. Policy checks and variables resolvers
+     * also run as child plans, and they are not callers.
+     *
+     * @param parent the parameters that started this child plan
+     */
+    private fun resolverCaller(parent: ExecutionParameters): Caller? {
+        if (queryPlan.attribution?.type != ExecutionAttribution.Type.RESOLVER) {
+            return null
+        }
+        return parent.currentFieldResolverCaller
+    }
+
     private fun fieldExecutionScopeSupplier(): Supplier<EngineExecutionContext.FieldExecutionScope> =
         Supplier {
             EngineExecutionContextImpl.FieldExecutionScopeImpl(
@@ -233,6 +328,7 @@ data class ExecutionParameters(
                 variables = coercedVariables.toMap(),
                 resolutionPolicy = resolutionPolicy,
                 attribution = queryPlan.attribution ?: ExecutionAttribution.DEFAULT,
+                caller = caller,
             )
         }
 

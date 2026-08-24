@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.api.context.Caller
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.select.SelectionSet
@@ -16,6 +17,7 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
 import viaduct.api.types.Query as QueryType
+import viaduct.engine.api.Caller as EngineCaller
 import viaduct.engine.api.mocks.variables
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
@@ -32,10 +34,12 @@ class FieldExecutionContextImplTest : ContextTestBase() {
         globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
         selectionSet: SelectionSet<CompositeOutput> = noSelections,
         ownedSelections: Lazy<SelectionSet<CompositeOutput>> = lazyOf(selectionSet),
+        caller: EngineCaller? = null,
     ): FieldExecutionContextImpl<QueryType> {
         val wrapper = createMockingWrapper(
             schema = ExecutionContextTestSchema.schema,
-            queryMock = queryObject
+            queryMock = queryObject,
+            caller = caller,
         )
 
         return FieldExecutionContextImpl(
@@ -80,6 +84,25 @@ class FieldExecutionContextImplTest : ContextTestBase() {
         assertEquals(projected, context.ownedSelections())
         assertEquals(projected, context.ownedSelections())
         assertEquals(1, projectionCount)
+    }
+
+    @Test
+    fun `caller maps engine metadata and defaults to null`() {
+        assertEquals(null, mk().caller)
+
+        val ctx = mk(
+            caller = EngineCaller(
+                tenantName = "creator-tenant",
+                typeName = "Whatever",
+                fieldName = "listing",
+            )
+        )
+
+        assertEquals(
+            Caller("creator-tenant", "Whatever", "listing"),
+            ctx.caller,
+        )
+        assertTrue(ctx.caller === ctx.caller)
     }
 
     @Test

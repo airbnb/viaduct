@@ -26,6 +26,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.errors.UnsetFieldException
@@ -57,6 +58,7 @@ class NodeEngineObjectDataImplTest {
             myFlagManager = MockFlagManager()
         ).engineExecutionContext
         nodeResolver = mockk<NodeResolverDispatcher>()
+        every { nodeResolver.resolverMetadata } returns ResolverMetadata.forMock("test-node-resolver")
         every { dispatcherRegistry.getNodeResolverDispatcher("TestType") }.returns(nodeResolver)
         engineObjectData = mockk<EngineObjectData>()
         nodeReference = NodeEngineObjectDataImpl("testID", testType, dispatcherRegistry)
@@ -71,7 +73,7 @@ class NodeEngineObjectDataImplTest {
     @Test
     fun `first resolution provides data used by fetch`(): Unit =
         runBlocking {
-            coEvery { nodeResolver.resolve("testID", selections, context) }.returns(engineObjectData)
+            coEvery { nodeResolver.resolve("testID", selections, any()) }.returns(engineObjectData)
             coEvery { engineObjectData.fetchSelections() }.returns(listOf("name"))
             coEvery { engineObjectData.fetch("name") }.returns("testName")
 
@@ -79,15 +81,15 @@ class NodeEngineObjectDataImplTest {
 
             assertSame(engineObjectData, result)
             assertEquals("testName", nodeReference.fetch("name"))
-            coVerify(exactly = 1) { nodeResolver.resolve("testID", selections, context) }
+            coVerify(exactly = 1) { nodeResolver.resolve("testID", selections, any()) }
         }
 
     @Test
     fun `lazy object cycle fails resolution`(): Unit =
         runBlocking {
             val lazyData = mockk<LazyEngineObjectData>()
-            coEvery { nodeResolver.resolve("testID", selections, context) }.returns(lazyData)
-            coEvery { lazyData.resolveData(selections, context) }.returns(lazyData)
+            coEvery { nodeResolver.resolve("testID", selections, any()) }.returns(lazyData)
+            coEvery { lazyData.resolveData(selections, any()) }.returns(lazyData)
 
             val error = assertThrows<IllegalStateException> {
                 nodeReference.resolveData(selections, context)
@@ -120,8 +122,8 @@ class NodeEngineObjectDataImplTest {
             val ageSelections = selections("age")
             val nameData = data("name" to "testName")
             val ageData = data("age" to 42)
-            coEvery { nodeResolver.resolve("testID", nameSelections, context) }.returns(nameData)
-            coEvery { nodeResolver.resolve("testID", ageSelections, context) }.returns(ageData)
+            coEvery { nodeResolver.resolve("testID", nameSelections, any()) }.returns(nameData)
+            coEvery { nodeResolver.resolve("testID", ageSelections, any()) }.returns(ageData)
 
             val result1 = nodeReference.resolveData(nameSelections, context)
             val result2 = nodeReference.resolveData(ageSelections, context)
@@ -131,8 +133,8 @@ class NodeEngineObjectDataImplTest {
             assertEquals("testName", nodeReference.fetch("name"))
             assertEquals(42, nodeReference.fetch("age"))
             assertEquals(setOf("name", "age"), nodeReference.fetchSelections().toSet())
-            coVerify(exactly = 1) { nodeResolver.resolve("testID", nameSelections, context) }
-            coVerify(exactly = 1) { nodeResolver.resolve("testID", ageSelections, context) }
+            coVerify(exactly = 1) { nodeResolver.resolve("testID", nameSelections, any()) }
+            coVerify(exactly = 1) { nodeResolver.resolve("testID", ageSelections, any()) }
         }
 
     @Test
@@ -145,12 +147,12 @@ class NodeEngineObjectDataImplTest {
             val nameStarted = CompletableDeferred<Unit>()
             val ageStarted = CompletableDeferred<Unit>()
             val releaseResolvers = CompletableDeferred<Unit>()
-            coEvery { nodeResolver.resolve("testID", nameSelections, context) } coAnswers {
+            coEvery { nodeResolver.resolve("testID", nameSelections, any()) } coAnswers {
                 nameStarted.complete(Unit)
                 releaseResolvers.await()
                 nameData
             }
-            coEvery { nodeResolver.resolve("testID", ageSelections, context) } coAnswers {
+            coEvery { nodeResolver.resolve("testID", ageSelections, any()) } coAnswers {
                 ageStarted.complete(Unit)
                 releaseResolvers.await()
                 ageData
@@ -179,12 +181,12 @@ class NodeEngineObjectDataImplTest {
             val failure = IllegalStateException("name failed")
             val nameStarted = CompletableDeferred<Unit>()
             val releaseName = CompletableDeferred<Unit>()
-            coEvery { nodeResolver.resolve("testID", nameSelections, context) } coAnswers {
+            coEvery { nodeResolver.resolve("testID", nameSelections, any()) } coAnswers {
                 nameStarted.complete(Unit)
                 releaseName.await()
                 throw failure
             }
-            coEvery { nodeResolver.resolve("testID", ageSelections, context) }.returns(ageData)
+            coEvery { nodeResolver.resolve("testID", ageSelections, any()) }.returns(ageData)
 
             val failedResolution = async {
                 val thrown = assertThrows<IllegalStateException> {
@@ -215,8 +217,8 @@ class NodeEngineObjectDataImplTest {
             val ageSelections = selections("age")
             val nameData = data("name" to "testName")
             val failure = IllegalStateException("age failed")
-            coEvery { nodeResolver.resolve("testID", nameSelections, context) }.returns(nameData)
-            coEvery { nodeResolver.resolve("testID", ageSelections, context) }.throws(failure)
+            coEvery { nodeResolver.resolve("testID", nameSelections, any()) }.returns(nameData)
+            coEvery { nodeResolver.resolve("testID", ageSelections, any()) }.throws(failure)
 
             nodeReference.resolveData(nameSelections, context)
             val thrown = assertThrows<IllegalStateException> {
@@ -235,9 +237,9 @@ class NodeEngineObjectDataImplTest {
             val ageSelections = selections("age")
             val ageData = data("age" to 42)
             coEvery {
-                nodeResolver.resolve("testID", nameSelections, context)
+                nodeResolver.resolve("testID", nameSelections, any())
             }.throws(IllegalStateException("name failed"))
-            coEvery { nodeResolver.resolve("testID", ageSelections, context) }.returns(ageData)
+            coEvery { nodeResolver.resolve("testID", ageSelections, any()) }.returns(ageData)
 
             assertThrows<IllegalStateException> {
                 nodeReference.resolveData(nameSelections, context)
@@ -254,7 +256,7 @@ class NodeEngineObjectDataImplTest {
         runTest {
             val nameSelections = selections("name")
             val nameData = data("name" to "testName")
-            coEvery { nodeResolver.resolve("testID", nameSelections, context) }.returns(nameData)
+            coEvery { nodeResolver.resolve("testID", nameSelections, any()) }.returns(nameData)
             val pendingFetch = async(start = CoroutineStart.UNDISPATCHED) {
                 nodeReference.fetch("name")
             }
@@ -271,7 +273,7 @@ class NodeEngineObjectDataImplTest {
             val nicknameSelections = selections("nickname")
             val nicknameData = data("nickname" to null)
             coEvery {
-                nodeResolver.resolve("testID", nicknameSelections, context)
+                nodeResolver.resolve("testID", nicknameSelections, any())
             }.returns(nicknameData)
 
             nodeReference.resolveData(nicknameSelections, context)
@@ -286,7 +288,7 @@ class NodeEngineObjectDataImplTest {
         runBlocking {
             val nameSelections = selections("name")
             val nameData = data("name" to "testName")
-            coEvery { nodeResolver.resolve("testID", nameSelections, context) }.returns(nameData)
+            coEvery { nodeResolver.resolve("testID", nameSelections, any()) }.returns(nameData)
             nodeReference.resolveData(nameSelections, context)
 
             assertThrows<UnsetFieldException> {
@@ -302,7 +304,7 @@ class NodeEngineObjectDataImplTest {
             val firstData = data("name" to "first")
             val secondData = data("name" to "second")
             var calls = 0
-            coEvery { nodeResolver.resolve("testID", nameSelections, context) } coAnswers {
+            coEvery { nodeResolver.resolve("testID", nameSelections, any()) } coAnswers {
                 if (calls++ == 0) firstData else secondData
             }
 

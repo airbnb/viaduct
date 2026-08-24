@@ -22,6 +22,8 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.engine.runtime.withInvocationContexts
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantResolverException
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
@@ -202,6 +204,44 @@ class BatchResolverExecutorTest {
         assertEquals("second invocation failed", deepestMessage(result.getValue(selectors.last())))
     }
 
+    @Test
+    fun `node batch executor builds each tenant context from its selector invocation context`() {
+        val firstSelector = createNodeSelector("1")
+        val secondSelector = createNodeSelector("2")
+        val firstContext = createExecutionContext()
+        val secondContext = createExecutionContext()
+        val batchContext =
+            createExecutionContext().withInvocationContexts(
+                mapOf(
+                    firstSelector to firstContext,
+                    secondSelector to secondContext,
+                )
+            )
+        val capturedContexts = mutableListOf<EngineExecutionContext>()
+        val resolverContextFactory = mockk<NodeExecutionContextFactory>()
+        every {
+            resolverContextFactory.invoke(capture(capturedContexts), any(), any(), any())
+        } returnsMany listOf(mockk(relaxed = true), mockk(relaxed = true))
+        val resolver = ConfigurableNodeBatchResolver().apply {
+            resultFactory = { contexts ->
+                contexts.associateWith { FieldValue.ofError(RuntimeException("expected")) }
+            }
+        }
+        val executor = NodeBatchResolverExecutorImpl(
+            resolver = Provider { resolver },
+            typeName = "TestNode",
+            factory = resolverContextFactory,
+            resolverName = "TestNode",
+            isSelective = false,
+        )
+
+        runBlocking {
+            executor.resolve(listOf(firstSelector, secondSelector), batchContext)
+        }
+
+        assertEquals(listOf(firstContext, secondContext), capturedContexts)
+    }
+
     private fun createFieldSelector(): FieldResolverExecutor.Selector =
         FieldResolverExecutor.Selector(
             arguments = emptyMap(),
@@ -235,9 +275,5 @@ class BatchResolverExecutorTest {
 
     private fun deepestMessage(result: Result<*>): String? = generateSequence(result.exceptionOrNull()) { it.cause }.last().message
 
-    private fun createExecutionContext(): EngineExecutionContext =
-        mockk {
-            every { requestContext } returns null
-            every { globalIDCodec } returns GlobalIDCodecDefault
-        }
+    private fun createExecutionContext(): EngineExecutionContext = ContextMocks().engineExecutionContext
 }

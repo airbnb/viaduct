@@ -11,6 +11,7 @@ import graphql.execution.ResultPath
 import graphql.execution.values.InputInterceptor
 import graphql.execution.values.legacycoercing.LegacyCoercingInputInterceptor
 import graphql.language.Field as GJField
+import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLObjectType
 import io.mockk.every
 import io.mockk.mockk
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
@@ -48,6 +50,7 @@ import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.FieldResolverDispatcherImpl
 import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
+import viaduct.engine.runtime.ObjectRootFieldReference
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.SyncProxyEngineObjectData
 import viaduct.engine.runtime.Value
@@ -139,7 +142,9 @@ class ResolverDataFetcherTest {
             tenantNameResolver = tenantNameResolver,
         )
 
-        val dataFetchingEnvironment: ViaductDataFetchingEnvironment = mockk()
+        // GraphQL-Java calls are stubbed on this delegate. The wrapper around it is real, so that
+        // its init establishes the context -> DFE link the way production does.
+        val delegateDataFetchingEnvironment: DataFetchingEnvironment = mockk()
         val engineResultLocalContext = EngineResultLocalContext(
             rootEngineResult = ObjectEngineResultImpl.newForType(schema.schema.queryType),
             currentObjectEngineResult = ObjectEngineResultImpl.newForType(testTypeObject),
@@ -215,21 +220,24 @@ class ResolverDataFetcherTest {
             it.setExecutionHandle(executionHandle)
         }
 
+        // Production hands the wrapper its own copy of the context, so mirror that here.
+        val dataFetchingEnvironment: ViaductDataFetchingEnvironment =
+            ViaductDataFetchingEnvironmentImpl(delegateDataFetchingEnvironment, engineExecutionContextImpl.copy())
+
         init {
-            every { dataFetchingEnvironment.engineExecutionContext } returns engineExecutionContextImpl
-            every { dataFetchingEnvironment.graphQLSchema } returns schema.schema
-            every { dataFetchingEnvironment.arguments } returns mapOf("arg1" to "param1")
-            every { dataFetchingEnvironment.fieldDefinition } returns testTypeObject.getField(testField)
-            every { dataFetchingEnvironment.executionStepInfo } returns executionStepInfo
-            every { dataFetchingEnvironment.getLocalContextForType<EngineResultLocalContext>() } returns (engineResultLocalContext)
+            every { delegateDataFetchingEnvironment.graphQLSchema } returns schema.schema
+            every { delegateDataFetchingEnvironment.arguments } returns mapOf("arg1" to "param1")
+            every { delegateDataFetchingEnvironment.fieldDefinition } returns testTypeObject.getField(testField)
+            every { delegateDataFetchingEnvironment.executionStepInfo } returns executionStepInfo
+            every { delegateDataFetchingEnvironment.getLocalContextForType<EngineResultLocalContext>() } returns (engineResultLocalContext)
 
             // define local var to get around naming collision issue
-            every { dataFetchingEnvironment.getLocalContextForType<EngineExecutionContextImpl>() } returns (engineExecutionContextImpl)
-            every { dataFetchingEnvironment.getSource<Any>() } returns mockk()
-            every { dataFetchingEnvironment.graphQlContext } returns GraphQLContext.newContext()
+            every { delegateDataFetchingEnvironment.getLocalContextForType<EngineExecutionContextImpl>() } returns (engineExecutionContextImpl)
+            every { delegateDataFetchingEnvironment.getSource<Any>() } returns mockk()
+            every { delegateDataFetchingEnvironment.graphQlContext } returns GraphQLContext.newContext()
                 .of(InputInterceptor::class.java, LegacyCoercingInputInterceptor.migratesValues())
                 .build()
-            every { dataFetchingEnvironment.locale } returns Locale.US
+            every { delegateDataFetchingEnvironment.locale } returns Locale.US
         }
     }
 
@@ -373,7 +381,7 @@ class ResolverDataFetcherTest {
                             },
                         flagManager = flags
                     ).apply {
-                        every { dataFetchingEnvironment.arguments } returns mapOf("id" to 1)
+                        every { delegateDataFetchingEnvironment.arguments } returns mapOf("id" to 1)
                         val bazResult = ObjectEngineResultImpl.newForType(schema.schema.getObjectType("Baz")!!)
                         bazResult.putResolvedInt("x", 123)
                         engineResultLocalContext.currentObjectEngineResult.putResolvedObject(
@@ -428,6 +436,37 @@ class ResolverDataFetcherTest {
                 ).apply {
                     resolverDataFetcher.get(dataFetchingEnvironment).join()
                     assertEquals("test-tenant", capturedTenantContext?.tenantName)
+                }
+            }
+        }
+
+    @Test
+    fun `resolver context records the current field and tenant`(): Unit =
+        runBlocking(Dispatchers.Default) {
+            withThreadLocalCoroutineContext {
+                val testTenantNameResolver = object : TenantNameResolver() {
+                    override fun resolve(
+                        typeName: String,
+                        fieldName: String
+                    ) = "test-tenant"
+                }
+                Fixture(
+                    expectedResult = "test fetched result",
+                    requiredSelectionSet = null,
+                    flagManager = allDisabledFlags,
+                    tenantNameResolver = testTenantNameResolver,
+                ).apply {
+                    resolverDataFetcher.get(dataFetchingEnvironment).join()
+
+                    val reference = executor.lastReceivedLocalContext!!.createRootFieldReference(
+                        listOf("test"),
+                        testTypeObject,
+                        emptyMap(),
+                    )
+                    assertEquals(
+                        Caller("test-tenant", testType, testField),
+                        (reference as ObjectRootFieldReference).caller,
+                    )
                 }
             }
         }

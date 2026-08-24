@@ -1,6 +1,7 @@
 package viaduct.engine.runtime
 
 import graphql.schema.GraphQLObjectType
+import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
@@ -15,7 +16,9 @@ class ObjectRootFieldReference(
     override val rootFieldPath: List<String>,
     override val type: GraphQLObjectType,
     override val args: Map<String, Any?>,
-) : RootFieldReference, LazyEngineObjectData {
+    internal val caller: Caller? = null,
+) : RootFieldReference,
+    LazyEngineObjectData {
     private val resolveOnce = ResolveOnce<EngineObjectData?>()
 
     override suspend fun fetch(selection: String): Any? {
@@ -48,6 +51,7 @@ class ObjectRootFieldReference(
                 rootFieldPath = rootFieldPath,
                 arguments = args,
                 selectionSet = selections,
+                caller = caller,
             )
         }
 }

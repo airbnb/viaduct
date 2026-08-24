@@ -8,6 +8,7 @@ import graphql.util.FpKit
 import io.micrometer.core.instrument.MeterRegistry
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.Supplier
+import viaduct.engine.api.Caller
 import viaduct.engine.api.CompleteSelectionSetOptions
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
@@ -130,6 +131,7 @@ class EngineExecutionContextImpl internal constructor(
     internal val fieldScopeSupplier: Supplier<out EngineExecutionContext.FieldExecutionScope> = FpKit.intraThreadMemoize { FieldExecutionScopeImpl() },
     executionHandle: EngineExecutionContext.ExecutionHandle? = null,
     internal val matBatchDepth: Int = 0,
+    internal val currentResolver: Caller? = null,
 ) : InternalEngineExecutionContext {
     public override val impl: EngineExecutionContextImpl get() = this
 
@@ -161,20 +163,24 @@ class EngineExecutionContextImpl internal constructor(
         override val variables: Map<String, Any?> = emptyMap(),
         override val resolutionPolicy: ResolutionPolicy = ResolutionPolicy.STANDARD,
         override val attribution: ExecutionAttribution = ExecutionAttribution.DEFAULT,
+        override val caller: Caller? = null,
     ) : EngineExecutionContext.FieldExecutionScope
 
     override fun createNodeReference(
         id: String,
         graphQLObjectType: GraphQLObjectType
-    ) = NodeEngineObjectDataImpl(id, graphQLObjectType, dispatcherRegistry)
+    ) = NodeEngineObjectDataImpl(
+        id,
+        graphQLObjectType,
+        dispatcherRegistry,
+        currentResolver,
+    )
 
     override fun createRootFieldReference(
         rootFieldPath: List<String>,
         type: GraphQLObjectType,
         args: Map<String, Any?>,
-    ): RootFieldReference {
-        return ObjectRootFieldReference(rootFieldPath, type, args)
-    }
+    ): RootFieldReference = ObjectRootFieldReference(rootFieldPath, type, args, currentResolver)
 
     override fun hasModernNodeResolver(typeName: String): Boolean {
         return dispatcherRegistry.getNodeResolverDispatcher(typeName) != null
@@ -228,11 +234,15 @@ class EngineExecutionContextImpl internal constructor(
      *
      * This bridge preserves the current execution handle and field attribution while delegating
      * engine-internal planning and field resolution to [Engine].
+     *
+     * @param caller the resolver that created the reference. The engine attributes the root field
+     *   to it, not to the resolver that awaits the reference.
      */
     internal suspend fun resolveRootFieldReference(
         rootFieldPath: List<String>,
         arguments: Map<String, Any?>,
         selectionSet: EngineSelectionSet,
+        caller: Caller?,
     ): EngineObjectData? {
         val handle = requireExecutionHandle()
 
@@ -244,6 +254,7 @@ class EngineExecutionContextImpl internal constructor(
                 selectionSet = selectionSet,
                 options = ResolveRootFieldReferenceOptions(
                     attribution = fieldScope.attribution,
+                    caller = caller,
                 ),
             )
         }
@@ -330,6 +341,8 @@ class EngineExecutionContextImpl internal constructor(
         fieldRssOriginFilteringKillSwitchEnabled: Boolean = this.fieldRssOriginFilteringKillSwitchEnabled,
         matResolutionEnabled: Boolean = this.matResolutionEnabled,
         matBatchDepth: Int? = null,
+        executionHandle: EngineExecutionContext.ExecutionHandle? = this._executionHandle,
+        currentResolver: Caller? = this.currentResolver,
     ): EngineExecutionContextImpl {
         return EngineExecutionContextImpl(
             fullSchema = this.fullSchema,
@@ -350,8 +363,9 @@ class EngineExecutionContextImpl internal constructor(
             ownedSelectionProjector = this.ownedSelectionProjector,
             dataFetchingEnvironment = dataFetchingEnvironment,
             fieldScopeSupplier = fieldScopeSupplier,
-            executionHandle = this._executionHandle,
+            executionHandle = executionHandle,
             matBatchDepth = matBatchDepth ?: this.matBatchDepth,
+            currentResolver = currentResolver,
         )
     }
 

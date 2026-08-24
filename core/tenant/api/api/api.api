@@ -16,7 +16,12 @@ public final class viaduct/api/FieldValue$Companion {
 
 public abstract interface class viaduct/api/context/BaseFieldExecutionContext : viaduct/api/context/ResolverExecutionContext {
 	public abstract fun getArguments ()Lviaduct/api/types/Arguments;
+	public abstract fun getCaller ()Lviaduct/api/context/Caller;
 	public abstract fun getQueryValue (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class viaduct/api/context/BaseFieldExecutionContext$DefaultImpls {
+	public static fun getCaller (Lviaduct/api/context/BaseFieldExecutionContext;)Lviaduct/api/context/Caller;
 }
 
 public abstract interface class viaduct/api/context/ExecutionContext {
@@ -28,12 +33,17 @@ public abstract interface class viaduct/api/context/FieldExecutionContext : viad
 	public abstract fun getObjectValue (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
+public final class viaduct/api/context/FieldExecutionContext$DefaultImpls {
+	public static fun getCaller (Lviaduct/api/context/FieldExecutionContext;)Lviaduct/api/context/Caller;
+}
+
 public abstract interface class viaduct/api/context/MutationFieldExecutionContext : viaduct/api/context/BaseFieldExecutionContext {
 	public abstract fun mutation (Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun mutation (Lviaduct/api/documents/MutationFromAnnotation;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class viaduct/api/context/MutationFieldExecutionContext$DefaultImpls {
+	public static fun getCaller (Lviaduct/api/context/MutationFieldExecutionContext;)Lviaduct/api/context/Caller;
 	public static synthetic fun mutation$default (Lviaduct/api/context/MutationFieldExecutionContext;Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static synthetic fun mutation$default (Lviaduct/api/context/MutationFieldExecutionContext;Lviaduct/api/documents/MutationFromAnnotation;Ljava/util/Map;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }

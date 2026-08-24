@@ -46,6 +46,7 @@ dependencies {
     implementation(libs.viaduct.tenant.api)
 
     implementation(libs.viaduct.engine.api)
+    implementation(libs.viaduct.engine.runtime)
     implementation(libs.viaduct.service.api)
 
     implementation(libs.viaduct.shared.graphql)

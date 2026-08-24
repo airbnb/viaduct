@@ -16,6 +16,8 @@ import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.engine.api.Caller
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.mocks.ContextMocks
 
@@ -47,13 +49,27 @@ abstract class ContextTestBase {
     protected fun createMockingWrapper(
         schema: ViaductSchema,
         queryMock: Query? = null,
-        mutationMock: Mutation? = null
+        mutationMock: Mutation? = null,
+        caller: Caller? = null,
     ): EngineExecutionContextWrapper {
         val contextMocks = ContextMocks(schema)
-        val realWrapper = EngineExecutionContextWrapperImpl(contextMocks.engineExecutionContext)
+        val baseExecutionContext = contextMocks.engineExecutionContext
+        val engineExecutionContext =
+            if (caller == null) {
+                baseExecutionContext
+            } else {
+                object : EngineExecutionContext by baseExecutionContext {
+                    override val fieldScope =
+                        object :
+                            EngineExecutionContext.FieldExecutionScope by baseExecutionContext.fieldScope {
+                            override val caller = caller
+                        }
+                }
+            }
+        val realWrapper = EngineExecutionContextWrapperImpl(engineExecutionContext)
 
         return object : EngineExecutionContextWrapper {
-            override val engineExecutionContext = contextMocks.engineExecutionContext
+            override val engineExecutionContext = engineExecutionContext
 
             override suspend fun <T : Query> query(
                 ctx: InternalContext,

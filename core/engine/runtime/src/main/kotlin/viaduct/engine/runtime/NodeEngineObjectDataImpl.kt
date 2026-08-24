@@ -6,16 +6,19 @@ import java.util.IdentityHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CompletableDeferred
+import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.NodeReference
+import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 
 class NodeEngineObjectDataImpl(
     override val id: String,
     override val type: GraphQLObjectType,
-    private val dispatcherRegistry: DispatcherRegistry
+    private val dispatcherRegistry: DispatcherRegistry,
+    private val caller: Caller? = null,
 ) : NodeEngineObjectData, NodeReference, LazyEngineObjectData {
     private val resolutionStarted = AtomicBoolean(false)
     private val state = AtomicReference<State>(State.Pending)
@@ -48,10 +51,27 @@ class NodeEngineObjectDataImpl(
             val nodeResolver = checkNotNull(dispatcherRegistry.getNodeResolverDispatcher(type.name)) {
                 "No node resolver found for type ${type.name}"
             }
+            val fieldScope = context.fieldScope
+            val resolverContext = context.copy(
+                fieldScopeSupplier = {
+                    EngineExecutionContextImpl.FieldExecutionScopeImpl(
+                        fragments = fieldScope.fragments,
+                        variables = fieldScope.variables,
+                        resolutionPolicy = fieldScope.resolutionPolicy,
+                        attribution = fieldScope.attribution,
+                        caller = caller,
+                    )
+                },
+                currentResolver = Caller(
+                    tenantName = nodeResolver.resolverMetadata.tenantMetadata?.name,
+                    typeName = type.name,
+                    fieldName = null,
+                ),
+            )
             return resolveLazyData(
-                nodeResolver.resolve(id, selections, context),
+                nodeResolver.resolve(id, selections, resolverContext),
                 selections,
-                context,
+                resolverContext,
             ).also(::recordMaterialization)
         } catch (e: Exception) {
             if (isFirstResolution) {

@@ -5,6 +5,7 @@ package viaduct.api.mocks
 import graphql.language.AstPrinter
 import graphql.parser.Parser
 import graphql.schema.GraphQLObjectType
+import viaduct.api.context.Caller
 import viaduct.api.context.ConnectionFieldExecutionContext
 import viaduct.api.context.ExecutionContext
 import viaduct.api.context.FieldExecutionContext
@@ -313,6 +314,7 @@ class MockFieldExecutionContext<O : Object, Q : Query, A : Arguments, R : Compos
     selectionSetFactory: SelectionSetFactory? = null,
     rootFieldRefResults: PrebakedRootFieldRefResults = EmptyPrebakedRootFieldRefResults,
     private val ownedSelectionsValue: SelectionSet<R> = selectionsValue,
+    override val caller: Caller? = null,
 ) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory, rootFieldRefResults),
     FieldExecutionContext<O, Q, A, R>,
     SelectiveFieldExecutionContext<R>,
@@ -347,6 +349,7 @@ class MockConnectionFieldExecutionContext<O : Object, Q : Query, A : ConnectionA
     selectionSetFactory: SelectionSetFactory? = null,
     rootFieldRefResults: PrebakedRootFieldRefResults = EmptyPrebakedRootFieldRefResults,
     private val ownedSelectionsValue: SelectionSet<R> = selectionsValue,
+    override val caller: Caller? = null,
 ) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory, rootFieldRefResults),
     ConnectionFieldExecutionContext<O, Q, A, R>,
     SelectiveFieldExecutionContext<R>,
@@ -381,6 +384,7 @@ class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, 
     selectionSetFactory: SelectionSetFactory? = null,
     rootFieldRefResults: PrebakedRootFieldRefResults = EmptyPrebakedRootFieldRefResults,
     private val ownedSelectionsValue: SelectionSet<R> = selectionsValue,
+    override val caller: Caller? = null,
 ) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory, rootFieldRefResults),
     MutationFieldExecutionContext<Q, M, A, R>,
     SelectiveFieldExecutionContext<R>,

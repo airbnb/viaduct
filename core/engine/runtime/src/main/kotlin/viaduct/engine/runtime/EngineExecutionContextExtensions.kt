@@ -3,6 +3,7 @@ package viaduct.engine.runtime
 import graphql.execution.instrumentation.Instrumentation
 import graphql.schema.DataFetchingEnvironment
 import java.util.function.Supplier
+import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ViaductSchema
@@ -61,20 +62,23 @@ object EngineExecutionContextExtensions {
     /**
      * Extension to access [EngineExecutionContextImpl.copy] from interface references.
      *
-     * Creates a copy of the EEC with optional overrides for field scope and/or DFE.
-     * The copy automatically preserves the [EngineExecutionContext.executionHandle].
+     * Creates a copy of the EEC with optional overrides for the field scope, the DFE, the Mat batch
+     * depth, and the current resolver. The copy automatically preserves the
+     * [EngineExecutionContext.executionHandle].
      */
     internal fun EngineExecutionContext.copy(
         activeSchema: ViaductSchema = this.activeSchema,
         fieldScopeSupplier: Supplier<out EngineExecutionContext.FieldExecutionScope> = asImpl().fieldScopeSupplier,
         dataFetchingEnvironment: DataFetchingEnvironment? = asImpl().dataFetchingEnvironment,
         matBatchDepth: Int? = null,
+        currentResolver: Caller? = asImpl().currentResolver,
     ): EngineExecutionContextImpl {
         return asImpl().copy(
             activeSchema = activeSchema,
             fieldScopeSupplier = fieldScopeSupplier,
             dataFetchingEnvironment = dataFetchingEnvironment,
             matBatchDepth = matBatchDepth,
+            currentResolver = currentResolver,
         )
     }
 
@@ -88,6 +92,7 @@ object EngineExecutionContextExtensions {
             variables = fieldScope.variables,
             resolutionPolicy = fieldScope.resolutionPolicy,
             attribution = attribution,
+            caller = fieldScope.caller,
         )
 
     /**

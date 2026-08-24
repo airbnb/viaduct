@@ -19,10 +19,11 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.engine.runtime.withInvocationContexts
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantResolverException
 import viaduct.errors.TenantUsageException
-import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 
 @Suppress("UNUSED_PARAMETER")
@@ -34,10 +35,7 @@ class FieldBatchResolverExecutorImplTest {
             this@mockk.invoke(any(), any(), any(), any(), any(), any())
         } returns resolverContext
     }
-    private val engineExecutionContext = mockk<EngineExecutionContext> {
-        every { requestContext } returns null
-        every { globalIDCodec } returns GlobalIDCodecDefault
-    }
+    private val engineExecutionContext = ContextMocks().engineExecutionContext
 
     @Test
     fun `batchResolve throws when resolver returns non-list`() {
@@ -95,6 +93,46 @@ class FieldBatchResolverExecutorImplTest {
             }
 
         assertSame(frameworkFailure, result.getValue(selector).exceptionOrNull())
+    }
+
+    @Test
+    fun `batchResolve builds each tenant context from its selector invocation context`() {
+        val firstSelector = selector()
+        val secondSelector = selector()
+        val firstContext = mockk<EngineExecutionContext> {
+            every { requestContext } returns "first"
+        }
+        val secondContext = mockk<EngineExecutionContext> {
+            every { requestContext } returns "second"
+        }
+        val batchContext =
+            ContextMocks().engineExecutionContext.withInvocationContexts(
+                mapOf(
+                    firstSelector to firstContext,
+                    secondSelector to secondContext,
+                )
+            )
+        val capturedContexts = mutableListOf<EngineExecutionContext>()
+        val factory = mockk<FieldExecutionContextFactory> {
+            every {
+                this@mockk.invoke(capture(capturedContexts), any(), any(), any(), any(), any())
+            } returnsMany listOf(mockk(relaxed = true), mockk(relaxed = true))
+        }
+        val executor = FieldBatchResolverExecutorImpl(
+            objectSelectionSet = null,
+            querySelectionSet = null,
+            isSelective = false,
+            resolver = Provider { TestBatchResolver(listOf(FieldValue.ofValue("a"), FieldValue.ofValue("b"))) },
+            resolverId = "Query.batchedField",
+            resolverContextFactory = factory,
+            resolverName = "Query.batchedField",
+        )
+
+        runBlocking {
+            executor.batchResolve(listOf(firstSelector, secondSelector), batchContext)
+        }
+
+        assertEquals(listOf(firstContext, secondContext), capturedContexts)
     }
 
     private fun createExecutor(resolver: TestBatchResolver): FieldBatchResolverExecutorImpl =

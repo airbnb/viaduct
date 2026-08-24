@@ -7,6 +7,7 @@ import graphql.schema.DataFetcher
 import graphql.schema.DataFetchingEnvironment
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.withContext
+import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.instrumentation.ViaductTenantNameContext
 import viaduct.engine.api.spi.CoroutineInterop
@@ -48,16 +49,23 @@ class ResolverDataFetcher(
     private suspend fun resolve(environment: DataFetchingEnvironment): Any? {
         val tenantName = tenantNameResolver.resolve(typeName, fieldName)
         return withContext(ViaductTenantNameContext.asCoroutineContext(ViaductTenantNameContext(tenantName))) {
-            resolveWithTenantContext(environment)
+            resolveWithTenantContext(environment, tenantName)
         }
     }
 
-    private suspend fun resolveWithTenantContext(environment: DataFetchingEnvironment): Any? {
+    private suspend fun resolveWithTenantContext(
+        environment: DataFetchingEnvironment,
+        tenantName: String?,
+    ): Any? {
         val engineResults = getEngineResults(environment)
+        val engineExecutionContext = environment.engineExecutionContext
 
-        val resolverExecutionContext = environment.engineExecutionContext.copy(
-            dataFetchingEnvironment = environment
-        )
+        // The context already points back at [environment] (see ViaductDataFetchingEnvironmentImpl),
+        // so this copy only records the resolver.
+        val resolverExecutionContext =
+            engineExecutionContext.copy(
+                currentResolver = Caller(tenantName, typeName, fieldName),
+            )
         val factories = buildFactories(resolverExecutionContext, environment, engineResults)
         return resolveField(environment, factories, resolverExecutionContext)
     }

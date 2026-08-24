@@ -204,11 +204,11 @@ class EngineImpl(
         options: ResolveRootFieldReferenceOptions,
     ): EngineObjectData? {
         require(rootFieldPath.isNotEmpty()) { "rootFieldPath must not be empty" }
-        val parentParams = executionHandle.asExecutionParameters()
+        val parentParams = executionHandle.asExecutionParameters().withCaller(options.caller)
         val namespacePrefix = rootFieldPath.dropLast(1)
         // Reuse the request's Query result so references with the same namespace share execution.
         val namespaceParentResult = materializeNamespacePrefix(
-            executionHandle = executionHandle,
+            executionHandle = parentParams,
             parentParams = parentParams,
             namespacePrefix = namespacePrefix,
             attribution = options.attribution,

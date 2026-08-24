@@ -4,7 +4,27 @@ import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Query
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.StableApi
+
+/**
+ * Resolver metadata propagated through nested field execution.
+ *
+ * @property tenantName Tenant responsible for the resolver, or null when tenant metadata is
+ *   unavailable.
+ * @property typeName GraphQL type containing a field resolver or handled by a node resolver.
+ * @property fieldName GraphQL field handled by a field resolver, or null for a type-level resolver
+ *   such as a node resolver.
+ */
+@ExperimentalApi
+data class Caller(
+    val tenantName: String?,
+    val typeName: String,
+    val fieldName: String?,
+) {
+    val coordinateString: String
+        get() = fieldName?.let { "$typeName.$it" } ?: typeName
+}
 
 /**
  * Base [ExecutionContext] interface for mutation and non-mutation field resolvers
@@ -15,6 +35,16 @@ interface BaseFieldExecutionContext<
     A : Arguments,
     R : CompositeOutput
 > : ResolverExecutionContext<Q> {
+    /**
+     * Resolver metadata propagated to this field execution context, or null when unavailable.
+     *
+     * Do not use [caller] for authorization. Viaduct may reuse a field value resolved for one
+     * caller when the same field is reached from another, without invoking the resolver again.
+     */
+    @ExperimentalApi
+    val caller: Caller?
+        get() = null
+
     /**
      * Returns a synchronously-accessible version of the query value where all selections have
      * been eagerly resolved.

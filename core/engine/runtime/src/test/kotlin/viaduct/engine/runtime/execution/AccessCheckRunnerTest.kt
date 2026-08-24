@@ -172,7 +172,8 @@ class AccessCheckRunnerTest {
                         every { activeSchema } returns mockk()
                         every { fieldScopeSupplier } returns mockk()
                         every { dataFetchingEnvironment } returns null
-                        every { copy(any(), any(), any(), any(), any()) } returns this
+                        every { currentResolver } returns null
+                        every { copy(any(), any(), any(), any(), any(), any(), any(), any()) } returns this
                     }
                 ).engineExecutionContext as? EngineExecutionContextImpl
                 val params = createMockExecutionParameters(context)
@@ -367,7 +368,8 @@ class AccessCheckRunnerTest {
                     every { activeSchema } returns mockk()
                     every { fieldScopeSupplier } returns mockk()
                     every { dataFetchingEnvironment } returns null
-                    every { copy(any(), any(), any(), any(), any()) } returns this
+                    every { currentResolver } returns null
+                    every { copy(any(), any(), any(), any(), any(), any(), any(), any()) } returns this
                 }
                 val params = createMockExecutionParameters(engineExecutionContext)
                 val typeCheckParameters = createMockExecutionParameters(engineExecutionContext)
@@ -439,7 +441,8 @@ class AccessCheckRunnerTest {
             every { activeSchema } returns mockk()
             every { fieldScopeSupplier } returns mockk()
             every { dataFetchingEnvironment } returns null
-            every { copy(any(), any(), any(), any(), any()) } returns this
+            every { currentResolver } returns null
+            every { copy(any(), any(), any(), any(), any(), any(), any(), any()) } returns this
         }
         val oer = objectEngineResult {
             type = fooObjectType
@@ -508,7 +511,8 @@ class AccessCheckRunnerTest {
             every { activeSchema } returns mockk()
             every { fieldScopeSupplier } returns mockk()
             every { dataFetchingEnvironment } returns null
-            every { copy(any(), any(), any(), any(), any()) } returns this
+            every { currentResolver } returns null
+            every { copy(any(), any(), any(), any(), any(), any(), any(), any()) } returns this
         }
         val oer = objectEngineResult {
             type = mockk { every { name } returns "Foo" }
@@ -544,7 +548,8 @@ class AccessCheckRunnerTest {
                 every { activeSchema } returns mockk()
                 every { fieldScopeSupplier } returns mockk()
                 every { dataFetchingEnvironment } returns null
-                every { copy(any(), any(), any(), any(), any()) } returns this
+                every { currentResolver } returns null
+                every { copy(any(), any(), any(), any(), any(), any(), any(), any()) } returns this
             }
         ).engineExecutionContext as? EngineExecutionContextImpl
         val params = createMockExecutionParameters(context)

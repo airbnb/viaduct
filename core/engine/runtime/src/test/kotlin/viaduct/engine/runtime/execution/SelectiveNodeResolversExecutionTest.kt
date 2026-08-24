@@ -36,6 +36,7 @@ import viaduct.arbitrary.graphql.asViaductSchema
 import viaduct.arbitrary.graphql.viaduct
 import viaduct.arbitrary.graphql.viaductExecutionInput
 import viaduct.engine.EngineConfiguration
+import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
@@ -52,6 +53,7 @@ import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
+import viaduct.engine.runtime.invocationContextFor
 import viaduct.graphql.test.assertMatches
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.Viaduct
@@ -2838,6 +2840,8 @@ class SelectiveNodeResolversExecutionTest {
         @Test
         fun `batched node refetches preserve selection shapes`() {
             val batches = mutableListOf<List<Pair<String, Set<String>>>>()
+            val callers =
+                mutableListOf<Pair<Pair<String, Set<String>>, Caller?>>()
 
             MockTenantModuleBootstrapper(
                 """
@@ -2868,13 +2872,17 @@ class SelectiveNodeResolversExecutionTest {
                 }
 
                 type("Foo") {
-                    nodeBatchedExecutor(selective = true) { selectors, _ ->
+                    nodeBatchedExecutor(selective = true) { selectors, context ->
                         batches += selectors.map { selector ->
-                            selector.id to
+                            val shape = selector.id to
                                 selector.selections
                                     .selections()
                                     .map { it.fieldName }
                                     .toSet()
+                            val caller =
+                                context.invocationContextFor(selector).fieldScope.caller
+                            callers += shape to caller
+                            shape
                         }.sortedBy { it.first }
 
                         selectors.associateWith { selector ->
@@ -2906,6 +2914,15 @@ class SelectiveNodeResolversExecutionTest {
                     listOf("2" to setOf("z"), "3" to setOf("w")),
                 ),
                 batches,
+            )
+            assertEquals(
+                setOf(
+                    ("2" to setOf("x")) to Caller(null, "Query", "foo"),
+                    ("3" to setOf("y")) to Caller(null, "Query", "bar"),
+                    ("2" to setOf("z")) to Caller(null, "Query", "foo"),
+                    ("3" to setOf("w")) to Caller(null, "Query", "bar"),
+                ),
+                callers.toSet(),
             )
         }
 

@@ -2,11 +2,13 @@ package viaduct.tenant.runtime.context
 
 import kotlin.reflect.KClass
 import viaduct.api.context.BaseFieldExecutionContext
+import viaduct.api.context.Caller
 import viaduct.api.internal.InternalContext
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Query
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.api.EngineObjectData
 import viaduct.errors.FrameworkException
 import viaduct.errors.handleFrameworkErrorsSuspend
@@ -40,6 +42,17 @@ sealed class BaseFieldExecutionContextImpl<Q : Query, A : Arguments, R : Composi
     private val ownedSelectionSet: Lazy<SelectionSet<R>>,
 ) : BaseFieldExecutionContext<Q, A, R>,
     ResolverExecutionContextImpl<Q>(baseData, engineExecutionContextWrapper) {
+    @ExperimentalApi
+    override val caller: Caller? by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        engineExecutionContextWrapper.engineExecutionContext.fieldScope.caller?.let {
+            Caller(
+                tenantName = it.tenantName,
+                typeName = it.typeName,
+                fieldName = it.fieldName,
+            )
+        }
+    }
+
     protected fun selectionSet(): SelectionSet<R> = selectionSet
 
     protected fun ownedSelectionSet(): SelectionSet<R> = ownedSelectionSet.value

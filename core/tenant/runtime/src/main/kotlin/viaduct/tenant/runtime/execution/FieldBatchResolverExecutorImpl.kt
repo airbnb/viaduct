@@ -12,6 +12,7 @@ import viaduct.engine.api.ResolverType
 import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor.Selector
+import viaduct.engine.runtime.invocationContextFor
 import viaduct.errors.ErroneousFieldException
 import viaduct.errors.FrameworkException
 import viaduct.errors.PassthroughException
@@ -47,9 +48,10 @@ class FieldBatchResolverExecutorImpl(
         context: EngineExecutionContext
     ): Map<Selector, Result<Any?>> {
         val contexts = selectors.map { key ->
+            val invocationContext = context.invocationContextFor(key)
             resolverContextFactory(
-                engineExecutionContext = context,
-                requestContext = context.requestContext, // TODO - get rid of this argument
+                engineExecutionContext = invocationContext,
+                requestContext = invocationContext.requestContext, // TODO - get rid of this argument
                 engineSelections = key.selections,
                 rawArguments = key.arguments,
                 syncObjectValueGetter = key.syncObjectValueGetter,

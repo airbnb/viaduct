@@ -7,12 +7,18 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.ResolverType
+import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockNodeUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.engine.runtime.select.ProjectedEngineSelectionSet
 
@@ -28,6 +34,110 @@ class NodeDataLoaderTest {
         """.trimIndent()
     )
     private val selectionSetFactory = EngineSelectionSetFactoryImpl(schema)
+
+    @Test
+    fun `node resolver is the caller for detached work it starts`() =
+        runTest {
+            var capturedCaller: Caller? = null
+            val objectType = schema.schema.getObjectType("Test")
+            val delegate = MockNodeUnbatchedResolverExecutor(
+                typeName = "Test",
+                unbatchedResolveFn = { id, _, context ->
+                    capturedCaller = (
+                        context.createRootFieldReference(
+                            listOf("test"),
+                            objectType,
+                            emptyMap(),
+                        ) as ObjectRootFieldReference
+                    ).caller
+                    createEngineObjectData(objectType, mapOf("id" to id))
+                },
+            )
+            val resolver = object : NodeResolverExecutor by delegate {
+                override val metadata =
+                    ResolverMetadata.forModern(
+                        name = "TestNodeResolver",
+                        resolverType = ResolverType.NODE,
+                        tenantMetadata = TenantModuleMetadata("node-tenant"),
+                    )
+            }
+            val dispatcher = NodeResolverDispatcherImpl(resolver)
+            val dispatcherRegistry = DispatcherRegistry.Impl(
+                emptyMap(),
+                mapOf("Test" to dispatcher),
+                emptyMap(),
+                emptyMap(),
+            )
+            val context = ContextMocks(myFullSchema = schema).engineExecutionContextImpl
+
+            NodeEngineObjectDataImpl(id1, objectType, dispatcherRegistry)
+                .resolveData(
+                    selectionSetFactory.engineSelectionSet("Test", "id", emptyMap()),
+                    context,
+                )
+
+            assertEquals(
+                Caller("node-tenant", "Test", null),
+                capturedCaller,
+            )
+        }
+
+    @Test
+    fun `node cache hit does not invoke the resolver with another caller's provenance`() =
+        runTest {
+            val capturedCallers = mutableListOf<Caller?>()
+            val objectType = schema.schema.getObjectType("Test")
+            val delegate = MockNodeUnbatchedResolverExecutor(
+                typeName = "Test",
+                unbatchedResolveFn = { id, _, context ->
+                    capturedCallers += (
+                        context.createRootFieldReference(
+                            listOf("test"),
+                            objectType,
+                            emptyMap(),
+                        ) as ObjectRootFieldReference
+                    ).caller
+                    createEngineObjectData(objectType, mapOf("id" to id))
+                },
+            )
+            val resolver = object : NodeResolverExecutor by delegate {
+                override val metadata =
+                    ResolverMetadata.forModern(
+                        name = "TestNodeResolver",
+                        resolverType = ResolverType.NODE,
+                        tenantMetadata = TenantModuleMetadata("node-tenant"),
+                    )
+            }
+            val baseContext = ContextMocks(myFullSchema = schema).engineExecutionContextImpl
+            val selections = selectionSetFactory.engineSelectionSet("Test", "id", emptyMap())
+            val dispatcher = NodeResolverDispatcherImpl(resolver)
+            val dispatcherRegistry = DispatcherRegistry.Impl(
+                emptyMap(),
+                mapOf("Test" to dispatcher),
+                emptyMap(),
+                emptyMap(),
+            )
+
+            suspend fun resolveFrom(fieldName: String) {
+                NodeEngineObjectDataImpl(
+                    id1,
+                    objectType,
+                    dispatcherRegistry,
+                    Caller(null, "Whatever", fieldName),
+                ).resolveData(selections, baseContext)
+            }
+
+            resolveFrom("first")
+            resolveFrom("first")
+            resolveFrom("second")
+
+            assertEquals(
+                listOf(
+                    Caller("node-tenant", "Test", null),
+                ),
+                capturedCallers,
+            )
+        }
 
     @Test
     fun `covers returns true for exact match`() {
@@ -324,6 +434,102 @@ class NodeDataLoaderTest {
                 variablesInBatchResolver!!.isEmpty(),
                 "Field scope variables should be cleared for batch resolution to prevent contamination"
             )
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `node resolver is the caller for fields selected under the node`() {
+        var capturedCaller: Caller? = null
+
+        val nodeSchema = """
+            type Preamble implements Node {
+                id: ID!
+                text: String
+            }
+        """.trimIndent()
+
+        EngineTestModule(nodeSchema) {
+            field("Query" to "node") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx.createNodeReference("1", schema.schema.getObjectType("Preamble"))
+                    }
+                }
+            }
+            type("Preamble") {
+                nodeUnbatchedExecutor { id, _, _ ->
+                    createEngineObjectData(objectType, mapOf("id" to id))
+                }
+            }
+            field("Preamble" to "text") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        capturedCaller = ctx.fieldScope.caller
+                        "preamble text"
+                    }
+                }
+            }
+        }.runFeatureTest(withoutDefaultQueryNodeResolvers = true) {
+            runQuery("""{ node(id: "1") { ... on Preamble { text } } }""")
+                .assertJson("""{"data": {"node": {"text": "preamble text"}}}""")
+
+            assertEquals(Caller(null, "Preamble", null), capturedCaller)
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `node resolver is the caller for a nested RSS-backed resolver under the node`() {
+        var capturedCaller: Caller? = null
+
+        val nodeSchema = """
+            type Preamble implements Node {
+                id: ID!
+                content: Content
+            }
+            type Content {
+                config: String
+                text: String
+            }
+        """.trimIndent()
+
+        EngineTestModule(nodeSchema) {
+            field("Query" to "node") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx.createNodeReference("1", schema.schema.getObjectType("Preamble"))
+                    }
+                }
+            }
+            type("Preamble") {
+                nodeUnbatchedExecutor { id, _, _ ->
+                    createEngineObjectData(
+                        objectType,
+                        mapOf(
+                            "id" to id,
+                            "content" to createEngineObjectData(
+                                schema.schema.getObjectType("Content"),
+                                mapOf("config" to "cfg"),
+                            ),
+                        )
+                    )
+                }
+            }
+            field("Content" to "text") {
+                resolver {
+                    objectSelections("config")
+                    fn { _, objectValue, _, _, ctx ->
+                        capturedCaller = ctx.fieldScope.caller
+                        "text for ${(objectValue as EngineObjectData).fetch("config")}"
+                    }
+                }
+            }
+        }.runFeatureTest(withoutDefaultQueryNodeResolvers = true) {
+            runQuery("""{ node(id: "1") { ... on Preamble { content { text } } } }""")
+                .assertJson("""{"data": {"node": {"content": {"text": "text for cfg"}}}}""")
+
+            assertEquals(Caller(null, "Preamble", null), capturedCaller)
         }
     }
 

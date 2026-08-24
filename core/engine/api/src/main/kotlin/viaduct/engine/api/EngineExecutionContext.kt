@@ -130,6 +130,20 @@ interface EngineExecutionContext {
          * execution (e.g., a client operation, a field resolver, a policy check).
          */
         val attribution: ExecutionAttribution
+
+        /**
+         * The resolver that caused this execution to run. Null when no resolver caused it.
+         *
+         * This is not [attribution]. Attribution tells you what kind of work runs: a client
+         * operation, a resolver, a policy check. Caller tells you which resolver asked for the
+         * work. Attribution always has a value. Caller is null at the root of a request, and for
+         * fields that no resolver requested.
+         *
+         * Do not use this for authorization. The engine can reuse a value resolved for one caller
+         * when a different caller reads the same field.
+         */
+        val caller: Caller?
+            get() = null
     }
 
     /**
