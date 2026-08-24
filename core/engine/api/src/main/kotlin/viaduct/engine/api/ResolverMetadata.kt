@@ -21,12 +21,14 @@ enum class ResolverType {
  * @property name The name of the resolver
  * @property resolverType The kind of resolver: NODE or FIELD.
  * @property tenantMetadata Metadata from the tenant module this resolver belongs to, if available
+ * @property isRemote Whether this resolver's execution is proxied to a remote resolver service
  */
 data class ResolverMetadata(
     val flavor: String,
     val name: String,
     val resolverType: ResolverType,
     val tenantMetadata: TenantModuleMetadata? = null,
+    val isRemote: Boolean = false,
 ) {
     fun toTagString(): String = flavor + ":" + name
 

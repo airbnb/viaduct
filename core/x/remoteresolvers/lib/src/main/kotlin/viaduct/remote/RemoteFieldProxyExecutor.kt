@@ -62,7 +62,7 @@ class RemoteFieldProxyExecutor(
     override val resolverId: String
         get() = originalExecutor.resolverId
     override val metadata: ResolverMetadata
-        get() = originalExecutor.metadata
+        get() = originalExecutor.metadata.copy(isRemote = true)
     override val isBatching: Boolean
         get() = originalExecutor.isBatching
 

@@ -44,6 +44,29 @@ class RemoteProxyResolverFactoryTest {
     }
 
     @Test
+    fun `a proxied node resolver's metadata is tagged isRemote, regardless of transport`() {
+        val rrsChannel = InProcessChannelBuilder.forName("test-rrs-node-metadata-${System.nanoTime()}").directExecutor().build()
+        try {
+            val original = SimpleNodeResolverExecutor.createUserResolver()
+            val unaryFactory = RemoteProxyResolverFactory(rrsChannel, "test-cb")
+            val streamingFactory = RemoteProxyResolverFactory(rrsChannel, "test-cb", useStreamingTransport = true)
+
+            assertTrue(original.metadata.isRemote == false, "the original executor's metadata should be unaffected")
+            assertTrue(
+                unaryFactory.proxyNode(original)?.metadata?.isRemote == true,
+                "the unary proxy's metadata should be tagged isRemote"
+            )
+            assertTrue(
+                streamingFactory.proxyNode(original)?.metadata?.isRemote == true,
+                "the streaming proxy's metadata should be tagged isRemote"
+            )
+        } finally {
+            rrsChannel.shutdownNow()
+            NodeExecutorRegistry.clear()
+        }
+    }
+
+    @Test
     fun `useStreamingTransport does not affect field resolvers -- they stay on the unary executor`() {
         val rrsChannel = InProcessChannelBuilder.forName("test-rrs-streaming-field-${System.nanoTime()}").directExecutor().build()
         try {

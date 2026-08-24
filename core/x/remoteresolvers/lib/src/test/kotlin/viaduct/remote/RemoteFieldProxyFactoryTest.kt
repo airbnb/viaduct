@@ -72,6 +72,22 @@ class RemoteFieldProxyFactoryTest {
     }
 
     @Test
+    fun `a proxied field resolver's metadata is tagged isRemote, unlike the original executor's`() {
+        val rrsChannel = InProcessChannelBuilder.forName("test-rrs-metadata-${System.nanoTime()}").directExecutor().build()
+        try {
+            val original = SimpleFieldResolverExecutor(resolverId = "Character.isAdult")
+            val factory = RemoteProxyResolverFactory(rrsChannel, "test-cb")
+            val proxied = factory.proxyField(original)
+
+            assertTrue(original.metadata.isRemote == false, "the original executor's metadata should be unaffected")
+            assertTrue(proxied?.metadata?.isRemote == true, "the proxy's metadata should be tagged isRemote")
+        } finally {
+            rrsChannel.shutdownNow()
+            FieldExecutorRegistry.clear()
+        }
+    }
+
+    @Test
     fun `proxyFields factory wraps only the listed field coordinates`() {
         val rrsChannel = InProcessChannelBuilder.forName("test-rrs-proxyfields-${System.nanoTime()}").directExecutor().build()
         try {

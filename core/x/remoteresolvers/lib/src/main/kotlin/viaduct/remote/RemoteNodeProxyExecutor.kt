@@ -55,7 +55,7 @@ abstract class RemoteNodeProxyExecutor(
         get() = originalExecutor.isSelective
 
     override val metadata: ResolverMetadata
-        get() = originalExecutor.metadata
+        get() = originalExecutor.metadata.copy(isRemote = true)
 
     final override suspend fun resolve(
         selectors: List<NodeResolverExecutor.Selector>,
