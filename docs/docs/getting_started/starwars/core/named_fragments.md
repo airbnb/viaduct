@@ -33,8 +33,8 @@ A spread can be combined with inline fields. `CharacterRichSummaryResolver` need
 @Resolver(objectValueFragment = "fragment _ on Character { id ...CharacterIdentityFields }")
 class CharacterRichSummaryResolver(/* ... */) : CharacterResolvers.RichSummary() {
     override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<String>> {
-        // ctx.getObjectValue().getName() / .getBirthYear() come from the shared fragment,
-        // ctx.getObjectValue().getId() comes from the inline selection.
+        // ctx.getObjectValue().getNameOrThrow() / .getBirthYearOrThrow() come from the shared fragment,
+        // ctx.getObjectValue().getIdOrThrow() comes from the inline selection.
     }
 }
 ```
@@ -55,8 +55,8 @@ A selection set can spread **more than one** named fragment — that's standard 
 class CharacterFormattedDescriptionResolver : CharacterResolvers.FormattedDescription() {
     override suspend fun resolve(ctx: Context): String? {
         val character = ctx.getObjectValue()
-        // getName()/getBirthYear() come from CharacterIdentityFields,
-        // getEyeColor()/getHairColor() come from CharacterAppearanceFields.
+        // getNameOrThrow()/getBirthYearOrThrow() come from CharacterIdentityFields,
+        // getEyeColorOrThrow()/getHairColorOrThrow() come from CharacterAppearanceFields.
         ...
     }
 }

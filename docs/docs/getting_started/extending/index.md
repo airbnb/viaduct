@@ -22,7 +22,7 @@ type AttributedGreeting {
 }
 ```
 
-We're modeling `attributedGreeting` as an object type rather than a plain `String` so the example exercises Viaduct's generated builder and `getX()` helpers (the GraphQL Representational Types, or GRTs, covered later on this page).
+We're modeling `attributedGreeting` as an object type rather than a plain `String` so the example exercises Viaduct's generated builder and `getXOrThrow()` helpers (the GraphQL Representational Types, or GRTs, covered later on this page).
 
 > **Codegen tip:** the next section references generated classes like `QueryResolvers.AttributedGreeting` and `AttributedGreeting.Builder` that don't exist yet. Run `./gradlew build` (or your IDE's Gradle task) so the codegen step produces them; otherwise your IDE will show red squiggles.
 
@@ -45,8 +45,8 @@ import viaduct.api.grts.AttributedGreeting
 """)
 class AttributedGreetingResolver : QueryResolvers.AttributedGreeting() {
     override suspend fun resolve(ctx: Context): AttributedGreeting {
-        val greeting = ctx.objectValue.getGreeting()
-        val author = ctx.objectValue.getAuthor()
+        val greeting = ctx.getObjectValue().getGreetingOrThrow()
+        val author = ctx.getObjectValue().getAuthorOrThrow()
         return AttributedGreeting.Builder(ctx)
             .greeting("$author says: \"$greeting\"")
             .build()
@@ -67,18 +67,18 @@ Let's break down what's happening in this resolver:
 """)
 ```
 
-The `@Resolver` annotation indicates that this resolver needs access to the `greeting` and `author` fields. If the annotation didn't mention the `author` field, for example, then the attempt to read `ctx.objectValue.getAuthor()` would fail at runtime.
+The `@Resolver` annotation indicates that this resolver needs access to the `greeting` and `author` fields. If the annotation didn't mention the `author` field, for example, then the attempt to read `ctx.getObjectValue().getAuthorOrThrow()` would fail at runtime.
 
 This is an important feature of Viaduct: it allows you to declare dependencies between fields, ensuring efficient query execution.
 
 ### Accessing Field Values
 
 ```kotlin
-val greeting = ctx.objectValue.getGreeting()
-val author = ctx.objectValue.getAuthor()
+val greeting = ctx.getObjectValue().getGreetingOrThrow()
+val author = ctx.getObjectValue().getAuthorOrThrow()
 ```
 
-`ctx` is the per-resolver execution context — it gives you access to the parent object, arguments, and request-scoped utilities. Inside a `Query` field resolver, `ctx.objectValue` represents the `Query` root, so `getGreeting()` and `getAuthor()` return the values produced by the sibling `GreetingResolver` and `AuthorResolver`. Viaduct ensures those run before this resolver because the `@Resolver` annotation declared a dependency on them.
+`ctx` is the per-resolver execution context — it gives you access to the parent object, arguments, and request-scoped utilities. Inside a `Query` field resolver, `ctx.getObjectValue()` represents the `Query` root, so `getGreetingOrThrow()` and `getAuthorOrThrow()` return the values produced by the sibling `GreetingResolver` and `AuthorResolver`. Viaduct ensures those run before this resolver because the `@Resolver` annotation declared a dependency on them.
 
 ### Building the Result
 

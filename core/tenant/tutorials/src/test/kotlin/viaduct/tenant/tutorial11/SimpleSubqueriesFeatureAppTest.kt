@@ -109,7 +109,7 @@ class SimpleSubqueriesFeatureAppTest : SimpleSubqueriesContractTest() {
         override suspend fun resolve(ctx: Context): String {
             // SUBQUERY: fetch "greeting" from the Query root at runtime
             val queryResult = ctx.query(GreetingOperation)
-            val greeting = queryResult.getGreeting() ?: "Hello"
+            val greeting = queryResult.getGreetingOrThrow() ?: "Hello"
             return "$greeting (enriched)"
         }
     }
@@ -127,7 +127,7 @@ class SimpleSubqueriesFeatureAppTest : SimpleSubqueriesContractTest() {
             val input = ctx.arguments.input
             // Pass variable values explicitly — subqueries have their own variable scope
             val queryResult = ctx.query(MultiplyOperation, mapOf("n" to input))
-            return queryResult.getMultiply() ?: 0
+            return queryResult.getMultiplyOrThrow() ?: 0
         }
     }
 
@@ -158,11 +158,11 @@ class SimpleSubqueriesFeatureAppTest : SimpleSubqueriesContractTest() {
         override suspend fun resolve(ctx: Context): String {
             // SUBMUTATION: call another mutation from this mutation resolver
             val mutationResult = ctx.mutation(StepOperation)
-            val newCount = mutationResult.getStep() ?: 0
+            val newCount = mutationResult.getStepOrThrow() ?: 0
 
             // SUBQUERY: also fetch query data from the same resolver
             val queryResult = ctx.query(GreetingOperation)
-            val greeting = queryResult.getGreeting() ?: "Hello"
+            val greeting = queryResult.getGreetingOrThrow() ?: "Hello"
 
             return "$greeting — step $newCount"
         }

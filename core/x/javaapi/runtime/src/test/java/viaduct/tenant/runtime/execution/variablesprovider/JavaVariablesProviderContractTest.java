@@ -37,7 +37,7 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
   public static class FromArgumentFieldResolver extends QueryResolvers.FromArgumentField {
     @Override
     public CompletableFuture<Integer> resolve(QueryResolvers.FromArgumentField.Context ctx) {
-      return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediary());
+      return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediaryOrThrow());
     }
   }
 
@@ -89,7 +89,7 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
   public static class FromVariablesProviderResolver extends QueryResolvers.FromVariablesProvider {
     @Override
     public CompletableFuture<Integer> resolve(QueryResolvers.FromVariablesProvider.Context ctx) {
-      return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediary());
+      return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediaryOrThrow());
     }
 
     @Variables(types = {"x: Int!"})
@@ -112,7 +112,8 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
     @Override
     public CompletableFuture<Integer> resolve(
         QueryResolvers.FromVariablesProviderWithInput.Context ctx) {
-      return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediaryTakesInput());
+      return CompletableFuture.completedFuture(
+          ctx.getObjectValue().getIntermediaryTakesInputOrThrow());
     }
 
     @Variables(types = {"x: MyInput!"})
@@ -135,7 +136,8 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
     @Override
     public CompletableFuture<String> resolve(
         QueryResolvers.FromVariablesProviderWithGlobalID.Context ctx) {
-      return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediaryTakesGlobalID());
+      return CompletableFuture.completedFuture(
+          ctx.getObjectValue().getIntermediaryTakesGlobalIDOrThrow());
     }
 
     @Variables(types = {"x: ID!"})
@@ -162,7 +164,7 @@ public class JavaVariablesProviderContractTest extends VariablesProviderContract
     public CompletableFuture<String> resolve(
         QueryResolvers.FromVariablesProviderWithNestedComplexInput.Context ctx) {
       return CompletableFuture.completedFuture(
-          ctx.getObjectValue().getIntermediaryTakesNestedComplexInput());
+          ctx.getObjectValue().getIntermediaryTakesNestedComplexInputOrThrow());
     }
 
     @Variables(types = {"x: InputWithNestedInput!"})

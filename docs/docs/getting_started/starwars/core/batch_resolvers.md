@@ -33,7 +33,7 @@ type Character implements Node @scope(to: ["default"]) @resolver(isBatching: tru
 
 ## Choosing the fragment
 
-The `objectValueFragment` declares the parent fields your resolver needs. Keep it **minimal** — requesting only `id` is typical for lookup scenarios. In the example above, the `CharacterFilmCountResolver` only needs the character's internal ID, so its fragment is `fragment _ on Character { id }`. If you require additional, cheap fields (for example, `name` for formatting), add them here so they are available on `ctx.objectValue` without extra work.
+The `objectValueFragment` declares the parent fields your resolver needs. Keep it **minimal** — requesting only `id` is typical for lookup scenarios. In the example above, the `CharacterFilmCountResolver` only needs the character's internal ID, so its fragment is `fragment _ on Character { id }`. If you require additional, cheap fields (for example, `name` for formatting), add them here so they are available on `ctx.getObjectValue()` without extra work.
 
 ## Implementing batch resolvers in node resolvers
 

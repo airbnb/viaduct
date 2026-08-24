@@ -18,7 +18,7 @@ public class JavaEmptyVariablesContractTest extends EmptyVariablesContractTest {
   public static class FromVariablesProviderResolver extends QueryResolvers.FromVariablesProvider {
     @Override
     public CompletableFuture<Integer> resolve(QueryResolvers.FromVariablesProvider.Context ctx) {
-      return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediary());
+      return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediaryOrThrow());
     }
 
     @Variables(types = {})

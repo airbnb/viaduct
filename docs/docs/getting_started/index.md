@@ -136,8 +136,8 @@ Next, add a new resolver to `resolvers/src/main/kotlin/com/example/viadapp/resol
 """)
 class AttributedGreetingResolver : QueryResolvers.AttributedGreeting() {
     override suspend fun resolve(ctx: Context): String {
-        val greeting = ctx.getObjectValue().getGreeting()
-        val author = ctx.getObjectValue().getAuthor()
+        val greeting = ctx.getObjectValue().getGreetingOrThrow()
+        val author = ctx.getObjectValue().getAuthorOrThrow()
         return "$author says: $greeting"
     }
 }

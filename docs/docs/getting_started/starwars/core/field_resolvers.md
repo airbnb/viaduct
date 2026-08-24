@@ -12,7 +12,7 @@ Field resolvers compute values for individual fields when a simple property read
 
 1. A client query selects fields on an object (for example, `Character.name`, `Character.homeworld`).
 2. Viaduct plans execution and invokes resolvers for fields that require logic beyond plain data access.
-3. Each resolver receives a typed `Context` with the **parent object** in `ctx.objectValue` and any **arguments** in `ctx.arguments`.
+3. Each resolver receives a typed `Context` with the **parent object** in `ctx.getObjectValue()` and any **arguments** in `ctx.arguments`.
 4. The resolver returns a value for the field (or `null`), and execution continues for the rest of the selection set.
 
 ## When to use field resolvers
@@ -86,7 +86,7 @@ GraphQL itself dictates most of the rules here, so the resolver-side guidance is
 
 - **Do** keep it light: perform inexpensive logic and at most a single lookup.
 - **Do** defer relationships: if many parents need the same relationship, implement a **batch field resolver** instead.
-- **Do** request only the parent fields you need via `objectValueFragment`, and rely on getters already available on `ctx.objectValue`.
+- **Do** request only the parent fields you need via `objectValueFragment`, and rely on getters already available on `ctx.getObjectValue()`.
 - **Don’t** loop lookups inside `resolve` when the query can select many parents — that's a hidden N+1.
 - **Don’t** put heavy business logic or multi-step orchestration inside a field resolver; push it to a service or batch resolver.
 

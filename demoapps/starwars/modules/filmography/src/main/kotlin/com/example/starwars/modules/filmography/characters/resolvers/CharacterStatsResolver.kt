@@ -37,7 +37,7 @@ import viaduct.api.resolver.Resolver
 class CharacterStatsResolver : CharacterResolvers.CharacterStats() {
     override suspend fun resolve(ctx: Context): String? {
         val character = ctx.getObjectValue()
-        val name = character.getName() ?: "Unknown"
+        val name = character.getNameOrThrow() ?: "Unknown"
         val args = ctx.arguments
 
         return try {
@@ -47,8 +47,8 @@ class CharacterStatsResolver : CharacterResolvers.CharacterStats() {
 
                 // Try to access conditional fields
                 try {
-                    val birthYear = character.getBirthYear()
-                    val height = character.getHeight()
+                    val birthYear = character.getBirthYearOrThrow()
+                    val height = character.getHeightOrThrow()
                     birthYear?.let { append(", Born: $it") }
                     height?.let { append(", Height: ${it}cm") }
                 } catch (e: Exception) {
@@ -56,8 +56,8 @@ class CharacterStatsResolver : CharacterResolvers.CharacterStats() {
                 }
 
                 try {
-                    val species = character.getSpecies()
-                    species?.getName()?.let { append(", Species: $it") }
+                    val species = character.getSpeciesOrThrow()
+                    species?.getNameOrThrow()?.let { append(", Species: $it") }
                 } catch (e: Exception) {
                     // Species not included for this age range
                 }

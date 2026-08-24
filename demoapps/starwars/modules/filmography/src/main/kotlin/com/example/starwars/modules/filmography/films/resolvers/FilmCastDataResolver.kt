@@ -26,7 +26,7 @@ class FilmCastDataResolver
         private val filmCharactersRepository: FilmCharactersRepository
     ) : FilmResolvers.CastData() {
         override suspend fun resolve(ctx: Context): FilmCastData {
-            val filmId = ctx.getObjectValue().getId().internalID
+            val filmId = ctx.getObjectValue().getIdOrThrow().internalID
             val characterIds = filmCharactersRepository.findCharactersByFilmId(filmId)
             return FilmCastData(characterIds)
         }

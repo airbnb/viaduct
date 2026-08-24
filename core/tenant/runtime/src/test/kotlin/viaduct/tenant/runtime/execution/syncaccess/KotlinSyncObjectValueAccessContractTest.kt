@@ -45,7 +45,7 @@ class KotlinSyncObjectValueAccessContractTest : SyncObjectValueAccessContractTes
     @Resolver(objectValueFragment = "fragment _ on Widget { x }")
     class Widget_XLabelResolver : WidgetResolvers.XLabel() {
         override suspend fun resolve(ctx: Context): String {
-            val x = ctx.getObjectValue().getX()
+            val x = ctx.getObjectValue().getXOrThrow()
             return "Sync access: x=$x"
         }
     }
@@ -53,7 +53,7 @@ class KotlinSyncObjectValueAccessContractTest : SyncObjectValueAccessContractTes
     @Resolver(queryValueFragment = "fragment _ on Query { config }")
     class Widget_ConfigLabelResolver : WidgetResolvers.ConfigLabel() {
         override suspend fun resolve(ctx: Context): String {
-            val config = ctx.getQueryValue().getConfig()
+            val config = ctx.getQueryValue().getConfigOrThrow()
             return "Sync query access: config=$config"
         }
     }
@@ -64,8 +64,8 @@ class KotlinSyncObjectValueAccessContractTest : SyncObjectValueAccessContractTes
     )
     class Widget_CombinedResolver : WidgetResolvers.Combined() {
         override suspend fun resolve(ctx: Context): String {
-            val x = ctx.getObjectValue().getX() ?: 0
-            val multiplier = ctx.getQueryValue().getMultiplier() ?: 1
+            val x = ctx.getObjectValue().getXOrThrow() ?: 0
+            val multiplier = ctx.getQueryValue().getMultiplierOrThrow() ?: 1
             return "Sync combined: ${x * multiplier}"
         }
     }
@@ -78,7 +78,7 @@ class KotlinSyncObjectValueAccessContractTest : SyncObjectValueAccessContractTes
     @Resolver(objectValueFragment = "fragment _ on Container { bar { value } }")
     class Container_LabelResolver : ContainerResolvers.Label() {
         override suspend fun resolve(ctx: Context): String {
-            val barValue = ctx.getObjectValue().getBar()?.getValue()
+            val barValue = ctx.getObjectValue().getBarOrThrow()?.getValueOrThrow()
             return "Sync nested: bar.value=$barValue"
         }
     }
@@ -107,7 +107,7 @@ class KotlinSyncObjectValueAccessContractTest : SyncObjectValueAccessContractTes
             """
     )
     class User_ParentCompanyNameResolver : UserResolvers.ParentCompanyName() {
-        override suspend fun resolve(ctx: Context): String = ctx.getObjectValue().getParent()!!.getCompanyName()
+        override suspend fun resolve(ctx: Context): String = ctx.getObjectValue().getParentOrThrow()!!.getCompanyNameOrThrow()
     }
 
     @Resolver(
@@ -119,6 +119,6 @@ class KotlinSyncObjectValueAccessContractTest : SyncObjectValueAccessContractTes
             """
     )
     class User_ParentOrganizationNameResolver : UserResolvers.ParentOrganizationName() {
-        override suspend fun resolve(ctx: Context): String = ctx.getObjectValue().getParent()!!.getParent()!!.getName()
+        override suspend fun resolve(ctx: Context): String = ctx.getObjectValue().getParentOrThrow()!!.getParentOrThrow()!!.getNameOrThrow()
     }
 }

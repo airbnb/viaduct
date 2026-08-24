@@ -30,7 +30,7 @@ This page collects the recurring "do" and "don't" guidance from across the tutor
 ## Fragments and parent data
 
 - **Do** request only the parent fields your resolver actually uses in `objectValueFragment`. Overly broad fragments increase planning and execution cost.
-- **Do** prefer the parent fragment over additional lookups: if the data is already in `ctx.objectValue`, use it.
+- **Do** prefer the parent fragment over additional lookups: if the data is already in `ctx.getObjectValue()`, use it.
 - **Don't** rely on getters that aren't covered by the fragment — accessing a field that wasn't requested raises `UnsetFieldException`.
 
 ## Identity and Global IDs

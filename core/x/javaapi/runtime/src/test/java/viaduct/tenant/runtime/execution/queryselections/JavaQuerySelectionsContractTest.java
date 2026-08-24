@@ -44,9 +44,9 @@ public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest
   public static class DisplayNameResolver extends UserResolvers.DisplayName {
     @Override
     public CompletableFuture<String> resolve(UserResolvers.DisplayName.Context ctx) {
-      String userId = ctx.getObjectValue().getId();
-      User viewer = ctx.getQueryValue().getViewer();
-      String viewerName = viewer != null ? viewer.getName() : null;
+      String userId = ctx.getObjectValue().getIdOrThrow();
+      User viewer = ctx.getQueryValue().getViewerOrThrow();
+      String viewerName = viewer != null ? viewer.getNameOrThrow() : null;
       return CompletableFuture.completedFuture(userId + "-displayedBy-" + viewerName);
     }
   }
@@ -58,9 +58,9 @@ public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest
       extends UserResolvers.DisplayNameFromNullViewer {
     @Override
     public CompletableFuture<String> resolve(UserResolvers.DisplayNameFromNullViewer.Context ctx) {
-      String userId = ctx.getObjectValue().getId();
-      User viewer = ctx.getQueryValue().getNullableViewer();
-      String viewerName = viewer != null ? viewer.getName() : "Unknown";
+      String userId = ctx.getObjectValue().getIdOrThrow();
+      User viewer = ctx.getQueryValue().getNullableViewerOrThrow();
+      String viewerName = viewer != null ? viewer.getNameOrThrow() : "Unknown";
       return CompletableFuture.completedFuture(userId + "-displayedBy-" + viewerName);
     }
   }
@@ -71,12 +71,12 @@ public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest
   public static class GreetingResolver extends UserResolvers.Greeting {
     @Override
     public CompletableFuture<String> resolve(UserResolvers.Greeting.Context ctx) {
-      String userName = ctx.getObjectValue().getName();
-      User viewer = ctx.getQueryValue().getViewer();
-      String viewerId = viewer != null ? viewer.getId() : null;
+      String userName = ctx.getObjectValue().getNameOrThrow();
+      User viewer = ctx.getQueryValue().getViewerOrThrow();
+      String viewerId = viewer != null ? viewer.getIdOrThrow() : null;
       String displayName =
-          viewer != null && viewer.getDisplayName() != null
-              ? viewer.getDisplayName()
+          viewer != null && viewer.getDisplayNameOrThrow() != null
+              ? viewer.getDisplayNameOrThrow()
               : "UnknownViewer";
       return CompletableFuture.completedFuture(
           "Hello " + userName + ", from " + viewerId + " (displayed by " + displayName + ")");
@@ -93,8 +93,8 @@ public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest
     public CompletableFuture<UpdateResult> resolve(
         MutationResolvers.UpdateUserWithViewerInfo.Context ctx) {
       String userId = ctx.getArguments().getUserId();
-      User viewer = ctx.getQueryValue().getViewer();
-      User user = ctx.getQueryValue().getUser();
+      User viewer = ctx.getQueryValue().getViewerOrThrow();
+      User user = ctx.getQueryValue().getUserOrThrow();
 
       boolean success = viewer != null && user != null;
       String message;
@@ -105,13 +105,13 @@ public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest
       } else {
         message =
             "Updated user "
-                + user.getName()
+                + user.getNameOrThrow()
                 + " ("
-                + user.getId()
+                + user.getIdOrThrow()
                 + ") with info from viewer "
-                + viewer.getName()
+                + viewer.getNameOrThrow()
                 + " ("
-                + viewer.getId()
+                + viewer.getIdOrThrow()
                 + ")";
       }
 

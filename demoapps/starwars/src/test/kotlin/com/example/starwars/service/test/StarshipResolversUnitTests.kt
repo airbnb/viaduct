@@ -70,7 +70,7 @@ class StarshipResolversUnitTests : ResolverTestBase() {
             assertEquals(2, result!!.size)
 
             val grt = result.first()!!
-            assertEquals("Millennium Falcon", grt.getName())
+            assertEquals("Millennium Falcon", grt.getNameOrThrow())
         }
 
     @Test
@@ -83,8 +83,8 @@ class StarshipResolversUnitTests : ResolverTestBase() {
             val result = runNodeResolver(resolver) { id = starshipGlobalId }
 
             assertNotNull(result)
-            assertEquals("Millennium Falcon", result.getName())
-            assertEquals("YT-1300 light freighter", result.getModel())
+            assertEquals("Millennium Falcon", result.getNameOrThrow())
+            assertEquals("YT-1300 light freighter", result.getModelOrThrow())
         }
 
     @Test
@@ -97,7 +97,7 @@ class StarshipResolversUnitTests : ResolverTestBase() {
             val result = runNodeResolver(resolver) { id = starshipGlobalId }
 
             assertNotNull(result)
-            assertEquals("X-wing", result.getName())
-            assertEquals("T-65 X-wing", result.getModel())
+            assertEquals("X-wing", result.getNameOrThrow())
+            assertEquals("T-65 X-wing", result.getModelOrThrow())
         }
 }

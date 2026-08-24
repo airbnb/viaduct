@@ -32,7 +32,7 @@ class CharacterRichSummaryResolver
     ) : CharacterResolvers.RichSummary() {
         override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<String>> {
             val objectValues = contexts.map { it.getObjectValue() }
-            val characterIds = objectValues.map { it.getId().internalID }
+            val characterIds = objectValues.map { it.getIdOrThrow().internalID }
 
             val charactersById = characterIds.mapNotNull { characterRepository.findById(it) }.associateBy { it.id }
 
@@ -48,8 +48,8 @@ class CharacterRichSummaryResolver
                 val characterId = characterIds[i]
                 val characterData = charactersById[characterId]
 
-                val name = character.getName() ?: "Unknown"
-                val birthYear = character.getBirthYear() ?: "Unknown"
+                val name = character.getNameOrThrow() ?: "Unknown"
+                val birthYear = character.getBirthYearOrThrow() ?: "Unknown"
                 val homeworldName = characterData?.homeworldId?.let { "TODO" } ?: "Unknown world"
                 val filmCount = filmCounts[characterId] ?: 0
 

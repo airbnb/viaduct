@@ -59,7 +59,7 @@ class CharacterHomeworldResolver
         override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<Planet?>> {
             // Extract character IDs from contexts
             val characterIds = contexts.map { ctx ->
-                ctx.getObjectValue().getId().internalID
+                ctx.getObjectValue().getIdOrThrow().internalID
             }
 
             // Batch lookup: find characters and their homeworld IDs
@@ -70,7 +70,7 @@ class CharacterHomeworldResolver
             // Return results in the same order as contexts
             return contexts.map { ctx ->
                 // Obtain character ID from current context
-                val characterId = ctx.getObjectValue().getId().internalID
+                val characterId = ctx.getObjectValue().getIdOrThrow().internalID
 
                 // Lookup the character and its homeworld data
                 val character = charactersById[characterId]

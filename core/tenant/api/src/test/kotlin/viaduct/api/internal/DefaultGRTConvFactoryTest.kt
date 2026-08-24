@@ -294,7 +294,7 @@ class DefaultGRTConvFactoryTest : KotestPropertyBase() {
                 )
             )
 
-            assertEquals(1, o1.getObjectField()?.getIntField())
+            assertEquals(1, o1.getObjectFieldOrThrow()?.getIntFieldOrThrow())
         }
 
     @Test
@@ -308,7 +308,7 @@ class DefaultGRTConvFactoryTest : KotestPropertyBase() {
                 IR.Value.Object("TestType", emptyMap())
             ).let {
                 assertThrows<TenantUsageException> {
-                    it.getId()
+                    it.getIdOrThrow()
                 }
             }
         }
@@ -326,7 +326,7 @@ class DefaultGRTConvFactoryTest : KotestPropertyBase() {
                 )
             )
 
-            assertEquals("x", o2.getArgumentedField())
+            assertEquals("x", o2.getArgumentedFieldOrThrow())
         }
 
     @Test
@@ -347,7 +347,7 @@ class DefaultGRTConvFactoryTest : KotestPropertyBase() {
                     )
                 )
             )
-            assertEquals(1, (obj.getU2() as? Concrete)?.getX())
+            assertEquals(1, (obj.getU2OrThrow() as? Concrete)?.getXOrThrow())
         }
 
     @Test

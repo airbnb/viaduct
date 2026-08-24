@@ -40,7 +40,8 @@ public class JavaSubqueryVariablesContractTest extends SubqueryVariablesContract
         ContainerResolvers.QueryWithInputVariable.Context ctx) {
       SubqueryInput input = ctx.getArguments().getInput();
       return ctx.query("echoInput(input: $input)", Map.of("input", input), Query.class)
-          .thenApply(result -> result.getEchoInput() != null ? result.getEchoInput() : "");
+          .thenApply(
+              result -> result.getEchoInputOrThrow() != null ? result.getEchoInputOrThrow() : "");
     }
   }
 }

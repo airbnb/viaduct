@@ -37,7 +37,7 @@ Once declared, spread the fragment with standard GraphQL spread syntax (`...Frag
 class UserLabelResolver : UserResolvers.Label() {
     override suspend fun resolve(ctx: Context): String {
         val user = ctx.getObjectValue()
-        return "${user.getId()}:${user.getName()}"
+        return "${user.getIdOrThrow()}:${user.getNameOrThrow()}"
     }
 }
 ```
@@ -70,7 +70,7 @@ object ViewerNameFieldsFragment : FragmentFromAnnotation<Query>()
 @Resolver(queryValueFragment = "fragment _ on Query { ...ViewerNameFields }")
 class UserGreetingResolver : UserResolvers.Greeting() {
     override suspend fun resolve(ctx: Context): String {
-        val viewerName = ctx.getQueryValue().getViewer()?.getName()
+        val viewerName = ctx.getQueryValue().getViewerOrThrow()?.getNameOrThrow()
         return "$viewerName-greeting"
     }
 }

@@ -72,13 +72,13 @@ import viaduct.api.resolver.Variable
 class ProfileFieldResolver : CharacterResolvers.CharacterProfile() {
     override suspend fun resolve(ctx: Context): String? {
         val character = ctx.getObjectValue()
-        val name = character.getName() ?: "Unknown"
+        val name = character.getNameOrThrow() ?: "Unknown"
 
         return try {
             // If includeDetails is true, these fields will be available
-            val birthYear = character.getBirthYear()
-            val height = character.getHeight()
-            val mass = character.getMass()
+            val birthYear = character.getBirthYearOrThrow()
+            val height = character.getHeightOrThrow()
+            val mass = character.getMassOrThrow()
 
             buildString {
                 append("Character Profile: $name")

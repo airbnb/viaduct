@@ -123,7 +123,7 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
       extends MutationResolvers.TriggerNestedMutation {
     @Override
     public CompletableFuture<Integer> resolve(MutationResolvers.TriggerNestedMutation.Context ctx) {
-      return ctx.mutation("incrementCounter").thenApply(m -> m.getIncrementCounter());
+      return ctx.mutation("incrementCounter").thenApply(m -> m.getIncrementCounterOrThrow());
     }
   }
 
@@ -136,8 +136,8 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
       return ctx.query("firstName lastName")
           .thenApply(
               q -> {
-                String first = q.getFirstName() != null ? q.getFirstName() : "";
-                String last = q.getLastName() != null ? q.getLastName() : "";
+                String first = q.getFirstNameOrThrow() != null ? q.getFirstNameOrThrow() : "";
+                String last = q.getLastNameOrThrow() != null ? q.getLastNameOrThrow() : "";
                 return "Mutation processed for: " + first + " " + last;
               });
     }
@@ -152,7 +152,7 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
       return ctx.mutation("incrementCounter")
           .thenApply(
               m -> {
-                Integer counterValue = m.getIncrementCounter();
+                Integer counterValue = m.getIncrementCounterOrThrow();
                 return counterValue != null ? counterValue * multiplier : 0;
               });
     }
@@ -166,7 +166,7 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
         MutationResolvers.QueryWithVariablesFromMutation.Context ctx) {
       int n = ctx.getArguments().getN();
       return ctx.query("multiply(n: $n)", Map.of("n", n))
-          .thenApply(q -> q.getMultiply() != null ? q.getMultiply() : 0);
+          .thenApply(q -> q.getMultiplyOrThrow() != null ? q.getMultiplyOrThrow() : 0);
     }
   }
 
@@ -190,8 +190,8 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
       return ctx.query("profile { firstName }")
           .thenApply(
               q -> {
-                Profile profile = q.getProfile();
-                return profile != null ? profile.getFirstName() : "";
+                Profile profile = q.getProfileOrThrow();
+                return profile != null ? profile.getFirstNameOrThrow() : "";
               });
     }
   }
@@ -203,7 +203,7 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
       return ctx.query("rootValue")
           .thenApply(
               q -> {
-                Integer rootValue = q.getRootValue();
+                Integer rootValue = q.getRootValueOrThrow();
                 return rootValue != null ? rootValue * 2 : 0;
               });
     }
@@ -214,7 +214,7 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
     @Override
     public CompletableFuture<Integer> resolve(ContainerResolvers.ViaQuerySelections.Context ctx) {
       Query queryValue = ctx.getQueryValue();
-      Integer rootValue = queryValue.getRootValue();
+      Integer rootValue = queryValue.getRootValueOrThrow();
       return CompletableFuture.completedFuture(rootValue != null ? rootValue : 0);
     }
   }
@@ -223,7 +223,8 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
   public static class ViaCtxQueryResolver extends ContainerResolvers.ViaCtxQuery {
     @Override
     public CompletableFuture<Integer> resolve(ContainerResolvers.ViaCtxQuery.Context ctx) {
-      return ctx.query("rootValue").thenApply(q -> q.getRootValue() != null ? q.getRootValue() : 0);
+      return ctx.query("rootValue")
+          .thenApply(q -> q.getRootValueOrThrow() != null ? q.getRootValueOrThrow() : 0);
     }
   }
 
@@ -233,7 +234,7 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
     public CompletableFuture<Integer> resolve(ContainerResolvers.QueryWithVariables.Context ctx) {
       int multiplier = ctx.getArguments().getMultiplier();
       return ctx.query("multiply(n: $n)", Map.of("n", multiplier))
-          .thenApply(q -> q.getMultiply() != null ? q.getMultiply() : 0);
+          .thenApply(q -> q.getMultiplyOrThrow() != null ? q.getMultiplyOrThrow() : 0);
     }
   }
 
@@ -246,8 +247,8 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
       return ctx.query("firstName lastName")
           .thenApply(
               q -> {
-                String first = q.getFirstName() != null ? q.getFirstName() : "";
-                String last = q.getLastName() != null ? q.getLastName() : "";
+                String first = q.getFirstNameOrThrow() != null ? q.getFirstNameOrThrow() : "";
+                String last = q.getLastNameOrThrow() != null ? q.getLastNameOrThrow() : "";
                 return first + " " + last;
               });
     }
@@ -261,7 +262,7 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
     public CompletableFuture<Integer> resolve(CalculatorResolvers.Double.Context ctx) {
       int input = ctx.getArguments().getInput();
       return ctx.query("multiply(n: " + input + ")")
-          .thenApply(q -> q.getMultiply() != null ? q.getMultiply() : 0);
+          .thenApply(q -> q.getMultiplyOrThrow() != null ? q.getMultiplyOrThrow() : 0);
     }
   }
 
@@ -284,7 +285,7 @@ public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContract
       return ctx.query("baseValue")
           .thenApply(
               q -> {
-                Integer baseValue = q.getBaseValue();
+                Integer baseValue = q.getBaseValueOrThrow();
                 return baseValue != null ? baseValue * 3 : 0;
               });
     }

@@ -27,6 +27,6 @@ class FilmCharacterCountSummaryResolver : FilmResolvers.CharacterCountSummary() 
     override suspend fun resolve(ctx: Context): String? {
         val film = ctx.getObjectValue()
         val castData = film.get<FilmCastData>("castData", FilmCastData::class)
-        return "${film.getTitle()} features ${castData.characterIds.size} main characters"
+        return "${film.getTitleOrThrow()} features ${castData.characterIds.size} main characters"
     }
 }

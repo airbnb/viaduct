@@ -35,7 +35,7 @@ class FieldBatchResolverFeatureAppTest : FieldBatchResolverContractTest() {
 
         override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<String>> {
             return contexts.map { ctx ->
-                val itemId = ctx.getObjectValue().getId()
+                val itemId = ctx.getObjectValue().getIdOrThrow()
                 if (shouldReturnTenantException) {
                     FieldValue.ofError(TenantUsageException("field api misuse"))
                 } else {
@@ -51,7 +51,7 @@ class FieldBatchResolverFeatureAppTest : FieldBatchResolverContractTest() {
     class Item_ListFieldResolver : ItemResolvers.ListField() {
         override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<List<Item>>> {
             return contexts.map { ctx ->
-                val itemId = ctx.getObjectValue().getId()
+                val itemId = ctx.getObjectValue().getIdOrThrow()
                 FieldValue.Companion.ofValue(
                     (1..contexts.size).map { i ->
                         Item.Builder(ctx)

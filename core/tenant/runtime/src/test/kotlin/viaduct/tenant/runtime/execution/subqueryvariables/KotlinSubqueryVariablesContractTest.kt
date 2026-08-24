@@ -29,7 +29,7 @@ class KotlinSubqueryVariablesContractTest : SubqueryVariablesContractTest() {
     class Container_QueryWithInputVariableResolver : ContainerResolvers.QueryWithInputVariable() {
         override suspend fun resolve(ctx: Context): String {
             val result = ctx.query(EchoInputQuery, mapOf("input" to ctx.arguments.input))
-            return result.getEchoInput()
+            return result.getEchoInputOrThrow()
         }
     }
 }

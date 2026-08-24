@@ -96,7 +96,7 @@ The consumer resolver needs to return a `UGCText` for a listing's title. Instead
 @Resolver("fragment _ on Listing { description { name } }")
 class ListingTitleResolver @Inject constructor() : ListingResolvers.Title() {
     override suspend fun resolve(ctx: Context): UGCText? {
-        val name = ctx.getObjectValue().getDescription()?.getName() ?: return null
+        val name = ctx.getObjectValue().getDescriptionOrThrow()?.getNameOrThrow() ?: return null
         return ctx.rootFieldRef(
             UGCTextFactory.Fields.fromSourceText,
             UGCTextFactory_FromSourceText_Arguments.Builder(ctx)

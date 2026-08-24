@@ -20,10 +20,10 @@ import viaduct.api.resolver.Resolver
 class CharacterSummaryByNameQueryResolver : QueryResolvers.CharacterSummaryByName() {
     override suspend fun resolve(ctx: Context): String? {
         val result = ctx.query(CharacterByNameOperation, mapOf("name" to ctx.arguments.name))
-        val character = result.getSearchCharacter() ?: return null
+        val character = result.getSearchCharacterOrThrow() ?: return null
 
-        val name = character.getName() ?: "Unknown"
-        val birthYear = character.getBirthYear() ?: "Unknown birth year"
+        val name = character.getNameOrThrow() ?: "Unknown"
+        val birthYear = character.getBirthYearOrThrow() ?: "Unknown birth year"
         return "$name ($birthYear)"
     }
 }

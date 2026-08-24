@@ -9,12 +9,12 @@ import viaduct.tenant.runtime.execution.defaults.resolverbases.QueryResolvers
 class KotlinDefaultsContractTest : DefaultsContractTest() {
     @Resolver("fragment _ on Query { inner(inp: {}) }")
     class Query_Outer1Resolver : QueryResolvers.Outer1() {
-        override suspend fun resolve(ctx: Context): Int = ctx.getObjectValue().getInner() * 3
+        override suspend fun resolve(ctx: Context): Int = ctx.getObjectValue().getInnerOrThrow() * 3
     }
 
     @Resolver("fragment _ on Query { inner }")
     class Query_Outer2Resolver : QueryResolvers.Outer2() {
-        override suspend fun resolve(ctx: Context): Int = ctx.getObjectValue().getInner() * 5
+        override suspend fun resolve(ctx: Context): Int = ctx.getObjectValue().getInnerOrThrow() * 5
     }
 
     @Resolver
@@ -27,7 +27,7 @@ class KotlinDefaultsContractTest : DefaultsContractTest() {
         variables = [Variable(name = "var", fromArgument = "arg")]
     )
     class Query_Outer4Resolver : QueryResolvers.Outer4() {
-        override suspend fun resolve(ctx: Context): Int = ctx.getObjectValue().getInner() * 11
+        override suspend fun resolve(ctx: Context): Int = ctx.getObjectValue().getInnerOrThrow() * 11
     }
 
     @Resolver

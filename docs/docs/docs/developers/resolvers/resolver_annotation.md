@@ -110,16 +110,16 @@ The GRT getter methods correspond to the **schema types**, not the fragment stru
 ```kotlin
 // Query.node` field:
 val q = ctx.getQueryValue()
-val listing = q.getNode() as? Listing
+val listing = q.getNodeOrThrow() as? Listing
 
 // Get Listing.coverImage, aliased as "cover" in the fragment:
-val coverImage = listing?.getCoverImage(alias = "cover")
+val coverImage = listing?.getCoverImageOrThrow(alias = "cover")
 
 // Get the caption field (since GRTs are based on schema types, fragments are irrelevant):
-val coverCaption = coverImage?.getCaption()
+val coverCaption = coverImage?.getCaptionOrThrow()
 
 // Access room images
-val roomImages = listing?.getRooms()?.flatMap { it.getImages() }
+val roomImages = listing?.getRoomsOrThrow()?.flatMap { it.getImagesOrThrow() }
 ```
 
 If the resolver tries to access a field not included within its required selection set, it results in an `UnsetFieldException` at runtime.

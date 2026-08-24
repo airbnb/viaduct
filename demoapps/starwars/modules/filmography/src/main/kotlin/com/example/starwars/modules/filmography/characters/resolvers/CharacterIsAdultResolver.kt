@@ -23,7 +23,7 @@ import viaduct.api.resolver.Resolver
 class CharacterIsAdultResolver : CharacterResolvers.IsAdult() {
     override suspend fun resolve(ctx: Context): Boolean? {
         // Example rule: consider adults those older than 21 years
-        return ctx.getObjectValue().getBirthYear()?.let {
+        return ctx.getObjectValue().getBirthYearOrThrow()?.let {
             age(it) > 21
         } ?: false
     }

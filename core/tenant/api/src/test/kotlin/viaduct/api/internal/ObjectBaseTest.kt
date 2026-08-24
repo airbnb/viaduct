@@ -53,12 +53,12 @@ class ObjectBaseTest {
                     .enumField(E1.A)
                     .build()
 
-            assertEquals("hello", o1.getStringField())
-            assertEquals(1, o1.getObjectField()!!.getIntField())
-            assertEquals(E1.A, o1.getEnumField())
+            assertEquals("hello", o1.getStringFieldOrThrow())
+            assertEquals(1, o1.getObjectFieldOrThrow()!!.getIntFieldOrThrow())
+            assertEquals(E1.A, o1.getEnumFieldOrThrow())
             assertThrows<TenantUsageException> {
                 runBlocking {
-                    o1.getObjectField()!!.getObjectField()
+                    o1.getObjectFieldOrThrow()!!.getObjectFieldOrThrow()
                 }
             }
             (o1.__engineObject as EngineObjectData).fetch("objectField").shouldBeInstanceOf<EngineObjectData>()
@@ -73,7 +73,7 @@ class ObjectBaseTest {
                     .put("aliasedStringField", "ALIASED")
                     .build()
             )
-            assertEquals("ALIASED", o1.getStringField("aliasedStringField"))
+            assertEquals("ALIASED", o1.getStringFieldOrThrow("aliasedStringField"))
         }
 
     @Test
@@ -90,7 +90,7 @@ class ObjectBaseTest {
                     )
                     .build()
             )
-            assertEquals(42, o1.getObjectField("aliasedObjectField")?.getIntField("aliasedIntField"))
+            assertEquals(42, o1.getObjectFieldOrThrow("aliasedObjectField")?.getIntFieldOrThrow("aliasedIntField"))
         }
 
     @Test
@@ -111,7 +111,7 @@ class ObjectBaseTest {
                     )
                     .build()
             )
-            assertEquals(42, o1.getListField("aliasedListField")?.get(0)?.get(0)?.getIntField())
+            assertEquals(42, o1.getListFieldOrThrow("aliasedListField")?.get(0)?.get(0)?.getIntFieldOrThrow())
         }
 
     @Test
@@ -132,10 +132,10 @@ class ObjectBaseTest {
                     )
                     .build()
 
-            val listField = o1.getListField()!!
+            val listField = o1.getListFieldOrThrow()!!
             assertEquals(null, listField[0])
             val innerList = listField[1]!!
-            assertEquals(5, innerList[0]!!.getIntField())
+            assertEquals(5, innerList[0]!!.getIntFieldOrThrow())
             assertEquals(null, innerList[1])
         }
 
@@ -155,8 +155,8 @@ class ObjectBaseTest {
                         )
                         .build()
                 )
-            assertEquals("hi", o1.getStringField())
-            assertEquals(1, o1.getObjectField()!!.getIntField())
+            assertEquals("hi", o1.getStringFieldOrThrow())
+            assertEquals(1, o1.getObjectFieldOrThrow()!!.getIntFieldOrThrow())
         }
 
     @Test
@@ -171,7 +171,7 @@ class ObjectBaseTest {
                 )
             val exception = assertThrows<FrameworkException> {
                 runBlocking {
-                    o1.getStringField()
+                    o1.getStringFieldOrThrow()
                 }
             }
             assertTrue(exception.message!!.contains("O1.stringField"))
@@ -190,7 +190,7 @@ class ObjectBaseTest {
                 )
             val exception = assertThrows<FrameworkException> {
                 runBlocking {
-                    o2.getIntField()
+                    o2.getIntFieldOrThrow()
                 }
             }
             assertTrue(exception.message!!.contains("O2.intField"))
@@ -207,7 +207,7 @@ class ObjectBaseTest {
                         .put("enumField", "A")
                         .build()
                 )
-            assertEquals(E1.A, o1.getEnumField())
+            assertEquals(E1.A, o1.getEnumFieldOrThrow())
         }
 
     @Test
@@ -220,7 +220,7 @@ class ObjectBaseTest {
                         .put("enumField", BadE1.A)
                         .build()
                 )
-            assertEquals(E1.A, o1.getEnumField())
+            assertEquals(E1.A, o1.getEnumFieldOrThrow())
         }
 
     @Test
@@ -235,7 +235,7 @@ class ObjectBaseTest {
                 )
             val exception = assertThrows<FrameworkException> {
                 runBlocking {
-                    o1.getEnumField()
+                    o1.getEnumFieldOrThrow()
                 }
             }
             assertTrue(exception.message!!.contains("O1.enumField"))
@@ -259,7 +259,7 @@ class ObjectBaseTest {
                 )
             val exception = assertThrows<FrameworkException> {
                 runBlocking {
-                    o1.getEnumField()
+                    o1.getEnumFieldOrThrow()
                 }
             }
             assertTrue(exception.message!!.contains("O1.enumField"))
@@ -302,7 +302,7 @@ class ObjectBaseTest {
                 )
 
             // The enum field should be readable and return "C" as a string
-            // (Note: getEnumField() will try to convert to E1 enum, which will fail)
+            // (Note: getEnumFieldOrThrow() will try to convert to E1 enum, which will fail)
             // This test verifies the dynamic builder accepts the value
             val engineData = o1.__engineObject as EngineObjectData
             assertEquals("C", engineData.fetch("enumField"))
@@ -323,7 +323,7 @@ class ObjectBaseTest {
                         )
                         .build()
                 )
-            assertEquals("from I1", (o1.getInterfaceField() as I1).getCommonField())
+            assertEquals("from I1", (o1.getInterfaceFieldOrThrow() as I1).getCommonFieldOrThrow())
         }
 
     @Test
@@ -343,7 +343,7 @@ class ObjectBaseTest {
                 )
             val exception = assertThrows<FrameworkException> {
                 runBlocking {
-                    o1.getInterfaceField()
+                    o1.getInterfaceFieldOrThrow()
                 }
             }
             assertTrue(exception.message!!.contains("O1.interfaceField"))
@@ -362,7 +362,7 @@ class ObjectBaseTest {
                 )
             val exception = assertThrows<TenantUsageException> {
                 runBlocking {
-                    o1.getInterfaceField()
+                    o1.getInterfaceFieldOrThrow()
                 }
             }
             assertEquals("Expected value to be an instance of EngineObjectData, got hi", exception.message)
@@ -385,7 +385,7 @@ class ObjectBaseTest {
                 )
             val exception = assertThrows<FrameworkException> {
                 runBlocking {
-                    o1.getObjectField()
+                    o1.getObjectFieldOrThrow()
                 }
             }
             assertTrue(exception.message!!.contains("O1.objectField"))
@@ -413,7 +413,7 @@ class ObjectBaseTest {
                 )
             val exception = assertThrows<FrameworkException> {
                 runBlocking {
-                    o1.getListField()
+                    o1.getListFieldOrThrow()
                 }
             }
             assertTrue(exception.message!!.contains("O1.listField"))
@@ -439,7 +439,7 @@ class ObjectBaseTest {
                 )
             val exception = assertThrows<TenantUsageException> {
                 runBlocking {
-                    o1.getListField()
+                    o1.getListFieldOrThrow()
                 }
             }
             assertTrue(exception.message!!.contains("Got non-list value"))
@@ -462,7 +462,7 @@ class ObjectBaseTest {
                 )
             val exception = assertThrows<TenantUsageException> {
                 runBlocking {
-                    o1.getListFieldNonNullBaseType()
+                    o1.getListFieldNonNullBaseTypeOrThrow()
                 }
             }
             assertEquals("Got null value for non-null type [O2!]!", exception.message)
@@ -485,7 +485,7 @@ class ObjectBaseTest {
                 )
             val exception = assertThrows<TenantUsageException> {
                 runBlocking {
-                    o1.getListFieldNonNullBaseType()
+                    o1.getListFieldNonNullBaseTypeOrThrow()
                 }
             }
             assertEquals("Got null value for non-null type O2!", exception.message)
@@ -506,10 +506,10 @@ class ObjectBaseTest {
                         )
                         .build()
                 )
-            val objectField = o1.getObjectField()!!
+            val objectField = o1.getObjectFieldOrThrow()!!
             val exception = assertThrows<TenantUsageException> {
                 runBlocking {
-                    objectField.getIntField()
+                    objectField.getIntFieldOrThrow()
                 }
             }
             assertEquals("Got null value for non-null type Int!", exception.message)
@@ -615,18 +615,18 @@ class ObjectBaseTest {
                     override val id = O1.Reflection.testGlobalId("foo")
                 }
             )
-            val globalId = o1.getId()
+            val globalId = o1.getIdOrThrow()
             assertEquals("O1", globalId.type.name)
             assertEquals("foo", globalId.internalID)
             assertThrows<FrameworkException> { o1.get("thisFieldDoesNotExist", String::class) }
-            assertThrows<UnsetFieldException> { o1.getStringField() }
+            assertThrows<UnsetFieldException> { o1.getStringFieldOrThrow() }
         }
 
     @Test
     fun `test rootFieldRef - field access throws immediately`(): Unit =
         runBlocking {
             val o1 = O1(internalContext, MockRootFieldRef())
-            val exception = assertThrows<UnsetFieldException> { o1.getStringField() }
+            val exception = assertThrows<UnsetFieldException> { o1.getStringFieldOrThrow() }
             assertTrue(exception.message!!.contains("rootFieldRef"))
         }
 
@@ -639,7 +639,7 @@ class ObjectBaseTest {
                     override val id get() = ExceptionsForTesting.throwTenantException("foo")
                 }
             )
-            val e11 = runCatching { o11.getId() }.exceptionOrNull()!!
+            val e11 = runCatching { o11.getIdOrThrow() }.exceptionOrNull()!!
             e11.shouldBeInstanceOf<TenantException>()
             assertEquals("foo", e11.message)
 
@@ -651,7 +651,7 @@ class ObjectBaseTest {
             )
             assertEquals(
                 "foo",
-                assertThrows<FrameworkException> { o12.getId() }.message
+                assertThrows<FrameworkException> { o12.getIdOrThrow() }.message
             )
 
             val o13 = O1(
@@ -660,7 +660,7 @@ class ObjectBaseTest {
                     override val id get() = throw RuntimeException("foo")
                 }
             )
-            val e13 = runCatching { o13.getId() }.exceptionOrNull()!!
+            val e13 = runCatching { o13.getIdOrThrow() }.exceptionOrNull()!!
             e13.shouldBeInstanceOf<FrameworkException>()
             assertEquals("foo", e13.cause!!.message)
         }
@@ -692,11 +692,11 @@ class ObjectBaseTest {
         context: InternalContext,
         engineObject: EngineObject
     ) : ObjectBase(context, engineObject), viaduct.api.types.Object {
-        suspend fun getIntField(): Int = getInternal("intField", Int::class, null)
+        suspend fun getIntFieldOrThrow(): Int = getInternal("intField", Int::class, null)
 
         suspend fun getIntFieldOrNull(): Int? = getOrNullInternal("intField", Int::class, null)
 
-        suspend fun getArgumentedField(): String? = getInternal("argumentedField", String::class, null)
+        suspend fun getArgumentedFieldOrThrow(): String? = getInternal("argumentedField", String::class, null)
 
         suspend fun getArgumentedFieldOrNull(): String? = getOrNullInternal("argumentedField", String::class, null)
 
@@ -747,8 +747,8 @@ class ObjectBaseTest {
                     .intField(99)
                     .build()
 
-                assertEquals(99, updated.getIntField())
-                assertEquals("hello", updated.getArgumentedField())
+                assertEquals(99, updated.getIntFieldOrThrow())
+                assertEquals("hello", updated.getArgumentedFieldOrThrow())
             }
 
         @Test
@@ -764,8 +764,8 @@ class ObjectBaseTest {
                     .argumentedField("updated")
                     .build()
 
-                assertEquals(2, updated.getIntField())
-                assertEquals("updated", updated.getArgumentedField())
+                assertEquals(2, updated.getIntFieldOrThrow())
+                assertEquals("updated", updated.getArgumentedFieldOrThrow())
             }
 
         @Test
@@ -806,8 +806,8 @@ class ObjectBaseTest {
 
                 val copy = original.toBuilder().build()
 
-                assertEquals(original.getIntField(), copy.getIntField())
-                assertEquals(original.getArgumentedField(), copy.getArgumentedField())
+                assertEquals(original.getIntFieldOrThrow(), copy.getIntFieldOrThrow())
+                assertEquals(original.getArgumentedFieldOrThrow(), copy.getArgumentedFieldOrThrow())
             }
 
         @Test
@@ -828,7 +828,7 @@ class ObjectBaseTest {
                 // intField is not set on the builder, so fetch() throws UnsetFieldException
                 val o = TestObject.Builder(executionContext).build()
 
-                assertThrows<UnsetFieldException> { runBlocking { o.getIntField() } }
+                assertThrows<UnsetFieldException> { runBlocking { o.getIntFieldOrThrow() } }
                 assertThrows<UnsetFieldException> { runBlocking { o.getIntFieldOrNull() } }
             }
 
@@ -862,16 +862,16 @@ class ObjectBaseTest {
                     .build()
 
                 // v3 should have argumentedField from v3, intField from v2
-                assertEquals(2, v3.getIntField())
-                assertEquals("v3", v3.getArgumentedField())
+                assertEquals(2, v3.getIntFieldOrThrow())
+                assertEquals("v3", v3.getArgumentedFieldOrThrow())
 
                 // v2 should be unchanged
-                assertEquals(2, v2.getIntField())
-                assertEquals("v1", v2.getArgumentedField())
+                assertEquals(2, v2.getIntFieldOrThrow())
+                assertEquals("v1", v2.getArgumentedFieldOrThrow())
 
                 // v1 should be unchanged
-                assertEquals(1, v1.getIntField())
-                assertEquals("v1", v1.getArgumentedField())
+                assertEquals(1, v1.getIntFieldOrThrow())
+                assertEquals("v1", v1.getArgumentedFieldOrThrow())
             }
     }
 }

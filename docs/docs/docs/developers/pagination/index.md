@@ -360,7 +360,7 @@ class OrganizationMembersResolver : OrganizationResolvers.Members() {
   @Inject lateinit var memberService: MemberService
 
   override suspend fun resolve(ctx: Context): MemberConnection {
-    val orgId = ctx.getObjectValue().getId()
+    val orgId = ctx.getObjectValue().getIdOrThrow()
     val (offset, limit) = ctx.arguments.toOffsetLimit()
 
     val response = memberService.getMembers(
@@ -439,7 +439,7 @@ class MyConnectionResolverTest : DefaultAbstractResolverTestBase() {
       resolver = UsersResolver(),
       arguments = Users_Arguments.Builder(context).first(3).build()
     )
-    assertEquals(3, result.getEdges().size)
+    assertEquals(3, result.getEdgesOrThrow().size)
   }
 }
 ```

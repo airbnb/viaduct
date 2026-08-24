@@ -117,7 +117,7 @@ class SimpleBatchResolverFeatureAppTest : SimpleBatchResolverContractTest() {
     class User_DepartmentResolver : UserResolvers.Department() { // Generated from field with @resolver
         override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<String>> {
             // EXTRACT ALL USER IDS FROM BATCH
-            val userIds = contexts.map { ctx -> ctx.getObjectValue().getId() }
+            val userIds = contexts.map { ctx -> ctx.getObjectValue().getIdOrThrow() }
 
             // PERFORMANCE TRACKING - record batch size
             batchResolveCalls.add(userIds.size)
@@ -128,7 +128,7 @@ class SimpleBatchResolverFeatureAppTest : SimpleBatchResolverContractTest() {
 
             // RETURN RESULTS IN SAME ORDER as input contexts
             return contexts.map { ctx ->
-                val userId = ctx.getObjectValue().getId()
+                val userId = ctx.getObjectValue().getIdOrThrow()
                 val department = departmentData[userId] ?: "Unknown"
                 FieldValue.ofValue(department)
             }

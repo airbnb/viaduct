@@ -27,7 +27,7 @@ class KotlinRequiredSelectionsContractTest : RequiredSelectionsContractTest() {
     @Resolver(objectValueFragment = "fragment _ on Query { aliasedBar: bar { aliasedValue: value } }")
     class Query_String1Resolver : QueryResolvers.String1() {
         override suspend fun resolve(ctx: Context): String {
-            val value = ctx.getObjectValue().getBar("aliasedBar")?.getValue("aliasedValue")
+            val value = ctx.getObjectValue().getBarOrThrow("aliasedBar")?.getValueOrThrow("aliasedValue")
             return "A:$value"
         }
     }
@@ -40,7 +40,7 @@ class KotlinRequiredSelectionsContractTest : RequiredSelectionsContractTest() {
     @Resolver(queryValueFragment = "fragment _ on Query { initialString }")
     class Mutation_String1Resolver : MutationResolvers.String1() {
         override suspend fun resolve(ctx: Context): String {
-            val current = ctx.getQueryValue().getInitialString()
+            val current = ctx.getQueryValue().getInitialStringOrThrow()
             return "Mutated from: $current"
         }
     }
@@ -56,8 +56,8 @@ class KotlinRequiredSelectionsContractTest : RequiredSelectionsContractTest() {
     )
     class Baz_YResolver : BazResolvers.Y() {
         override suspend fun resolve(ctx: Context): String {
-            val config = ctx.getQueryValue().getGlobalConfig()
-            val x = ctx.getObjectValue().getX()
+            val config = ctx.getQueryValue().getGlobalConfigOrThrow()
+            val x = ctx.getObjectValue().getXOrThrow()
             return "$config item with value $x"
         }
     }

@@ -37,8 +37,8 @@ class KotlinNamedFragmentsContractTest : NamedFragmentsContractTest() {
     @Resolver(objectValueFragment = "fragment Main on User { ...UserCoreFields }")
     class User_LabelResolver : UserResolvers.Label() {
         override suspend fun resolve(ctx: Context): String {
-            val id = ctx.getObjectValue().getId()
-            val name = ctx.getObjectValue().getName()
+            val id = ctx.getObjectValue().getIdOrThrow()
+            val name = ctx.getObjectValue().getNameOrThrow()
             return "$id:$name"
         }
     }
@@ -47,7 +47,7 @@ class KotlinNamedFragmentsContractTest : NamedFragmentsContractTest() {
     @Resolver(queryValueFragment = "fragment Main on Query { ...ViewerNameFields }")
     class User_GreetingResolver : UserResolvers.Greeting() {
         override suspend fun resolve(ctx: Context): String {
-            val viewerName = ctx.getQueryValue().getViewer()?.getName()
+            val viewerName = ctx.getQueryValue().getViewerOrThrow()?.getNameOrThrow()
             return "$viewerName-greeting"
         }
     }

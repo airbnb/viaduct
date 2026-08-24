@@ -45,7 +45,7 @@ Use when your resolver has the full dataset. Viaduct handles slicing and cursor 
 @Resolver
 class CharacterFilmsResolver : CharacterResolvers.Films() {
   override suspend fun resolve(ctx: Context): FilmConnection {
-    val allFilms = filmRepository.getFilmsForCharacter(ctx.objectValue.id)
+    val allFilms = filmRepository.getFilmsForCharacter(ctx.getObjectValue().getIdOrThrow().internalID)
     return FilmConnection.Builder(ctx)
       .fromList(allFilms) { film -> Film.Builder(ctx).title(film.title).build() }
       .build()

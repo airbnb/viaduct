@@ -155,8 +155,8 @@ class ResolverApiUnitTests : ResolverTestBase() {
             }
 
             assertNotNull(result)
-            assertEquals("Ahsoka Tano", result!!.getName())
-            assertEquals("36BBY", result.getBirthYear())
+            assertEquals("Ahsoka Tano", result!!.getNameOrThrow())
+            assertEquals("36BBY", result.getBirthYearOrThrow())
         }
 
     @Test
@@ -190,7 +190,7 @@ class ResolverApiUnitTests : ResolverTestBase() {
             }
 
             assertNotNull(result)
-            assertEquals("Anakin Skywalker", result!!.getName())
+            assertEquals("Anakin Skywalker", result!!.getNameOrThrow())
         }
 
     @Test
@@ -270,6 +270,6 @@ class ResolverApiUnitTests : ResolverTestBase() {
             }
 
             assertNotNull(result)
-            assertEquals("Wedge Antilles", result!!.getCharacter()!!.getName())
+            assertEquals("Wedge Antilles", result!!.getCharacterOrThrow()!!.getNameOrThrow())
         }
 }

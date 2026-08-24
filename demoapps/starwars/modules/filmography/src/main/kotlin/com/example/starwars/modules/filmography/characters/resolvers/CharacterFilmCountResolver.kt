@@ -50,7 +50,7 @@ class CharacterFilmCountResolver
     ) : CharacterResolvers.FilmCount() {
         override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<Int>> {
             // Extract all unique character IDs from the contexts
-            val characterIds = contexts.map { it.getObjectValue().getId().internalID }
+            val characterIds = contexts.map { it.getObjectValue().getIdOrThrow().internalID }
             val uniqueCharacterIds = characterIds.toSet()
 
             // Perform a single batch query to get film counts for all characters

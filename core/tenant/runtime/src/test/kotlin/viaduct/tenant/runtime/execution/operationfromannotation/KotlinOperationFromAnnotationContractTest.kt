@@ -52,7 +52,7 @@ class KotlinOperationFromAnnotationContractTest : OperationFromAnnotationContrac
     class Container_RunQueryWithFragmentResolver : ContainerResolvers.RunQueryWithFragment() {
         override suspend fun resolve(ctx: Context): String {
             val result = ctx.query(GreeterQuery)
-            return result.getGreeter()?.getText() ?: error("greeter was null")
+            return result.getGreeterOrThrow()?.getTextOrThrow() ?: error("greeter was null")
         }
     }
 
@@ -60,7 +60,7 @@ class KotlinOperationFromAnnotationContractTest : OperationFromAnnotationContrac
     class Container_RunQueryOperationResolver : ContainerResolvers.RunQueryOperation() {
         override suspend fun resolve(ctx: Context): String {
             val result = ctx.query(EchoQuery, mapOf("value" to ctx.arguments.value))
-            return result.getEcho()
+            return result.getEchoOrThrow()
         }
     }
 
@@ -68,7 +68,7 @@ class KotlinOperationFromAnnotationContractTest : OperationFromAnnotationContrac
     class Mutation_RunMutationOperationResolver : MutationResolvers.RunMutationOperation() {
         override suspend fun resolve(ctx: Context): String {
             val result = ctx.mutation(RecordMutation, mapOf("value" to ctx.arguments.value))
-            return result.getRecord()
+            return result.getRecordOrThrow()
         }
     }
 }

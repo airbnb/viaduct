@@ -17,7 +17,7 @@ import viaduct.apiannotations.StableApi
  * class MyFieldResolver {
  *   override suspend fun resolve(ctx: Context): String {
  *     // Automatically delegates to the specified field
- *     return ctx.getObjectValue().getFieldName()
+ *     return ctx.getObjectValue().getFieldNameOrThrow()
  *   }
  * }
  * ```
@@ -42,7 +42,7 @@ import viaduct.apiannotations.StableApi
  *   override suspend fun resolve(ctx: Context): String {
  *     val obj = ctx.getObjectValue()
  *     // Can access all specified fields
- *     return "${obj.getField1()} - ${obj.getField2()} (${obj.getField3()})"
+ *     return "${obj.getField1OrThrow()} - ${obj.getField2OrThrow()} (${obj.getField3OrThrow()})"
  *   }
  * }
  * ```
@@ -60,7 +60,7 @@ import viaduct.apiannotations.StableApi
  *     // Process multiple contexts efficiently in one batch
  *     return contexts.map { ctx ->
  *       val character = ctx.getObjectValue()
- *       FieldValue.ofValue("${character.getName()} processed in batch")
+ *       FieldValue.ofValue("${character.getNameOrThrow()} processed in batch")
  *     }
  *   }
  * }

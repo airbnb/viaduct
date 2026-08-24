@@ -94,13 +94,13 @@ private suspend fun Exerciser.exerciseBuilderRoundtrip(
         // 2 getters are generated. First getter has 2 params: one for the nullable alias string,
         // and one for continuation object due to suspend.
         val getterWithAlias = objFromBuilder::class.declaredFunctions.firstOrNull {
-            it.name == getterName(fName) && it.parameters.size == 2
+            it.name == getterName(fName) + "OrThrow" && it.parameters.size == 2
         }
         check.isNotNull(getterWithAlias, "OBJECT_GETTER:$fName")
         // Second getter is to handle default null value.
         // Param count is one here due to continuation object param for suspending function.
         val getterForDefault = objFromBuilder::class.declaredFunctions.firstOrNull {
-            it.name == getterName(fName) && it.parameters.size == 1
+            it.name == getterName(fName) + "OrThrow" && it.parameters.size == 1
         }
         check.isNotNull(getterForDefault, "OBJECT_DEFAULT_GETTER:$fName")
 

@@ -26,11 +26,11 @@ class ObjectBaseTestHelpersTest {
             val o1 = ObjectBaseTestHelpers.putWithAlias(o1Builder, "stringField", "aliasedStringField", "hello")
                 .build()
 
-            assertEquals("hello", o1.getStringField("aliasedStringField"))
+            assertEquals("hello", o1.getStringFieldOrThrow("aliasedStringField"))
             // The "normal", unaliased field is not set.
             assertThrows<TenantUsageException> {
                 runBlocking {
-                    o1.getStringField()
+                    o1.getStringFieldOrThrow()
                 }
             }
         }

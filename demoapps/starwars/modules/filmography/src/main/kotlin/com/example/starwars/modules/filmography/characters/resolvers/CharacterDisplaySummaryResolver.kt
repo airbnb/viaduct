@@ -20,8 +20,8 @@ class CharacterDisplaySummaryResolver : CharacterResolvers.DisplaySummary() {
         val character = ctx.getObjectValue()
 
         // Builds a summary using the fetched fields, those are provided by the @Resolver annotation above
-        val name = character.getName() ?: "Unknown"
-        val birthYear = character.getBirthYear() ?: "Unknown birth year"
+        val name = character.getNameOrThrow() ?: "Unknown"
+        val birthYear = character.getBirthYearOrThrow() ?: "Unknown birth year"
 
         return "$name ($birthYear)"
     }

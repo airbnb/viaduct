@@ -36,7 +36,7 @@ public class JavaIdOfContractTest extends IdOfContractTest {
   public static class UserCohostResolver extends UserResolvers.Cohost {
     @Override
     public CompletableFuture<User> resolve(UserResolvers.Cohost.Context ctx) {
-      GlobalID<User> cohostId = ctx.getObjectValue().getCohostID();
+      GlobalID<User> cohostId = ctx.getObjectValue().getCohostIDOrThrow();
       return CompletableFuture.completedFuture(ctx.nodeRef(cohostId));
     }
   }

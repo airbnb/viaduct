@@ -58,10 +58,10 @@ class KotlinReflectionContractTest : ReflectionContractTest() {
     )
     class Shelf_TopProductDescriptionResolver : ShelfResolvers.TopProductDescription() {
         override suspend fun resolve(ctx: Context): String {
-            val product = ctx.getObjectValue().getTopProduct()
+            val product = ctx.getObjectValue().getTopProductOrThrow()
             return when (product) {
-                is Toy -> "Toy: ${product.getProdType()}"
-                is Fruit -> "Fruit: ${product.getProdType()}"
+                is Toy -> "Toy: ${product.getProdTypeOrThrow()}"
+                is Fruit -> "Fruit: ${product.getProdTypeOrThrow()}"
                 else -> "Unknown"
             }
         }
@@ -76,9 +76,9 @@ class KotlinReflectionContractTest : ReflectionContractTest() {
             )
             return products.map { product ->
                 if (ctx.selections().requestsType(Toy.Reflection) && product is Toy) {
-                    Toy.Builder(ctx).id(product.getId()).prodType("Toy").build()
+                    Toy.Builder(ctx).id(product.getIdOrThrow()).prodType("Toy").build()
                 } else if (ctx.selections().requestsType(Fruit.Reflection) && product is Fruit) {
-                    Fruit.Builder(ctx).id(product.getId()).prodType("Fruit").build()
+                    Fruit.Builder(ctx).id(product.getIdOrThrow()).prodType("Fruit").build()
                 } else {
                     product
                 }

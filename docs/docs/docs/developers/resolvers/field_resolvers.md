@@ -83,8 +83,8 @@ Let’s look at the resolver for `User.displayName`:
 class UserDisplayNameResolver : UserResolvers.DisplayName() {
   override suspend fun resolve(ctx: Context): String? {
     val obj = ctx.getObjectValue()
-    val fn = obj.getFirstName()
-    val ln = obj.getLastName()
+    val fn = obj.getFirstNameOrThrow()
+    val ln = obj.getLastNameOrThrow()
     return when {
       fn == null && ln == null -> null
       fn == null -> ln
@@ -130,7 +130,7 @@ The resolver selects the parent field as part of its object required selection s
 )
 class UserCompanyDisplayNameResolver : UserResolvers.CompanyDisplayName() {
   override suspend fun resolve(ctx: Context): String? =
-    ctx.getObjectValue().getParent()?.getName()
+    ctx.getObjectValue().getParentOrThrow()?.getNameOrThrow()
 }
 ```
 
@@ -195,7 +195,7 @@ For example, suppose `FeaturedListing` returns a `Listing` and the client reques
 @Resolver("fragment _ on Query { listing { id title } }")
 class FeaturedListingResolver : QueryResolvers.FeaturedListing() {
     override suspend fun resolve(ctx: Context): Listing? {
-        return ctx.getObjectValue().getListing()
+        return ctx.getObjectValue().getListingOrThrow()
     }
 }
 ```
@@ -207,8 +207,8 @@ If `Listing` is a node, return a node reference instead. The node resolver will 
 @Resolver("fragment _ on Query { listing { id } }")
 class FeaturedListingResolver : QueryResolvers.FeaturedListing() {
     override suspend fun resolve(ctx: Context): Listing? {
-        val listing = ctx.getObjectValue().getListing() ?: return null
-        return ctx.nodeRef(listing.getId())
+        val listing = ctx.getObjectValue().getListingOrThrow() ?: return null
+        return ctx.nodeRef(listing.getIdOrThrow())
     }
 }
 ```
@@ -220,7 +220,7 @@ The same issue can occur if the RSS includes the full output selection set but i
 @Resolver("fragment _ on Listing { phoneNumbers { num: formattedNumber } }")
 class PrimaryPhoneNumberResolver : ListingResolvers.PrimaryPhoneNumber() {
     override suspend fun resolve(ctx: Context): PhoneNumber? {
-        return ctx.getObjectValue().getPhoneNumbers().firstOrNull()
+        return ctx.getObjectValue().getPhoneNumbersOrThrow().firstOrNull()
     }
 }
 ```
@@ -232,9 +232,9 @@ Either omit the alias or recreate the GRT using the builder:
 @Resolver("fragment _ on Listing { phoneNumbers { num: formattedNumber } }")
 class PrimaryPhoneNumberResolver : ListingResolvers.PrimaryPhoneNumber() {
     override suspend fun resolve(ctx: Context): PhoneNumber? {
-        return ctx.getObjectValue().getPhoneNumbers().firstOrNull()?.let {
+        return ctx.getObjectValue().getPhoneNumbersOrThrow().firstOrNull()?.let {
             PhoneNumber.Builder(ctx)
-                .formattedNumber(it.getFormattedNumber(alias = "num"))
+                .formattedNumber(it.getFormattedNumberOrThrow(alias = "num"))
                 .build()
         }
     }

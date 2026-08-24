@@ -13,5 +13,5 @@ import viaduct.api.resolver.Resolver
 @Resolver("title")
 @Prototype
 class FilmDisplayTitleResolver : FilmResolvers.DisplayTitle() {
-    override suspend fun resolve(ctx: Context) = ctx.getObjectValue().getTitle()
+    override suspend fun resolve(ctx: Context) = ctx.getObjectValue().getTitleOrThrow()
 }

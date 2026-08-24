@@ -134,7 +134,7 @@ class NodeReferenceFactoryImplTest {
         val user = factory.nodeRef(globalId, internalContext)
 
         runBlocking {
-            val userInternalId = user.getId().internalID
+            val userInternalId = user.getIdOrThrow().internalID
             assertEquals(internalId, userInternalId)
         }
     }

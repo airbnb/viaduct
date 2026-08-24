@@ -46,7 +46,7 @@ class KotlinObjectContractTest : ObjectContractTest() {
         override suspend fun resolve(ctx: Context): String {
             val baz = ctx.getObjectValue().get<String>("baz", String::class)
             val nested = ctx.getObjectValue().get<NestedFoo>("nested", NestedFoo::class)
-            return "$baz-${nested.getValue()}"
+            return "$baz-${nested.getValueOrThrow()}"
         }
     }
 
@@ -105,8 +105,8 @@ class KotlinObjectContractTest : ObjectContractTest() {
     )
     class Person_FullAddressResolver : PersonResolvers.FullAddress() {
         override suspend fun resolve(ctx: Context): String {
-            val address = ctx.getObjectValue().getAddress() ?: return "No address"
-            return "${address.getStreet()}, ${address.getCity()}, ${address.getCountry()}"
+            val address = ctx.getObjectValue().getAddressOrThrow() ?: return "No address"
+            return "${address.getStreetOrThrow()}, ${address.getCityOrThrow()}, ${address.getCountryOrThrow()}"
         }
     }
 

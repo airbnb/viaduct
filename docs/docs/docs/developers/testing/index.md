@@ -284,7 +284,7 @@ fun `fetches foo by id`() = runTest {
     val result = runNodeResolver(FooNodeResolver()) {
         id = globalIDFor(Foo.Reflection, "42")
     }
-    assertEquals("42", result.getId())
+    assertEquals("42", result.getIdOrThrow())
 }
 ```
 
@@ -340,7 +340,7 @@ fun `creates foo and returns it`() = runTest {
         arguments = Mutation_CreateFoo_Arguments.of(context) { input(input) }
     }
 
-    assertEquals("bar", result!!.getLabel())
+    assertEquals("bar", result!!.getLabelOrThrow())
 }
 ```
 

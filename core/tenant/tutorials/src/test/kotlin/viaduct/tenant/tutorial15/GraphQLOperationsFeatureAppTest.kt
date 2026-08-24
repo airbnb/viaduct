@@ -159,7 +159,7 @@ class GraphQLOperationsFeatureAppTest : GraphQLOperationsContractTest() {
     class Runner_FetchGreetingResolver : RunnerResolvers.FetchGreeting() {
         override suspend fun resolve(ctx: Context): String {
             val result = ctx.query(GreetingQuery)
-            return result.getGreeting()
+            return result.getGreetingOrThrow()
         }
     }
 
@@ -173,7 +173,7 @@ class GraphQLOperationsFeatureAppTest : GraphQLOperationsContractTest() {
     class Runner_FetchEchoResolver : RunnerResolvers.FetchEcho() {
         override suspend fun resolve(ctx: Context): String {
             val result = ctx.query(EchoQuery, mapOf("value" to ctx.arguments.value))
-            return result.getEcho()
+            return result.getEchoOrThrow()
         }
     }
 
@@ -187,8 +187,8 @@ class GraphQLOperationsFeatureAppTest : GraphQLOperationsContractTest() {
     class Runner_FetchUserCardResolver : RunnerResolvers.FetchUserCard() {
         override suspend fun resolve(ctx: Context): String {
             val result = ctx.query(UserCardQuery, mapOf("id" to ctx.arguments.id))
-            val user = result.getUser() ?: error("user was null")
-            return "${user.getName()} (${user.getId()})"
+            val user = result.getUserOrThrow() ?: error("user was null")
+            return "${user.getNameOrThrow()} (${user.getIdOrThrow()})"
         }
     }
 
@@ -210,7 +210,7 @@ class GraphQLOperationsFeatureAppTest : GraphQLOperationsContractTest() {
     class Mutation_RunSaveResolver : MutationResolvers.RunSave() {
         override suspend fun resolve(ctx: Context): String {
             val result = ctx.mutation(SaveMutation, mapOf("value" to ctx.arguments.value))
-            return result.getSave()
+            return result.getSaveOrThrow()
         }
     }
 

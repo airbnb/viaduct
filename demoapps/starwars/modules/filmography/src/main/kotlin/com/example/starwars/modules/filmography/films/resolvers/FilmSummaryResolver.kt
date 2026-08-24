@@ -18,6 +18,6 @@ class FilmSummaryResolver : FilmResolvers.Summary() {
     override suspend fun resolve(ctx: Context): String? {
         // Access the source Film from the context
         val film = ctx.getObjectValue()
-        return "Episode ${film.getEpisodeID()}: ${film.getTitle()} (Directed by ${film.getDirector()})"
+        return "Episode ${film.getEpisodeIDOrThrow()}: ${film.getTitleOrThrow()} (Directed by ${film.getDirectorOrThrow()})"
     }
 }

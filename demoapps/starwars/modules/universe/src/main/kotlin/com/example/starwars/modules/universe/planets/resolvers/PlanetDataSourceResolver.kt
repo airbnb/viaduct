@@ -20,7 +20,7 @@ class PlanetDataSourceResolver
         @Named("universe") private val externalDataClient: ExternalDataClient,
     ) : PlanetResolvers.DataSource() {
         override suspend fun resolve(ctx: Context): String? {
-            val planetId = ctx.getObjectValue().getId().internalID
+            val planetId = ctx.getObjectValue().getIdOrThrow().internalID
             return externalDataClient.fetchData(planetId)
         }
     }

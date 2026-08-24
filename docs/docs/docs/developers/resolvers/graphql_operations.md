@@ -40,7 +40,7 @@ Pass the operation **object** — not its text — to `ctx.query()`, together wi
 class UserLabelResolver : QueryResolvers.UserLabel() {
     override suspend fun resolve(ctx: Context): String? {
         val result = ctx.query(GetUserQuery, mapOf("id" to ctx.arguments.id))
-        return result.getUser()?.getName()
+        return result.getUserOrThrow()?.getNameOrThrow()
     }
 }
 ```
@@ -54,7 +54,7 @@ class UserLabelResolver : QueryResolvers.UserLabel() {
 class SendAndConfirmResolver : MutationResolvers.SendAndConfirm() {
     override suspend fun resolve(ctx: Context): Boolean {
         val result = ctx.mutation(SendMessageMutation, mapOf("input" to ctx.arguments.input))
-        return result.getSendMessage()?.getSuccess() ?: false
+        return result.getSendMessageOrThrow()?.getSuccessOrThrow() ?: false
     }
 }
 ```

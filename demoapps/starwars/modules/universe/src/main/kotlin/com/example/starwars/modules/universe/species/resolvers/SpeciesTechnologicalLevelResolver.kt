@@ -20,7 +20,7 @@ class SpeciesTechnologicalLevelResolver
     ) : SpeciesResolvers.TechnologicalLevel() {
         override suspend fun resolve(ctx: Context): String? {
             val speciesGrt = ctx.getObjectValue()
-            val speciesId = speciesGrt.getId().internalID
+            val speciesId = speciesGrt.getIdOrThrow().internalID
             val species = speciesRepository.findById(speciesId)
 
             return species?.extrasData?.technologicalLevel

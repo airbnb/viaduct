@@ -19,7 +19,7 @@ class KotlinRecursiveSubmutationContractTest : RecursiveSubmutationContractTest(
                 1 -> 1
                 else -> {
                     val mutation = ctx.mutation(ExampleMutationSelectionsMutation, mapOf("triangleSize" to size - 1))
-                    size + mutation.getExampleMutationSelections()!!
+                    size + mutation.getExampleMutationSelectionsOrThrow()!!
                 }
             }
         }

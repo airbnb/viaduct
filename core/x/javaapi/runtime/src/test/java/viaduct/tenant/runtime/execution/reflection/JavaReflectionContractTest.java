@@ -72,11 +72,11 @@ public class JavaReflectionContractTest extends ReflectionContractTest {
   public static class TopProductDescriptionResolver extends ShelfResolvers.TopProductDescription {
     @Override
     public CompletableFuture<String> resolve(ShelfResolvers.TopProductDescription.Context ctx) {
-      Product product = ctx.getObjectValue().getTopProduct();
+      Product product = ctx.getObjectValue().getTopProductOrThrow();
       if (product instanceof Toy toy) {
-        return CompletableFuture.completedFuture("Toy: " + toy.getProdType());
+        return CompletableFuture.completedFuture("Toy: " + toy.getProdTypeOrThrow());
       } else if (product instanceof Fruit fruit) {
-        return CompletableFuture.completedFuture("Fruit: " + fruit.getProdType());
+        return CompletableFuture.completedFuture("Fruit: " + fruit.getProdTypeOrThrow());
       }
       return CompletableFuture.completedFuture("Unknown");
     }

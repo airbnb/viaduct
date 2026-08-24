@@ -61,14 +61,14 @@ import viaduct.api.resolver.Resolver
 class CharacterFormattedDescriptionResolver : CharacterResolvers.FormattedDescription() {
     override suspend fun resolve(ctx: Context): String? {
         val character = ctx.getObjectValue()
-        val name = character.getName() ?: "Unknown"
+        val name = character.getNameOrThrow() ?: "Unknown"
         val format = ctx.arguments.format
 
         return when (format) {
             "detailed" -> {
-                val birthYear = character.getBirthYear()
-                val eyeColor = character.getEyeColor()
-                val hairColor = character.getHairColor()
+                val birthYear = character.getBirthYearOrThrow()
+                val eyeColor = character.getEyeColorOrThrow()
+                val hairColor = character.getHairColorOrThrow()
 
                 buildString {
                     append(name)
@@ -83,13 +83,13 @@ class CharacterFormattedDescriptionResolver : CharacterResolvers.FormattedDescri
             }
 
             "year-only" -> {
-                val birthYear = character.getBirthYear()
+                val birthYear = character.getBirthYearOrThrow()
                 birthYear?.let { "$name (born $it)" } ?: "$name (birth year unknown)"
             }
 
             "appearance-only" -> {
-                val eyeColor = character.getEyeColor()
-                val hairColor = character.getHairColor()
+                val eyeColor = character.getEyeColorOrThrow()
+                val hairColor = character.getHairColorOrThrow()
 
                 buildString {
                     append(name)

@@ -108,7 +108,7 @@ class SimpleBackingDataFeatureAppTest : SimpleBackingDataContractTest() {
     )
     class UserReviewsDataResolver : UserResolvers.ReviewsData() {
         override suspend fun resolve(ctx: Context): UserReviewsData {
-            val userId = ctx.getObjectValue().getId().internalID
+            val userId = ctx.getObjectValue().getIdOrThrow().internalID
 
             // EXPENSIVE OPERATION - simulates external service call
             // In production: reviewsService.getUserReviewSummary(userId)

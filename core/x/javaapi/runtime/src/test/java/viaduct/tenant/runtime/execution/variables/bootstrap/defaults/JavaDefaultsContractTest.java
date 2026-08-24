@@ -15,7 +15,7 @@ public class JavaDefaultsContractTest extends DefaultsContractTest {
   public static class Outer1Resolver extends QueryResolvers.Outer1 {
     @Override
     public CompletableFuture<Integer> resolve(QueryResolvers.Outer1.Context ctx) {
-      return CompletableFuture.completedFuture(ctx.getObjectValue().getInner() * 3);
+      return CompletableFuture.completedFuture(ctx.getObjectValue().getInnerOrThrow() * 3);
     }
   }
 
@@ -25,7 +25,7 @@ public class JavaDefaultsContractTest extends DefaultsContractTest {
   public static class Outer2Resolver extends QueryResolvers.Outer2 {
     @Override
     public CompletableFuture<Integer> resolve(QueryResolvers.Outer2.Context ctx) {
-      return CompletableFuture.completedFuture(ctx.getObjectValue().getInner() * 5);
+      return CompletableFuture.completedFuture(ctx.getObjectValue().getInnerOrThrow() * 5);
     }
   }
 
@@ -45,7 +45,7 @@ public class JavaDefaultsContractTest extends DefaultsContractTest {
   public static class Outer4Resolver extends QueryResolvers.Outer4 {
     @Override
     public CompletableFuture<Integer> resolve(QueryResolvers.Outer4.Context ctx) {
-      return CompletableFuture.completedFuture(ctx.getObjectValue().getInner() * 11);
+      return CompletableFuture.completedFuture(ctx.getObjectValue().getInnerOrThrow() * 11);
     }
   }
 

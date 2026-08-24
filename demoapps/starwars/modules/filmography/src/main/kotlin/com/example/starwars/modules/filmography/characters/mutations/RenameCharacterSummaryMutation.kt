@@ -27,10 +27,10 @@ class RenameCharacterSummaryMutation : MutationResolvers.RenameCharacterSummary(
                 "name" to ctx.arguments.name
             )
         )
-        val character = result.getUpdateCharacterName() ?: return null
+        val character = result.getUpdateCharacterNameOrThrow() ?: return null
 
-        val name = character.getName() ?: "Unknown"
-        val birthYear = character.getBirthYear() ?: "Unknown birth year"
+        val name = character.getNameOrThrow() ?: "Unknown"
+        val birthYear = character.getBirthYearOrThrow() ?: "Unknown birth year"
         return "$name ($birthYear)"
     }
 }

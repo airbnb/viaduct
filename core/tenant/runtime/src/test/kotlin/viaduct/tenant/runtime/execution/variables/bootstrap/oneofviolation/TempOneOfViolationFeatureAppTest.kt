@@ -22,7 +22,7 @@ class TempOneOfViolationFeatureAppTest : TempOneOfViolationContractTest() {
         """
     )
     class Query_FromVariablesProviderResolver : QueryResolvers.FromVariablesProvider() {
-        override suspend fun resolve(ctx: Context): String? = ctx.getObjectValue().getIntermediary()
+        override suspend fun resolve(ctx: Context): String? = ctx.getObjectValue().getIntermediaryOrThrow()
 
         @Variables("oneofVar: OneofInput!")
         class OneOfViolationVars : VariablesProvider<Arguments> {
@@ -56,7 +56,7 @@ class TempOneOfViolationFeatureAppTest : TempOneOfViolationContractTest() {
         """
     )
     class Query_FromBuilderTwoKeysOneNullResolver : QueryResolvers.FromBuilderTwoKeysOneNull() {
-        override suspend fun resolve(ctx: Context): String? = ctx.getObjectValue().getIntermediary()
+        override suspend fun resolve(ctx: Context): String? = ctx.getObjectValue().getIntermediaryOrThrow()
 
         @Variables("oneofVar: OneofInput!")
         class TwoKeysOneNullVars : VariablesProvider<Arguments> {
@@ -79,7 +79,7 @@ class TempOneOfViolationFeatureAppTest : TempOneOfViolationContractTest() {
         """
     )
     class Query_FromBuilderSingleNullKeyResolver : QueryResolvers.FromBuilderSingleNullKey() {
-        override suspend fun resolve(ctx: Context): String? = ctx.getObjectValue().getIntermediary()
+        override suspend fun resolve(ctx: Context): String? = ctx.getObjectValue().getIntermediaryOrThrow()
 
         @Variables("oneofVar: OneofInput!")
         class SingleNullKeyVars : VariablesProvider<Arguments> {

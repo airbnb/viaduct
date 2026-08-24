@@ -23,7 +23,7 @@ class InvalidSyntaxFeatureAppTest : InvalidSyntaxContractTest() {
         """
     )
     class Query_FromVariablesProviderResolver : QueryResolvers.FromVariablesProvider() {
-        override suspend fun resolve(ctx: Context) = ctx.getObjectValue().getIntermediary()
+        override suspend fun resolve(ctx: Context) = ctx.getObjectValue().getIntermediaryOrThrow()
 
         @Variables("someVar Int! invalid syntax here")
         class InvalidSyntaxVars : VariablesProvider<Arguments> {

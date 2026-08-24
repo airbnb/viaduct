@@ -33,7 +33,7 @@ class ViaductObjectBuilderTest {
             o1Builder.put("stringField", "hello")
             val o1 = o1Builder.build()
 
-            assertEquals("hello", o1.getStringField())
+            assertEquals("hello", o1.getStringFieldOrThrow())
         }
 
     @Test
@@ -58,9 +58,9 @@ class ViaductObjectBuilderTest {
 
             val o1 = o1Builder.build()
 
-            assertNotNull(o1.getObjectField())
-            assertEquals(10, o1.getObjectField()!!.getIntField())
-            assertEquals("world", o1.getInterfaceField()!!.getCommonField())
+            assertNotNull(o1.getObjectFieldOrThrow())
+            assertEquals(10, o1.getObjectFieldOrThrow()!!.getIntFieldOrThrow())
+            assertEquals("world", o1.getInterfaceFieldOrThrow()!!.getCommonFieldOrThrow())
         }
 
     @Test
@@ -85,12 +85,12 @@ class ViaductObjectBuilderTest {
 
             o1Builder.put("listField", listOf(listOf(o21), listOf(o22)))
             val o1 = o1Builder.build()
-            assertNotNull(o1.getListField())
-            assertEquals(2, o1.getListField()?.size)
-            assertEquals(1, o1.getListField()?.get(0)?.size)
-            assertEquals(1, o1.getListField()?.get(1)?.size)
-            assertEquals(10, o1.getListField()?.get(0)?.get(0)?.getIntField())
-            assertEquals(20, o1.getListField()?.get(1)?.get(0)?.getIntField())
+            assertNotNull(o1.getListFieldOrThrow())
+            assertEquals(2, o1.getListFieldOrThrow()?.size)
+            assertEquals(1, o1.getListFieldOrThrow()?.get(0)?.size)
+            assertEquals(1, o1.getListFieldOrThrow()?.get(1)?.size)
+            assertEquals(10, o1.getListFieldOrThrow()?.get(0)?.get(0)?.getIntFieldOrThrow())
+            assertEquals(20, o1.getListFieldOrThrow()?.get(1)?.get(0)?.getIntFieldOrThrow())
         }
 
     @Test
@@ -185,10 +185,10 @@ class ViaductObjectBuilderTest {
                 .put("id4", listOf("42", null))
                 .build()
                 .let { user ->
-                    assertEquals(globalId, user.getId())
-                    assertEquals("42", user.getId2())
-                    assertEquals(listOf(globalId, null), user.getId3())
-                    assertEquals(listOf("42", null), user.getId4())
+                    assertEquals(globalId, user.getIdOrThrow())
+                    assertEquals("42", user.getId2OrThrow())
+                    assertEquals(listOf(globalId, null), user.getId3OrThrow())
+                    assertEquals(listOf("42", null), user.getId4OrThrow())
                 }
 
             // null values
@@ -197,8 +197,8 @@ class ViaductObjectBuilderTest {
                 .put("id4", null)
                 .build()
                 .let { user ->
-                    assertEquals(null, user.getId3())
-                    assertEquals(null, user.getId4())
+                    assertEquals(null, user.getId3OrThrow())
+                    assertEquals(null, user.getId4OrThrow())
                 }
         }
 }

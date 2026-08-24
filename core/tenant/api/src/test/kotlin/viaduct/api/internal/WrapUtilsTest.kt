@@ -70,6 +70,6 @@ class WrapUtilsTest {
                     mapOf("id" to "foo")
                 )
             )
-            assertEquals("foo", obj.getId())
+            assertEquals("foo", obj.getIdOrThrow())
         }
 }

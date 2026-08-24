@@ -15,7 +15,7 @@ import viaduct.apiannotations.StableApi
  * Example:
  * ```kotlin
  * val countryOfResidence: String? = fetchOrNull {
- *     viewer?.getUser()?.getOwner()?.getCountryForTax()?.getCountryOfResidence()
+ *     viewer?.getUserOrThrow()?.getOwnerOrThrow()?.getCountryForTaxOrThrow()?.getCountryOfResidenceOrThrow()
  * }
  * ```
  */
@@ -34,8 +34,8 @@ suspend inline fun <T> fetchOrNull(block: suspend () -> T): T? = fetchOrDefault<
  * Example:
  * ```kotlin
  * val hasProfilePicture: Boolean = fetchOrDefault(false) {
- *     (user.getCanViewProfilePicture() ?: false) &&
- *         (user.getUserRepresentationUrl()?.getHasProfilePicture() ?: false)
+ *     (user.getCanViewProfilePictureOrThrow() ?: false) &&
+ *         (user.getUserRepresentationUrlOrThrow()?.getHasProfilePictureOrThrow() ?: false)
  * }
  * ```
  */

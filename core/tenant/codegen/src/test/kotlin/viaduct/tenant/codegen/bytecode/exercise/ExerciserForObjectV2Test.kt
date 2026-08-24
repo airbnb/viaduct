@@ -160,8 +160,8 @@ class ExerciserForObjectV2Test {
                 intField(42)
             }
 
-            assertEquals(chained.getStringField(), dsl.getStringField())
-            assertEquals(chained.getIntField(), dsl.getIntField())
+            assertEquals(chained.getStringFieldOrThrow(), dsl.getStringFieldOrThrow())
+            assertEquals(chained.getIntFieldOrThrow(), dsl.getIntFieldOrThrow())
         }
 
     @Test
@@ -171,7 +171,7 @@ class ExerciserForObjectV2Test {
 
             val obj = ObjectV2.Builder(ctx).stringField("legacy").build()
             assertNotNull(obj)
-            assertEquals("legacy", obj.getStringField())
+            assertEquals("legacy", obj.getStringFieldOrThrow())
         }
 
     @Test

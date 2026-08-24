@@ -67,7 +67,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
   public static class ShorthandBarResolver extends FooResolvers.ShorthandBar {
     @Override
     public CompletableFuture<String> resolve(FooResolvers.ShorthandBar.Context ctx) {
-      return CompletableFuture.completedFuture(ctx.getObjectValue().getBaz());
+      return CompletableFuture.completedFuture(ctx.getObjectValue().getBazOrThrow());
     }
   }
 
@@ -84,9 +84,9 @@ public class JavaObjectContractTest extends ObjectContractTest {
   public static class FragmentBarResolver extends FooResolvers.FragmentBar {
     @Override
     public CompletableFuture<String> resolve(FooResolvers.FragmentBar.Context ctx) {
-      String baz = ctx.getObjectValue().getBaz();
-      NestedFoo nested = ctx.getObjectValue().getNested();
-      return CompletableFuture.completedFuture(baz + "-" + nested.getValue());
+      String baz = ctx.getObjectValue().getBazOrThrow();
+      NestedFoo nested = ctx.getObjectValue().getNestedOrThrow();
+      return CompletableFuture.completedFuture(baz + "-" + nested.getValueOrThrow());
     }
   }
 
@@ -143,12 +143,16 @@ public class JavaObjectContractTest extends ObjectContractTest {
     @Override
     public CompletableFuture<String> resolve(PersonResolvers.FullAddress.Context ctx) {
       Person person = ctx.getObjectValue();
-      Address address = person.getAddress();
+      Address address = person.getAddressOrThrow();
       if (address == null) {
         return CompletableFuture.completedFuture("No address");
       }
       String fullAddress =
-          address.getStreet() + ", " + address.getCity() + ", " + address.getCountry();
+          address.getStreetOrThrow()
+              + ", "
+              + address.getCityOrThrow()
+              + ", "
+              + address.getCountryOrThrow();
       return CompletableFuture.completedFuture(fullAddress);
     }
   }
@@ -239,12 +243,12 @@ public class JavaObjectContractTest extends ObjectContractTest {
     builder.street("456 Oak").city("NYC");
     Address second = builder.build();
 
-    assertEquals("123 Main", first.getStreet());
-    assertEquals("SF", first.getCity());
-    assertEquals("US", first.getCountry());
-    assertEquals("456 Oak", second.getStreet());
-    assertEquals("NYC", second.getCity());
-    assertEquals("US", second.getCountry());
+    assertEquals("123 Main", first.getStreetOrThrow());
+    assertEquals("SF", first.getCityOrThrow());
+    assertEquals("US", first.getCountryOrThrow());
+    assertEquals("456 Oak", second.getStreetOrThrow());
+    assertEquals("NYC", second.getCityOrThrow());
+    assertEquals("US", second.getCountryOrThrow());
   }
 
   // --- Java-only wiring tests ---

@@ -65,7 +65,8 @@ public class JavaOperationFromAnnotationContractTest extends OperationFromAnnota
   public static class RunQueryWithFragmentResolver extends ContainerResolvers.RunQueryWithFragment {
     @Override
     public CompletableFuture<String> resolve(ContainerResolvers.RunQueryWithFragment.Context ctx) {
-      return ctx.query(GREETER_QUERY).thenApply(result -> result.getGreeter().getText());
+      return ctx.query(GREETER_QUERY)
+          .thenApply(result -> result.getGreeterOrThrow().getTextOrThrow());
     }
   }
 
@@ -74,7 +75,7 @@ public class JavaOperationFromAnnotationContractTest extends OperationFromAnnota
     @Override
     public CompletableFuture<String> resolve(ContainerResolvers.RunQueryOperation.Context ctx) {
       return ctx.query(ECHO_QUERY, Map.of("value", ctx.getArguments().getValue()))
-          .thenApply(Query::getEcho);
+          .thenApply(Query::getEchoOrThrow);
     }
   }
 
@@ -83,7 +84,7 @@ public class JavaOperationFromAnnotationContractTest extends OperationFromAnnota
     @Override
     public CompletableFuture<String> resolve(MutationResolvers.RunMutationOperation.Context ctx) {
       return ctx.mutation(RECORD_MUTATION, Map.of("value", ctx.getArguments().getValue()))
-          .thenApply(Mutation::getRecord);
+          .thenApply(Mutation::getRecordOrThrow);
     }
   }
 }

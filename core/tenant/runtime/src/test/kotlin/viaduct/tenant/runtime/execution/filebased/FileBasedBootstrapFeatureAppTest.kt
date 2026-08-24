@@ -28,7 +28,7 @@ class FileBasedBootstrapFeatureAppTest : FileBasedBootstrapContractTest() {
     @Resolver("id")
     class Item_LabelResolver : ItemResolvers.Label() {
         override suspend fun resolve(ctx: Context): String {
-            return "label:${ctx.getObjectValue().getId().internalID}"
+            return "label:${ctx.getObjectValue().getIdOrThrow().internalID}"
         }
     }
 
@@ -38,7 +38,7 @@ class FileBasedBootstrapFeatureAppTest : FileBasedBootstrapContractTest() {
     )
     class Item_EchoTagResolver : ItemResolvers.EchoTag() {
         override suspend fun resolve(ctx: Context): String {
-            return ctx.getQueryValue().getEchoWithTag()
+            return ctx.getQueryValue().getEchoWithTagOrThrow()
         }
     }
 
@@ -59,7 +59,7 @@ class FileBasedBootstrapFeatureAppTest : FileBasedBootstrapContractTest() {
     )
     class Query_TaggedLabelResolver : QueryResolvers.TaggedLabel() {
         override suspend fun resolve(ctx: Context): String {
-            return ctx.getQueryValue().getEchoWithTag()
+            return ctx.getQueryValue().getEchoWithTagOrThrow()
         }
 
         @Variables("myTag: String!")

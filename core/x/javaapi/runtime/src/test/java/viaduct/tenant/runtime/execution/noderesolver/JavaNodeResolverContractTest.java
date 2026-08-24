@@ -56,8 +56,8 @@ public class JavaNodeResolverContractTest extends NodeResolverContractTest {
     @Override
     public CompletableFuture<NodeObj> resolve(QueryResolvers.NodeRefWithIllegalAccess.Context ctx) {
       NodeObj ref = ctx.nodeRef(ctx.globalIDFor(Type.ofClass(NodeObj.class), "1"));
-      ref.getId(); // valid — id can always be read
-      ref.getValue(); // illegal — must throw
+      ref.getIdOrThrow(); // valid — id can always be read
+      ref.getValueOrThrow(); // illegal — must throw
       return CompletableFuture.completedFuture(ref);
     }
   }

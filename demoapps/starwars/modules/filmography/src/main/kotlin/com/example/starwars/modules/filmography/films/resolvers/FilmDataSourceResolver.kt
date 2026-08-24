@@ -20,7 +20,7 @@ class FilmDataSourceResolver
         @Named("filmography") private val externalDataClient: ExternalDataClient,
     ) : FilmResolvers.DataSource() {
         override suspend fun resolve(ctx: Context): String? {
-            val filmId = ctx.getObjectValue().getId().internalID
+            val filmId = ctx.getObjectValue().getIdOrThrow().internalID
             return externalDataClient.fetchData(filmId)
         }
     }

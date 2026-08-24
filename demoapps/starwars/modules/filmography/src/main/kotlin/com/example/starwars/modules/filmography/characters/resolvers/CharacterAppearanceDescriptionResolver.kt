@@ -26,9 +26,9 @@ class CharacterAppearanceDescriptionResolver : CharacterResolvers.AppearanceDesc
         val character = ctx.getObjectValue()
 
         // Builds a description using the fetched fields, providing defaults if any are missing
-        val name = character.getName() ?: "Someone"
-        val eyeColor = character.getEyeColor() ?: "unknown eyes"
-        val hairColor = character.getHairColor() ?: "unknown hair"
+        val name = character.getNameOrThrow() ?: "Someone"
+        val eyeColor = character.getEyeColorOrThrow() ?: "unknown eyes"
+        val hairColor = character.getHairColorOrThrow() ?: "unknown hair"
 
         return "$name has $eyeColor eyes and $hairColor hair"
     }

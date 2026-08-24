@@ -24,7 +24,7 @@ class InterfaceTypesFeatureAppTest : InterfaceTypesContractTest() {
         """
     )
     class Query_FromVariablesProviderResolver : QueryResolvers.FromVariablesProvider() {
-        override suspend fun resolve(ctx: Context): Int? = ctx.getObjectValue().getIntermediary()
+        override suspend fun resolve(ctx: Context): Int? = ctx.getObjectValue().getIntermediaryOrThrow()
 
         @Variables("someVar:Node!")
         class InterfaceTypeVars : VariablesProvider<Arguments> {

@@ -111,7 +111,7 @@ class NamedFragmentsFeatureAppTest : NamedFragmentsContractTest() {
     class User_CardResolver : UserResolvers.Card() {
         override suspend fun resolve(ctx: Context): String {
             val user = ctx.getObjectValue()
-            return "${user.getName()} (${user.getId()})"
+            return "${user.getNameOrThrow()} (${user.getIdOrThrow()})"
         }
     }
 
@@ -126,7 +126,7 @@ class NamedFragmentsFeatureAppTest : NamedFragmentsContractTest() {
     class User_ProfileResolver : UserResolvers.Profile() {
         override suspend fun resolve(ctx: Context): String {
             val user = ctx.getObjectValue()
-            return "${user.getName()} <${user.getEmail()}> [${user.getId()}]"
+            return "${user.getNameOrThrow()} <${user.getEmailOrThrow()}> [${user.getIdOrThrow()}]"
         }
     }
 

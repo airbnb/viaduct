@@ -46,7 +46,7 @@ public class JavaFieldBatchResolverContractTest extends FieldBatchResolverContra
       }
       Map<ItemResolvers.BatchedField.Context, String> results = new LinkedHashMap<>();
       for (ItemResolvers.BatchedField.Context ctx : contexts) {
-        String itemId = ctx.getObjectValue().getId();
+        String itemId = ctx.getObjectValue().getIdOrThrow();
         results.put(ctx, "batched-" + itemId + "-size-" + contexts.size());
       }
       return CompletableFuture.completedFuture(results);
@@ -65,7 +65,7 @@ public class JavaFieldBatchResolverContractTest extends FieldBatchResolverContra
         List<ItemResolvers.ListField.Context> contexts) {
       Map<ItemResolvers.ListField.Context, List<Item>> results = new LinkedHashMap<>();
       for (ItemResolvers.ListField.Context ctx : contexts) {
-        String itemId = ctx.getObjectValue().getId();
+        String itemId = ctx.getObjectValue().getIdOrThrow();
         List<Item> subItems =
             IntStream.rangeClosed(1, contexts.size())
                 .mapToObj(

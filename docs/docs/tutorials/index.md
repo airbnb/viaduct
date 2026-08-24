@@ -122,4 +122,4 @@ Field resolvers can access parent object data:
 
 - Framework automatically fetches required fields
 
-- Available via type-safe `ctx.objectValue.getFirstname()`
+- Available via type-safe `ctx.getObjectValue().getFirstNameOrThrow()`

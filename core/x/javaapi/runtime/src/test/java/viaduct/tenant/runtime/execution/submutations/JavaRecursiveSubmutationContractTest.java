@@ -21,7 +21,7 @@ public class JavaRecursiveSubmutationContractTest extends RecursiveSubmutationCo
       int next = triangleSize - 1;
       return ctx.mutation(
               "exampleMutationSelections(triangleSize: $n)", Map.of("n", next), Mutation.class)
-          .thenApply(result -> triangleSize + result.getExampleMutationSelections());
+          .thenApply(result -> triangleSize + result.getExampleMutationSelectionsOrThrow());
     }
   }
 }

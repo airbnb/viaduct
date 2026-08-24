@@ -135,8 +135,8 @@ class SimpleResolversFeatureAppTest : SimpleResolversContractTest() {
     class User_FullNameResolver : UserResolvers.FullName() {
         override suspend fun resolve(ctx: Context): String {
             // Access parent User data via ctx.getObjectValue() (guaranteed by objectValueFragment)
-            val firstname = ctx.getObjectValue().getFirstname()
-            val lastname = ctx.getObjectValue().getLastname()
+            val firstname = ctx.getObjectValue().getFirstnameOrThrow()
+            val lastname = ctx.getObjectValue().getLastnameOrThrow()
             return "$firstname $lastname"
         }
     }

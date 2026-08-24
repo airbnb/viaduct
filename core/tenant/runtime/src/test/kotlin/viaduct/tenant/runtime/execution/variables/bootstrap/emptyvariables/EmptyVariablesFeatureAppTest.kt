@@ -23,7 +23,7 @@ class EmptyVariablesFeatureAppTest : EmptyVariablesContractTest() {
         """
     )
     class Query_FromVariablesProviderResolver : QueryResolvers.FromVariablesProvider() {
-        override suspend fun resolve(ctx: Context): Int? = ctx.getObjectValue().getIntermediary()
+        override suspend fun resolve(ctx: Context): Int? = ctx.getObjectValue().getIntermediaryOrThrow()
 
         @Variables("")
         class EmptyVariablesVars : VariablesProvider<Arguments> {

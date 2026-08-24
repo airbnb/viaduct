@@ -61,7 +61,7 @@ class ObjectFeatureAppTest : ObjectContractTest() {
         override suspend fun resolve(ctx: Context): String {
             val baz = ctx.getObjectValue().get<String>("baz", String::class)
             val nested = ctx.getObjectValue().get<NestedFoo>("nested", NestedFoo::class)
-            return "$baz-${nested.getValue()}"
+            return "$baz-${nested.getValueOrThrow()}"
         }
     }
 

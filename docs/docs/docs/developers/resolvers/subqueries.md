@@ -14,15 +14,15 @@ description: Executing subqueries in resolvers
 class UserDisplayNameResolver: UserResolvers.DisplayName() {
     override suspend fun resolve(ctx: Context): String? {
         val obj = ctx.getObjectValue()
-        val id = obj.getId()
-        val fn = obj.getFirstName()
-        val ln = obj.getLastName()
+        val id = obj.getIdOrThrow()
+        val fn = obj.getFirstNameOrThrow()
+        val ln = obj.getLastNameOrThrow()
 
         // determine if user is the logged-in user, in which case
         // we add a suffix to their displayName
         // loads a selection set on the root Query object
         val query = ctx.query("{ viewer { user { id } } }")
-        val isViewer = id == query.getViewer()?.getUser()?.getId()
+        val isViewer = id == query.getViewerOrThrow()?.getUserOrThrow()?.getIdOrThrow()
         val suffix = if (isViewer) " (you!)" else ""
 
         return when {
@@ -51,7 +51,7 @@ val query = ctx.query(
     "{ listing(id: \$listingId) { title coverPhoto { url } } }",
     variables = mapOf("listingId" to listingId)
 )
-val title = query.getListing()?.getTitle()
+val title = query.getListingOrThrow()?.getTitleOrThrow()
 ```
 
 Subquery variables are scoped to the subquery itself. They don't inherit from the parent request's variables, and they don't leak back. Two subqueries with the same selection string but different variables are fully independent.

@@ -18,7 +18,7 @@ public class JavaTempOneOfViolationContractTest extends TempOneOfViolationContra
   public static class FromVariablesProviderResolver extends QueryResolvers.FromVariablesProvider {
     @Override
     public CompletableFuture<String> resolve(QueryResolvers.FromVariablesProvider.Context ctx) {
-      return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediary());
+      return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediaryOrThrow());
     }
 
     @Variables(types = {"oneofVar: OneofInput!"})
@@ -55,7 +55,7 @@ public class JavaTempOneOfViolationContractTest extends TempOneOfViolationContra
       extends QueryResolvers.FromBuilderTwoKeysOneNull {
     @Override
     public CompletableFuture<String> resolve(QueryResolvers.FromBuilderTwoKeysOneNull.Context ctx) {
-      return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediary());
+      return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediaryOrThrow());
     }
 
     @Variables(types = {"oneofVar: OneofInput!"})
@@ -75,7 +75,7 @@ public class JavaTempOneOfViolationContractTest extends TempOneOfViolationContra
       extends QueryResolvers.FromBuilderSingleNullKey {
     @Override
     public CompletableFuture<String> resolve(QueryResolvers.FromBuilderSingleNullKey.Context ctx) {
-      return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediary());
+      return CompletableFuture.completedFuture(ctx.getObjectValue().getIntermediaryOrThrow());
     }
 
     @Variables(types = {"oneofVar: OneofInput!"})
