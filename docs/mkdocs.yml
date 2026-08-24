@@ -110,6 +110,7 @@ nav:
       - Resolver Annotation: docs/developers/resolvers/resolver_annotation.md
       - Node Resolvers: docs/developers/resolvers/node_resolvers.md
       - Field Resolvers: docs/developers/resolvers/field_resolvers.md
+      - Selective Resolution: docs/developers/resolvers/selective_resolution.md
       - Batch Resolution: docs/developers/resolvers/batch_resolution.md
       - Mutations: docs/developers/resolvers/mutations.md
       - Node References: docs/developers/resolvers/node_references.md
