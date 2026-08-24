@@ -2,16 +2,14 @@
 
 package viaduct.engine.api.mocks
 
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.Coordinate
-import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.NodeResolverExecutor
 
 class EngineTestModuleTest {
     companion object {
@@ -109,7 +107,7 @@ class EngineTestModuleTest {
         assertEquals(false, entry.isBatching)
         assertNull(entry.objectSelections)
         assertNull(entry.querySelections)
-        assertInstanceOf(FieldResolverExecutor::class.java, entry.tenantAPIData["resolver"])
+        assertEquals(emptyMap<String, Any?>(), entry.tenantAPIData)
     }
 
     @Test
@@ -127,11 +125,11 @@ class EngineTestModuleTest {
         val entry = config.nodes[0]
         assertEquals("Test", entry.typeName)
         assertEquals(true, entry.isBatching)
-        assertInstanceOf(NodeResolverExecutor::class.java, entry.tenantAPIData["resolver"])
+        assertEquals(emptyMap<String, Any?>(), entry.tenantAPIData)
     }
 
     @Test
-    fun `EngineTestModuleExecutorFactory returns stored executor`() {
+    fun `MockExecutorFactory gets stored executors from its injected registry`() {
         val module = EngineTestModule(SCHEMA_SDL) {
             field("Test" to "i") {
                 resolver { fn { _, _, _, _, _ -> 99 } }
@@ -144,7 +142,10 @@ class EngineTestModuleTest {
         }
 
         val config = module.buildExecutionRegistryConfigFile()
-        val factory = EngineTestModuleExecutorFactory()
+        val codeInjector = runBlocking {
+            MockExecutorCodeInjector(module.mockExecutorRegistry).bootstrap(config.tenantName.orEmpty(), null)
+        }
+        val factory = MockExecutorFactory(codeInjector, config)
 
         val fieldExecutor = factory.createFieldResolverExecutor(config.fields[0], module.fullSchema)
         val originalFieldExecutor = module.fieldResolverExecutors.first().second

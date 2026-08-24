@@ -4,14 +4,14 @@ package viaduct.java.api.testing
 
 import viaduct.api.testing.featureapp.AbstractFeatureAppTestContractBase
 import viaduct.api.testing.featureapp.MissingResolverImplementationException
-import viaduct.engine.BootstrapperFactory
-import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
+import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryConfigSourceCollector
 import viaduct.java.api.annotations.NodeResolverFor
 import viaduct.java.api.annotations.Resolver
 import viaduct.java.api.annotations.ResolverFor
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
+import viaduct.service.api.spi.TenantModuleInjectorFactory
 
 /**
  * Contract test base class for Java tenant resolvers.
@@ -36,15 +36,11 @@ abstract class FeatureAppTestContractBase : AbstractFeatureAppTestContractBase()
 
     protected open fun featureAppPackagePrefix(): String = derivedClassPackage().substringBeforeLast('.')
 
-    override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder =
-        object : TenantAPIBootstrapperBuilder {
-            override fun create() =
-                BootstrapperFactory.fromConfigSources(
-                    tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(CodeInjector.Naive),
-                    moduleConfigSources = ExecutionRegistryConfigSourceCollector.fromResources(featureAppPackagePrefix()),
-                    grtPackagePrefix = derivedClassPackage(),
-                )
-        }
+    override fun moduleConfigSources(): List<ModuleConfigSource> = ExecutionRegistryConfigSourceCollector.fromResources(featureAppPackagePrefix())
+
+    override fun tenantModuleInjectorFactory(): TenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(CodeInjector.Naive)
+
+    override fun grtPackagePrefix(): String = derivedClassPackage()
 }
 
 /**

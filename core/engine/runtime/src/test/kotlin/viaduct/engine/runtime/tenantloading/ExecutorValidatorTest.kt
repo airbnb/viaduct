@@ -9,11 +9,10 @@ import viaduct.engine.api.mocks.MockCheckerExecutorFactory
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockNodeBatchResolverExecutor
 import viaduct.engine.api.mocks.MockSchema
-import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.toDispatcherRegistryFactory
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.CheckerExecutorFactory
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.runtime.validation.Validator
 
 class ExecutorValidatorTest {
@@ -31,7 +30,7 @@ class ExecutorValidatorTest {
     )
 
     private fun test(
-        bootstrappers: List<TenantModuleBootstrapper> = listOf(moduleBootstrap),
+        modules: List<MockTenantModuleBootstrapper> = listOf(moduleBootstrap),
         checkerExecutorFactory: CheckerExecutorFactory = MockCheckerExecutorFactory(),
         nodeResolverValidator: Validator<NodeResolverExecutorValidationCtx> = Validator.Unvalidated,
         resolverExecutorValidator: Validator<FieldResolverExecutorValidationCtx> = Validator.Unvalidated,
@@ -39,11 +38,8 @@ class ExecutorValidatorTest {
         checkerExecutorValidator: Validator<CheckerExecutorValidationCtx> = Validator.Unvalidated
     ) {
         val validator = ExecutorValidator(nodeResolverValidator, resolverExecutorValidator, requiredSelectionSetValidator, checkerExecutorValidator)
-        TenantAPIBootstrapperDispatcherRegistryFactory(
-            MockTenantAPIBootstrapper(bootstrappers),
-            validator,
-            checkerExecutorFactory
-        ).create(MockSchema.mk("type Foo { field: Int }"))
+        modules.toDispatcherRegistryFactory(validator, checkerExecutorFactory)
+            .create(MockSchema.mk("type Foo implements Node { id: ID! field: Int }"))
     }
 
     @Test
@@ -72,11 +68,8 @@ class ExecutorValidatorTest {
             fullSchema = mutationSchema,
         )
         assertThrows<Exception> {
-            TenantAPIBootstrapperDispatcherRegistryFactory(
-                MockTenantAPIBootstrapper(listOf(bootstrap)),
-                ExecutorValidator(mutationSchema),
-                MockCheckerExecutorFactory()
-            ).create(mutationSchema)
+            listOf(bootstrap).toDispatcherRegistryFactory(ExecutorValidator(mutationSchema), MockCheckerExecutorFactory())
+                .create(mutationSchema)
         }
     }
 
@@ -104,8 +97,7 @@ class ExecutorValidatorTest {
     @Test
     fun `fails on requiredSelectionSet validator failure for field checker`() {
         val validator = ExecutorValidator(Validator.Unvalidated, Validator.Invalid, Validator.Unvalidated, Validator.Unvalidated)
-        TenantAPIBootstrapperDispatcherRegistryFactory(
-            MockTenantAPIBootstrapper(),
+        emptyList<MockTenantModuleBootstrapper>().toDispatcherRegistryFactory(
             validator,
             MockCheckerExecutorFactory(
                 mapOf(
@@ -120,8 +112,7 @@ class ExecutorValidatorTest {
     @Test
     fun `fails on requiredSelectionSet validator failure for type checker`() {
         val validator = ExecutorValidator(Validator.Unvalidated, Validator.Invalid, Validator.Unvalidated, Validator.Unvalidated)
-        TenantAPIBootstrapperDispatcherRegistryFactory(
-            MockTenantAPIBootstrapper(),
+        emptyList<MockTenantModuleBootstrapper>().toDispatcherRegistryFactory(
             validator,
             MockCheckerExecutorFactory(
                 null,

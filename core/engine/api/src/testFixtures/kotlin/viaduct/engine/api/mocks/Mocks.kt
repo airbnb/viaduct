@@ -1,4 +1,5 @@
 @file:Suppress("DEPRECATION", "ForbiddenImport") // CoroutineInterop retained for Airbnb
+@file:OptIn(ExperimentalApi::class)
 
 package viaduct.engine.api.mocks
 
@@ -21,6 +22,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.dataloader.mocks.MockNextTickDispatcher
 import viaduct.engine.ViaductSchemaLoadException
@@ -44,6 +46,7 @@ import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.runtime.DispatcherRegistry
@@ -53,8 +56,13 @@ import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.engine.runtime.mocks.createDispatcherRegistry
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.engine.runtime.select.EngineSelectionSetImpl
+import viaduct.engine.runtime.tenantloading.ExecutorValidatorContext
+import viaduct.engine.runtime.tenantloading.StandardDispatcherRegistryFactory
+import viaduct.engine.runtime.validation.Validator
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.graphql.utils.ParsedSelections
+import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.TenantModuleInjectorFactory
 
 typealias CheckerFn = suspend (arguments: Map<String, Any?>, objectDataMap: Map<String, EngineObjectData.Sync>) -> Unit
 typealias NodeBatchResolverFn = suspend (selectors: List<NodeResolverExecutor.Selector>, context: EngineExecutionContext) -> Map<NodeResolverExecutor.Selector, Result<EngineObjectData>>
@@ -328,6 +336,41 @@ class MockTenantAPIBootstrapper(
     override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> = tenantModuleBootstrappers
 }
 
+/** Each module gets its own tenant name so they bootstrap as distinct module configs. */
+fun List<MockTenantModuleBootstrapper>.toDispatcherRegistryFactory(
+    validator: Validator<ExecutorValidatorContext>,
+    checkerExecutorFactory: CheckerExecutorFactory,
+    proxyResolverFactory: ProxyResolverFactory = ProxyResolverFactory.NO_OP,
+): StandardDispatcherRegistryFactory {
+    val registriesByTenant =
+        mapIndexed { i, module ->
+            "test/tenant$i" to
+                MockExecutorRegistry(
+                    module.fieldResolverExecutors,
+                    module.nodeResolverExecutors,
+                )
+        }.toMap()
+    return StandardDispatcherRegistryFactory(
+        moduleConfigSources = registriesByTenant.map { (tenantName, registry) ->
+            mockModuleConfigSource(tenantName, registry)
+        },
+        tenantModuleInjectorFactory = object : TenantModuleInjectorFactory {
+            override suspend fun bootstrap(
+                tenantName: String,
+                tenantBootstrapClass: Class<*>?,
+            ): CodeInjector = MockExecutorCodeInjector(requireNotNull(registriesByTenant[tenantName]))
+        },
+        validator = validator,
+        checkerExecutorFactory = checkerExecutorFactory,
+        proxyResolverFactory = proxyResolverFactory,
+    )
+}
+
+/**
+ * A mock tenant module: a schema plus the resolver and checker executors registered against it.
+ *
+ * Convert it to an [EngineTestModule] or a module config source before handing it to the engine.
+ */
 class MockTenantModuleBootstrapper(
     val fullSchema: ViaductSchema,
     val fieldResolverExecutors: Iterable<Pair<Coordinate, FieldResolverExecutor>> = emptyList(),
@@ -339,7 +382,16 @@ class MockTenantModuleBootstrapper(
 
     override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> = nodeResolverExecutors
 
-    fun resolverAt(coord: Coordinate) = fieldResolverExecutors(fullSchema).first { it.first == coord }.second
+    fun toEngineTestModule(): EngineTestModule =
+        EngineTestModule(
+            fullSchema = fullSchema,
+            fieldResolverExecutors = fieldResolverExecutors,
+            nodeResolverExecutors = nodeResolverExecutors,
+            checkerExecutors = checkerExecutors,
+            typeCheckerExecutors = typeCheckerExecutors,
+        )
+
+    fun resolverAt(coord: Coordinate) = fieldResolverExecutors.first { it.first == coord }.second
 
     fun checkerAt(coord: Coordinate) = checkerExecutors[coord]
 

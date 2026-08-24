@@ -174,7 +174,7 @@ class MockTenantModuleDSLTest {
             }
         }
 
-        val resolvers = module.fieldResolverExecutors(Samples.testSchema).toList()
+        val resolvers = module.fieldResolverExecutors.toList()
         assertEquals(1, resolvers.size)
         val executor = resolvers[0].second
         assertEquals("mock:metadata-resolver-name", executor.metadata.toTagString())
@@ -209,7 +209,7 @@ class MockTenantModuleDSLTest {
             }
         }
 
-        val resolvers = module.fieldResolverExecutors(Samples.testSchema).toList()
+        val resolvers = module.fieldResolverExecutors.toList()
         assertEquals(1, resolvers.size)
         val executor = resolvers[0].second
         assertEquals("mock:test-resolver", executor.metadata.toTagString())
@@ -349,7 +349,7 @@ class MockTenantModuleDSLTest {
         }
 
         // Verify both resolver and checker were created
-        val resolvers = module.fieldResolverExecutors(Samples.testSchema).toList()
+        val resolvers = module.fieldResolverExecutors.toList()
         assertEquals(1, resolvers.size)
         assertEquals(1, module.checkerExecutors.size)
     }
@@ -367,7 +367,7 @@ class MockTenantModuleDSLTest {
             }
         }
 
-        val nodeExecutors = module.nodeResolverExecutors(Samples.testSchema).toList()
+        val nodeExecutors = module.nodeResolverExecutors.toList()
         assertEquals(1, nodeExecutors.size)
         assertEquals(1, module.typeCheckerExecutors.size)
 
@@ -394,7 +394,7 @@ class MockTenantModuleDSLTest {
             }
         }
 
-        val resolvers = module.fieldResolverExecutors(Samples.testSchema).toList()
+        val resolvers = module.fieldResolverExecutors.toList()
         assertEquals(1, resolvers.size)
         val executor = resolvers[0].second
         // objectSelectionSet should be null when no objectSelections() is called
@@ -457,8 +457,8 @@ class MockTenantModuleDSLTest {
         }
 
         // Verify resolver/node counts
-        assertEquals(2, module.fieldResolverExecutors(Samples.testSchema).count())
-        assertEquals(2, module.nodeResolverExecutors(Samples.testSchema).count())
+        assertEquals(2, module.fieldResolverExecutors.count())
+        assertEquals(2, module.nodeResolverExecutors.count())
 
         // Verify checkers were accumulated in external maps
         assertEquals(1, module.checkerExecutors.size) // complexField checker

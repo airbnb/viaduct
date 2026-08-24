@@ -14,10 +14,10 @@ import viaduct.api.resolver.Resolver
 import viaduct.api.types.NodeObject
 import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.VisibleForTest
-import viaduct.engine.BootstrapperFactory
-import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
+import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryConfigSourceCollector
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
+import viaduct.service.api.spi.TenantModuleInjectorFactory
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.bootstrap.GuiceCodeInjector
 import viaduct.tenant.runtime.bootstrap.TenantPackageInfo
@@ -57,7 +57,7 @@ abstract class KotlinFeatureAppTestContractBase : AbstractFeatureAppTestContract
 
     private val overridesBootstrapper: Boolean = generateSequence<Class<*>>(this::class.java) { it.superclass }
         .takeWhile { it != KotlinFeatureAppTestContractBase::class.java }
-        .any { cls -> cls.declaredMethods.any { it.name == "createBootstrapperBuilder" } }
+        .any { cls -> cls.declaredMethods.any { it.name == "moduleConfigSources" } }
 
     @BeforeEach
     fun failIfFileBasedRegistryAbsent() {
@@ -73,15 +73,11 @@ abstract class KotlinFeatureAppTestContractBase : AbstractFeatureAppTestContract
         }
     }
 
-    override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder =
-        object : TenantAPIBootstrapperBuilder {
-            override fun create() =
-                BootstrapperFactory.fromConfigSources(
-                    tenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(guiceCodeInjector),
-                    moduleConfigSources = ExecutionRegistryConfigSourceCollector.fromResources(derivedClassPackagePrefix),
-                    grtPackagePrefix = derivedClassPackagePrefix,
-                )
-        }
+    override fun moduleConfigSources(): List<ModuleConfigSource> = ExecutionRegistryConfigSourceCollector.fromResources(derivedClassPackagePrefix)
+
+    override fun tenantModuleInjectorFactory(): TenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(guiceCodeInjector)
+
+    override fun grtPackagePrefix(): String = derivedClassPackagePrefix
 
     override fun onBeforeBuild() {
         if (validateResolverCompleteness) {

@@ -1,19 +1,22 @@
 @file:Suppress("ForbiddenImport")
+@file:OptIn(ExperimentalApi::class)
 
 package viaduct.engine.api.mocks
 
 import graphql.language.AstPrinter
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
+import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
 import viaduct.engine.api.spi.CheckerExecutor
-import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.service.api.spi.InputStreamSource
 
 class EngineTestModule(
     val fullSchema: ViaductSchema,
@@ -22,9 +25,10 @@ class EngineTestModule(
     val checkerExecutors: Map<Coordinate, CheckerExecutor> = emptyMap(),
     val typeCheckerExecutors: Map<String, CheckerExecutor> = emptyMap(),
 ) {
+    val mockExecutorRegistry = MockExecutorRegistry(fieldResolverExecutors, nodeResolverExecutors)
+
     companion object {
-        /** Stable `apiName` for configs built by this test fixture. */
-        const val API_NAME = "engine_test_module"
+        const val DEFAULT_TENANT_NAME = "viaduct/engine/api/mocks"
 
         operator fun invoke(
             schemaSDL: String,
@@ -37,7 +41,7 @@ class EngineTestModule(
         ): EngineTestModule = MockTenantModuleDSL(schemaWithWiring, Unit).apply(block).createEngineTestModule()
     }
 
-    fun buildExecutionRegistryConfigFile(): ExecutionRegistryConfigFile {
+    fun buildExecutionRegistryConfigFile(tenantName: String = DEFAULT_TENANT_NAME): ExecutionRegistryConfigFile {
         val fieldEntries = fieldResolverExecutors.map { (coord, executor) ->
             requireFieldInSchema(coord)
             FieldEntryConfig(
@@ -48,7 +52,7 @@ class EngineTestModule(
                 attribution = executor.metadata.name,
                 objectSelections = executor.objectSelectionSet?.toSelectionsBlockConfig(),
                 querySelections = executor.querySelectionSet?.toSelectionsBlockConfig(),
-                tenantAPIData = mapOf("resolver" to executor),
+                tenantAPIData = emptyMap(),
             )
         }
         val nodeEntries = nodeResolverExecutors.map { (typeName, executor) ->
@@ -58,17 +62,26 @@ class EngineTestModule(
                 isBatching = executor.isBatching,
                 isSelective = executor.isSelective,
                 attribution = executor.metadata.name,
-                tenantAPIData = mapOf("resolver" to executor),
+                tenantAPIData = emptyMap(),
             )
         }
         return ExecutionRegistryConfigFile(
             version = "1",
-            executorFactory = EngineTestModuleExecutorFactory::class.java.name,
-            apiName = API_NAME,
+            executorFactory = MockExecutorFactory::class.java.name,
+            tenantName = tenantName,
+            apiName = "mock",
             fields = fieldEntries,
             nodes = nodeEntries,
         )
     }
+
+    fun toModuleConfigSource(tenantName: String = DEFAULT_TENANT_NAME): ModuleConfigSource =
+        ModuleConfigSource.from(
+            InputStreamSource.fromString(
+                ExecutionRegistryConfigFile.toJson(buildExecutionRegistryConfigFile(tenantName)),
+                name = tenantName,
+            ),
+        )
 
     private fun RequiredSelectionSet.toSelectionsBlockConfig() =
         SelectionsBlockConfig(
@@ -95,16 +108,4 @@ class EngineTestModule(
             "EngineTestModule: type '$typeName' does not implement Node interface in fullSchema. Cannot register node resolver."
         }
     }
-}
-
-class EngineTestModuleExecutorFactory : ExecutorFactory {
-    override fun createFieldResolverExecutor(
-        configData: FieldEntryConfig,
-        schema: ViaductSchema,
-    ): FieldResolverExecutor = configData.tenantAPIData["resolver"] as FieldResolverExecutor
-
-    override fun createNodeResolverExecutor(
-        configData: NodeEntryConfig,
-        schema: ViaductSchema,
-    ): NodeResolverExecutor = configData.tenantAPIData["resolver"] as NodeResolverExecutor
 }

@@ -5,24 +5,43 @@ import com.google.inject.Guice
 import javax.inject.Singleton
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
+import viaduct.engine.api.bootstrap.executionregistry.KOTLIN_API_NAME
+import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
-import viaduct.engine.api.spi.TenantAPIBootstrapper
-import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
-import viaduct.engine.runtime.tenantloading.ExecutionRegistryTenantModuleBootstrapper
+import viaduct.service.api.spi.InputStreamSource
+import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
+import viaduct.service.api.spi.TenantModuleInjectorFactory
 import viaduct.tenant.runtime.bootstrap.GuiceCodeInjector
-import viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory
 
 class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
     override val validateResolverCompleteness = false
 
-    override fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder {
+    private val injector = Guice.createInjector(
+        object : AbstractModule() {
+            override fun configure() {
+                bind(resolverClass("QueryNodeObjResolver")).`in`(Singleton::class.java)
+                bind(resolverClass("NodeReferenceResolver")).`in`(Singleton::class.java)
+                bind(resolverClass("ObjectWithNodeFieldResolver")).`in`(Singleton::class.java)
+                bind(resolverClass("NodeObjResolver")).`in`(Singleton::class.java)
+                bind(resolverClass("NodeRefWithIllegalAccessResolver")).`in`(Singleton::class.java)
+            }
+        }
+    )
+
+    override fun tenantModuleInjectorFactory(): TenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(GuiceCodeInjector(injector))
+
+    override fun grtPackagePrefix(): String = GRT_PACKAGE
+
+    override fun moduleConfigSources(): List<ModuleConfigSource> {
         // Reuse KotlinNodeResolverContractTest's resolver impls — no new classes needed.
         // This simulates what KSP will emit: FQNs pointing at the real resolver implementations.
         val base = "viaduct.tenant.runtime.execution.noderesolver.KotlinNodeResolverContractTest"
         val resolverBases = "viaduct.tenant.runtime.execution.noderesolver.resolverbases"
         val registry = ExecutionRegistryConfigFile(
             version = "1",
-            executorFactory = "viaduct.api.internal.DefaultGRTConvFactory",
+            tenantName = "viaduct/tenant/runtime/execution/noderesolver",
+            apiName = KOTLIN_API_NAME,
+            executorFactory = "viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory",
             nodes = listOf(
                 NodeEntryConfig(
                     typeName = "NodeObj",
@@ -92,35 +111,21 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                 ),
             ),
         )
-        val resolverClass = { name: String ->
-            @Suppress("UNCHECKED_CAST")
-            Class.forName("$base\$$name") as Class<Any>
-        }
-        val injector = Guice.createInjector(
-            object : AbstractModule() {
-                override fun configure() {
-                    bind(resolverClass("QueryNodeObjResolver")).`in`(Singleton::class.java)
-                    bind(resolverClass("NodeReferenceResolver")).`in`(Singleton::class.java)
-                    bind(resolverClass("ObjectWithNodeFieldResolver")).`in`(Singleton::class.java)
-                    bind(resolverClass("NodeObjResolver")).`in`(Singleton::class.java)
-                    bind(resolverClass("NodeRefWithIllegalAccessResolver")).`in`(Singleton::class.java)
-                }
-            }
+        return listOf(
+            ModuleConfigSource.from(
+                InputStreamSource.fromString(
+                    ExecutionRegistryConfigFile.toJson(registry),
+                    name = "noderesolver.json",
+                ),
+            ),
         )
-        val factory = ViaductModernExecutorFactory(
-            codeInjector = GuiceCodeInjector(injector),
-            grtPackagePrefix = "viaduct.tenant.runtime.execution.noderesolver",
-            registry = registry,
-        )
-        val bootstrapper = ExecutionRegistryTenantModuleBootstrapper(
-            registry = registry,
-            executorFactory = factory,
-        )
-        return object : TenantAPIBootstrapperBuilder {
-            override fun create() =
-                object : TenantAPIBootstrapper {
-                    override suspend fun tenantModuleBootstrappers() = listOf(bootstrapper)
-                }
-        }
+    }
+
+    private companion object {
+        private const val GRT_PACKAGE = "viaduct.tenant.runtime.execution.noderesolver"
+        private const val RESOLVER_BASE = "viaduct.tenant.runtime.execution.noderesolver.KotlinNodeResolverContractTest"
+
+        @Suppress("UNCHECKED_CAST")
+        private fun resolverClass(name: String): Class<Any> = Class.forName("$RESOLVER_BASE\$$name") as Class<Any>
     }
 }

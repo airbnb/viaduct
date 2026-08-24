@@ -4,6 +4,9 @@ package viaduct.engine.api.bootstrap.executionregistry
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import viaduct.service.api.spi.InputStreamSource
 
 /**
  * Stable `apiName` wire value for the default tenant API — the one this engine ships and generates for
@@ -75,7 +78,15 @@ data class ExecutionRegistryConfigFile(
     val bootstrapClass: String? = null,
     /** @GraphQLFragment definitions, carried to runtime to resolve spreads in ctx.query/ctx.mutation strings. */
     val namedFragments: List<String> = emptyList(),
-)
+) {
+    companion object {
+        private val objectMapper = jacksonObjectMapper()
+
+        fun parse(source: InputStreamSource): ExecutionRegistryConfigFile = source.openStream().use { objectMapper.readValue(it) }
+
+        fun toJson(config: ExecutionRegistryConfigFile): String = objectMapper.writeValueAsString(config)
+    }
+}
 
 data class NodeEntryConfig(
     val typeName: String,

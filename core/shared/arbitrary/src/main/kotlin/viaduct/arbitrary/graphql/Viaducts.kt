@@ -14,9 +14,6 @@ import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CheckerExecutorFactory as EngineCheckerExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
-import viaduct.engine.api.spi.TenantAPIBootstrapper
-import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.runtime.SchemaConfiguration
@@ -113,16 +110,22 @@ internal interface ViaductGenEnv {
 }
 
 private class ViaductGen(private val env: ViaductGenEnv) {
+    private companion object {
+        const val GENERATED_TENANT_NAME = "viaduct/arbitrary/generated"
+    }
+
     fun gen(): Viaduct {
         val fieldResolverExecutors = genFieldResolverExecutors()
         val nodeResolverExecutors = genNodeResolverExecutors()
         val fieldCheckerExecutors = genFieldCheckerExecutors()
         val typeCheckerExecutors = genTypeCheckerExecutors()
+        val executors = ArbitraryExecutors(fieldResolverExecutors, nodeResolverExecutors)
 
-        @Suppress("DEPRECATION")
+        @Suppress("DEPRECATION") // withSchemaConfiguration is "for Airbnb use only"
         val viaduct = StandardViaduct.Builder()
             .withSchemaConfiguration(SchemaConfiguration.fromSchema(env.schemas.viaductSchema))
-            .withTenantAPIBootstrapperBuilders(genTenantModuleBootstrapperBuilders(fieldResolverExecutors, nodeResolverExecutors))
+            .withTenantModuleInjectorFactory(ArbitraryExecutorCodeInjector(executors))
+            .withExecutorRegistryConfigSources(listOf(executors.moduleConfigSource(GENERATED_TENANT_NAME)))
             .withCheckerExecutorFactory(genCheckerExecutorFactory(fieldCheckerExecutors, typeCheckerExecutors))
             // Framework flags on, matching FeatureTest's MockFlagManager.Enabled — in particular
             // selective resolver execution, which the generated resolvers exercise.
@@ -146,39 +149,6 @@ private class ViaductGen(private val env: ViaductGenEnv) {
             }
         )
     }
-
-    private fun genTenantModuleBootstrapperBuilders(
-        fieldResolverExecutors: List<Pair<Coordinate, FieldResolverExecutor>>,
-        nodeResolverExecutors: List<Pair<String, NodeResolverExecutor>>,
-    ): List<TenantAPIBootstrapperBuilder> {
-        val bootstrapper = genTenantApiBootstrapper(fieldResolverExecutors, nodeResolverExecutors)
-        return listOf(
-            object : TenantAPIBootstrapperBuilder {
-                override fun create() = bootstrapper
-            }
-        )
-    }
-
-    private fun genTenantApiBootstrapper(
-        fieldResolverExecutors: List<Pair<Coordinate, FieldResolverExecutor>>,
-        nodeResolverExecutors: List<Pair<String, NodeResolverExecutor>>,
-    ): TenantAPIBootstrapper {
-        val tenantModuleBootstrappers = listOf(genTenantModuleBootstrapper(fieldResolverExecutors, nodeResolverExecutors))
-
-        return object : TenantAPIBootstrapper {
-            override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> = tenantModuleBootstrappers
-        }
-    }
-
-    private fun genTenantModuleBootstrapper(
-        fieldResolverExecutors: List<Pair<Coordinate, FieldResolverExecutor>>,
-        nodeResolverExecutors: List<Pair<String, NodeResolverExecutor>>,
-    ): TenantModuleBootstrapper =
-        object : TenantModuleBootstrapper {
-            override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> = fieldResolverExecutors
-
-            override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> = nodeResolverExecutors
-        }
 
     private fun genFieldResolverExecutors(): List<Pair<Coordinate, FieldResolverExecutor>> =
         env.resolverConfig.fieldResolvers.map { coord ->

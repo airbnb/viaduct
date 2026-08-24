@@ -23,6 +23,7 @@ dependencies {
 
     implementation(libs.kotest.common.jvm)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.javax.inject)
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.engine.runtime)
     implementation(libs.viaduct.engine.wiring)

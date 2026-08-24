@@ -1,7 +1,5 @@
 package viaduct.engine.api.bootstrap.executionregistry
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import viaduct.service.api.spi.InputStreamSource
 
 /**
@@ -64,8 +62,6 @@ data class ModuleConfigSource private constructor(
     val key: ConfigKey get() = ConfigKey(tenantName, apiName)
 
     companion object {
-        private val objectMapper = jacksonObjectMapper()
-
         /**
          * Parses [source] just enough to extract its [ExecutionRegistryConfigFile.tenantName] and
          * [ExecutionRegistryConfigFile.apiName], pairing them into a [ModuleConfigSource]. This is
@@ -79,7 +75,7 @@ data class ModuleConfigSource private constructor(
          *   `apiName`.
          */
         fun from(source: InputStreamSource): ModuleConfigSource {
-            val config = source.openStream().use { objectMapper.readValue<ExecutionRegistryConfigFile>(it) }
+            val config = ExecutionRegistryConfigFile.parse(source)
             val tenantName = config.tenantName
                 ?: throw IllegalArgumentException("Execution registry config source must include tenantName: $source")
             val apiName = config.apiName?.takeIf { it.isNotBlank() }

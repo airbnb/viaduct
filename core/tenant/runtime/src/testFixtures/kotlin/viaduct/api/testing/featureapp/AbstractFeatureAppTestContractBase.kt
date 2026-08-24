@@ -9,13 +9,16 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
 import viaduct.api.testing.TestSchema
 import viaduct.apiannotations.InternalApi
+import viaduct.apiannotations.VisibleForTest
+import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
+import viaduct.engine.runtime.tenantloading.ModuleConfigBootstrapper
 import viaduct.service.SchemaScopeInfo
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.ExecutionResult
 import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
+import viaduct.service.api.spi.TenantModuleInjectorFactory
 import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
@@ -24,7 +27,8 @@ import viaduct.service.runtime.StandardViaduct
  * Abstract base class for contract-style feature-app tests.
  *
  * The schema is provided via the [TestSchema] annotation (required). Subclasses
- * provide language-specific bootstrapper wiring by implementing [createBootstrapperBuilder].
+ * provide language-specific bootstrap wiring by implementing [moduleConfigSources] and
+ * [tenantModuleInjectorFactory].
  *
  * This class provides the common test lifecycle, builder wiring, and query execution
  * logic shared by both the Kotlin and Java contract test bases.
@@ -43,12 +47,14 @@ abstract class AbstractFeatureAppTestContractBase {
      */
     open fun sdl(): String = sdl
 
-    /**
-     * Creates the [TenantAPIBootstrapperBuilder] used to bootstrap resolvers.
-     * Kotlin subclasses return an execution-registry bootstrapper builder;
-     * Java subclasses return a `MockTenantAPIBootstrapperBuilder` wrapper.
-     */
-    protected abstract fun createBootstrapperBuilder(): TenantAPIBootstrapperBuilder
+    /** The `META-INF/viaduct/modules/<pkg>.json` sources backing this test, discovered from the classpath. */
+    protected abstract fun moduleConfigSources(): List<ModuleConfigSource>
+
+    /** Kotlin subclasses supply a Guice-backed injector; Java subclasses supply a naive one. */
+    protected abstract fun tenantModuleInjectorFactory(): TenantModuleInjectorFactory
+
+    /** Contract tests generate GRTs into the tenant package rather than the production default. */
+    protected open fun grtPackagePrefix(): String? = null
 
     /**
      * Hook called just before build. Override to add pre-build
@@ -100,12 +106,14 @@ abstract class AbstractFeatureAppTestContractBase {
 
     @BeforeEach
     @Suppress("DEPRECATION")
+    @OptIn(VisibleForTest::class)
     open fun initViaductBuilder() {
         if (!::viaductBuilder.isInitialized) {
             viaductBuilder = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
                 .withLenientResolverValidation()
-                .withTenantAPIBootstrapperBuilder(createBootstrapperBuilder())
+                .withTenantModuleInjectorFactory(tenantModuleInjectorFactory())
+                .withExecutorRegistryConfigSources(moduleConfigSources(), grtPackagePrefix())
                 .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl()))
         }
     }
@@ -137,9 +145,7 @@ abstract class AbstractFeatureAppTestContractBase {
     /**
      * Returns the [FieldResolverExecutor] for the given coordinate, or null if none is registered.
      *
-     * Builds the bootstrapper via [createBootstrapperBuilder] (file-based for both Kotlin and Java)
-     * and searches the resulting module bootstrappers. Useful for asserting how required selection
-     * sets were wired without executing a query.
+     * Useful for asserting how required selection sets were wired without executing a query.
      */
     protected fun fieldResolverExecutorFor(
         typeName: String,
@@ -149,7 +155,10 @@ abstract class AbstractFeatureAppTestContractBase {
         val schema = (viaductService as StandardViaduct).engineRegistry.getSchema(SchemaId.Base)
         val coordinate = typeName to fieldName
         return runBlocking {
-            createBootstrapperBuilder().create().tenantModuleBootstrappers()
+            ModuleConfigBootstrapper(
+                tenantModuleInjectorFactory = tenantModuleInjectorFactory(),
+                grtPackagePrefix = grtPackagePrefix(),
+            ).bootstrap(moduleConfigSources())
                 .flatMap { it.fieldResolverExecutors(schema) }
                 .firstOrNull { it.first == coordinate }
                 ?.second

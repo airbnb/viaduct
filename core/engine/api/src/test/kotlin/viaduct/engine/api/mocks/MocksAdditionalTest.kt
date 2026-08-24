@@ -85,23 +85,6 @@ class MocksAdditionalTest {
     }
 
     @Test
-    fun `MockTenantAPIBootstrapper with modules list`() {
-        val module1 = Samples.mockTenantModule
-        val module2 = MockTenantModuleBootstrapper(Samples.testSchema) {
-            field("OtherType" to "otherField") {
-                resolver {
-                    fn { _, _, _, _, _ -> "other" }
-                }
-            }
-        }
-
-        val bootstrapper = MockTenantAPIBootstrapper(listOf(module1, module2))
-
-        // Test that the bootstrapper holds the modules
-        assertNotNull(bootstrapper)
-    }
-
-    @Test
     fun `MockTenantModuleBootstrapper Builder resolver function`() {
         val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             field("TestType" to "testField") {
@@ -114,7 +97,7 @@ class MocksAdditionalTest {
             }
         }
 
-        val resolvers = module.fieldResolverExecutors(Samples.testSchema).toList()
+        val resolvers = module.fieldResolverExecutors.toList()
         assertEquals(1, resolvers.size)
 
         val (coordinate, executor) = resolvers[0]
@@ -132,7 +115,7 @@ class MocksAdditionalTest {
             }
         }
 
-        val nodeResolvers = module.nodeResolverExecutors(Samples.testSchema).toList()
+        val nodeResolvers = module.nodeResolverExecutors.toList()
         assertEquals(1, nodeResolvers.size)
 
         val (typeName, executor) = nodeResolvers[0]
@@ -150,7 +133,7 @@ class MocksAdditionalTest {
             }
         }
 
-        val resolverExecutors = module.nodeResolverExecutors(Samples.testSchema).toList()
+        val resolverExecutors = module.nodeResolverExecutors.toList()
         assertEquals(1, resolverExecutors.size)
 
         val (typeName, resolver) = resolverExecutors[0]
@@ -181,8 +164,8 @@ class MocksAdditionalTest {
             }
         }
 
-        assertEquals(2, module.fieldResolverExecutors(Samples.testSchema).count())
-        assertEquals(2, module.nodeResolverExecutors(Samples.testSchema).count())
+        assertEquals(2, module.fieldResolverExecutors.count())
+        assertEquals(2, module.nodeResolverExecutors.count())
     }
 
     @Test
@@ -208,7 +191,7 @@ class MocksAdditionalTest {
         val module = Samples.mockTenantModule
 
         // Verify it has resolvers
-        val resolvers = module.fieldResolverExecutors(Samples.testSchema).toList()
+        val resolvers = module.fieldResolverExecutors.toList()
         assertEquals(6, resolvers.size)
 
         // Verify resolver coordinates
@@ -225,7 +208,7 @@ class MocksAdditionalTest {
             coordinates
         )
 
-        val nodeResolvers = module.nodeResolverExecutors(Samples.testSchema).toList()
+        val nodeResolvers = module.nodeResolverExecutors.toList()
         assertEquals(2, nodeResolvers.size)
 
         // Verify unbatched node resolvers
@@ -350,8 +333,8 @@ class MocksAdditionalTest {
     fun `MockTenantModuleBootstrapper empty constructor`() {
         val emptyModule = MockTenantModuleBootstrapper(MockSchema.minimal)
 
-        assertEquals(0, emptyModule.fieldResolverExecutors(Samples.testSchema).count())
-        assertEquals(0, emptyModule.nodeResolverExecutors(Samples.testSchema).count())
+        assertEquals(0, emptyModule.fieldResolverExecutors.count())
+        assertEquals(0, emptyModule.nodeResolverExecutors.count())
     }
 
     @Test

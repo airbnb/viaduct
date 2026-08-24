@@ -31,23 +31,9 @@ import viaduct.engine.runtime.validation.Validator
 import viaduct.service.api.spi.NaiveTenantModuleInjectorFactory
 import viaduct.service.api.spi.TenantModuleInjectorFactory
 
-/**
- * Builds a validated [DispatcherRegistry] from tenant module contributions.
- *
- * There are two implementations, differing only in how they obtain their
- * [TenantModuleBootstrapper]s:
- *
- * - [StandardDispatcherRegistryFactory] is the primary, file-based path: it bootstraps a list of
- *   [ModuleConfigSource]s in-engine via [ModuleConfigBootstrapper].
- * - [TenantAPIBootstrapperDispatcherRegistryFactory] is the compatibility path for tenant APIs that
- *   do not express themselves as config sources (classic wiring, remote resolvers, and mock/test
- *   fixtures): it delegates to a [TenantAPIBootstrapper].
- *
- * Both share the executor-assembly, checker-registration and validation logic in
- * [AbstractDispatcherRegistryFactory].
- */
+/** Builds a validated [DispatcherRegistry] from tenant module contributions. */
 interface DispatcherRegistryFactory {
-    /** create and return a validated [DispatcherRegistry] */
+    /** Creates and returns a validated [DispatcherRegistry]. */
     fun create(schema: ViaductSchema): DispatcherRegistry
 }
 
@@ -105,8 +91,7 @@ abstract class AbstractDispatcherRegistryFactory(
             for ((fieldCoord, executor) in tenantFieldResolverExecutors) {
                 val finalExecutor = proxyResolverFactory.proxyField(executor) ?: executor
                 // Resolver coordinates are globally keyed. Duplicate registrations are deduped
-                // silently here with the later registration winning, which preserves the existing
-                // bootstrap behavior for fallback classic field registration.
+                // silently here, with the later registration winning.
                 fieldResolverDispatchers[fieldCoord] = FieldResolverDispatcherImpl(finalExecutor)
                 // The proxy executor is validated because the engine uses the proxy's RSS and type
                 // contract at runtime. Validating the original would check RSS that is no longer
@@ -167,21 +152,20 @@ abstract class AbstractDispatcherRegistryFactory(
 }
 
 /**
- * The primary, file-based [DispatcherRegistryFactory].
+ * Assembles a [DispatcherRegistry] from file-based tenant module configs.
  *
  * [moduleConfigSources] (resource-backed tenant modules) are bootstrapped in-place via
  * [ModuleConfigBootstrapper] using [tenantModuleInjectorFactory]. Tenant APIs that do not express
- * themselves as config sources (classic wiring, remote resolvers) may still be folded in through the
- * optional [compatBootstrapper]; its [TenantModuleBootstrapper]s are concatenated after those built
- * from the config sources.
+ * themselves as config sources (classic wiring, remote resolvers) come in through the optional
+ * [compatBootstrapper]; its [TenantModuleBootstrapper]s are concatenated after those built from the
+ * config sources.
  *
  * Generated built-in resolvers (`Query.node`/`Query.nodes` and `@namespaceType`) are supplied via
- * [builtinModuleConfigSourcesProvider] and are bootstrapped **last**, after both the resource-backed
- * and compat contributions. Resolver coordinates are deduped with the later registration winning, so
- * bootstrapping the built-ins last guarantees they take precedence over any tenant-supplied resolver
- * registered at the same coordinate — matching the pre-file-bootstrap ordering. Because built-in
+ * [builtinModuleConfigSourcesProvider] and are bootstrapped **last**. Resolver coordinates are
+ * deduped with the later registration winning, so bootstrapping the built-ins last gives them
+ * precedence over any tenant-supplied resolver registered at the same coordinate. Because built-in
  * executor factories are schema-independent and ignore both the code injector and the GRT prefix,
- * they are bootstrapped in their own pass with a [NaiveTenantModuleInjectorFactory]; this also keeps
+ * they are bootstrapped in their own pass with a [NaiveTenantModuleInjectorFactory]; this also holds
  * the service-supplied [tenantModuleInjectorFactory]'s `onBootstrapComplete` contract to a single
  * invocation.
  *
@@ -222,26 +206,4 @@ class StandardDispatcherRegistryFactory(
             ).bootstrap(builtinModuleConfigSourcesProvider())
         return fromConfigSources + fromCompat + fromBuiltins
     }
-}
-
-/**
- * The compatibility [DispatcherRegistryFactory] for callers that only have a [TenantAPIBootstrapper]
- * (classic wiring, remote resolvers, and mock/test fixtures). Tenant contributions come entirely
- * from [tenantAPIBootstrapper].
- */
-class TenantAPIBootstrapperDispatcherRegistryFactory(
-    private val tenantAPIBootstrapper: TenantAPIBootstrapper,
-    validator: Validator<ExecutorValidatorContext>,
-    checkerExecutorFactory: CheckerExecutorFactory,
-    resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
-    proxyResolverFactory: ProxyResolverFactory = ProxyResolverFactory.NO_OP,
-    missingResolverValidator: Validator<MissingResolverValidationCtx> = Validator.Unvalidated,
-) : AbstractDispatcherRegistryFactory(
-        validator = validator,
-        checkerExecutorFactory = checkerExecutorFactory,
-        resolverInstrumentation = resolverInstrumentation,
-        proxyResolverFactory = proxyResolverFactory,
-        missingResolverValidator = missingResolverValidator,
-    ) {
-    override suspend fun tenantModuleBootstrappers(): List<TenantModuleBootstrapper> = tenantAPIBootstrapper.tenantModuleBootstrappers().toList()
 }

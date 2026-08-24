@@ -44,13 +44,3 @@ interface TenantModuleBootstrapper {
      */
     fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>>
 }
-
-/**
- * Thrown by member of [TenantModuleBootstrapper] to indicate an error in loading a
- * module that should terminate the attempt to load this module but that isn't
- * fatal in the sense that it should necessarily terminate the loading of other modules.
- */
-class TenantModuleException(
-    message: String,
-    cause: Throwable? = null,
-) : Exception(message, cause)
