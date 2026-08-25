@@ -85,29 +85,54 @@ class ScopedSchemaBuilder(
      *
      * The resulting schema is not executable; it only contains type metadata, not wiring.
      */
-    fun build(view: SchemaView): ScopedGraphQLSchema = build(view, includeTenantLocalFields = false)
+    fun build(view: SchemaView): ScopedGraphQLSchema =
+        build(
+            view,
+            includeTenantLocalFields = false,
+            includeInternalDirectives = false,
+        )
 
     /**
-     * Builds the full schema view for the selected scopes, including tenant-local fields.
+     * Builds the full schema view for the selected scopes, including tenant-local fields and
+     * internal-only directive definitions.
      *
      * This Airbnb-only API is used by subgraph services for their internal schema. Request schemas
-     * should use [SchemaView.Scoped] so tenant-local fields remain hidden from clients.
+     * should use [SchemaView.Scoped] so tenant-local fields and internal directives remain hidden
+     * from clients.
      */
     @InternalApi
-    fun buildScopedFull(scopes: Set<String>): ScopedGraphQLSchema = build(SchemaView.Scoped(scopes), includeTenantLocalFields = true)
+    fun buildScopedFull(scopes: Set<String>): ScopedGraphQLSchema =
+        build(
+            SchemaView.Scoped(scopes),
+            includeTenantLocalFields = true,
+            includeInternalDirectives = true,
+        )
 
     private fun build(
         view: SchemaView,
         includeTenantLocalFields: Boolean,
+        includeInternalDirectives: Boolean,
     ): ScopedGraphQLSchema {
         if (view == SchemaView.Base && !hasTenantLocalFields(inputSchema)) {
-            return ScopedGraphQLSchema(inputSchema, inputSchema)
+            val baseSchema = if (!includeInternalDirectives &&
+                inputSchema.directives.any { it.name == AIRBNB_BYPASS_POLICY_CHECK_DIRECTIVE }
+            ) {
+                inputSchema.withPublicDirectivesFiltered()
+            } else {
+                inputSchema
+            }
+            return ScopedGraphQLSchema(inputSchema, baseSchema)
         }
         val scopeTransformer = SchemaScopeTransformer(scopingMode, additionalVisitorConstructors)
         val preparedSchema = replaceAllTypesWithReferences(inputSchema)
         return ScopedGraphQLSchema(
             inputSchema,
-            scopeTransformer.transform(preparedSchema, view, includeTenantLocalFields),
+            scopeTransformer.transform(
+                preparedSchema,
+                view,
+                includeTenantLocalFields,
+                includeInternalDirectives,
+            ),
         )
     }
 
@@ -303,9 +328,21 @@ class ScopedSchemaBuilder(
                 isTenantLocalEquivalentField(child)
             } == true
         }
+
+    private fun GraphQLSchema.withPublicDirectivesFiltered(): GraphQLSchema =
+        transform {
+            it.clearDirectives()
+            it.additionalDirectives(
+                directives.filterNot { directive ->
+                    directive.name == AIRBNB_BYPASS_POLICY_CHECK_DIRECTIVE
+                }.toSet()
+            )
+        }
 }
 
 data class ScopedGraphQLSchema(
     val original: GraphQLSchema,
     val filtered: GraphQLSchema
 )
+
+private const val AIRBNB_BYPASS_POLICY_CHECK_DIRECTIVE = "bypassPolicyCheck"

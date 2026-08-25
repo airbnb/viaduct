@@ -101,6 +101,32 @@ class ScopeAndTenantLocalSchemaFilterTest {
     }
 
     @Test
+    fun `bypassPolicyCheck directive filtering is opt in`() {
+        val schema = loadSchema(
+            """
+            directive @scope(to: [String!]!) repeatable on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
+            directive @bypassPolicyCheck on FIELD
+
+            type Query @scope(to: ["a"]) {
+                field: String
+            }
+            """.trimIndent()
+        )
+
+        val defaultSchema = schema.filter(ScopeAndTenantLocalSchemaFilter(setOf("a")))
+        val filteredSchema = schema.filter(
+            ScopeAndTenantLocalSchemaFilter(
+                setOf("a"),
+                filterBypassPolicyCheckDirective = true,
+            )
+        )
+
+        assertNotNull(defaultSchema.directives["bypassPolicyCheck"])
+        assertNull(filteredSchema.directives["bypassPolicyCheck"])
+        assertNotNull(filteredSchema.directives["scope"])
+    }
+
+    @Test
     fun `scope filter removes backing-data fields without explicit tenant-local directive`() {
         val schema = loadSchema(
             """
