@@ -28,13 +28,13 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.graphql.asViaductSchema
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.Mat
 import viaduct.engine.runtime.mat.MatPath
 import viaduct.engine.runtime.mat.MatPath.Segment
 import viaduct.engine.runtime.mat.MatResult
 import viaduct.engine.runtime.mat.build
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 class MatLedgerImplTest {
     private val schema = """

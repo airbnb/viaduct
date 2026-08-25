@@ -33,7 +33,6 @@ import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextFactory
 import viaduct.engine.runtime.EngineExecutionContextImpl
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.SelectionSetCompletionEngine
 import viaduct.engine.runtime.SubqueryInstrumentationEngine
@@ -55,6 +54,7 @@ import viaduct.engine.runtime.graphql_java.GraphQLJavaConfig
 import viaduct.engine.runtime.instrumentation.ResolverDataFetcherInstrumentation
 import viaduct.engine.runtime.instrumentation.ScopeInstrumentation
 import viaduct.engine.runtime.instrumentation.TaggedMetricInstrumentation
+import viaduct.engine.runtime.result.ObjectEngineResult
 import viaduct.service.api.spi.FlagManager
 import viaduct.utils.string.sha256Hash
 
@@ -176,15 +176,37 @@ class EngineImpl(
         executionHandle: EngineExecutionContext.ExecutionHandle,
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions,
-    ): EngineObjectData.Sync = resolveSelectionSet(executionHandle, selectionSet, options, instrumentationContext = null)
+    ): EngineObjectData.Sync =
+        resolveSelectionSet(
+            executionHandle,
+            selectionSet,
+            options,
+            instrumentationContext = null,
+            targetResult = null,
+        )
 
     override suspend fun resolveSelectionSet(
         executionHandle: EngineExecutionContext.ExecutionHandle,
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions,
         instrumentationContext: ResolverInstrumentationContext?,
+    ): EngineObjectData.Sync =
+        resolveSelectionSet(
+            executionHandle,
+            selectionSet,
+            options,
+            instrumentationContext,
+            targetResult = null,
+        )
+
+    private suspend fun resolveSelectionSet(
+        executionHandle: EngineExecutionContext.ExecutionHandle,
+        selectionSet: EngineSelectionSet,
+        options: ResolveSelectionSetOptions,
+        instrumentationContext: ResolverInstrumentationContext?,
+        targetResult: ObjectEngineResultImpl?,
     ): EngineObjectData.Sync {
-        val subqueryExecution = executeSelectionSet(executionHandle, selectionSet, options)
+        val subqueryExecution = executeSelectionSet(executionHandle, selectionSet, options, targetResult)
 
         val errorMessage = "add it to the selection set provided to Context.${options.operationType.name.lowercase()}() in order to access it from the result"
 
@@ -283,9 +305,10 @@ class EngineImpl(
             executionHandle = executionHandle,
             selectionSet = prefixSelectionSet,
             options = ResolveSelectionSetOptions(
-                targetResult = parentParams.queryEngineResult,
                 attribution = attribution,
             ),
+            instrumentationContext = null,
+            targetResult = parentParams.queryEngineResult,
         )
         return parentParams.queryEngineResult.requireNamespaceResult(namespacePrefix)
     }
@@ -322,6 +345,7 @@ class EngineImpl(
         executionHandle: EngineExecutionContext.ExecutionHandle,
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions,
+        targetResult: ObjectEngineResultImpl?,
     ): SubqueryExecution {
         val parentParams = executionHandle.asExecutionParameters()
 
@@ -339,13 +363,7 @@ class EngineImpl(
             )
         }
 
-        val targetOER = when (val result = options.targetResult) {
-            null -> ObjectEngineResultImpl.newForType(rootType)
-            is ObjectEngineResultImpl -> result
-            else -> throw SubqueryExecutionException(
-                "targetResult must be an ObjectEngineResultImpl, got ${result::class.simpleName}"
-            )
-        }
+        val targetOER = targetResult ?: ObjectEngineResultImpl.newForType(rootType)
 
         // Mutation selection executions have a Mutation root result, but querySelections inside
         // them still execute against Query. Keep that Query result isolated from the parent request

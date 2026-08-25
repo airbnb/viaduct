@@ -4,6 +4,7 @@ import graphql.execution.ResultPath
 import graphql.schema.GraphQLObjectType
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 fun objectEngineResult(init: ObjectEngineResultBuilder.() -> Unit): ObjectEngineResultImpl {
     val builder = ObjectEngineResultBuilder()

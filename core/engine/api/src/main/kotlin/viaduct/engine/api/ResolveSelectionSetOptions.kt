@@ -1,7 +1,5 @@
 package viaduct.engine.api
 
-import viaduct.engine.runtime.ObjectEngineResult
-
 /**
  * Options for executing a selection set via [EngineExecutionContext.resolveSelectionSet].
  *
@@ -12,13 +10,7 @@ import viaduct.engine.runtime.ObjectEngineResult
  *
  * With default options, execution behaves like [EngineExecutionContext.query]:
  * - Executes as a Query operation
- * - Creates a fresh [ObjectEngineResult] for isolated execution
- *
- * ## Memoization Control
- *
- * The [targetResult] parameter controls memoization:
- * - `null` (default): Creates a fresh [ObjectEngineResult] for isolated execution
- * - Existing [ObjectEngineResult]: Reuses memoized results from that container
+ * - Uses an isolated result context
  *
  * ## Execution Handle Requirements
  *
@@ -26,13 +18,10 @@ import viaduct.engine.runtime.ObjectEngineResult
  * If the handle is null, execution will fail fast with [SubqueryExecutionException].
  *
  * @property operationType Whether to execute against Query or Mutation root. Default is QUERY.
- * @property targetResult Optional [ObjectEngineResult] to populate with resolved field results.
- *           When null, a fresh result container is created for isolated execution.
  * @property attribution Optional [ExecutionAttribution] for this subquery execution.
  */
 data class ResolveSelectionSetOptions(
     val operationType: Engine.OperationType = Engine.OperationType.QUERY,
-    val targetResult: ObjectEngineResult? = null,
     val attribution: ExecutionAttribution = ExecutionAttribution.DEFAULT,
 ) {
     companion object {

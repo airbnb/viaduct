@@ -2,7 +2,7 @@ package viaduct.engine.runtime.mat
 
 import graphql.schema.GraphQLObjectType
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.runtime.ObjectEngineResult
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 class KeyTreeBuilder(private val schema: ViaductSchema) {
     private val byType = mutableMapOf<GraphQLObjectType, MutableMap<ObjectEngineResult.Key, KeyTreeBuilder>>()

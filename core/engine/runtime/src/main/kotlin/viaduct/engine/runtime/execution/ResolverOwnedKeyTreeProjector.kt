@@ -7,8 +7,8 @@ import graphql.schema.GraphQLTypeUtil
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.DispatcherRegistry
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.mat.KeyTree
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 /** Projects an execution-backed selection set to the fields owned by one resolver. */
 internal fun QueryPlan.projectResolverOwnedSelections(

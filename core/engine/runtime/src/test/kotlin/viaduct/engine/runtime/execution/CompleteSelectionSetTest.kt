@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.CompleteSelectionSetOptions
-import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockVariablesResolver
@@ -13,8 +12,8 @@ import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.CheckerSyncEngineObjectData
 import viaduct.engine.runtime.EngineExecutionContextExtensions.asImpl
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 /**
  * Test suite for the completeSelectionSet API.
@@ -343,61 +342,6 @@ class CompleteSelectionSetTest {
                     fn { _, _, _, _, ctx ->
                         val requiredSS = createRSS("Query", "rootValue name")
                         val result = ctx.completeSelectionSet(requiredSS)
-
-                        val data = result.getData<Map<String, Any?>>()
-                        "rootValue=${data["rootValue"]}, name=${data["name"]}"
-                    }
-                }
-            }
-        }.runFeatureTest {
-            runQuery("{ container { completedResult } }")
-                .assertJson("""{"data": {"container": {"completedResult": "rootValue=42, name=Alice"}}}""")
-        }
-    }
-
-    @Test
-    fun `query-typed completion with explicit targetResult via resolveSelectionSet`() {
-        // Explicit targetResult is honored even for Query-typed selections (engine fix).
-        EngineTestModule(
-            """
-            extend type Query {
-                rootValue: Int
-                name: String
-                container: Container
-            }
-
-            type Container {
-                completedResult: String
-            }
-            """.trimIndent()
-        ) {
-            fieldWithValue("Query" to "rootValue", 42)
-            fieldWithValue("Query" to "name", "Alice")
-
-            field("Query" to "container") {
-                resolver {
-                    fn { _, _, _, _, _ ->
-                        createEngineObjectData(
-                            schema.schema.getObjectType("Container"),
-                            mapOf()
-                        )
-                    }
-                }
-            }
-
-            field("Container" to "completedResult") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        val oer = ObjectEngineResultImpl.newForType(schema.schema.queryType)
-                        val rss = ctx.engineSelectionSetFactory
-                            .engineSelectionSet("Query", "rootValue name", emptyMap())
-                        ctx.resolveSelectionSet(
-                            rss,
-                            ResolveSelectionSetOptions(targetResult = oer)
-                        )
-
-                        val requiredSS = createRSS("Query", "rootValue name")
-                        val result = ctx.asImpl().completeSelectionSet(requiredSS, targetResult = oer)
 
                         val data = result.getData<Map<String, Any?>>()
                         "rootValue=${data["rootValue"]}, name=${data["name"]}"

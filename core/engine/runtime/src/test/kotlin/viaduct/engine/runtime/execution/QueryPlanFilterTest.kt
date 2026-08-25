@@ -23,11 +23,11 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 import viaduct.engine.api.mocks.MockVariablesResolver
 import viaduct.engine.api.mocks.createRSS
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.build
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 class QueryPlanFilterTest {
     @Test

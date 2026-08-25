@@ -40,6 +40,7 @@ import viaduct.engine.api.mocks.MockCheckerErrorResult
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 import viaduct.engine.runtime.context.CompositeLocalContext
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 class ObjectEngineResultImplTest {
     private val testScope = CoroutineScope(Dispatchers.Default + SupervisorJob())

@@ -8,9 +8,9 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.build
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 class MatHelpersTest {
     @Nested

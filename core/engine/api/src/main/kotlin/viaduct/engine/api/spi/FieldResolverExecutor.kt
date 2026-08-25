@@ -42,7 +42,7 @@ interface FieldResolverExecutor {
         val syncQueryValueGetter: suspend () -> EngineObjectData.Sync,
     ) {
         // syncObjectValueGetter identity distinguishes selectors for different items in a
-        // batch (each item's lambda captures a different ObjectEngineResult), which prevents
+        // batch (each item's lambda captures a different result container), which prevents
         // the DataLoader from collapsing distinct items into a single cache hit.
         // arguments and selections are included so that truly identical requests (same item,
         // same arguments, same field selections) can be deduplicated by the DataLoader cache.

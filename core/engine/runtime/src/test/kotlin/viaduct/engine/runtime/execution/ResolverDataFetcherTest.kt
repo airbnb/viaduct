@@ -48,7 +48,6 @@ import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.FieldResolverDispatcherImpl
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ObjectRootFieldReference
 import viaduct.engine.runtime.QueryPlanExecutionCondition
@@ -59,6 +58,7 @@ import viaduct.engine.runtime.context.getLocalContextForType
 import viaduct.engine.runtime.createSchema
 import viaduct.engine.runtime.dfe.ViaductDataFetchingEnvironment
 import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.engine.runtime.result.ObjectEngineResult
 import viaduct.engine.runtime.select.EngineSelectionSetImpl
 import viaduct.engine.runtime.select.ProjectedEngineSelectionSet
 import viaduct.graphql.utils.ParsedSelections

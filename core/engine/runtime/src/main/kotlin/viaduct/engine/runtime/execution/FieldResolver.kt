@@ -41,7 +41,6 @@ import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.HasResolver
 import viaduct.engine.runtime.LazyEngineObjectData
 import viaduct.engine.runtime.MatSource
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setCheckerValue
@@ -55,6 +54,7 @@ import viaduct.engine.runtime.execution.FieldExecutionHelpers.executionStepInfoF
 import viaduct.engine.runtime.fetchFieldResultForResolver
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.LedgerReader
+import viaduct.engine.runtime.result.ObjectEngineResult
 import viaduct.utils.slf4j.ifDebug
 import viaduct.utils.slf4j.logger
 

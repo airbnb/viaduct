@@ -2,7 +2,7 @@ package viaduct.engine.runtime.mat
 
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.runtime.ObjectEngineResult
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 /**
  * Tracks materialization results for an object.

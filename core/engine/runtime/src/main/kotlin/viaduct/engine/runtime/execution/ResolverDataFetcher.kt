@@ -15,12 +15,12 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineObjectDataFactory
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FieldResolverDispatcher
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.context.findLocalContextForType
 import viaduct.engine.runtime.dfe.engineExecutionContext
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.engineSelectionSet
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.resolveRSSVariables
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 class ResolverDataFetcher(
     internal val typeName: String,

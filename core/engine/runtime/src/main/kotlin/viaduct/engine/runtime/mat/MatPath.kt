@@ -1,7 +1,7 @@
 package viaduct.engine.runtime.mat
 
 import graphql.schema.GraphQLObjectType
-import viaduct.engine.runtime.ObjectEngineResult
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 /**
  * A path from a directly materialized object to the object currently being read.

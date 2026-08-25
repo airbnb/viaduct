@@ -4,7 +4,7 @@ import graphql.schema.GraphQLObjectType
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
-import viaduct.engine.runtime.ObjectEngineResult
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 class MatPathTest {
     private val rootType = objectType("Root")

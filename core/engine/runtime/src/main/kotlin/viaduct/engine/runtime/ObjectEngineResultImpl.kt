@@ -11,6 +11,7 @@ import viaduct.deferred.completedDeferred
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.FieldDirectives
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 /**
  * Thread-safe data structure for memoizing field resolution results during GraphQL query execution.

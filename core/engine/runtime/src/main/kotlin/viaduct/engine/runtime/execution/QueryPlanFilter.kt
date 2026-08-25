@@ -11,9 +11,9 @@ import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLTypeUtil
 import java.util.Locale
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.engine.runtime.mat.KeyTree
+import viaduct.engine.runtime.result.ObjectEngineResult
 import viaduct.graphql.utils.collectVariableReferences
 import viaduct.utils.collections.MaskedSet
 

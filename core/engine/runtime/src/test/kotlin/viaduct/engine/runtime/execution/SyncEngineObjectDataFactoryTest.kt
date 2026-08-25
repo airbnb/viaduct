@@ -30,7 +30,6 @@ import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentatio
 import viaduct.engine.api.mocks.MockCheckerErrorResult
 import viaduct.engine.runtime.FieldErrorsException
 import viaduct.engine.runtime.FieldResolutionResult
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.newCell
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setCheckerValue
@@ -42,6 +41,7 @@ import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.createEngineSelectionSet
 import viaduct.engine.runtime.createSchema
+import viaduct.engine.runtime.result.ObjectEngineResult
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 
 class SyncEngineObjectDataFactoryTest {

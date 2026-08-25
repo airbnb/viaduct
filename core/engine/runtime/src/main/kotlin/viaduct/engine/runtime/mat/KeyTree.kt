@@ -2,7 +2,7 @@ package viaduct.engine.runtime.mat
 
 import graphql.schema.GraphQLObjectType
 import java.util.Collections
-import viaduct.engine.runtime.ObjectEngineResult
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 /**
  * A [KeyTree] represents the shape of a selection set using a normalized tree.

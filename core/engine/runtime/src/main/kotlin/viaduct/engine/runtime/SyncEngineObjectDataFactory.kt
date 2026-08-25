@@ -8,6 +8,7 @@ import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContex
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 /**
  * Factory for creating [SyncProxyEngineObjectData] by eagerly resolving all selections

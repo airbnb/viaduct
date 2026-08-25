@@ -48,7 +48,7 @@ Contains utilities parsing GraphQL selections.
 
 # Package viaduct.engine.runtime
 
-Contains runtime-specific value types co-located in the engine api module: `ObjectEngineResult` and `QueryPlanExecutionCondition`.
+Contains `QueryPlanExecutionCondition`, a runtime-specific value type co-located in the engine api module.
 
 # Package viaduct.engine.runtime.dfe
 

@@ -7,9 +7,9 @@ import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLTypeUtil
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeEngineObjectData
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.KeyTreeFilter
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 /**
  * Converts returned object data to the selections it satisfies.

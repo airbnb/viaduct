@@ -1,6 +1,6 @@
 package viaduct.engine.runtime.mat
 
-import viaduct.engine.runtime.ObjectEngineResult
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 /** Reads exact field keys prepared for one Mat-backed object traversal. */
 internal sealed interface LedgerReader {

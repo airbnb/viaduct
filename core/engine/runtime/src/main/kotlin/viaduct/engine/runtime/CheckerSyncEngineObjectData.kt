@@ -8,6 +8,7 @@ import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.runtime.EngineExecutionContextExtensions.asImpl
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 /**
  * An [EngineObjectData.Sync] that carries the underlying [ObjectEngineResult] alongside

@@ -17,12 +17,12 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelecti
 import viaduct.engine.runtime.EngineExecutionContextExtensions.matResolutionEnabled
 import viaduct.engine.runtime.HasResolver
 import viaduct.engine.runtime.MatSource
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.KeyTreeFilter
 import viaduct.engine.runtime.mat.Mat
 import viaduct.engine.runtime.mat.MatPath.Segment
 import viaduct.engine.runtime.mat.MatResult
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 /**
  * Converts the current executable selection set to its exact field keys.

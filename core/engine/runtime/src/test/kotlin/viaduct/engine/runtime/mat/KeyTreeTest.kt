@@ -10,8 +10,8 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.graphql.asViaductSchema
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.mat.KeyTreeFilter as FilterPredicate
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 class KeyTreeTest {
     private val schema =

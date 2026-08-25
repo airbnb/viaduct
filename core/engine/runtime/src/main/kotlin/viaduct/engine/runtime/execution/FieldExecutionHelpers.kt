@@ -55,12 +55,12 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFil
 import viaduct.engine.runtime.EngineExecutionContextExtensions.matResolutionEnabled
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FetchedValueWithExtensions
-import viaduct.engine.runtime.ObjectEngineResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.exceptions.FieldFetchingException
 import viaduct.engine.runtime.observability.ExecutionObservabilityContext
+import viaduct.engine.runtime.result.ObjectEngineResult
 import viaduct.graphql.utils.ParsedSelections
 
 internal fun QueryPlan.CollectedField.oerKey(arguments: Map<String, Any?>): ObjectEngineResult.Key =

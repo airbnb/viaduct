@@ -65,7 +65,7 @@ import viaduct.utils.slf4j.logger
  *
  * @see FieldResolver Handles the resolution phase of execution
  * @see FieldCompleter Handles the completion phase of execution
- * @see [viaduct.engine.runtime.ObjectEngineResult] Stores intermediate execution results
+ * @see [viaduct.engine.runtime.result.ObjectEngineResult] Stores intermediate execution results
  */
 class ViaductExecutionStrategy internal constructor(
     private val dataFetcherExceptionHandler: DataFetcherExceptionHandler,

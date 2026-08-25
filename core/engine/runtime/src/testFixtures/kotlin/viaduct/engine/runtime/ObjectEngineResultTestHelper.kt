@@ -19,6 +19,7 @@ import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.newCell
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.newForType
+import viaduct.engine.runtime.result.ObjectEngineResult
 
 /**
  * Test helper for creating [ObjectEngineResultImpl] instances from map data.
