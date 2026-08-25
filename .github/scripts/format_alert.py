@@ -10,13 +10,19 @@ Reads a JSON object from stdin with the following fields:
     jobs        - non-empty array of failed jobs, each with:
                     name   - display name of the job/workflow
                     run_id - GitHub Actions run ID (used to construct the URL)
+                    tasks  - optional array of failing Gradle task paths
 
   Optional:
     sha         - commit SHA (for push-triggered failures)
     actor       - GitHub username who pushed (for push-triggered failures)
+    attempt     - run attempt number; labeled only when above 1
+    outcome     - "failure" (default), or "retry_success" for a run that a
+                  retry recovered
 
 Prints formatted alert text to stdout. Single-job alerts produce one line;
-multi-job alerts produce a header line followed by a bulleted list of jobs.
+multi-job alerts produce a header line followed by a bulleted list of jobs. Any
+job carrying tasks switches the whole message to the header form, listing each
+job's tasks beneath it.
 
 Exit codes:
   0 - success
@@ -26,12 +32,38 @@ Exit codes:
 import json
 import sys
 
+OUTCOMES = {
+    "failure": (":red_circle:", "failed"),
+    "retry_success": (":large_yellow_circle:", "needed a retry"),
+}
+
+MAX_TASKS_SHOWN = 3
+
+
+def format_attempt_label(attempt) -> str:
+    try:
+        n = int(attempt)
+    except (TypeError, ValueError):
+        return ""
+    return f", attempt {n}" if n > 1 else ""
+
+
+def format_task_lines(tasks) -> list:
+    shown = tasks[:MAX_TASKS_SHOWN]
+    lines = [f"  `{task}`" for task in shown]
+    hidden = len(tasks) - len(shown)
+    if hidden:
+        lines[-1] += f" +{hidden} more"
+    return lines
+
 
 def format_alert(data: dict) -> str:
     branch = data["branch"]
     server_url = data["server_url"]
     repository = data["repository"]
     jobs = data["jobs"]
+
+    emoji, verb = OUTCOMES.get(data.get("outcome"), OUTCOMES["failure"])
 
     sha = data.get("sha")
     actor = data.get("actor")
@@ -44,15 +76,24 @@ def format_alert(data: dict) -> str:
     elif actor:
         commit_info = f" — pushed by {actor}"
 
+    commit_info += format_attempt_label(data.get("attempt"))
+
     def job_url(job):
         return f"{server_url}/{repository}/actions/runs/{job['run_id']}"
 
-    if len(jobs) == 1:
+    if len(jobs) == 1 and not jobs[0].get("tasks"):
         job = jobs[0]
-        return f":red_circle: {job['name']} failed on `{branch}`{commit_info} ({job_url(job)})"
+        return f"{emoji} {job['name']} {verb} on `{branch}`{commit_info} ({job_url(job)})"
 
-    header = f":red_circle: CI failed on `{branch}`{commit_info}"
-    lines = [header] + [f"• {job['name']}: {job_url(job)}" for job in jobs]
+    lines = [f"{emoji} CI {verb} on `{branch}`{commit_info}"]
+    for job in jobs:
+        tasks = job.get("tasks") or []
+        if not tasks:
+            lines.append(f"• {job['name']}: {job_url(job)}")
+            continue
+        lines.append(f"• {job['name']}")
+        lines.extend(format_task_lines(tasks))
+        lines.append(f"  {job_url(job)}")
     return "\n".join(lines)
 
 
@@ -81,6 +122,14 @@ def main():
         if not isinstance(job, dict) or "name" not in job or "run_id" not in job:
             print(f"jobs[{i}] must have 'name' and 'run_id' fields", file=sys.stderr)
             return 1
+        if "tasks" in job and not isinstance(job["tasks"], list):
+            print(f"jobs[{i}]['tasks'] must be an array", file=sys.stderr)
+            return 1
+
+    outcome = data.get("outcome")
+    if outcome is not None and outcome not in OUTCOMES:
+        print(f"'outcome' must be one of: {', '.join(sorted(OUTCOMES))}", file=sys.stderr)
+        return 1
 
     print(format_alert(data))
     return 0

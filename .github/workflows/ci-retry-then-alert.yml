@@ -1,0 +1,153 @@
+name: CI Retry and Alert
+# Alerts on failed CI runs, retrying the pure-CI entry points once first, and reports the runs a retry
+# recovered. Listens from outside the run because a job cannot observe its own run's second attempt.
+
+on:
+  workflow_run:
+    workflows: ["CI Check", "Nightly Build", "Periodic Green Check"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    # Success past the first attempt means a retry recovered the run; no other state produces it.
+    # Pull requests and manual dispatches have a human watching the run.
+    if: >-
+      github.event.workflow_run.head_branch == 'main'
+      && contains(fromJSON('["push", "schedule"]'), github.event.workflow_run.event)
+      && (github.event.workflow_run.conclusion == 'failure'
+          || (github.event.workflow_run.conclusion == 'success'
+              && github.event.workflow_run.run_attempt > 1))
+    outputs:
+      text: ${{ steps.fmt.outputs.text }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Retry once before alerting
+        id: retry
+        if: >-
+          github.event.workflow_run.conclusion == 'failure'
+          && github.event.workflow_run.run_attempt == 1
+          && contains(fromJSON('["CI Check", "Periodic Green Check"]'), github.event.workflow_run.name)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          if gh api -X POST "repos/${REPOSITORY}/actions/runs/${RUN_ID}/rerun-failed-jobs"; then
+            echo "Re-running failed jobs of ${RUN_ID}; alerting only if the retry also fails"
+            echo "retried=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Could not re-run ${RUN_ID} — alerting on the first attempt instead"
+            echo "retried=false" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
+
+      # A skipped step leaves its outputs unset, so this also covers the runs that are never retried.
+      - name: Collect the jobs and tasks that failed
+        id: jobs
+        if: "!cancelled() && steps.retry.outputs.retried != 'true'"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          set -uo pipefail
+
+          # A recovered run reports what broke on the first attempt, not on the one that passed.
+          if [ "$CONCLUSION" = "success" ]; then
+            attempt=1
+            echo "outcome=retry_success" >> "$GITHUB_OUTPUT"
+          else
+            attempt="$RUN_ATTEMPT"
+            echo "outcome=failure" >> "$GITHUB_OUTPUT"
+          fi
+
+          # --paginate: gh api returns an arbitrary subset without it.
+          failed=$(gh api --paginate \
+            "repos/${REPOSITORY}/actions/runs/${RUN_ID}/attempts/${attempt}/jobs?per_page=100" \
+            --jq '.jobs[] | select(.conclusion == "failure") | [.id, .name] | @tsv') || {
+            echo "::warning::Could not list the failed jobs of ${RUN_ID}"
+            failed=""
+          }
+
+          if [ -z "$failed" ]; then
+            # Re-running an already-green run leaves nothing to report.
+            if [ "$CONCLUSION" = "success" ]; then
+              echo "Attempt ${attempt} recorded no failed job, so there is nothing to report"
+              echo "jobs_json=" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            # A run can fail with no job reporting failure, and format_alert.py rejects an empty list.
+            failed=$(printf '\t%s' "$WORKFLOW_NAME")
+          fi
+
+          # One self-contained object per job, so a job that cannot be rendered drops out alone.
+          objects=$(mktemp)
+          fetch_error=$(mktemp)
+          logs_read=0
+          while IFS=$'\t' read -r job_id job_name; do
+            [ -n "$job_name" ] || continue
+            tasks='[]'
+            # Bounds the log reading. The most failed jobs seen in one run is 10.
+            if [ -n "$job_id" ] && [ "$logs_read" -lt 15 ]; then
+              logs_read=$((logs_read + 1))
+              # curl, not gh: job logs carry terminal escape sequences, which gh api refuses to emit.
+              log=$(curl -sSL --fail-with-body \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "${GITHUB_API_URL}/repos/${REPOSITORY}/actions/jobs/${job_id}/logs" \
+                2>"$fetch_error") || log=""
+              if [ -n "$log" ]; then
+                tasks=$(printf '%s' "$log" | python3 .github/scripts/extract_failed_tasks.py \
+                  | jq -R -s -c 'split("\n") | map(select(length > 0))') || tasks='[]'
+              else
+                echo "::warning::Could not read the log of job ${job_id}: $(tr '\n' ' ' < "$fetch_error" | tail -c 300)"
+              fi
+            fi
+            jq -n -c --arg name "$job_name" --arg run_id "$RUN_ID" --argjson tasks "$tasks" \
+              '{name: $name, run_id: $run_id, tasks: $tasks}' >> "$objects" || true
+          done <<< "$failed"
+
+          jobs_json=$(jq -s -c '.' "$objects") || jobs_json='[]'
+          rm -f "$objects" "$fetch_error"
+
+          # Naming the workflow beats posting nothing, and format_alert.py rejects an empty list.
+          if [ "$jobs_json" = "[]" ]; then
+            echo "::warning::Could not build the job list for ${RUN_ID}"
+            jobs_json=$(jq -n -c --arg name "$WORKFLOW_NAME" --arg run_id "$RUN_ID" \
+              '[{name: $name, run_id: $run_id}]')
+          fi
+
+          echo "jobs_json=${jobs_json}" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Format alert
+        id: fmt
+        if: "!cancelled() && steps.jobs.outputs.jobs_json != ''"
+        uses: ./.github/actions/collect-failure-info
+        with:
+          jobs_json: ${{ steps.jobs.outputs.jobs_json }}
+          branch: ${{ github.event.workflow_run.head_branch }}
+          server_url: ${{ github.server_url }}
+          repository: ${{ github.repository }}
+          sha: ${{ github.event.workflow_run.head_sha }}
+          actor: ${{ github.event.workflow_run.actor.login }}
+          attempt: ${{ github.event.workflow_run.run_attempt }}
+          outcome: ${{ steps.jobs.outputs.outcome }}
+
+  post:
+    needs: [triage]
+    # Empty text is how a retried run stays quiet, so the alert cannot key off triage's result.
+    if: always() && needs.triage.outputs.text != ''
+    uses: ./.github/workflows/post-alerts.yml
+    with:
+      text: ${{ needs.triage.outputs.text }}
+    secrets: inherit
