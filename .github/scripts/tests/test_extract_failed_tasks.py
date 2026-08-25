@@ -60,6 +60,14 @@ class TestExtractFailedTasks(unittest.TestCase):
         log = "> Task :test FAILED\n"
         self.assertEqual([":test"], extract_failed_tasks(log))
 
+    def test_ansi_colour_codes_are_stripped(self):
+        log = "\x1b[36;1m> Task :core:shared:utils:test FAILED\x1b[0m\n"
+        self.assertEqual([":core:shared:utils:test"], extract_failed_tasks(log))
+
+    def test_ansi_codes_adjacent_to_the_task_path(self):
+        log = "> Task \x1b[1m:core:tenant:api:compileKotlin\x1b[0m FAILED\n"
+        self.assertEqual([":core:tenant:api:compileKotlin"], extract_failed_tasks(log))
+
 
 class BinaryStdin:
     def __init__(self, data: bytes):

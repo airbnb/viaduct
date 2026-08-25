@@ -15,13 +15,16 @@ Exit codes:
 import re
 import sys
 
-# Windows runners emit CRLF, so the log is normalized before matching.
 TASK_FAILED = re.compile(r"> Task (\S+) FAILED")
+
+# Job logs are coloured, and Windows runners emit CRLF. Both are stripped before matching.
+ANSI = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
 
 
 def extract_failed_tasks(log: str) -> list:
+    plain = ANSI.sub("", log).replace("\r", "")
     tasks = []
-    for match in TASK_FAILED.finditer(log.replace("\r", "")):
+    for match in TASK_FAILED.finditer(plain):
         task = match.group(1)
         if task not in tasks:
             tasks.append(task)

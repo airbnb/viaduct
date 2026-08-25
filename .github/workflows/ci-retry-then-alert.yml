@@ -91,6 +91,7 @@ jobs:
 
           # One self-contained object per job, so a job that cannot be rendered drops out alone.
           objects=$(mktemp)
+          fetch_error=$(mktemp)
           logs_read=0
           while IFS=$'\t' read -r job_id job_name; do
             [ -n "$job_name" ] || continue
@@ -98,11 +99,17 @@ jobs:
             # Bounds the log reading. The most failed jobs seen in one run is 10.
             if [ -n "$job_id" ] && [ "$logs_read" -lt 15 ]; then
               logs_read=$((logs_read + 1))
-              if log=$(gh api "repos/${REPOSITORY}/actions/jobs/${job_id}/logs" 2>/dev/null); then
+              # curl, not gh: job logs carry terminal escape sequences, which gh api refuses to emit.
+              log=$(curl -sSL --fail-with-body \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "${GITHUB_API_URL}/repos/${REPOSITORY}/actions/jobs/${job_id}/logs" \
+                2>"$fetch_error") || log=""
+              if [ -n "$log" ]; then
                 tasks=$(printf '%s' "$log" | python3 .github/scripts/extract_failed_tasks.py \
                   | jq -R -s -c 'split("\n") | map(select(length > 0))') || tasks='[]'
               else
-                echo "::warning::Could not read the log of job ${job_id}"
+                echo "::warning::Could not read the log of job ${job_id}: $(tr '\n' ' ' < "$fetch_error" | tail -c 300)"
               fi
             fi
             jq -n -c --arg name "$job_name" --arg run_id "$RUN_ID" --argjson tasks "$tasks" \
@@ -110,7 +117,7 @@ jobs:
           done <<< "$failed"
 
           jobs_json=$(jq -s -c '.' "$objects") || jobs_json='[]'
-          rm -f "$objects"
+          rm -f "$objects" "$fetch_error"
 
           # Naming the workflow beats posting nothing, and format_alert.py rejects an empty list.
           if [ "$jobs_json" = "[]" ]; then
