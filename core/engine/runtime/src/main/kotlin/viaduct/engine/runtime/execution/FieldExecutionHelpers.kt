@@ -31,6 +31,7 @@ import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLNamedType
 import graphql.schema.GraphQLObjectType
+import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLTypeUtil
 import graphql.schema.LightDataFetcher
 import graphql.util.FpKit
@@ -203,17 +204,19 @@ object FieldExecutionHelpers {
             selectionSet = selectionSet,
             mergedField =
                 originalField.mergedField.withSelectionSet(
-                    materializationSelectionSet(originalParameters, selectionSet)
+                    materializationSelectionSet(
+                        originalParameters.executionStepInfo.fieldDefinition.type,
+                        selectionSet,
+                    )
                 ),
         )
 
-    private fun materializationSelectionSet(
-        originalParameters: ExecutionParameters,
+    internal fun materializationSelectionSet(
+        fieldType: GraphQLOutputType,
         selectionSet: QueryPlan.SelectionSet,
     ): GJSelectionSet {
         val renderedSelectionSet = selectionSet.toAstSelectionSet()
-        val fieldType = GraphQLTypeUtil.unwrapAll(originalParameters.executionStepInfo.fieldDefinition.type)
-        return if (fieldType is GraphQLObjectType) {
+        return if (GraphQLTypeUtil.unwrapAll(fieldType) is GraphQLObjectType) {
             renderedSelectionSet
         } else {
             GJSelectionSet

@@ -2,7 +2,6 @@
 
 package viaduct.engine.runtime.execution
 
-import graphql.GraphQLError
 import graphql.execution.DataFetcherResult
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import io.kotest.property.Arb
@@ -228,6 +227,63 @@ class SelectiveFieldResolversExecutionTest {
                 runQueryWithTimeout("{ foo { x y } }")
                     .assertJson("{data: {foo: {x: \"x-value\", y: \"y-value\"}}}")
             }
+        }
+
+        @Test
+        fun `selective resolver materialization rejects DataFetcherResult`() {
+            val fooCalls = AtomicInteger()
+
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { foo: Foo }
+                    type Foo { x: Int, y: Int }
+                """.trimIndent()
+            ) {
+                field("Query" to "foo") {
+                    resolverExecutor {
+                        MockFieldUnbatchedResolverExecutor(
+                            isSelective = true,
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { _, _, _, sels, _ ->
+                                fooCalls.incrementAndGet()
+                                if (sels!!.containsField("Foo", "y")) {
+                                    DataFetcherResult.newResult<EngineObjectData>()
+                                        .data(createEngineObjectData("Foo", mapOf("y" to 2)))
+                                        .build()
+                                } else {
+                                    DataFetcherResult.newResult<EngineObjectData>()
+                                        .data(createEngineObjectData("Foo"))
+                                        .build()
+                                }
+                            }
+                        )
+                    }
+                }
+
+                field("Foo" to "x") {
+                    resolver {
+                        objectSelections("y")
+                        fn { _, obj, _, _, _ -> obj.fetchAs<Int>("y") * 3 }
+                    }
+                }
+            }.runFeatureTest {
+                runQueryWithTimeout("{ foo { x } }").assertMatches {
+                    "data" to {
+                        "foo" to {
+                            "x" to null
+                        }
+                    }
+                    "errors" to arrayOf(
+                        {
+                            "message" to
+                                ".*DataFetcherResult is not supported during selective field materialization.*"
+                            "path" to listOf("foo", "x")
+                        }
+                    )
+                }
+            }
+
+            assertEquals(2, fooCalls.get())
         }
 
         @Nested
@@ -2568,58 +2624,6 @@ class SelectiveFieldResolversExecutionTest {
 
     @Nested
     inner class ResultMetadataTests {
-        @Test
-        fun `errors returned during materialization are included in the response`() {
-            val initialFooCall = AtomicBoolean(true)
-
-            MockTenantModuleBootstrapper(
-                """
-                    extend type Query { foo: Foo }
-                    type Foo { x: Int, y: Int }
-                """.trimIndent()
-            ) {
-                field("Query" to "foo") {
-                    resolverExecutor {
-                        MockFieldUnbatchedResolverExecutor(
-                            isSelective = true,
-                            resolverId = resolverId,
-                            unbatchedResolveFn = { _, _, _, _, _ ->
-                                if (initialFooCall.getAndSet(false)) {
-                                    createEngineObjectData("Foo")
-                                } else {
-                                    DataFetcherResult.newResult<EngineObjectData>()
-                                        .data(createEngineObjectData("Foo", mapOf("y" to 2)))
-                                        .error(
-                                            GraphQLError.newError()
-                                                .message("foo materialization warning")
-                                                .path(listOf("foo"))
-                                                .build()
-                                        )
-                                        .build()
-                                }
-                            }
-                        )
-                    }
-                }
-
-                field("Foo" to "x") {
-                    resolver {
-                        objectSelections("y")
-                        fn { _, obj, _, _, _ -> obj.fetchAs<Int>("y") * 3 }
-                    }
-                }
-            }.runFeatureTest {
-                val result = runQueryWithTimeout("{ foo { x } }")
-
-                assertEquals(mapOf("foo" to mapOf("x" to 6)), result.getData())
-                assertEquals(
-                    listOf("foo materialization warning"),
-                    result.errors.map { it.message },
-                )
-                assertEquals(listOf("foo"), result.errors.single().path)
-            }
-        }
-
         @Test
         fun `selective resolver rematerializes DataFetcherResult list items`() {
             MockTenantModuleBootstrapper(

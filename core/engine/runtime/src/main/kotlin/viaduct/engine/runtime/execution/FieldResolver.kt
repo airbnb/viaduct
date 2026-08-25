@@ -1109,15 +1109,10 @@ class FieldResolver(
             originalParameters = originalParameters,
             selectionSet = matPlan.selectionSet,
         )
-        // A Mat may re-run this resolver while an earlier call is waiting for that work to finish.
-        // Increment here so the re-run uses a separate batch; Mats started together still share a depth.
-        val matBatchDepth = selectionParameters.matBatchDepth + 1
-        val matParameters = originalParameters.copy(
-            coercedVariables = selectionParameters.coercedVariables,
+        val matParameters = originalParameters.forFieldMaterialization(
             field = matField,
-            queryPlan = matPlan,
-            selectionSet = matPlan.selectionSet,
-            matBatchDepth = matBatchDepth,
+            materializationPlan = matPlan,
+            selectionParameters = selectionParameters,
         )
         val dataFetchingEnvironmentProvider =
             FpKit.intraThreadMemoize {
@@ -1136,9 +1131,17 @@ class FieldResolver(
             gatingCheckerResult = null,
         )
         completeFieldFetching(rawFieldFetch)
+        rawFieldFetch.dataFetcherResult.thenApply { result, error ->
+            if (error == null && result is DataFetcherResult<*>) {
+                // These are rejected because there is no obvious way to handle localContext returned by a resolver.
+                throw materializationException(
+                    "DataFetcherResult is not supported during selective field materialization; " +
+                        "return data directly or throw an exception",
+                    matParameters,
+                )
+            }
+        }.await()
         val fetchedValue = rawFieldFetch.fetchedValue.await()
-        // Refills do not create a new FieldResolutionResult for FieldCompleter to consume.
-        originalParameters.errorAccumulator.addAll(fetchedValue.errors)
         val matSource = FieldExecutionHelpers.toMaterializedObjectData(
             matParameters,
             fetchedValue.fetchedValue,
@@ -1153,7 +1156,8 @@ class FieldResolver(
         if (matSource != null) {
             // Run matPlan on the object that was missing these fields, and keep the new depth for
             // the work it starts.
-            val planParameters = selectionParameters.copy(matBatchDepth = matBatchDepth)
+            val planParameters =
+                selectionParameters.copy(matBatchDepth = matParameters.matBatchDepth)
             checkNotNull(planParameters.currentObjectEngineResult.matSource as? MatSource.Ledger)
             launchQueryPlan(
                 planParameters,

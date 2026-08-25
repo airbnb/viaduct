@@ -424,6 +424,52 @@ data class ExecutionParameters(
     }
 
     /**
+     * Creates parameters for rerunning this field with a later requested selection.
+     */
+    internal fun forFieldMaterialization(
+        field: QueryPlan.CollectedField,
+        materializationPlan: QueryPlan,
+        selectionParameters: ExecutionParameters,
+    ): ExecutionParameters {
+        check(executionOrigin is ExecutionOrigin.Field) {
+            "Expected field materialization to start from field execution parameters"
+        }
+        val originalParentStepInfo = checkNotNull(executionStepInfo.parent)
+        val parentStepInfo =
+            originalParentStepInfo.field?.let { parentField ->
+                val ownerSelectionSet =
+                    QueryPlan.SelectionSet(currentObjectEngineResult.type, field)
+                ExecutionStepInfo
+                    .newExecutionStepInfo(originalParentStepInfo)
+                    .field(
+                        parentField.withSelectionSet(
+                            FieldExecutionHelpers.materializationSelectionSet(
+                                originalParentStepInfo.fieldDefinition.type,
+                                ownerSelectionSet,
+                            )
+                        )
+                    ).build()
+            } ?: originalParentStepInfo
+        val materializationStepInfo =
+            ExecutionStepInfo
+                .newExecutionStepInfo(executionStepInfo)
+                .field(field.mergedField)
+                .parentInfo(parentStepInfo)
+                .build()
+
+        return copy(
+            coercedVariables = selectionParameters.coercedVariables,
+            field = field,
+            queryPlan = materializationPlan,
+            selectionSet = materializationPlan.selectionSet,
+            executionStepInfo = materializationStepInfo,
+            // A rerun can be requested while an earlier call waits for it. A separate depth keeps
+            // those calls out of the same batch while allowing sibling reruns to share one.
+            matBatchDepth = selectionParameters.matBatchDepth + 1,
+        )
+    }
+
+    /**
      * Forks this field's mutable execution state for a shadow rerun while preserving request inputs
      * and source. Shadow traversal through `@parent` is rejected because ancestor state is not
      * forked.

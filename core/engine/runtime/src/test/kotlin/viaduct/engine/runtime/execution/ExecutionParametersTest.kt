@@ -554,6 +554,97 @@ class ExecutionParametersTest {
     }
 
     @Test
+    fun `forFieldMaterialization updates selection context and keeps original arguments`() {
+        val schemaSDL =
+            """
+            interface Foo {
+              x: String
+            }
+
+            extend type Query {
+              foo: Foo
+            }
+
+            type Bar implements Foo {
+              x: String
+              y(x: Int!): Baz
+            }
+
+            type Baz {
+              x: String
+              y: String
+            }
+            """.trimIndent()
+
+        fun parameters(
+            variableName: String,
+            x: Int,
+            selection: String,
+        ): ExecutionParameters =
+            mkExecutionParameters(
+                schemaSDL = schemaSDL,
+                coordinate = "Bar" to "y",
+                query =
+                    """
+                    query(${'$'}$variableName: Int! = $x) {
+                      foo {
+                        ... on Bar {
+                          y(x: ${'$'}$variableName) {
+                            $selection
+                          }
+                        }
+                      }
+                    }
+                    """.trimIndent(),
+            ) {
+                field("Query" to "foo") {
+                    valueFromContext {
+                        createEngineObjectData("Bar")
+                    }
+                }
+            }
+
+        val originalParameters = parameters("originalX", 1, "x")
+        val selectionParameters = parameters("laterX", 2, "y")
+        val originalField = checkNotNull(originalParameters.field)
+        val requestedSelectionSet = checkNotNull(selectionParameters.field?.selectionSet)
+        val materializationField =
+            FieldExecutionHelpers.withMaterializationSelectionSet(
+                originalField = originalField,
+                originalParameters = originalParameters,
+                selectionSet = requestedSelectionSet,
+            )
+        val materializationPlan =
+            selectionParameters.queryPlan.copy(selectionSet = requestedSelectionSet)
+
+        val result =
+            originalParameters.forFieldMaterialization(
+                field = materializationField,
+                materializationPlan = materializationPlan,
+                selectionParameters = selectionParameters,
+            )
+
+        val currentSelection =
+            result.executionStepInfo.field.singleField.selectionSet.selections.single() as GJField
+        val enclosingTypeSelection =
+            result.executionStepInfo.parent.field.singleField.selectionSet.selections.single()
+                as GJInlineFragment
+        val enclosingField =
+            enclosingTypeSelection.selectionSet.selections.single() as GJField
+        val enclosingChildSelection =
+            enclosingField.selectionSet.selections.single() as GJField
+
+        assertEquals("y", currentSelection.name)
+        assertEquals("Bar", enclosingTypeSelection.typeCondition.name)
+        assertEquals("y", enclosingField.name)
+        assertEquals("y", enclosingChildSelection.name)
+        assertEquals(1, result.executionStepInfo.arguments["x"])
+        assertSame(originalParameters.source, result.source)
+        assertSame(originalParameters.currentObjectEngineResult, result.currentObjectEngineResult)
+        assertEquals(selectionParameters.matBatchDepth + 1, result.matBatchDepth)
+    }
+
+    @Test
     fun `nearestObjectAncestor returns null from request root`() {
         val rootParameters = createExecutionParameters(
             source = defaultRootValue,
