@@ -189,7 +189,7 @@ class GJSchemaRawErrorTest {
         // First populate succeeds
         val ext = ViaductSchema.ExtensionWithSupers.of(
             def = obj,
-            memberFactory = { emptyList<SchemaWithData.Field>() },
+            memberFactory = { emptyList<SchemaWithData.ObjectField>() },
             isBase = true,
             appliedDirectives = emptyList(),
             sourceLocation = null,

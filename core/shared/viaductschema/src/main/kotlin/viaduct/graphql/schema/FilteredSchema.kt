@@ -280,7 +280,7 @@ internal class FilteredSchemaDecoder(
     fun createObjectExtensions(
         objectDef: SchemaWithData.Object,
         filteredSupers: List<SchemaWithData.Interface>
-    ): List<ViaductSchema.ExtensionWithSupers<SchemaWithData.Object, SchemaWithData.Field>> {
+    ): List<ViaductSchema.ExtensionWithSupers<SchemaWithData.Object, SchemaWithData.ObjectField>> {
         val unfilteredDef = objectDef.unfilteredDef
         val superNames = filteredSupers.map { it.name }.toSet()
         return unfilteredDef.extensions.map { unfilteredExt ->
@@ -292,7 +292,7 @@ internal class FilteredSchemaDecoder(
                 memberFactory = { ext ->
                     unfilteredExt.members
                         .filter { filter.includeField(it) && filter.includeTypeDef(it.type.baseTypeDef) }
-                        .map { createField(it, ext) }
+                        .map { createObjectField(it, ext) }
                 },
                 isBase = unfilteredExt == unfilteredDef.extensions.first(),
                 appliedDirectives = remapAppliedDirectives(unfilteredExt.appliedDirectives),
@@ -331,6 +331,24 @@ internal class FilteredSchemaDecoder(
     ): SchemaWithData.Field {
         val typeExpr = createTypeExprFromDefs(unfilteredField.type)
         return SchemaWithData.Field(
+            containingExtension,
+            unfilteredField.name,
+            typeExpr,
+            remapAppliedDirectives(unfilteredField.appliedDirectives),
+            unfilteredField.hasDefault,
+            if (unfilteredField.hasDefault) unfilteredField.defaultValue else null,
+            unfilteredField,
+            description = unfilteredField.description,
+            argsFactory = { field -> createFieldArgs(field, unfilteredField) }
+        )
+    }
+
+    private fun createObjectField(
+        unfilteredField: ViaductSchema.ObjectField,
+        containingExtension: ViaductSchema.ExtensionWithSupers<SchemaWithData.Object, SchemaWithData.ObjectField>
+    ): SchemaWithData.ObjectField {
+        val typeExpr = createTypeExprFromDefs(unfilteredField.type)
+        return SchemaWithData.ObjectField(
             containingExtension,
             unfilteredField.name,
             typeExpr,

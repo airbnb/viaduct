@@ -102,6 +102,10 @@ abstract class ViaductSchemaSubtypeContract {
 
     fun kclass(name: String): KClass<*> = classes[name]?.let { it } ?: throw AssertionError("No class $name in ${getSchemaClass()}")
 
+    fun apiKclass(name: String): KClass<*> =
+        ViaductSchema::class.nestedClasses.firstOrNull { it.simpleName == name }
+            ?: throw AssertionError("No class $name in ${ViaductSchema::class}")
+
     // From Arg
 
     @Test
@@ -165,6 +169,7 @@ abstract class ViaductSchemaSubtypeContract {
 
         assertIsSubtype("EnumValue", "Def")
         assertIsSubtype("Field", "Def")
+        assertIsSubtype("ObjectField", "Field")
         assertIsSubtype("HasDefaultValue", "Def")
 
         assertIsSubtype("DirectiveArg", "HasDefaultValue")
@@ -174,14 +179,31 @@ abstract class ViaductSchemaSubtypeContract {
         assertIsSubtype("DirectiveArg", "Arg")
         assertIsSubtype("FieldArg", "Arg")
 
-        assertIsSubtype("Record", "TypeDef")
-
-        assertIsSubtype("Enum", "TypeDef")
+        assertIsSubtype("Record", "Def")
+        assertIsSubtype("Enum", "SimpleTypeDef")
+        assertIsSubtype("Input", "TypeDef")
         assertIsSubtype("Input", "Record")
+        assertIsSubtype("Input", "InputTypeDef")
         assertIsSubtype("Interface", "Record")
+        assertIsSubtype("Interface", "TypeDef")
+        assertIsSubtype("Interface", "CompositeTypeDef")
         assertIsSubtype("Object", "Record")
-        assertIsSubtype("Scalar", "TypeDef")
+        assertIsSubtype("Object", "TypeDef")
+        assertIsSubtype("Object", "CompositeTypeDef")
+        assertIsSubtype("OutputRecord", "TypeDef")
+        assertIsSubtype("OutputRecord", "Record")
+        assertIsSubtype("OutputRecord", "OutputTypeDef")
+        assertIsSubtype("Scalar", "SimpleTypeDef")
         assertIsSubtype("Union", "TypeDef")
+        assertIsSubtype("Union", "CompositeTypeDef")
+    }
+
+    @Test
+    fun `ViaductSchema API role hierarchy is correct`() {
+        assertApiIsSubtype("InputTypeDef", "TypeDef")
+        assertApiIsSubtype("OutputTypeDef", "TypeDef")
+        assertApiIsSubtype("SimpleTypeDef", "InputTypeDef", "OutputTypeDef")
+        assertApiIsSubtype("CompositeTypeDef", "OutputTypeDef")
     }
 
     // From Directive
@@ -229,6 +251,13 @@ abstract class ViaductSchemaSubtypeContract {
         assertIsSubtype(returnType("Field.args").elementType(), "FieldArg") // args: Iterable<FieldArg>
     }
 
+    @Test
+    @EnabledIf("noMissingClasses")
+    fun `ObjectField narrows its owner and extension`() {
+        assertIsSubtype(returnType("ObjectField.containingDef"), "Object")
+        assertContainingExtensionSubtypes("Object", "ObjectField")
+    }
+
     // From HasDefaultValue
 
     @Test
@@ -257,7 +286,21 @@ abstract class ViaductSchemaSubtypeContract {
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `Object extensions have the expected subtype of Extension`() = assertExtensionsSubtypes("Object", "Field")
+    fun `Object extensions have the expected subtype of Extension`() = assertExtensionsSubtypes("Object", "ObjectField")
+
+    @Test
+    @EnabledIf("noMissingClasses")
+    fun `Object fields have the expected subtype`() = assertIsSubtype(returnType("Object.fields").elementType(), "ObjectField")
+
+    @Test
+    @EnabledIf("noMissingClasses")
+    fun `Object field lookup has the expected subtype`() {
+        val fieldGetter =
+            kclass("Object").members.single {
+                it.name == "field" && it.parameters[1].type.isSubtypeOf(String::class.starProjectedType)
+            }
+        assertIsSubtype(fieldGetter.returnType, "ObjectField", nullable = true)
+    }
 
     // From Record
 
@@ -368,6 +411,7 @@ abstract class ViaductSchemaSubtypeContract {
                 "Input",
                 "Interface",
                 "Object",
+                "ObjectField",
                 "OutputRecord",
                 "Record",
                 "Scalar",
@@ -378,8 +422,12 @@ abstract class ViaductSchemaSubtypeContract {
         val OPTIONAL_CLASS_NAMES =
             listOf(
                 "AppliedDirective",
+                "CompositeTypeDef",
                 "Extension",
                 "ExtensionWithSupers",
+                "InputTypeDef",
+                "OutputTypeDef",
+                "SimpleTypeDef",
                 "TypeExpr"
             )
 
@@ -425,6 +473,14 @@ abstract class ViaductSchemaSubtypeContract {
     ): Unit =
         supertypes.forEach {
             assertIsSubtype(kclass(subtype).starProjectedType, it)
+        }
+
+    fun assertApiIsSubtype(
+        subtype: String,
+        vararg supertypes: String
+    ): Unit =
+        supertypes.forEach {
+            assertIsSubtype(apiKclass(subtype).starProjectedType, apiKclass(it).starProjectedType)
         }
 
     fun assertExtensionsSubtypes(

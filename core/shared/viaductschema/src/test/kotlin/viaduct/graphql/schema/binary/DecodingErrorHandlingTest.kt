@@ -39,7 +39,7 @@ class DecodingErrorHandlingTest {
         // Create an applied directive referencing a directive that doesn't exist
         val appliedDirective = ViaductSchema.AppliedDirective.of(mockDirective("nonExistent"), emptyMap())
 
-        val ext = ViaductSchema.ExtensionWithSupers.of<SchemaWithData.Object, SchemaWithData.Field>(
+        val ext = ViaductSchema.ExtensionWithSupers.of<SchemaWithData.Object, SchemaWithData.ObjectField>(
             def = obj,
             memberFactory = { emptyList() },
             isBase = true,
@@ -70,11 +70,11 @@ class DecodingErrorHandlingTest {
         // Create a field with an applied directive that doesn't exist
         val appliedDirective = ViaductSchema.AppliedDirective.of(mockDirective("missingDirective"), emptyMap())
 
-        val ext = ViaductSchema.ExtensionWithSupers.of<SchemaWithData.Object, SchemaWithData.Field>(
+        val ext = ViaductSchema.ExtensionWithSupers.of<SchemaWithData.Object, SchemaWithData.ObjectField>(
             def = obj,
             memberFactory = { ext ->
                 listOf(
-                    SchemaWithData.Field(
+                    SchemaWithData.ObjectField(
                         ext,
                         "myField",
                         ViaductSchema.TypeExpr(stringType),
@@ -189,11 +189,11 @@ class DecodingErrorHandlingTest {
             @Suppress("UNCHECKED_CAST")
             val badSupers = listOf(scalar) as List<SchemaWithData.Interface>
 
-            val ext = ViaductSchema.ExtensionWithSupers.of<SchemaWithData.Object, SchemaWithData.Field>(
+            val ext = ViaductSchema.ExtensionWithSupers.of<SchemaWithData.Object, SchemaWithData.ObjectField>(
                 def = obj,
                 memberFactory = { ext ->
                     listOf(
-                        SchemaWithData.Field(ext, "field", ViaductSchema.TypeExpr(stringType), emptyList(), false, null)
+                        SchemaWithData.ObjectField(ext, "field", ViaductSchema.TypeExpr(stringType), emptyList(), false, null)
                     )
                 },
                 isBase = true,
@@ -266,11 +266,11 @@ class DecodingErrorHandlingTest {
             mapOf("unknownArg" to ViaductSchema.StringLiteral.of("value")) // This arg doesn't exist!
         )
 
-        val ext = ViaductSchema.ExtensionWithSupers.of<SchemaWithData.Object, SchemaWithData.Field>(
+        val ext = ViaductSchema.ExtensionWithSupers.of<SchemaWithData.Object, SchemaWithData.ObjectField>(
             def = obj,
             memberFactory = { ext ->
                 listOf(
-                    SchemaWithData.Field(
+                    SchemaWithData.ObjectField(
                         ext,
                         "myField",
                         ViaductSchema.TypeExpr(stringType),
@@ -681,11 +681,11 @@ class DecodingErrorHandlingTest {
 
         val appliedDirective = ViaductSchema.AppliedDirective.of(mockDirective("myDirective"), emptyMap())
 
-        val ext = ViaductSchema.ExtensionWithSupers.of<SchemaWithData.Object, SchemaWithData.Field>(
+        val ext = ViaductSchema.ExtensionWithSupers.of<SchemaWithData.Object, SchemaWithData.ObjectField>(
             def = obj,
             memberFactory = { ext ->
                 listOf(
-                    SchemaWithData.Field(
+                    SchemaWithData.ObjectField(
                         ext,
                         "myField",
                         ViaductSchema.TypeExpr(stringType),

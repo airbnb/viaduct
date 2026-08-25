@@ -204,7 +204,7 @@ class GJSchemaErrorTest {
         val obj = SchemaWithData.Object(schema, def.name, def)
 
         val extensions = listOf(
-            ViaductSchema.ExtensionWithSupers.of<SchemaWithData.Object, SchemaWithData.Field>(
+            ViaductSchema.ExtensionWithSupers.of<SchemaWithData.Object, SchemaWithData.ObjectField>(
                 def = obj,
                 memberFactory = { emptyList() },
                 isBase = true,

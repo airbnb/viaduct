@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.checkViaductSchemaInvariants
+import viaduct.invariants.FailureCollector
 
 typealias NSE = NoSuchElementException
 
@@ -18,13 +20,14 @@ typealias NSE = NoSuchElementException
  *
  * This interface provides a comprehensive set of JUnit 5 tests that verify
  * the behavioral correctness of any [ViaductSchema] implementation. Implementers
- * need only provide a [createSchema] factory method, and they receive extensive
+ * need only provide a [makeSchema] factory method, and they receive extensive
  * test coverage for:
  *
  * - Default value handling for fields and arguments
  * - Field path navigation
  * - Override detection (`isOverride`)
  * - Extension lists and applied directives
+ * - Whole-schema structural and referential invariants
  * - Root type referential integrity
  * - Type expression properties
  *
@@ -93,16 +96,87 @@ interface ViaductSchemaContract {
     }
 
     /**
-     * Factory method to create a [ViaductSchema] from SDL.
+     * Creates a checked [ViaductSchema] from SDL.
      *
-     * Implementations should parse the given GraphQL SDL string and return
-     * a [ViaductSchema] instance. The SDL will always be syntactically valid
-     * GraphQL schema definition language.
+     * The result from [makeSchema] is checked with [checkViaductSchemaInvariants] before it is
+     * returned, so every schema used by this contract must satisfy the whole-schema structural
+     * and referential invariants.
      *
      * @param schema A valid GraphQL SDL string
-     * @return A [ViaductSchema] parsed from the SDL
+     * @return A checked [ViaductSchema] parsed from the SDL
      */
-    fun createSchema(schema: String): ViaductSchema
+    fun createSchema(schema: String): ViaductSchema =
+        makeSchema(schema).also {
+            FailureCollector()
+                .also { check -> checkViaductSchemaInvariants(it, check) }
+                .assertEmpty("\n")
+        }
+
+    /**
+     * Factory hook for the [ViaductSchema] implementation under test.
+     *
+     * Implementations should parse the given syntactically valid GraphQL SDL.
+     */
+    fun makeSchema(schema: String): ViaductSchema
+
+    @Test
+    fun `type definitions have exact input and output roles`() {
+        createSchema(
+            """
+                scalar Date
+                enum Status { ACTIVE }
+                input Filter { status: Status }
+                interface Node { id: ID! }
+                type Query implements Node { id: ID! }
+                union Search = Query
+            """.trimIndent()
+        ).apply {
+            fun assertRoles(
+                name: String,
+                input: Boolean,
+                output: Boolean,
+                simple: Boolean,
+                composite: Boolean,
+            ) {
+                val type = types.getValue(name)
+                assertEquals(input, type is ViaductSchema.InputTypeDef, "$name input role")
+                assertEquals(output, type is ViaductSchema.OutputTypeDef, "$name output role")
+                assertEquals(simple, type is ViaductSchema.SimpleTypeDef, "$name simple role")
+                assertEquals(composite, type is ViaductSchema.CompositeTypeDef, "$name composite role")
+            }
+
+            assertRoles("Date", input = true, output = true, simple = true, composite = false)
+            assertRoles("Status", input = true, output = true, simple = true, composite = false)
+            assertRoles("Filter", input = true, output = false, simple = false, composite = false)
+            assertRoles("Node", input = false, output = true, simple = false, composite = true)
+            assertRoles("Query", input = false, output = true, simple = false, composite = true)
+            assertRoles("Search", input = false, output = true, simple = false, composite = true)
+        }
+    }
+
+    @Test
+    fun `object fields preserve concrete object ownership`() {
+        createSchema(
+            """
+                interface Node { id: ID! }
+                type Query implements Node { id: ID! user: User }
+                type User { id: ID! }
+                input Filter { id: ID }
+            """.trimIndent()
+        ).apply {
+            val query = types.getValue("Query") as ViaductSchema.Object
+            val node = types.getValue("Node") as ViaductSchema.Interface
+            val filter = types.getValue("Filter") as ViaductSchema.Input
+
+            query.fields.forEach { field ->
+                assertSame(query, field.containingDef)
+                assertSame(query, field.containingExtension.def)
+            }
+            assertSame(query.fields.first { it.name == "id" }, query.field("id"))
+            assertTrue(node.fields.none { it is ViaductSchema.ObjectField })
+            assertTrue(filter.fields.none { it is ViaductSchema.ObjectField })
+        }
+    }
 
     @Test
     fun `Effective default funs should throw on fields of output types`() {

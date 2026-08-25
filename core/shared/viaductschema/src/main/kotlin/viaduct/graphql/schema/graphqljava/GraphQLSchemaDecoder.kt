@@ -380,7 +380,7 @@ internal class GraphQLSchemaDecoder(
 
     // ========== Object ==========
 
-    fun createObjectExtensions(objectDef: SchemaWithData.Object): List<ViaductSchema.ExtensionWithSupers<SchemaWithData.Object, SchemaWithData.Field>> {
+    fun createObjectExtensions(objectDef: SchemaWithData.Object): List<ViaductSchema.ExtensionWithSupers<SchemaWithData.Object, SchemaWithData.ObjectField>> {
         val gjDef = objectDef.gjDef
         return (listOf(gjDef.definition) + gjDef.extensionDefinitions).map { gjLangTypeDef ->
             ViaductSchema.ExtensionWithSupers.of(
@@ -390,10 +390,9 @@ internal class GraphQLSchemaDecoder(
                         gjDef.fields
                             .filter { it.name != ViaductSchema.VIADUCT_IGNORE_SYMBOL }
                             .map { fieldDef ->
-                                @Suppress("UNCHECKED_CAST")
-                                createOutputField(
+                                createObjectField(
                                     fieldDef,
-                                    containingExtension as ViaductSchema.Extension<SchemaWithData.Record, SchemaWithData.Field>,
+                                    containingExtension,
                                     decodeAppliedDirectives(fieldDef)
                                 )
                             }
@@ -403,10 +402,9 @@ internal class GraphQLSchemaDecoder(
                             .map { fd ->
                                 val fieldDef = gjDef.getFieldDefinition(fd.name)
                                     ?: error("Field ${fd.name} not found in ${gjDef.name}")
-                                @Suppress("UNCHECKED_CAST")
-                                createOutputField(
+                                createObjectField(
                                     fieldDef,
-                                    containingExtension as ViaductSchema.Extension<SchemaWithData.Record, SchemaWithData.Field>,
+                                    containingExtension,
                                     decodeAppliedDirectivesFromLang(fd.directives)
                                 )
                             }
@@ -500,6 +498,23 @@ internal class GraphQLSchemaDecoder(
             argsFactory = { field -> createFieldArgs(field, fieldDef) }
         )
     }
+
+    private fun createObjectField(
+        fieldDef: GraphQLFieldDefinition,
+        containingExtension: ViaductSchema.ExtensionWithSupers<SchemaWithData.Object, SchemaWithData.ObjectField>,
+        appliedDirectives: List<ViaductSchema.AppliedDirective<*>>
+    ): SchemaWithData.ObjectField =
+        SchemaWithData.ObjectField(
+            containingExtension,
+            fieldDef.name,
+            decodeTypeExpr(fieldDef.type),
+            appliedDirectives,
+            hasDefault = false,
+            defaultValue = null,
+            data = fieldDef,
+            description = fieldDef.description,
+            argsFactory = { field -> createFieldArgs(field, fieldDef) }
+        )
 
     private fun createFieldArgs(
         field: SchemaWithData.Field,

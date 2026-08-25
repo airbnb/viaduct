@@ -115,7 +115,10 @@ internal class DefinitionsDecoder(
                     @Suppress("UNCHECKED_CAST")
                     def.populate(
                         decodeExtensionListWithSupers(def) { ext, v ->
-                            decodeOutputField(ext, FieldRefPlus(v))
+                            decodeObjectField(
+                                ext,
+                                FieldRefPlus(v)
+                            )
                         },
                         decodeTypeDefList() as List<SchemaWithData.Union>,
                         description
@@ -249,6 +252,36 @@ internal class DefinitionsDecoder(
 
         // Pass to constructor in standardized order: container, name, type, appliedDirectives, hasDefault, defaultValue
         return SchemaWithData.Field(
+            container,
+            name,
+            type,
+            appliedDirectives,
+            hasDefault,
+            defaultValue,
+            description = description,
+            argsFactory = { field ->
+                if (hasArgs) {
+                    decodeInputLikeFieldList(field, SchemaWithData::FieldArg)
+                } else {
+                    emptyList()
+                }
+            }
+        )
+    }
+
+    fun decodeObjectField(
+        container: ViaductSchema.ExtensionWithSupers<SchemaWithData.Object, SchemaWithData.ObjectField>,
+        refPlus: FieldRefPlus,
+    ): SchemaWithData.ObjectField {
+        val name = identifiers.get(refPlus.getIndex())
+        val description = descriptions.get(data.readInt())
+        val appliedDirectives = decodeAppliedDirectives(refPlus.hasAppliedDirectives())
+        val type = types.get(data.readInt())
+        val hasDefault = refPlus.hasDefaultValue()
+        val defaultValue = decodeDefaultValue(hasDefault)
+        val hasArgs = refPlus.hasArguments()
+
+        return SchemaWithData.ObjectField(
             container,
             name,
             type,
@@ -424,7 +457,7 @@ internal class DefinitionsDecoder(
 
     fun <D : SchemaWithData.TypeDef, M : SchemaWithData.Def> decodeExtensionListWithSupers(
         def: D,
-        block: (ViaductSchema.Extension<D, M>, Int) -> M
+        block: (ViaductSchema.ExtensionWithSupers<D, M>, Int) -> M
     ): List<ViaductSchema.ExtensionWithSupers<D, M>> =
         buildList {
             var isBase = true
@@ -448,8 +481,7 @@ internal class DefinitionsDecoder(
                     }
                 }
 
-                @Suppress("UNCHECKED_CAST")
-                val ext = ViaductSchema.ExtensionWithSupers.of(
+                val ext = ViaductSchema.ExtensionWithSupers.of<D, M>(
                     def = def,
                     memberFactory = { ext ->
                         var v = data.readInt()
@@ -458,7 +490,7 @@ internal class DefinitionsDecoder(
                         } else {
                             buildList {
                                 do {
-                                    add(block(ext as ViaductSchema.Extension<D, M>, v))
+                                    add(block(ext, v))
                                     val hasNext = (0 == (v and END_OF_LIST_BIT))
                                     if (hasNext) {
                                         v = data.readInt()
@@ -471,7 +503,7 @@ internal class DefinitionsDecoder(
                     appliedDirectives = appliedDirectives,
                     supers = supers,
                     sourceLocation = sourceLocation
-                ) as ViaductSchema.ExtensionWithSupers<D, M>
+                )
                 add(ext)
                 isBase = false
             } while (refPlus.hasNext())

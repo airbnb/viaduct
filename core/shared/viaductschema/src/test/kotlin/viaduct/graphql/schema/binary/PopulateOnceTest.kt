@@ -255,7 +255,7 @@ class PopulateOnceTest {
         val obj = SchemaWithData.Object(schema, "TestObject")
 
         // First populate succeeds
-        val ext = ViaductSchema.ExtensionWithSupers.of<SchemaWithData.Object, SchemaWithData.Field>(
+        val ext = ViaductSchema.ExtensionWithSupers.of<SchemaWithData.Object, SchemaWithData.ObjectField>(
             def = obj,
             memberFactory = { emptyList() },
             isBase = true,

@@ -144,7 +144,7 @@ internal class TypeDefinitionRegistryDecoder(
 
     // ========== Object ==========
 
-    fun createObjectExtensions(objectDef: SchemaWithData.Object): List<ViaductSchema.ExtensionWithSupers<SchemaWithData.Object, SchemaWithData.Field>> {
+    fun createObjectExtensions(objectDef: SchemaWithData.Object): List<ViaductSchema.ExtensionWithSupers<SchemaWithData.Object, SchemaWithData.ObjectField>> {
         return (listOf(objectDef.gjrDef) + objectDef.gjrExtensionDefs).map { gjLangTypeDef ->
             ViaductSchema.ExtensionWithSupers.of(
                 def = objectDef,
@@ -152,10 +152,9 @@ internal class TypeDefinitionRegistryDecoder(
                     gjLangTypeDef.fieldDefinitions
                         .filter { it.name != ViaductSchema.VIADUCT_IGNORE_SYMBOL }
                         .map { fieldDef ->
-                            @Suppress("UNCHECKED_CAST")
-                            createOutputField(
+                            createObjectField(
                                 fieldDef,
-                                containingExtension as ViaductSchema.Extension<SchemaWithData.Record, SchemaWithData.Field>
+                                containingExtension
                             )
                         }
                 },
@@ -224,6 +223,22 @@ internal class TypeDefinitionRegistryDecoder(
             argsFactory = { field -> createFieldArgs(field, fieldDef) }
         )
     }
+
+    private fun createObjectField(
+        fieldDef: FieldDefinition,
+        containingExtension: ViaductSchema.ExtensionWithSupers<SchemaWithData.Object, SchemaWithData.ObjectField>
+    ): SchemaWithData.ObjectField =
+        SchemaWithData.ObjectField(
+            containingExtension = containingExtension,
+            name = fieldDef.name,
+            type = decodeTypeExpr(fieldDef.type),
+            appliedDirectives = decodeAppliedDirectives(fieldDef.directives),
+            hasDefault = false,
+            defaultValue = null,
+            data = fieldDef,
+            description = fieldDef.description?.content,
+            argsFactory = { field -> createFieldArgs(field, fieldDef) }
+        )
 
     private fun createFieldArgs(
         field: SchemaWithData.Field,

@@ -222,10 +222,6 @@ interface ViaductSchema {
         val isComposite
             get() = (this == OBJECT || this == INTERFACE || this == UNION)
 
-        /** True for input types. */
-        val isInput
-            get() = (this == INPUT)
-
         /** True for output types (object, interface, union, scalar, enum). */
         val isOutput
             get() = (this != INPUT)
@@ -305,7 +301,7 @@ interface ViaductSchema {
         companion object {
             fun <D : TypeDef, M : Def> of(
                 def: D,
-                memberFactory: (Extension<D, M>) -> Collection<M>,
+                memberFactory: (ExtensionWithSupers<D, M>) -> Collection<M>,
                 isBase: Boolean,
                 appliedDirectives: Collection<ViaductSchema.AppliedDirective<*>>,
                 supers: Collection<Interface>,
@@ -367,10 +363,6 @@ interface ViaductSchema {
         val isComposite: Boolean
             get() = kind.isComposite
 
-        /** True for input types. */
-        val isInput: Boolean
-            get() = kind.isInput
-
         /** True for output types (object, interface, union, scalar, enum). */
         val isOutput: Boolean
             get() = kind.isOutput
@@ -384,7 +376,16 @@ interface ViaductSchema {
         val possibleObjectTypes: Set<Object>
     }
 
-    interface Scalar : TypeDef {
+    /** A type definition that is valid in an input position. */
+    interface InputTypeDef : TypeDef
+
+    /** A type definition that is valid in an output position. */
+    interface OutputTypeDef : TypeDef
+
+    /** A scalar or enum type, valid in both input and output positions. */
+    interface SimpleTypeDef : InputTypeDef, OutputTypeDef
+
+    interface Scalar : SimpleTypeDef {
         override val kind get() = TypeDefKind.SCALAR
         override val extensions: Collection<Extension<Scalar, Nothing>>
         override val sourceLocation get() = extensions.firstOrNull().let {
@@ -403,7 +404,7 @@ interface ViaductSchema {
         override fun describe() = "EnumValue<$name>"
     }
 
-    interface Enum : TypeDef {
+    interface Enum : SimpleTypeDef {
         override val kind get() = TypeDefKind.ENUM
 
         val values: Collection<EnumValue>
@@ -418,7 +419,10 @@ interface ViaductSchema {
         override fun describe() = "Enum<$name>"
     }
 
-    interface Union : TypeDef {
+    /** A type on which GraphQL selections and type conditions are meaningful. */
+    interface CompositeTypeDef : OutputTypeDef
+
+    interface Union : CompositeTypeDef {
         override val kind get() = TypeDefKind.UNION
         override val extensions: Collection<Extension<Union, Object>>
         override val sourceLocation get() = extensions.firstOrNull().let {
@@ -474,7 +478,7 @@ interface ViaductSchema {
         override fun describe() = "DirectiveArg<${containingDef.name}.$name:$type>"
     }
 
-    /** Represents fields for all of interface, object, and input types. */
+    /** Represents declared fields for all of interface, object, and input types. */
     interface Field : HasDefaultValue {
         override val containingDef: Record
         val containingExtension: Extension<Record, Field>
@@ -497,6 +501,12 @@ interface ViaductSchema {
         override fun describe() = "Field<$name:$type>"
     }
 
+    /** A declared field owned by a concrete object type. */
+    interface ObjectField : Field {
+        override val containingDef: Object
+        override val containingExtension: ExtensionWithSupers<Object, ObjectField>
+    }
+
     /** Supertype for GraphQL interface-, input-, and object-types.
      *  This common interface is useful because various aspects of codegen
      *  work the same for all three types. */
@@ -516,7 +526,7 @@ interface ViaductSchema {
 
     /** Supertype for GraphQL interface- and object-types (output record types).
      *  These types have extensions with supers, unlike Input types. */
-    interface OutputRecord : Record {
+    interface OutputRecord : Record, CompositeTypeDef {
         override val extensions: Collection<ExtensionWithSupers<OutputRecord, Field>>
 
         /** The list of interfaces directly implemented by this type. */
@@ -532,7 +542,10 @@ interface ViaductSchema {
 
     interface Object : OutputRecord {
         override val kind get() = TypeDefKind.OBJECT
-        override val extensions: Collection<ExtensionWithSupers<Object, Field>>
+        override val extensions: Collection<ExtensionWithSupers<Object, ObjectField>>
+        override val fields: Collection<ObjectField>
+
+        override fun field(name: String): ObjectField?
 
         /** The list of unions that contain this object type. */
         val unions: Collection<Union>
@@ -540,7 +553,7 @@ interface ViaductSchema {
         override fun describe() = "Object<$name>"
     }
 
-    interface Input : Record {
+    interface Input : Record, InputTypeDef {
         override val kind get() = TypeDefKind.INPUT
         override val extensions: Collection<Extension<Input, Field>>
 

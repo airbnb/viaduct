@@ -57,14 +57,22 @@ fun checkViaductSchemaInvariants(
 
     for ((directiveName, directive) in schema.directives) {
         check.withContext(directiveName) {
+            check.isEqualTo(directiveName, directive.name, "DIRECTIVE_NAME")
+            check.isSameInstanceAs(directive, schema.directives[directiveName]!!, "DIRECTIVE_INTEGRITY")
+            check.isSameInstanceAs(schema, directive.containingSchema, "DIRECTIVE_SCHEMA_INTEGRITY")
             directive.args.forEach {
                 check.withContext(it.name) {
+                    check.isSameInstanceAs(directive, it.containingDef, "DIRECTIVE_ARG_BACKPOINTER")
                     checkTypeExprReferentialIntegrity(schema, it.type, check)
                 }
             }
             check.isNotEmpty(directive.allowedLocations, "DIRECTIVE_LOCATIONS_EMPTY")
         }
     }
+
+    checkRootReferentialIntegrity(schema, schema.queryTypeDef, "QUERY_ROOT_INTEGRITY", check)
+    checkRootReferentialIntegrity(schema, schema.mutationTypeDef, "MUTATION_ROOT_INTEGRITY", check)
+    checkRootReferentialIntegrity(schema, schema.subscriptionTypeDef, "SUBSCRIPTION_ROOT_INTEGRITY", check)
 
     for (def in schema.types.values) {
         check.withContext(def.name) {
@@ -79,18 +87,26 @@ fun checkViaductSchemaInvariants(
     }
 }
 
+private fun checkRootReferentialIntegrity(
+    schema: ViaductSchema,
+    root: ViaductSchema.Object?,
+    message: String,
+    check: FailureCollector
+) {
+    if (root != null) {
+        val canonicalRoot = schema.types[root.name]
+        check.isNotNull(canonicalRoot, message)
+        if (canonicalRoot != null) {
+            check.isSameInstanceAs(canonicalRoot, root, message)
+        }
+    }
+}
+
 private fun checkBackPointerInvariants(
     def: ViaductSchema.TypeDef,
     check: FailureCollector
 ) {
     when (def) {
-        is ViaductSchema.Directive ->
-            def.args.forEach {
-                check.withContext(it.name) {
-                    check.isSameInstanceAs(def, it.containingDef, "BACKPOINTER")
-                }
-            }
-
         is ViaductSchema.Enum ->
             def.values.forEach {
                 check.withContext(it.name) {
@@ -163,10 +179,12 @@ private fun checkReferentialIntegrity(
     check: FailureCollector
 ) {
     check.isSameInstanceAs(schema.types[def.name]!!, def, "DEF_INTEGRITY")
+    check.isSameInstanceAs(schema, def.containingSchema, "DEF_SCHEMA_INTEGRITY")
     checkTypeExprReferentialIntegrity(schema, def.asTypeExpr(), check)
     def.possibleObjectTypes.forEach {
         check.isSameInstanceAs(schema.types[it.name]!!, it, "POSSIBLE_OBJECT_TYPE_INTEGRITY ${it.name}")
     }
+    checkPossibleObjectTypesInvariants(schema, def, check)
 
     val allExpectedSupers =
         when (def) {
@@ -175,6 +193,7 @@ private fun checkReferentialIntegrity(
         }
     if (def is ViaductSchema.Enum) {
         checkExtensionReferentialIntegrity(schema, def, def.values, allExpectedSupers, check)
+        check.isNull(def.value(""), "ENUM_UNKNOWN_VALUE")
         def.values.forEach { value ->
             check.withContext(value.name) {
                 check.isSameInstanceAs(value, def.value(value.name)!!, "ENUM_VAL_INTEGRITY")
@@ -192,6 +211,7 @@ private fun checkReferentialIntegrity(
             allExpectedSupers,
             check
         )
+        check.isNull(def.field(""), "RECORD_UNKNOWN_FIELD")
         def.fields.forEach { field ->
             check.withContext(field.name) {
                 check.isSameInstanceAs(field, def.field(field.name)!!, "FIELD_INTEGRITY")
@@ -211,11 +231,48 @@ private fun checkReferentialIntegrity(
         def.supers.forEach { check.isSameInstanceAs(schema.types[it.name]!!, it, "SUP_INTEGRITY ${it.name}") }
         if (def is ViaductSchema.Object) {
             def.unions.forEach { check.isSameInstanceAs(schema.types[it.name]!!, it, "UNION_INTEGRITY ${it.name}") }
+            val expectedUnions =
+                schema.types.values
+                    .filterIsInstance<ViaductSchema.Union>()
+                    .filter { union -> union.possibleObjectTypes.any { it === def } }
+                    .map { it.name }
+            check.containsExactlyElementsIn(expectedUnions, def.unions.map { it.name }, "OBJECT_UNIONS")
         }
     }
 
     if (def is ViaductSchema.Union) {
         checkExtensionReferentialIntegrity(schema, def, def.possibleObjectTypes, allExpectedSupers, check)
+    }
+}
+
+private fun checkPossibleObjectTypesInvariants(
+    schema: ViaductSchema,
+    def: ViaductSchema.TypeDef,
+    check: FailureCollector
+) {
+    val expectedNames =
+        when (def) {
+            is ViaductSchema.Object -> listOf(def.name)
+            is ViaductSchema.Interface ->
+                schema.types.values
+                    .filterIsInstance<ViaductSchema.Object>()
+                    .filter { obj -> obj.supers.any { it === def } }
+                    .map { it.name }
+            is ViaductSchema.Union -> def.extensions.flatMap { it.members }.map { it.name }
+            else -> emptyList()
+        }
+
+    check.containsNoDuplicates(def.possibleObjectTypes.map { it.name }, "POSSIBLE_OBJECT_TYPES_NO_DUPLICATES")
+    check.containsExactlyElementsIn(
+        expectedNames,
+        def.possibleObjectTypes.map { it.name },
+        "POSSIBLE_OBJECT_TYPES_EXHAUSTIVE"
+    )
+    if (def is ViaductSchema.Object) {
+        check.isEqualTo(1, def.possibleObjectTypes.size, "OBJECT_HAS_ONE_POSSIBLE_TYPE")
+        def.possibleObjectTypes.firstOrNull()?.let {
+            check.isSameInstanceAs(def, it, "OBJECT_IS_OWN_POSSIBLE_TYPE")
+        }
     }
 }
 
@@ -298,12 +355,15 @@ private fun checkMiscInvariants(
     if (def is ViaductSchema.TypeDef) {
         val isSimple = def is ViaductSchema.Scalar || def is ViaductSchema.Enum
         check.isEqualTo(isSimple, def.isSimple, "CORRECT_IS_SIMPLE")
+        check.isEqualTo(isSimple, def is ViaductSchema.SimpleTypeDef, "CORRECT_SIMPLE_TYPE_ROLE")
         val isComposite = def is ViaductSchema.Object || def is ViaductSchema.Interface || def is ViaductSchema.Union
         check.isEqualTo(isComposite, def.isComposite, "CORRECT_IS_COMPOUND")
-        val isInput = def is ViaductSchema.Input
-        check.isEqualTo(isInput, def.isInput, "CORRECT_IS_INPUT")
+        check.isEqualTo(isComposite, def is ViaductSchema.CompositeTypeDef, "CORRECT_COMPOSITE_TYPE_ROLE")
+        val isInput = isSimple || def is ViaductSchema.Input
+        check.isEqualTo(isInput, def is ViaductSchema.InputTypeDef, "CORRECT_INPUT_TYPE_ROLE")
         val isOutput = def !is ViaductSchema.Input
         check.isEqualTo(isOutput, def.isOutput, "CORRECT_IS_OUTPUT")
+        check.isEqualTo(isOutput, def is ViaductSchema.OutputTypeDef, "CORRECT_OUTPUT_TYPE_ROLE")
         when (def) {
             is ViaductSchema.Enum -> check.isEqualTo(ViaductSchema.TypeDefKind.ENUM, def.kind, "CORRECT_ENUM")
             is ViaductSchema.Input -> check.isEqualTo(ViaductSchema.TypeDefKind.INPUT, def.kind, "CORRECT_INPUT")
