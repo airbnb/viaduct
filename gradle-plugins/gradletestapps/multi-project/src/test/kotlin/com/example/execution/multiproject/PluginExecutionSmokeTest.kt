@@ -30,14 +30,14 @@ class PluginExecutionSmokeTest {
         )
         assertExists(
             betaBuildDir.resolve(
-                "generated-sources/viaduct/resolverBases/" +
-                    "com/example/execution/multiproject/beta/QueryResolvers.kt"
+                "generated-sources/viaduct/javaResolverBases/" +
+                    "com/example/execution/multiproject/beta/resolverbases/QueryResolvers.java"
             )
         )
         assertExists(
             betaBuildDir.resolve(
-                "generated-sources/viaduct/resolverBases/" +
-                    "com/example/execution/multiproject/beta/MutationResolvers.kt"
+                "generated-sources/viaduct/javaResolverBases/" +
+                    "com/example/execution/multiproject/beta/resolverbases/MutationResolvers.java"
             )
         )
 
@@ -48,7 +48,7 @@ class PluginExecutionSmokeTest {
     }
 
     @Test
-    fun tenantModuleConfigsContainKspExtractedResolvers() {
+    fun tenantModuleConfigsContainKspAndAptExtractedResolvers() {
         val alphaConfigFile = alphaBuildDir.resolve(
             "generated-resources/viaduct-registry/" +
                 "META-INF/viaduct/modules/com.example.execution.multiproject.alpha.json"
@@ -67,10 +67,11 @@ class PluginExecutionSmokeTest {
         val betaContents = betaConfigFile.readText()
         assertTrue(betaContents.contains("AuthorResolver"))
         assertTrue(betaContents.contains("EchoMutationResolver"))
+        assertTrue(betaContents.contains("viaduct.java.runtime.bootstrap.ViaductJavaExecutorFactory"))
     }
 
     @Test
-    fun queriesAndMutationsExecuteThroughViaduct() {
+    fun kotlinAndJavaResolversExecuteThroughViaduct() {
         val viaduct = BasicViaductFactory.create()
 
         val queryResult = viaduct.executeAsync(

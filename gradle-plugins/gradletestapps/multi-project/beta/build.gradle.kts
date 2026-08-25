@@ -1,9 +1,11 @@
 plugins {
-    id("conventions.kotlin")
-    id("conventions.ksp")
-    id("com.airbnb.viaduct.module-gradle-plugin")
+    `java-library`
+    id("conventions.java")
+    id("com.airbnb.viaduct.module-java-gradle-plugin")
 }
 
 dependencies {
     implementation("com.airbnb.viaduct:api")
+    implementation("com.airbnb.viaduct:javaapi-api")
+    implementation("com.airbnb.viaduct:javaapi-runtime")
 }
