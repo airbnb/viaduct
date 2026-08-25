@@ -2,6 +2,7 @@
 
 package viaduct.remote
 
+import io.grpc.Status
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import kotlinx.coroutines.currentCoroutineContext
@@ -17,6 +18,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolveSelectionSetOptions
+import viaduct.engine.api.SubqueryExecutionException
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.remote.registry.ContextRegistry
@@ -84,8 +86,49 @@ class UnaryCallbackSelectionWireTest {
             assertEquals(0, SelectionsRegistry.size)
         }
 
+    @Test
+    fun `selection execution failure is not reported as serialization failure`() {
+        val status = callbackFailure(
+            ResolvingContext(ContextMocks(schema).engineExecutionContext) { _, _ ->
+                throw SubqueryExecutionException("selection execution failed")
+            }
+        )
+
+        assertEquals(Status.Code.UNKNOWN, status.code)
+        assertTrue(status.description?.startsWith("Failed to serialize callback result") != true)
+    }
+
+    @Test
+    fun `serialization failure is reported as internal`() {
+        val status = callbackFailure(
+            ResolvingContext(ContextMocks(schema).engineExecutionContext) { _, _ ->
+                EngineObjectDataBuilder.from(schema.schema.queryType)
+                    .put("user", Any())
+                    .build()
+            }
+        )
+
+        assertEquals(Status.Code.INTERNAL, status.code)
+        assertTrue(status.description?.startsWith("Failed to serialize callback result") == true)
+    }
+
+    private fun callbackFailure(context: EngineExecutionContext): Status {
+        val error = runCatching {
+            runBlocking {
+                executeUnaryCallback(
+                    context = context,
+                    selectionType = "Query",
+                    selectionText = "user(id: \"user:1\") { id name }",
+                    variables = emptyMap(),
+                    options = ResolveSelectionSetOptions.DEFAULT,
+                )
+            }
+        }.exceptionOrNull() ?: error("Expected callback to fail")
+        return Status.fromThrowable(error)
+    }
+
     private suspend fun executeUnaryCallback(
-        context: RecordingContext,
+        context: EngineExecutionContext,
         selectionType: String,
         selectionText: String,
         variables: Map<String, Any?>,
@@ -165,6 +208,16 @@ class UnaryCallbackSelectionWireTest {
                 .put(if (selectionSet.type == "Query") "user" else "updateUser", user)
                 .build()
         }
+    }
+
+    private class ResolvingContext(
+        delegate: EngineExecutionContext,
+        private val resolve: suspend (EngineSelectionSet, ResolveSelectionSetOptions) -> EngineObjectData.Sync,
+    ) : EngineExecutionContext by delegate {
+        override suspend fun resolveSelectionSet(
+            selectionSet: EngineSelectionSet,
+            options: ResolveSelectionSetOptions,
+        ): EngineObjectData.Sync = resolve(selectionSet, options)
     }
 
     private data class Call(

@@ -44,11 +44,11 @@ class EngineCallbackServiceImpl : EngineCallbackServiceGrpcKt.EngineCallbackServ
             SelectionsRegistry.get(request.selectionsHandle)
                 ?: throw notFound("selections", request.selectionsHandle)
         }
+        val result = withRestoredCoroutineContext(registration.coroutineContext) {
+            context.resolveSelectionSet(selections, options)
+        }
         val objectDataJson = try {
-            withRestoredCoroutineContext(registration.coroutineContext) {
-                val result = context.resolveSelectionSet(selections, options)
-                EngineObjectDataSerializer.serialize(result)
-            }
+            EngineObjectDataSerializer.serialize(result)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
