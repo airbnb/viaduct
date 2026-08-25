@@ -36,7 +36,7 @@ tasks.register<JavaExec>("runCopybara") {
     dependsOn(downloadCopybara)
 
     javaLauncher.set(javaToolchains.launcherFor {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion.set(JavaLanguageVersion.of(25))
     })
 
     // Default to repo root (two levels up from .github/copydemoapps/),
