@@ -7,6 +7,25 @@ plugins {
 
 tasks.test {
     environment("PACKAGE_WITH_SCHEMA", "invalidschemapkg")
+    useJUnitPlatform {
+        excludeTags("large-schema")
+    }
+}
+
+tasks.register<Test>("largeSchemaTest") {
+    description = "Run large-schema round-trip tests with additional heap"
+    group = "verification"
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags("large-schema")
+    }
+
+    maxHeapSize = "4g"
+    maxParallelForks = 1
+    forkEvery = 1
 }
 
 // CLI run task - the CLI lives in testFixtures since it depends on SchemaDiff

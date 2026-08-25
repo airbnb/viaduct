@@ -6,7 +6,7 @@ import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.next
 import java.io.File
 import java.util.zip.ZipInputStream
-import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.graphql.SchemaSize
@@ -59,7 +59,7 @@ class RoundTripTest {
      *
      * This schema has ~18,000 types and 50,588 unique string constants.
      */
-    @Disabled("Requires too much heap for Gradle test runner")
+    @Tag("large-schema")
     @Test
     fun `round trip with large-schema-4`() {
         // Load the zipped schema from resources and unzip to temp file
@@ -92,7 +92,7 @@ class RoundTripTest {
      *
      * This is an anonymized version of the central schema.
      */
-    @Disabled("Requires too much heap for Gradle test runner")
+    @Tag("large-schema")
     @Test
     fun `round trip with large-schema-5`() {
         // Load the zipped schema from resources and unzip to temp file

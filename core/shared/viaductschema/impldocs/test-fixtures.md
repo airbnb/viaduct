@@ -103,7 +103,13 @@ Very large schemas intended for performance benchmarking.
 | `large-schema-4` | ~796 KB | ~6 MB | Performance benchmarks |
 | `large-schema-5` | ~1.2 MB | ~11 MB | Stress testing at scale |
 
-These anonymized versions of the Airbnb central schema (`-4` being a few years older than `-5`).  These are stored as zip files to reduce repository size.  Because of their size they tend to exhaust the memory of test workers, so use them sparingly.  (Internally they areused for JMH benchmarks measuring schema loading and traversal performance.)
+These anonymized versions of the Airbnb central schema (`-4` being a few years older than `-5`).  These are stored as zip files to reduce repository size.  Because of their size they tend to exhaust the memory of test workers, so use them sparingly.  (Internally they are used for JMH benchmarks measuring schema loading and traversal performance.)
+
+Their binary round-trip tests run only through the opt-in Gradle task:
+
+```bash
+./gradlew :core:shared:viaductschema:largeSchemaTest
+```
 
 ## Recommended Usage Patterns
 

@@ -137,6 +137,15 @@ All commands run from `projects/viaduct/oss`.
 ./gradlew :core:shared:viaductschema:test
 ```
 
+### Large-Schema Tests
+
+The large-schema binary round-trip tests require additional heap and are excluded from the
+ordinary test suite. Run them explicitly:
+
+```bash
+./gradlew :core:shared:viaductschema:largeSchemaTest
+```
+
 ### Integration Tests
 
 ```bash
