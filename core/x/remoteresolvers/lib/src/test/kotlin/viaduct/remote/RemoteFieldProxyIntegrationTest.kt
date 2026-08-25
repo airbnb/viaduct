@@ -24,6 +24,7 @@ import viaduct.engine.api.mocks.createEngineSelectionSet
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.errors.TenantResolverException
 import viaduct.remote.fixtures.ArgumentEchoFieldResolverExecutor
 import viaduct.remote.fixtures.CallbackFieldResolverExecutor
 import viaduct.remote.fixtures.SimpleFieldResolverExecutor
@@ -277,6 +278,47 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
+    fun `a whole-batch failure wrapped in TenantResolverException reports the real exception type over the wire`() =
+        runBlocking {
+            // Modern resolver dispatch (FieldBatchResolverExecutorImpl) wraps a tenant resolver's
+            // synchronous throw in TenantResolverException before it reaches RRS's own catch. RRS
+            // must unwrap it so the wire-reported errorType is the real underlying exception, not
+            // the wrapper's class name -- this is what RemoteResolverServiceImpl.fieldError's
+            // unwrapTenantResolverException() call is for.
+            withServers { rrsChannel, callbackEndpoint, context ->
+                val failing = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
+                    override val resolverId: String = "Character.isAdult"
+
+                    override suspend fun batchResolve(
+                        selectors: List<FieldResolverExecutor.Selector>,
+                        context: EngineExecutionContext
+                    ): Map<FieldResolverExecutor.Selector, Result<Any?>> = throw TenantResolverException(IllegalStateException("boom from tenant resolver"), resolverId)
+                }
+                val executorId = FieldExecutorRegistry.register(failing)
+                val proxy = RemoteFieldProxyExecutor(
+                    originalExecutor = failing,
+                    executorId = executorId,
+                    rrsChannel = rrsChannel,
+                    callbackEndpoint = callbackEndpoint
+                )
+
+                val selector = selectorForAge(30)
+                val results = proxy.batchResolve(listOf(selector), context)
+
+                val result = results[selector]
+                assertNotNull(result, "Error result should not be null")
+                assertFalse(result!!.isSuccess, "Result should be a failure")
+                val exception = result.exceptionOrNull()
+                assertTrue(exception is RemoteResolverException, "Should be RemoteResolverException, got $exception")
+                assertEquals(
+                    "java.lang.IllegalStateException",
+                    (exception as RemoteResolverException).errorType,
+                    "errorType should be the real tenant exception's class, not TenantResolverException's wrapper"
+                )
+            }
+        }
+
+    @Test
     fun `a serialization failure mid-batch leaks no context or selection handles`() =
         runBlocking {
             // Regression test for a handle leak: batchResolve registers a context handle in
@@ -317,8 +359,8 @@ class RemoteFieldProxyIntegrationTest {
                 assertNotNull(result, "Result should not be null")
                 assertFalse(result!!.isSuccess, "Serialization failure should surface as a failure")
                 assertTrue(
-                    result.exceptionOrNull() is RemoteResolverException,
-                    "Should be RemoteResolverException, got ${result.exceptionOrNull()}"
+                    result.exceptionOrNull() is RemoteResolverCodecException,
+                    "Should be RemoteResolverCodecException, got ${result.exceptionOrNull()}"
                 )
 
                 // The try/finally must have unregistered both handles despite the isolation; without
@@ -476,8 +518,8 @@ class RemoteFieldProxyIntegrationTest {
                 assertNotNull(throwingResult, "Throwing selector should have a result")
                 assertFalse(throwingResult!!.isSuccess, "The un-serializable middle selector should fail")
                 assertTrue(
-                    throwingResult.exceptionOrNull() is RemoteResolverException,
-                    "Should be RemoteResolverException, got ${throwingResult.exceptionOrNull()}"
+                    throwingResult.exceptionOrNull() is RemoteResolverCodecException,
+                    "Should be RemoteResolverCodecException, got ${throwingResult.exceptionOrNull()}"
                 )
 
                 // ...while both well-formed selectors still round-trip through the real RPC.

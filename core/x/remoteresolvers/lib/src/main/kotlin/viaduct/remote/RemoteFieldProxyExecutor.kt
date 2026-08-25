@@ -129,9 +129,10 @@ class RemoteFieldProxyExecutor(
                 } catch (e: Exception) {
                     log.warn("Failed to serialize field selector {} for '{}': {}", index, executorId, e.message, e)
                     preFailed[selector] = Result.failure(
-                        RemoteResolverException(
+                        RemoteResolverCodecException(
                             message = e.message ?: "Failed to serialize field selector for remote execution",
-                            errorType = e::class.java.name
+                            errorType = e::class.java.name,
+                            cause = e,
                         )
                     )
                 }
@@ -160,8 +161,8 @@ class RemoteFieldProxyExecutor(
                     ?: error("Response missing result for selector_key=$index (executor '$executorId')")
                 val result = when {
                     // deserializeValue rebuilds references/objects against the live schema; a failure
-                    // (unknown type, malformed payload) is isolated to this selector's Result and
-                    // surfaced as a RemoteResolverException, matching every other error path here.
+                    // (unknown type, malformed payload) is a local codec bug, isolated to this
+                    // selector's Result as a RemoteResolverCodecException (isolatedRemoteFailure).
                     resolved.hasValueJson() ->
                         isolatedRemoteFailure("Failed to deserialize remote field value") {
                             FieldValueSerializer.deserializeValue(resolved.valueJson.toByteArray(), context)

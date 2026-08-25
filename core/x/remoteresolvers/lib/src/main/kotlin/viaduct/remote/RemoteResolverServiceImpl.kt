@@ -210,16 +210,18 @@ open class RemoteResolverServiceImpl(
     private fun fieldError(
         selectorKey: String,
         error: Throwable
-    ): ResolvedField =
-        ResolvedField.newBuilder()
+    ): ResolvedField {
+        val unwrapped = error.unwrapTenantResolverException()
+        return ResolvedField.newBuilder()
             .setSelectorKey(selectorKey)
             .setError(
                 ErrorInfo.newBuilder()
-                    .setMessage(error.message ?: "Field resolver execution failed")
-                    .setErrorType(error::class.java.name)
+                    .setMessage(unwrapped.message ?: "Field resolver execution failed")
+                    .setErrorType(unwrapped::class.java.name)
                     .build()
             )
             .build()
+    }
 
     /** Creates the network channel used for re-entrant callbacks. Tests may override the transport. */
     protected open fun createCallbackChannel(endpoint: String): ManagedChannel {

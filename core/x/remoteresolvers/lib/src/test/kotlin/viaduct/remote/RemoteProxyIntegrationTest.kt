@@ -269,7 +269,10 @@ class RemoteProxyIntegrationTest {
             assertOneBadNodeIsIsolatedInBatch(
                 sentinelId = SimpleNodeResolverExecutor.UNSERIALIZABLE_NODE_ID,
                 nameSuffix = "serfail",
-                failureLabel = "Node with an un-serializable result should fail"
+                failureLabel = "Node with an un-serializable result should fail",
+                // RRS's own serialization of its return value; reported over the wire as an
+                // application-level error, unaffected by the codec-exception split.
+                expectedExceptionType = RemoteResolverException::class.java,
             )
         }
 
@@ -281,19 +284,22 @@ class RemoteProxyIntegrationTest {
             assertOneBadNodeIsIsolatedInBatch(
                 sentinelId = SimpleNodeResolverExecutor.UNDECODABLE_NODE_ID,
                 nameSuffix = "deserfail",
-                failureLabel = "Node with an undecodable payload should fail"
+                failureLabel = "Node with an undecodable payload should fail",
+                // This side's (VS's) own deserialization of the response -- a local codec bug.
+                expectedExceptionType = RemoteResolverCodecException::class.java,
             )
         }
 
     /**
      * Resolves a batch of three nodes where only the middle one — [sentinelId] — is broken, and asserts
-     * that it alone fails while its two well-formed batch-mates still resolve. [nameSuffix] keeps the
-     * in-process server names unique across tests.
+     * that it alone fails (as [expectedExceptionType]) while its two well-formed batch-mates still
+     * resolve. [nameSuffix] keeps the in-process server names unique across tests.
      */
     private suspend fun assertOneBadNodeIsIsolatedInBatch(
         sentinelId: String,
         nameSuffix: String,
-        failureLabel: String
+        failureLabel: String,
+        expectedExceptionType: Class<out Throwable>,
     ) {
         NodeExecutorRegistry.clear()
         ContextRegistry.clear()
@@ -352,8 +358,8 @@ class RemoteProxyIntegrationTest {
             assertNotNull(failingResult, "Failing selector should have a result")
             assertFalse(failingResult!!.isSuccess, failureLabel)
             assertTrue(
-                failingResult.exceptionOrNull() is RemoteResolverException,
-                "Should be RemoteResolverException, got ${failingResult.exceptionOrNull()}"
+                expectedExceptionType.isInstance(failingResult.exceptionOrNull()),
+                "Should be ${expectedExceptionType.simpleName}, got ${failingResult.exceptionOrNull()}"
             )
 
             val firstResult = results[firstSelector]

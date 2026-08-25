@@ -10,6 +10,8 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.errors.PassthroughException
+import viaduct.errors.TenantException
 import viaduct.remote.api.RemoteResolverContextCaptureInput
 import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
 import viaduct.remote.grpc.BatchResolveNodeRequest
@@ -156,15 +158,28 @@ class UnaryRemoteNodeProxyExecutor(
     }
 }
 
+/**
+ * Thrown when a field/node's remote resolver itself failed -- reported by RRS over the wire
+ * ([viaduct.remote.grpc.ErrorInfo]), not a local exception. Attributed to tenant code.
+ */
 class RemoteResolverException(
     message: String,
     val errorType: String,
-    cause: Throwable? = null
-) : RuntimeException("Remote resolver error ($errorType): $message", cause)
+) : RuntimeException("Remote resolver error ($errorType): $message"), TenantException
 
 /**
- * Runs [block], converting a failure into a [RemoteResolverException] result so one bad item in a batch
- * fails only itself. Cancellation is rethrown, not converted.
+ * Thrown when this side's own serialization or deserialization of a remote resolver's request or
+ * response fails -- a local codec bug, not attributable to the tenant resolver.
+ */
+class RemoteResolverCodecException(
+    message: String,
+    val errorType: String,
+    override val cause: Throwable,
+) : RuntimeException("Remote resolver codec error ($errorType): $message", cause), PassthroughException
+
+/**
+ * Runs [block], converting a failure into a [RemoteResolverCodecException] result so one bad item
+ * in a batch fails only itself. Cancellation is rethrown, not converted.
  */
 internal inline fun <T> isolatedRemoteFailure(
     fallbackMessage: String,
@@ -175,5 +190,5 @@ internal inline fun <T> isolatedRemoteFailure(
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        Result.failure(RemoteResolverException(e.message ?: fallbackMessage, e::class.java.name, e))
+        Result.failure(RemoteResolverCodecException(e.message ?: fallbackMessage, e::class.java.name, e))
     }

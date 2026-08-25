@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.errors.TenantResolverException
 import viaduct.remote.grpc.ErrorInfo
 import viaduct.remote.grpc.ResolvedNode
 import viaduct.remote.grpc.Selector
@@ -94,13 +95,26 @@ internal fun notFound(
 internal fun nodeError(
     selectorId: String,
     error: Throwable
-): ResolvedNode =
-    ResolvedNode.newBuilder()
+): ResolvedNode {
+    val unwrapped = error.unwrapTenantResolverException()
+    return ResolvedNode.newBuilder()
         .setSelectorId(selectorId)
         .setError(
             ErrorInfo.newBuilder()
-                .setMessage(error.message ?: "Node resolver execution failed")
-                .setErrorType(error::class.java.name)
+                .setMessage(unwrapped.message ?: "Node resolver execution failed")
+                .setErrorType(unwrapped::class.java.name)
                 .build()
         )
         .build()
+}
+
+/**
+ * Unwraps a [TenantResolverException] to the tenant resolver's own exception, so the wire-reported
+ * error type reflects the real underlying failure rather than the wrapper Viaduct uses to
+ * attribute a failure to a named resolver. A no-op for any other exception.
+ */
+internal fun Throwable.unwrapTenantResolverException(): Throwable =
+    when (this) {
+        is TenantResolverException -> cause.unwrapTenantResolverException()
+        else -> this
+    }
