@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from format_alert import format_alert, format_attempt_label, main
+from format_alert import format_alert, format_attempt_label, format_task_lines, main
 
 
 BASE = {
@@ -158,6 +158,118 @@ class TestAttemptLabel(unittest.TestCase):
 
     def test_label_helper_rejects_none(self):
         self.assertEqual("", format_attempt_label(None))
+
+
+class TestOutcome(unittest.TestCase):
+
+    MULTI = {
+        "branch": "main",
+        "server_url": "https://github.com",
+        "repository": "example/repo",
+        "jobs": [
+            {"name": "Build and Test", "run_id": "111"},
+            {"name": "Demo App Tests", "run_id": "222"},
+        ],
+    }
+
+    def test_absent_outcome_reads_as_failure(self):
+        result = format_alert(BASE)
+        self.assertIn(":red_circle:", result)
+        self.assertIn("failed on", result)
+
+    def test_explicit_failure_matches_the_default(self):
+        self.assertEqual(format_alert(BASE), format_alert({**BASE, "outcome": "failure"}))
+
+    def test_retry_success_single_job(self):
+        result = format_alert({**BASE, "outcome": "retry_success"})
+        self.assertIn(":large_yellow_circle:", result)
+        self.assertIn("Build and Test needed a retry on `main`", result)
+        self.assertNotIn("failed", result)
+
+    def test_retry_success_multi_job_header(self):
+        lines = format_alert({**self.MULTI, "outcome": "retry_success"}).splitlines()
+        self.assertEqual(":large_yellow_circle: CI needed a retry on `main`", lines[0])
+
+    def test_unknown_outcome_is_rejected(self):
+        sys.stdin = StringIO(json.dumps({**BASE, "outcome": "flaky"}))
+        self.assertEqual(main(), 1)
+        sys.stdin = sys.__stdin__
+
+
+class TestFailingTasks(unittest.TestCase):
+
+    WITH_TASKS = {
+        "branch": "main",
+        "server_url": "https://github.com",
+        "repository": "example/repo",
+        "jobs": [
+            {
+                "name": "build-and-test / Test (Java 17) ubuntu-latest",
+                "run_id": "123",
+                "tasks": [":core:x:javaapi:runtime:compileTestKotlin"],
+            }
+        ],
+    }
+
+    def test_no_tasks_anywhere_keeps_the_single_line_form(self):
+        self.assertEqual(1, len(format_alert(BASE).splitlines()))
+
+    def test_no_tasks_anywhere_keeps_the_inline_bullet_form(self):
+        multi = {**BASE, "jobs": [
+            {"name": "A", "run_id": "1"},
+            {"name": "B", "run_id": "2"},
+        ]}
+        self.assertIn("• A: https://github.com/example/repo/actions/runs/1", format_alert(multi))
+
+    def test_empty_task_list_is_treated_as_no_tasks(self):
+        data = {**BASE, "jobs": [{"name": "Build and Test", "run_id": "123", "tasks": []}]}
+        self.assertEqual(format_alert(BASE), format_alert(data))
+
+    def test_one_job_with_tasks_uses_the_header_form(self):
+        lines = format_alert(self.WITH_TASKS).splitlines()
+        self.assertEqual(":red_circle: CI failed on `main`", lines[0])
+        self.assertEqual("• build-and-test / Test (Java 17) ubuntu-latest", lines[1])
+        self.assertEqual("  `:core:x:javaapi:runtime:compileTestKotlin`", lines[2])
+        self.assertEqual("  https://github.com/example/repo/actions/runs/123", lines[3])
+
+    def test_tasks_are_capped_at_three_with_an_overflow_count(self):
+        data = {**self.WITH_TASKS}
+        data["jobs"] = [{**data["jobs"][0], "tasks": [f":t{n}" for n in range(9)]}]
+        lines = format_alert(data).splitlines()
+        self.assertIn("  `:t0`", lines)
+        self.assertIn("  `:t1`", lines)
+        self.assertIn("  `:t2` +6 more", lines)
+        self.assertNotIn("  `:t3`", lines)
+
+    def test_exactly_three_tasks_has_no_overflow_count(self):
+        data = {**self.WITH_TASKS}
+        data["jobs"] = [{**data["jobs"][0], "tasks": [":a", ":b", ":c"]}]
+        self.assertNotIn("more", format_alert(data))
+
+    def test_job_without_tasks_stays_inline_beside_one_with_tasks(self):
+        data = {**self.WITH_TASKS}
+        data["jobs"] = data["jobs"] + [{"name": "Bare Job", "run_id": "456"}]
+        lines = format_alert(data).splitlines()
+        self.assertEqual("• Bare Job: https://github.com/example/repo/actions/runs/456", lines[4])
+        self.assertEqual(5, len(lines))
+
+    def test_retry_success_with_tasks(self):
+        lines = format_alert({**self.WITH_TASKS, "outcome": "retry_success"}).splitlines()
+        self.assertEqual(":large_yellow_circle: CI needed a retry on `main`", lines[0])
+        self.assertEqual("  `:core:x:javaapi:runtime:compileTestKotlin`", lines[2])
+
+    def test_tasks_must_be_an_array(self):
+        data = {**BASE, "jobs": [{"name": "A", "run_id": "1", "tasks": ":not:a:list"}]}
+        sys.stdin = StringIO(json.dumps(data))
+        self.assertEqual(main(), 1)
+        sys.stdin = sys.__stdin__
+
+    def test_task_lines_helper_caps_and_counts(self):
+        self.assertEqual(["  `:a`", "  `:b`", "  `:c` +1 more"],
+                         format_task_lines([":a", ":b", ":c", ":d"]))
+
+    def test_task_lines_helper_on_empty_input(self):
+        self.assertEqual([], format_task_lines([]))
 
 
 class TestMainErrorHandling(unittest.TestCase):

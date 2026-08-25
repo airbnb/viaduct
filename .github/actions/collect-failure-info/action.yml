@@ -26,6 +26,10 @@ inputs:
     description: 'Run attempt number (optional); labeled in the alert only when above 1'
     required: false
     default: ''
+  outcome:
+    description: '"failure" (default) or "retry_success" for a run a retry recovered'
+    required: false
+    default: ''
 
 outputs:
   text:
@@ -46,6 +50,7 @@ runs:
         SHA: ${{ inputs.sha }}
         ACTOR: ${{ inputs.actor }}
         ATTEMPT: ${{ inputs.attempt }}
+        OUTCOME: ${{ inputs.outcome }}
       run: |
         # Build the full payload — format_alert.py handles empty sha/actor
         # gracefully via .get() + truthiness checks.
@@ -56,12 +61,14 @@ runs:
           --arg sha "$SHA" \
           --arg actor "$ACTOR" \
           --arg attempt "$ATTEMPT" \
+          --arg outcome "$OUTCOME" \
           --argjson jobs "$JOBS_JSON" \
           '{ branch: $branch, server_url: $server_url, repository: $repository,
              jobs: $jobs }
            + (if $sha  != "" then { sha: $sha }   else {} end)
            + (if $actor != "" then { actor: $actor } else {} end)
-           + (if $attempt != "" then { attempt: $attempt } else {} end)' | \
+           + (if $attempt != "" then { attempt: $attempt } else {} end)
+           + (if $outcome != "" then { outcome: $outcome } else {} end)' | \
           python3 .github/scripts/format_alert.py)
 
         {

@@ -148,6 +148,8 @@ The emit step runs early so that `run_id` is available to the calling orchestrat
 
 - **Transient failures are retried before they alert.** CI Check and Periodic Green Check are re-run once on their first failure and alert only if the retry also fails. Nightly Build is not retried: its failures have been real defects, and it is the only Windows signal, so delaying that alert by a full run buys nothing.
 
+- **A retry that succeeds is still reported.** A run that ends `success` past its first attempt gets an informational notice naming what failed on attempt 1. Silence would hide the flake rate, which is the number that decides whether a flake is worth chasing. Re-running an already-green run reports nothing, since attempt 1 has no failed job to name.
+
 ### Alert Formatting
 
 All alerts are formatted by `.github/scripts/format_alert.py`, a pure Python script that reads JSON from stdin and writes formatted text to stdout.
@@ -160,26 +162,28 @@ All alerts are formatted by `.github/scripts/format_alert.py`, a pure Python scr
   "server_url": "https://github.com",
   "repository": "org/repo",
   "jobs": [
-    { "name": "Build and Test", "run_id": "12345" },
+    { "name": "Build and Test", "run_id": "12345", "tasks": [":core:tenant:runtime:compileTestKotlin"] },
     { "name": "API Compatibility", "run_id": "12346" }
   ],
   "sha": "abc1234...",
   "actor": "username",
-  "attempt": 2
+  "attempt": 2,
+  "outcome": "retry_success"
 }
 ```
 
 - `branch`, `server_url`, `repository`, `jobs` are required.
 - `sha`, `actor` are optional (present for push-triggered failures).
 - `attempt` is optional and rendered only above 1, so the label means the run had already been retried.
-- `jobs` is a non-empty array. Each entry has a `name` (display label) and `run_id` (used to construct the URL `{server_url}/{repository}/actions/runs/{run_id}`).
+- `outcome` is optional, either `failure` (the default) or `retry_success`. It selects the emoji and verb. An unrecognized value is rejected rather than silently read as a failure.
+- `jobs` is a non-empty array. Each entry has a `name` (display label), a `run_id` (used to construct the URL `{server_url}/{repository}/actions/runs/{run_id}`), and an optional `tasks` array of failing Gradle task paths.
 
 **Output format:**
 
-- Single failed job: one-line message with job name, branch, optional commit info, and link.
-- Multiple failed jobs: header line followed by a bulleted list of `name: url` entries.
+- One failed job with no tasks: a single line with job name, branch, optional commit info, and link.
+- Otherwise a header line followed by one bullet per job. A job with no tasks stays inline as `name: url`; a job with tasks puts its name, then up to 3 tasks one per line, then its link. Beyond 3 the last line gains `+N more`.
 
-Job names come from the run's job list, so an alert names the job that actually failed (`build-and-test / Test (Java 17) ubuntu-latest`) rather than the atomic that contained it.
+Job names come from the run's job list, so an alert names the job that actually failed (`build-and-test / Test (Java 17) ubuntu-latest`) rather than the atomic that contained it. Tasks come from `extract_failed_tasks.py` reading that job's log, which is why a failure with no Gradle task — an HTTP 429 from a dependency repository, say — still reports its job name.
 
 ### Alert Posting Protocol
 
@@ -197,26 +201,30 @@ The listener pattern in YAML:
 triage:
   runs-on: ubuntu-latest
   if: >-
-    github.event.workflow_run.conclusion == 'failure'
-    && github.event.workflow_run.head_branch == 'main'
+    github.event.workflow_run.head_branch == 'main'
     && contains(fromJSON('["push", "schedule"]'), github.event.workflow_run.event)
+    && (github.event.workflow_run.conclusion == 'failure'
+        || (github.event.workflow_run.conclusion == 'success'
+            && github.event.workflow_run.run_attempt > 1))
   outputs:
     text: ${{ steps.fmt.outputs.text }}
   steps:
     - uses: actions/checkout@v6
     - name: Retry once before alerting
       id: retry
-      if: github.event.workflow_run.run_attempt == 1 && <workflow is retry-eligible>
+      if: <failure> && github.event.workflow_run.run_attempt == 1 && <retry-eligible workflow>
       run: |
         # POST rerun-failed-jobs; set retried=true, or false if the call fails
-    - name: List failed jobs
+    - name: Collect the jobs and tasks that failed
       id: jobs
-      if: steps.retry.outputs.retried != 'true'
+      if: "!cancelled() && steps.retry.outputs.retried != 'true'"
       run: |
-        # gh api --paginate .../attempts/$ATTEMPT/jobs, select failures, build the jobs array
+        # query attempt 1 when the run ended in success, else the current attempt
+        # list failed job ids and names, pipe each job's log through extract_failed_tasks.py
+        # emit outcome=retry_success|failure, and an empty jobs_json when there is nothing to say
     - name: Format alert
       id: fmt
-      if: steps.retry.outputs.retried != 'true'
+      if: "!cancelled() && steps.jobs.outputs.jobs_json != ''"
       uses: ./.github/actions/collect-failure-info
 
 post:
@@ -228,7 +236,9 @@ post:
   secrets: inherit
 ```
 
-Empty text is how a retried run stays quiet, so `post` keys off the text rather than `triage`'s result. A skipped retry step leaves `retried` unset, which also alerts. If the re-run call fails the listener alerts instead, because going silent is worse than one extra alert.
+Empty text is how a retried run stays quiet, so `post` keys off the text rather than `triage`'s result. A skipped retry step leaves `retried` unset, which also alerts. If the re-run call fails, or a job's log cannot be read, the listener still alerts, because going silent is worse than one extra alert or one missing task name.
+
+Only the collection step knows whether the run recovered, so it emits `outcome` rather than having the format step recompute it.
 
 ## Workflow Diagrams
 
@@ -260,8 +270,10 @@ ci-trigger.yml  [orchestrator]
   v
 ci-retry-then-alert.yml  [listener]
   |
-  |--- attempt 1 --> rerun-failed-jobs, no alert
-  '--- attempt 2 --> post-alerts.yml [helper] --> Slack + Discord
+  |--- failure, attempt 1 --> rerun-failed-jobs, no message
+  |--- failure, attempt 2 --> post-alerts.yml [helper] --> Slack + Discord
+  '--- success, attempt 2 --> post-alerts.yml [helper] --> Slack + Discord
+                              (informational; names what failed on attempt 1)
 ```
 
 ### Daily Schedule (2pm UTC)
