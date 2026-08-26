@@ -1,7 +1,5 @@
 package viaduct.service.runtime.builtinresolvers
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
@@ -33,9 +31,6 @@ fun builtinModuleConfigSources(
         NamespaceTypeModuleConfigFactory(schema),
     ).mapNotNull(ModuleConfigFactory::moduleConfigSource)
 }
-
-/** Shared mapper for serializing generated built-in module configs; safe to reuse across factories. */
-private val builtinModuleConfigObjectMapper: ObjectMapper = jacksonObjectMapper()
 
 /**
  * Builds a non-batching, non-selective [FieldEntryConfig] — the shape every built-in field entry
@@ -78,6 +73,6 @@ internal fun buildBuiltinModuleConfigSource(
         fields = fields,
     )
     return ModuleConfigSource.from(
-        InputStreamSource.fromString(builtinModuleConfigObjectMapper.writeValueAsString(config), name = tenantName),
+        InputStreamSource.fromString(ExecutionRegistryConfigFile.toJson(config), name = tenantName),
     )
 }

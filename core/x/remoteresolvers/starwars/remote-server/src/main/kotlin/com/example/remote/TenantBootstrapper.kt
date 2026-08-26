@@ -6,9 +6,9 @@ package com.example.remote
 
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
-import viaduct.engine.BootstrapperFactory
 import viaduct.engine.SchemaFactory
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryConfigSourceCollector
+import viaduct.engine.runtime.tenantloading.ModuleConfigBootstrapper
 import viaduct.remote.registry.FieldExecutorRegistry
 import viaduct.remote.registry.NodeExecutorRegistry
 import viaduct.remote.registry.SchemaRegistry
@@ -46,13 +46,11 @@ class TenantBootstrapper(private val tenantCodeInjector: CodeInjector) {
             // so proxying e.g. Query.node needs them registered here too.
             val configSources = ExecutionRegistryConfigSourceCollector.fromResources() +
                 builtinModuleConfigSources(schema, defaultQueryNodeResolversEnabled = true)
-            val allBootstrappers = BootstrapperFactory.fromConfigSources(
+            val allModules = ModuleConfigBootstrapper(
                 SharedTenantModuleInjectorFactory(tenantCodeInjector),
-                configSources,
-            ).tenantModuleBootstrappers()
-                .toList()
-            val nodes = allBootstrappers.flatMap { it.nodeResolverExecutors(schema) }
-            val fields = allBootstrappers.flatMap { it.fieldResolverExecutors(schema) }
+            ).bootstrap(configSources)
+            val nodes = allModules.flatMap { it.nodeResolverExecutors(schema) }
+            val fields = allModules.flatMap { it.fieldResolverExecutors(schema) }
             nodes to fields
         }
 

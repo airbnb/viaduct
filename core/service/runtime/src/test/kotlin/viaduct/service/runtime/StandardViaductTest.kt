@@ -27,9 +27,9 @@ import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFil
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
+import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.MockExecutorCodeInjector
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
-import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -37,7 +37,6 @@ import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
-import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.InputStreamSource
@@ -74,7 +73,6 @@ class StandardViaductTest {
 
         subject = StandardViaduct.Builder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
             .withDataFetcherExceptionHandler(dataFetcherExceptionHandler)
             .withSchemaConfiguration(schemaConfiguration)
             .build()
@@ -189,7 +187,6 @@ class StandardViaductTest {
 
         val exception = assertThrows<GraphQLBuildError> {
             StandardViaduct.Builder()
-                .withNoTenantAPIBootstrapper()
                 .withSchemaConfiguration(schemaConfiguration)
                 .build()
         }
@@ -212,7 +209,6 @@ class StandardViaductTest {
 
         val viaduct = assertDoesNotThrow {
             StandardViaduct.Builder()
-                .withNoTenantAPIBootstrapper()
                 .withSchemaConfiguration(schemaConfiguration)
                 .build()
         }
@@ -256,7 +252,6 @@ class StandardViaductTest {
 
         assertDoesNotThrow {
             StandardViaduct.Builder()
-                .withNoTenantAPIBootstrapper()
                 .withSchemaConfiguration(schemaConfiguration)
                 .build()
         }
@@ -273,7 +268,6 @@ class StandardViaductTest {
 
         val exception = assertThrows<GraphQLBuildError> {
             StandardViaduct.Builder()
-                .withNoTenantAPIBootstrapper()
                 .withSchemaConfiguration(schemaConfiguration)
                 .build()
         }
@@ -299,7 +293,6 @@ class StandardViaductTest {
 
         assertThrows<GraphQLBuildError> {
             StandardViaduct.Builder()
-                .withNoTenantAPIBootstrapper()
                 .withSchemaConfiguration(schemaConfiguration)
                 .build()
         }
@@ -317,7 +310,6 @@ class StandardViaductTest {
 
         val exception = assertThrows<GraphQLBuildError> {
             StandardViaduct.Builder()
-                .withNoTenantAPIBootstrapper()
                 .withSchemaConfiguration(schemaConfiguration)
                 .build()
         }
@@ -337,7 +329,6 @@ class StandardViaductTest {
 
         assertDoesNotThrow {
             StandardViaduct.Builder()
-                .withNoTenantAPIBootstrapper()
                 .withLenientResolverValidation()
                 .withSchemaConfiguration(schemaConfiguration)
                 .build()
@@ -356,7 +347,6 @@ class StandardViaductTest {
         """.trimIndent()
 
         StandardViaduct.Builder()
-            .withNoTenantAPIBootstrapper()
             .withTenantModuleInjectorFactory(recording)
             .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
             .build()
@@ -365,29 +355,23 @@ class StandardViaductTest {
     }
 
     @Test
-    fun `builder supplied bootstrappers override generated registry resources for duplicate resolver coordinates`() {
+    fun `caller supplied module config sources contribute resolvers`() {
         val sdl = """
             extend type Query {
                 generatedRegistryTestField: String @resolver
             }
         """.trimIndent()
-        val scannedModule = MockTenantModuleBootstrapper(sdl) {
+        val suppliedModule = EngineTestModule(sdl) {
             field("Query" to "generatedRegistryTestField") {
                 resolver {
-                    fn { _, _, _, _, _ -> "class-scanned" }
+                    fn { _, _, _, _, _ -> "caller-supplied" }
                 }
             }
         }
 
         val viaduct = StandardViaduct.Builder()
-            .withTenantModuleInjectorFactory(SharedTenantModuleInjectorFactory(CodeInjector.Naive))
-            .withTenantAPIBootstrapperBuilders(
-                listOf(
-                    MockTenantAPIBootstrapperBuilder(
-                        MockTenantAPIBootstrapper(listOf(scannedModule))
-                    )
-                )
-            )
+            .withTenantModuleInjectorFactory(MockExecutorCodeInjector(suppliedModule.mockExecutorRegistry))
+            .withExecutorRegistryConfigSources(listOf(suppliedModule.toModuleConfigSource()))
             .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
             .build()
 
@@ -402,7 +386,7 @@ class StandardViaductTest {
         }
 
         assertEquals(emptyList<GraphQLError>(), result.errors)
-        assertEquals(mapOf("generatedRegistryTestField" to "class-scanned"), result.getData())
+        assertEquals(mapOf("generatedRegistryTestField" to "caller-supplied"), result.getData())
     }
 
     @Test

@@ -1,20 +1,17 @@
 package viaduct.engine.runtime.tenantloading
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.spi.ExecutorFactory
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.TenantModuleInjectorFactory
 
 /**
- * Engine-owned orchestration that turns a pre-collected list of [ModuleConfigSource]s into
- * [TenantModuleBootstrapper]s.
+ * Engine-owned orchestration that turns a pre-collected list of [ModuleConfigSource]s into one
+ * [ModuleResolvers] instance per source.
  *
  * Resource discovery and tenant-name resolution happen upstream (in
  * [ExecutionRegistryConfigSourceCollector]); this class is concerned only with bootstrap
@@ -40,9 +37,9 @@ class ModuleConfigBootstrapper(
 ) {
     /**
      * Runs the bootstrap algorithm over [moduleConfigSources] and returns one
-     * [TenantModuleBootstrapper] per source.
+     * [ModuleResolvers] instance per source.
      */
-    suspend fun bootstrap(moduleConfigSources: List<ModuleConfigSource>): List<TenantModuleBootstrapper> {
+    suspend fun bootstrap(moduleConfigSources: List<ModuleConfigSource>): List<ModuleResolvers> {
         // The inputs to one registry build must form a map: at most one config per
         // <tenantName, apiName>. Enforced here because every bootstrap path converges on this call
         // (classpath discovery, hotswap overlay, generated built-ins, and callers that hand
@@ -52,8 +49,7 @@ class ModuleConfigBootstrapper(
         val parsedRegistries = coroutineScope {
             moduleConfigSources.map { moduleConfigSource ->
                 async {
-                    val registry = moduleConfigSource.source.openStream()
-                        .use { objectMapper.readValue<ExecutionRegistryConfigFile>(it) }
+                    val registry = ExecutionRegistryConfigFile.parse(moduleConfigSource.source)
                     ParsedRegistry(
                         source = moduleConfigSource,
                         registry = registry,
@@ -92,7 +88,7 @@ class ModuleConfigBootstrapper(
                         registry = parsedRegistry.registry,
                         codeInjector = codeInjector,
                     )
-                    ExecutionRegistryTenantModuleBootstrapper(parsedRegistry.registry, executorFactory)
+                    ModuleResolvers(parsedRegistry.registry, executorFactory)
                 }
             }.awaitAll()
         }
@@ -139,10 +135,6 @@ class ModuleConfigBootstrapper(
             )
             ctor.newInstance(codeInjector, registry) as ExecutorFactory
         }
-    }
-
-    companion object {
-        private val objectMapper = jacksonObjectMapper()
     }
 }
 

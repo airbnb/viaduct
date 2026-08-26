@@ -9,10 +9,7 @@ import viaduct.utils.slf4j.logger
 /**
  * [TenantAPIBootstrapper] adapter over [ModuleConfigBootstrapper].
  *
- * Retained as a compatibility shim so callers that still expect a [TenantAPIBootstrapper] (classic
- * wiring, remote resolvers, test fixtures) keep working while the primary path moves to feeding
- * [ModuleConfigSource]s directly into the engine. The bootstrap algorithm itself lives in
- * [ModuleConfigBootstrapper].
+ * Unused by the engine.
  *
  * If [moduleConfigSources] is null, registry resources are discovered from
  * `META-INF/viaduct/modules` on the current classpath for compatibility with the original

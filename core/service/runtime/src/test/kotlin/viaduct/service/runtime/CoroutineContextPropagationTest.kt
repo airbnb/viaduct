@@ -7,12 +7,11 @@ import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.MockExecutorCodeInjector
 import viaduct.graphql.test.assertJson
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
-import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder
 
 class CoroutineContextPropagationTest {
     data class TestContext(val bar: Int?) : CoroutineContext.Element {
@@ -24,7 +23,7 @@ class CoroutineContextPropagationTest {
     @Test
     fun `coroutine context is propagated to resolver functions`() {
         val sdl = "extend type Query { result: Int }"
-        val module = MockTenantModuleBootstrapper(sdl) {
+        val module = EngineTestModule(sdl) {
             field("Query" to "result") {
                 resolver {
                     fn { _, _, _, _, _ ->
@@ -34,7 +33,8 @@ class CoroutineContextPropagationTest {
             }
         }
         val subject = StandardViaduct.Builder()
-            .withTenantAPIBootstrapperBuilder(MockTenantAPIBootstrapperBuilder(MockTenantAPIBootstrapper(listOf(module))))
+            .withTenantModuleInjectorFactory(MockExecutorCodeInjector(module.mockExecutorRegistry))
+            .withExecutorRegistryConfigSources(listOf(module.toModuleConfigSource()))
             .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
             .build()
         runBlocking {

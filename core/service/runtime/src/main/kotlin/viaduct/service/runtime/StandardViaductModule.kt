@@ -17,7 +17,6 @@ import viaduct.engine.api.spi.CheckerExecutorFactoryCreator
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.NoOpCheckerExecutorFactoryImpl
 import viaduct.engine.api.spi.ProxyResolverFactory
-import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.fragment.ExecutableFragmentParser
 import viaduct.engine.runtime.fragment.ViaductExecutableFragmentParser
@@ -27,7 +26,6 @@ import viaduct.service.api.spi.ResolverErrorBuilder
 
 class StandardViaductModule(
     private val moduleBootstrapConfiguration: ModuleBootstrapConfiguration,
-    private val compatBootstrapper: TenantAPIBootstrapper,
     private val engineConfiguration: EngineConfiguration,
     private val tenantNameResolver: TenantNameResolver,
     private val checkerExecutorFactory: CheckerExecutorFactory?,
@@ -51,7 +49,6 @@ class StandardViaductModule(
         bind(ErrorReporter::class.java).toInstance(engineConfiguration.resolverErrorReporter)
         bind(ResolverErrorBuilder::class.java).toInstance(engineConfiguration.resolverErrorBuilder)
         bind(ModuleBootstrapConfiguration::class.java).toInstance(moduleBootstrapConfiguration)
-        bind(TenantAPIBootstrapper::class.java).toInstance(compatBootstrapper)
         bind(TenantNameResolver::class.java).toInstance(tenantNameResolver)
         bind(ViaductResolverInstrumentation::class.java).toInstance(engineConfiguration.resolverInstrumentation)
 

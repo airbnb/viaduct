@@ -11,7 +11,7 @@ import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 
-class ExecutionRegistryTenantModuleBootstrapperTest {
+class ModuleResolversTest {
     private val schema = MockSchema.mk(
         """
         type TestType {
@@ -71,7 +71,7 @@ class ExecutionRegistryTenantModuleBootstrapperTest {
         )
 
     private fun bootstrapper(registry: ExecutionRegistryConfigFile) =
-        ExecutionRegistryTenantModuleBootstrapper(
+        ModuleResolvers(
             registry = registry,
             executorFactory = factory,
         )

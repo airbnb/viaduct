@@ -6,17 +6,16 @@ import java.util.concurrent.Executors
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.mocks.MockTenantAPIBootstrapper
-import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.MockExecutorCodeInjector
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
-import viaduct.service.api.mocks.MockTenantAPIBootstrapperBuilder
 
 class ExecuteAsyncExecutorTest {
     @Test
     fun `executeAsync runs the operation on the supplied executor`() {
         val sdl = "extend type Query { result: String }"
-        val module = MockTenantModuleBootstrapper(sdl) {
+        val module = EngineTestModule(sdl) {
             field("Query" to "result") {
                 resolver {
                     fn { _, _, _, _, _ -> Thread.currentThread().name }
@@ -24,7 +23,8 @@ class ExecuteAsyncExecutorTest {
             }
         }
         val subject = StandardViaduct.Builder()
-            .withTenantAPIBootstrapperBuilder(MockTenantAPIBootstrapperBuilder(MockTenantAPIBootstrapper(listOf(module))))
+            .withTenantModuleInjectorFactory(MockExecutorCodeInjector(module.mockExecutorRegistry))
+            .withExecutorRegistryConfigSources(listOf(module.toModuleConfigSource()))
             .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
             .build()
 

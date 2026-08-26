@@ -67,7 +67,6 @@ class ViaductScopedSchemaIntegrationTest {
 
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
-                .withNoTenantAPIBootstrapper()
                 .withSchemaConfiguration(config)
                 .build()
 
@@ -127,7 +126,6 @@ class ViaductScopedSchemaIntegrationTest {
 
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
-                .withNoTenantAPIBootstrapper()
                 .withSchemaConfiguration(config)
                 .build()
 
@@ -192,7 +190,6 @@ class ViaductScopedSchemaIntegrationTest {
 
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
-                .withNoTenantAPIBootstrapper()
                 .withSchemaConfiguration(config)
                 .build()
 
@@ -260,7 +257,6 @@ class ViaductScopedSchemaIntegrationTest {
 
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
-                .withNoTenantAPIBootstrapper()
                 .withSchemaConfiguration(
                     SchemaConfiguration.fromSdl(
                         sdl,
@@ -320,7 +316,6 @@ class ViaductScopedSchemaIntegrationTest {
 
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
-                .withNoTenantAPIBootstrapper()
                 .withSchemaConfiguration(
                     SchemaConfiguration.fromSdl(
                         sdl,
@@ -360,7 +355,6 @@ class ViaductScopedSchemaIntegrationTest {
             try {
                 subject = StandardViaduct.Builder()
                     .withFlagManager(flagManager)
-                    .withNoTenantAPIBootstrapper()
                     .withDataFetcherExceptionHandler(mockk())
                     .withSchemaConfiguration(
                         SchemaConfiguration.fromSdl(
@@ -405,7 +399,6 @@ class ViaductScopedSchemaIntegrationTest {
 
             subject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
-                .withNoTenantAPIBootstrapper()
                 .withSchemaConfiguration(
                     SchemaConfiguration.fromSdl(
                         sdl,

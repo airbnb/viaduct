@@ -52,7 +52,6 @@ class ViaductOSSEndToEndTest {
         )
         subject = StandardViaduct.Builder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
             .withSchemaConfiguration(schemaConfiguration)
             .build()
     }
@@ -171,7 +170,6 @@ class ViaductOSSEndToEndTest {
 
             val exceptionSubject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
-                .withNoTenantAPIBootstrapper()
                 .withSchemaConfiguration(exceptionSchemaConfig)
                 .build()
 
@@ -216,7 +214,6 @@ class ViaductOSSEndToEndTest {
 
             val variableSubject = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
-                .withNoTenantAPIBootstrapper()
                 .withSchemaConfiguration(variableSchemaConfig)
                 .build()
 

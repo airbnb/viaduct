@@ -30,8 +30,6 @@ import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.FieldSelectivityProvider
 import viaduct.engine.api.spi.ProxyResolverFactory
-import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
-import viaduct.engine.api.spi.flatten
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
@@ -123,7 +121,6 @@ class StandardViaduct
             private var schemaConfiguration: SchemaConfiguration = SchemaConfiguration.DEFAULT
             private var documentProviderFactory: DocumentProviderFactory? = null
             private var tenantNameResolver: TenantNameResolver = TenantNameResolver()
-            private var tenantAPIBootstrapperBuilders: List<TenantAPIBootstrapperBuilder> = emptyList()
             private var tenantModuleInjectorFactory: TenantModuleInjectorFactory? = null
             private var executorRegistryConfigSources: List<ModuleConfigSource>? = null
             private var executorRegistryGrtPackagePrefix: String? = null
@@ -142,33 +139,6 @@ class StandardViaduct
                     this.tenantNameResolver = tenantNameResolver
                     this.airbnbModeEnabled = true
                 }
-
-            /** See [withTenantAPIBootstrapperBuilders]. */
-            @Deprecated("For Airbnb use only", level = DeprecationLevel.WARNING)
-            fun withTenantAPIBootstrapperBuilder(builder: TenantAPIBootstrapperBuilder): Builder = withTenantAPIBootstrapperBuilders(listOf(builder))
-
-            /**
-             * Adds a TenantAPIBootstrapperBuilder to be used for creating TenantAPIBootstrapper instances.
-             * Multiple builders can be added, and all their TenantAPIBootstrapper instances will be used
-             * together to bootstrap tenant modules.
-             *
-             * @param builders The builder instance that will be used to create a TenantAPIBootstrapper
-             * @return This Builder instance for method chaining
-             */
-            @Deprecated("For Airbnb use only", level = DeprecationLevel.WARNING)
-            fun withTenantAPIBootstrapperBuilders(builders: List<TenantAPIBootstrapperBuilder>): Builder =
-                apply {
-                    tenantAPIBootstrapperBuilders = builders
-                }
-
-            /**
-             * A convenience function to indicate that no bootstrapper is
-             * wanted.  Used for testing purposes.  We want the empty case
-             * to be explicit because in almost all non-test scenarios
-             * this is a programming error that should be flagged early.
-             */
-            @Deprecated("For Airbnb use only", level = DeprecationLevel.WARNING)
-            fun withNoTenantAPIBootstrapper() = apply { withTenantAPIBootstrapperBuilders(emptyList()) }
 
             /**
              * Configures the [TenantModuleInjectorFactory] used to provide per-tenant code injectors.
@@ -374,14 +344,8 @@ class StandardViaduct
                     defaultQueryNodeResolversEnabled = defaultQueryNodeResolversEnabled,
                 )
 
-                // Compatibility path: tenant APIs that are not expressed as config sources (classic
-                // wiring, remote resolvers, test fixtures) still contribute through a
-                // TenantAPIBootstrapper.
-                val compatBootstrapper = tenantAPIBootstrapperBuilders.map { it.create() }.flatten()
-
                 val parentModule = StandardViaductModule(
                     moduleBootstrapConfiguration = moduleBootstrapConfiguration,
-                    compatBootstrapper = compatBootstrapper,
                     engineConfiguration = engineConfiguration,
                     tenantNameResolver = tenantNameResolver,
                     checkerExecutorFactory = checkerExecutorFactory,
@@ -409,10 +373,10 @@ class StandardViaduct
                             }
                         }
                 } catch (e: ProvisionException) {
-                    // Match the factory class itself as well as its synthetic nested frames (e.g. the
-                    // `runBlocking { tenantModuleBootstrappers() }` lambda compiles to
-                    // AbstractDispatcherRegistryFactory$create$...), which is where schema-derived
-                    // config generation throws.
+                    // Match the class that declares create() as well as its synthetic nested frames
+                    // (e.g. the `runBlocking { ... }` lambda in create() compiles to
+                    // AbstractDispatcherRegistryFactory$create$..., which is where schema-derived
+                    // config generation throws).
                     val factoryClassName = AbstractDispatcherRegistryFactory::class.java.name
                     val isCausedByDispatcherRegistryFactory = e.cause?.stackTrace?.any {
                         it.className == factoryClassName || it.className.startsWith("$factoryClassName\$")

@@ -7,16 +7,10 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.Coordinate
 import viaduct.engine.api.GraphQLBuildError
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.CheckerExecutorFactory
-import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.ProxyResolverFactory
-import viaduct.engine.api.spi.TenantAPIBootstrapper
-import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.CodeInjector
@@ -25,6 +19,7 @@ import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.FlagManager.Flag
 import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.service.api.spi.NaiveTenantModuleInjectorFactory
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.TenantModuleInjectorFactory
 import viaduct.service.runtime.SchemaConfiguration
@@ -43,7 +38,6 @@ class ViaductBuilderTest {
     fun testBuilderProxy() {
         ViaductBuilder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
             .withScopedSchemas(scopedSchemas)
             .build().let {
@@ -55,7 +49,6 @@ class ViaductBuilderTest {
     fun `base SchemaScopeInfo executes across all scopes but hides tenantLocal fields`() {
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
             .withScopedSchemas(listOf(SchemaScopeInfo.Base))
             .build()
@@ -92,7 +85,6 @@ class ViaductBuilderTest {
         )
         val viaduct = StandardViaduct.Builder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
             .withSchemaConfiguration(schemaConfiguration)
             .build()
 
@@ -110,7 +102,6 @@ class ViaductBuilderTest {
         val meterRegistry = SimpleMeterRegistry()
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
             .withScopedSchemas(scopedSchemas)
             .withMeterRegistry(meterRegistry)
@@ -126,7 +117,6 @@ class ViaductBuilderTest {
         }
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
             .withScopedSchemas(scopedSchemas)
             .withResolverErrorReporter(errorReporter)
@@ -140,7 +130,6 @@ class ViaductBuilderTest {
         val errorBuilder = ResolverErrorBuilder.NOOP
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
             .withScopedSchemas(scopedSchemas)
             .withDataFetcherErrorBuilder(errorBuilder)
@@ -158,7 +147,6 @@ class ViaductBuilderTest {
         val builder = ViaductBuilder()
         val result = builder
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
             .withScopedSchemas(scopedSchemas)
             .withMeterRegistry(meterRegistry)
@@ -182,7 +170,6 @@ class ViaductBuilderTest {
         // Test that all observability methods can be used together
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
             .withScopedSchemas(scopedSchemas)
             .withMeterRegistry(meterRegistry)
@@ -202,7 +189,6 @@ class ViaductBuilderTest {
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withMeterRegistry(meterRegistry) // Observability before other methods
-            .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
             .withResolverErrorReporter(errorReporter) // Observability in the middle
             .withScopedSchemas(scopedSchemas)
@@ -228,7 +214,6 @@ class ViaductBuilderTest {
         val exception = assertThrows<GraphQLBuildError> {
             ViaductBuilder()
                 .withFlagManager(flagManager)
-                .withNoTenantAPIBootstrapper()
                 .withScopedSchemas(scopedSchemas)
                 .build()
         }
@@ -268,7 +253,6 @@ class ViaductBuilderTest {
         }
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
             .withScopedSchemas(scopedSchemas)
             .withGlobalIDCodec(codec)
@@ -294,7 +278,6 @@ class ViaductBuilderTest {
         }
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
-            .withNoTenantAPIBootstrapper()
             .withLenientResolverValidation()
             .withScopedSchemas(scopedSchemas)
             .withCheckerExecutorFactoryCreator { factory }
@@ -304,21 +287,10 @@ class ViaductBuilderTest {
     }
 
     @Test
-    fun testWithTenantAPIBootstrapperBuilder() {
-        val noOpBootstrapper = object : TenantModuleBootstrapper {
-            override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> = emptyList()
-
-            override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> = emptyList()
-        }
-        val bootstrapperBuilder = object : TenantAPIBootstrapperBuilder {
-            override fun create(): TenantAPIBootstrapper =
-                object : TenantAPIBootstrapper {
-                    override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> = listOf(noOpBootstrapper)
-                }
-        }
+    fun `builds with an injector factory that discovers no tenant modules on this classpath`() {
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
-            .withTenantAPIBootstrapperBuilder(bootstrapperBuilder)
+            .withTenantModuleInjectorFactory(NaiveTenantModuleInjectorFactory)
             .withLenientResolverValidation()
             .withScopedSchemas(scopedSchemas)
             .build()

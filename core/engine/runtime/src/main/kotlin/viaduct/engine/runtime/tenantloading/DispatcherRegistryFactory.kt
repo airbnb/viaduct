@@ -15,7 +15,6 @@ import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.ProxyResolverFactory
-import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantModuleException
 import viaduct.engine.runtime.CheckerDispatcher
@@ -72,23 +71,20 @@ abstract class AbstractDispatcherRegistryFactory(
         val fieldCheckerExecutorsToValidate = mutableMapOf<Coordinate, CheckerExecutor>()
         val typeCheckerExecutorsToValidate = mutableMapOf<String, CheckerExecutor>()
 
-        val tenantModuleBootstrappers = runBlocking(Dispatchers.Default) {
+        val moduleExecutors = runBlocking(Dispatchers.Default) {
             tenantModuleBootstrappers()
         }
 
-        // Concatenate resolvers from all bootstrappers into a single list.
-        for (tenant in tenantModuleBootstrappers) {
-            val (tenantFieldResolverExecutors, tenantNodeResolverExecutors) = try {
-                val tenantFieldResolverExecutors = tenant.fieldResolverExecutors(schema)
-                val tenantNodeResolverExecutors = tenant.nodeResolverExecutors(schema)
-                Pair(tenantFieldResolverExecutors, tenantNodeResolverExecutors)
+        for (module in moduleExecutors) {
+            val (moduleFieldResolverExecutors, moduleNodeResolverExecutors) = try {
+                Pair(module.fieldResolverExecutors(schema), module.nodeResolverExecutors(schema))
             } catch (e: TenantModuleException) {
-                log().warn("Could not bootstrap $tenant", e)
-                continue // still concatenate everything else, just skipping one tenant
+                log().warn("Could not bootstrap $module", e)
+                continue // still concatenate everything else, just skipping one module
             }
 
-            var tenantContributesExecutors = false
-            for ((fieldCoord, executor) in tenantFieldResolverExecutors) {
+            var moduleContributesExecutors = false
+            for ((fieldCoord, executor) in moduleFieldResolverExecutors) {
                 val finalExecutor = proxyResolverFactory.proxyField(executor) ?: executor
                 // Resolver coordinates are globally keyed. Duplicate registrations are deduped
                 // silently here, with the later registration winning.
@@ -97,17 +93,17 @@ abstract class AbstractDispatcherRegistryFactory(
                 // contract at runtime. Validating the original would check RSS that is no longer
                 // in effect when a proxy overrides it.
                 fieldResolverExecutorsToValidate[fieldCoord] = finalExecutor
-                tenantContributesExecutors = true
+                moduleContributesExecutors = true
             }
-            for ((typeName, executor) in tenantNodeResolverExecutors) {
+            for ((typeName, executor) in moduleNodeResolverExecutors) {
                 val finalExecutor = proxyResolverFactory.proxyNode(executor) ?: executor
                 nodeResolverDispatchers[typeName] = InstrumentedNodeResolverDispatcher(NodeResolverDispatcherImpl(finalExecutor), resolverInstrumentation)
                 // Same reasoning as field executors above: the proxy is validated.
                 nodeResolverExecutorsToValidate[typeName] = finalExecutor
-                tenantContributesExecutors = true
+                moduleContributesExecutors = true
             }
-            if (!tenantContributesExecutors) {
-                log().warn("Bootstrapping $tenant (a ${tenant.javaClass.name}) did not contribute any executors")
+            if (!moduleContributesExecutors) {
+                log().warn("Bootstrapping $module did not contribute any executors")
             }
         }
 
@@ -155,10 +151,7 @@ abstract class AbstractDispatcherRegistryFactory(
  * Assembles a [DispatcherRegistry] from file-based tenant module configs.
  *
  * [moduleConfigSources] (resource-backed tenant modules) are bootstrapped in-place via
- * [ModuleConfigBootstrapper] using [tenantModuleInjectorFactory]. Tenant APIs that do not express
- * themselves as config sources (classic wiring, remote resolvers) come in through the optional
- * [compatBootstrapper]; its [TenantModuleBootstrapper]s are concatenated after those built from the
- * config sources.
+ * [ModuleConfigBootstrapper] using [tenantModuleInjectorFactory].
  *
  * Generated built-in resolvers (`Query.node`/`Query.nodes` and `@namespaceType`) are supplied via
  * [builtinModuleConfigSourcesProvider] and are bootstrapped **last**. Resolver coordinates are
@@ -179,7 +172,6 @@ class StandardDispatcherRegistryFactory(
     private val tenantModuleInjectorFactory: TenantModuleInjectorFactory,
     validator: Validator<ExecutorValidatorContext>,
     checkerExecutorFactory: CheckerExecutorFactory,
-    private val compatBootstrapper: TenantAPIBootstrapper? = null,
     private val builtinModuleConfigSourcesProvider: () -> List<ModuleConfigSource> = { emptyList() },
     private val grtPackagePrefix: String? = null,
     resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
@@ -198,12 +190,13 @@ class StandardDispatcherRegistryFactory(
                 tenantModuleInjectorFactory = tenantModuleInjectorFactory,
                 grtPackagePrefix = grtPackagePrefix,
             ).bootstrap(moduleConfigSources)
-        val fromCompat = compatBootstrapper?.tenantModuleBootstrappers() ?: emptyList()
+
         val fromBuiltins: List<TenantModuleBootstrapper> =
             ModuleConfigBootstrapper(
                 tenantModuleInjectorFactory = NaiveTenantModuleInjectorFactory,
                 grtPackagePrefix = grtPackagePrefix,
             ).bootstrap(builtinModuleConfigSourcesProvider())
-        return fromConfigSources + fromCompat + fromBuiltins
+
+        return fromConfigSources + fromBuiltins
     }
 }

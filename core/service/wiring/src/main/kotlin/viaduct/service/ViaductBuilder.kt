@@ -7,7 +7,6 @@ import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.ProxyResolverFactory
-import viaduct.engine.api.spi.TenantAPIBootstrapperBuilder
 import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.ErrorReporter
@@ -137,22 +136,6 @@ class ViaductBuilder {
     fun withCheckerExecutorFactoryCreator(factoryCreator: (ViaductSchema) -> CheckerExecutorFactory) =
         apply {
             builder.withCheckerExecutorFactoryCreator(factoryCreator)
-        }
-
-    // internal for testing
-    @VisibleForTest
-    @Suppress("DEPRECATION")
-    internal fun withTenantAPIBootstrapperBuilder(bootstrapperBuilder: TenantAPIBootstrapperBuilder) =
-        apply {
-            builder.withTenantAPIBootstrapperBuilder(bootstrapperBuilder)
-        }
-
-    // internal for testing
-    @VisibleForTest
-    @Suppress("DEPRECATION")
-    internal fun withNoTenantAPIBootstrapper() =
-        apply {
-            builder.withNoTenantAPIBootstrapper()
         }
 
     /**

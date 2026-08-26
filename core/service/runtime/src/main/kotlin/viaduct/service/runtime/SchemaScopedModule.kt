@@ -14,7 +14,6 @@ import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentatio
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.CheckerExecutorFactoryCreator
 import viaduct.engine.api.spi.ProxyResolverFactory
-import viaduct.engine.api.spi.TenantAPIBootstrapper
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.execution.QueryPlanFactory
@@ -109,7 +108,6 @@ internal class SchemaScopedModule(
         checkerExecutorFactory: CheckerExecutorFactory,
         schema: ViaductSchema,
         moduleBootstrapConfiguration: ModuleBootstrapConfiguration,
-        compatBootstrapper: TenantAPIBootstrapper,
         proxyResolverFactory: ProxyResolverFactory,
         resolverInstrumentation: ViaductResolverInstrumentation,
         @Named("lenientResolverValidation") lenientResolverValidation: Boolean,
@@ -135,7 +133,6 @@ internal class SchemaScopedModule(
             tenantModuleInjectorFactory = moduleBootstrapConfiguration.tenantModuleInjectorFactory,
             validator = validator,
             checkerExecutorFactory = checkerExecutorFactory,
-            compatBootstrapper = compatBootstrapper,
             builtinModuleConfigSourcesProvider = {
                 builtinModuleConfigSources(
                     schema = schema,

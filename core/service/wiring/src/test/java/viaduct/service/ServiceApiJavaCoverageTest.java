@@ -174,8 +174,6 @@ class ServiceApiJavaCoverageTest {
             new SchemaScopeInfo.Scoped("public", Set.of("viaduct-public")));
     return new ViaductBuilder()
         .withFlagManager(new JavaFlagManager())
-        // No public "no tenants" switch (withNoTenantAPIBootstrapper is internal); the public
-        // path supplies an injector factory and discovers zero tenants on this classpath.
         .withTenantModuleInjectorFactory(NaiveTenantModuleInjectorFactory.INSTANCE)
         .withLenientResolverValidation(true)
         .withScopedSchemas(scopedSchemas)
