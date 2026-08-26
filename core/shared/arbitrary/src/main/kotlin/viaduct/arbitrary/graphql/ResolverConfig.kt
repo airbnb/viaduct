@@ -12,6 +12,7 @@ import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
 import viaduct.graphql.utils.DefaultSchemaFactory.DefaultDirective
+import viaduct.graphql.utils.isParentField
 
 interface ResolverConfig {
     /** Returns the combined set of field and node resolvers */
@@ -137,6 +138,7 @@ class ResolverConfigImpl private constructor(
         return buildOutputSelectionSet(
             schema.objectCoordinates(type)
                 .filter { it !in fieldResolvers }
+                .filterNot(schema::isParentField)
                 .filter { it != typeName to "id" }
                 .toSet()
         )
@@ -170,6 +172,9 @@ class ResolverConfigImpl private constructor(
             pending: Set<Coordinate>
         ): Set<Coordinate> {
             val coord = pending.firstOrNull() ?: return acc
+            if (schema.isParentField(coord)) {
+                return loop(acc, seen, pending - coord)
+            }
             val fieldType = GraphQLTypeUtil.unwrapAll(
                 schema.schema.getFieldDefinition(coord.gj).type
             )
@@ -217,6 +222,7 @@ class ResolverConfigImpl private constructor(
         type.objectCoordinates
             .sortedWith(compareBy({ it.first }, { it.second }))
             .filter { it !in fieldResolvers }
+            .filterNot(schema::isParentField)
             .forEach { coord ->
                 findInsertionPointForField(coord, nextSeen)?.let { return it }
             }
@@ -271,6 +277,7 @@ class ResolverConfigImpl private constructor(
 
             schema.objectCoordinates
                 .sortedWith(compareBy({ it.first }, { it.second }))
+                .filterNot(schema::isParentField)
                 .forEach { coord ->
                     val field = schema.schema.getFieldDefinition(coord.gj)
                     if (field.returnsNamespaceType()) return@forEach
@@ -355,3 +362,6 @@ private fun ViaductSchema.resolvableRootField(coord: Coordinate): Boolean {
             .hasAppliedDirective(DefaultDirective.NAMESPACE_TYPE.directiveName)
     }
 }
+
+/** Returns true if [coord] describes a field marked with the `@parent` directive. */
+internal fun ViaductSchema.isParentField(coord: Coordinate): Boolean = schema.getFieldDefinition(coord.gj).isParentField()

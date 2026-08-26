@@ -1,6 +1,7 @@
 package viaduct.graphql.utils
 
 import graphql.language.Node
+import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLNamedSchemaElement
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
@@ -26,3 +27,6 @@ val Node<*>.allChildren: List<Node<*>> get() = children.fold(children.toList()) 
  * This method does not traverse through FragmentSpreads or VariableReferences.
  */
 inline fun <reified T : Node<*>> Node<*>.allChildrenOfType(): List<T> = allChildren.filterIsInstance<T>()
+
+/** Returns true if this field is marked with the `@parent` directive. */
+fun GraphQLFieldDefinition.isParentField(): Boolean = hasAppliedDirective(DefaultSchemaFactory.DefaultDirective.PARENT.directiveName)

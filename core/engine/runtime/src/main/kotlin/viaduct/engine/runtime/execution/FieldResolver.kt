@@ -55,6 +55,7 @@ import viaduct.engine.runtime.fetchFieldResultForResolver
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.LedgerReader
 import viaduct.engine.runtime.result.ObjectEngineResult
+import viaduct.graphql.utils.isParentField
 import viaduct.utils.slf4j.ifDebug
 import viaduct.utils.slf4j.logger
 
@@ -1162,10 +1163,7 @@ class FieldResolver(
             launchQueryPlan(
                 planParameters,
                 matPlan,
-                target = ChildQueryPlanTarget.ResolvedFieldObjectResult(
-                    planParameters.currentObjectEngineResult,
-                    planParameters.source,
-                ),
+                target = ChildQueryPlanTarget.CurrentObjectResult,
             )
         }
         return matSource
@@ -1182,10 +1180,7 @@ class FieldResolver(
         launchQueryPlan(
             selectionParameters,
             matPlan,
-            target = ChildQueryPlanTarget.ResolvedFieldObjectResult(
-                selectionParameters.currentObjectEngineResult,
-                selectionParameters.source,
-            ),
+            target = ChildQueryPlanTarget.CurrentObjectResult,
         )
     }
 

@@ -303,42 +303,85 @@ class SelectiveFieldResolversExecutionTest {
         fun `selective child object can read its non-selective parent`() {
             MockTenantModuleBootstrapper(
                 """
-                    extend type Query { company: Company }
-                    type Company { name: String, user: User }
-                    type User { parent: Company @parent, companyName: String }
+                    extend type Query { foo: Foo }
+                    type Foo { x: Int, bar: Bar }
+                    type Bar { parent: Foo @parent, y: Int }
                 """.trimIndent()
             ) {
-                field("Query" to "company") {
+                field("Query" to "foo") {
                     resolver {
                         fn { _, _, _, _, _ ->
-                            createEngineObjectData("Company", mapOf("name" to "Airbnb"))
+                            createEngineObjectData("Foo", mapOf("x" to 2))
                         }
                     }
                 }
 
-                field("Company" to "user") {
+                field("Foo" to "bar") {
                     resolverExecutor {
                         MockFieldUnbatchedResolverExecutor(
                             isSelective = true,
                             resolverId = resolverId,
                             unbatchedResolveFn = { _, _, _, _, _ ->
-                                createEngineObjectData("User")
+                                createEngineObjectData("Bar")
                             }
                         )
                     }
                 }
 
-                field("User" to "companyName") {
+                field("Bar" to "y") {
                     resolver {
-                        objectSelections("parent { name }")
+                        objectSelections("parent { x }")
                         fn { _, obj, _, _, _ ->
-                            obj.fetchAs<EngineObjectData>("parent").fetchAs<String>("name")
+                            obj.fetchAs<EngineObjectData>("parent").fetchAs<Int>("x")
                         }
                     }
                 }
             }.runFeatureTest {
-                runQueryWithTimeout("{ company { user { companyName } } }")
-                    .assertJson("{data: {company: {user: {companyName: \"Airbnb\"}}}}")
+                runQueryWithTimeout("{ foo { bar { y } } }")
+                    .assertJson("{data: {foo: {bar: {y: 2}}}}")
+            }
+        }
+
+        @Test
+        fun `selective list item can read its non-selective parent`() {
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { foo: Foo }
+                    type Foo { x: Int, bars: [Bar!]! }
+                    type Bar { parent: Foo @parent, y: Int }
+                """.trimIndent()
+            ) {
+                field("Query" to "foo") {
+                    resolver {
+                        fn { _, _, _, _, _ ->
+                            createEngineObjectData("Foo", mapOf("x" to 2))
+                        }
+                    }
+                }
+
+                field("Foo" to "bars") {
+                    resolverExecutor {
+                        MockFieldUnbatchedResolverExecutor(
+                            isSelective = true,
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { _, _, _, _, _ ->
+                                listOf(createEngineObjectData("Bar"))
+                            }
+                        )
+                    }
+                }
+
+                field("Bar" to "y") {
+                    resolver {
+                        objectSelections("parent { x }")
+                        fn { _, obj, _, _, _ ->
+                            obj.fetchAs<EngineObjectData>("parent").fetchAs<Int>("x")
+                        }
+                    }
+                }
+            }.runFeatureTest {
+                runQueryWithTimeout("{ foo { bars { y } } }")
+                    .assertJson("{data: {foo: {bars: [{y: 2}]}}}")
             }
         }
 
@@ -346,31 +389,31 @@ class SelectiveFieldResolversExecutionTest {
         fun `parent traversal resolves a selective child field`() {
             MockTenantModuleBootstrapper(
                 """
-                    extend type Query { company: Company }
-                    type Company { details: Details, user: User }
-                    type Details { name: String }
-                    type User { parent: Company @parent, companyName: String }
+                    extend type Query { foo: Foo }
+                    type Foo { baz: Baz, bar: Bar }
+                    type Baz { x: Int }
+                    type Bar { parent: Foo @parent, y: Int }
                 """.trimIndent()
             ) {
-                field("Query" to "company") {
+                field("Query" to "foo") {
                     resolver {
                         fn { _, _, _, _, _ ->
-                            createEngineObjectData("Company")
+                            createEngineObjectData("Foo")
                         }
                     }
                 }
 
-                field("Company" to "details") {
+                field("Foo" to "baz") {
                     resolverExecutor {
                         MockFieldUnbatchedResolverExecutor(
                             isSelective = true,
                             resolverId = resolverId,
                             unbatchedResolveFn = { _, _, _, selections, _ ->
                                 createEngineObjectData(
-                                    "Details",
+                                    "Baz",
                                     buildMap {
-                                        if (selections!!.containsField("Details", "name")) {
-                                            put("name", "Airbnb")
+                                        if (selections!!.containsField("Baz", "x")) {
+                                            put("x", 2)
                                         }
                                     }
                                 )
@@ -379,27 +422,27 @@ class SelectiveFieldResolversExecutionTest {
                     }
                 }
 
-                field("Company" to "user") {
+                field("Foo" to "bar") {
                     resolver {
                         fn { _, _, _, _, _ ->
-                            createEngineObjectData("User")
+                            createEngineObjectData("Bar")
                         }
                     }
                 }
 
-                field("User" to "companyName") {
+                field("Bar" to "y") {
                     resolver {
-                        objectSelections("parent { details { name } }")
+                        objectSelections("parent { baz { x } }")
                         fn { _, obj, _, _, _ ->
                             obj.fetchAs<EngineObjectData>("parent")
-                                .fetchAs<EngineObjectData>("details")
-                                .fetchAs<String>("name")
+                                .fetchAs<EngineObjectData>("baz")
+                                .fetchAs<Int>("x")
                         }
                     }
                 }
             }.runFeatureTest {
-                runQueryWithTimeout("{ company { user { companyName } } }")
-                    .assertJson("{data: {company: {user: {companyName: \"Airbnb\"}}}}")
+                runQueryWithTimeout("{ foo { bar { y } } }")
+                    .assertJson("{data: {foo: {bar: {y: 2}}}}")
             }
         }
 
@@ -407,53 +450,75 @@ class SelectiveFieldResolversExecutionTest {
         fun `non-selective resolver restores parent traversal below selective ancestor`() {
             MockTenantModuleBootstrapper(
                 """
-                    extend type Query { container: Container }
-                    type Container { company: Company }
-                    type Company { name: String, user: User }
-                    type User { parent: Company @parent, companyName: String }
+                    extend type Query { foo: Foo }
+                    type Foo { bar: Bar }
+                    type Bar { x: Int, baz: Baz }
+                    type Baz { parent: Bar @parent, y: Int }
                 """.trimIndent()
             ) {
-                field("Query" to "container") {
+                field("Query" to "foo") {
                     resolverExecutor {
                         MockFieldUnbatchedResolverExecutor(
                             isSelective = true,
                             resolverId = resolverId,
                             unbatchedResolveFn = { _, _, _, _, _ ->
-                                createEngineObjectData("Container")
+                                createEngineObjectData("Foo")
                             }
                         )
                     }
                 }
 
-                field("Container" to "company") {
+                field("Foo" to "bar") {
                     resolver {
                         fn { _, _, _, _, _ ->
-                            createEngineObjectData("Company", mapOf("name" to "Airbnb"))
+                            createEngineObjectData("Bar", mapOf("x" to 2))
                         }
                     }
                 }
 
-                field("Company" to "user") {
+                field("Bar" to "baz") {
                     resolver {
                         fn { _, _, _, _, _ ->
-                            createEngineObjectData("User")
+                            createEngineObjectData("Baz")
                         }
                     }
                 }
 
-                field("User" to "companyName") {
+                field("Baz" to "y") {
                     resolver {
-                        objectSelections("parent { name }")
+                        objectSelections("parent { x }")
                         fn { _, obj, _, _, _ ->
-                            obj.fetchAs<EngineObjectData>("parent").fetchAs<String>("name")
+                            obj.fetchAs<EngineObjectData>("parent").fetchAs<Int>("x")
                         }
                     }
                 }
             }.runFeatureTest {
-                runQueryWithTimeout("{ container { company { user { companyName } } } }")
-                    .assertJson("{data: {container: {company: {user: {companyName: \"Airbnb\"}}}}}")
+                runQueryWithTimeout("{ foo { bar { baz { y } } } }")
+                    .assertJson("{data: {foo: {bar: {baz: {y: 2}}}}}")
             }
         }
+
+        @Nested
+        inner class ArbitraryTests :
+            SelectiveFieldArbTest(
+                sdl =
+                    """
+                        extend type Query {
+                          foo: Foo!
+                        }
+                        type Foo {
+                          bar: Bar!
+                        }
+                        type Bar {
+                          x: Int!
+                          bazs: [Baz!]!
+                        }
+                        type Baz {
+                          parent: Bar! @parent
+                          y: Int!
+                        }
+                    """.trimIndent(),
+            )
     }
 
     @Nested

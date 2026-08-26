@@ -53,6 +53,29 @@ class ResolverValueGenTest : KotestPropertyBase() {
         }
 
     @Test
+    fun `fieldResolverValue -- excludes parent fields`(): Unit =
+        runBlocking {
+            val schema = """
+                extend type Query { foo: Foo! @resolver }
+                type Foo { bar: Bar! }
+                type Bar { parent: Foo! @parent, x: Int! }
+            """.trimIndent().asViaductSchema
+
+            val arb = Arb.fieldResolverValue(
+                schema = schema,
+                coord = "Query" to "foo",
+                selections = schema.mkEngineSelectionSet("Foo", "bar { x }"),
+                ctx = MockEngineCtx(),
+            )
+
+            arb.checkAll { value ->
+                value as EngineObjectData
+                val bar = value.fetch("bar") as EngineObjectData
+                assertEquals(setOf("x"), bar.fetchSelections())
+            }
+        }
+
+    @Test
     fun `fieldResolverValue -- selective`(): Unit =
         runBlocking {
             val schema = """

@@ -160,6 +160,44 @@ class RequiredSelectionSetGenTest : KotestPropertyBase() {
         }
 
     @Test
+    fun `generator selects through parent fields`() {
+        /**
+         * The selective-resolver property tests only exercise parent traversal if generated RSS's
+         * can select through an `@parent` field. Whether a given generation can do so depends on
+         * where [CoordinateIndex] happens to place `Bar.parent` relative to the RSS owner `Bar.y`
+         * -- selections at or after the owner are banned to keep RSS's acyclic -- so this asserts
+         * the capability over many generations rather than for any single one.
+         */
+        val schema = """
+            extend type Query { foo: Foo }
+            type Foo { x: Int, bars: [Bar!]! }
+            type Bar { parent: Foo @parent, z: Int, y: Int @resolver }
+        """.trimIndent().asViaductSchema
+
+        val cfg = Config.default +
+            (RequiredSelectionSetWeight to Once) +
+            (FragmentSpreadWeight to Never) +
+            (InlineFragmentWeight to Never)
+        val factory = EngineSelectionSetFactoryImpl(schema)
+
+        val selectingParent = (1..200).count {
+            val rss = RequiredSelectionSetGen(ViaductGenEnv(schema, cfg, randomSource)).gen(
+                tfc = "Bar" to "y",
+                typeCondition = "Bar",
+                forChecker = false,
+                depth = 0,
+            ) ?: return@count false
+
+            "Bar" to "parent" in factory.engineSelectionSet(rss.selections, emptyMap()).allCoords(schema)
+        }
+
+        assertTrue(
+            selectingParent > 0,
+            "no RSS generated for Bar.y selected through Bar.parent, so parent traversal is unreachable"
+        )
+    }
+
+    @Test
     fun `no selectable dependencies returns null`() {
         val schema = "extend type Query { x:Int @resolver }".asViaductSchema
         val cfg = Config.default +

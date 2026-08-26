@@ -4,12 +4,10 @@ import graphql.execution.DataFetcherResult
 import graphql.execution.ExecutionContext
 import graphql.execution.FetchedValue
 import graphql.execution.instrumentation.InstrumentationContext
-import graphql.schema.GraphQLFieldDefinition
 import kotlinx.coroutines.withContext
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.context.DispatcherLocalContext
 import viaduct.engine.runtime.context.getLocalContextForType
-import viaduct.graphql.utils.DefaultSchemaFactory
 
 suspend inline fun <T> ExecutionContext.executeWithDispatcher(crossinline block: suspend () -> T): T {
     val dispatcherLocalContext = this.executionInput.getLocalContextForType<DispatcherLocalContext>() ?: return block()
@@ -31,8 +29,6 @@ val DataFetcherResult<*>.compositeLocalContext: CompositeLocalContext get() = lo
 
 /** returns `localContext` as a CompositeLocalContext */
 val FetchedValue.compositeLocalContext: CompositeLocalContext get() = localContext.asCompositeLocalContext
-
-fun GraphQLFieldDefinition.isParentField(): Boolean = hasAppliedDirective(DefaultSchemaFactory.DefaultDirective.PARENT.directiveName)
 
 /**
  * Completes a GraphQL Java [InstrumentationContext] with a nullable result.

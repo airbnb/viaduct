@@ -265,7 +265,9 @@ internal class ResolverValueGen(
 
                 // build the set of fields for which we need to generate a value.
                 // start by considering all fields in the current object, minus the fields with resolvers
-                var coords = type.objectCoordinates - resolverConfig.fieldResolvers
+                var coords = (type.objectCoordinates - resolverConfig.fieldResolvers)
+                    .filterNot(schema::isParentField)
+                    .toSet()
 
                 // if we're in a node resolver, don't generate a value for the id field -- they are
                 // defined to be outside a node resolvers output selection set.

@@ -769,6 +769,33 @@ class ExecutionParametersTest {
     }
 
     @Test
+    fun `nearestObjectAncestor preserves traversal through materialization child plan`() {
+        val rootParameters = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo()
+                .type(queryType)
+                .path(ResultPath.rootPath())
+                .build(),
+            queryPlan = queryPlanFor(type = queryType),
+        )
+        val fooField = collectedFooField(mergedField("foo", selectionSet("id")))
+        val fooFieldParameters = rootParameters.forField(queryType, fooField)
+        val fooParameters = fooFieldParameters.forObjectTraversal(
+            fooField,
+            ObjectEngineResultImpl.newForType(fooType),
+            fooFieldParameters.localContext,
+            mapOf("id" to "foo-1"),
+        )
+        val materializationParameters = fooParameters.forChildPlan(
+            queryPlanFor(type = fooType),
+            emptyVariables,
+            ChildQueryPlanTarget.CurrentObjectResult,
+        )
+
+        assertSame(rootParameters, materializationParameters.nearestObjectAncestor())
+    }
+
+    @Test
     fun `forParentFieldTraversal reuses nearest object ancestor execution origin`() {
         val baseParameters = createExecutionParameters(
             source = defaultRootValue,

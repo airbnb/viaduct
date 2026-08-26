@@ -569,8 +569,9 @@ data class ExecutionParameters(
             }
         }
 
-        val parentStepInfo = when (target) {
-            is ChildQueryPlanTarget.ResolvedFieldObjectResult -> executionStepInfo
+        val parentStepInfo = when {
+            target is ChildQueryPlanTarget.ResolvedFieldObjectResult ||
+                executionOrigin is ExecutionOrigin.ObjectTraversal -> executionStepInfo
             else -> executionStepInfo.parent
         }
 

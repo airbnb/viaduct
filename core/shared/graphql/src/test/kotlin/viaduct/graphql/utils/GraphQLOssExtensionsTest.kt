@@ -13,12 +13,16 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchemaElement
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeVisitor
+import graphql.schema.idl.SchemaParser
+import graphql.schema.idl.UnExecutableSchemaGenerator
 import graphql.util.TraversalControl.CONTINUE
 import graphql.util.TraverserContext
 import io.kotest.matchers.types.shouldBeInstanceOf
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class GraphQLOssExtensionsTest {
@@ -157,5 +161,30 @@ class GraphQLOssExtensionsTest {
         children[0].shouldBeInstanceOf<OperationDefinition>()
         children[1].shouldBeInstanceOf<SelectionSet>()
         children[2].shouldBeInstanceOf<Field>()
+    }
+
+    @Test
+    fun `isParentField returns true only for parent fields`() {
+        val registry = SchemaParser().parse(
+            """
+                extend type Query {
+                  foo: Foo
+                }
+
+                type Foo {
+                  bar: Bar
+                }
+
+                type Bar {
+                  parent: Foo @parent
+                  x: Int
+                }
+            """.trimIndent()
+        )
+        DefaultSchemaFactory.addDefaults(registry)
+        val bar = UnExecutableSchemaGenerator.makeUnExecutableSchema(registry).getObjectType("Bar")
+
+        assertTrue(bar.getFieldDefinition("parent").isParentField())
+        assertFalse(bar.getFieldDefinition("x").isParentField())
     }
 }

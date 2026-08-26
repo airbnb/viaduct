@@ -3,12 +3,16 @@
 package viaduct.arbitrary.graphql
 
 import graphql.ParseAndValidate
+import graphql.language.Field
+import graphql.parser.Parser
 import io.kotest.property.Arb
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
+import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.asSequence
+import viaduct.graphql.utils.allChildrenOfType
 
 class ViaductExecutionInputsTest : KotestPropertyBase() {
     @Test
@@ -53,5 +57,24 @@ class ViaductExecutionInputsTest : KotestPropertyBase() {
                 .any { inp ->
                     inp.variables.isNotEmpty()
                 }
+        }
+
+    @Test
+    fun `excludes parent fields from client operations`(): Unit =
+        runBlocking {
+            val schema = """
+                extend type Query { foo: Foo }
+                type Foo { x: Int, bar: Bar }
+                type Bar { parent: Foo @parent, y: Int }
+            """.asViaductSchema
+            val cfg = Config.default +
+                (FieldSelectionWeight to CompoundingWeight(1.0, 3))
+
+            Arb.viaductExecutionInput(schema, cfg).forAll { input ->
+                Parser()
+                    .parseDocument(input.operationText)
+                    .allChildrenOfType<Field>()
+                    .none { it.name == "parent" }
+            }
         }
 }

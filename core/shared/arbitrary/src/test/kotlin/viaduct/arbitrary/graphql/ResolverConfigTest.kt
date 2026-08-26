@@ -181,6 +181,48 @@ class ResolverConfigTest : KotestPropertyBase() {
     }
 
     @Test
+    fun `parent fields are excluded from generated resolvers`() {
+        val schema = """
+            extend type Query { foo: Foo }
+            type Foo { bar: Bar }
+            type Bar { parent: Foo @parent, x: Int }
+        """.asViaductSchema
+
+        val rc = ResolverConfigImpl(
+            schema,
+            Config.default + (UndeclaredFieldResolverWeight to 1.0),
+            randomSource
+        )
+
+        assertFalse("Bar" to "parent" in rc.fieldResolvers)
+        assertTrue("Bar" to "x" in rc.fieldResolvers)
+    }
+
+    @Test
+    fun `parent fields are excluded from resolver output selection sets`() {
+        val schema = """
+            extend type Query { foo: Foo @resolver }
+            type Foo { bar: Bar }
+            type Bar { parent: Foo @parent, x: Int }
+        """.asViaductSchema
+
+        val rc = ResolverConfigImpl(
+            schema,
+            Config.default + (IncludeRequiredResolvers to false),
+            randomSource
+        )
+
+        assertEquals(
+            setOf(
+                "Query" to "foo",
+                "Foo" to "bar",
+                "Bar" to "x",
+            ),
+            rc.fieldResolverOutputSelectionSet("Query" to "foo")
+        )
+    }
+
+    @Test
     fun `IncludeRequiredResolvers -- default includes root fields when undeclared field weight is zero`() {
         val schema = """
             extend type Query { x: Int }
