@@ -232,6 +232,16 @@ class ViaductSchemaBuilderTest {
                                 )
                         )
                 ).addDefinition(
+                    ObjectTypeExtensionBuilder("User")
+                        .addField(
+                            OutputFieldBuilder("name", TypeExprBuilder("String"))
+                                .description("extension-last")
+                                .addArgument(
+                                    ArgumentBuilder("format", TypeExprBuilder("String"))
+                                        .description("extension-last")
+                                )
+                        )
+                ).addDefinition(
                     EnumTypeBuilder("Role")
                         .addValue(EnumValueBuilder("USER").description("first"))
                         .addValue(EnumValueBuilder("USER").description("last"))
@@ -243,8 +253,8 @@ class ViaductSchemaBuilderTest {
 
         val user = schema.types.getValue("User") as ViaductSchema.Object
         assertEquals(listOf("Node"), user.supers.map { it.name })
-        assertEquals("last", user.field("name")!!.description)
-        assertEquals("last", user.field("name")!!.args.single().description)
+        assertEquals("extension-last", user.field("name")!!.description)
+        assertEquals("extension-last", user.field("name")!!.args.single().description)
         assertEquals(
             "last",
             (schema.types.getValue("Role") as ViaductSchema.Enum).value("USER")!!.description,

@@ -15,9 +15,9 @@ import viaduct.invariants.FailureCollector
  * and either returns a valid schema or fails.
  */
 class ViaductSchemaBuilder(
-    val queryTypeName: String? = "Query",
-    val mutationTypeName: String? = null,
-    val subscriptionTypeName: String? = null,
+    var queryTypeName: String? = "Query",
+    var mutationTypeName: String? = null,
+    var subscriptionTypeName: String? = null,
     val noStandardDefs: Boolean = false,
 ) {
     private val definitions = mutableListOf<DefinitionBuilder>()
@@ -55,6 +55,20 @@ class ViaductSchemaBuilder(
         checkViaductSchemaInvariants(schema, check, SchemaInvariantOptions.ALLOW_EMPTY_TYPES)
         check.assertEmptyMultiline("ViaductSchemaBuilder produced an invalid schema:\n")
         return schema
+    }
+
+    companion object {
+        /**
+         * Returns a builder populated from the parts of [source] accepted by [filter].
+         *
+         * The returned builder may be temporarily inconsistent. In particular, filtering can
+         * remove a definition while retaining references to it or its applications. Add
+         * replacement definitions or other updates before calling [build].
+         */
+        fun filteredCopy(
+            source: ViaductSchema,
+            filter: ViaductSchemaBuilderFilter,
+        ): ViaductSchemaBuilder = ViaductSchemaBuilderFilteredCopy(source, filter).copy()
     }
 }
 
@@ -190,11 +204,13 @@ private class ViaductSchemaBuilderDecoder(
 
     private fun populateEnum(builder: EnumTypeBuilder) {
         val enum = types.getValue(builder.name) as SchemaWithData.Enum
+        val extensionBuilders = extensions<EnumTypeExtensionBuilder>(builder.name)
+        val values = retainLastByName(listOf(builder.values) + extensionBuilders.map { it.values }) { it.name }
         val extensions =
             buildList {
-                add(enumExtension(enum, builder.values, true, builder))
-                extensions<EnumTypeExtensionBuilder>(builder.name).forEach { extension ->
-                    add(enumExtension(enum, extension.values, false, extension))
+                add(enumExtension(enum, values[0], true, builder))
+                extensionBuilders.forEachIndexed { index, extension ->
+                    add(enumExtension(enum, values[index + 1], false, extension))
                 }
             }
         enum.populate(extensions, builder.state.description)
@@ -226,11 +242,13 @@ private class ViaductSchemaBuilderDecoder(
 
     private fun populateUnion(builder: UnionTypeBuilder) {
         val union = types.getValue(builder.name) as SchemaWithData.Union
+        val extensionBuilders = extensions<UnionTypeExtensionBuilder>(builder.name)
+        val members = retainLastByName(listOf(builder.members) + extensionBuilders.map { it.members }) { it }
         val extensions =
             buildList {
-                add(unionExtension(union, builder.members, true, builder))
-                extensions<UnionTypeExtensionBuilder>(builder.name).forEach { extension ->
-                    add(unionExtension(union, extension.members, false, extension))
+                add(unionExtension(union, members[0], true, builder))
+                extensionBuilders.forEachIndexed { index, extension ->
+                    add(unionExtension(union, members[index + 1], false, extension))
                 }
             }
         union.populate(extensions, builder.state.description)
@@ -256,11 +274,22 @@ private class ViaductSchemaBuilderDecoder(
 
     private fun populateInterface(builder: InterfaceTypeBuilder) {
         val interfaceDef = types.getValue(builder.name) as SchemaWithData.Interface
+        val extensionBuilders = extensions<InterfaceTypeExtensionBuilder>(builder.name)
+        val fields = retainLastByName(listOf(builder.fields) + extensionBuilders.map { it.fields }) { it.name }
+        val interfaces = retainLastByName(listOf(builder.interfaces) + extensionBuilders.map { it.interfaces }) { it }
         val extensions =
             buildList {
-                add(interfaceExtension(interfaceDef, builder.fields, builder.interfaces, true, builder))
-                extensions<InterfaceTypeExtensionBuilder>(builder.name).forEach { extension ->
-                    add(interfaceExtension(interfaceDef, extension.fields, extension.interfaces, false, extension))
+                add(interfaceExtension(interfaceDef, fields[0], interfaces[0], true, builder))
+                extensionBuilders.forEachIndexed { index, extension ->
+                    add(
+                        interfaceExtension(
+                            interfaceDef,
+                            fields[index + 1],
+                            interfaces[index + 1],
+                            false,
+                            extension,
+                        )
+                    )
                 }
             }
         val possibleObjects =
@@ -292,11 +321,22 @@ private class ViaductSchemaBuilderDecoder(
 
     private fun populateObject(builder: ObjectTypeBuilder) {
         val objectDef = types.getValue(builder.name) as SchemaWithData.Object
+        val extensionBuilders = extensions<ObjectTypeExtensionBuilder>(builder.name)
+        val fields = retainLastByName(listOf(builder.fields) + extensionBuilders.map { it.fields }) { it.name }
+        val interfaces = retainLastByName(listOf(builder.interfaces) + extensionBuilders.map { it.interfaces }) { it }
         val extensions =
             buildList {
-                add(objectExtension(objectDef, builder.fields, builder.interfaces, true, builder))
-                extensions<ObjectTypeExtensionBuilder>(builder.name).forEach { extension ->
-                    add(objectExtension(objectDef, extension.fields, extension.interfaces, false, extension))
+                add(objectExtension(objectDef, fields[0], interfaces[0], true, builder))
+                extensionBuilders.forEachIndexed { index, extension ->
+                    add(
+                        objectExtension(
+                            objectDef,
+                            fields[index + 1],
+                            interfaces[index + 1],
+                            false,
+                            extension,
+                        )
+                    )
                 }
             }
         val unions =
@@ -327,11 +367,13 @@ private class ViaductSchemaBuilderDecoder(
 
     private fun populateInput(builder: InputObjectTypeBuilder) {
         val input = types.getValue(builder.name) as SchemaWithData.Input
+        val extensionBuilders = extensions<InputObjectTypeExtensionBuilder>(builder.name)
+        val fields = retainLastByName(listOf(builder.fields) + extensionBuilders.map { it.fields }) { it.name }
         val extensions =
             buildList {
-                add(inputExtension(input, builder.fields, true, builder))
-                extensions<InputObjectTypeExtensionBuilder>(builder.name).forEach { extension ->
-                    add(inputExtension(input, extension.fields, false, extension))
+                add(inputExtension(input, fields[0], true, builder))
+                extensionBuilders.forEachIndexed { index, extension ->
+                    add(inputExtension(input, fields[index + 1], false, extension))
                 }
             }
         input.populate(extensions, builder.state.description)
@@ -510,6 +552,21 @@ private fun <T> lastByName(
     .asReversed()
     .distinctBy(name)
     .asReversed()
+
+private fun <T> retainLastByName(
+    groups: List<List<T>>,
+    name: (T) -> String,
+): List<List<T>> {
+    val seen = mutableSetOf<String>()
+    return groups
+        .asReversed()
+        .map { group ->
+            group
+                .asReversed()
+                .filter { seen.add(name(it)) }
+                .asReversed()
+        }.asReversed()
+}
 
 private fun lastUnique(values: List<String>): List<String> =
     values
