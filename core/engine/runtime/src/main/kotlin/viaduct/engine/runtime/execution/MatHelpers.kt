@@ -23,6 +23,7 @@ import viaduct.engine.runtime.mat.Mat
 import viaduct.engine.runtime.mat.MatPath.Segment
 import viaduct.engine.runtime.mat.MatResult
 import viaduct.engine.runtime.result.ObjectEngineResult
+import viaduct.errors.TenantException
 
 /**
  * Converts the current executable selection set to its exact field keys.
@@ -300,11 +301,12 @@ internal fun Mat.failedResultFor(
     keyTree: KeyTree,
     parameters: ExecutionParameters,
     cause: Exception,
-): MatResult =
-    MatResult(
-        coverage = keyTree,
-        source =
-            Result.failure(
+): MatResult {
+    val unwrappedCause = UnwrapExceptionUtil.unwrapExceptionForError(cause)
+    val failure =
+        when (unwrappedCause) {
+            is TenantException -> unwrappedCause
+            else ->
                 materializationException(
                     buildString {
                         append("mat ${this@failedResultFor} failed when materialized for $keyTree")
@@ -316,8 +318,13 @@ internal fun Mat.failedResultFor(
                     parameters = parameters,
                     cause = cause,
                 )
-            ),
+        }
+
+    return MatResult(
+        coverage = keyTree,
+        source = Result.failure(failure),
     )
+}
 
 /** A [KeyTreeFilter] that clamps a field resolvers subtree to its output selection set*/
 @JvmInline

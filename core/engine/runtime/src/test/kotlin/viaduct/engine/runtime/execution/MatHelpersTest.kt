@@ -9,8 +9,11 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.runtime.mat.KeyTree
+import viaduct.engine.runtime.mat.Mat
 import viaduct.engine.runtime.mat.build
 import viaduct.engine.runtime.result.ObjectEngineResult
+import viaduct.errors.TenantResolverException
+import viaduct.errors.TenantUsageException
 
 class MatHelpersTest {
     @Nested
@@ -323,6 +326,35 @@ class MatHelpersTest {
             val existing = materializationException("already wrapped")
 
             assertSame(existing, materializationException("ignored", cause = existing))
+        }
+
+        @Test
+        fun `failed materialization preserves tenant exception`() {
+            val parameters = mkExecutionParameters(
+                "extend type Query { x:Int }",
+                "Query" to "x",
+                "{ x }",
+            )
+            val failure = TenantUsageException("not found")
+
+            val result = Mat.Null.failedResultFor(KeyTree.empty, parameters, failure)
+
+            assertSame(failure, result.source.exceptionOrNull())
+        }
+
+        @Test
+        fun `failed materialization preserves wrapped tenant exception`() {
+            val parameters = mkExecutionParameters(
+                "extend type Query { x:Int }",
+                "Query" to "x",
+                "{ x }",
+            )
+            val failure = TenantUsageException("not found")
+            val wrappedFailure = TenantResolverException(failure, "StaySpecialOffer")
+
+            val result = Mat.Null.failedResultFor(KeyTree.empty, parameters, wrappedFailure)
+
+            assertSame(failure, result.source.exceptionOrNull())
         }
     }
 }
