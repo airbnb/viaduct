@@ -2,16 +2,9 @@
 
 package viaduct.graphql.schema.graphqljava
 
-import graphql.schema.GraphQLArgument
-import graphql.schema.GraphQLDirective
 import graphql.schema.GraphQLEnumType
-import graphql.schema.GraphQLEnumValueDefinition
-import graphql.schema.GraphQLFieldDefinition
-import graphql.schema.GraphQLInputObjectField
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLInterfaceType
-import graphql.schema.GraphQLNamedSchemaElement
-import graphql.schema.GraphQLNamedType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLSchema
@@ -34,8 +27,8 @@ import viaduct.utils.timer.Timer
  * validated by graphql-java, making this the safest option but also
  * slower to construct than the "raw" path (see [gjSchemaRawFromRegistry]).
  *
- * The auxiliary data stored in [SchemaWithData.Def.data] is the corresponding
- * graphql-java schema element (e.g., [GraphQLObjectType], [GraphQLFieldDefinition], etc.).
+ * Each [SchemaWithData.Def.holder] stores the corresponding graphql-java schema
+ * element under a private key.
  *
  * Use factory functions like [gjSchemaFromSchema], [gjSchemaFromRegistry],
  * [gjSchemaFromFiles], or [gjSchemaFromURLs] to create instances.
@@ -68,24 +61,24 @@ internal fun gjSchemaFromRegistry(
 internal fun gjSchemaFromSchema(schema: GraphQLSchema): SchemaWithData {
     val result = SchemaWithData()
 
-    // Phase 1: Create all TypeDef and Directive shells (just underlying def and name in data)
+    // Phase 1: Create all TypeDef and Directive shells with the underlying definition.
     val types = mutableMapOf<String, SchemaWithData.TypeDef>()
     for (def in schema.allTypesAsList) {
         // Skip introspection types - they're graphql-java implementation details
         if (def.name.startsWith("__")) continue
         val typeDef = when (def) {
-            is GraphQLScalarType -> SchemaWithData.Scalar(result, def.name, def)
-            is GraphQLEnumType -> SchemaWithData.Enum(result, def.name, def)
-            is GraphQLUnionType -> SchemaWithData.Union(result, def.name, def)
-            is GraphQLInterfaceType -> SchemaWithData.Interface(result, def.name, def)
-            is GraphQLObjectType -> SchemaWithData.Object(result, def.name, def)
-            is GraphQLInputObjectType -> SchemaWithData.Input(result, def.name, def)
+            is GraphQLScalarType -> SchemaWithData.Scalar(result, def.name, gjSchemaHolder(def))
+            is GraphQLEnumType -> SchemaWithData.Enum(result, def.name, gjSchemaHolder(def))
+            is GraphQLUnionType -> SchemaWithData.Union(result, def.name, gjSchemaHolder(def))
+            is GraphQLInterfaceType -> SchemaWithData.Interface(result, def.name, gjSchemaHolder(def))
+            is GraphQLObjectType -> SchemaWithData.Object(result, def.name, gjSchemaHolder(def))
+            is GraphQLInputObjectType -> SchemaWithData.Input(result, def.name, gjSchemaHolder(def))
             else -> throw RuntimeException("Unexpected GraphQL type: $def")
         }
         types[def.name] = typeDef
     }
 
-    val directives = schema.directives.associate { it.name to SchemaWithData.Directive(result, it.name, it) }
+    val directives = schema.directives.associate { it.name to SchemaWithData.Directive(result, it.name, gjSchemaHolder(it)) }
 
     // Phase 2: Create decoder and populate all types and directives
     val decoder = GraphQLSchemaDecoder(schema, types, directives)
@@ -172,71 +165,3 @@ internal fun SchemaWithData.toTypeExpr(gtype: GraphQLType): ViaductSchema.TypeEx
         ?: error("Type not found: $baseTypeDefName")
     return ViaductSchema.TypeExpr(baseTypeDef, baseTypeNullable, listNullable)
 }
-
-//
-// Type-safe extension properties for accessing the underlying graphql-java schema types.
-// These use "gj" prefix to avoid conflicts with GJSchemaRawExtensions.kt which defines
-// "def" properties for accessing graphql-java language types.
-//
-
-/** The underlying graphql-java element for any Def. */
-internal val SchemaWithData.Def.gjDef: GraphQLNamedSchemaElement
-    get() = data as GraphQLNamedSchemaElement
-
-/** The underlying graphql-java element for any Def. */
-internal val SchemaWithData.TypeDef.gjDef: GraphQLNamedType
-    get() = data as GraphQLNamedType
-
-/** The underlying GraphQLScalarType. */
-internal val SchemaWithData.Scalar.gjDef: GraphQLScalarType
-    get() = data as GraphQLScalarType
-
-/** The underlying GraphQLEnumType. */
-internal val SchemaWithData.Enum.gjDef: GraphQLEnumType
-    get() = data as GraphQLEnumType
-
-/** The underlying GraphQLEnumValueDefinition. */
-internal val SchemaWithData.EnumValue.gjDef: GraphQLEnumValueDefinition
-    get() = data as GraphQLEnumValueDefinition
-
-/** The underlying GraphQLUnionType. */
-internal val SchemaWithData.Union.gjDef: GraphQLUnionType
-    get() = data as GraphQLUnionType
-
-/** The underlying GraphQLInterfaceType. */
-internal val SchemaWithData.Interface.gjDef: GraphQLInterfaceType
-    get() = data as GraphQLInterfaceType
-
-/** The underlying GraphQLObjectType. */
-internal val SchemaWithData.Object.gjDef: GraphQLObjectType
-    get() = data as GraphQLObjectType
-
-/** The underlying GraphQLInputObjectType. */
-internal val SchemaWithData.Input.gjDef: GraphQLInputObjectType
-    get() = data as GraphQLInputObjectType
-
-/** The underlying GraphQLDirective. */
-internal val SchemaWithData.Directive.gjDef: GraphQLDirective
-    get() = data as GraphQLDirective
-
-/** The underlying GraphQLArgument for directive args. */
-internal val SchemaWithData.DirectiveArg.gjDef: GraphQLArgument
-    get() = data as GraphQLArgument
-
-/** The underlying GraphQLArgument for field args. */
-internal val SchemaWithData.FieldArg.gjDef: GraphQLArgument
-    get() = data as GraphQLArgument
-
-/**
- * The underlying GraphQLFieldDefinition for output fields.
- * This should only be used on fields from Object or Interface types.
- */
-internal val SchemaWithData.Field.gjOutputDef: GraphQLFieldDefinition
-    get() = data as GraphQLFieldDefinition
-
-/**
- * The underlying GraphQLInputObjectField for input fields.
- * This should only be used on fields from Input types.
- */
-internal val SchemaWithData.Field.gjInputDef: GraphQLInputObjectField
-    get() = data as GraphQLInputObjectField

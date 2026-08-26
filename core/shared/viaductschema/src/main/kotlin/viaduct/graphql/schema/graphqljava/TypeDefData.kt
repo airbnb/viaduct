@@ -6,7 +6,7 @@ import graphql.language.TypeDefinition
 
 /**
  * Holds the graphql-java type definition and its extension definitions.
- * Used as the [SchemaWithData.TypeDef.data] value for GJSchemaRaw-style schemas.
+ * Used as the default [SchemaWithData.TypeDef.holder] value for GJSchemaRaw-style schemas.
  */
 internal data class TypeDefData<out D : TypeDefinition<*>, out E : TypeDefinition<*>>(
     val def: D,

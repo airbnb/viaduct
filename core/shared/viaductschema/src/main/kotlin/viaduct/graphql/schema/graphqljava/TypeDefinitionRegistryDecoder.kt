@@ -78,7 +78,7 @@ internal class TypeDefinitionRegistryDecoder(
                             containingExtension,
                             evd.name,
                             decodeAppliedDirectives(evd.directives),
-                            evd,
+                            gjSchemaRawHolder(evd),
                             evd.description?.content
                         )
                     }
@@ -105,7 +105,7 @@ internal class TypeDefinitionRegistryDecoder(
                             decodeAppliedDirectives(ivd.directives),
                             decodeHasDefault(ivd),
                             decodeDefaultValue(ivd),
-                            ivd,
+                            gjSchemaRawHolder(ivd),
                             ivd.description?.content
                         )
                     }
@@ -200,7 +200,16 @@ internal class TypeDefinitionRegistryDecoder(
             } else {
                 null
             }
-            SchemaWithData.DirectiveArg(directive, it.name, decodeTypeExpr(it.type), decodeAppliedDirectives(it.directives), hasDefault, default, it, it.description?.content)
+            SchemaWithData.DirectiveArg(
+                directive,
+                it.name,
+                decodeTypeExpr(it.type),
+                decodeAppliedDirectives(it.directives),
+                hasDefault,
+                default,
+                gjSchemaRawHolder(it),
+                it.description?.content
+            )
         }
         directive.populate(isRepeatable, allowedLocations, sourceLocation, args, def.description?.content)
     }
@@ -218,7 +227,7 @@ internal class TypeDefinitionRegistryDecoder(
             appliedDirectives = decodeAppliedDirectives(fieldDef.directives),
             hasDefault = false,
             mDefaultValue = null,
-            data = fieldDef,
+            holder = gjSchemaRawHolder(fieldDef),
             description = fieldDef.description?.content,
             argsFactory = { field -> createFieldArgs(field, fieldDef) }
         )
@@ -235,7 +244,7 @@ internal class TypeDefinitionRegistryDecoder(
             appliedDirectives = decodeAppliedDirectives(fieldDef.directives),
             hasDefault = false,
             defaultValue = null,
-            data = fieldDef,
+            holder = gjSchemaRawHolder(fieldDef),
             description = fieldDef.description?.content,
             argsFactory = { field -> createFieldArgs(field, fieldDef) }
         )
@@ -258,7 +267,7 @@ internal class TypeDefinitionRegistryDecoder(
                 decodeAppliedDirectives(ivd.directives),
                 hasDefault,
                 default,
-                ivd,
+                gjSchemaRawHolder(ivd),
                 ivd.description?.content
             )
         }

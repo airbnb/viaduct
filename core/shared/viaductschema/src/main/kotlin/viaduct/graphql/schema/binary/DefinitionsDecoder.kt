@@ -3,6 +3,7 @@ package viaduct.graphql.schema.binary
 import viaduct.graphql.schema.InvalidSchemaException
 import viaduct.graphql.schema.SchemaWithData
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.utils.collections.HMap
 
 /**
  * Decodes the root types and definitions sections.
@@ -221,7 +222,7 @@ internal class DefinitionsDecoder(
     fun <D, T> decodeFieldOrArg(
         container: D,
         refPlus: FieldRefPlus,
-        create: (D, String, ViaductSchema.TypeExpr<SchemaWithData.TypeDef>, List<ViaductSchema.AppliedDirective<*>>, Boolean, ViaductSchema.Literal?, Any?, String?) -> T,
+        create: (D, String, ViaductSchema.TypeExpr<SchemaWithData.TypeDef>, List<ViaductSchema.AppliedDirective<*>>, Boolean, ViaductSchema.Literal?, HMap, String?) -> T,
     ): T {
         // Read in binary format order: name, description, appliedDirectives, type, hasDefault, defaultValue
         val name = identifiers.get(refPlus.getIndex())
@@ -230,8 +231,8 @@ internal class DefinitionsDecoder(
         val type = types.get(data.readInt())
         val hasDefault = refPlus.hasDefaultValue()
         val defaultValue = decodeDefaultValue(hasDefault)
-        // Pass to constructor in standardized order: container, name, type, appliedDirectives, hasDefault, defaultValue, data, description
-        return create(container, name, type, appliedDirectives, hasDefault, defaultValue, null, description)
+        // Pass to constructor in standardized order: container, name, type, appliedDirectives, hasDefault, defaultValue, holder, description
+        return create(container, name, type, appliedDirectives, hasDefault, defaultValue, HMap.singleton(null), description)
     }
 
     /**
@@ -308,7 +309,7 @@ internal class DefinitionsDecoder(
      */
     fun <D, T> decodeInputLikeFieldList(
         container: D,
-        create: (D, String, ViaductSchema.TypeExpr<SchemaWithData.TypeDef>, List<ViaductSchema.AppliedDirective<*>>, Boolean, ViaductSchema.Literal?, Any?, String?) -> T,
+        create: (D, String, ViaductSchema.TypeExpr<SchemaWithData.TypeDef>, List<ViaductSchema.AppliedDirective<*>>, Boolean, ViaductSchema.Literal?, HMap, String?) -> T,
     ): List<T> {
         var v = data.readInt()
         if (v == EMPTY_LIST_MARKER) return emptyList()

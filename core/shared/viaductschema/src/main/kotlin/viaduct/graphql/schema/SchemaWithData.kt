@@ -1,24 +1,22 @@
 package viaduct.graphql.schema
 
+import viaduct.utils.collections.HMap
+
 /**
- * A unified implementation of [ViaductSchema] that stores optional auxiliary data
- * associated with each schema node via a generic [data] property.
+ * A unified implementation of [ViaductSchema] that stores optional auxiliary
+ * values associated with each schema node in a [HMap].
  *
  * This class consolidates what were previously separate implementations (BSchema,
  * GJSchema, GJSchemaRaw, FilteredSchema) into a single class hierarchy. Each
- * "flavor" of schema is distinguished by what it stores in [data]:
+ * "flavor" of schema is distinguished by what it stores in [ViaductSchema.Def.holder]:
  *
- * - Binary format (formerly BSchema): `data` is null for all nodes
- * - GraphQL-Java validated (formerly GJSchema): `data` holds GraphQL* types
- * - GraphQL-Java raw (formerly GJSchemaRaw): `data` holds graphql.language.* types
- * - Filtered (formerly FilteredSchema): `data` holds the unfiltered ViaductSchema.Def
+ * - Binary format (formerly BSchema): the default value is null for all nodes
+ * - GraphQL-Java validated (formerly GJSchema): a GraphQL* type under a private key
+ * - GraphQL-Java raw (formerly GJSchemaRaw): a graphql.language.* type under a private key
+ * - Filtered (formerly FilteredSchema): the unfiltered ViaductSchema.Def under a private key
  *
- * Factory functions and type-safe extension properties for accessing [data] are
- * provided in the respective flavor's module.
- *
- * This class is public to support implementations that expose auxiliary data
- * associated with schema nodes. However, consumers should generally work through
- * the [ViaductSchema] interface and flavor-specific extension properties.
+ * Factory functions and type-safe extension properties for accessing holder
+ * values are provided in the respective flavor's module.
  */
 internal class SchemaWithData : ViaductSchema {
     private var mDirectives: Map<String, Directive>? = null
@@ -55,17 +53,16 @@ internal class SchemaWithData : ViaductSchema {
     //
 
     sealed interface Def : ViaductSchema.Def {
-        val data: Any?
         override val description: String?
 
         override fun hasAppliedDirective(name: String) = appliedDirectives.any { it.name == name }
 
         /**
          * Unwrap all layers of filtering.
-         * If [data] contains a [ViaductSchema.Def], recursively unwrap it.
+         * If this is a filtered definition, recursively unwrap its original definition.
          * Otherwise return this.
          */
-        override fun unwrapAll(): ViaductSchema.Def = (data as? ViaductSchema.Def)?.unwrapAll() ?: this
+        override fun unwrapAll(): ViaductSchema.Def = unfilteredDefOrNull()?.unwrapAll() ?: this
     }
 
     sealed class DefBase protected constructor() : Def {
@@ -105,7 +102,7 @@ internal class SchemaWithData : ViaductSchema {
         override val appliedDirectives: List<ViaductSchema.AppliedDirective<*>>,
         override val hasDefault: Boolean,
         override val mDefaultValue: ViaductSchema.Literal?,
-        override val data: Any? = null,
+        override val holder: HMap = HMap.singleton(null),
         override val description: String? = null,
     ) : Arg(), ViaductSchema.DirectiveArg
 
@@ -116,7 +113,7 @@ internal class SchemaWithData : ViaductSchema {
         override val appliedDirectives: List<ViaductSchema.AppliedDirective<*>>,
         override val hasDefault: Boolean,
         override val mDefaultValue: ViaductSchema.Literal?,
-        override val data: Any? = null,
+        override val holder: HMap = HMap.singleton(null),
         override val description: String? = null,
     ) : Arg(), ViaductSchema.FieldArg
 
@@ -124,7 +121,7 @@ internal class SchemaWithData : ViaductSchema {
         override val containingExtension: ViaductSchema.Extension<Enum, EnumValue>,
         override val name: String,
         override val appliedDirectives: List<ViaductSchema.AppliedDirective<*>>,
-        override val data: Any? = null,
+        override val holder: HMap = HMap.singleton(null),
         override val description: String? = null,
     ) : DefBase(), ViaductSchema.EnumValue {
         override val containingDef: Enum get() = containingExtension.def
@@ -137,7 +134,7 @@ internal class SchemaWithData : ViaductSchema {
         override val appliedDirectives: List<ViaductSchema.AppliedDirective<*>>,
         override val hasDefault: Boolean,
         override val mDefaultValue: ViaductSchema.Literal?,
-        override val data: Any? = null,
+        override val holder: HMap = HMap.singleton(null),
         override val description: String? = null,
         argsFactory: (Field) -> List<FieldArg> = { emptyList() },
     ) : HasDefaultValue(), ViaductSchema.Field {
@@ -149,9 +146,9 @@ internal class SchemaWithData : ViaductSchema {
             appliedDirectives: List<ViaductSchema.AppliedDirective<*>>,
             hasDefault: Boolean,
             defaultValue: ViaductSchema.Literal?,
-            data: Any? = null,
+            holder: HMap = HMap.singleton(null),
             description: String? = null,
-        ) : this(containingExtension, name, type, appliedDirectives, hasDefault, defaultValue, data, description, { emptyList() })
+        ) : this(containingExtension, name, type, appliedDirectives, hasDefault, defaultValue, holder, description, { emptyList() })
 
         override val args: List<FieldArg> = argsFactory(this)
 
@@ -167,7 +164,7 @@ internal class SchemaWithData : ViaductSchema {
         appliedDirectives: List<ViaductSchema.AppliedDirective<*>>,
         hasDefault: Boolean,
         defaultValue: ViaductSchema.Literal?,
-        data: Any? = null,
+        holder: HMap = HMap.singleton(null),
         description: String? = null,
         argsFactory: (Field) -> List<FieldArg> = { emptyList() },
     ) : Field(
@@ -177,7 +174,7 @@ internal class SchemaWithData : ViaductSchema {
             appliedDirectives,
             hasDefault,
             defaultValue,
-            data,
+            holder,
             description,
             argsFactory,
         ),
@@ -192,7 +189,7 @@ internal class SchemaWithData : ViaductSchema {
     class Directive internal constructor(
         override val containingSchema: SchemaWithData,
         override val name: String,
-        override val data: Any? = null,
+        override val holder: HMap = HMap.singleton(null),
     ) : TopLevelDef(), ViaductSchema.Directive {
         private var mSourceLocation: ViaductSchema.SourceLocation? = null
         private var mIsRepeatable: Boolean? = null
@@ -242,7 +239,7 @@ internal class SchemaWithData : ViaductSchema {
     class Scalar internal constructor(
         override val containingSchema: SchemaWithData,
         override val name: String,
-        override val data: Any? = null,
+        override val holder: HMap = HMap.singleton(null),
     ) : TypeDef(), ViaductSchema.Scalar {
         private var mExtensions: List<ViaductSchema.Extension<Scalar, Nothing>>? = null
         private var mDescription: String? = null
@@ -266,7 +263,7 @@ internal class SchemaWithData : ViaductSchema {
     class Enum internal constructor(
         override val containingSchema: SchemaWithData,
         override val name: String,
-        override val data: Any? = null,
+        override val holder: HMap = HMap.singleton(null),
     ) : TypeDef(), ViaductSchema.Enum {
         private var mAppliedDirectives: List<ViaductSchema.AppliedDirective<*>>? = null
         private var mExtensions: List<ViaductSchema.Extension<Enum, EnumValue>>? = null
@@ -297,7 +294,7 @@ internal class SchemaWithData : ViaductSchema {
     class Union internal constructor(
         override val containingSchema: SchemaWithData,
         override val name: String,
-        override val data: Any? = null,
+        override val holder: HMap = HMap.singleton(null),
     ) : TypeDef(), ViaductSchema.Union {
         private var mAppliedDirectives: List<ViaductSchema.AppliedDirective<*>>? = null
         private var mExtensions: List<ViaductSchema.Extension<Union, Object>>? = null
@@ -359,7 +356,7 @@ internal class SchemaWithData : ViaductSchema {
     class Interface internal constructor(
         containingSchema: SchemaWithData,
         override val name: String,
-        override val data: Any? = null,
+        override val holder: HMap = HMap.singleton(null),
     ) : OutputRecord(containingSchema), ViaductSchema.Interface {
         private var mAppliedDirectives: List<ViaductSchema.AppliedDirective<*>>? = null
         private var mExtensions: List<ViaductSchema.ExtensionWithSupers<Interface, Field>>? = null
@@ -408,7 +405,7 @@ internal class SchemaWithData : ViaductSchema {
     class Input internal constructor(
         override val containingSchema: SchemaWithData,
         override val name: String,
-        override val data: Any? = null,
+        override val holder: HMap = HMap.singleton(null),
     ) : TypeDef(), Record, ViaductSchema.Input {
         private var mAppliedDirectives: List<ViaductSchema.AppliedDirective<*>>? = null
         private var mExtensions: List<ViaductSchema.Extension<Input, Field>>? = null
@@ -437,7 +434,7 @@ internal class SchemaWithData : ViaductSchema {
     class Object internal constructor(
         containingSchema: SchemaWithData,
         override val name: String,
-        override val data: Any? = null,
+        override val holder: HMap = HMap.singleton(null),
     ) : OutputRecord(containingSchema), ViaductSchema.Object {
         override val possibleObjectTypes = setOf(this)
 

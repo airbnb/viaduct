@@ -34,9 +34,9 @@ import viaduct.utils.timer.Timer
  * [TypeDefinitionRegistry]s are faster to create than [GraphQLSchema]s
  * but are not validated, so there's a performance/safety tradeoff.
  *
- * The auxiliary data stored in [SchemaWithData.Def.data] is the corresponding
- * graphql.language node. For TypeDefs, it's a [TypeDefData] containing both
- * the base definition and extension definitions.
+ * Each [SchemaWithData.Def.holder] stores the corresponding graphql.language
+ * node under a private key. For TypeDefs, it stores a [TypeDefData] containing
+ * both the base definition and extension definitions.
  *
  * Use factory functions like [gjSchemaRawFromSDL], [gjSchemaRawFromFiles],
  * [gjSchemaRawFromURLs], or [gjSchemaRawFromRegistry] to create instances.
@@ -151,31 +151,31 @@ internal fun gjSchemaRawFromRegistry(
 
         val schema = SchemaWithData()
 
-        // Phase 1: Create all TypeDef and Directive shells (with def and extensionDefs in data)
+        // Phase 1: Create all TypeDef and Directive shells with their definitions.
         val types = buildMap<String, SchemaWithData.TypeDef>(registry.types().size + registry.scalars().size) {
             registry.types().values.forEach { graphqlDef ->
                 val typeDef: SchemaWithData.TypeDef? = when (graphqlDef) {
                     is EnumTypeDefinition -> SchemaWithData.Enum(
                         schema,
                         graphqlDef.name,
-                        TypeDefData(graphqlDef, enumExtensions[graphqlDef.name] ?: emptyList())
+                        gjSchemaRawHolder(TypeDefData(graphqlDef, enumExtensions[graphqlDef.name] ?: emptyList()))
                     )
                     is InputObjectTypeDefinition -> SchemaWithData.Input(
                         schema,
                         graphqlDef.name,
-                        TypeDefData(graphqlDef, inputObjectExtensions[graphqlDef.name] ?: emptyList())
+                        gjSchemaRawHolder(TypeDefData(graphqlDef, inputObjectExtensions[graphqlDef.name] ?: emptyList()))
                     )
                     is InterfaceTypeDefinition -> SchemaWithData.Interface(
                         schema,
                         graphqlDef.name,
-                        TypeDefData(graphqlDef, interfaceExtensions[graphqlDef.name] ?: emptyList())
+                        gjSchemaRawHolder(TypeDefData(graphqlDef, interfaceExtensions[graphqlDef.name] ?: emptyList()))
                     )
                     is ObjectTypeDefinition ->
                         if (graphqlDef.name != ViaductSchema.VIADUCT_IGNORE_SYMBOL) {
                             SchemaWithData.Object(
                                 schema,
                                 graphqlDef.name,
-                                TypeDefData(graphqlDef, objectExtensions[graphqlDef.name] ?: emptyList())
+                                gjSchemaRawHolder(TypeDefData(graphqlDef, objectExtensions[graphqlDef.name] ?: emptyList()))
                             )
                         } else {
                             null
@@ -183,7 +183,7 @@ internal fun gjSchemaRawFromRegistry(
                     is UnionTypeDefinition -> SchemaWithData.Union(
                         schema,
                         graphqlDef.name,
-                        TypeDefData(graphqlDef, unionExtensions[graphqlDef.name] ?: emptyList())
+                        gjSchemaRawHolder(TypeDefData(graphqlDef, unionExtensions[graphqlDef.name] ?: emptyList()))
                     )
                     else -> null
                 }
@@ -199,14 +199,14 @@ internal fun gjSchemaRawFromRegistry(
                     SchemaWithData.Scalar(
                         schema,
                         scalarDef.name,
-                        TypeDefData(scalarDef, scalarExtensions[scalarDef.name] ?: emptyList())
+                        gjSchemaRawHolder(TypeDefData(scalarDef, scalarExtensions[scalarDef.name] ?: emptyList()))
                     )
                 )
             }
         }
 
         val directives = registry.directiveDefinitions.entries.associate {
-            it.key to SchemaWithData.Directive(schema, it.value.name, it.value)
+            it.key to SchemaWithData.Directive(schema, it.value.name, gjSchemaRawHolder(it.value))
         }
 
         // Phase 2: Populate all TypeDefs and Directives using the decoder

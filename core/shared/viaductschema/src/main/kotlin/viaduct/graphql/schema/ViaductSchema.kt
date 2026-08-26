@@ -1,6 +1,7 @@
 package viaduct.graphql.schema
 
 import viaduct.utils.collections.BitVector
+import viaduct.utils.collections.HMap
 
 /**
  * Abstract representation of a GraphQL schema.  The main entry into
@@ -326,6 +327,9 @@ interface ViaductSchema {
         val description: String?
         val appliedDirectives: Collection<ViaductSchema.AppliedDirective<*>>
         val sourceLocation: SourceLocation?
+
+        /** Implementation-specific values associated with this definition. */
+        val holder: HMap
 
         fun hasAppliedDirective(name: String) = appliedDirectives.any { it.name == name }
 

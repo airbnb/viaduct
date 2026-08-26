@@ -11,6 +11,7 @@ import io.kotest.matchers.string.shouldContain
 import org.junit.jupiter.api.Test
 import viaduct.graphql.schema.SchemaWithData
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.utils.collections.HMap
 
 /** Tests for error checking in GJSchemaRaw TypeDef classes. */
 class GJSchemaRawErrorTest {
@@ -19,7 +20,7 @@ class GJSchemaRawErrorTest {
     @Test
     fun `accessing unpopulated Scalar throws helpful error`() {
         val def = ScalarTypeDefinition.newScalarTypeDefinition().name("TestScalar").build()
-        val scalar = SchemaWithData.Scalar(schema, def.name, TypeDefData(def, emptyList()))
+        val scalar = SchemaWithData.Scalar(schema, def.name, HMap.singleton(TypeDefData(def, emptyList())))
 
         val exception = shouldThrow<IllegalStateException> {
             scalar.appliedDirectives
@@ -31,7 +32,7 @@ class GJSchemaRawErrorTest {
     @Test
     fun `accessing unpopulated Enum throws helpful error`() {
         val def = EnumTypeDefinition.newEnumTypeDefinition().name("TestEnum").build()
-        val enum = SchemaWithData.Enum(schema, def.name, TypeDefData(def, emptyList()))
+        val enum = SchemaWithData.Enum(schema, def.name, HMap.singleton(TypeDefData(def, emptyList())))
 
         val exception = shouldThrow<IllegalStateException> {
             enum.values
@@ -43,7 +44,7 @@ class GJSchemaRawErrorTest {
     @Test
     fun `accessing unpopulated Union throws helpful error`() {
         val def = UnionTypeDefinition.newUnionTypeDefinition().name("TestUnion").build()
-        val union = SchemaWithData.Union(schema, def.name, TypeDefData(def, emptyList()))
+        val union = SchemaWithData.Union(schema, def.name, HMap.singleton(TypeDefData(def, emptyList())))
 
         val exception = shouldThrow<IllegalStateException> {
             union.possibleObjectTypes
@@ -55,7 +56,7 @@ class GJSchemaRawErrorTest {
     @Test
     fun `accessing unpopulated Interface throws helpful error`() {
         val def = InterfaceTypeDefinition.newInterfaceTypeDefinition().name("TestInterface").build()
-        val iface = SchemaWithData.Interface(schema, def.name, TypeDefData(def, emptyList()))
+        val iface = SchemaWithData.Interface(schema, def.name, HMap.singleton(TypeDefData(def, emptyList())))
 
         val exception = shouldThrow<IllegalStateException> {
             iface.fields
@@ -67,7 +68,7 @@ class GJSchemaRawErrorTest {
     @Test
     fun `accessing unpopulated Object throws helpful error`() {
         val def = ObjectTypeDefinition.newObjectTypeDefinition().name("TestObject").build()
-        val obj = SchemaWithData.Object(schema, def.name, TypeDefData(def, emptyList()))
+        val obj = SchemaWithData.Object(schema, def.name, HMap.singleton(TypeDefData(def, emptyList())))
 
         val exception = shouldThrow<IllegalStateException> {
             obj.fields
@@ -79,7 +80,7 @@ class GJSchemaRawErrorTest {
     @Test
     fun `accessing unpopulated Input throws helpful error`() {
         val def = InputObjectTypeDefinition.newInputObjectDefinition().name("TestInput").build()
-        val input = SchemaWithData.Input(schema, def.name, TypeDefData(def, emptyList()))
+        val input = SchemaWithData.Input(schema, def.name, HMap.singleton(TypeDefData(def, emptyList())))
 
         val exception = shouldThrow<IllegalStateException> {
             input.fields
@@ -91,7 +92,7 @@ class GJSchemaRawErrorTest {
     @Test
     fun `calling populate twice on Scalar throws helpful error`() {
         val def = ScalarTypeDefinition.newScalarTypeDefinition().name("TestScalar").build()
-        val scalar = SchemaWithData.Scalar(schema, def.name, TypeDefData(def, emptyList()))
+        val scalar = SchemaWithData.Scalar(schema, def.name, HMap.singleton(TypeDefData(def, emptyList())))
 
         // First populate succeeds
         val ext = ViaductSchema.Extension.of(
@@ -114,7 +115,7 @@ class GJSchemaRawErrorTest {
     @Test
     fun `calling populate twice on Enum throws helpful error`() {
         val def = EnumTypeDefinition.newEnumTypeDefinition().name("TestEnum").build()
-        val enum = SchemaWithData.Enum(schema, def.name, TypeDefData(def, emptyList()))
+        val enum = SchemaWithData.Enum(schema, def.name, HMap.singleton(TypeDefData(def, emptyList())))
 
         // First populate succeeds
         val ext = ViaductSchema.Extension.of(
@@ -137,7 +138,7 @@ class GJSchemaRawErrorTest {
     @Test
     fun `calling populate twice on Union throws helpful error`() {
         val def = UnionTypeDefinition.newUnionTypeDefinition().name("TestUnion").build()
-        val union = SchemaWithData.Union(schema, def.name, TypeDefData(def, emptyList()))
+        val union = SchemaWithData.Union(schema, def.name, HMap.singleton(TypeDefData(def, emptyList())))
 
         // First populate succeeds
         val ext = ViaductSchema.Extension.of(
@@ -160,7 +161,7 @@ class GJSchemaRawErrorTest {
     @Test
     fun `calling populate twice on Interface throws helpful error`() {
         val def = InterfaceTypeDefinition.newInterfaceTypeDefinition().name("TestInterface").build()
-        val iface = SchemaWithData.Interface(schema, def.name, TypeDefData(def, emptyList()))
+        val iface = SchemaWithData.Interface(schema, def.name, HMap.singleton(TypeDefData(def, emptyList())))
 
         // First populate succeeds
         val ext = ViaductSchema.ExtensionWithSupers.of(
@@ -184,7 +185,7 @@ class GJSchemaRawErrorTest {
     @Test
     fun `calling populate twice on Object throws helpful error`() {
         val def = ObjectTypeDefinition.newObjectTypeDefinition().name("TestObject").build()
-        val obj = SchemaWithData.Object(schema, def.name, TypeDefData(def, emptyList()))
+        val obj = SchemaWithData.Object(schema, def.name, HMap.singleton(TypeDefData(def, emptyList())))
 
         // First populate succeeds
         val ext = ViaductSchema.ExtensionWithSupers.of(
@@ -208,7 +209,7 @@ class GJSchemaRawErrorTest {
     @Test
     fun `calling populate twice on Input throws helpful error`() {
         val def = InputObjectTypeDefinition.newInputObjectDefinition().name("TestInput").build()
-        val input = SchemaWithData.Input(schema, def.name, TypeDefData(def, emptyList()))
+        val input = SchemaWithData.Input(schema, def.name, HMap.singleton(TypeDefData(def, emptyList())))
 
         // First populate succeeds
         val ext = ViaductSchema.Extension.of(

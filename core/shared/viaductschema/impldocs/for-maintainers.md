@@ -90,22 +90,21 @@ Nested objects like `Extension`, `Field`, `EnumValue`, and `Arg` are immutable f
 
 ## Extension Properties for Type-Safe Data Access
 
-Each flavor provides `internal` extension properties that cast `data` to the appropriate type:
+Each flavor stores its implementation data under a private `HMap.Key<Any?>`.
+GJSchema exposes public typed accessors on `ViaductSchema`; the other flavors
+expose only the `internal` typed accessors needed by their decoders:
 
 **GJSchema** (in `viaduct.graphql.schema.graphqljava`):
 ```kotlin
-internal val SchemaWithData.Object.gjDef: GraphQLObjectType
-internal val SchemaWithData.Interface.gjDef: GraphQLInterfaceType
-internal val SchemaWithData.Field.gjOutputDef: GraphQLFieldDefinition
-internal val SchemaWithData.Field.gjInputDef: GraphQLInputObjectField
+val ViaductSchema.Object.gjDef: GraphQLObjectType
+val ViaductSchema.Interface.gjDef: GraphQLInterfaceType
 // etc.
 ```
 
 **GJSchemaRaw** (in `viaduct.graphql.schema.graphqljava`):
 ```kotlin
-internal val SchemaWithData.TypeDef.gjrDef: TypeDefinition<*>
-internal val SchemaWithData.TypeDef.gjrExtensionDefs: List<TypeDefinition<*>>
 internal val SchemaWithData.Object.gjrDef: ObjectTypeDefinition
+internal val SchemaWithData.Object.gjrExtensionDefs: List<ObjectTypeExtensionDefinition>
 // etc.
 ```
 
@@ -113,7 +112,6 @@ internal val SchemaWithData.Object.gjrDef: ObjectTypeDefinition
 ```kotlin
 internal val SchemaWithData.Def.unfilteredDef: ViaductSchema.Def
 internal val SchemaWithData.Object.unfilteredDef: ViaductSchema.Object
-internal val SchemaWithData.Field.unfilteredDef: ViaductSchema.Field
 // etc.
 ```
 

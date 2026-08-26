@@ -4,7 +4,6 @@ import graphql.language.Node
 import graphql.schema.GraphQLAppliedDirective
 import graphql.schema.GraphQLArgument
 import graphql.schema.GraphQLDirectiveContainer
-import graphql.schema.GraphQLNamedSchemaElement
 import graphql.schema.GraphQLNamedType
 import graphql.schema.GraphQLSchema
 import viaduct.graphql.schema.SchemaWithData
@@ -24,10 +23,17 @@ class GJSchemaCheck(
             "GJSchemaCheck can only be used with schemas from ViaductSchema.fromGraphQLSchema. " +
                 "Got ${viaductSchema::class.simpleName} instead of SchemaWithData."
         }
-        // Check that the schema's data fields contain graphql-java schema types (not language types)
+        // Check that the private GJSchema holder values contain schema types (not language types).
         val sampleDef = (viaductSchema.types.values.firstOrNull() ?: viaductSchema.directives.values.firstOrNull())
             as SchemaWithData.Def?
-        require(sampleDef == null || sampleDef.data is GraphQLNamedSchemaElement) {
+        val hasGJSchemaValue = sampleDef == null ||
+            try {
+                sampleDef.gjDef
+                true
+            } catch (_: NoSuchElementException) {
+                false
+            }
+        require(hasGJSchemaValue) {
             "GJSchemaCheck can only be used with schemas from ViaductSchema.fromGraphQLSchema. " +
                 "The schema appears to be from ViaductSchema.fromTypeDefinitionRegistry (GJSchemaRaw)."
         }

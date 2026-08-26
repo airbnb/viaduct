@@ -2,6 +2,7 @@ package viaduct.graphql.schema
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import viaduct.utils.collections.HMap
 
 class AppliedDirectiveTest {
     @Test
@@ -26,6 +27,7 @@ class AppliedDirectiveTest {
         override val appliedDirectives: Collection<ViaductSchema.AppliedDirective<*>> = emptyList()
         override val sourceLocation: ViaductSchema.SourceLocation? = null
         override val description: String? = null
+        override val holder: HMap = HMap.singleton(null)
 
         override fun describe() = "MockDirective<$name>"
     }

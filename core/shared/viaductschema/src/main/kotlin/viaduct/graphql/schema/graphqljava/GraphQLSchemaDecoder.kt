@@ -267,7 +267,7 @@ internal class GraphQLSchemaDecoder(
         evDef: GraphQLEnumValueDefinition,
         containingExtension: ViaductSchema.Extension<SchemaWithData.Enum, SchemaWithData.EnumValue>,
         appliedDirectives: List<ViaductSchema.AppliedDirective<*>>
-    ) = SchemaWithData.EnumValue(containingExtension, evDef.name, appliedDirectives, evDef, evDef.description)
+    ) = SchemaWithData.EnumValue(containingExtension, evDef.name, appliedDirectives, gjSchemaHolder(evDef), evDef.description)
 
     // ========== Input ==========
 
@@ -323,7 +323,7 @@ internal class GraphQLSchemaDecoder(
             appliedDirectives,
             hasDefault,
             defaultValue,
-            fieldDef,
+            gjSchemaHolder(fieldDef),
             fieldDef.description,
         )
     }
@@ -472,7 +472,7 @@ internal class GraphQLSchemaDecoder(
                 decodeAppliedDirectives(argDef),
                 decodeHasDefault(argDef),
                 decodeDefaultValue(argDef),
-                argDef,
+                gjSchemaHolder(argDef),
                 argDef.description,
             )
         }
@@ -493,7 +493,7 @@ internal class GraphQLSchemaDecoder(
             appliedDirectives,
             hasDefault = false,
             mDefaultValue = null,
-            data = fieldDef,
+            holder = gjSchemaHolder(fieldDef),
             description = fieldDef.description,
             argsFactory = { field -> createFieldArgs(field, fieldDef) }
         )
@@ -511,7 +511,7 @@ internal class GraphQLSchemaDecoder(
             appliedDirectives,
             hasDefault = false,
             defaultValue = null,
-            data = fieldDef,
+            holder = gjSchemaHolder(fieldDef),
             description = fieldDef.description,
             argsFactory = { field -> createFieldArgs(field, fieldDef) }
         )
@@ -528,7 +528,7 @@ internal class GraphQLSchemaDecoder(
                 decodeAppliedDirectives(argDef),
                 decodeHasDefault(argDef),
                 decodeDefaultValue(argDef),
-                argDef,
+                gjSchemaHolder(argDef),
                 argDef.description,
             )
         }

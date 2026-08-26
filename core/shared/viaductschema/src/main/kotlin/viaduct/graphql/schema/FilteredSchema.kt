@@ -17,9 +17,8 @@ import viaduct.invariants.FailureCollector
  * know, however, if `xyzTypeNameFromBaseSchema` is actually from the base schema,
  * so it _does_ check to ensure that it names an object type.
  *
- * @return A [SchemaWithData] where each node's [SchemaWithData.Def.data] property
- *         holds the corresponding unfiltered [ViaductSchema.Def]. Use extension
- *         properties like [unfilteredDef] to access them.
+ * @return A [SchemaWithData] where each node's [SchemaWithData.Def.holder]
+ *         contains the corresponding unfiltered [ViaductSchema.Def] under a private key.
  */
 internal fun <T : ViaductSchema.TypeDef> filteredSchema(
     filter: SchemaFilter,
@@ -38,12 +37,12 @@ internal fun <T : ViaductSchema.TypeDef> filteredSchema(
             .filter { (_, value) -> filter.includeTypeDef(value) }
             .forEach { (k, v) ->
                 val shell: SchemaWithData.TypeDef = when (v) {
-                    is ViaductSchema.Enum -> SchemaWithData.Enum(schema, v.name, v)
-                    is ViaductSchema.Input -> SchemaWithData.Input(schema, v.name, v)
-                    is ViaductSchema.Interface -> SchemaWithData.Interface(schema, v.name, v)
-                    is ViaductSchema.Object -> SchemaWithData.Object(schema, v.name, v)
-                    is ViaductSchema.Union -> SchemaWithData.Union(schema, v.name, v)
-                    is ViaductSchema.Scalar -> SchemaWithData.Scalar(schema, v.name, v)
+                    is ViaductSchema.Enum -> SchemaWithData.Enum(schema, v.name, filteredSchemaHolder(v))
+                    is ViaductSchema.Input -> SchemaWithData.Input(schema, v.name, filteredSchemaHolder(v))
+                    is ViaductSchema.Interface -> SchemaWithData.Interface(schema, v.name, filteredSchemaHolder(v))
+                    is ViaductSchema.Object -> SchemaWithData.Object(schema, v.name, filteredSchemaHolder(v))
+                    is ViaductSchema.Union -> SchemaWithData.Union(schema, v.name, filteredSchemaHolder(v))
+                    is ViaductSchema.Scalar -> SchemaWithData.Scalar(schema, v.name, filteredSchemaHolder(v))
                     else -> throw IllegalArgumentException("Unexpected type definition $v")
                 }
                 put(k, shell)
@@ -54,7 +53,7 @@ internal fun <T : ViaductSchema.TypeDef> filteredSchema(
     val directives = directiveEntries
         .filter { (_, value) -> filter.includeDirective(value) }
         .associate { (k, v) ->
-            k to SchemaWithData.Directive(schema, v.name, v)
+            k to SchemaWithData.Directive(schema, v.name, filteredSchemaHolder(v))
         }
 
     // Phase 2: Create decoder and populate all types and directives
@@ -176,7 +175,15 @@ internal class FilteredSchemaDecoder(
                 memberFactory = { ext ->
                     unfilteredExt.members
                         .filter(filter::includeEnumValue)
-                        .map { SchemaWithData.EnumValue(ext, it.name, remapAppliedDirectives(it.appliedDirectives), it, it.description) }
+                        .map {
+                            SchemaWithData.EnumValue(
+                                ext,
+                                it.name,
+                                remapAppliedDirectives(it.appliedDirectives),
+                                filteredSchemaHolder(it),
+                                it.description
+                            )
+                        }
                 },
                 isBase = unfilteredExt == unfilteredDef.extensions.first(),
                 appliedDirectives = remapAppliedDirectives(unfilteredExt.appliedDirectives),
@@ -337,7 +344,7 @@ internal class FilteredSchemaDecoder(
             remapAppliedDirectives(unfilteredField.appliedDirectives),
             unfilteredField.hasDefault,
             if (unfilteredField.hasDefault) unfilteredField.defaultValue else null,
-            unfilteredField,
+            filteredSchemaHolder(unfilteredField),
             description = unfilteredField.description,
             argsFactory = { field -> createFieldArgs(field, unfilteredField) }
         )
@@ -355,7 +362,7 @@ internal class FilteredSchemaDecoder(
             remapAppliedDirectives(unfilteredField.appliedDirectives),
             unfilteredField.hasDefault,
             if (unfilteredField.hasDefault) unfilteredField.defaultValue else null,
-            unfilteredField,
+            filteredSchemaHolder(unfilteredField),
             description = unfilteredField.description,
             argsFactory = { field -> createFieldArgs(field, unfilteredField) }
         )
@@ -376,7 +383,7 @@ internal class FilteredSchemaDecoder(
                     remapAppliedDirectives(arg.appliedDirectives),
                     arg.hasDefault,
                     if (arg.hasDefault) arg.defaultValue else null,
-                    arg,
+                    filteredSchemaHolder(arg),
                     arg.description
                 )
             }
@@ -393,7 +400,7 @@ internal class FilteredSchemaDecoder(
             remapAppliedDirectives(unfilteredArg.appliedDirectives),
             unfilteredArg.hasDefault,
             if (unfilteredArg.hasDefault) unfilteredArg.defaultValue else null,
-            unfilteredArg,
+            filteredSchemaHolder(unfilteredArg),
             unfilteredArg.description
         )
     }

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
+import viaduct.utils.collections.HMap
 
 class NodeResolverGeneratorTest {
     private fun gen(vararg types: Triple<String, Boolean, Boolean>): String? {
@@ -134,6 +135,7 @@ class NodeResolverGeneratorTest {
             override val extensions: Collection<ViaductSchema.Extension<ViaductSchema.TypeDef, ViaductSchema.Def>>
                 get() = TODO("Not yet implemented")
             override val description: String? = null
+            override val holder: HMap = HMap.singleton(null)
         }
     }
 
@@ -151,6 +153,7 @@ class NodeResolverGeneratorTest {
             override val sourceLocation: ViaductSchema.SourceLocation?
                 get() = TODO("Not yet implemented")
             override val description: String? = null
+            override val holder: HMap = HMap.singleton(null)
             override val args = emptyList<ViaductSchema.DirectiveArg>()
             override val allowedLocations = emptySet<ViaductSchema.Directive.Location>()
             override val isRepeatable: Boolean

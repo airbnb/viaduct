@@ -9,6 +9,7 @@ import viaduct.graphql.schema.InvalidSchemaException
 import viaduct.graphql.schema.SchemaWithData
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.binary.extensions.fromBinaryFile
+import viaduct.utils.collections.HMap
 
 /**
  * Tests for error handling during binary schema decoding.
@@ -717,6 +718,7 @@ class DecodingErrorHandlingTest {
             override val appliedDirectives: Collection<ViaductSchema.AppliedDirective<*>> = emptyList()
             override val sourceLocation: ViaductSchema.SourceLocation? = null
             override val description: String? = null
+            override val holder: HMap = HMap.singleton(null)
 
             override fun describe() = "MockDirective<$name>"
         }

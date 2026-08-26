@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.utils.collections.HMap
 
 /**
  * Unit tests for [topologicalSortDirectives].
@@ -209,6 +210,7 @@ class TopologicalSortTest {
         override val appliedDirectives: Collection<ViaductSchema.AppliedDirective<*>> = emptyList()
         override val sourceLocation: ViaductSchema.SourceLocation? = null
         override val description: String? = null
+        override val holder: HMap = HMap.singleton(null)
 
         override fun describe() = "MockDirective<$name>"
     }
@@ -226,6 +228,7 @@ class TopologicalSortTest {
             get() = throw NoSuchElementException("Not needed for topological sort tests")
         override val sourceLocation: ViaductSchema.SourceLocation? = null
         override val description: String? = null
+        override val holder: HMap = HMap.singleton(null)
 
         override fun describe() = "MockDirectiveArg<$name>"
     }
