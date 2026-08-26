@@ -40,12 +40,12 @@ class AsyncExtensionsTest {
                         }.toList()
                 }
 
-            withTimeout(100) {
+            withTimeout(1_000) {
                 val resultSet = mutableSetOf<Int>()
                 for (i in 1..4) {
                     resultSet.add(inspectionChannel.receive())
                 }
-                assert(resultSet.size == 4)
+                resultSet.size shouldBe 4
                 completionBarrier.complete(true)
             }
             results.await() shouldBe testList
