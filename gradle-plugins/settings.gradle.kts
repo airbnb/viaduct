@@ -37,9 +37,10 @@ plugins {
 }
 
 // Standalone `./gradlew -p gradle-plugins ...` needs composite substitution for dependencies
-// that normally resolve because OSS root includes both `core` and `build-logic`.
+// that normally resolve because OSS root includes `core`, `build-logic`, and `publications`.
 includeBuild("../core")
 includeBuild("../build-logic")
+includeBuild("../publications")
 
 include(":common")
 include(":settings")

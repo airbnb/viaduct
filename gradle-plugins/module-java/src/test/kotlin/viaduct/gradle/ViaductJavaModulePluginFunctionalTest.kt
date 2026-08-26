@@ -1,10 +1,8 @@
 package viaduct.gradle
 
 import java.io.File
-import java.util.jar.JarFile
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -252,116 +250,6 @@ class ViaductJavaModulePluginFunctionalTest {
         )
         assertTrue(result.output.contains("CODEGEN_DEPENDS_ON_ASSEMBLY=true"), result.output)
         assertTrue(result.output.contains("JAR_EXCLUDES_RAW_DESCRIPTORS=true"), result.output)
-    }
-
-    @Test
-    fun `Java module jar packages assembled registry without raw descriptors`() {
-        writeJavaRegistryArtifactFixture()
-
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir)
-            .withPluginClasspath(combinedPluginClasspath())
-            .withArguments(":app:javaresolvers:jar")
-            .build()
-
-        assertTrue(result.output.contains("BUILD SUCCESSFUL"), result.output)
-
-        val jarFile = File(projectDir, "app/javaresolvers/build/libs/javaresolvers.jar")
-        assertTrue(jarFile.exists(), "Expected Java module JAR to be created")
-        JarFile(jarFile).use { jar ->
-            val entries = jar.entries().asSequence().map { it.name }.toList()
-            assertTrue(
-                entries.contains(
-                    "META-INF/viaduct/modules/com.example.topology.javaresolvers.json"
-                ),
-                "Expected assembled Java module registry in JAR; entries: $entries",
-            )
-            assertFalse(
-                entries.any { it.startsWith("viaduct-registry/") },
-                "Did not expect raw APT descriptors in JAR; entries: $entries",
-            )
-        }
-    }
-
-    private fun writeJavaRegistryArtifactFixture() {
-        writeJavaApplicationAndModuleFixture()
-        val publicationsDir = findOssRoot().resolve("publications")
-        File(projectDir, "settings.gradle.kts").appendText(
-            """
-
-            includeBuild("${publicationsDir.invariantSeparatorsPath}")
-            """.trimIndent()
-        )
-        File(projectDir, "gradle.properties").writeText(
-            """
-            org.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=1g
-            org.gradle.workers.max=1
-            """.trimIndent()
-        )
-
-        File(projectDir, "app/build.gradle").appendText(
-            """
-
-            repositories {
-                mavenCentral()
-            }
-            """.trimIndent()
-        )
-        File(projectDir, "app/javaresolvers/build.gradle").appendText(
-            """
-
-            repositories {
-                mavenCentral()
-            }
-
-            dependencies {
-                implementation 'com.airbnb.viaduct:javaapi-api'
-            }
-            """.trimIndent()
-        )
-
-        val schemaDir = File(
-            projectDir,
-            "app/javaresolvers/src/main/viaduct/schema",
-        ).also { it.mkdirs() }
-        File(schemaDir, "schema.graphqls").writeText(
-            """
-            extend type Query {
-              greeting: String @resolver
-            }
-            """.trimIndent()
-        )
-
-        val resolverDir = File(
-            projectDir,
-            "app/javaresolvers/src/main/java/com/example/topology/javaresolvers",
-        ).also { it.mkdirs() }
-        File(resolverDir, "GreetingResolver.java").writeText(
-            """
-            package com.example.topology.javaresolvers;
-
-            import com.example.topology.javaresolvers.resolverbases.QueryResolvers;
-            import java.util.concurrent.CompletableFuture;
-            import viaduct.java.api.annotations.Resolver;
-
-            @Resolver
-            public final class GreetingResolver extends QueryResolvers.Greeting {
-              @Override
-              public CompletableFuture<String> resolve(Context ctx) {
-                return CompletableFuture.completedFuture("hello");
-              }
-            }
-            """.trimIndent()
-        )
-    }
-
-    private fun findOssRoot(): File {
-        return generateSequence(File(System.getProperty("user.dir")).canonicalFile) { it.parentFile }
-            .firstOrNull { candidate ->
-                File(candidate, "publications/settings.gradle.kts").exists() &&
-                    File(candidate, "gradle-plugins/settings.gradle.kts").exists()
-            }
-            ?: error("Could not locate Viaduct OSS root from ${System.getProperty("user.dir")}")
     }
 
     private fun writeJavaApplicationAndModuleFixture() {

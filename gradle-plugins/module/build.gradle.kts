@@ -35,6 +35,33 @@ dependencies {
     testImplementation(libs.kotlin.gradle.plugin)
 }
 
+val testFixtureArtifacts: Configuration by configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    // Composite substitution bypasses the fat jars' POM dependency stripping, so a transitive
+    // resolve would also copy every substituted core jar into the fixture repo.
+    isTransitive = false
+}
+
+dependencies {
+    testFixtureArtifacts("com.airbnb.viaduct:api:${project.version}")
+    testFixtureArtifacts("com.airbnb.viaduct:buildtime:${project.version}")
+}
+
+val testFixtureRepoDir = layout.buildDirectory.dir("test-fixture-repo")
+
+val syncTestFixtureRepo by tasks.registering(Sync::class) {
+    from(testFixtureArtifacts)
+    into(testFixtureRepoDir)
+    duplicatesStrategy = DuplicatesStrategy.FAIL
+}
+
+tasks.named<Test>("test") {
+    inputs.files(syncTestFixtureRepo).withPropertyName("testFixtureRepo")
+    systemProperty("viaduct.testFixtureRepo", testFixtureRepoDir.get().asFile.absolutePath)
+    systemProperty("viaduct.testFixtureVersion", project.version.toString())
+}
+
 // Include version in JAR manifest for JAR introspection and debugging
 tasks.jar {
     manifest {

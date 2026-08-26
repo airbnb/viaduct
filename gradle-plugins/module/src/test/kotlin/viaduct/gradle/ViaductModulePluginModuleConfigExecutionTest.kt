@@ -140,6 +140,18 @@ class ViaductModulePluginModuleConfigExecutionTest {
         assertTrue(result.output.contains("BUILD SUCCESSFUL"), "Expected build to succeed")
     }
 
+    private val fixtureRepoPath: String
+        get() = File(
+            requireNotNull(System.getProperty("viaduct.testFixtureRepo")) {
+                "viaduct.testFixtureRepo is set by the test task; run this suite through Gradle"
+            }
+        ).invariantSeparatorsPath
+
+    private val fixtureVersion: String
+        get() = requireNotNull(System.getProperty("viaduct.testFixtureVersion")) {
+            "viaduct.testFixtureVersion is set by the test task; run this suite through Gradle"
+        }
+
     private fun combinedPluginClasspath(): List<File> {
         return System.getProperty("java.class.path")
             .split(File.pathSeparator)
@@ -147,11 +159,9 @@ class ViaductModulePluginModuleConfigExecutionTest {
     }
 
     private fun writeStatefulExecutionProject() {
-        val publicationsDir = findOssRoot().resolve("publications")
         writeGradleProperties()
         File(projectDir, "settings.gradle.kts").writeViaductSettings(
             modules = mapOf(":" to "resolvers"),
-            includedBuilds = listOf(publicationsDir),
         )
         File(projectDir, "build.gradle.kts").writeText(
             """
@@ -164,10 +174,11 @@ class ViaductModulePluginModuleConfigExecutionTest {
 
             repositories {
                 mavenCentral()
+                flatDir { dirs("$fixtureRepoPath") }
             }
 
             dependencies {
-                implementation("com.airbnb.viaduct:api")
+                implementation("com.airbnb.viaduct:api:$fixtureVersion")
             }
             """.trimIndent()
         )
@@ -187,14 +198,12 @@ class ViaductModulePluginModuleConfigExecutionTest {
     }
 
     private fun writeCrossTenantLocalExecutionProject() {
-        val publicationsDir = findOssRoot().resolve("publications")
         writeGradleProperties()
         File(projectDir, "settings.gradle.kts").writeViaductSettings(
             modules = linkedMapOf(
                 ":alpha" to "alpha",
                 ":beta" to "beta",
             ),
-            includedBuilds = listOf(publicationsDir),
         )
         File(projectDir, "build.gradle.kts").writeText(
             """
@@ -205,6 +214,7 @@ class ViaductModulePluginModuleConfigExecutionTest {
 
             repositories {
                 mavenCentral()
+                flatDir { dirs("$fixtureRepoPath") }
             }
             """.trimIndent()
         )
@@ -221,10 +231,11 @@ class ViaductModulePluginModuleConfigExecutionTest {
 
                 repositories {
                     mavenCentral()
+                    flatDir { dirs("$fixtureRepoPath") }
                 }
 
                 dependencies {
-                    implementation("com.airbnb.viaduct:api")
+                    implementation("com.airbnb.viaduct:api:$fixtureVersion")
                 }
                 """.trimIndent()
             )
@@ -302,13 +313,4 @@ class ViaductModulePluginModuleConfigExecutionTest {
             override suspend fun resolve(ctx: Context) = "viaduct"
         }
         """.trimIndent()
-
-    private fun findOssRoot(): File {
-        return generateSequence(File(System.getProperty("user.dir")).canonicalFile) { it.parentFile }
-            .firstOrNull { candidate ->
-                File(candidate, "publications/settings.gradle.kts").exists() &&
-                    File(candidate, "gradle-plugins/settings.gradle.kts").exists()
-            }
-            ?: error("Could not locate Viaduct OSS root from ${System.getProperty("user.dir")}")
-    }
 }
