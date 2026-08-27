@@ -146,7 +146,7 @@ class TestFormatSummary(unittest.TestCase):
         self.assertIn("<details>", result)
 
     def test_names_dirs_without_reports(self):
-        empty_dir = os.path.join(tempfile.mkdtemp(), "gradle-plugins")
+        empty_dir = os.path.join(self.tmpdir, "gradle-plugins")
         os.makedirs(empty_dir)
         result = format_summary([self.core_dir, empty_dir])
         self.assertIn("⚠️ No coverage reports found for: gradle-plugins", result)
@@ -155,6 +155,12 @@ class TestFormatSummary(unittest.TestCase):
     def test_no_warning_when_all_dirs_have_reports(self):
         result = format_summary([self.core_dir])
         self.assertNotIn("No coverage reports found for", result)
+
+    def test_warns_when_no_dirs_have_reports(self):
+        empty_dir = os.path.join(self.tmpdir, "empty")
+        os.makedirs(empty_dir)
+        result = format_summary([empty_dir])
+        self.assertEqual(result, "⚠️ No per-module coverage reports found.")
 
     def test_all_table_sorted_alphabetically(self):
         result = format_summary([self.core_dir])

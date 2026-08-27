@@ -235,7 +235,6 @@ gh run list --workflow=ci-trigger.yml --repo airbnb/viaduct --limit 5
 This runs three sub-workflows:
 
 1. **build-and-test** — compiles and runs all unit tests, plus the coverage reports and summary
-   (those run on `schedule` and `workflow_dispatch` only, so a dispatch reaches them)
 2. **demoapps-ci-check** — tests all demo apps against locally-published artifacts (Java 17 + 21)
 3. **bcv-api-check** — binary API compatibility check
 
