@@ -42,7 +42,7 @@ An atomic workflow performs one well-defined, coherent, loosely-coupled function
 
 | Workflow | Purpose | Runs on |
 |---|---|---|
-| `build-and-test.yml` | Full build + test matrix, detekt, ktlint, coverage verification | PR, merge to main, daily schedule, manual |
+| `build-and-test.yml` | Full build + test matrix, detekt, ktlint; coverage on schedule and manual runs only | PR, merge to main, daily schedule, manual |
 | `demoapps-ci-check.yml` | Publish to Maven Local, test all demoapps against local artifacts | PR, merge to main, daily schedule, manual |
 | `bcv-api-check.yml` | Binary API compatibility check | PR, merge to main, daily schedule, manual |
 | `conventional-commit.yml` | Validate PR titles follow conventional commit format | PR, manual |
@@ -254,7 +254,6 @@ ci-trigger.yml  [orchestrator]
   |      validate-inputs --> test   (self-contained: compiles + runs tests, no build dep)
   |                     '--> build --> detekt
   |                                --> ktlint
-  |                                --> coverage-verification
   |
   |--- demoapps-ci-check.yml  [atomic]
   |      validate-inputs --> publish-to-maven-local --> test-starters
@@ -289,7 +288,7 @@ periodic-green-check.yml  [orchestrator]
   |      v
   |    ci-trigger.yml  [orchestrator]
   |      |
-  |      |--- build-and-test.yml  [atomic]
+  |      |--- build-and-test.yml  [atomic]   (adds coverage-reports --> coverage-summary)
   |      |--- demoapps-ci-check.yml  [atomic]
   |      '--- bcv-api-check.yml  [atomic]
   |
