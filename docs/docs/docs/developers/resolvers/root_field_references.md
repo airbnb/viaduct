@@ -4,42 +4,50 @@ description: Creating lazy references to root fields in resolvers
 ---
 
 
-Resolvers can delegate construction of an object type to a *root object field* resolver. A root field is a field on the root query type or on a [`@namespaceType`](../namespace_types/index.md) reachable from the root query type.
+Resolvers can delegate construction of an object type to a *root object field* resolver. A root field is a field on the root query type or on a [`@namespaceType`](../namespace_types/index.md) reachable from the root query type. The generated API described below covers the `@namespaceType` case only.
 
-Rather than executing a full [subquery](subqueries.md) and eagerly resolving the result, `ctx.rootFieldRef()` returns a *lazy reference* that the engine resolves later with the client's selection set.
+Rather than executing a full [subquery](subqueries.md) and eagerly resolving the result, `ctx.ref()` returns a *lazy reference* that the engine resolves later with the client's selection set.
 
-Like `ctx.nodeRef()`, `ctx.rootFieldRef()` returns a lazy reference. The difference is `nodeRef` delegates to a node resolver, whereas `rootFieldRef` delegates to a root object field resolver.
+Like `ctx.nodeRef()`, `ctx.ref()` returns a lazy reference. The difference is `nodeRef` delegates to a node resolver, whereas `ctx.ref` delegates to a root object field resolver.
 
-## When to use rootFieldRef
+## When to use a root field reference
 
-Use `rootFieldRef` when:
+Use a root field reference when:
 
 * You want to return an object type that another resolver knows how to construct, without coupling to that resolver's implementation.
-* The target field lives on the root Query type or on a `@namespaceType` reachable from it.
+* The target field lives on a `@namespaceType` reachable from the root Query type.
 * You don't need to read fields from the result inside your resolver — you just need to pass it along.
 
 If you need to read fields from the result in the same resolver, use [`ctx.query()`](subqueries.md) instead.
 
 ## API
 
+Reference a field by calling it on its parent type and passing the result to `ctx.ref()`. The call does not execute the field; `ctx.ref()` creates the lazy reference.
+
+A field is referenceable when it is declared on a `@namespaceType` reachable from the root Query type, carries `@resolver`, and has a non-list object type.
+
+For a field **with arguments**, set each one inside the configuration lambda:
+
 ```kotlin
-@ExperimentalApi
-fun <A : Arguments, BR : Object> rootFieldRef(
-    field: RootObjectField<*, BR, A>,
-    arguments: A
-): BR
+val ugcText = ctx.ref(
+    UGCTextFactory.fromSourceText {
+        sourceText(sourceTextInput)
+        translateAsync(true)
+    }
+)
 ```
 
-**Parameters:**
+For a field **with no arguments**, pass the call straight to `ctx.ref()`:
 
-* `field` — A generated `Fields` constant identifying the target root field. These are generated on the GRT companion for each `@resolver` field on the root Query type or on a `@namespaceType`.
-* `arguments` — A typed arguments object matching the target field's argument type. Use `Arguments.NoArguments` if the field takes no arguments.
+```kotlin
+val product = ctx.ref(ProductFactory.create())
+```
 
-**Returns:** A GRT of the target field's output type. No fields are accessible on this object — attempting to read fields will throw an exception. The engine resolves the reference after your resolver returns, using the selection set from the client query.
+`ctx.ref()` returns a GRT of the target field's output type. No fields are accessible on this object — attempting to read fields will throw an exception. The engine resolves the reference after your resolver returns, using the selection set from the client query.
 
 ## Example: delegating to a factory function
 
-A common use case is *factory functions* — resolvers exposed via `@namespaceType` that encapsulate construction logic for a shared type. Consumers invoke the factory through `rootFieldRef` without depending on how the type is built.
+A common use case is *factory functions* — resolvers exposed via `@namespaceType` that encapsulate construction logic for a shared type. Consumers invoke the factory through `ctx.ref` without depending on how the type is built.
 
 ### Schema
 
@@ -88,28 +96,29 @@ class UGCTextFromSourceTextResolver @Inject constructor(
 }
 ```
 
-### Consumer (using rootFieldRef)
+### Consumer (using `ctx.ref`)
 
-The consumer resolver needs to return a `UGCText` for a listing's title. Instead of duplicating the translation logic, it delegates to the factory via `rootFieldRef`:
+The consumer resolver needs to return a `UGCText` for a listing's title. Instead of duplicating the translation logic, it delegates to the factory:
 
 ```kotlin
 @Resolver("fragment _ on Listing { description { name } }")
 class ListingTitleResolver @Inject constructor() : ListingResolvers.Title() {
     override suspend fun resolve(ctx: Context): UGCText? {
         val name = ctx.getObjectValue().getDescriptionOrThrow()?.getNameOrThrow() ?: return null
-        return ctx.rootFieldRef(
-            UGCTextFactory.Fields.fromSourceText,
-            UGCTextFactory_FromSourceText_Arguments.Builder(ctx)
-                .sourceText(
+        return ctx.ref(
+            UGCTextFactory.fromSourceText {
+                sourceText(
                     UGCSourceTextInput.Builder(ctx)
                         .sourceText(name)
                         .build()
                 )
-                .build()
+            }
         )
     }
 }
 ```
+
+Set each argument inside the configuration lambda. Nested input objects are built with their own builders, using the same resolver context.
 
 The consumer doesn't know how `UGCText` is constructed — it just provides the raw inputs and gets back a reference that the engine will resolve with whatever fields the client requested.
 
@@ -119,34 +128,35 @@ The consumer doesn't know how `UGCText` is constructed — it just provides the 
 @Resolver
 class QueryProductResolver : QueryResolvers.Product() {
     override suspend fun resolve(ctx: Context): Product? {
-        return ctx.rootFieldRef(
-            ProductFactory.Fields.create,
-            Arguments.NoArguments
-        )
+        return ctx.ref(ProductFactory.create())
     }
 }
 ```
 
 ## How it works
 
-1. Your resolver calls `ctx.rootFieldRef(field, args)` and receives a GRT with no accessible fields.
-2. Your resolver returns this GRT (directly or nested inside a builder).
+1. Calling the field captures it and your argument values. Nothing executes yet.
+2. `ctx.ref(...)` turns that into a reference with no accessible fields, which your resolver returns — directly or nested inside a builder.
 3. The engine sees the reference and executes the target field's resolver, applying the selection set that the client originally requested for that position in the query.
 4. The target resolver runs with full context: the correct arguments, its own required selection set, and the client's field selections.
 
 Because resolution is deferred, the engine can batch and optimize — the target resolver only computes what the client actually selected.
 
+## Testing
+
+The test harness stubs the resolved value rather than the call, so a resolver that uses `ctx.ref` is stubbed through `rootFieldRefValues`. See [Mocking root field references](../testing/index.md#mocking-root-field-references-ctxref).
+
 ## Comparison with other context methods
 
-| Method | Use when |
-|--------|----------|
-| `ctx.nodeRef(id)` | Delegating to a node resolver by GlobalID |
-| `ctx.rootFieldRef(field, args)` | Delegating to a root/namespace field resolver by field + arguments |
-| `ctx.query(selections)` | You need to read fields from the result inside your resolver |
+| Method | What you get |
+|--------|--------------|
+| `ctx.nodeRef(id)` | A reference to a node, resolved later by that node's resolver |
+| `ctx.ref(call)` | A reference to a root field, resolved later by that field's resolver |
+| `ctx.query()` | The query result, executed immediately — you can read fields from it inside your resolver |
 
 ## Constraints
 
-* The target field must be on the root Query type or reachable through `@namespaceType`-typed fields.
-* The target field must have an object output type — scalar, enum, interface, and union fields are not supported.
+* The target field must be declared on a `@namespaceType` that is reachable from the root Query type. Fields declared directly on `Query` cannot be referenced with `ctx.ref`.
+* The target field must have an object output type — scalar, enum, interface, union, and list fields are not supported.
 * Fields on the returned GRT are not accessible in the calling resolver. If you need to inspect the result, use `ctx.query()`.
-* `rootFieldRef` is currently marked `@ExperimentalApi`.
+* `ctx.ref` is currently marked `@ExperimentalApi`.

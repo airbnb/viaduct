@@ -185,14 +185,18 @@ contextQueryValues = listOf(
 )
 ```
 
-### Mocking `ctx.rootFieldRef`
+### Mocking root field references (`ctx.ref`)
 
-Set `rootFieldRefValues` to stub the values returned by `ctx.rootFieldRef(field, args)`
-calls the resolver makes during execution. A root field ref points at a field on a factory
-(namespace) type reachable from the root — for example `LabelFactory.format`, exposed via
-`Query.labelFactory`. Each `RootFieldRefStub` declares that field, the arguments the
+Set `rootFieldRefValues` to stub the values returned by the [root field references](../resolvers/root_field_references.md)
+the resolver creates during execution with `ctx.ref(...)`. A root field reference points at a
+field on a factory (namespace) type reachable from the root — for example `LabelFactory.format`,
+exposed via `Query.labelFactory`. Each `RootFieldRefStub` declares that field, the arguments the
 resolver is expected to invoke it with, and the value to return. Lookups match exactly on
 the field and arguments; calls without a matching stub throw.
+
+Stubs are declared in terms of the target field and its generated arguments type, not the
+generated factory function — so `RootFieldRefStub(LabelFactory.Fields.format, args, value)`
+stubs a resolver that calls `ctx.ref(LabelFactory.format { text("bar") })`.
 
 Schema:
 
@@ -208,7 +212,7 @@ type LabelFactory @namespaceType {
 
 ```kotlin
 @Test
-fun `uses formatted label from rootFieldRef`() = runTest {
+fun `uses formatted label from the label factory`() = runTest {
     val args = LabelFactory_Format_Arguments.of(context) { text("bar") }
     val formatted = FormattedLabel.of(context) { value("BAR") }
 

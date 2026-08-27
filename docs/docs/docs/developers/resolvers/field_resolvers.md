@@ -186,7 +186,7 @@ Aliases are part of the selection as well. If an RSS selects `listingTitle: titl
 
 **In practice, avoid directly returning a GRT from `getObjectValue()`, `getQueryValue()`, or `ctx.query()`.** Its selection set may not include every field the resolver is responsible for returning, which can fail at runtime or produce an incomplete response.
 
-Before returning a GRT, make sure the selection set that created it covers every field the resolver is responsible for returning. For a non-node object output, construct a new GRT with a builder and set the required fields explicitly when the source selection set is insufficient. If the object should be delegated to another resolver, use [`nodeRef`](node_references.md) for node types or [`rootFieldRef`](root_field_references.md) for root and namespace object fields instead.
+Before returning a GRT, make sure the selection set that created it covers every field the resolver is responsible for returning. For a non-node object output, construct a new GRT with a builder and set the required fields explicitly when the source selection set is insufficient. If the object should be delegated to another resolver, use [`nodeRef`](node_references.md) for node types or a [root field reference](root_field_references.md) for root and namespace object fields instead.
 
 For example, suppose `FeaturedListing` returns a `Listing` and the client requests `id`, `title`, and `coverPhoto`. The following resolver is unsafe because its RSS does not include `coverPhoto`:
 

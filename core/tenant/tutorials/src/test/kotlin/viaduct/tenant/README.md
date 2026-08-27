@@ -209,7 +209,7 @@ Each tutorial follows a consistent format:
 
 **What you'll learn:**
 
-- Referencing root fields from a resolver with `ctx.rootFieldRef()`
+- Referencing root fields from a resolver with `ctx.ref()`
 - Organizing root fields into namespace types using the `@namespaceType` directive
 - Resolving a field by delegating to another root field on a namespace type
 
