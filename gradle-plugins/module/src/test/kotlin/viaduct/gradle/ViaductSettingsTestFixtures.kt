@@ -7,16 +7,10 @@ internal fun File.writeViaductSettings(
     modulePackagePrefix: String = "com.example.test",
     modules: Map<String, String>,
     plainIncludes: List<String> = emptyList(),
-    includedBuilds: List<File> = emptyList(),
 ) {
     val plainIncludeBlock = plainIncludes.joinToString("\n") { includePath ->
         """
         include("${includePath.removePrefix(":")}")
-        """.trimIndent()
-    }
-    val includedBuildBlock = includedBuilds.joinToString("\n") { includedBuild ->
-        """
-        includeBuild("${includedBuild.invariantSeparatorsPath}")
         """.trimIndent()
     }
     val moduleIncludeBlock = modules.entries.joinToString("\n\n") { (projectPath, suffix) ->
@@ -28,7 +22,6 @@ internal fun File.writeViaductSettings(
         """.trimIndent().prependIndent("    ")
     }
     val optionalPlainIncludes = plainIncludeBlock.takeIf { it.isNotBlank() }?.let { "\n$it\n" } ?: ""
-    val optionalIncludedBuilds = includedBuildBlock.takeIf { it.isNotBlank() }?.let { "\n$it\n" } ?: ""
     val optionalModuleIncludes = moduleIncludeBlock.takeIf { it.isNotBlank() }?.let { "\n\n$it" } ?: ""
 
     writeText(
@@ -38,7 +31,7 @@ internal fun File.writeViaductSettings(
         }
 
         rootProject.name = "test"
-        $optionalPlainIncludes$optionalIncludedBuilds
+        $optionalPlainIncludes
         includeViaductApplication {
             project("$applicationProjectPath")
             modulePackagePrefix("$modulePackagePrefix")$optionalModuleIncludes

@@ -80,6 +80,8 @@ As an included build, `publications` participates in Gradle's automatic dependen
 
 `gradle-plugins` contains the Viaduct application and module Gradle plugins used by application developers. It depends on select `core` libraries (e.g., `shared:graphql`, `shared:viaductschema`) which are resolved via composite auto-substitution during development and via Maven coordinates when published.
 
+It also includes `publications` solely so that `module`'s build can resolve the fat jars and sync them into `module/build/test-fixture-repo` for its TestKit tests. The generated fixture projects read that directory through a `flatDir` repository, so a nested TestKit daemon never owns `publications/*/build`.
+
 ## The `build-logic` Build
 
 `build-logic` is a special included build that provides precompiled script plugins (build conventions) used across all other builds. It defines conventions for Kotlin static analysis (detekt and ktlint), Java static analysis (Error Prone, NullAway, and Google Java Format), publishing, JaCoCo, and Dokka documentation. Every other `settings.gradle.kts` includes `build-logic` via `pluginManagement { includeBuild("../build-logic") }`.
