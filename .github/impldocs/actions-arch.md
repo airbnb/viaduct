@@ -355,7 +355,7 @@ manual dispatch / workflow_call
   v
 ci-trigger.yml  [orchestrator]
   |
-  |--- build-and-test.yml  [atomic]
+  |--- build-and-test.yml  [atomic]   (adds coverage-reports --> coverage-summary)
   |--- demoapps-ci-check.yml  [atomic]
   '--- bcv-api-check.yml  [atomic]
 

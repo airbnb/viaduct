@@ -14,7 +14,7 @@ Output has two sections:
 
 Exit codes:
   0 - success
-  1 - invalid arguments or no reports found
+  1 - invalid arguments
 """
 
 import os
@@ -85,8 +85,12 @@ def format_table(rows):
 
 def format_summary(scan_dirs):
     all_modules = []
+    dirs_without_reports = []
     for d in scan_dirs:
-        all_modules.extend(find_module_reports(d))
+        found = find_module_reports(d)
+        if not found:
+            dirs_without_reports.append(os.path.basename(os.path.normpath(d)))
+        all_modules.extend(found)
 
     if not all_modules:
         return "⚠️ No per-module coverage reports found."
@@ -100,6 +104,11 @@ def format_summary(scan_dirs):
     all_rows = sorted(rows, key=lambda r: r[0])
 
     lines = []
+    if dirs_without_reports:
+        missing = ", ".join(dirs_without_reports)
+        lines.append(f"⚠️ No coverage reports found for: {missing}")
+        lines.append("")
+
     if key_rows:
         lines.append("### Key Module Coverage")
         lines.append("")
