@@ -4,10 +4,9 @@ package viaduct.engine.api.bootstrap.executionregistry
  * Produces a generated [ModuleConfigSource] for a module whose configuration is synthesized at
  * runtime rather than read from a packaged resource.
  *
- * This is the extension point that replaces the old built-in `TenantModuleBootstrapper` pattern:
- * built-ins (e.g. the `Query.node`/`Query.nodes` resolvers and namespace-type synthetic fields)
- * are expressed as factories that generate an in-memory [ModuleConfigSource], so they flow through
- * the same file-based bootstrap path as resource-backed tenant modules.
+ * Built-ins (e.g. the `Query.node`/`Query.nodes` resolvers and namespace-type synthetic fields) are
+ * expressed as factories that generate an in-memory [ModuleConfigSource], so they flow through the
+ * same file-based bootstrap path as resource-backed tenant modules.
  *
  * All inputs needed to generate the config — including the full schema — are provided to the
  * implementation as constructor inputs. An implementation returns exactly one

@@ -51,7 +51,7 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
  * Unit tests for [ViaductJavaExecutorFactory] — exercises the construction half of the
  * file-based bootstrap path directly from [FieldEntryConfig] / [NodeEntryConfig] config, without a
  * classpath scan. This is the Java twin of the wiring exercised by
- * `ExecutionRegistryTenantAPIBootstrapper` at runtime.
+ * `ModuleConfigBootstrapper` at runtime.
  *
  * The "invocation" tests drive the factory-built executor through its public
  * [FieldResolverExecutor.batchResolve] / [NodeResolverExecutor.resolve] entry points — exactly the

@@ -4,8 +4,17 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
+import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
+import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
+import viaduct.engine.api.spi.ExecutorFactory
+import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.InputStreamSource
+import viaduct.service.api.spi.TenantModuleInjectorFactory
 
 class ModuleConfigBootstrapperTest {
     private val executorFactoryFqn = "viaduct.engine.runtime.tenantloading.TestExecutorFactory"
@@ -130,5 +139,33 @@ class ModuleConfigBootstrapperTest {
     }
 }
 
-/** Second marker class used to exercise the conflicting-bootstrap-class guard. */
 class OtherTestBootstrapClass
+
+class TestExecutorFactory(
+    @Suppress("UNUSED_PARAMETER") injector: CodeInjector,
+    @Suppress("UNUSED_PARAMETER") registry: ExecutionRegistryConfigFile,
+) : ExecutorFactory {
+    override fun createFieldResolverExecutor(
+        configData: FieldEntryConfig,
+        schema: ViaductSchema
+    ): FieldResolverExecutor = throw UnsupportedOperationException("not needed for bootstrapper tests")
+
+    override fun createNodeResolverExecutor(
+        configData: NodeEntryConfig,
+        schema: ViaductSchema
+    ): NodeResolverExecutor = throw UnsupportedOperationException("not needed for bootstrapper tests")
+}
+
+class RecordingTenantModuleInjectorFactory : TenantModuleInjectorFactory {
+    val calls = mutableListOf<Pair<String, Class<*>?>>()
+
+    override suspend fun bootstrap(
+        tenantName: String,
+        tenantBootstrapClass: Class<*>?
+    ): CodeInjector {
+        calls.add(tenantName to tenantBootstrapClass)
+        return CodeInjector.Naive
+    }
+}
+
+class TestBootstrapClass

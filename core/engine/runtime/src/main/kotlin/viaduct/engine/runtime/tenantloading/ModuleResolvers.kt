@@ -6,7 +6,6 @@ import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFil
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantModuleException
 
 /**
@@ -18,8 +17,8 @@ import viaduct.engine.api.spi.TenantModuleException
 class ModuleResolvers(
     private val registry: ExecutionRegistryConfigFile,
     private val executorFactory: ExecutorFactory,
-) : TenantModuleBootstrapper {
-    override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> {
+) {
+    fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> {
         val filtered = filterFieldsBySchema(registry.fields, schema)
         validateFields(filtered)
         return filtered.map { entry ->
@@ -27,7 +26,7 @@ class ModuleResolvers(
         }
     }
 
-    override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> {
+    fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> {
         val filtered = filterNodesBySchema(registry.nodes, schema)
         validateNodes(filtered)
         return filtered.map { entry ->

@@ -1,5 +1,5 @@
 /**
- * File-based bootstrap support for Java resolvers.
+ * {@code ExecutionRegistryConfigFile} bootstrap support for Java resolvers.
  *
  * <p>The Java registry annotation processor discovers resolvers at build time and emits an
  * execution-registry resource. {@code ViaductJavaExecutorFactory} consumes that resource at startup

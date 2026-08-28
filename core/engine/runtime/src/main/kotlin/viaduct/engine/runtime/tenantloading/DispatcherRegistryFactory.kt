@@ -15,7 +15,6 @@ import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.ProxyResolverFactory
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.api.spi.TenantModuleException
 import viaduct.engine.runtime.CheckerDispatcher
 import viaduct.engine.runtime.CheckerDispatcherImpl
@@ -36,12 +35,7 @@ interface DispatcherRegistryFactory {
     fun create(schema: ViaductSchema): DispatcherRegistry
 }
 
-/**
- * Shared implementation of the [DispatcherRegistry] assembly algorithm.
- *
- * Subclasses supply the [TenantModuleBootstrapper]s (via [tenantModuleBootstrappers]); this base
- * concatenates their executors into dispatchers, registers access checkers, and runs validation.
- */
+/** Shared implementation of the [DispatcherRegistry] assembly algorithm. */
 abstract class AbstractDispatcherRegistryFactory(
     private val validator: Validator<ExecutorValidatorContext>,
     private val checkerExecutorFactory: CheckerExecutorFactory,
@@ -53,11 +47,8 @@ abstract class AbstractDispatcherRegistryFactory(
         private fun log() = getLogger(this::class.java.name.substringBefore("\$Companion"))
     }
 
-    /**
-     * Produce the tenant module bootstrappers whose executors are assembled into the registry.
-     * Runs on [Dispatchers.Default] inside a `runBlocking` scope during [create].
-     */
-    protected abstract suspend fun tenantModuleBootstrappers(): List<TenantModuleBootstrapper>
+    /** Runs on [Dispatchers.Default] inside a `runBlocking` scope during [create]. */
+    protected abstract suspend fun moduleResolvers(): List<ModuleResolvers>
 
     final override fun create(schema: ViaductSchema): DispatcherRegistry {
         val fieldResolverDispatchers = mutableMapOf<Coordinate, FieldResolverDispatcher>()
@@ -71,11 +62,11 @@ abstract class AbstractDispatcherRegistryFactory(
         val fieldCheckerExecutorsToValidate = mutableMapOf<Coordinate, CheckerExecutor>()
         val typeCheckerExecutorsToValidate = mutableMapOf<String, CheckerExecutor>()
 
-        val moduleExecutors = runBlocking(Dispatchers.Default) {
-            tenantModuleBootstrappers()
+        val moduleResolvers = runBlocking(Dispatchers.Default) {
+            moduleResolvers()
         }
 
-        for (module in moduleExecutors) {
+        for (module in moduleResolvers) {
             val (moduleFieldResolverExecutors, moduleNodeResolverExecutors) = try {
                 Pair(module.fieldResolverExecutors(schema), module.nodeResolverExecutors(schema))
             } catch (e: TenantModuleException) {
@@ -184,14 +175,14 @@ class StandardDispatcherRegistryFactory(
         proxyResolverFactory = proxyResolverFactory,
         missingResolverValidator = missingResolverValidator,
     ) {
-    override suspend fun tenantModuleBootstrappers(): List<TenantModuleBootstrapper> {
-        val fromConfigSources: List<TenantModuleBootstrapper> =
+    override suspend fun moduleResolvers(): List<ModuleResolvers> {
+        val fromConfigSources: List<ModuleResolvers> =
             ModuleConfigBootstrapper(
                 tenantModuleInjectorFactory = tenantModuleInjectorFactory,
                 grtPackagePrefix = grtPackagePrefix,
             ).bootstrap(moduleConfigSources)
 
-        val fromBuiltins: List<TenantModuleBootstrapper> =
+        val fromBuiltins: List<ModuleResolvers> =
             ModuleConfigBootstrapper(
                 tenantModuleInjectorFactory = NaiveTenantModuleInjectorFactory,
                 grtPackagePrefix = grtPackagePrefix,

@@ -27,7 +27,7 @@ import viaduct.java.runtime.bridge.RequiredSelectionSetFactory
 import viaduct.service.api.spi.CodeInjector
 
 /**
- * [ExecutorFactory] for Java resolvers, built from a file-based [ExecutionRegistry].
+ * [ExecutorFactory] for Java resolvers, built from an [ExecutionRegistryConfigFile].
  *
  * This is the Java twin of [viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory]. The
  * engine (via [viaduct.engine.runtime.tenantloading.ModuleConfigBootstrapper])

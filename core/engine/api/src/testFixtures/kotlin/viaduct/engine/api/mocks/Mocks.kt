@@ -47,8 +47,6 @@ import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.ProxyResolverFactory
-import viaduct.engine.api.spi.TenantAPIBootstrapper
-import viaduct.engine.api.spi.TenantModuleBootstrapper
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
@@ -330,12 +328,6 @@ class MockNodeBatchResolverExecutor(
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> = batchResolveFn(selectors, context)
 }
 
-class MockTenantAPIBootstrapper(
-    val tenantModuleBootstrappers: List<TenantModuleBootstrapper> = emptyList()
-) : TenantAPIBootstrapper {
-    override suspend fun tenantModuleBootstrappers(): Iterable<TenantModuleBootstrapper> = tenantModuleBootstrappers
-}
-
 /** Each module gets its own tenant name so they bootstrap as distinct module configs. */
 fun List<MockTenantModuleBootstrapper>.toDispatcherRegistryFactory(
     validator: Validator<ExecutorValidatorContext>,
@@ -369,7 +361,8 @@ fun List<MockTenantModuleBootstrapper>.toDispatcherRegistryFactory(
 /**
  * A mock tenant module: a schema plus the resolver and checker executors registered against it.
  *
- * Convert it to an [EngineTestModule] or a module config source before handing it to the engine.
+ * Holds the executors directly rather than implementing an engine SPI. Convert it to an
+ * [EngineTestModule] before handing them to the engine.
  */
 class MockTenantModuleBootstrapper(
     val fullSchema: ViaductSchema,
@@ -377,11 +370,7 @@ class MockTenantModuleBootstrapper(
     val nodeResolverExecutors: Iterable<Pair<String, NodeResolverExecutor>> = emptyList(),
     val checkerExecutors: Map<Coordinate, CheckerExecutor> = emptyMap(),
     val typeCheckerExecutors: Map<String, CheckerExecutor> = emptyMap(),
-) : TenantModuleBootstrapper {
-    override fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> = fieldResolverExecutors
-
-    override fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> = nodeResolverExecutors
-
+) {
     fun toEngineTestModule(): EngineTestModule =
         EngineTestModule(
             fullSchema = fullSchema,
