@@ -16,6 +16,18 @@ interface FieldResolverExecutor {
     /** The query selection set for the resolver **/
     val querySelectionSet: RequiredSelectionSet?
 
+    val argumentVariables: VariableFromArgumentDefinitions
+        get() = VariableFromArgumentDefinitions.EMPTY
+
+    val objectFieldVariables: VariableFromFieldDefinitions
+        get() = VariableFromFieldDefinitions.EMPTY
+
+    val queryFieldVariables: VariableFromFieldDefinitions
+        get() = VariableFromFieldDefinitions.EMPTY
+
+    val variablesFromFunctionProvider: VariableFromFunctionDefinitions?
+        get() = null
+
     /** Whether the resolver's result varies based on the requested field selections. */
     val isSelective: Boolean
 

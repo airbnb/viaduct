@@ -26,6 +26,7 @@ import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.VariableFromArgumentDefinitions
 import viaduct.service.api.spi.CodeInjector
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
@@ -90,6 +91,7 @@ class ViaductModernExecutorFactory(
             contextFactory = contextFactory,
             queryTypeName = apiData.queryTypeName,
         )
+        val argumentVariables = buildArgumentVariables(configData.objectSelections, configData.querySelections)
         val resolverId = "${configData.typeName}.${configData.fieldName}"
 
         return if (configData.isBatching) {
@@ -103,6 +105,7 @@ class ViaductModernExecutorFactory(
                 resolverId = resolverId,
                 resolverContextFactory = contextFactory,
                 resolverName = apiData.resolverClass,
+                argumentVariables = argumentVariables,
             )
         } else {
             requireBaseResolver(resolverClass, BaseUnbatchedFieldResolver::class.java, "Field resolver")
@@ -115,6 +118,7 @@ class ViaductModernExecutorFactory(
                 resolverId = resolverId,
                 resolverContextFactory = contextFactory,
                 resolverName = apiData.resolverClass,
+                argumentVariables = argumentVariables,
             )
         }
     }
@@ -190,6 +194,24 @@ class ViaductModernExecutorFactory(
         objectSelections: SelectionsBlockConfig?,
         querySelections: SelectionsBlockConfig?,
     ): List<SelectionSetVariable> = RequiredSelectionSetSupport.buildSelectionSetVariables(objectSelections, querySelections)
+
+    private fun buildArgumentVariables(
+        objectSelections: SelectionsBlockConfig?,
+        querySelections: SelectionsBlockConfig?,
+    ): VariableFromArgumentDefinitions {
+        val variables = buildMap {
+            listOfNotNull(objectSelections, querySelections)
+                .flatMap { it.variablesProviders }
+                .forEach { entry ->
+                    if (entry.providerVariablesAPIData.type == "fromArgument") {
+                        entry.providedVariables.keys.forEach { name ->
+                            put(name, entry.providerVariablesAPIData.path)
+                        }
+                    }
+                }
+        }
+        return VariableFromArgumentDefinitions(variables)
+    }
 
     @Suppress("UNCHECKED_CAST")
     private fun <T> loadClass(

@@ -200,9 +200,8 @@ class MockTenantModuleDSLTest {
         val module = MockTenantModuleBootstrapper(Samples.testSchema) {
             field("TestType" to "aField") {
                 resolver {
-                    objectSelections("fragment _ on TestType { aField bIntField }") {
-                        variables("testVar") { ctx, _ -> mapOf("testVar" to ctx.arguments["input"]) }
-                    }
+                    argumentVariables("testVar" to "input")
+                    objectSelections("fragment _ on TestType { aField bIntField }")
                     resolverName("test-resolver")
                     fn { _, _, _, _, _ -> "complex-result" }
                 }
@@ -425,9 +424,8 @@ class MockTenantModuleDSLTest {
             // Complex field with resolver and checker
             field("TestType" to "complexField") {
                 resolver {
-                    objectSelections("fragment _ on TestType { aField bIntField }") {
-                        variables("param") { ctx, _ -> mapOf("param" to ctx.arguments["input"]) }
-                    }
+                    argumentVariables("param" to "input")
+                    objectSelections("fragment _ on TestType { aField bIntField }")
                     resolverName("complex-resolver")
                     fn { _, _, _, _, _ -> "complex-result" }
                 }

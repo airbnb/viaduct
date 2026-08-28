@@ -47,6 +47,7 @@ import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.ProxyResolverFactory
+import viaduct.engine.api.spi.VariableFromArgumentDefinitions
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
@@ -180,6 +181,7 @@ open class MockFieldUnbatchedResolverExecutor(
     override val querySelectionSet: RequiredSelectionSet? = null,
     override val isSelective: Boolean = false,
     val resolverName: String = "mock-field-unbatched-resolver",
+    override val argumentVariables: VariableFromArgumentDefinitions = VariableFromArgumentDefinitions.EMPTY,
     override val resolverId: String,
     open val unbatchedResolveFn: FieldUnbatchedResolverFn = { _, _, _, _, _ -> null }
 ) : FieldResolverExecutor {
@@ -207,6 +209,7 @@ open class MockFieldBatchResolverExecutor(
     override val querySelectionSet: RequiredSelectionSet? = null,
     override val isSelective: Boolean = false,
     val resolverName: String = "mock-field-batch-resolver",
+    override val argumentVariables: VariableFromArgumentDefinitions = VariableFromArgumentDefinitions.EMPTY,
     override val resolverId: String,
     open val batchResolveFn: FieldBatchResolverFn = { _, _ -> throw NotImplementedError() }
 ) : FieldResolverExecutor {

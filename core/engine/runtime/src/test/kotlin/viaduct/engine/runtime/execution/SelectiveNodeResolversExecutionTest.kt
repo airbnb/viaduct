@@ -3268,11 +3268,8 @@ class SelectiveNodeResolversExecutionTest {
 
                 field("Foo" to "x") {
                     resolver {
-                        objectSelections("y(a:\$a)") {
-                            variables("a") { ctx, _ ->
-                                mapOf("a" to ctx.arguments.getAs<Int>("a"))
-                            }
-                        }
+                        argumentVariables("a" to "a")
+                        objectSelections("y(a:\$a)")
                         fn { _, obj, _, _, _ -> obj.fetchAs<Int>("y") }
                     }
                 }

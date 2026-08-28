@@ -606,11 +606,8 @@ class RequiredSelectionsTest {
             }
             field("User" to "localizedCompanyName") {
                 resolver {
-                    objectSelections("parent { name(locale: ${'$'}locale) }") {
-                        variables("locale") { ctx, _ ->
-                            mapOf("locale" to ctx.arguments["locale"])
-                        }
-                    }
+                    argumentVariables("locale" to "locale")
+                    objectSelections("parent { name(locale: ${'$'}locale) }")
                     fn { _, obj, _, _, _ ->
                         obj.fetchAs<EngineObjectData>("parent").fetchAs<String>("name")
                     }

@@ -3,9 +3,12 @@ package viaduct.engine.runtime
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.VariableFromArgumentDefinitions
 import viaduct.engine.runtime.EngineExecutionContextExtensions.asImpl
 
 /**
@@ -21,9 +24,13 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.asImpl
 class FieldResolverDispatcherImpl(
     private val resolver: FieldResolverExecutor
 ) : FieldResolverDispatcher {
-    override val objectSelectionSet: RequiredSelectionSet? = resolver.objectSelectionSet
+    override val objectSelectionSet: RequiredSelectionSet? = resolver.objectSelectionSet?.withArgumentVariables(
+        resolver.argumentVariables,
+    )
 
-    override val querySelectionSet: RequiredSelectionSet? = resolver.querySelectionSet
+    override val querySelectionSet: RequiredSelectionSet? = resolver.querySelectionSet?.withArgumentVariables(
+        resolver.argumentVariables,
+    )
 
     override val isSelective: Boolean = resolver.isSelective
 
@@ -56,5 +63,30 @@ class FieldResolverDispatcherImpl(
         )
 
         return loader.loadByKey(selector, context).getOrThrow()
+    }
+
+    private fun RequiredSelectionSet.withArgumentVariables(argumentVariables: VariableFromArgumentDefinitions): RequiredSelectionSet {
+        if (argumentVariables.variables.isEmpty()) return this
+
+        val argumentVariableNames = argumentVariables.variableNames
+        val legacyVariablesResolvers = variablesResolvers.filterNot { variablesResolver ->
+            variablesResolver.variableNames.any(argumentVariableNames::contains)
+        }
+        val argumentVariablesResolvers = VariablesResolver.fromSelectionSetVariables(
+            selections,
+            selections,
+            argumentVariables.variables.map { (name, path) ->
+                FromArgumentVariable(name, path)
+            },
+            forChecker = false,
+            attribution,
+        )
+        return RequiredSelectionSet(
+            selections = selections,
+            variablesResolvers = legacyVariablesResolvers + argumentVariablesResolvers,
+            forChecker = forChecker,
+            attribution = attribution,
+            executionCondition = executionCondition,
+        )
     }
 }

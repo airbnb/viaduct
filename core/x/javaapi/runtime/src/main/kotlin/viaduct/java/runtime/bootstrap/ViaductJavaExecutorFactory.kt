@@ -7,11 +7,13 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
+import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
 import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.TenantModuleException
+import viaduct.engine.api.spi.VariableFromArgumentDefinitions
 import viaduct.java.api.internal.BaseBatchedFieldResolver
 import viaduct.java.api.internal.BaseBatchedNodeResolver
 import viaduct.java.api.internal.BaseUnbatchedFieldResolver
@@ -105,6 +107,7 @@ class ViaductJavaExecutorFactory(
             argumentsClass = argumentsClass,
             grtPackagePrefix = grtPackagePrefix,
         )
+        val argumentVariables = buildArgumentVariables(configData.objectSelections, configData.querySelections)
 
         return if (configData.isBatching) {
             val batchResolverProvider = requireBaseResolver(
@@ -127,6 +130,7 @@ class ViaductJavaExecutorFactory(
                 graphqlSchema = schema.schema,
                 grtPackagePrefix = grtPackagePrefix,
                 knownFragments = namedFragments,
+                argumentVariables = argumentVariables,
             )
         } else {
             val unbatchedResolverProvider = requireBaseResolver(
@@ -149,8 +153,27 @@ class ViaductJavaExecutorFactory(
                 graphqlSchema = schema.schema,
                 grtPackagePrefix = grtPackagePrefix,
                 knownFragments = namedFragments,
+                argumentVariables = argumentVariables,
             )
         }
+    }
+
+    private fun buildArgumentVariables(
+        objectSelections: SelectionsBlockConfig?,
+        querySelections: SelectionsBlockConfig?,
+    ): VariableFromArgumentDefinitions {
+        val variables = buildMap {
+            listOfNotNull(objectSelections, querySelections)
+                .flatMap { it.variablesProviders }
+                .forEach { entry ->
+                    if (entry.providerVariablesAPIData.type == "fromArgument") {
+                        entry.providedVariables.keys.forEach { name ->
+                            put(name, entry.providerVariablesAPIData.path)
+                        }
+                    }
+                }
+        }
+        return VariableFromArgumentDefinitions(variables)
     }
 
     override fun createNodeResolverExecutor(

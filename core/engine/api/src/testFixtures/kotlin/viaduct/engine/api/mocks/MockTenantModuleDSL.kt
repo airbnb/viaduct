@@ -6,12 +6,15 @@ import viaduct.engine.api.CheckerMetadata
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ExecutionAttribution
+import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.api.spi.VariableFromArgumentDefinitions
 
 @DslMarker
 /**
@@ -223,8 +226,9 @@ class MockTenantModuleDSL<F : Any>(
                     }
                     r.unbatchedResolveFn != null -> {
                         MockFieldUnbatchedResolverExecutor(
-                            objectSelectionSet = r.objectSelections?.toRSS(attribution),
-                            querySelectionSet = r.querySelections?.toRSS(attribution),
+                            objectSelectionSet = r.objectSelections?.toRSS(attribution, r.argumentVariableDefinitions),
+                            querySelectionSet = r.querySelections?.toRSS(attribution, r.argumentVariableDefinitions),
+                            argumentVariables = r.argumentVariablesProvider(),
                             resolverName = r.resolverName,
                             resolverId = resolverId,
                             unbatchedResolveFn = r.unbatchedResolveFn!!
@@ -232,8 +236,9 @@ class MockTenantModuleDSL<F : Any>(
                     }
                     r.batchResolveFn != null -> {
                         MockFieldBatchResolverExecutor(
-                            objectSelectionSet = r.objectSelections?.toRSS(attribution),
-                            querySelectionSet = r.querySelections?.toRSS(attribution),
+                            objectSelectionSet = r.objectSelections?.toRSS(attribution, r.argumentVariableDefinitions),
+                            querySelectionSet = r.querySelections?.toRSS(attribution, r.argumentVariableDefinitions),
+                            argumentVariables = r.argumentVariablesProvider(),
                             resolverName = r.resolverName,
                             resolverId = resolverId,
                             batchResolveFn = r.batchResolveFn!!
@@ -288,18 +293,42 @@ class MockTenantModuleDSL<F : Any>(
                 variableProviders.add(MockVariablesResolver(*names, requiredSelectionSet = rss, resolveFn = resolveFn))
             }
 
-            internal fun toRSS(attribution: ExecutionAttribution = ExecutionAttribution.DEFAULT) =
-                createRSS(typeName, objectSelectionsText, variableProviders, forChecker = forChecker, attribution = attribution)
+            internal fun toRSS(
+                attribution: ExecutionAttribution = ExecutionAttribution.DEFAULT,
+                argumentVariables: Map<String, String> = emptyMap(),
+            ): RequiredSelectionSet {
+                val selections = SelectionsParser.parse(typeName, objectSelectionsText)
+                val argumentVariableResolvers = VariablesResolver.fromSelectionSetVariables(
+                    selections,
+                    selections,
+                    argumentVariables.map { (name, path) -> FromArgumentVariable(name, path) },
+                    forChecker = forChecker,
+                    attribution = attribution,
+                )
+                return RequiredSelectionSet(
+                    selections = selections,
+                    variablesResolvers = variableProviders + argumentVariableResolvers,
+                    forChecker = forChecker,
+                    attribution = attribution,
+                )
+            }
         }
 
         @TenantModuleBootstrapperDsl
         inner class ResolverScope {
             internal var objectSelections: SelectionsScope? = null
             internal var querySelections: SelectionsScope? = null
+            internal val argumentVariableDefinitions = mutableMapOf<String, String>()
             internal var resolverName: String = "mock-resolver-name"
             internal var unbatchedResolveFn: FieldUnbatchedResolverFn? = null
             internal var batchResolveFn: FieldBatchResolverFn? = null
             internal var resolverId: String = coord.first + "." + coord.second
+
+            fun argumentVariables(vararg variables: Pair<String, String>) {
+                argumentVariableDefinitions.putAll(variables)
+            }
+
+            internal fun argumentVariablesProvider() = VariableFromArgumentDefinitions(argumentVariableDefinitions)
 
             // DSL marker hides these -- reintroduce them
             val coord: Coordinate get() = this@FieldScope.coord

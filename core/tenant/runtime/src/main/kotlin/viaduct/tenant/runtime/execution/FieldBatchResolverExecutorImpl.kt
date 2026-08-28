@@ -12,6 +12,7 @@ import viaduct.engine.api.ResolverType
 import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor.Selector
+import viaduct.engine.api.spi.VariableFromArgumentDefinitions
 import viaduct.engine.runtime.invocationContextFor
 import viaduct.errors.ErroneousFieldException
 import viaduct.errors.FrameworkException
@@ -38,6 +39,7 @@ class FieldBatchResolverExecutorImpl(
     private val resolverContextFactory: FieldExecutionContextFactory,
     private val resolverName: String,
     private val tenantMetadata: TenantModuleMetadata? = null,
+    override val argumentVariables: VariableFromArgumentDefinitions = VariableFromArgumentDefinitions.EMPTY,
 ) : FieldResolverExecutor {
     override val metadata = ResolverMetadata.forModern(resolverName, ResolverType.FIELD, tenantMetadata)
 

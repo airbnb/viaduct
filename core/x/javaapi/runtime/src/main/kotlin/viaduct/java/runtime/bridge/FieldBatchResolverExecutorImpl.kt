@@ -12,6 +12,7 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.VariableFromArgumentDefinitions
 import viaduct.errors.TenantUsageException
 import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.handleFrameworkErrorsSuspend
@@ -43,6 +44,7 @@ class FieldBatchResolverExecutorImpl(
     private val graphqlSchema: GraphQLSchema? = null,
     private val grtPackagePrefix: String? = null,
     private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
+    override val argumentVariables: VariableFromArgumentDefinitions = VariableFromArgumentDefinitions.EMPTY,
 ) : FieldResolverExecutor {
     override val metadata: ResolverMetadata = ResolverMetadata.forModern(resolverName, ResolverType.FIELD)
     override val isBatching: Boolean = true
