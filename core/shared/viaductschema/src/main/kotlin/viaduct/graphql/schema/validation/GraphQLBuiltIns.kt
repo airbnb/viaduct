@@ -26,7 +26,7 @@ object GraphQLBuiltIns {
      * The built-in GraphQL directive names as defined in the GraphQL specification.
      * @see <a href="https://spec.graphql.org/October2021/#sec-Type-System.Directives.Built-in-Directives">GraphQL Spec</a>
      */
-    val DIRECTIVES: Set<String> = setOf("skip", "include", "deprecated", "specifiedBy", "oneOf")
+    val DIRECTIVES: Set<String> = setOf("defer", "deprecated", "include", "oneOf", "skip", "specifiedBy")
 
     /**
      * Directive names provided by the Viaduct framework (not defined in the GraphQL spec).

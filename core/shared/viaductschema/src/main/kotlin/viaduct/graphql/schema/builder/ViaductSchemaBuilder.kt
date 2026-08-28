@@ -591,6 +591,13 @@ private fun standardDefinitions(): List<DefinitionBuilder> =
             .addLocation(ViaductSchema.Directive.Location.FIELD)
             .addLocation(ViaductSchema.Directive.Location.FRAGMENT_SPREAD)
             .addLocation(ViaductSchema.Directive.Location.INLINE_FRAGMENT),
+        DirectiveBuilder("defer")
+            .addArgument(
+                ArgumentBuilder("if", TypeExprBuilder("Boolean", nullable = false))
+                    .defaultValue(ViaductSchema.TRUE)
+            ).addArgument(ArgumentBuilder("label", TypeExprBuilder("String")))
+            .addLocation(ViaductSchema.Directive.Location.FRAGMENT_SPREAD)
+            .addLocation(ViaductSchema.Directive.Location.INLINE_FRAGMENT),
         DirectiveBuilder("deprecated")
             .addArgument(
                 ArgumentBuilder("reason", TypeExprBuilder("String", nullable = false))

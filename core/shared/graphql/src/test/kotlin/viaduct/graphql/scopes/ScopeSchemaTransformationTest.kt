@@ -2,6 +2,7 @@
 
 package viaduct.graphql.scopes
 
+import graphql.Directives
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -516,6 +517,38 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
             includeScopeDirectives = true,
             includeDirectiveDefinitions = true
         )
+    }
+
+    @Test
+    fun `full base and scoped schema views retain defer directive`() {
+        val schema = schemaFromSdl(
+            """
+            type Query @scope(to: ["public"]) {
+                publicField: String
+            }
+            """.trimIndent()
+        )
+        val builder = ScopedSchemaBuilder(
+            schema,
+            SchemaScopingMode.ScopeAware(setOf("public")),
+            listOf(),
+        )
+
+        val schemasByView = mapOf(
+            "full" to builder.build(SchemaView.Full).filtered,
+            "base" to builder.build(SchemaView.Base).filtered,
+            "scoped" to builder.build(SchemaView.Scoped(setOf("public"))).filtered,
+        )
+
+        schemasByView.forEach { (view, viewSchema) ->
+            val deferDirective = viewSchema.getDirective("defer")
+            assertNotNull(deferDirective, "$view schema should retain @defer")
+            assertEquals(
+                Directives.DeferDirective.validLocations(),
+                deferDirective!!.validLocations(),
+                "$view schema should retain canonical @defer locations"
+            )
+        }
     }
 
     @Test

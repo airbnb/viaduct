@@ -363,7 +363,7 @@ class ViaductSchemaBuilderTest {
             ).build()
 
         assertEquals(setOf("Int", "Float", "String", "Boolean", "ID"), standard.types.keys)
-        assertEquals(setOf("include", "skip", "deprecated", "specifiedBy", "oneOf"), standard.directives.keys)
+        assertEquals(setOf("defer", "deprecated", "include", "oneOf", "skip", "specifiedBy"), standard.directives.keys)
         assertTrue(minimal.types.isEmpty())
         assertTrue(minimal.directives.isEmpty())
         assertNull(minimal.queryTypeDef)
