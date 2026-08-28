@@ -1,0 +1,234 @@
+"""
+An individual person or character within the Star Wars universe.
+""" # tag::character_type[5] Character type definition
+type Character implements Node @scope(to: ["default"]) @resolver(isBatching: true) {
+  """
+  The GlobalID of this character - uniquely identifies this Character in the graph (internal use only)
+  """
+  id: ID!
+
+  """
+  The name of this character.
+  """
+  name: String
+
+  """
+  The birth year of the character, using the in-universe standard of BBY or ABY -
+  Before the Battle of Yavin or After the Battle of Yavin. The Battle of Yavin is
+  a battle that occurs at the end of Star Wars episode IV: A New Hope.
+  """
+  birthYear: String
+
+  """
+  The eye color of this character. Will be "unknown" if not known or "n/a" if the
+  character does not have an eye.
+  """
+  eyeColor: String
+
+  """
+  The gender of this character. Either "Male", "Female" or "unknown",
+  "n/a" if the character does not have a gender.
+  """
+  gender: String
+
+  """
+  The hair color of this character. Will be "unknown" if not known or "n/a" if the
+  character does not have hair.
+  """
+  hairColor: String
+
+  """
+  The height of the character in centimeters.
+  """
+  height: Int
+
+  """
+  The mass of the character in kilograms.
+  """
+  mass: Float
+
+  """
+  The ISO 8601 date format of the time that this resource was created.
+  """
+  created: String
+
+  """
+  The ISO 8601 date format of the time that this resource was edited.
+  """
+  edited: String
+
+  """
+  Determines if the character is an adult (18 years or older) based on birth year.
+  """
+  isAdult: Boolean @resolver
+
+  """
+  A planet that this character was born on or inhabits.
+  """
+  homeworld: Planet @resolver(isBatching: true)
+
+  """
+  The species that this character belongs to, or null if unknown.
+  """
+  species: Species @resolver(isBatching: true)
+
+  """
+  Display name for the character (demonstrates shorthand fragment syntax)
+  """
+  displayName: String @resolver
+
+  """
+  Summary of character with name and birth year (demonstrates full fragment syntax)
+  """
+  displaySummary: String @resolver
+
+  """
+  Description of character's appearance (demonstrates full fragment syntax with multiple fields)
+  """
+  appearanceDescription: String @resolver
+
+  """
+  Number of films this character appears in (batch resolver example)
+  """
+  filmCount: Int @resolver(isBatching: true)
+
+  """
+  Rich summary combining character data with relationships (batch resolver example)
+  """
+  richSummary: String @resolver(isBatching: true)
+
+  """
+  Character profile with conditional information based on includeDetails argument (demonstrates @Variable with fromArgument)
+  """
+  characterProfile(includeDetails: Boolean! = false): String @resolver
+
+  """
+  Character stats summary with age range filtering (demonstrates VariableProvider with dynamic values)
+  """
+  characterStats(minAge: Int, maxAge: Int): String @resolver
+
+  """
+  Formatted character description using field variables (demonstrates @Variable with fromField)
+  """
+  formattedDescription(format: String = "default"): String @resolver
+}
+
+# tag::scope_example[10] Example of @scope directive usage
+extend type Query @scope(to: ["default"]) {
+  """
+  Search for a character using exactly one search criteria
+  """
+  searchCharacter(
+    """
+    Search input - exactly one field must be provided
+    """
+    search: CharacterSearchInput!
+  ): Character @resolver
+
+  """
+  A one-line "name (birthYear)" summary for the character with the given name, produced by
+  running a statically-declared `@GraphQLOperation` query as a subquery. Returns null if no
+  character matches. Demonstrates `ctx.query(operation, variables)`.
+  """
+  characterSummaryByName(name: String!): String @resolver
+
+  """
+  All characters
+  """
+  # tag::all_characters[3] Batch query sample
+  allCharacters(limit: Int): [Character] @resolver
+  """
+  All characters as a paginated connection (Relay-style cursor pagination).
+  Use `first` to set the page size and `after` to page forward from a cursor.
+  """
+  allCharactersConnection(
+    "Maximum number of characters to return."
+    first: Int
+    "Cursor to start fetching after (exclusive, for forward pagination)."
+    after: String
+  ): CharactersConnection @resolver
+}
+
+# tag::connection_example[11] Example of @connection directive
+"""
+A connection to a list of Characters with pagination support.
+Follows the Relay Connection specification.
+"""
+type CharactersConnection @connection @scope(to: ["default"]) {
+  "List of character edges"
+  edges: [CharacterEdge]
+  "Pagination information"
+  pageInfo: PageInfo!
+}
+
+# tag::edge_example[9] Example of @edge directive
+"""
+An edge in a CharactersConnection.
+"""
+type CharacterEdge @edge @scope(to: ["default"]) {
+  "The character at the end of the edge"
+  node: Character
+  "A cursor for pagination"
+  cursor: String!
+}
+
+# tag::one_of_example[16] ID search sample
+input CharacterSearchInput @oneOf @scope(to: ["default"]) {
+  """
+  Search by character name
+  """
+  byName: String
+
+  # tag::id_example[4] ID search sample
+  """
+  Search by character ID
+  """
+  byId: ID @idOf(type: "Character")
+  """
+  Search by birth year
+  """
+  byBirthYear: String
+}
+
+extend type Mutation @scope(to: ["default"]) {
+  # tag::mutation_example[5] Mutation examples
+  """
+  Create a new Character.
+  """
+  createCharacter(input: CreateCharacterInput!): Character @resolver
+
+  # tag::mutation_example_2[5] Mutation examples
+  """
+  Update an existing Character's name.
+  """
+  updateCharacterName(id: ID! @idOf(type: "Character"), name: String!): Character @resolver
+
+  # tag::mutation_example_4[4] Mutation examples
+  """
+  Delete a Character by ID. Returns true if a record was removed.
+  """
+  deleteCharacter(id: ID! @idOf(type: "Character")): Boolean @resolver
+
+  """
+  Rename a Character by running a statically-declared `@GraphQLOperation` mutation as a
+  submutation (which delegates to `updateCharacterName`), then return a "name (birthYear)"
+  summary of the renamed character. Demonstrates `ctx.mutation(operation, variables)`.
+  """
+  renameCharacterSummary(id: ID! @idOf(type: "Character"), name: String!): String @resolver
+}
+
+"""
+Input for creating a new Character.
+All fields except name are optional; omit unknown values.
+""" # tag::input_example[11] Input type example
+input CreateCharacterInput @scope(to: ["default"]) {
+  name: String!
+  birthYear: String
+  eyeColor: String
+  gender: String
+  hairColor: String
+  height: Int
+  mass: Float
+  homeworldId: ID @idOf(type: "Planet")
+  speciesId: ID @idOf(type: "Species")
+}

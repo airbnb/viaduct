@@ -1,0 +1,173 @@
+"""
+A single film.
+"""
+type Film implements Node @scope(to: ["default"]) @resolver {
+  """
+  The GlobalID of this film - uniquely identifies this Film in the graph (internal use only)
+  """
+  id: ID!
+
+  """
+  The title of this film.
+  """
+  title: String
+
+  """
+  The episode number of this film.
+  """
+  episodeID: Int
+
+  """
+  The opening paragraphs at the beginning of this film.
+  """
+  openingCrawl: String
+
+  """
+  The name of the director of this film.
+  """
+  director: String
+
+  """
+  The names of the producers of this film.
+  """
+  producers: [String]
+
+  """
+  The ISO 8601 date format of film release at original creator country.
+  """
+  releaseDate: String
+
+  """
+  The characters that appear in this film.
+  """
+  characters(limit: Int): [Character] @resolver
+
+  """
+  The planets that appear in this film.
+  """
+  planets(limit: Int): [Planet] @resolver
+
+  """
+  The species that appear in this film.
+  """
+  species(limit: Int): [Species] @resolver
+
+  """
+  The ISO 8601 date format of the time that this resource was created.
+  """
+  created: String
+
+  """
+  The ISO 8601 date format of the time that this resource was edited.
+  """
+  edited: String
+
+  """
+  Display title for the film (demonstrates computed field)
+  """
+  displayTitle: String @resolver
+
+  """
+  Summary with episode, title and director (demonstrates computed field)
+  """
+  summary: String @resolver
+
+  """
+  Production details including cast and crew (demonstrates computed field)
+  """
+  productionDetails: String @resolver
+
+  """
+  Character count summary (demonstrates relationship computation)
+  """
+  characterCountSummary: String @resolver
+
+  """
+  Identifies which backing data source produced this Film (demonstrates per-tenant
+  dependency injection: this tenant's resolver is bound to its own ExternalDataClient).
+  """
+  dataSource: String @resolver
+  """
+  Main characters in this film (batch resolver example)
+  """
+  mainCharacters: [Character] @resolver(isBatching: true)
+
+  # tag::backing_data_schema[8] @backingData directive usage
+  """
+  Character IDs fetched once from the film-character relationship store.
+  Shared by the characters and characterCountSummary resolvers so both
+  fields avoid making separate findCharactersByFilmId calls.
+  """
+  castData: BackingData
+    @resolver
+    @backingData(class: "com.example.starwars.modules.filmography.films.models.FilmCastData")
+}
+
+extend type Query @scope(to: ["default"]) {
+  """
+  All films
+  """
+  allFilms(limit: Int): [Film] @resolver
+  """
+  All films as a paginated connection (Relay-style cursor pagination).
+  Use `first` to set the page size and `after` to page forward from a cursor.
+  The connection also exposes `totalCount` for the total number of films.
+  """
+  allFilmsConnection(
+    "Maximum number of films to return."
+    first: Int
+    "Cursor to start fetching after (exclusive, for forward pagination)."
+    after: String
+  ): FilmsConnection @resolver
+}
+
+# tag::films_connection_example[13] Example of @connection directive for Films
+"""
+A connection to a list of Films.
+Demonstrates usage of @connection directive.
+"""
+type FilmsConnection @connection @scope(to: ["default"]) {
+  "A list of edges."
+  edges: [FilmEdge]
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "Total number of films (optional extension field)."
+  totalCount: Int
+}
+
+# tag::films_edge_example[10] Example of @edge directive for Films
+"""
+An edge in a Films connection.
+Demonstrates usage of @edge directive.
+"""
+type FilmEdge @edge @scope(to: ["default"]) {
+  "The item at the end of the edge."
+  node: Film
+  "A cursor for use in pagination."
+  cursor: String!
+}
+
+extend type Mutation @scope(to: ["default"]) {
+  # tag::mutation_example_3[6] Mutation examples
+  """
+  Link a Character to a Film (adds the character to that film's cast).
+  Allows locating the character either directly by ID or via the existing search input.
+  """
+  addCharacterToFilm(input: AddCharacterToFilmInput!): AddCharacterToFilmPayload @resolver
+}
+
+"""
+Input for adding an existing Character to an existing Film.
+"""
+input AddCharacterToFilmInput @scope(to: ["default"]) {
+  filmId: ID! @idOf(type: "Film")
+  characterId: ID @idOf(type: "Character")
+}
+
+"""
+Payload returned when adding a Character to a Film.
+"""
+type AddCharacterToFilmPayload @scope(to: ["default"]) {
+  character: Character
+  film: Film
+}

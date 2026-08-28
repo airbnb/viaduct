@@ -1,0 +1,124 @@
+"""
+Planet schema definitions
+""" # tag::schemas_example[75] Example of schema definition
+type Planet implements Node @scope(to: ["default"]) @resolver(isBatching: true) {
+  """
+  The ID of an object
+  """
+  id: ID!
+
+  """
+  The name of this planet.
+  """
+  name: String
+
+  """
+  The diameter of this planet in kilometers.
+  """
+  diameter: Int
+
+  """
+  The number of standard hours it takes for this planet to complete a single
+  rotation on its axis.
+  """
+  rotationPeriod: Int
+
+  """
+  The number of standard days it takes for this planet to complete a single orbit
+  of its local star.
+  """
+  orbitalPeriod: Int
+
+  """
+  A number denoting the gravity of this planet, where "1" is normal or 1 standard
+  G. "2" is twice or 2 standard Gs. "0.5" is half or 0.5 standard Gs.
+  """
+  gravity: Float
+
+  """
+  The average population of sentient beings inhabiting this planet.
+  """
+  population: Float
+
+  """
+  The percentage of the planet surface that is naturally occurring water or bodies
+  of water.
+  """
+  surfaceWater: Float
+
+  """
+  The ISO 8601 date format of the time that this resource was created.
+  """
+  created: String
+
+  """
+  The ISO 8601 date format of the time that this resource was edited.
+  """
+  edited: String
+
+  """
+  The residents of this planet.
+  """
+  terrains: [String]
+
+  """
+  The films that this planet has appeared in.
+  """
+  climates: [String]
+
+  """
+  The residents of this planet.
+  """
+  residents(limit: Int): [Character!] @resolver
+
+  """
+  The films that this planet has appeared in.
+  """
+  films(limit: Int): [Film!] @resolver
+
+  """
+  Identifies which backing data source produced this Planet (demonstrates per-tenant
+  dependency injection: this tenant's resolver is bound to its own ExternalDataClient).
+  """
+  dataSource: String @resolver
+}
+
+extend type Query @scope(to: ["default"]) {
+  """
+  All planets
+  """
+  allPlanets(limit: Int): [Planet] @resolver
+
+  """
+  All planets as a paginated connection using backward pagination (Relay-style).
+  Use `last` to set the page size and `before` to page backward from a cursor.
+  Demonstrates BackwardConnectionArguments and the fromList builder.
+  """
+  allPlanetsConnection(
+    "Maximum number of planets to return from the end."
+    last: Int
+    "Cursor to fetch items before (exclusive, for backward pagination)."
+    before: String
+  ): PlanetsConnection @resolver
+}
+
+"""
+A connection to a list of Planets with backward pagination support.
+Demonstrates the @connection directive with BackwardConnectionArguments.
+"""
+type PlanetsConnection @connection @scope(to: ["default"]) {
+  "List of planet edges."
+  edges: [PlanetEdge]
+  "Pagination information."
+  pageInfo: PageInfo!
+}
+
+"""
+An edge in a PlanetsConnection.
+"""
+type PlanetEdge @edge @scope(to: ["default"]) {
+  "The planet at the end of the edge."
+  node: Planet
+  "A cursor for pagination."
+  cursor: String!
+}

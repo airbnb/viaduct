@@ -121,9 +121,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        demoapp: [starwars, starwars-java]
         os: ${{ fromJSON(inputs.os || '["ubuntu-latest","macos-latest"]') }}
         java: ${{ fromJSON(inputs.java_versions || '["17","21"]') }}
-    name: Test starwars (Java ${{ matrix.java }}) ${{ matrix.os }}
+    name: Test ${{ matrix.demoapp }} (Java ${{ matrix.java }}) ${{ matrix.os }}
     env:
       GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
       BUILDSCAN_PUBLISH: "true"
@@ -143,8 +144,8 @@ jobs:
           name: maven-local-repo
           path: ~/.m2/repository
 
-      - name: Test starwars
-        run: cd demoapps/starwars && USE_MAVEN_LOCAL=true ./gradlew test --no-daemon
+      - name: Test ${{ matrix.demoapp }}
+        run: cd demoapps/${{ matrix.demoapp }} && USE_MAVEN_LOCAL=true ./gradlew test --no-daemon
         shell: bash
 
   # ---------------------------------------------------------------------------

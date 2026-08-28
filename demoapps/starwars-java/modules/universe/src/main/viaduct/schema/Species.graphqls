@@ -1,0 +1,120 @@
+"""
+Species schema definitions
+"""
+type Species implements Node @scope(to: ["default", "extras"]) @resolver(isBatching: true) {
+  """
+  The ID of an object
+  """
+  id: ID!
+
+  """
+  The name of this species.
+  """
+  name: String
+
+  """
+  The classification of this species, such as "mammal" or "reptile".
+  """
+  classification: String
+
+  """
+  The designation of this species, such as "sentient".
+  """
+  designation: String
+
+  """
+  The average height of this species in centimeters.
+  """
+  averageHeight: Float
+
+  """
+  The average lifespan of this species in years.
+  """
+  averageLifespan: Int
+
+  """
+  The common eye colors for this species, empty if this species does not typically
+  have eyes.
+  """
+  eyeColors: [String]
+
+  """
+  The common hair colors for this species, empty if this species does not
+  typically have hair.
+  """
+  hairColors: [String]
+
+  """
+  The language commonly spoken by this species.
+  """
+  language: String
+
+  """
+  A planet that this species originates from.
+  """
+  homeworld: Planet @resolver
+
+  """
+  The ISO 8601 date format of the time that this resource was created.
+  """
+  created: String
+
+  """
+  The ISO 8601 date format of the time that this resource was edited.
+  """
+  edited: String
+}
+
+# tag::schemas_extras_example[7] Example of schema definition
+extend type Species @scope(to: ["extras"]) {
+  culturalNotes: String @resolver
+  rarityLevel: String @resolver
+  specialAbilities: [String] @resolver
+  technologicalLevel: String @resolver
+}
+
+extend type Query @scope(to: ["default"]) {
+  """
+  All species
+  """
+  allSpecies(limit: Int): [Species] @resolver
+
+  """
+  All species as a paginated connection supporting both forward and backward pagination.
+  Use `first`/`after` to page forward or `last`/`before` to page backward.
+  Cannot mix forward and backward arguments in the same request.
+  Demonstrates MultidirectionalConnectionArguments and the fromEdges builder,
+  which gives full manual control over edge construction and cursor encoding.
+  """
+  allSpeciesConnection(
+    "Maximum number of species to return from the start (forward pagination)."
+    first: Int
+    "Cursor to start fetching after (exclusive, for forward pagination)."
+    after: String
+    "Maximum number of species to return from the end (backward pagination)."
+    last: Int
+    "Cursor to fetch items before (exclusive, for backward pagination)."
+    before: String
+  ): SpeciesConnection @resolver
+}
+
+"""
+A connection to a list of Species supporting multidirectional cursor pagination.
+Demonstrates the @connection directive with MultidirectionalConnectionArguments and fromEdges.
+"""
+type SpeciesConnection @connection @scope(to: ["default"]) {
+  "List of species edges."
+  edges: [SpeciesEdge]
+  "Pagination information."
+  pageInfo: PageInfo!
+}
+
+"""
+An edge in a SpeciesConnection.
+"""
+type SpeciesEdge @edge @scope(to: ["default"]) {
+  "The species at the end of the edge."
+  node: Species
+  "A cursor for pagination."
+  cursor: String!
+}

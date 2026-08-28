@@ -66,6 +66,7 @@ tasks.register("testCodeCoverageVerification") {
 // demoapps/AGENTS.md for the standalone-testing workflow this task automates.
 val demoappsStandaloneList = listOf(
     "starwars",
+    "starwars-java",
     "cli-starter",
     "jetty-starter",
     "ktor-starter",
