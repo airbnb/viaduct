@@ -52,6 +52,7 @@ class FieldBatchResolverSpec<O : Object, Q : Query> : BaseResolverSpec() {
                 queryResults = queryResultsMap,
                 selectionSetFactory = selectionSetFactory,
                 rootFieldRefResults = buildRootFieldRefResults(),
+                referenceSpy = referenceSpy,
             )
             ctxKClass.wrapOrReturn(innerCtx)
         }

@@ -48,6 +48,7 @@ class MutationResolverSpec<Q : Query, M : Mutation, A : Arguments> : BaseFieldSp
             mutationResults = mutationResultsMap,
             selectionSetFactory = selectionSetFactory,
             rootFieldRefResults = buildRootFieldRefResults(),
+            referenceSpy = referenceSpy,
         )
 
         return ctxKClass.wrapOrReturn(innerCtx)

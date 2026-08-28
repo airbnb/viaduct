@@ -75,6 +75,7 @@ class FieldResolverSpec<O : Object, Q : Query, A : Arguments> : BaseFieldSpec<Q,
                 queryResults = queryResultsMap,
                 selectionSetFactory = selectionSetFactory,
                 rootFieldRefResults = buildRootFieldRefResults(),
+                referenceSpy = referenceSpy,
             )
         } else {
             MockFieldExecutionContext(
@@ -87,6 +88,7 @@ class FieldResolverSpec<O : Object, Q : Query, A : Arguments> : BaseFieldSpec<Q,
                 queryResults = queryResultsMap,
                 selectionSetFactory = selectionSetFactory,
                 rootFieldRefResults = buildRootFieldRefResults(),
+                referenceSpy = referenceSpy,
             )
         }
 

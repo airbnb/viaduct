@@ -35,6 +35,7 @@ class NodeResolverSpec<T : NodeObject> : BaseNodeSpec<T>() {
             queryResults = queryResultsMap,
             selectionSetFactory = selectionSetFactory,
             rootFieldRefResults = buildRootFieldRefResults(),
+            referenceSpy = referenceSpy,
         )
 
         return ctxKClass.wrapOrReturn(innerCtx)

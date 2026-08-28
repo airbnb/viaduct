@@ -11,6 +11,7 @@ import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.testing.types.MutationForSelection
 import viaduct.api.testing.types.QueryForSelection
+import viaduct.api.testing.types.ReferenceSpy
 import viaduct.api.testing.types.RootFieldRefStub
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
@@ -36,15 +37,10 @@ abstract class BaseResolverSpec {
     var requestContext: Any? = null
     var contextQueryValues: List<Query> = emptyList()
 
-    /**
-     * Pre-baked return values for `ctx.rootFieldRef(field, args)` calls made by the
-     * resolver under test. Each [RootFieldRefStub] declares the field, the arguments
-     * the resolver is expected to invoke it with, and the value to return.
-     *
-     * Lookups match on the exact `(field, arguments)` pair via structural equality
-     * on [Arguments]. If multiple stubs share the same key, the last one wins. Calls
-     * with no matching stub throw.
-     */
+    /** Records references created by the resolver under test. */
+    var referenceSpy: ReferenceSpy? = null
+
+    /** Legacy stubs for direct root field reference calls. */
     var rootFieldRefValues: List<RootFieldRefStub<*, *>> = emptyList()
 
     @OptIn(InternalApi::class)
@@ -53,7 +49,12 @@ abstract class BaseResolverSpec {
         selectionSetFactory: SelectionSetFactory,
     ): PrebakedResults<Query> = buildContextQueryMap(contextQueryValues, internalContext, selectionSetFactory)
 
-    protected fun buildRootFieldRefResults(): PrebakedRootFieldRefResults = rootFieldRefResultsOf(rootFieldRefValues)
+    protected fun buildRootFieldRefResults(): PrebakedRootFieldRefResults {
+        require(referenceSpy == null || rootFieldRefValues.isEmpty()) {
+            "Pass either referenceSpy or rootFieldRefValues, not both"
+        }
+        return rootFieldRefResultsOf(rootFieldRefValues)
+    }
 
     @OptIn(InternalApi::class)
     protected inline fun <reified C : Any> getResolverContextKClass(resolverClass: Class<*>): KClass<out C> {
@@ -150,16 +151,10 @@ internal fun createSelectionSetKey(selectionSet: SelectionSet<*>): String {
 }
 
 /**
- * Builds a stateless [PrebakedRootFieldRefResults] from a list of [RootFieldRefStub]s.
- *
- * Lookup keys on the exact `(pathFromQueryRoot, arguments)` pair via structural
- * equality on [Arguments]. When multiple stubs share the same key, the last one
- * wins — the same precedence rule as a Kotlin `Map` built from the list. Calls
- * with no matching stub throw.
+ * Builds stateless root field reference results from legacy [RootFieldRefStub]s.
  */
 @OptIn(ExperimentalApi::class, InternalApi::class)
 fun rootFieldRefResultsOf(values: List<RootFieldRefStub<*, *>>): PrebakedRootFieldRefResults {
-    data class Key(val path: List<String>, val arguments: Arguments)
     val byKey: Map<Key, Object> = values.associate { stub ->
         Key(stub.field.pathFromQueryRoot, stub.arguments) to stub.value
     }
@@ -179,6 +174,8 @@ fun rootFieldRefResultsOf(values: List<RootFieldRefStub<*, *>>): PrebakedRootFie
         }
     }
 }
+
+private data class Key(val path: List<String>, val arguments: Arguments)
 
 internal fun <T : CompositeOutput> prebakedResultsOf(results: Map<String, T>) =
     object : PrebakedResults<T> {

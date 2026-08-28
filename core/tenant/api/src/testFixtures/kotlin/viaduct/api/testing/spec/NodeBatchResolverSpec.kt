@@ -36,6 +36,7 @@ class NodeBatchResolverSpec<T : NodeObject> : BaseNodeSpec<T>() {
                 queryResults = queryResultsMap,
                 selectionSetFactory = selectionSetFactory,
                 rootFieldRefResults = rootFieldRefResults,
+                referenceSpy = referenceSpy,
             )
             ctxKClass.wrapOrReturn(innerCtx)
         }
