@@ -56,6 +56,9 @@ message Selector {
 message BatchResolveNodeResponse {
   // Results for each selector
   repeated ResolvedNode results = 1;
+
+  // Opaque host-defined context captured after remote node resolver execution.
+  EncodedRemoteContext response_context = 2;
 }
 
 // Result for a single node resolution
@@ -151,6 +154,9 @@ message FieldSelector {
 message BatchResolveFieldResponse {
   // Results for each selector
   repeated ResolvedField results = 1;
+
+  // Opaque host-defined context captured after remote field resolver execution.
+  EncodedRemoteContext response_context = 2;
 }
 
 // Result for a single field resolution

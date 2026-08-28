@@ -15,6 +15,7 @@ import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.remote.api.RemoteResolverContextCaptureInput
 import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
+import viaduct.remote.api.spi.RemoteResolverResponseContextApplier
 import viaduct.remote.grpc.BatchResolveFieldRequest
 import viaduct.remote.grpc.FieldSelector as ProtoFieldSelector
 import viaduct.remote.grpc.RemoteResolverServiceGrpcKt
@@ -39,6 +40,8 @@ class RemoteFieldProxyExecutor(
     private val requestDeadline: Duration? = null,
     private val contextCapturerProvider: RemoteResolverContextCapturerProvider =
         RemoteResolverContextCapturerProvider.NO_OP,
+    private val responseContextApplier: RemoteResolverResponseContextApplier =
+        RemoteResolverResponseContextApplier.NO_OP,
 ) : FieldResolverExecutor {
     init {
         // Selective field resolvers vary their result by the requested sub-selections, which the
@@ -153,6 +156,9 @@ class RemoteFieldProxyExecutor(
 
             val stub = requestDeadline?.let { rrsStub.withDeadlineAfter(it.toMillis(), TimeUnit.MILLISECONDS) } ?: rrsStub
             val response = stub.batchResolveField(request)
+            responseContextApplier.apply(
+                response.responseContext.takeIf { response.hasResponseContext() }?.fromWire()
+            )
             log.debug("Received {} field result(s) for executor '{}'", response.resultsCount, executorId)
 
             val resultsByKey = response.resultsList.associateBy { it.selectorKey }

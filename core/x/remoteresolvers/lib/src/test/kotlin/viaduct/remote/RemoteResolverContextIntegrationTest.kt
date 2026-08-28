@@ -6,6 +6,7 @@ import io.grpc.Status
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
@@ -27,6 +28,8 @@ import viaduct.remote.api.RemoteResolverContextCaptureInput
 import viaduct.remote.api.spi.RemoteResolverContextApplier
 import viaduct.remote.api.spi.RemoteResolverContextCapturer
 import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
+import viaduct.remote.api.spi.RemoteResolverResponseContextApplier
+import viaduct.remote.api.spi.RemoteResolverResponseContextCapturer
 import viaduct.remote.fixtures.SimpleFieldResolverExecutor
 import viaduct.remote.fixtures.SimpleNodeResolverExecutor
 import viaduct.remote.grpc.BatchResolveFieldRequest
@@ -40,7 +43,11 @@ import viaduct.remote.grpc.RemoteResolverServiceMessage
 import viaduct.remote.grpc.RemoteResolverStreamServiceGrpcKt
 import viaduct.remote.grpc.ResolvedField
 import viaduct.remote.grpc.ResolvedNode
+import viaduct.remote.grpc.Selector
 import viaduct.remote.grpc.ViaductServiceMessage
+import viaduct.remote.registry.ContextRegistry
+import viaduct.remote.registry.NodeExecutorRegistry
+import viaduct.remote.registry.SelectionsRegistry
 
 class RemoteResolverContextIntegrationTest {
     private val testSchema =
@@ -60,13 +67,19 @@ class RemoteResolverContextIntegrationTest {
         )
 
     @Test
-    fun `node and field proxies send captured context`() =
+    fun `node and field proxies exchange request and response context`() =
         runBlocking {
             val expected =
                 EncodedRemoteResolverContext(
                     format = "test.context",
                     version = 3,
                     payload = byteArrayOf(1, 2, 3),
+                )
+            val expectedResponse =
+                EncodedRemoteResolverContext(
+                    format = "test.response",
+                    version = 1,
+                    payload = byteArrayOf(4, 5, 6),
                 )
             val nodeRequest = AtomicReference<BatchResolveNodeRequest>()
             val fieldRequest = AtomicReference<BatchResolveFieldRequest>()
@@ -80,6 +93,7 @@ class RemoteResolverContextIntegrationTest {
                                     .setSelectorId(request.selectorsList.single().id)
                                     .setError(testError()),
                             )
+                            .setResponseContext(expectedResponse.toWire())
                             .build()
                     }
 
@@ -91,6 +105,7 @@ class RemoteResolverContextIntegrationTest {
                                     .setSelectorKey(request.selectorsList.single().selectorKey)
                                     .setError(testError()),
                             )
+                            .setResponseContext(expectedResponse.toWire())
                             .build()
                     }
                 }
@@ -115,6 +130,13 @@ class RemoteResolverContextIntegrationTest {
                 object : RemoteResolverContextCapturerProvider {
                     override fun get(): RemoteResolverContextCapturer = capturer
                 }
+            val appliedResponses = mutableListOf<EncodedRemoteResolverContext?>()
+            val responseApplier =
+                object : RemoteResolverResponseContextApplier {
+                    override fun apply(context: EncodedRemoteResolverContext?) {
+                        appliedResponses += context
+                    }
+                }
 
             try {
                 val engineContext = ContextMocks(testSchema).engineExecutionContext
@@ -126,6 +148,7 @@ class RemoteResolverContextIntegrationTest {
                         rrsChannel = channel,
                         callbackEndpoint = "unused",
                         contextCapturerProvider = capturerProvider,
+                        responseContextApplier = responseApplier,
                     )
                 val nodeSelector =
                     NodeResolverExecutor.Selector(
@@ -149,6 +172,7 @@ class RemoteResolverContextIntegrationTest {
                         rrsChannel = channel,
                         callbackEndpoint = "unused",
                         contextCapturerProvider = capturerProvider,
+                        responseContextApplier = responseApplier,
                     )
                 val fieldSelector =
                     FieldResolverExecutor.Selector(
@@ -167,6 +191,13 @@ class RemoteResolverContextIntegrationTest {
 
                 assertWireContext(expected, nodeRequest.get().remoteContext)
                 assertWireContext(expected, fieldRequest.get().remoteContext)
+                assertEquals(2, appliedResponses.size)
+                appliedResponses.forEach { actual ->
+                    assertNotNull(actual)
+                    assertEquals(expectedResponse.format, actual!!.format)
+                    assertEquals(expectedResponse.version, actual.version)
+                    assertArrayEquals(expectedResponse.payload, actual.payload)
+                }
             } finally {
                 channel.shutdownNow()
                 server.shutdownNow()
@@ -174,13 +205,19 @@ class RemoteResolverContextIntegrationTest {
         }
 
     @Test
-    fun `streaming node proxy sends captured context`() =
+    fun `streaming node proxy exchanges request and response context`() =
         runBlocking {
             val expected =
                 EncodedRemoteResolverContext(
                     format = "test.context",
                     version = 3,
                     payload = byteArrayOf(7, 8, 9),
+                )
+            val expectedResponse =
+                EncodedRemoteResolverContext(
+                    format = "test.response",
+                    version = 1,
+                    payload = byteArrayOf(10, 11, 12),
                 )
             val nodeRequest = AtomicReference<BatchResolveNodeRequest>()
             val service =
@@ -197,7 +234,9 @@ class RemoteResolverContextIntegrationTest {
                                                 ResolvedNode.newBuilder()
                                                     .setSelectorId(request.selectorsList.single().id)
                                                     .setError(testError()),
-                                            ),
+                                            )
+                                            .setResponseContext(expectedResponse.toWire())
+                                            .build()
                                     )
                                     .build(),
                             )
@@ -224,6 +263,13 @@ class RemoteResolverContextIntegrationTest {
                 object : RemoteResolverContextCapturerProvider {
                     override fun get(): RemoteResolverContextCapturer = capturer
                 }
+            val appliedResponse = AtomicReference<EncodedRemoteResolverContext>()
+            val responseApplier =
+                object : RemoteResolverResponseContextApplier {
+                    override fun apply(context: EncodedRemoteResolverContext?) {
+                        appliedResponse.set(context)
+                    }
+                }
 
             try {
                 val engineContext = ContextMocks(testSchema).engineExecutionContext
@@ -234,6 +280,7 @@ class RemoteResolverContextIntegrationTest {
                         executorId = "User",
                         rrsChannel = channel,
                         contextCapturerProvider = capturerProvider,
+                        responseContextApplier = responseApplier,
                     )
                 val nodeSelector =
                     NodeResolverExecutor.Selector(
@@ -248,9 +295,68 @@ class RemoteResolverContextIntegrationTest {
                 nodeProxy.resolve(listOf(nodeSelector), engineContext)
 
                 assertWireContext(expected, nodeRequest.get().remoteContext)
+                val actualResponse = appliedResponse.get()
+                assertNotNull(actualResponse)
+                assertEquals(expectedResponse.format, actualResponse.format)
+                assertEquals(expectedResponse.version, actualResponse.version)
+                assertArrayEquals(expectedResponse.payload, actualResponse.payload)
             } finally {
                 channel.shutdownNow()
                 server.shutdownNow()
+            }
+        }
+
+    @Test
+    fun `node handler captures response context after execution`() =
+        runBlocking {
+            val expected =
+                EncodedRemoteResolverContext(
+                    format = "test.response",
+                    version = 1,
+                    payload = byteArrayOf(13, 14, 15),
+                )
+            val capturer =
+                object : RemoteResolverResponseContextCapturer {
+                    override fun capture(): EncodedRemoteResolverContext = expected
+                }
+            val service =
+                InProcessCallbackRemoteResolverService(
+                    responseContextCapturer = capturer,
+                )
+            val executor = SimpleNodeResolverExecutor.createUserResolver()
+            val engineContext = ContextMocks(testSchema).engineExecutionContext
+            val contextHandle =
+                ContextRegistry.register(engineContext, currentCoroutineContext())
+            val selectionsHandle =
+                SelectionsRegistry.register(
+                    engineContext.engineSelectionSetFactory.engineSelectionSet(
+                        "User",
+                        "id name",
+                        emptyMap(),
+                    )
+                )
+
+            try {
+                val response =
+                    service.batchResolveNode(
+                        BatchResolveNodeRequest.newBuilder()
+                            .setExecutorId(NodeExecutorRegistry.register(executor))
+                            .setContextHandle(contextHandle)
+                            .setCallbackEndpoint("unused-response-context")
+                            .addSelectors(
+                                Selector.newBuilder()
+                                    .setId("user:1")
+                                    .setSelectionsHandle(selectionsHandle)
+                            )
+                            .build()
+                    )
+
+                assertWireContext(expected, response.responseContext)
+            } finally {
+                service.shutdownChannels()
+                NodeExecutorRegistry.clear()
+                ContextRegistry.unregister(contextHandle)
+                SelectionsRegistry.unregister(selectionsHandle)
             }
         }
 

@@ -6,6 +6,7 @@ import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
+import viaduct.remote.api.spi.RemoteResolverResponseContextApplier
 import viaduct.remote.registry.FieldExecutorRegistry
 import viaduct.remote.registry.NodeExecutorRegistry
 
@@ -35,8 +36,8 @@ import viaduct.remote.registry.NodeExecutorRegistry
  *   Defaults to proxying every field resolver (mirroring nodes). Selective resolvers are always
  *   skipped regardless of this predicate — [RemoteFieldProxyExecutor] rejects them at construction.
  * @param contextCapturerProvider Host hook that resolves the capturer associated with the active
- *   top-level request. Field resolvers, and node resolvers when [useStreamingTransport] is false,
- *   pass this along; the streaming node proxy doesn't yet support the context carrier.
+ *   top-level request.
+ * @param responseContextApplier Host hook that applies context returned by remote execution.
  */
 class RemoteProxyResolverFactory(
     private val rrsChannel: ManagedChannel,
@@ -47,6 +48,8 @@ class RemoteProxyResolverFactory(
     private val shouldProxyField: (FieldResolverExecutor) -> Boolean = { true },
     private val contextCapturerProvider: RemoteResolverContextCapturerProvider =
         RemoteResolverContextCapturerProvider.NO_OP,
+    private val responseContextApplier: RemoteResolverResponseContextApplier =
+        RemoteResolverResponseContextApplier.NO_OP,
 ) : ProxyResolverFactory {
     override fun proxyNode(executor: NodeResolverExecutor): NodeResolverExecutor? {
         // Skip selective resolvers before registering (see class KDoc).
@@ -59,6 +62,8 @@ class RemoteProxyResolverFactory(
                 executorId = executorId,
                 rrsChannel = rrsChannel,
                 requestDeadline = requestDeadline,
+                contextCapturerProvider = contextCapturerProvider,
+                responseContextApplier = responseContextApplier,
             )
         } else {
             UnaryRemoteNodeProxyExecutor(
@@ -68,6 +73,7 @@ class RemoteProxyResolverFactory(
                 callbackEndpoint = callbackEndpoint,
                 requestDeadline = requestDeadline,
                 contextCapturerProvider = contextCapturerProvider,
+                responseContextApplier = responseContextApplier,
             )
         }
     }
@@ -84,6 +90,7 @@ class RemoteProxyResolverFactory(
             callbackEndpoint = callbackEndpoint,
             requestDeadline = requestDeadline,
             contextCapturerProvider = contextCapturerProvider,
+            responseContextApplier = responseContextApplier,
         )
     }
 

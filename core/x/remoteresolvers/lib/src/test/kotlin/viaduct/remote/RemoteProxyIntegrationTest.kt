@@ -14,6 +14,8 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.remote.api.spi.RemoteResolverContextApplier
+import viaduct.remote.api.spi.RemoteResolverResponseContextCapturer
 import viaduct.remote.fixtures.SimpleNodeResolverExecutor
 import viaduct.remote.registry.ContextRegistry
 import viaduct.remote.registry.NodeExecutorRegistry
@@ -487,7 +489,11 @@ class RemoteProxyIntegrationTest {
         }
 }
 
-internal class InProcessCallbackRemoteResolverService : RemoteResolverServiceImpl() {
+internal class InProcessCallbackRemoteResolverService(
+    contextApplier: RemoteResolverContextApplier = RemoteResolverContextApplier.NO_OP,
+    responseContextCapturer: RemoteResolverResponseContextCapturer =
+        RemoteResolverResponseContextCapturer.NO_OP,
+) : RemoteResolverServiceImpl(contextApplier, responseContextCapturer) {
     override fun createCallbackChannel(endpoint: String): ManagedChannel =
         InProcessChannelBuilder.forName(endpoint)
             .directExecutor()

@@ -14,6 +14,7 @@ import viaduct.errors.PassthroughException
 import viaduct.errors.TenantException
 import viaduct.remote.api.RemoteResolverContextCaptureInput
 import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
+import viaduct.remote.api.spi.RemoteResolverResponseContextApplier
 import viaduct.remote.grpc.BatchResolveNodeRequest
 import viaduct.remote.grpc.BatchResolveNodeResponse
 import viaduct.remote.grpc.RemoteResolverServiceGrpcKt
@@ -33,6 +34,7 @@ import viaduct.remote.registry.SelectionsRegistry
 abstract class RemoteNodeProxyExecutor(
     private val originalExecutor: NodeResolverExecutor,
     protected val executorId: String,
+    private val responseContextApplier: RemoteResolverResponseContextApplier,
 ) : NodeResolverExecutor {
     private val log = LoggerFactory.getLogger(RemoteNodeProxyExecutor::class.java)
 
@@ -82,6 +84,9 @@ abstract class RemoteNodeProxyExecutor(
             // outcome so a failure doesn't leak the selection-set references.
             protoSelectors.forEach { SelectionsRegistry.unregister(it.selectionsHandle) }
         }
+        responseContextApplier.apply(
+            response.responseContext.takeIf { response.hasResponseContext() }?.fromWire()
+        )
         log.debug("Received {} result(s) for executor '{}'", response.resultsCount, executorId)
 
         // deserialize asserts the wire's type against this node's own type.
@@ -132,7 +137,9 @@ class UnaryRemoteNodeProxyExecutor(
     private val requestDeadline: Duration? = null,
     private val contextCapturerProvider: RemoteResolverContextCapturerProvider =
         RemoteResolverContextCapturerProvider.NO_OP,
-) : RemoteNodeProxyExecutor(originalExecutor, executorId) {
+    responseContextApplier: RemoteResolverResponseContextApplier =
+        RemoteResolverResponseContextApplier.NO_OP,
+) : RemoteNodeProxyExecutor(originalExecutor, executorId, responseContextApplier) {
     private val rrsStub = RemoteResolverServiceGrpcKt.RemoteResolverServiceCoroutineStub(rrsChannel)
 
     override suspend fun callRemote(

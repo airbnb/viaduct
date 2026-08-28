@@ -12,6 +12,7 @@ import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.remote.EngineCallbackServiceImpl
 import viaduct.remote.RemoteProxyResolverFactory
 import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
+import viaduct.remote.api.spi.RemoteResolverResponseContextApplier
 
 /**
  * Lifecycle manager for the experimental remote-resolver feature.
@@ -24,6 +25,8 @@ class RemoteResolverInitializer(
     private val selection: RemoteResolverSelection,
     private val contextCapturerProvider: RemoteResolverContextCapturerProvider =
         RemoteResolverContextCapturerProvider.NO_OP,
+    private val responseContextApplier: RemoteResolverResponseContextApplier =
+        RemoteResolverResponseContextApplier.NO_OP,
 ) : AutoCloseable {
     private val log = LoggerFactory.getLogger(RemoteResolverInitializer::class.java)
 
@@ -120,6 +123,7 @@ class RemoteResolverInitializer(
             shouldProxyNode = { it.typeName in selection.nodeTypes },
             shouldProxyField = { it.resolverId in selection.fieldCoordinates },
             contextCapturerProvider = contextCapturerProvider,
+            responseContextApplier = responseContextApplier,
         )
 
     private fun logEnabled(selection: RemoteResolverSelection) {

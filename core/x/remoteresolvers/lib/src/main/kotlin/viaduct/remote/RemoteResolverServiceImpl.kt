@@ -12,6 +12,7 @@ import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.remote.api.RemoteResolverContextException
 import viaduct.remote.api.spi.RemoteResolverContextApplier
+import viaduct.remote.api.spi.RemoteResolverResponseContextCapturer
 import viaduct.remote.grpc.BatchResolveFieldRequest
 import viaduct.remote.grpc.BatchResolveFieldResponse
 import viaduct.remote.grpc.BatchResolveNodeRequest
@@ -36,6 +37,8 @@ import viaduct.remote.registry.SelectionsRegistry
  */
 open class RemoteResolverServiceImpl(
     private val contextApplier: RemoteResolverContextApplier = RemoteResolverContextApplier.NO_OP,
+    private val responseContextCapturer: RemoteResolverResponseContextCapturer =
+        RemoteResolverResponseContextCapturer.NO_OP,
 ) : RemoteResolverServiceGrpcKt.RemoteResolverServiceCoroutineImplBase() {
     private val log = LoggerFactory.getLogger(RemoteResolverServiceImpl::class.java)
 
@@ -45,7 +48,7 @@ open class RemoteResolverServiceImpl(
 
     final override suspend fun batchResolveNode(request: BatchResolveNodeRequest): BatchResolveNodeResponse =
         runWithRemoteContext(contextApplier, request.hasRemoteContext(), request.remoteContext) {
-            batchResolveNodeInternal(request)
+            batchResolveNodeInternal(request).withResponseContext(responseContextCapturer)
         }
 
     private suspend fun batchResolveNodeInternal(request: BatchResolveNodeRequest): BatchResolveNodeResponse {
@@ -66,7 +69,7 @@ open class RemoteResolverServiceImpl(
 
     final override suspend fun batchResolveField(request: BatchResolveFieldRequest): BatchResolveFieldResponse =
         runWithRemoteContext(contextApplier, request.hasRemoteContext(), request.remoteContext) {
-            batchResolveFieldInternal(request)
+            batchResolveFieldInternal(request).withResponseContext(responseContextCapturer)
         }
 
     private suspend fun batchResolveFieldInternal(request: BatchResolveFieldRequest): BatchResolveFieldResponse {
@@ -239,6 +242,12 @@ open class RemoteResolverServiceImpl(
             .build()
     }
 }
+
+private fun BatchResolveNodeResponse.withResponseContext(capturer: RemoteResolverResponseContextCapturer): BatchResolveNodeResponse =
+    capturer.capture()?.let { toBuilder().setResponseContext(it.toWire()).build() } ?: this
+
+private fun BatchResolveFieldResponse.withResponseContext(capturer: RemoteResolverResponseContextCapturer): BatchResolveFieldResponse =
+    capturer.capture()?.let { toBuilder().setResponseContext(it.toWire()).build() } ?: this
 
 /**
  * Applies a request's captured [wireContext] (when [hasRemoteContext]) via [contextApplier] around

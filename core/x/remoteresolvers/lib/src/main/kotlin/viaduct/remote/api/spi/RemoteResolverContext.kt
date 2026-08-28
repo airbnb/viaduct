@@ -63,3 +63,32 @@ interface RemoteResolverContextApplier {
             }
     }
 }
+
+/**
+ * Captures host response context after remote resolver execution.
+ *
+ * The capturer runs while the request context installed by [RemoteResolverContextApplier] remains
+ * active. The framework transports its result opaquely back to the caller.
+ */
+interface RemoteResolverResponseContextCapturer {
+    fun capture(): EncodedRemoteResolverContext?
+
+    companion object {
+        val NO_OP: RemoteResolverResponseContextCapturer =
+            object : RemoteResolverResponseContextCapturer {
+                override fun capture(): EncodedRemoteResolverContext? = null
+            }
+    }
+}
+
+/** Applies host response context returned by remote resolver execution. */
+interface RemoteResolverResponseContextApplier {
+    fun apply(context: EncodedRemoteResolverContext?)
+
+    companion object {
+        val NO_OP: RemoteResolverResponseContextApplier =
+            object : RemoteResolverResponseContextApplier {
+                override fun apply(context: EncodedRemoteResolverContext?) {}
+            }
+    }
+}
