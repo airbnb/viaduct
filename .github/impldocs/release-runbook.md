@@ -468,6 +468,7 @@ packaged JVM — so this also exercises the packaged-distribution path.
 | `confirmDemoAppVersions` | Validates demo app versions match VERSION (fails on mismatch) |
 | `bumpSnapshotVersion` | Inserts/replaces `-rc.XXXX` in a SNAPSHOT version, syncs demo apps |
 | `unbumpSnapshotVersion` | Removes the `-rc.XXXX` marker from a SNAPSHOT version, syncs demo apps |
+| `writePublishedCoordinates` | Records every published coordinate to `<module>/build/reports/publication/coordinates.txt`; `release.yml` probes these for CDN visibility |
 
 `bumpSnapshotVersion` / `unbumpSnapshotVersion` are only for ephemeral SNAPSHOT publication testing. Public release candidates use explicit versions like `X.Y.Z-rc.N`.
 
@@ -514,6 +515,14 @@ If `release.yml` fails after some artifacts are published (e.g., Plugin Portal s
 ### RC publication fails partway through
 
 If `release.yml` fails during an RC publication after publishing `${RELEASE_VER}-${RC_VER}`, do not reuse that RC version. Fix the issue, increment to the next RC version, and rerun the workflow.
+
+### `wait-for-new-artifacts` fails
+
+Artifacts are already on Maven Central, but no tag or GitHub release exists yet. Re-running the workflow is safe — publication is idempotent and tagging has not happened.
+
+- **`not visible after 30m of polling`** — CDN propagation. The error names each missing `.pom` URL and its last HTTP status. A `429` or `503` means retry; a persistent `404` means the coordinate is not published and the derivation is wrong.
+- **`no coordinates found` / `no '<repository>' coordinates found`** — `writePublishedCoordinates` produced nothing usable, so the job refuses to pass without probing. Either a project stopped applying `conventions.viaduct-publishing`, or the orchestration wiring broke.
+- **`coordinates carry version X, expected Y`** — the checked-out `VERSION` disagrees with the version being released.
 
 ### Demo app tests fail after push
 
