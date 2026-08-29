@@ -15,6 +15,7 @@ Exit codes:
 
 import argparse
 import collections
+import http.client
 import os
 import sys
 import time
@@ -90,7 +91,8 @@ def read_coordinates(paths):
 def find_problems(coordinates, expected_version):
     """Reasons the derived list cannot be trusted as a release gate.
 
-    An empty or partial list would let the job pass without probing anything.
+    An empty list, or one missing a whole repository, would let the job pass
+    without probing what it was meant to probe.
     """
     problems = []
     if not coordinates:
@@ -129,7 +131,7 @@ def http_status(url):
             return response.status
     except urllib.error.HTTPError as error:
         return error.code
-    except OSError:
+    except (OSError, http.client.HTTPException):
         return 0
 
 
@@ -190,8 +192,9 @@ def main(argv=None, fetch=http_status):
     )
     args = parser.parse_args(argv)
 
+    paths = find_coordinate_files(args.root)
     try:
-        coordinates = read_coordinates(find_coordinate_files(args.root))
+        coordinates = read_coordinates(paths)
     except ValueError as error:
         print(f"::error::malformed coordinate file: {error}")
         return 1
@@ -202,8 +205,17 @@ def main(argv=None, fetch=http_status):
             print(f"::error::{problem}")
         return 1
 
+    # Logged so a release can be diffed against a known-good run.
+    counts = collections.Counter(c.repository for c in coordinates)
+    breakdown = ", ".join(f"{counts[name]} {name}" for name in sorted(counts))
+    print(
+        f"Derived {len(coordinates)} coordinates for {args.version} from"
+        f" {len(paths)} projects ({breakdown})"
+    )
+    for path in paths:
+        print(f"  {path}")
+
     urls = [pom_url(coordinate) for coordinate in coordinates]
-    print(f"Probing {len(urls)} artifacts for {args.version}")
     missing = probe(
         urls, args.timeout_seconds, args.sleep_seconds, fetch=fetch
     )

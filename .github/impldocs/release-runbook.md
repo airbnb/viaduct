@@ -518,11 +518,12 @@ If `release.yml` fails during an RC publication after publishing `${RELEASE_VER}
 
 ### `wait-for-new-artifacts` fails
 
-Artifacts are already on Maven Central, but no tag or GitHub release exists yet. Re-running the workflow is safe — publication is idempotent and tagging has not happened.
+Artifacts are already on Maven Central, but no tag or GitHub release exists yet. See [Publication fails partway through](#publication-fails-partway-through) before re-running.
 
-- **`not visible after 30m of polling`** — CDN propagation. The error names each missing `.pom` URL and its last HTTP status. A `429` or `503` means retry; a persistent `404` means the coordinate is not published and the derivation is wrong.
+- **`not visible after 30m of polling`** — the error names each missing `.pom` URL and its last HTTP status. A `429` or `503` means retry. A persistent `404` means that coordinate is not on the CDN: either the derivation lists something the release does not publish, or the publication dropped it.
 - **`no coordinates found` / `no '<repository>' coordinates found`** — `writePublishedCoordinates` produced nothing usable, so the job refuses to pass without probing. Either a project stopped applying `conventions.viaduct-publishing`, or the orchestration wiring broke.
-- **`coordinates carry version X, expected Y`** — the checked-out `VERSION` disagrees with the version being released.
+- **`coordinates carry version X, expected Y`** — the published `VERSION` disagrees with the version being probed. An `rc_ver` input that does not match the RC number in `VERSION` produces this.
+- **the `Derive the published coordinates` step fails** — a build configuration failure, not a propagation problem. Reproduce with `./gradlew writePublishedCoordinates` at the release SHA.
 
 ### Demo app tests fail after push
 

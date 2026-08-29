@@ -1,10 +1,14 @@
 import contextlib
+import http.client
 import io
 import os
+import shutil
 import sys
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -12,6 +16,7 @@ from probe_published_artifacts import (
     Coordinate,
     find_coordinate_files,
     find_problems,
+    http_status,
     main,
     parse_coordinates,
     pom_url,
@@ -91,10 +96,36 @@ class TestPomUrl(unittest.TestCase):
         )
 
 
-class TestFindCoordinateFiles(unittest.TestCase):
+class TestHttpStatus(unittest.TestCase):
+
+    def status_when_urlopen_raises(self, error):
+        with mock.patch("urllib.request.urlopen", side_effect=error):
+            return http_status("https://example.invalid/a.pom")
+
+    def test_returns_the_code_for_an_http_error(self):
+        error = urllib.error.HTTPError(
+            "https://example.invalid/a.pom", 429, "Too Many Requests", {}, None
+        )
+        self.assertEqual(self.status_when_urlopen_raises(error), 429)
+
+    def test_returns_zero_for_a_connection_failure(self):
+        error = urllib.error.URLError("connection refused")
+        self.assertEqual(self.status_when_urlopen_raises(error), 0)
+
+    def test_returns_zero_for_a_truncated_response(self):
+        # IncompleteRead is not an OSError, so it needs its own except clause.
+        error = http.client.IncompleteRead(b"partial")
+        self.assertEqual(self.status_when_urlopen_raises(error), 0)
+
+
+class TempDirTestCase(unittest.TestCase):
 
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmpdir)
+
+
+class TestFindCoordinateFiles(TempDirTestCase):
 
     def test_finds_files_across_nested_projects(self):
         write_coordinate_file(self.tmpdir, "publications/api", CENTRAL)
@@ -113,10 +144,7 @@ class TestFindCoordinateFiles(unittest.TestCase):
         self.assertEqual(find_coordinate_files(self.tmpdir), [])
 
 
-class TestReadCoordinates(unittest.TestCase):
-
-    def setUp(self):
-        self.tmpdir = tempfile.mkdtemp()
+class TestReadCoordinates(TempDirTestCase):
 
     def test_collects_across_files(self):
         write_coordinate_file(self.tmpdir, "publications/api", CENTRAL)
@@ -179,13 +207,14 @@ class TestProbe(unittest.TestCase):
         self.clock = FakeClock()
 
     def run_probe(self, urls, fetch, **kwargs):
-        return probe(
-            urls,
-            fetch=fetch,
-            now=lambda: self.clock.elapsed,
-            sleep=self.clock.sleep,
-            **kwargs,
-        )
+        with contextlib.redirect_stdout(io.StringIO()):
+            return probe(
+                urls,
+                fetch=fetch,
+                now=lambda: self.clock.elapsed,
+                sleep=self.clock.sleep,
+                **kwargs,
+            )
 
     def test_returns_empty_when_all_visible(self):
         self.assertEqual(self.run_probe(["a", "b"], lambda url: 200), [])
@@ -238,11 +267,8 @@ class TestProbe(unittest.TestCase):
         self.assertEqual(self.clock.slept, [10])
 
 
-class TestMain(unittest.TestCase):
+class TestMain(TempDirTestCase):
     """Covers the exit codes and ::error:: output that release.yml depends on."""
-
-    def setUp(self):
-        self.tmpdir = tempfile.mkdtemp()
 
     def run_main(self, version, fetch=lambda url: 200):
         with contextlib.redirect_stdout(io.StringIO()) as captured:

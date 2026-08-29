@@ -64,8 +64,7 @@ val writePublishedCoordinates = tasks.register<WritePublishedCoordinatesTask>("w
 }
 registerForOrchestrationAggregate("writePublishedCoordinates", "writePublishedCoordinates")
 
-// Deferred because the consumer's `gradlePlugin { }` block is unreadable until it is evaluated.
-// Gated on plugin-publish because `kotlin-dsl` fills that same extension with script plugin ids.
+// `gradlePlugin.plugins` is empty until the consumer's block is evaluated.
 afterEvaluate {
     val publishedVersion = project.version.toString()
     val central = "central ${project.group}:${project.name}:$publishedVersion"
