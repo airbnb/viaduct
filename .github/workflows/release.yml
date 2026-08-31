@@ -138,25 +138,22 @@ jobs:
     needs: [preflight, publish, push-demoapps]
     runs-on: ubuntu-latest
     steps:
+      # No `ref:` — the probe script must match the dispatched workflow, not the
+      # release branch, which may predate it.
       - uses: actions/checkout@v6
-        with:
-          ref: ${{ needs.publish.outputs.source_sha }}
 
-      - uses: ./.github/actions/setup-build
+      - uses: actions/download-artifact@v7
         with:
-          java-version: '21'
-          cache-read-only: true
-
-      - name: Derive the published coordinates
-        run: ./gradlew writePublishedCoordinates --no-daemon --stacktrace
-        shell: bash
+          name: published-coordinates
+          path: coordinates
 
       - name: Probe Maven Central and Plugin Portal for ${{ needs.preflight.outputs.published_version }}
         env:
           VERSION: ${{ needs.preflight.outputs.published_version }}
         run: |
           set -euo pipefail
-          python3 .github/scripts/probe_published_artifacts.py --version "$VERSION"
+          python3 .github/scripts/probe_published_artifacts.py \
+            --root coordinates --version "$VERSION"
         shell: bash
 
   # ---------------------------------------------------------------------------

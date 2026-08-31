@@ -159,6 +159,18 @@ jobs:
         run: echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
         shell: bash
 
+      # Runs before publishing so a ref that cannot report its coordinates fails
+      # while Maven Central is still untouched.
+      - name: Derive the published coordinates
+        run: ./gradlew writePublishedCoordinates --no-daemon --stacktrace
+        shell: bash
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: published-coordinates
+          path: '**/build/reports/publication/coordinates.txt'
+          if-no-files-found: error
+
       - name: Publish artifacts
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.VIADUCT_SONATYPE_USERNAME }}

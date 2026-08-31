@@ -145,8 +145,7 @@ def probe(
 ):
     """Poll every URL until all are visible or the shared deadline passes.
 
-    Returns each still-missing URL with the last status seen for it. One deadline
-    covers every URL, so the worst case does not grow with the artifact count.
+    Returns each still-missing URL with the last status seen for it.
     """
     deadline = now() + timeout_seconds
     pending = list(urls)

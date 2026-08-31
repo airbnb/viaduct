@@ -64,19 +64,6 @@ val writePublishedCoordinates = tasks.register<WritePublishedCoordinatesTask>("w
 }
 registerForOrchestrationAggregate("writePublishedCoordinates", "writePublishedCoordinates")
 
-// `gradlePlugin.plugins` is empty until the consumer's block is evaluated.
-afterEvaluate {
-    val publishedVersion = project.version.toString()
-    val central = "central ${project.group}:${project.name}:$publishedVersion"
-    val markers = if (pluginManager.hasPlugin("com.gradle.plugin-publish")) {
-        extensions.getByType(GradlePluginDevelopmentExtension::class.java)
-            .plugins.map { "portal ${it.id}:${it.id}.gradle.plugin:$publishedVersion" }
-    } else {
-        emptyList()
-    }
-    writePublishedCoordinates.configure { coordinates.set(listOf(central) + markers) }
-}
-
 // Apply standard Viaduct POM metadata to all Maven publications.
 pluginManager.withPlugin("maven-publish") {
     project.extensions.getByType(PublishingExtension::class.java)
@@ -160,18 +147,34 @@ run {
 }
 
 // 🔑 Defer coordinates() until after the consumer has configured viaductPublishing { ... }.
+// `gradlePlugin.plugins` is likewise empty until the consumer's block is evaluated.
 afterEvaluate {
     // Resolve lazily here (now it's safe to .get()).
     val resolvedName = viaductPublishing.name.get().ifBlank { project.name }.let { "Viaduct :: $it" }
     val resolvedDescription = viaductPublishing.description.get().ifBlank { "" }
 
+    val publishedGroup = project.group.toString()
+    val publishedArtifact = project.name
+    val publishedVersion = project.version.toString()
+
     extensions.configure<MavenPublishBaseExtension> {
-        coordinates(project.group.toString(), project.name, project.version.toString())
+        coordinates(publishedGroup, publishedArtifact, publishedVersion)
 
         pom {
             name.set(resolvedName)
             if (resolvedDescription.isNotBlank()) description.set(resolvedDescription) else description.set("Viaduct library ${project.name}")
         }
+    }
+
+    val markers = if (pluginManager.hasPlugin("com.gradle.plugin-publish")) {
+        extensions.getByType(GradlePluginDevelopmentExtension::class.java)
+            .plugins.map { "portal ${it.id}:${it.id}.gradle.plugin:$publishedVersion" }
+    } else {
+        emptyList()
+    }
+    writePublishedCoordinates.configure {
+        val central = "central $publishedGroup:$publishedArtifact:$publishedVersion"
+        coordinates.set(listOf(central) + markers)
     }
 }
 
