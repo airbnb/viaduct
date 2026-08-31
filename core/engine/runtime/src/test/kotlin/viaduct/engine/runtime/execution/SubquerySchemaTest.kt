@@ -151,11 +151,7 @@ class SubquerySchemaTest {
         var internalCounter = 0
 
         EngineTestModule(fullSchema) {
-            field("Mutation" to "publicMutation") {
-                resolver {
-                    fn { _, _, _, _, _ -> 0 }
-                }
-            }
+            fieldWithValue("Mutation" to "publicMutation", 0)
 
             field("Mutation" to "internalMutation") {
                 resolver {

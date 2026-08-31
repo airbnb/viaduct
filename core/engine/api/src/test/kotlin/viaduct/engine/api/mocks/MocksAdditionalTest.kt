@@ -144,16 +144,8 @@ class MocksAdditionalTest {
     @Test
     fun `MockTenantModuleBootstrapper Builder mixed resolvers`() {
         val module = MockTenantModuleBootstrapper(Samples.testSchema) {
-            field("TestType" to "field1") {
-                resolver {
-                    fn { _, _, _, _, _ -> "field1" }
-                }
-            }
-            field("TestType" to "field2") {
-                resolver {
-                    fn { _, _, _, _, _ -> "field2" }
-                }
-            }
+            fieldWithValue("TestType" to "field1", "field1")
+            fieldWithValue("TestType" to "field2", "field2")
             type("Node1") {
                 nodeUnbatchedExecutor { _, _, _ -> createEngineObjectData(Samples.testSchema.schema.getObjectType("TestNode"), emptyMap()) }
             }

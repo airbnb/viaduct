@@ -651,11 +651,7 @@ abstract class SubqueryExecutionTestCases(
             }
             """.trimIndent()
         ) {
-            field("Mutation" to "dummyMutation") {
-                resolver {
-                    fn { _, _, _, _, _ -> 0 }
-                }
-            }
+            fieldWithValue("Mutation" to "dummyMutation", 0)
 
             field("Query" to "container") {
                 resolver {
@@ -1224,13 +1220,7 @@ abstract class SubqueryExecutionTestCases(
             }
             """.trimIndent()
         ) {
-            field("Query" to "value") {
-                resolver {
-                    fn { _, _, _, _, _ ->
-                        1
-                    }
-                }
-            }
+            fieldWithValue("Query" to "value", 1)
             field("Query" to "read") {
                 resolver {
                     objectSelections("aliasedValue: value")
@@ -1306,13 +1296,7 @@ abstract class SubqueryExecutionTestCases(
             }
             """.trimIndent()
         ) {
-            field("Query" to "value") {
-                resolver {
-                    fn { _, _, _, _, _ ->
-                        1
-                    }
-                }
-            }
+            fieldWithValue("Query" to "value", 1)
             field("Query" to "read") {
                 resolver {
                     objectSelections("value")

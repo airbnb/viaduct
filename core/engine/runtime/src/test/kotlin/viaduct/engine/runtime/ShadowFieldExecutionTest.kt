@@ -465,11 +465,7 @@ class ShadowFieldExecutionTest {
             )
 
         EngineTestModule("extend type Query { value: String! }") {
-            field("Query" to "value") {
-                resolver {
-                    fn { _, _, _, _, _ -> "production" }
-                }
-            }
+            fieldWithValue("Query" to "value", "production")
         }.runFeatureTest(
             engineConfig =
                 EngineConfiguration.featureTestDefault.copy(
@@ -488,11 +484,7 @@ class ShadowFieldExecutionTest {
             ThrowingShadowFieldExecutionRequestInstrumentation(fatalError)
 
         EngineTestModule("extend type Query { value: String! }") {
-            field("Query" to "value") {
-                resolver {
-                    fn { _, _, _, _, _ -> "production" }
-                }
-            }
+            fieldWithValue("Query" to "value", "production")
         }.runFeatureTest(
             engineConfig =
                 EngineConfiguration.featureTestDefault.copy(
@@ -536,11 +528,7 @@ class ShadowFieldExecutionTest {
                     }
                 }
             }
-            field("Query" to "value") {
-                resolver {
-                    fn { _, _, _, _, _ -> "production" }
-                }
-            }
+            fieldWithValue("Query" to "value", "production")
         }.runFeatureTest(
             engineConfig =
                 EngineConfiguration.featureTestDefault.copy(

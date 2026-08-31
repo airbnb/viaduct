@@ -519,18 +519,10 @@ object Samples {
 
     val mockTenantModule = MockTenantModuleBootstrapper(testSchema) {
         // Add resolver for aField
-        field("TestType" to "aField") {
-            resolver {
-                fn { _, _, _, _, _ -> "aField" }
-            }
-        }
+        fieldWithValue("TestType" to "aField", "aField")
 
         // Add resolver for bIntField
-        field("TestType" to "bIntField") {
-            resolver {
-                fn { _, _, _, _, _ -> 42 }
-            }
-        }
+        fieldWithValue("TestType" to "bIntField", 42)
 
         // Add resolver for parameterizedField with a required selection set
         field("TestType" to "parameterizedField") {
@@ -545,11 +537,7 @@ object Samples {
         }
 
         // Add resolver for cField
-        field("TestType" to "cField") {
-            resolver {
-                fn { _, _, _, _, _ -> "cField" }
-            }
-        }
+        fieldWithValue("TestType" to "cField", "cField")
 
         // Add resolver for dField with variable provider
         field("TestType" to "dField") {

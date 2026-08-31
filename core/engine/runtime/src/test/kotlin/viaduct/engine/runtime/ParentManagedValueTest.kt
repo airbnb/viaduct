@@ -71,14 +71,7 @@ class ParentManagedValueTest {
                     }
                 }
             }
-            field("Foo" to "bar") {
-                resolver {
-                    fn { _, _, _, _, _ ->
-                        // This resolver should NOT run if the parent takes over
-                        "child-resolver-value"
-                    }
-                }
-            }
+            fieldWithValue("Foo" to "bar", "child-resolver-value")
         }.runFeatureTest {
             runQuery("{ foo { bar } }")
                 .assertJson("{data: {foo: {bar: \"parent-value\"}}}")

@@ -362,11 +362,7 @@ class StandardViaductTest {
             }
         """.trimIndent()
         val suppliedModule = EngineTestModule(sdl) {
-            field("Query" to "generatedRegistryTestField") {
-                resolver {
-                    fn { _, _, _, _, _ -> "caller-supplied" }
-                }
-            }
+            fieldWithValue("Query" to "generatedRegistryTestField", "caller-supplied")
         }
 
         val viaduct = StandardViaduct.Builder()

@@ -87,11 +87,7 @@ class RequiredSelectionsTest {
     @Test
     fun `required selections use deep aliases`() =
         EngineTestModule("extend type Query { string1: String, bar: Bar } type Bar { value: String }") {
-            field("Query" to "bar") {
-                resolver {
-                    fn { _, _, _, _, _ -> mapOf("value" to "B") }
-                }
-            }
+            fieldWithValue("Query" to "bar", mapOf("value" to "B"))
             field("Query" to "string1") {
                 resolver {
                     objectSelections("aliasedBar: bar { aliasedValue: value }")
@@ -718,11 +714,7 @@ class RequiredSelectionsTest {
                     }
                 }
             }
-            field("Company" to "companyName") {
-                resolver {
-                    fn { _, _, _, _, _ -> "Airbnb" }
-                }
-            }
+            fieldWithValue("Company" to "companyName", "Airbnb")
             field("Company" to "user") {
                 resolver {
                     fn { _, _, _, _, _ ->
@@ -770,11 +762,7 @@ class RequiredSelectionsTest {
                     }
                 }
             }
-            field("Company" to "locale") {
-                resolver {
-                    fn { _, _, _, _, _ -> "fr" }
-                }
-            }
+            fieldWithValue("Company" to "locale", "fr")
             field("Company" to "name") {
                 resolver {
                     fn { args, _, _, _, _ ->
@@ -1183,6 +1171,7 @@ class RequiredSelectionsTest {
                   x: Int
                   y: Int
                   foo: Foo
+                  gate: Boolean
                 }
             """.trimIndent()
         ) {
@@ -1217,17 +1206,19 @@ class RequiredSelectionsTest {
                     ) {
                         variables(
                             "gate",
-                            rss = createRSS("Query", "bar1 { __typename }")
+                            rss = createRSS("Query", "bar1 { ... on Bar { gate } }")
                         ) { resolveCtx, _ ->
-                            resolveCtx.objectData
+                            val gate = resolveCtx.objectData
                                 .fetchAs<EngineObjectData>("bar1")
-                                .fetch("__typename")
-                            mapOf("gate" to true)
+                                .fetchAs<Boolean>("gate")
+                            mapOf("gate" to gate)
                         }
                     }
                     fn { _, _, _, _, _ -> 1 }
                 }
             }
+
+            fieldWithValue("Bar" to "gate", true)
 
             field("Bar" to "y") {
                 resolver {

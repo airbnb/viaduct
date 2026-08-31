@@ -131,9 +131,7 @@ class EngineTestModuleTest {
     @Test
     fun `MockExecutorFactory gets stored executors from its injected registry`() {
         val module = EngineTestModule(SCHEMA_SDL) {
-            field("Test" to "i") {
-                resolver { fn { _, _, _, _, _ -> 99 } }
-            }
+            fieldWithValue("Test" to "i", 99)
             type("Test") {
                 nodeUnbatchedExecutor { id, _, _ ->
                     createEngineObjectData(objectType, mapOf("id" to id))
@@ -160,9 +158,7 @@ class EngineTestModuleTest {
     fun `off-schema field resolver fails fast`() {
         assertThrows(IllegalArgumentException::class.java) {
             EngineTestModule(SCHEMA_SDL) {
-                field("NonExistentType" to "field") {
-                    resolver { fn { _, _, _, _, _ -> null } }
-                }
+                fieldWithValue("NonExistentType" to "field", null)
             }.buildExecutionRegistryConfigFile()
         }
     }

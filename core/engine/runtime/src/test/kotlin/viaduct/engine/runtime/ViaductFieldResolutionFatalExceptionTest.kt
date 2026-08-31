@@ -39,11 +39,7 @@ class ViaductFieldResolutionFatalExceptionTest {
         )
 
         EngineTestModule(sdl) {
-            field("Query" to "hello") {
-                resolver {
-                    fn { _, _, _, _, _ -> "world" }
-                }
-            }
+            fieldWithValue("Query" to "hello", "world")
         }.runFeatureTest(engineConfig = engineConfig(throwingInstrumentation)) {
             val exception = assertThrows<Exception> {
                 runQuery("{ hello }")
@@ -79,18 +75,8 @@ class ViaductFieldResolutionFatalExceptionTest {
         )
 
         EngineTestModule(sdl) {
-            field("Query" to "nested") {
-                resolver {
-                    fn { _, _, _, _, _ ->
-                        mapOf("leaf" to "val")
-                    }
-                }
-            }
-            field("Nested" to "leaf") {
-                resolver {
-                    fn { _, _, _, _, _ -> "val" }
-                }
-            }
+            fieldWithValue("Query" to "nested", mapOf("leaf" to "val"))
+            fieldWithValue("Nested" to "leaf", "val")
         }.runFeatureTest(engineConfig = engineConfig(throwingInstrumentation)) {
             val exception = assertThrows<Exception> {
                 runQuery("{ nested { leaf } }")
@@ -129,11 +115,7 @@ class ViaductFieldResolutionFatalExceptionTest {
         )
 
         EngineTestModule(sdl) {
-            field("Query" to "level1") {
-                resolver {
-                    fn { _, _, _, _, _ -> mapOf("level2" to "val") }
-                }
-            }
+            fieldWithValue("Query" to "level1", mapOf("level2" to "val"))
             field("Level1" to "level2") {
                 resolver {
                     fn { _, _, _, _, _ ->
@@ -142,11 +124,7 @@ class ViaductFieldResolutionFatalExceptionTest {
                     }
                 }
             }
-            field("Level2" to "leaf") {
-                resolver {
-                    fn { _, _, _, _, _ -> "val" }
-                }
-            }
+            fieldWithValue("Level2" to "leaf", "val")
         }.runFeatureTest(engineConfig = engineConfig(throwingInstrumentation)) {
             val exception = assertThrows<Exception> {
                 runQuery("{ level1 { level2 { leaf } } }")
@@ -175,11 +153,7 @@ class ViaductFieldResolutionFatalExceptionTest {
         )
 
         EngineTestModule(sdl) {
-            field("Query" to "hello") {
-                resolver {
-                    fn { _, _, _, _, _ -> "world" }
-                }
-            }
+            fieldWithValue("Query" to "hello", "world")
         }.runFeatureTest(engineConfig = engineConfig(throwingInstrumentation)) {
             val exception = assertThrows<Exception> {
                 runQuery("{ hello }")
@@ -206,11 +180,7 @@ class ViaductFieldResolutionFatalExceptionTest {
         )
 
         EngineTestModule(sdl) {
-            field("Query" to "hello") {
-                resolver {
-                    fn { _, _, _, _, _ -> "world" }
-                }
-            }
+            fieldWithValue("Query" to "hello", "world")
         }.runFeatureTest(engineConfig = engineConfig(throwingInstrumentation)) {
             val exception = assertThrows<Exception> {
                 runQuery("{ hello }")
@@ -272,11 +242,7 @@ class ViaductFieldResolutionFatalExceptionTest {
         )
 
         EngineTestModule(sdl) {
-            field("Query" to "hello") {
-                resolver {
-                    fn { _, _, _, _, _ -> "world" }
-                }
-            }
+            fieldWithValue("Query" to "hello", "world")
         }.runFeatureTest(engineConfig = engineConfig(throwingInstrumentation)) {
             val exception = assertThrows<Exception> {
                 runQuery("{ hello }")
@@ -303,11 +269,7 @@ class ViaductFieldResolutionFatalExceptionTest {
         )
 
         EngineTestModule(sdl) {
-            field("Query" to "hello") {
-                resolver {
-                    fn { _, _, _, _, _ -> "world" }
-                }
-            }
+            fieldWithValue("Query" to "hello", "world")
         }.runFeatureTest(engineConfig = engineConfig(throwingInstrumentation)) {
             val exception = assertThrows<Exception> {
                 runQuery("{ hello }")

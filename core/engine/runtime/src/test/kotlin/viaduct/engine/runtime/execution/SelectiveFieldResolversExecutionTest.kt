@@ -1772,11 +1772,7 @@ class SelectiveFieldResolversExecutionTest {
                     type Foo { x: Int, y: Int }
                 """.trimIndent()
             ) {
-                field("Query" to "x") {
-                    resolver {
-                        fn { _, _, _, _, _ -> 2 }
-                    }
-                }
+                fieldWithValue("Query" to "x", 2)
 
                 field("Query" to "foo") {
                     resolverExecutor {
@@ -1941,7 +1937,7 @@ class SelectiveFieldResolversExecutionTest {
             MockTenantModuleBootstrapper(
                 """
                     extend type Query { a: Int, b: Int, foo: Foo @resolver }
-                    type Foo { y: Int, z: Int }
+                    type Foo { y: Int, z: Boolean }
                 """.trimIndent()
             ) {
                 field("Query" to "b") {
@@ -1952,8 +1948,8 @@ class SelectiveFieldResolversExecutionTest {
                                 rss = createRSS("Query", "foo { z y }")
                             ) { ctx, _ ->
                                 val foo = ctx.objectData.getAs<EngineObjectData.Sync>("foo")
-                                foo.getAs<Int>("z")
-                                mapOf("includeFoo" to false)
+                                val includeFoo = foo.getAs<Boolean>("z")
+                                mapOf("includeFoo" to includeFoo)
                             }
                         }
                         fn { _, _, _, _, _ -> 2 }
@@ -2002,7 +1998,7 @@ class SelectiveFieldResolversExecutionTest {
                             resolverId = resolverId,
                             unbatchedResolveFn = { _, obj, _, _, _ ->
                                 obj.fetchAs<Int>("y")
-                                5
+                                false
                             }
                         )
                     }
@@ -3191,7 +3187,7 @@ class SelectiveFieldResolversExecutionTest {
             MockTenantModuleBootstrapper(
                 """
                     extend type Query { bar:Bar, foo:Foo }
-                    type Foo { bar:Bar }
+                    type Foo { bar:Bar, includeBar:Boolean }
                     type Bar { y:Int }
                 """.trimIndent()
             ) {
@@ -3200,9 +3196,12 @@ class SelectiveFieldResolversExecutionTest {
                         objectSelections("foo { bar @include(if: \$var) { y } }") {
                             variables(
                                 "var",
-                                rss = createRSS("Query", "foo { __typename }"),
-                            ) { _, _ ->
-                                mapOf("var" to true)
+                                rss = createRSS("Query", "foo { includeBar }"),
+                            ) { ctx, _ ->
+                                val includeBar = ctx.objectData
+                                    .getAs<EngineObjectData.Sync>("foo")
+                                    .getAs<Boolean>("includeBar")
+                                mapOf("var" to includeBar)
                             }
                         }
                         fn { _, obj, _, _, _ ->
@@ -3211,6 +3210,8 @@ class SelectiveFieldResolversExecutionTest {
                         }
                     }
                 }
+
+                fieldWithValue("Foo" to "includeBar", true)
 
                 field("Query" to "foo") {
                     resolverExecutor {
@@ -3442,13 +3443,9 @@ class SelectiveFieldResolversExecutionTest {
                     }
                 }
 
-                field("QuxA" to "y") {
-                    resolver { fn { _, _, _, _, _ -> 5 } }
-                }
+                fieldWithValue("QuxA" to "y", 5)
 
-                field("QuxB" to "x") {
-                    resolver { fn { _, _, _, _, _ -> 7 } }
-                }
+                fieldWithValue("QuxB" to "x", 7)
             }.runFeatureTest {
                 runQueryWithTimeout("{ foo { x } }")
                     .assertJson("{data: {foo: {x: 6}}}")
@@ -3650,11 +3647,7 @@ class SelectiveFieldResolversExecutionTest {
                     }
                 }
 
-                field("Foo" to "x") {
-                    resolver {
-                        fn { _, _, _, _, _ -> 3 }
-                    }
-                }
+                fieldWithValue("Foo" to "x", 3)
             }.runFeatureTest {
                 runQueryWithTimeout("{ foo { x } }")
                     .assertJson("{data: {foo: {x: 3}}}")

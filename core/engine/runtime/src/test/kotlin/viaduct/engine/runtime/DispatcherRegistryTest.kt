@@ -210,31 +210,11 @@ class DispatcherRegistryTest {
         // Create two modules - one empty and one with resolvers
         val emptyModule = MockTenantModuleBootstrapper(Samples.testSchema) { }
         val moduleWithResolvers = MockTenantModuleBootstrapper(Samples.testSchema) {
-            field("TestType" to "aField") {
-                resolver {
-                    fn { _, _, _, _, _ -> "aField" }
-                }
-            }
-            field("TestType" to "bIntField") {
-                resolver {
-                    fn { _, _, _, _, _ -> 42 }
-                }
-            }
-            field("TestType" to "parameterizedField") {
-                resolver {
-                    fn { _, _, _, _, _ -> true }
-                }
-            }
-            field("TestType" to "cField") {
-                resolver {
-                    fn { _, _, _, _, _ -> "cField" }
-                }
-            }
-            field("TestType" to "dField") {
-                resolver {
-                    fn { _, _, _, _, _ -> "dField" }
-                }
-            }
+            fieldWithValue("TestType" to "aField", "aField")
+            fieldWithValue("TestType" to "bIntField", 42)
+            fieldWithValue("TestType" to "parameterizedField", true)
+            fieldWithValue("TestType" to "cField", "cField")
+            fieldWithValue("TestType" to "dField", "dField")
         }
 
         val wiring = MockValidator().let {
@@ -255,9 +235,7 @@ class DispatcherRegistryTest {
     @Test
     fun `registry entries naming off-schema coordinates are filtered out`() {
         val module = MockTenantModuleBootstrapper(Samples.testSchema) {
-            field("TestType" to "aField") {
-                resolver { fn { _, _, _, _, _ -> "aField" } }
-            }
+            fieldWithValue("TestType" to "aField", "aField")
         }
         val narrowerSchema = createSchemaWithWiring(
             """
@@ -334,18 +312,10 @@ class DispatcherRegistryTest {
     @Test
     fun `resolver coordinate collision - last wins`() {
         val module1 = MockTenantModuleBootstrapper(Samples.testSchema) {
-            field("TestType" to "aField") {
-                resolver {
-                    fn { _, _, _, _, _ -> "module1" }
-                }
-            }
+            fieldWithValue("TestType" to "aField", "module1")
         }
         val module2 = MockTenantModuleBootstrapper(Samples.testSchema) {
-            field("TestType" to "aField") {
-                resolver {
-                    fn { _, _, _, _, _ -> "module2" }
-                }
-            }
+            fieldWithValue("TestType" to "aField", "module2")
         }
 
         val registry = dispatcherRegistryFactory(listOf(module1, module2), Validator.Unvalidated, MockCheckerExecutorFactory()).create(Samples.testSchema) as DispatcherRegistry.Impl
@@ -398,11 +368,7 @@ class DispatcherRegistryTest {
     @Test
     fun `multiple tenant modules with mixed resolver types`() {
         val module1 = MockTenantModuleBootstrapper(Samples.testSchema) {
-            field("TestType" to "aField") {
-                resolver {
-                    fn { _, _, _, _, _ -> "aField" }
-                }
-            }
+            fieldWithValue("TestType" to "aField", "aField")
             type("TestNode") {
                 nodeUnbatchedExecutor { id, _, _ ->
                     createEngineObjectData(
@@ -414,11 +380,7 @@ class DispatcherRegistryTest {
         }
 
         val module2 = MockTenantModuleBootstrapper(Samples.testSchema) {
-            field("TestType" to "bIntField") {
-                resolver {
-                    fn { _, _, _, _, _ -> "bIntField" }
-                }
-            }
+            fieldWithValue("TestType" to "bIntField", "bIntField")
             type("TestBatchNode") {
                 nodeBatchedExecutor { selectors, _ ->
                     selectors.associateWith { selector ->

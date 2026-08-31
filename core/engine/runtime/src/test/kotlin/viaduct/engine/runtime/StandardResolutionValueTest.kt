@@ -41,11 +41,7 @@ class StandardResolutionValueTest {
                     fn { _, _, _, _, _ -> StandardResolutionValue(mapOf("bar" to "map-value")) }
                 }
             }
-            field("Foo" to "bar") {
-                resolver {
-                    fn { _, _, _, _, _ -> "resolver-value" }
-                }
-            }
+            fieldWithValue("Foo" to "bar", "resolver-value")
         }.runFeatureTest {
             // Child resolver runs (STANDARD policy), not the map value
             runQuery("{ foo { bar } }")

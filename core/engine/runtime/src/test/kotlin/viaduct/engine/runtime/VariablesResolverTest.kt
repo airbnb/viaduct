@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionInput
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.FeatureTest
@@ -253,7 +254,7 @@ class VariablesResolverTest {
     @Test
     fun `variable resolver required selection with aliased typename does not hang`() {
         MockTenantModuleBootstrapper(
-            "extend type Query { flag:Boolean, query:Query }"
+            "extend type Query { flag:Boolean, query:Query, skipNested:Boolean }"
         ) {
             field("Query" to "query") {
                 resolver {
@@ -266,6 +267,8 @@ class VariablesResolverTest {
                 }
             }
 
+            fieldWithValue("Query" to "skipNested", true)
+
             field("Query" to "flag") {
                 resolver {
                     objectSelections(
@@ -275,9 +278,14 @@ class VariablesResolverTest {
                             "skipNested",
                             rss = createRSS(
                                 "Query",
-                                "query { ignored: __typename }"
+                                "query { ignored: __typename, skipNested }"
                             )
-                        ) { _, _ -> mapOf("skipNested" to true) }
+                        ) { ctx, _ ->
+                            val skipNested = ctx.objectData
+                                .getAs<EngineObjectData.Sync>("query")
+                                .getAs<Boolean>("skipNested")
+                            mapOf("skipNested" to skipNested)
+                        }
                     }
                     fn { _, _, _, _, _ -> true }
                 }

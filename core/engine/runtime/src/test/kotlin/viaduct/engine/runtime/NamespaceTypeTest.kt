@@ -46,11 +46,7 @@ class NamespaceTypeTest {
                     }
                 }
             }
-            field("ListingsPricing" to "currencyOptions") {
-                resolver {
-                    fn { _, _, _, _, _ -> listOf("USD", "EUR", "GBP") }
-                }
-            }
+            fieldWithValue("ListingsPricing" to "currencyOptions", listOf("USD", "EUR", "GBP"))
         }
 
     @Test

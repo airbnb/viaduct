@@ -1182,16 +1182,8 @@ class RootFieldReferenceResolutionTest {
             }
         """
         ) {
-            field("ProductFactory" to "defaultName") {
-                resolver {
-                    fn { _, _, _, _, _ -> "DefaultWidget" }
-                }
-            }
-            field("Query" to "defaultProductName") {
-                resolver {
-                    fn { _, _, _, _, _ -> "QueryWidget" }
-                }
-            }
+            fieldWithValue("ProductFactory" to "defaultName", "DefaultWidget")
+            fieldWithValue("Query" to "defaultProductName", "QueryWidget")
             field("ProductFactory" to "create") {
                 resolver {
                     objectSelections("defaultName")
@@ -1241,11 +1233,7 @@ class RootFieldReferenceResolutionTest {
             }
         """
         ) {
-            field("WidgetFactory" to "create") {
-                resolver {
-                    fn { _, _, _, _, _ -> null }
-                }
-            }
+            fieldWithValue("WidgetFactory" to "create", null)
             field("Query" to "widget") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -1291,11 +1279,7 @@ class RootFieldReferenceResolutionTest {
             }
         """
         ) {
-            field("WidgetFactory" to "create") {
-                resolver {
-                    fn { _, _, _, _, _ -> null }
-                }
-            }
+            fieldWithValue("WidgetFactory" to "create", null)
             field("Query" to "widget") {
                 resolver {
                     fn { _, _, _, _, ctx ->

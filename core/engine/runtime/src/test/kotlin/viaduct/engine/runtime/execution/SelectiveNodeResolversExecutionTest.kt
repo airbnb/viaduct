@@ -534,13 +534,9 @@ class SelectiveNodeResolversExecutionTest {
                     }
                 }
 
-                field("Impl1" to "y") {
-                    resolver { fn { _, _, _, _, _ -> -1 } }
-                }
+                fieldWithValue("Impl1" to "y", -1)
 
-                field("Impl2" to "x") {
-                    resolver { fn { _, _, _, _, _ -> -1 } }
-                }
+                fieldWithValue("Impl2" to "x", -1)
             }.runFeatureTest {
                 runQueryWithTimeout("{ root { value } }")
                     .assertJson("{data: {root: {value: 6}}}")
@@ -2202,7 +2198,7 @@ class SelectiveNodeResolversExecutionTest {
             MockTenantModuleBootstrapper(
                 """
                     extend type Query { a: Int, b: Int, foo: Foo }
-                    type Foo implements Node { id: ID!, y: Int, z: Int }
+                    type Foo implements Node { id: ID!, y: Int, z: Boolean }
                 """.trimIndent()
             ) {
                 field("Query" to "foo") {
@@ -2217,8 +2213,8 @@ class SelectiveNodeResolversExecutionTest {
                                 rss = createRSS("Query", "foo { z y }")
                             ) { ctx, _ ->
                                 val foo = ctx.objectData.getAs<EngineObjectData.Sync>("foo")
-                                foo.getAs<Int>("z")
-                                mapOf("includeFoo" to false)
+                                val includeFoo = foo.getAs<Boolean>("z")
+                                mapOf("includeFoo" to includeFoo)
                             }
                         }
                         fn { _, _, _, _, _ -> 2 }
@@ -2250,7 +2246,7 @@ class SelectiveNodeResolversExecutionTest {
                             resolverId = resolverId,
                             unbatchedResolveFn = { _, obj, _, _, _ ->
                                 obj.fetchAs<Int>("y")
-                                5
+                                false
                             }
                         )
                     }

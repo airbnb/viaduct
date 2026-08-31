@@ -435,11 +435,7 @@ class FromFieldVariablesFeatureTest {
             ) { _, obj, _, _, _ ->
                 obj.fetchAs<Int>("z") * 3
             }
-            field("Query" to "z") {
-                resolver {
-                    fn { _, _, _, _, _ -> 2 }
-                }
-            }
+            fieldWithValue("Query" to "z", 2)
         }.runFeatureTest {
             runQuery("{x, y}").assertJson("{data: {x: 10, y: 6}}")
         }

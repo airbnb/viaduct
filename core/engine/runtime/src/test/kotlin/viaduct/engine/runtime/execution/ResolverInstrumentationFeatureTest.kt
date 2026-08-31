@@ -61,9 +61,7 @@ class ResolverInstrumentationFeatureTest {
                     }
                 }
             }
-            field("Query" to "string2") {
-                resolver { fn { _, _, _, _, _ -> "string2" } }
-            }
+            fieldWithValue("Query" to "string2", "string2")
         }.runFeatureTest(
             engineConfig = EngineConfiguration.featureTestDefault.copy(resolverInstrumentation = instrumentation)
         ) {
@@ -102,12 +100,8 @@ class ResolverInstrumentationFeatureTest {
                     }
                 }
             }
-            field("Query" to "string2") {
-                resolver { fn { _, _, _, _, _ -> "string2" } }
-            }
-            field("Query" to "gateField") {
-                resolver { fn { _, _, _, _, _ -> true } }
-            }
+            fieldWithValue("Query" to "string2", "string2")
+            fieldWithValue("Query" to "gateField", true)
         }.runFeatureTest(
             engineConfig = EngineConfiguration.featureTestDefault.copy(resolverInstrumentation = instrumentation)
         ) {
