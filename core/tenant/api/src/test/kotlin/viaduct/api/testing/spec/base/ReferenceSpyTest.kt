@@ -12,9 +12,13 @@ import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.RootObjectFieldImpl
+import viaduct.api.mocks.MockFieldExecutionContext
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.MockResolverExecutionContext
 import viaduct.api.reflect.Type
+import viaduct.api.select.SelectionSet
+import viaduct.api.testing.types.NullObject
+import viaduct.api.testing.types.NullQuery
 import viaduct.api.testing.types.ReferenceSpy
 import viaduct.api.types.Arguments
 import viaduct.api.types.GRT
@@ -274,5 +278,23 @@ class ReferenceSpyTest {
         val result = context(spy).ref(referenceCall(fooFieldNoArgs(), Arguments.NoArguments))
 
         assertTrue(result.__engineObject is RootFieldReference)
+    }
+
+    @Test
+    fun `MockFieldExecutionContext records through the spy it was given`() {
+        val spy = ReferenceSpy()
+        val ctx = MockFieldExecutionContext(
+            objectValue = NullObject,
+            queryValue = NullQuery,
+            arguments = Arguments.NoArguments,
+            requestContext = null,
+            selectionsValue = SelectionSet.NoSelections,
+            internalContext = internalContext,
+            referenceSpy = spy,
+        )
+
+        ctx.ref(referenceCall(fooFieldNoArgs(), Arguments.NoArguments))
+
+        spy.assertCalledExactly(referenceCall(fooFieldNoArgs(), Arguments.NoArguments))
     }
 }

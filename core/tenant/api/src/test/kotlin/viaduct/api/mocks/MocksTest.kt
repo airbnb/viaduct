@@ -91,17 +91,8 @@ class MocksTest {
     private val fooParent = Type.ofClass(FooParent::class)
     private val fooResult = Type.ofClass(FooResult::class)
 
-    private fun fixedResult(value: Object) =
-        object : PrebakedRootFieldRefResults {
-            @Suppress("UNCHECKED_CAST")
-            override fun <A : Arguments, T : Object> get(
-                field: viaduct.api.reflect.RootObjectField<*, T, A>,
-                arguments: A
-            ): T = value as T
-        }
-
     @Test
-    fun `rootFieldRef throws when no results are configured`() {
+    fun `rootFieldRef throws when no referenceSpy is provided`() {
         val ctx = MockResolverExecutionContext.create()
         val field = RootObjectFieldImpl<FooParent, FooResult, Arguments.NoArguments>(
             "foo",
@@ -112,23 +103,6 @@ class MocksTest {
         assertThrows<UnsupportedOperationException> {
             ctx.rootFieldRef(field, Arguments.NoArguments)
         }
-    }
-
-    @Test
-    fun `rootFieldRef returns the configured result`() {
-        val field = RootObjectFieldImpl<FooParent, FooResult, Arguments.NoArguments>(
-            "foo",
-            fooParent,
-            fooResult,
-            listOf("foo")
-        )
-        val stub = FooResult()
-        val ctx = MockResolverExecutionContext<Query>(
-            internalContext = MockInternalContext(MockSchema.minimal),
-            rootFieldRefResults = fixedResult(stub),
-        )
-
-        assertSame(stub, ctx.rootFieldRef(field, Arguments.NoArguments))
     }
 
     @Test
@@ -145,57 +119,6 @@ class MocksTest {
 
         assertSame(expected, ctx.ref(call))
         assertSame(ctx, receivedContext)
-    }
-
-    @Test
-    fun `rootFieldRef forwards arguments to the results impl`() {
-        val field = RootObjectFieldImpl<FooParent, FooResult, Arguments.NoArguments>(
-            "foo",
-            fooParent,
-            fooResult,
-            listOf("foo")
-        )
-        var capturedArgs: Arguments? = null
-        val capturing = object : PrebakedRootFieldRefResults {
-            @Suppress("UNCHECKED_CAST")
-            override fun <A : Arguments, T : Object> get(
-                field: viaduct.api.reflect.RootObjectField<*, T, A>,
-                arguments: A
-            ): T {
-                capturedArgs = arguments
-                return FooResult() as T
-            }
-        }
-        val ctx = MockResolverExecutionContext<Query>(
-            internalContext = MockInternalContext(MockSchema.minimal),
-            rootFieldRefResults = capturing,
-        )
-
-        ctx.rootFieldRef(field, Arguments.NoArguments)
-
-        assertSame(Arguments.NoArguments, capturedArgs)
-    }
-
-    @Test
-    fun `MockFieldExecutionContext propagates rootFieldRefResults`() {
-        val field = RootObjectFieldImpl<FooParent, FooResult, Arguments.NoArguments>(
-            "foo",
-            fooParent,
-            fooResult,
-            listOf("foo")
-        )
-        val stub = FooResult()
-        val ctx = MockFieldExecutionContext(
-            objectValue = NullObject,
-            queryValue = NullQuery,
-            arguments = Arguments.NoArguments,
-            requestContext = null,
-            selectionsValue = viaduct.api.select.SelectionSet.NoSelections,
-            internalContext = MockInternalContext(MockSchema.minimal),
-            rootFieldRefResults = fixedResult(stub),
-        )
-
-        assertSame(stub, ctx.rootFieldRef(field, Arguments.NoArguments))
     }
 
     @Test

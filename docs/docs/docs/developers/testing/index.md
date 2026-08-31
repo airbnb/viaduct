@@ -95,11 +95,11 @@ Each method runs a specific resolver type via a typed **spec** lambda. The compi
 
 | Method | Spec properties |
 |---|---|
-| `runFieldResolver` | `objectValue`, `queryValue`, `arguments`, `contextQueryValues`, `rootFieldRefValues` |
-| `runFieldBatchResolver` | `objectValues`, `queryValues`, `rootFieldRefValues` |
-| `runNodeResolver` | `id` *(required)*, `rootFieldRefValues` |
-| `runNodeBatchResolver` | `ids`, `rootFieldRefValues` |
-| `runMutationFieldResolver` | `queryValue`, `arguments`, `contextQueryValues`, `contextMutationValues`, `rootFieldRefValues` |
+| `runFieldResolver` | `objectValue`, `queryValue`, `arguments`, `contextQueryValues`, `referenceSpy` |
+| `runFieldBatchResolver` | `objectValues`, `queryValues`, `referenceSpy` |
+| `runNodeResolver` | `id` *(required)*, `referenceSpy` |
+| `runNodeBatchResolver` | `ids`, `referenceSpy` |
+| `runMutationFieldResolver` | `queryValue`, `arguments`, `contextQueryValues`, `contextMutationValues`, `referenceSpy` |
 
 Every spec also has `requestContext` for seeding header/scope data.
 
@@ -185,18 +185,16 @@ contextQueryValues = listOf(
 )
 ```
 
-### Mocking root field references (`ctx.ref`)
+### Verifying root field references (`ctx.ref`)
 
-Set `rootFieldRefValues` to stub the values returned by the [root field references](../resolvers/root_field_references.md)
+Set `referenceSpy` to a `ReferenceSpy()` to record the [root field references](../resolvers/root_field_references.md)
 the resolver creates during execution with `ctx.ref(...)`. A root field reference points at a
 field on a factory (namespace) type reachable from the root — for example `LabelFactory.format`,
-exposed via `Query.labelFactory`. Each `RootFieldRefStub` declares that field, the arguments the
-resolver is expected to invoke it with, and the value to return. Lookups match exactly on
-the field and arguments; calls without a matching stub throw.
+exposed via `Query.labelFactory`.
 
-Stubs are declared in terms of the target field and its generated arguments type, not the
-generated factory function — so `RootFieldRefStub(LabelFactory.Fields.format, args, value)`
-stubs a resolver that calls `ctx.ref(LabelFactory.format { text("bar") })`.
+References are not stubbed. The resolver receives an unresolved reference, exactly as it would in
+production, and that reference holds no data — reading a field from it throws. Assertions therefore
+run after the resolver returns, against the calls the spy recorded.
 
 Schema:
 
@@ -210,30 +208,44 @@ type LabelFactory @namespaceType {
 }
 ```
 
+`assertCalledExactly` takes the same generated factory calls production code uses, and compares
+them in order, including repeats:
+
 ```kotlin
 @Test
-fun `uses formatted label from the label factory`() = runTest {
-    val args = LabelFactory_Format_Arguments.of(context) { text("bar") }
-    val formatted = FormattedLabel.of(context) { value("BAR") }
+fun `formats the label through the label factory`() = runTest {
+    val spy = ReferenceSpy()
 
-    val result = runFieldResolver(FooLabelResolver()) {
+    runFieldResolver(FooLabelResolver()) {
         objectValue = Foo.of(context) { name("bar") }
-        rootFieldRefValues = listOf(
-            RootFieldRefStub(LabelFactory.Fields.format, args, formatted),
-        )
+        referenceSpy = spy
     }
 
-    assertEquals("BAR", result)
+    spy.assertCalledExactly(
+        LabelFactory.format { text("bar") },
+    )
 }
 ```
 
-For argument-less factory fields, pass `Arguments.NoArguments`:
+When the expectation cannot name an exact value — a substring of a string the resolver assembled,
+say — assert a property of the recorded arguments instead. `assertCallArgumentsOf` selects every
+call to one root field, in call order, and infers the arguments type from the generated field:
 
 ```kotlin
-rootFieldRefValues = listOf(
-    RootFieldRefStub(LabelFactory.Fields.create, Arguments.NoArguments, stub),
-)
+spy.assertCallArgumentsOf(LabelFactory.Fields.format) { args ->
+    args.any { it.text.contains("bar") }
+}
 ```
+
+`assertCallArgumentsOfFirst` is the same for a single call, and fails when the resolver created
+none:
+
+```kotlin
+spy.assertCallArgumentsOfFirst(LabelFactory.Fields.format) { it.text == "bar" }
+```
+
+A resolver that creates a reference without a `referenceSpy` to record it fails with an error
+naming the field it referenced.
 
 ---
 

@@ -12,7 +12,7 @@ import viaduct.apiannotations.InternalApi
  * non-list object type.
  *
  * The [A] type parameter captures the field's arguments type for compile-time type safety
- * in `ctx.rootFieldRef(field, args)`.
+ * in the generated root field call that `ctx.ref` resolves.
  */
 @ExperimentalApi
 interface RootObjectField<Parent : GRT, UnwrappedType : Object, A : Arguments> :

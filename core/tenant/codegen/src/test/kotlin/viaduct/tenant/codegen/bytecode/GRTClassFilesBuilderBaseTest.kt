@@ -13,7 +13,6 @@ import viaduct.api.context.RootFieldCall
 import viaduct.api.internal.ObjectBase
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.MockResolverExecutionContext
-import viaduct.api.mocks.PrebakedRootFieldRefResults
 import viaduct.api.reflect.RootObjectField
 import viaduct.api.types.Arguments
 import viaduct.api.types.Object as ViaductObject
@@ -67,21 +66,20 @@ class GRTClassFilesBuilderBaseTest {
         val classLoader = createBuilder(codegenSchema).addAll(codegenSchema).buildClassLoader()
         private val factoryClass = classLoader.loadClass("test.pkg.ProductFactory")
         private val companion = factoryClass.getField("Companion").get(null)
-        val context = MockResolverExecutionContext<Query>(
+        val context = object : MockResolverExecutionContext<Query>(
             internalContext = MockInternalContext.create(
                 schema = createEngineSchema(sdl),
                 grtPackage = "test.pkg",
                 classLoader = classLoader,
             ),
-            rootFieldRefResults = object : PrebakedRootFieldRefResults {
-                override fun <A : Arguments, T : ViaductObject> get(
-                    field: RootObjectField<*, T, A>,
-                    arguments: A,
-                ): T {
-                    throw CapturedRootFieldRef(field, arguments)
-                }
-            },
-        )
+        ) {
+            override fun <A : Arguments, T : ViaductObject> rootFieldRef(
+                field: RootObjectField<*, T, A>,
+                arguments: A,
+            ): T {
+                throw CapturedRootFieldRef(field, arguments)
+            }
+        }
 
         fun call(
             fieldName: String,

@@ -19,26 +19,20 @@ import viaduct.engine.api.RootFieldReference
 import viaduct.tenant.runtime.toObjectGRT
 
 /**
- * Connects a [ReferenceSpy] to a mock resolver context.
- *
- * Teaches the spy how to read an expected [RootFieldCall], and returns the factory that records the
- * references the resolver creates. The resolver always gets an opaque reference, never a stubbed value.
+ * Teaches [this] spy how to read an expected [RootFieldCall], so it can be compared against a
+ * recorded one.
  */
-internal fun referenceSpyResultsOf(
-    referenceSpy: ReferenceSpy,
-    internalContext: InternalContext,
-): PrebakedRootFieldRefResults {
-    referenceSpy.attach { call -> invocationFor(call, internalContext) }
+internal fun ReferenceSpy.attachTo(internalContext: InternalContext) {
+    attach { call -> invocationFor(call, internalContext) }
+}
 
-    return object : PrebakedRootFieldRefResults {
-        override fun <A : Arguments, T : Object> get(
-            field: RootObjectField<*, T, A>,
-            arguments: A,
-        ): T {
-            referenceSpy.record(ReferenceInvocation(field.pathFromQueryRoot, arguments))
-            return opaqueReferenceFor(field, arguments, internalContext)
-        }
-    }
+internal fun <A : Arguments, T : Object> ReferenceSpy.answerReference(
+    field: RootObjectField<*, T, A>,
+    arguments: A,
+    internalContext: InternalContext,
+): T {
+    record(ReferenceInvocation(field.pathFromQueryRoot, arguments))
+    return opaqueReferenceFor(field, arguments, internalContext)
 }
 
 /**
@@ -49,18 +43,15 @@ private fun invocationFor(
     internalContext: InternalContext,
 ): ReferenceInvocation {
     lateinit var captured: ReferenceInvocation
-    val context: ResolverExecutionContext<Query> = MockResolverExecutionContext(
-        internalContext = internalContext,
-        rootFieldRefResults = object : PrebakedRootFieldRefResults {
-            override fun <A : Arguments, T : Object> get(
-                field: RootObjectField<*, T, A>,
-                arguments: A,
-            ): T {
-                captured = ReferenceInvocation(field.pathFromQueryRoot, arguments)
-                return opaqueReferenceFor(field, arguments, internalContext)
-            }
-        },
-    )
+    val context: ResolverExecutionContext<Query> = object : MockResolverExecutionContext<Query>(internalContext) {
+        override fun <A : Arguments, T : Object> rootFieldRef(
+            field: RootObjectField<*, T, A>,
+            arguments: A,
+        ): T {
+            captured = ReferenceInvocation(field.pathFromQueryRoot, arguments)
+            return opaqueReferenceFor(field, arguments, internalContext)
+        }
+    }
 
     context.ref(call)
     return captured
@@ -87,10 +78,7 @@ private fun <A : Arguments, T : Object> opaqueReferenceFor(
 }
 
 /**
- * Unresolved reference returned to the resolver under test.
- *
- * Satisfies the engine's reference contract, but every read throws so a test cannot assert on data
- * that only a real execution would populate.
+ * Unresolved reference returned to the resolver under test. It holds no data, so every read throws.
  */
 private class OpaqueRootFieldReference(
     override val rootFieldPath: List<String>,

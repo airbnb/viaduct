@@ -134,7 +134,7 @@ abstract class ObjectBase(
                         throw UnsetFieldException(
                             selection,
                             objectType,
-                            "fields cannot be accessed on an unresolved root field reference created using Context.rootFieldRef"
+                            "fields cannot be accessed on an unresolved root field reference created using Context.ref"
                         )
                     }
                     is EngineObjectData.Sync -> __engineObject.get(selection)

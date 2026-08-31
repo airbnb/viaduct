@@ -47,7 +47,6 @@ class MutationResolverSpec<Q : Query, M : Mutation, A : Arguments> : BaseFieldSp
             queryResults = queryResultsMap,
             mutationResults = mutationResultsMap,
             selectionSetFactory = selectionSetFactory,
-            rootFieldRefResults = buildRootFieldRefResults(),
             referenceSpy = referenceSpy,
         )
 

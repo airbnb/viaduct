@@ -5,18 +5,13 @@ import kotlin.reflect.full.primaryConstructor
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.select.SelectionSetFactory
 import viaduct.api.mocks.PrebakedResults
-import viaduct.api.mocks.PrebakedRootFieldRefResults
-import viaduct.api.reflect.RootObjectField
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.testing.types.MutationForSelection
 import viaduct.api.testing.types.QueryForSelection
 import viaduct.api.testing.types.ReferenceSpy
-import viaduct.api.testing.types.RootFieldRefStub
-import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Mutation
-import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
@@ -40,21 +35,11 @@ abstract class BaseResolverSpec {
     /** Records references created by the resolver under test. */
     var referenceSpy: ReferenceSpy? = null
 
-    /** Legacy stubs for direct root field reference calls. */
-    var rootFieldRefValues: List<RootFieldRefStub<*, *>> = emptyList()
-
     @OptIn(InternalApi::class)
     protected fun buildQueryResultsMap(
         internalContext: InternalContext,
         selectionSetFactory: SelectionSetFactory,
     ): PrebakedResults<Query> = buildContextQueryMap(contextQueryValues, internalContext, selectionSetFactory)
-
-    protected fun buildRootFieldRefResults(): PrebakedRootFieldRefResults {
-        require(referenceSpy == null || rootFieldRefValues.isEmpty()) {
-            "Pass either referenceSpy or rootFieldRefValues, not both"
-        }
-        return rootFieldRefResultsOf(rootFieldRefValues)
-    }
 
     @OptIn(InternalApi::class)
     protected inline fun <reified C : Any> getResolverContextKClass(resolverClass: Class<*>): KClass<out C> {
@@ -149,33 +134,6 @@ internal fun createSelectionSetKey(selectionSet: SelectionSet<*>): String {
         else -> error("Unexpected SelectionSet type: ${selectionSet::class.qualifiedName}")
     }
 }
-
-/**
- * Builds stateless root field reference results from legacy [RootFieldRefStub]s.
- */
-@OptIn(ExperimentalApi::class, InternalApi::class)
-fun rootFieldRefResultsOf(values: List<RootFieldRefStub<*, *>>): PrebakedRootFieldRefResults {
-    val byKey: Map<Key, Object> = values.associate { stub ->
-        Key(stub.field.pathFromQueryRoot, stub.arguments) to stub.value
-    }
-    return object : PrebakedRootFieldRefResults {
-        @Suppress("UNCHECKED_CAST")
-        override fun <A : Arguments, T : Object> get(
-            field: RootObjectField<*, T, A>,
-            arguments: A
-        ): T {
-            val key = Key(field.pathFromQueryRoot, arguments)
-            return (byKey[key] as? T)
-                ?: throw IllegalArgumentException(
-                    "No pre-baked rootFieldRef result for path '${key.path.joinToString(".")}' " +
-                        "with arguments $arguments. " +
-                        "Available stubs: ${byKey.keys.map { "${it.path.joinToString(".")} (args=${it.arguments})" }}"
-                )
-        }
-    }
-}
-
-private data class Key(val path: List<String>, val arguments: Arguments)
 
 internal fun <T : CompositeOutput> prebakedResultsOf(results: Map<String, T>) =
     object : PrebakedResults<T> {

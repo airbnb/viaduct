@@ -78,28 +78,6 @@ private class EmptyPrebakedResults<T : CompositeOutput> : PrebakedResults<T> {
 }
 
 /**
- * Provides pre-baked return values for [ResolverExecutionContext.rootFieldRef] calls
- * made by a resolver under test. Implementations are responsible for deciding which
- * value to return for a given [RootObjectField] / [Arguments] pair, and may also use
- * this hook to capture the arguments the resolver invoked the field with.
- */
-interface PrebakedRootFieldRefResults {
-    fun <A : Arguments, T : Object> get(
-        field: RootObjectField<*, T, A>,
-        arguments: A
-    ): T
-}
-
-object EmptyPrebakedRootFieldRefResults : PrebakedRootFieldRefResults {
-    override fun <A : Arguments, T : Object> get(
-        field: RootObjectField<*, T, A>,
-        arguments: A
-    ): T {
-        throw UnsupportedOperationException("No pre-baked results were provided for rootFieldRef.")
-    }
-}
-
-/**
  * Minimal [NodeEngineObjectData] for use in tests.
  *
  * Only the `"id"` field is supported; any other field selection throws
@@ -216,15 +194,14 @@ open class MockExecutionContext(
  */
 @OptIn(InternalApi::class)
 open class MockResolverExecutionContext<Q : Query>(
-    internalContext: InternalContext,
+    private val internalContext: InternalContext,
     val queryResults: PrebakedResults<Query> = EmptyPrebakedResults<Query>(),
     private val selectionSetFactory: SelectionSetFactory? = null,
-    rootFieldRefResults: PrebakedRootFieldRefResults = EmptyPrebakedRootFieldRefResults,
-    referenceSpy: ReferenceSpy? = null,
+    private val referenceSpy: ReferenceSpy? = null,
 ) : MockExecutionContext(internalContext), ResolverExecutionContext<Q> {
-    // A ReferenceSpy answers references by recording them, so it replaces the stub provider
-    val rootFieldRefResults: PrebakedRootFieldRefResults =
-        referenceSpy?.let { referenceSpyResultsOf(it, internalContext) } ?: rootFieldRefResults
+    init {
+        referenceSpy?.attachTo(internalContext)
+    }
 
     override fun <T : CompositeOutput> selectionsFor(
         type: Type<T>,
@@ -282,7 +259,13 @@ open class MockResolverExecutionContext<Q : Query>(
     override fun <A : Arguments, BR : Object> rootFieldRef(
         field: RootObjectField<*, BR, A>,
         arguments: A
-    ): BR = rootFieldRefResults.get(field, arguments)
+    ): BR {
+        val referenceSpy = referenceSpy ?: throw UnsupportedOperationException(
+            "The resolver created a root field reference to '${field.pathFromQueryRoot.joinToString(".")}', " +
+                "but no referenceSpy was provided to record it."
+        )
+        return referenceSpy.answerReference(field, arguments, internalContext)
+    }
 
     override fun <T : NodeObject> globalIDStringFor(
         type: Type<T>,
@@ -318,11 +301,10 @@ class MockFieldExecutionContext<O : Object, Q : Query, A : Arguments, R : Compos
     internalContext: InternalContext,
     queryResults: PrebakedResults<Query> = EmptyPrebakedResults<Query>(),
     selectionSetFactory: SelectionSetFactory? = null,
-    rootFieldRefResults: PrebakedRootFieldRefResults = EmptyPrebakedRootFieldRefResults,
     referenceSpy: ReferenceSpy? = null,
     private val ownedSelectionsValue: SelectionSet<R> = selectionsValue,
     override val caller: Caller? = null,
-) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory, rootFieldRefResults, referenceSpy),
+) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory, referenceSpy),
     FieldExecutionContext<O, Q, A, R>,
     SelectiveFieldExecutionContext<R>,
     ResolverOwnedSelectionsContext<R> {
@@ -354,11 +336,10 @@ class MockConnectionFieldExecutionContext<O : Object, Q : Query, A : ConnectionA
     internalContext: InternalContext,
     queryResults: PrebakedResults<Query> = EmptyPrebakedResults<Query>(),
     selectionSetFactory: SelectionSetFactory? = null,
-    rootFieldRefResults: PrebakedRootFieldRefResults = EmptyPrebakedRootFieldRefResults,
     referenceSpy: ReferenceSpy? = null,
     private val ownedSelectionsValue: SelectionSet<R> = selectionsValue,
     override val caller: Caller? = null,
-) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory, rootFieldRefResults, referenceSpy),
+) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory, referenceSpy),
     ConnectionFieldExecutionContext<O, Q, A, R>,
     SelectiveFieldExecutionContext<R>,
     ResolverOwnedSelectionsContext<R> {
@@ -390,11 +371,10 @@ class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, 
     queryResults: PrebakedResults<Query> = EmptyPrebakedResults<Query>(),
     private val mutationResults: PrebakedResults<Mutation> = EmptyPrebakedResults<Mutation>(),
     selectionSetFactory: SelectionSetFactory? = null,
-    rootFieldRefResults: PrebakedRootFieldRefResults = EmptyPrebakedRootFieldRefResults,
     referenceSpy: ReferenceSpy? = null,
     private val ownedSelectionsValue: SelectionSet<R> = selectionsValue,
     override val caller: Caller? = null,
-) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory, rootFieldRefResults, referenceSpy),
+) : MockResolverExecutionContext<Q>(internalContext, queryResults, selectionSetFactory, referenceSpy),
     MutationFieldExecutionContext<Q, M, A, R>,
     SelectiveFieldExecutionContext<R>,
     ResolverOwnedSelectionsContext<R> {
@@ -453,10 +433,9 @@ class MockNodeExecutionContext<R : NodeObject>(
     internalContext: InternalContext,
     queryResults: PrebakedResults<Query> = EmptyPrebakedResults<Query>(),
     selectionSetFactory: SelectionSetFactory? = null,
-    rootFieldRefResults: PrebakedRootFieldRefResults = EmptyPrebakedRootFieldRefResults,
     referenceSpy: ReferenceSpy? = null,
     private val ownedSelectionsValue: SelectionSet<R> = selectionsValue,
-) : MockResolverExecutionContext<Query>(internalContext, queryResults, selectionSetFactory, rootFieldRefResults, referenceSpy),
+) : MockResolverExecutionContext<Query>(internalContext, queryResults, selectionSetFactory, referenceSpy),
     SelectiveNodeExecutionContext<R> {
     override fun selections() = selectionsValue
 

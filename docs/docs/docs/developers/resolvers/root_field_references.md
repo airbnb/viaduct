@@ -144,7 +144,7 @@ Because resolution is deferred, the engine can batch and optimize — the target
 
 ## Testing
 
-The test harness stubs the resolved value rather than the call, so a resolver that uses `ctx.ref` is stubbed through `rootFieldRefValues`. See [Mocking root field references](../testing/index.md#mocking-root-field-references-ctxref).
+The test harness does not resolve references, so a test asserts the calls the resolver made rather than reading a value back from one. Pass a `ReferenceSpy` to record them. See [Verifying root field references](../testing/index.md#verifying-root-field-references-ctxref).
 
 ## Comparison with other context methods
 

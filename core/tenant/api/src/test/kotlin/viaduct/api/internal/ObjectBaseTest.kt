@@ -623,11 +623,11 @@ class ObjectBaseTest {
         }
 
     @Test
-    fun `test rootFieldRef - field access throws immediately`(): Unit =
+    fun `test root field reference - field access throws immediately`(): Unit =
         runBlocking {
             val o1 = O1(internalContext, MockRootFieldRef())
             val exception = assertThrows<UnsetFieldException> { o1.getStringFieldOrThrow() }
-            assertTrue(exception.message!!.contains("rootFieldRef"))
+            assertTrue(exception.message!!.contains("unresolved root field reference"))
         }
 
     @Test

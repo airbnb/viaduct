@@ -74,7 +74,6 @@ class FieldResolverSpec<O : Object, Q : Query, A : Arguments> : BaseFieldSpec<Q,
                 internalContext = internalContext,
                 queryResults = queryResultsMap,
                 selectionSetFactory = selectionSetFactory,
-                rootFieldRefResults = buildRootFieldRefResults(),
                 referenceSpy = referenceSpy,
             )
         } else {
@@ -87,7 +86,6 @@ class FieldResolverSpec<O : Object, Q : Query, A : Arguments> : BaseFieldSpec<Q,
                 internalContext = internalContext,
                 queryResults = queryResultsMap,
                 selectionSetFactory = selectionSetFactory,
-                rootFieldRefResults = buildRootFieldRefResults(),
                 referenceSpy = referenceSpy,
             )
         }
