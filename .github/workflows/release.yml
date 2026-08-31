@@ -115,6 +115,7 @@ jobs:
       ref: ${{ needs.preflight.outputs.source_ref }}
       run_checks: true
       confirm_versions: true
+      expected_version: ${{ needs.preflight.outputs.published_version }}
     secrets: inherit
 
   # ---------------------------------------------------------------------------

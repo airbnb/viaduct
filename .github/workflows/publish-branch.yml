@@ -42,6 +42,11 @@ on:
         required: false
         default: true
         type: boolean
+      expected_version:
+        description: "Version the caller intends to publish; checked against VERSION"
+        required: false
+        default: ''
+        type: string
     outputs:
       source_sha:
         description: "SHA of the published commit"
@@ -98,6 +103,22 @@ jobs:
             --mode "${{ inputs.mode }}" \
             --branch "${{ inputs.ref }}" \
             --version-file ../source/VERSION
+        shell: bash
+
+      # validate_release_state.py never sees the caller's rc_ver, and it accepts any
+      # rc.N for the base version, so the two can disagree without it noticing.
+      - name: Confirm VERSION matches the version the caller will publish
+        if: inputs.expected_version != ''
+        env:
+          EXPECTED: ${{ inputs.expected_version }}
+          ACTUAL: ${{ steps.validate.outputs.effective_version }}
+        run: |
+          set -euo pipefail
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "::error::Caller expects to publish '${EXPECTED}' but VERSION on ${{ inputs.ref }} is '${ACTUAL}'"
+            exit 1
+          fi
+          echo "✅ VERSION matches the requested version '${ACTUAL}'"
         shell: bash
 
   confirm-versions:
@@ -160,12 +181,14 @@ jobs:
         shell: bash
 
       # Runs before publishing so a ref that cannot report its coordinates fails
-      # while Maven Central is still untouched.
+      # while Maven Central is still untouched. Only release.yml probes the result.
       - name: Derive the published coordinates
+        if: inputs.mode != 'snapshot'
         run: ./gradlew writePublishedCoordinates --no-daemon --stacktrace
         shell: bash
 
       - uses: actions/upload-artifact@v6
+        if: inputs.mode != 'snapshot'
         with:
           name: published-coordinates
           path: '**/build/reports/publication/coordinates.txt'

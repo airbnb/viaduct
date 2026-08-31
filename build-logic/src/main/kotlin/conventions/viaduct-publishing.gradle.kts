@@ -166,16 +166,14 @@ afterEvaluate {
         }
     }
 
+    val central = "central $publishedGroup:$publishedArtifact:$publishedVersion"
     val markers = if (pluginManager.hasPlugin("com.gradle.plugin-publish")) {
         extensions.getByType(GradlePluginDevelopmentExtension::class.java)
             .plugins.map { "portal ${it.id}:${it.id}.gradle.plugin:$publishedVersion" }
     } else {
         emptyList()
     }
-    writePublishedCoordinates.configure {
-        val central = "central $publishedGroup:$publishedArtifact:$publishedVersion"
-        coordinates.set(listOf(central) + markers)
-    }
+    writePublishedCoordinates.configure { coordinates.set(listOf(central) + markers) }
 }
 
 plugins.withId("org.jetbrains.kotlin.jvm") {
