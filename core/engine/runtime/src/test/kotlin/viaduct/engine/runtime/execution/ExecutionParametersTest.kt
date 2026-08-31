@@ -26,6 +26,7 @@ import graphql.schema.GraphQLTypeUtil.unwrapNonNull
 import graphql.schema.TypeResolver
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import java.util.Locale
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -33,18 +34,24 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ExecutionAttribution
+import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.mocks.createRSS
+import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FieldResolutionResult
+import viaduct.engine.runtime.FieldResolverDispatcher
+import viaduct.engine.runtime.NodeResolverDispatcher
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.context.CompositeLocalContext
@@ -53,7 +60,11 @@ import viaduct.engine.runtime.dfe.engineExecutionContext
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createLocalContext
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createSchema
 import viaduct.engine.runtime.execution.constraints.Constraints
+import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.engine.runtime.observability.ExecutionObservabilityContext
+import viaduct.engine.runtime.observability.ResolverOutputContext
+import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.mocks.MockFlagManager
 
 class ExecutionParametersTest {
     private val viaductSchema = createSchema(
@@ -72,6 +83,7 @@ class ExecutionParametersTest {
             name: String!
             foo: String
             fooSpecific: String
+            child: Foo
         }
         """.trimIndent(),
         resolvers = emptyMap(),
@@ -693,6 +705,119 @@ class ExecutionParametersTest {
     }
 
     @Test
+    fun `forObjectTraversal marks returned object as resolver output`() {
+        val dispatcherRegistry = mockk<DispatcherRegistry>(relaxed = true) {
+            every { getFieldResolverDispatcher("Query", "foo") } returns
+                mockk<FieldResolverDispatcher>()
+        }
+        val baseParameters = rootParameters(dispatcherRegistry, missingFieldErrorsEnabled = true)
+        val fooField = collectedFooField(mergedField("foo", selectionSet("id")))
+        val fieldParameters = baseParameters.forField(queryType, fooField)
+
+        val result = fieldParameters.forObjectTraversal(
+            fooField,
+            ObjectEngineResultImpl.newForType(fooType),
+            fieldParameters.localContext,
+            mapOf("id" to "foo-1"),
+        )
+
+        val outputContext = result.localContext.get<ResolverOutputContext>()
+        assertNotNull(outputContext)
+        assertEquals(true, outputContext?.missingFieldErrorsEnabled)
+    }
+
+    @Test
+    fun `forObjectTraversal marks node object as resolver output`() {
+        val dispatcherRegistry = mockk<DispatcherRegistry>(relaxed = true) {
+            every { getFieldResolverDispatcher("Query", "node") } returns
+                mockk<FieldResolverDispatcher>()
+            every { getNodeResolverDispatcher("Foo") } returns
+                mockk<NodeResolverDispatcher>()
+        }
+        val baseParameters = rootParameters(dispatcherRegistry, missingFieldErrorsEnabled = true)
+        val nodeField = collectedField(
+            "node",
+            mergedField("node", selectionSet("id")),
+            QueryPlan.SelectionSet.empty(schema.getType("Node") as GraphQLCompositeType),
+        )
+        val fieldParameters = baseParameters.forField(queryType, nodeField)
+        val nodeSource = mockk<NodeEngineObjectData> {
+            every { type } returns fooType
+        }
+
+        val result = fieldParameters.forObjectTraversal(
+            nodeField,
+            ObjectEngineResultImpl.newForType(fooType),
+            fieldParameters.localContext,
+            nodeSource,
+        )
+
+        assertNotNull(result.localContext.get<ResolverOutputContext>())
+    }
+
+    @Test
+    fun `forObjectTraversal preserves resolver output marker through nested unowned object`() {
+        val dispatcherRegistry = mockk<DispatcherRegistry>(relaxed = true) {
+            every { getFieldResolverDispatcher("Query", "foo") } returns
+                mockk<FieldResolverDispatcher>()
+            every { getFieldResolverDispatcher("Foo", "child") } returns null
+        }
+        val rootParameters = rootParameters(dispatcherRegistry, missingFieldErrorsEnabled = true)
+        val fooField = collectedFooField(mergedField("foo", selectionSet("child")))
+        val fooFieldParameters = rootParameters.forField(queryType, fooField)
+        val fooParameters = fooFieldParameters.forObjectTraversal(
+            fooField,
+            ObjectEngineResultImpl.newForType(fooType),
+            fooFieldParameters.localContext,
+            mapOf("child" to mapOf("id" to "child-1")),
+        )
+        val resolverOutputContext = fooParameters.localContext.get<ResolverOutputContext>()
+        val childField = collectedField(
+            "child",
+            mergedField("child", selectionSet("id")),
+            queryPlanSelectionSet(fooType, "id"),
+        )
+        val childFieldParameters = fooParameters.forField(fooType, childField)
+
+        val result = childFieldParameters.forObjectTraversal(
+            childField,
+            ObjectEngineResultImpl.newForType(fooType),
+            childFieldParameters.localContext,
+            mapOf("id" to "child-1"),
+        )
+
+        assertNotNull(resolverOutputContext)
+        assertSame(resolverOutputContext, result.localContext.get<ResolverOutputContext>())
+    }
+
+    @Test
+    fun `forObjectTraversal marks returned object when field errors are disabled`() {
+        val dispatcherRegistry = mockk<DispatcherRegistry>(relaxed = true) {
+            every { getFieldResolverDispatcher("Query", "foo") } returns
+                mockk<FieldResolverDispatcher>()
+        }
+        val baseParameters = rootParameters(
+            dispatcherRegistry,
+            missingFieldErrorsEnabled = false,
+        )
+        val fooField = collectedFooField(mergedField("foo", selectionSet("id")))
+        val fieldParameters = baseParameters.forField(queryType, fooField)
+
+        val result = fieldParameters.forObjectTraversal(
+            fooField,
+            ObjectEngineResultImpl.newForType(fooType),
+            fieldParameters.localContext,
+            mapOf("id" to "foo-1"),
+        )
+
+        val outputContext = result.localContext.get<ResolverOutputContext>()
+        assertNotNull(outputContext)
+        assertEquals(false, outputContext?.missingFieldErrorsEnabled)
+        verify(exactly = 1) { dispatcherRegistry.getFieldResolverDispatcher("Query", "foo") }
+        verify(exactly = 0) { dispatcherRegistry.getNodeResolverDispatcher(any()) }
+    }
+
+    @Test
     fun `forObjectTraversal requires field execution parameters`() {
         val rootParameters = createExecutionParameters(
             source = defaultRootValue,
@@ -981,7 +1106,10 @@ class ExecutionParametersTest {
         rootEngineResult: ObjectEngineResultImpl = ObjectEngineResultImpl.newForType(queryType),
         rootExecutionJob: Job = Job(),
         coroutineContext: CoroutineContext = EmptyCoroutineContext,
-        engineExecutionContext: EngineExecutionContextImpl = mockk(relaxed = true),
+        engineExecutionContext: EngineExecutionContext = ContextMocks(
+            myFullSchema = viaductSchema,
+            myFlagManager = MockFlagManager.Disabled,
+        ).engineExecutionContext,
     ): ExecutionParameters {
         val executionContext = executionContext(rootValue, localContext)
         val constants = ExecutionParameters.Constants(
@@ -1003,6 +1131,33 @@ class ExecutionParametersTest {
             executionStepInfo = executionStepInfo,
             selectionSet = queryPlan.selectionSet,
             errorAccumulator = ErrorAccumulator()
+        )
+    }
+
+    private fun rootParameters(
+        dispatcherRegistry: DispatcherRegistry,
+        missingFieldErrorsEnabled: Boolean,
+    ): ExecutionParameters {
+        val engineExecutionContext = ContextMocks(
+            myFullSchema = viaductSchema,
+            myDispatcherRegistry = dispatcherRegistry,
+            myFlagManager =
+                if (missingFieldErrorsEnabled) {
+                    MockFlagManager.create(
+                        FlagManager.Flags.ENABLE_RESOLVER_OUTPUT_MISSING_FIELD_ERRORS
+                    )
+                } else {
+                    MockFlagManager.Disabled
+                },
+        ).engineExecutionContext
+        return createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo()
+                .type(queryType)
+                .path(ResultPath.rootPath())
+                .build(),
+            queryPlan = queryPlanFor(type = queryType),
+            engineExecutionContext = engineExecutionContext,
         )
     }
 

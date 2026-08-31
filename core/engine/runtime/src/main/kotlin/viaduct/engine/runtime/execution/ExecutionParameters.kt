@@ -31,11 +31,15 @@ import viaduct.engine.api.gj
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.runtime.EngineExecutionContextExtensions.asImpl
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
+import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
+import viaduct.engine.runtime.EngineExecutionContextExtensions.resolverOutputMissingFieldErrorsEnabled
+import viaduct.engine.runtime.EngineExecutionContextExtensions.resolverOutputMissingFieldReporter
 import viaduct.engine.runtime.EngineExecutionContextExtensions.setExecutionHandle
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.observability.ExecutionObservabilityContext
+import viaduct.engine.runtime.observability.ResolverOutputContext
 import viaduct.utils.slf4j.logger
 
 /** Describes the result/source boundary against which a child [QueryPlan] should execute. */
@@ -753,12 +757,37 @@ data class ExecutionParameters(
             // ExecutionStepInfo.type is initially set to an abstract type like Node
             // It can be refined during execution as abstract types become resolved
             executionStepInfo = executionStepInfo.changeTypeWithPreservedNonNull(engineResult.type),
-            localContext = localContext,
+            localContext =
+                resolverOutputContext(field, source)?.let { localContext.addOrUpdate(it) }
+                    ?: localContext,
             source = source,
             selectionSet = checkNotNull(field.selectionSet) { "Expected selection set to be non-null." },
             executionOrigin = ExecutionOrigin.ObjectTraversal(this),
             resolutionPolicy = resolutionPolicy,
         )
+    }
+
+    private fun resolverOutputContext(
+        field: QueryPlan.CollectedField,
+        source: Any?,
+    ): ResolverOutputContext? {
+        val dispatcherRegistry = engineExecutionContext.dispatcherRegistry
+        val isResolverOutput =
+            if (source is NodeEngineObjectData) {
+                dispatcherRegistry.getNodeResolverDispatcher(source.type.name) != null
+            } else {
+                dispatcherRegistry
+                    .getFieldResolverDispatcher(executionStepInfo.objectType.name, field.fieldName) != null
+            }
+        return if (isResolverOutput) {
+            ResolverOutputContext(
+                errorReporter = engineExecutionContext.resolverOutputMissingFieldReporter,
+                missingFieldErrorsEnabled =
+                    engineExecutionContext.resolverOutputMissingFieldErrorsEnabled,
+            )
+        } else {
+            null
+        }
     }
 
     /**

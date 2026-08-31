@@ -7,6 +7,7 @@ import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ViaductSchema
+import viaduct.service.api.spi.ErrorReporter
 
 /**
  * Extension properties and functions for accessing [EngineExecutionContextImpl]
@@ -27,6 +28,12 @@ object EngineExecutionContextExtensions {
 
     val EngineExecutionContext.matResolutionEnabled: Boolean
         get() = asImpl().matResolutionEnabled
+
+    val EngineExecutionContext.resolverOutputMissingFieldReporter: ErrorReporter
+        get() = asImpl().resolverOutputMissingFieldReporter
+
+    val EngineExecutionContext.resolverOutputMissingFieldErrorsEnabled: Boolean
+        get() = asImpl().resolverOutputMissingFieldErrorsEnabled
 
     val EngineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled: Boolean
         get() = asImpl().fieldRssOriginFilteringKillSwitchEnabled

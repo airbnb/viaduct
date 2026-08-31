@@ -77,9 +77,9 @@ class LedgerReaderTest {
     @Nested
     inner class FetchOrNull {
         @Test
-        fun `reads the exact key from the ledger`() =
+        fun `reads the schema field when the response key has an alias`() =
             runTest {
-                val schema = "type Root { name: String }".asViaductSchema
+                val schema = "type Root { name: String, displayName: String }".asViaductSchema
                 val rootType = schema.objectType("Root")
                 val path = MatPath(rootType)
                 val key = ObjectEngineResult.Key("name", alias = "displayName")
@@ -97,7 +97,10 @@ class LedgerReaderTest {
                     },
                 )
 
-                assertEquals("Ada", reader.fetchOrNull(key))
+                assertEquals(
+                    LedgerReader.ReadResult(value = "Ada", fieldIsMissing = false),
+                    reader.read(key),
+                )
                 assertEquals(listOf(MockLedger.Request(path, key)), ledger.resolveSourceRequests)
             }
 
@@ -265,7 +268,7 @@ class LedgerReaderTest {
             }
 
         @Test
-        fun `does not replace a different field aliased to id`() =
+        fun `reads the aliased field instead of the root node id`() =
             runTest {
                 val schema = "type Root { displayName: String, id: ID }".asViaductSchema
                 val rootType = schema.objectType("Root")
@@ -286,7 +289,10 @@ class LedgerReaderTest {
                     rootNodeId = "Root:1",
                 )
 
-                assertEquals("display name", reader.fetchOrNull(key))
+                assertEquals(
+                    LedgerReader.ReadResult(value = "display name", fieldIsMissing = false),
+                    reader.read(key),
+                )
                 assertEquals(listOf(MockLedger.Request(path, key)), ledger.resolveSourceRequests)
             }
 

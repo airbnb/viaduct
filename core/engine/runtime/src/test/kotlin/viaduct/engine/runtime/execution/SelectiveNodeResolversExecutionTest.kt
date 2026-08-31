@@ -57,7 +57,9 @@ import viaduct.engine.runtime.invocationContextFor
 import viaduct.graphql.test.assertMatches
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.Viaduct
+import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
+import viaduct.service.api.spi.mocks.MockFlagManager
 
 class SelectiveNodeResolversExecutionTest {
     @Nested
@@ -3564,7 +3566,11 @@ class SelectiveNodeResolversExecutionTest {
                         createEngineObjectData(objectType, emptyMap())
                     }
                 }
-            }.runFeatureTest {
+            }.runFeatureTest(
+                engineConfig = EngineConfiguration.featureTestDefault.copy(
+                    flagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_MAT_RESOLUTION),
+                )
+            ) {
                 runQueryWithTimeout("{ foo { y x } }")
                     .assertJson("{data: {foo: {y: null, x: 6}}}")
             }

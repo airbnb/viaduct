@@ -29,6 +29,7 @@ import viaduct.engine.api.spi.FieldSelectivityProvider
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.result.ObjectEngineResult
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
+import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
 
@@ -55,6 +56,7 @@ class EngineExecutionContextFactory(
     private val globalIDCodec: GlobalIDCodec,
     private val meterRegistry: MeterRegistry?,
     fieldSelectivityProvider: FieldSelectivityProvider = FieldSelectivityProvider.Never,
+    private val resolverErrorReporter: ErrorReporter = ErrorReporter.NOOP,
 ) {
     // Constructing this is expensive, so do it just once per schema-version
     private val engineSelectionSetFactory: EngineSelectionSet.Factory = EngineSelectionSetFactoryImpl(fullSchema)
@@ -80,6 +82,8 @@ class EngineExecutionContextFactory(
             ConcurrentHashMap<String, NodeDataLoader>(),
             flagManager.isEnabled(FlagManager.Flags.KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING),
             flagManager.isEnabled(FlagManager.Flags.ENABLE_MAT_RESOLUTION),
+            resolverErrorReporter,
+            flagManager.isEnabled(FlagManager.Flags.ENABLE_RESOLVER_OUTPUT_MISSING_FIELD_ERRORS),
             engine,
             globalIDCodec,
             meterRegistry,
@@ -122,6 +126,8 @@ class EngineExecutionContextImpl internal constructor(
     internal val nodeDataLoaders: ConcurrentHashMap<String, NodeDataLoader>,
     val fieldRssOriginFilteringKillSwitchEnabled: Boolean,
     val matResolutionEnabled: Boolean,
+    val resolverOutputMissingFieldReporter: ErrorReporter,
+    val resolverOutputMissingFieldErrorsEnabled: Boolean,
     override val engine: Engine,
     override val globalIDCodec: GlobalIDCodec,
     private val meterRegistry: MeterRegistry?,
@@ -357,6 +363,8 @@ class EngineExecutionContextImpl internal constructor(
             nodeDataLoaders = this.nodeDataLoaders,
             fieldRssOriginFilteringKillSwitchEnabled = fieldRssOriginFilteringKillSwitchEnabled,
             matResolutionEnabled = matResolutionEnabled,
+            resolverOutputMissingFieldReporter = this.resolverOutputMissingFieldReporter,
+            resolverOutputMissingFieldErrorsEnabled = this.resolverOutputMissingFieldErrorsEnabled,
             engine = this.engine,
             globalIDCodec = this.globalIDCodec,
             meterRegistry = this.meterRegistry,
@@ -390,6 +398,8 @@ class EngineExecutionContextImpl internal constructor(
             nodeDataLoaders = ConcurrentHashMap(),
             fieldRssOriginFilteringKillSwitchEnabled = fieldRssOriginFilteringKillSwitchEnabled,
             matResolutionEnabled = matResolutionEnabled,
+            resolverOutputMissingFieldReporter = resolverOutputMissingFieldReporter,
+            resolverOutputMissingFieldErrorsEnabled = resolverOutputMissingFieldErrorsEnabled,
             engine = engine,
             globalIDCodec = globalIDCodec,
             meterRegistry = meterRegistry,

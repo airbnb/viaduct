@@ -160,6 +160,7 @@ class EngineImpl(
         config.globalIDCodec,
         meterRegistry,
         config.fieldSelectivityProvider,
+        config.resolverErrorReporter,
     )
 
     @Deprecated("Airbnb use only")

@@ -46,6 +46,7 @@ import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setCheckerValue
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setRawValue
 import viaduct.engine.runtime.Value
+import viaduct.engine.runtime.context.getLocalContextForType
 import viaduct.engine.runtime.exceptions.FieldFetchingException
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildDataFetchingEnvironment
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildOERKeyForField
@@ -54,6 +55,7 @@ import viaduct.engine.runtime.execution.FieldExecutionHelpers.executionStepInfoF
 import viaduct.engine.runtime.fetchFieldResultForResolver
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.LedgerReader
+import viaduct.engine.runtime.observability.ResolverOutputContext
 import viaduct.engine.runtime.result.ObjectEngineResult
 import viaduct.graphql.utils.isParentField
 import viaduct.utils.slf4j.ifDebug
@@ -1528,12 +1530,37 @@ class FieldResolver(
                 )
 
             is FieldFetchSource.Ledger ->
-                DataFetcher<Any?> {
+                DataFetcher<Any?> { environment ->
                     coroutineInterop.scopedFuture {
-                        reader.fetchOrNull(key)
+                        val readResult = reader.read(key)
+                        if (!readResult.fieldIsMissing) {
+                            readResult.value
+                        } else {
+                            reportMissingLedgerField(
+                                environment = environment,
+                                objectType = parameters.executionStepInfo.objectType.name,
+                                fieldName = key.name,
+                            ) ?: readResult.value
+                        }
                     }
                 }
         }
+
+    @Suppress("DEPRECATION")
+    private fun reportMissingLedgerField(
+        environment: DataFetchingEnvironment,
+        objectType: String,
+        fieldName: String,
+    ): DataFetcherResult<Any?>? {
+        val outputContext =
+            environment.getLocalContextForType<ResolverOutputContext>() ?: return null
+        return ResolverOutputMissingFieldHandler.reportMissingField(
+            environment = environment,
+            objectType = objectType,
+            fieldName = fieldName,
+            outputContext = outputContext,
+        )
+    }
 
     private fun fieldResolutionResultFromDataFetcherResult(
         field: QueryPlan.CollectedField,

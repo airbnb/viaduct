@@ -1,12 +1,20 @@
 package viaduct.engine.runtime.mat
 
+import kotlinx.coroutines.CancellationException
 import viaduct.engine.runtime.result.ObjectEngineResult
 
 /** Reads exact field keys prepared for one Mat-backed object traversal. */
 internal sealed interface LedgerReader {
+    data class ReadResult(
+        val value: Any?,
+        val fieldIsMissing: Boolean,
+    )
+
     fun canFetch(key: ObjectEngineResult.Key): Boolean
 
-    suspend fun fetchOrNull(key: ObjectEngineResult.Key): Any?
+    suspend fun read(key: ObjectEngineResult.Key): ReadResult
+
+    suspend fun fetchOrNull(key: ObjectEngineResult.Key): Any? = read(key).value
 
     /**
      * Reads fields from the materialization in [ledger] that covers each exact key.
@@ -29,9 +37,23 @@ internal sealed interface LedgerReader {
 
         override fun canFetch(key: ObjectEngineResult.Key): Boolean = intrinsicRootNodeId(key) != null || key in fetchableKeys
 
-        override suspend fun fetchOrNull(key: ObjectEngineResult.Key): Any? {
-            intrinsicRootNodeId(key)?.let { return it }
-            return ledger.resolveSource(path, key)?.fetchOrNull(key.name)
+        override suspend fun read(key: ObjectEngineResult.Key): ReadResult {
+            intrinsicRootNodeId(key)?.let { return ReadResult(it, fieldIsMissing = false) }
+            val source = ledger.resolveSource(path, key)
+                ?: return ReadResult(value = null, fieldIsMissing = false)
+            val value = source.fetchOrNull(key.name)
+            if (value != null) {
+                return ReadResult(value, fieldIsMissing = false)
+            }
+            val fieldIsMissing =
+                try {
+                    source.fetchSelections().none { it == key.name }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    false
+                }
+            return ReadResult(value = null, fieldIsMissing = fieldIsMissing)
         }
 
         private fun intrinsicRootNodeId(key: ObjectEngineResult.Key): String? =
@@ -43,7 +65,7 @@ internal sealed interface LedgerReader {
     private class Failed(private val error: Throwable) : LedgerReader {
         override fun canFetch(key: ObjectEngineResult.Key): Boolean = true
 
-        override suspend fun fetchOrNull(key: ObjectEngineResult.Key): Nothing = throw error
+        override suspend fun read(key: ObjectEngineResult.Key): Nothing = throw error
     }
 
     companion object {
