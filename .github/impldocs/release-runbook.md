@@ -528,7 +528,7 @@ Artifacts are already on Maven Central, but no tag or GitHub release exists yet.
 
 - **`not visible after 30m of polling`** — the error names each missing `.pom` URL and its last HTTP status. A `429` or `503` means retry. A persistent `404` means that coordinate is not on the CDN: either the derivation lists something the release does not publish, or the publication dropped it.
 - **`no coordinates found` / `no '<repository>' coordinates found`** — the `published-coordinates` artifact arrived with nothing the probe could use. The derivation itself runs in `publish`, so this points at the artifact hand-off rather than at the Gradle task.
-- **`coordinates carry version X, expected Y`** — the published `VERSION` disagrees with the version being probed. Reaching this means the `validate` job's version check was bypassed, since it catches the same mismatch before publication.
+- **`coordinates carry version X, expected Y`** — the published `VERSION` disagrees with the version being probed. `validate` catches an `rc_ver` mismatch before publication, so reaching this points at the release branch moving between `validate` and `publish` rather than at a bad `rc_ver`. Check the branch's history for a push mid-release.
 
 ### Demo app tests fail after push
 

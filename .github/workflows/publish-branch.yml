@@ -105,17 +105,17 @@ jobs:
             --version-file ../source/VERSION
         shell: bash
 
-      # validate_release_state.py never sees the caller's rc_ver, and it accepts any
-      # rc.N for the base version, so the two can disagree without it noticing.
+      # validate_release_state.py accepts any rc.N for the base version and never sees rc_ver
       - name: Confirm VERSION matches the version the caller will publish
         if: inputs.expected_version != ''
         env:
           EXPECTED: ${{ inputs.expected_version }}
           ACTUAL: ${{ steps.validate.outputs.effective_version }}
+          REF: ${{ inputs.ref }}
         run: |
           set -euo pipefail
           if [ "$EXPECTED" != "$ACTUAL" ]; then
-            echo "::error::Caller expects to publish '${EXPECTED}' but VERSION on ${{ inputs.ref }} is '${ACTUAL}'"
+            echo "::error::Caller expects to publish '${EXPECTED}' but VERSION on ${REF} is '${ACTUAL}'"
             exit 1
           fi
           echo "✅ VERSION matches the requested version '${ACTUAL}'"
@@ -180,8 +180,8 @@ jobs:
         run: echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
         shell: bash
 
-      # Runs before publishing so a ref that cannot report its coordinates fails
-      # while Maven Central is still untouched. Only release.yml probes the result.
+      # Must stay ahead of the publish step: a ref that cannot report its coordinates
+      # has to fail while Maven Central is still untouched.
       - name: Derive the published coordinates
         if: inputs.mode != 'snapshot'
         run: ./gradlew writePublishedCoordinates --no-daemon --stacktrace
