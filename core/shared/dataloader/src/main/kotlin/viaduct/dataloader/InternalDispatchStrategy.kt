@@ -89,8 +89,18 @@ internal class BatchDispatchStrategy<K, V>(
             if (this.currentBatch.compareAndSet(existingBatch, newBatch)) {
                 // Schedule the batch to be dispatched on the next tick.
                 // This should only be ever called once per batch.
-                this.batchScheduleFn { dispatchingContext ->
-                    newBatch.dispatch(batchLoadFn, dispatchingContext, onFailedDispatch)
+                try {
+                    this.batchScheduleFn { dispatchingContext ->
+                        newBatch.dispatch(batchLoadFn, dispatchingContext, onFailedDispatch)
+                    }
+                } catch (e: Exception) {
+                    // The batch never got a chance to schedule its dispatch, so it must not be left published
+                    // for other callers to join, and everyone already in it (including this entry, which we
+                    // add before failing) needs to be failed explicitly instead of hanging forever.
+                    this.currentBatch.compareAndSet(newBatch, null)
+                    newBatch.addNewEntry(key, keyContext, result)
+                    newBatch.failAll(e, onFailedDispatch)
+                    return
                 }
 
                 if (newBatch.addNewEntry(key, keyContext, result)) {
@@ -186,9 +196,30 @@ internal class BatchDispatchStrategy<K, V>(
                     }
                 }
             } catch (e: Exception) {
-                entriesToBeLoaded.forEach { it.result.completeExceptionally(e) }
-                onFailedDispatch(entriesToBeLoaded.map { it.key }, e)
+                failAllEntries(e, onFailedDispatch)
             }
+        }
+
+        override suspend fun failAll(
+            throwable: Throwable,
+            onFailedDispatch: (keys: List<K>, throwable: Throwable) -> Unit
+        ) {
+            mutex.withLock {
+                if (hasDispatched) {
+                    return
+                }
+
+                hasDispatched = true
+            }
+            failAllEntries(throwable, onFailedDispatch)
+        }
+
+        private fun failAllEntries(
+            throwable: Throwable,
+            onFailedDispatch: (keys: List<K>, throwable: Throwable) -> Unit
+        ) {
+            entriesToBeLoaded.forEach { it.result.completeExceptionally(throwable) }
+            onFailedDispatch(entriesToBeLoaded.map { it.key }, throwable)
         }
 
         private fun getBatchLoaderEnvironment(dispatchingContext: DispatchingContext) =

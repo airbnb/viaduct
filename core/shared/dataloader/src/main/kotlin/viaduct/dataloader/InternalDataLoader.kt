@@ -37,6 +37,16 @@ interface InternalDataLoader<K : Any, V, C : Any> {
             onFailedDispatch: (keys: List<K>, throwable: Throwable) -> Unit
         )
 
+        /**
+         * Fails every entry currently in the batch (and marks it as dispatched, so no further entries can
+         * join it) without ever attempting to load them. Used when the batch could not be scheduled for
+         * dispatch in the first place.
+         */
+        suspend fun failAll(
+            throwable: Throwable,
+            onFailedDispatch: (keys: List<K>, throwable: Throwable) -> Unit
+        )
+
         class BatchResult<V>(
             private val deferred: CompletableDeferred<V>,
         ) : CompletableDeferred<V> by deferred {
