@@ -1,5 +1,7 @@
 package viaduct.api.context
 
+import viaduct.api.reflect.RootObjectField
+import viaduct.api.types.Arguments
 import viaduct.api.types.Object
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
@@ -11,7 +13,11 @@ import viaduct.apiannotations.InternalApi
  * it to [ResolverExecutionContext.ref] to create a lazy reference that the engine resolves later.
  */
 @ExperimentalApi
-interface RootFieldCall<out T : Object> {
+interface RootFieldCall<T : Object> {
     @InternalApi
-    fun resolve(context: ResolverExecutionContext<*>): T
+    fun field(): RootObjectField<*, T, Arguments>
+
+    /** Builds the arguments the field is called with, using [context] to convert input values. */
+    @InternalApi
+    fun arguments(context: ExecutionContext): Arguments
 }

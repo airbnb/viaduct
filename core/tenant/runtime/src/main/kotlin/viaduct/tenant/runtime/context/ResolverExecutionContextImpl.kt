@@ -1,13 +1,12 @@
 package viaduct.tenant.runtime.context
 
 import viaduct.api.context.ResolverExecutionContext
+import viaduct.api.context.RootFieldCall
 import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InternalContext
-import viaduct.api.reflect.RootObjectField
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
-import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
@@ -42,10 +41,7 @@ sealed class ResolverExecutionContextImpl<Q : Query>(
 
     override fun <T : NodeObject> nodeRef(id: GlobalID<T>) = engineExecutionContextWrapper.nodeRef(this, id)
 
-    override fun <A : Arguments, BR : Object> rootFieldRef(
-        field: RootObjectField<*, BR, A>,
-        arguments: A
-    ): BR = engineExecutionContextWrapper.rootFieldRef(this, field, arguments)
+    override fun <T : Object> ref(call: RootFieldCall<T>): T = engineExecutionContextWrapper.rootFieldRef(this, call.field(), call.arguments(this))
 
     override fun <T : NodeObject> globalIDStringFor(
         type: Type<T>,

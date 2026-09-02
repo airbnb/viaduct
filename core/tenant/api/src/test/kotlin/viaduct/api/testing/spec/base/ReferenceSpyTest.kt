@@ -3,10 +3,11 @@
 package viaduct.api.testing.spec.base
 
 import graphql.schema.GraphQLInputObjectType
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.context.ResolverExecutionContext
+import viaduct.api.context.ExecutionContext
 import viaduct.api.context.RootFieldCall
 import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.InternalContext
@@ -120,7 +121,9 @@ class ReferenceSpyTest {
         arguments: A,
     ): RootFieldCall<T> =
         object : RootFieldCall<T> {
-            override fun resolve(context: ResolverExecutionContext<*>): T = context.rootFieldRef(field, arguments)
+            override fun field() = field
+
+            override fun arguments(context: ExecutionContext) = arguments
         }
 
     private fun context(spy: ReferenceSpy): MockResolverExecutionContext<Query> {
@@ -278,6 +281,25 @@ class ReferenceSpyTest {
         val result = context(spy).ref(referenceCall(fooFieldNoArgs(), Arguments.NoArguments))
 
         assertTrue(result.__engineObject is RootFieldReference)
+    }
+
+    @Test
+    fun `ref builds the call arguments with this context`() {
+        val spy = ReferenceSpy()
+        val context = context(spy)
+        var receivedContext: ExecutionContext? = null
+        val call = object : RootFieldCall<ReferenceSpyTestResult> {
+            override fun field() = fooFieldNoArgs()
+
+            override fun arguments(context: ExecutionContext): Arguments {
+                receivedContext = context
+                return Arguments.NoArguments
+            }
+        }
+
+        context.ref(call)
+
+        assertSame(context, receivedContext)
     }
 
     @Test

@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.api.context.ResolverExecutionContext
+import viaduct.api.context.ExecutionContext
 import viaduct.api.context.RootFieldCall
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.RootObjectFieldImpl
@@ -91,8 +91,15 @@ class MocksTest {
     private val fooParent = Type.ofClass(FooParent::class)
     private val fooResult = Type.ofClass(FooResult::class)
 
+    private fun <T : Object> callOf(objectField: RootObjectFieldImpl<*, T, *>): RootFieldCall<T> =
+        object : RootFieldCall<T> {
+            override fun field() = objectField
+
+            override fun arguments(context: ExecutionContext) = Arguments.NoArguments
+        }
+
     @Test
-    fun `rootFieldRef throws when no referenceSpy is provided`() {
+    fun `ref throws when no referenceSpy is provided`() {
         val ctx = MockResolverExecutionContext.create()
         val field = RootObjectFieldImpl<FooParent, FooResult, Arguments.NoArguments>(
             "foo",
@@ -101,24 +108,8 @@ class MocksTest {
             listOf("foo")
         )
         assertThrows<UnsupportedOperationException> {
-            ctx.rootFieldRef(field, Arguments.NoArguments)
+            ctx.ref(callOf(field))
         }
-    }
-
-    @Test
-    fun `ref resolves the typed root field call with this context`() {
-        val ctx = MockResolverExecutionContext.create()
-        val expected = FooResult()
-        var receivedContext: ResolverExecutionContext<*>? = null
-        val call = object : RootFieldCall<FooResult> {
-            override fun resolve(context: ResolverExecutionContext<*>): FooResult {
-                receivedContext = context
-                return expected
-            }
-        }
-
-        assertSame(expected, ctx.ref(call))
-        assertSame(ctx, receivedContext)
     }
 
     @Test

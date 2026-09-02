@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import viaduct.api.context.ExecutionContext
 import viaduct.api.context.RootFieldCall
 import viaduct.api.internal.ObjectBase
@@ -15,7 +14,6 @@ import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.MockResolverExecutionContext
 import viaduct.api.reflect.RootObjectField
 import viaduct.api.types.Arguments
-import viaduct.api.types.Object as ViaductObject
 import viaduct.api.types.Query
 import viaduct.engine.api.mocks.createSchema as createEngineSchema
 import viaduct.graphql.schema.ViaductSchema
@@ -56,30 +54,18 @@ class GRTClassFilesBuilderBaseTest {
         return GRTClassFilesBuilder(args)
     }
 
-    private class CapturedRootFieldRef(
-        val field: RootObjectField<*, *, *>,
-        val arguments: Arguments,
-    ) : RuntimeException()
-
     private inner class RootFieldFixture(sdl: String) {
         private val codegenSchema = createSchema("$rootFieldDirectives\n$sdl")
         val classLoader = createBuilder(codegenSchema).addAll(codegenSchema).buildClassLoader()
         private val factoryClass = classLoader.loadClass("test.pkg.ProductFactory")
         private val companion = factoryClass.getField("Companion").get(null)
-        val context = object : MockResolverExecutionContext<Query>(
+        val context = MockResolverExecutionContext<Query>(
             internalContext = MockInternalContext.create(
                 schema = createEngineSchema(sdl),
                 grtPackage = "test.pkg",
                 classLoader = classLoader,
             ),
-        ) {
-            override fun <A : Arguments, T : ViaductObject> rootFieldRef(
-                field: RootObjectField<*, T, A>,
-                arguments: A,
-            ): T {
-                throw CapturedRootFieldRef(field, arguments)
-            }
-        }
+        )
 
         fun call(
             fieldName: String,
@@ -94,15 +80,7 @@ class GRTClassFilesBuilderBaseTest {
             return result as RootFieldCall<*>
         }
 
-        fun capture(call: RootFieldCall<*>): CapturedRootFieldRef =
-            assertThrows<CapturedRootFieldRef> {
-                call.resolve(context)
-            }
-
-        fun capture(
-            fieldName: String,
-            configure: ((Any) -> Unit)? = null,
-        ): CapturedRootFieldRef = capture(call(fieldName, configure))
+        fun arguments(call: RootFieldCall<*>): Arguments = call.arguments(context)
 
         fun buildInput(
             typeName: String,
@@ -258,6 +236,14 @@ class GRTClassFilesBuilderBaseTest {
         assertTrue(createMethods.all { it.returnType.name == "viaduct.api.context.RootFieldCall" })
         assertTrue(RootFieldCall::class.java.isAssignableFrom(callClass))
         assertEquals(
+            "viaduct.api.reflect.RootObjectField",
+            callClass.declaredMethods.single { it.name == "field" }.returnType.name
+        )
+        assertEquals(
+            "viaduct.api.context.ExecutionContext",
+            callClass.declaredMethods.single { it.name == "arguments" }.parameterTypes.single().name
+        )
+        assertEquals(
             setOf("required", "optional", "enabled"),
             argumentsClass.declaredMethods.filter { Modifier.isPublic(it.modifiers) }.map { it.name }.toSet()
         )
@@ -303,12 +289,11 @@ class GRTClassFilesBuilderBaseTest {
         val callClass = fixture.classLoader.loadClass("test.pkg.ProductFactory\$CreateRootFieldCall")
         val firstCall = fixture.call("create")
         val secondCall = fixture.call("create")
-        val captured = fixture.capture(firstCall)
 
         assertSame(callClass.getField("INSTANCE").get(null), firstCall)
         assertSame(firstCall, secondCall)
-        assertEquals("create", captured.field.name)
-        assertSame(Arguments.NoArguments, captured.arguments)
+        assertEquals("create", firstCall.field().name)
+        assertSame(Arguments.NoArguments, fixture.arguments(firstCall))
     }
 
     @Test
@@ -323,15 +308,16 @@ class GRTClassFilesBuilderBaseTest {
             """.trimIndent()
         )
 
-        val captured = fixture.capture("create") { arguments ->
+        val call = fixture.call("create") { arguments ->
             arguments.javaClass.getMethod("required", String::class.java).invoke(arguments, "required-value")
             arguments.javaClass.getMethod("optional", String::class.java).invoke(arguments, "optional-value")
         }
+        val arguments = fixture.arguments(call)
 
-        assertEquals("create", captured.field.name)
-        assertEquals("required-value", captured.arguments.property("required"))
-        assertEquals("optional-value", captured.arguments.property("optional"))
-        assertEquals(false, captured.arguments.property("enabled"))
+        assertEquals("create", call.field().name)
+        assertEquals("required-value", arguments.property("required"))
+        assertEquals("optional-value", arguments.property("optional"))
+        assertEquals(false, arguments.property("enabled"))
     }
 
     @Test
@@ -352,13 +338,14 @@ class GRTClassFilesBuilderBaseTest {
             builder.javaClass.getMethod("name", String::class.java).invoke(builder, "Desk")
         }
 
-        val captured = fixture.capture("create") { arguments ->
+        val call = fixture.call("create") { arguments ->
             arguments.javaClass.getMethod("kinds", List::class.java).invoke(arguments, listOf(kind))
             arguments.javaClass.getMethod("product", product.javaClass).invoke(arguments, product)
         }
+        val arguments = fixture.arguments(call)
 
-        val kinds = captured.arguments.property("kinds") as List<*>
-        val capturedProduct = captured.arguments.property("product")!!
+        val kinds = arguments.property("kinds") as List<*>
+        val capturedProduct = arguments.property("product")!!
         assertSame(kind, kinds.single())
         assertEquals("Desk", capturedProduct.property("name"))
     }
@@ -376,7 +363,7 @@ class GRTClassFilesBuilderBaseTest {
             """.trimIndent()
         )
 
-        assertEquals("URL", fixture.capture("URL").field.name)
-        assertEquals("when", fixture.capture("when").field.name)
+        assertEquals("URL", fixture.call("URL").field().name)
+        assertEquals("when", fixture.call("when").field().name)
     }
 }

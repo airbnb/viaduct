@@ -15,7 +15,7 @@ import viaduct.apiannotations.InternalApi
  * in the generated root field call that `ctx.ref` resolves.
  */
 @ExperimentalApi
-interface RootObjectField<Parent : GRT, UnwrappedType : Object, A : Arguments> :
+interface RootObjectField<Parent : GRT, UnwrappedType : Object, out A : Arguments> :
     CompositeField<Parent, UnwrappedType> {
     /**
      * Path of field names from the query root (optionally through `@namespaceType` types) to this field.

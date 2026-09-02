@@ -12,6 +12,7 @@ import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.ResolverExecutionContext
 import viaduct.api.context.ResolverOwnedSelectionsContext
+import viaduct.api.context.RootFieldCall
 import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.context.SelectiveNodeExecutionContext
 import viaduct.api.documents.MutationFromAnnotation
@@ -22,7 +23,6 @@ import viaduct.api.internal.GRTConvFactory
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ReflectionLoader
 import viaduct.api.internal.select.SelectionSetFactory
-import viaduct.api.reflect.RootObjectField
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.testing.types.ReferenceSpy
@@ -256,15 +256,13 @@ open class MockResolverExecutionContext<Q : Query>(
         return MockNodeEngineObjectData(id, graphqlObjectType).toObjectGRT(this, globalID.type.kcls)
     }
 
-    override fun <A : Arguments, BR : Object> rootFieldRef(
-        field: RootObjectField<*, BR, A>,
-        arguments: A
-    ): BR {
+    override fun <T : Object> ref(call: RootFieldCall<T>): T {
+        val field = call.field()
         val referenceSpy = referenceSpy ?: throw UnsupportedOperationException(
             "The resolver created a root field reference to '${field.pathFromQueryRoot.joinToString(".")}', " +
                 "but no referenceSpy was provided to record it."
         )
-        return referenceSpy.answerReference(field, arguments, internalContext)
+        return referenceSpy.answerReference(field, call.arguments(this), internalContext)
     }
 
     override fun <T : NodeObject> globalIDStringFor(

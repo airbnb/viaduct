@@ -3,16 +3,13 @@ package viaduct.api.context
 import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.documents.Selections
 import viaduct.api.globalid.GlobalID
-import viaduct.api.reflect.RootObjectField
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
-import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query as QueryType
 import viaduct.apiannotations.ExperimentalApi
-import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.StableApi
 
 /** A generic context for resolving fields or types */
@@ -95,15 +92,5 @@ interface ResolverExecutionContext<Q : QueryType> : ExecutionContext {
      * ```
      */
     @ExperimentalApi
-    fun <T : Object> ref(call: RootFieldCall<T>): T = call.resolve(this)
-
-    /**
-     * Creates the lazy reference described by a [RootFieldCall]. Generated
-     * [RootFieldCall.resolve] implementations call this; tenant code calls [ref].
-     */
-    @InternalApi
-    fun <A : Arguments, BR : Object> rootFieldRef(
-        field: RootObjectField<*, BR, A>,
-        arguments: A
-    ): BR
+    fun <T : Object> ref(call: RootFieldCall<T>): T
 }

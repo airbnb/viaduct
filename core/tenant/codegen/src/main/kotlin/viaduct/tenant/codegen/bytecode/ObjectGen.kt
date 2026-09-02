@@ -421,20 +421,24 @@ private class ObjectClassGenV2(
             addPropertiesConstructor(storedProperties)
         }
 
-        val resolverContextType = cfg.RESOLVER_EXECUTION_CONTEXT.asKmName.asType().also {
-            it.arguments += KmTypeProjection.STAR
-        }
-        val function = KmFunction("resolve").apply {
-            visibility = Visibility.PUBLIC
-            modality = Modality.FINAL
-            this.returnType = returnType
-            valueParameters += KmValueParameter("context").also { it.type = resolverContextType }
-        }
         addFunction(
-            function,
-            body = rootFieldCallBody(field, argumentsClass, returnType),
-            bridgeParameters = setOf(-1),
-            bridgeReturnType = cfg.OBJECT_GRT.asKmName.asType(),
+            KmFunction("field").apply {
+                visibility = Visibility.PUBLIC
+                modality = Modality.FINAL
+                this.returnType = rootObjectFieldType(returnType)
+            },
+            body = rootFieldCallFieldBody(field),
+        )
+        addFunction(
+            KmFunction("arguments").apply {
+                visibility = Visibility.PUBLIC
+                modality = Modality.FINAL
+                this.returnType = cfg.ARGUMENTS_GRT.asKmName.asType()
+                valueParameters += KmValueParameter("context").also {
+                    it.type = cfg.EXECUTION_CONTEXT.asKmName.asType()
+                }
+            },
+            body = rootFieldCallArgumentsBody(field, argumentsClass),
         )
     }
 
@@ -458,22 +462,19 @@ private class ObjectClassGenV2(
         )
     }
 
-    private fun rootFieldCallBody(
+    private fun rootFieldCallFieldBody(field: ViaductSchema.Field): String {
+        val fieldsName = objectClass.kmName.append(".Fields").asJavaBinaryName
+        return "{ return $fieldsName.INSTANCE.${getterName(field.name)}(); }"
+    }
+
+    private fun rootFieldCallArgumentsBody(
         field: ViaductSchema.Field,
         argumentsClass: CustomClassBuilder?,
-        returnType: KmType,
     ): String =
         buildString {
-            val fieldsName = objectClass.kmName.append(".Fields").asJavaBinaryName
-            val fieldExpression = "$fieldsName.INSTANCE.${getterName(field.name)}()"
-            val contextExpression = "((viaduct.api.context.ResolverExecutionContext)$1)"
-
             append("{\n")
             if (field.args.none()) {
-                append(
-                    "return (${returnType.boxedJavaName()})$contextExpression.rootFieldRef(" +
-                        "$fieldExpression, viaduct.api.types.Arguments${'$'}NoArguments.INSTANCE);\n"
-                )
+                append("return viaduct.api.types.Arguments${'$'}NoArguments.INSTANCE;\n")
                 append("}")
                 return@buildString
             }
@@ -483,15 +484,18 @@ private class ObjectClassGenV2(
             }
             val argumentsBuilderType = KmName("$pkg/${cfg.argumentTypeName(field)}.Builder")
             append(
-                "${argumentsBuilderType.asJavaName} arguments = new ${argumentsBuilderType.asJavaName}" +
-                    "((viaduct.api.context.ExecutionContext)$1);\n"
+                "${argumentsBuilderType.asJavaName} arguments = new ${argumentsBuilderType.asJavaName}($1);\n"
             )
             append("this.configure.invoke(new ${argumentsReceiver.kmName.asJavaName}(arguments));\n")
-            append(
-                "return (${returnType.boxedJavaName()})$contextExpression.rootFieldRef(" +
-                    "$fieldExpression, arguments.build());\n"
-            )
+            append("return arguments.build();\n")
             append("}")
+        }
+
+    private fun rootObjectFieldType(unwrappedType: KmType): KmType =
+        cfg.REFLECTED_ROOT_OBJECT_FIELD.asKmName.asType().also {
+            it.arguments += KmTypeProjection.STAR
+            it.arguments += KmTypeProjection(KmVariance.INVARIANT, unwrappedType)
+            it.arguments += KmTypeProjection(KmVariance.INVARIANT, cfg.ARGUMENTS_GRT.asKmName.asType())
         }
 
     private fun rootFieldCallType(field: ViaductSchema.Field): KmType =

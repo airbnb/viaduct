@@ -14,14 +14,13 @@ import org.junit.jupiter.api.Test
 import viaduct.api.context.ConnectionFieldExecutionContext
 import viaduct.api.context.ExecutionContext
 import viaduct.api.context.ResolverOwnedSelectionsContext
+import viaduct.api.context.RootFieldCall
 import viaduct.api.context.SelectiveFieldExecutionContext
 import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.globalid.GlobalID
 import viaduct.api.mocks.MockInternalContext
-import viaduct.api.reflect.RootObjectField
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
-import viaduct.api.types.Arguments
 import viaduct.api.types.BackwardConnectionArguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Connection
@@ -153,10 +152,7 @@ class ConnectionBuilderTest {
 
         override fun <T : NodeObject> nodeRef(id: GlobalID<T>): T = throw NotImplementedError("Not needed for tests")
 
-        override fun <A : Arguments, BR : Object> rootFieldRef(
-            field: RootObjectField<*, BR, A>,
-            arguments: A
-        ): BR = throw NotImplementedError("Not needed for tests")
+        override fun <T : Object> ref(call: RootFieldCall<T>): T = throw NotImplementedError("Not needed for tests")
 
         override fun <T : NodeObject> globalIDStringFor(
             type: Type<T>,

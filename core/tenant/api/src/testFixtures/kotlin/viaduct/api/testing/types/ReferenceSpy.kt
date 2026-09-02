@@ -1,5 +1,6 @@
 package viaduct.api.testing.types
 
+import viaduct.api.context.ExecutionContext
 import viaduct.api.context.RootFieldCall
 import viaduct.api.internal.InputLikeBase
 import viaduct.api.reflect.RootObjectField
@@ -18,16 +19,16 @@ import viaduct.apiannotations.InternalApi
 @OptIn(ExperimentalApi::class, InternalApi::class)
 class ReferenceSpy {
     private val calls = mutableListOf<ReferenceInvocation>()
-    private var invocationFor: ((RootFieldCall<*>) -> ReferenceInvocation)? = null
+    private var context: ExecutionContext? = null
 
     /**
      * Verifies that the resolver created exactly [expectedCalls], including order and repeats.
      */
     fun assertCalledExactly(vararg expectedCalls: RootFieldCall<*>) {
-        val invocationFor = checkNotNull(this.invocationFor) {
+        val context = checkNotNull(this.context) {
             "ReferenceSpy must be passed to a resolver test runner before assertions are made."
         }
-        val expected = expectedCalls.map(invocationFor)
+        val expected = expectedCalls.map { ReferenceInvocation(it.field().pathFromQueryRoot, it.arguments(context)) }
         val actual = calls.toList()
         if (actual != expected) {
             throw AssertionError(
@@ -77,8 +78,8 @@ class ReferenceSpy {
 
     private fun invocationsOf(field: RootObjectField<*, *, *>): List<ReferenceInvocation> = calls.filter { it.path == field.pathFromQueryRoot }
 
-    internal fun attach(invocationFor: (RootFieldCall<*>) -> ReferenceInvocation) {
-        this.invocationFor = invocationFor
+    internal fun attach(context: ExecutionContext) {
+        this.context = context
     }
 
     internal fun record(invocation: ReferenceInvocation) {

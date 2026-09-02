@@ -193,15 +193,18 @@ private val rootFieldReferencesST = stTemplate(
     <else>
     internal object <field.callClass> : viaduct.api.context.RootFieldCall\<<field.returnType>\> {
     <endif>
-        override fun resolve(
-            context: viaduct.api.context.ResolverExecutionContext\<*>
-        ): <field.returnType> {
+        override fun field(): viaduct.api.reflect.RootObjectField\<*, <field.returnType>, viaduct.api.types.Arguments> =
+            Fields.<field.methodName>
+
+        override fun arguments(
+            context: viaduct.api.context.ExecutionContext
+        ): viaduct.api.types.Arguments {
     <if(field.hasArguments)>
             val arguments = <field.argumentsType>.Builder(context)
             configure.invoke(<field.argumentsReceiverName>(arguments))
-            return context.rootFieldRef(Fields.<field.methodName>, arguments.build())
+            return arguments.build()
     <else>
-            return context.rootFieldRef(Fields.<field.methodName>, viaduct.api.types.Arguments.NoArguments)
+            return viaduct.api.types.Arguments.NoArguments
     <endif>
         }
     }
