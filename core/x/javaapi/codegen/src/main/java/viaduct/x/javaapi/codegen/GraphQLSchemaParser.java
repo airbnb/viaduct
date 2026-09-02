@@ -140,17 +140,15 @@ public class GraphQLSchemaParser {
           interfaces.add(union.getName());
         }
 
-        // BackingData fields are reflected for schema parity, but remain opaque at the Java GRT
-        // level and therefore do not get getters or builder methods.
         List<FieldModel> fields = new ArrayList<>();
         List<FieldModel> reflectedFields = new ArrayList<>();
         List<String> rootPath =
             pathFromQueryRoot(objectDef, reverseSchema, schema.getQueryTypeDef());
         for (ViaductSchema.Field field : objectDef.getFields()) {
-          FieldModel fieldModel = createFieldModel(field, typeMapper, objectDef, rootPath);
-          reflectedFields.add(fieldModel);
           if (!isBackingDataField(field)) {
+            FieldModel fieldModel = createFieldModel(field, typeMapper, objectDef, rootPath);
             fields.add(fieldModel);
+            reflectedFields.add(fieldModel);
           }
         }
 

@@ -1,5 +1,12 @@
 package viaduct.java.api.internal;
 
+import graphql.schema.GraphQLFieldDefinition;
+import graphql.schema.GraphQLFieldsContainer;
+import graphql.schema.GraphQLList;
+import graphql.schema.GraphQLObjectType;
+import graphql.schema.GraphQLScalarType;
+import graphql.schema.GraphQLType;
+import graphql.schema.GraphQLTypeUtil;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -17,6 +24,7 @@ import viaduct.engine.api.NodeReference;
 import viaduct.engine.api.RootFieldReference;
 import viaduct.errors.FrameworkException;
 import viaduct.errors.HandleErrors;
+import viaduct.errors.TenantUsageException;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.types.GraphQLObject;
 import viaduct.java.api.types.NodeCompositeOutput;
@@ -147,6 +155,50 @@ public abstract class ObjectBase implements GraphQLObject {
     return mapData != null ? Collections.unmodifiableMap(mapData) : null;
   }
 
+  /** Dynamically reads a tenant-local {@code @backingData} field using its scalar leaf class. */
+  @Nullable
+  @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
+  public <T> T get(String fieldName, Class<?> backingDataClass) {
+    return HandleErrors.framework(
+        "ObjectBase.get: " + fieldName,
+        () -> {
+          GraphQLFieldsContainer type = getFieldsContainer();
+          GraphQLFieldDefinition field = type.getField(fieldName);
+          if (field == null) {
+            throw new FrameworkException(
+                "Field '" + fieldName + "' not found on type " + type.getName(), null);
+          }
+          checkBackingDataType(fieldName, field.getType());
+          Object cached = cachedRawValue(fieldName);
+          Object value = cached == NULL_VALUE ? null : cached;
+          return (T) checkBackingData(fieldName, field.getType(), backingDataClass, value);
+        });
+  }
+
+  private GraphQLFieldsContainer getFieldsContainer() throws FrameworkException {
+    if (engineData != null) {
+      return engineData.getType();
+    }
+    if (nodeReference != null) {
+      return nodeReference.getType();
+    }
+    if (rootFieldReference != null) {
+      GraphQLType type = rootFieldReference.getType();
+      if (type instanceof GraphQLFieldsContainer fieldsContainer) {
+        return fieldsContainer;
+      }
+    }
+    if (__context != null) {
+      GraphQLObjectType type =
+          __context.getSchema().getSchema().getObjectType(getClass().getSimpleName());
+      if (type != null) {
+        return type;
+      }
+    }
+    throw new FrameworkException(
+        "Cannot determine GraphQL type for dynamic field access on " + getClass().getName(), null);
+  }
+
   private @Nullable Object getRawValue(String fieldName) throws FrameworkException {
     if (engineData != null) {
       return engineData.getOrNull(fieldName);
@@ -174,6 +226,80 @@ public abstract class ObjectBase implements GraphQLObject {
     } else {
       throw new FrameworkException(
           "Cannot access field '" + fieldName + "': ObjectBase has no backing data.", null);
+    }
+  }
+
+  private Object cachedRawValue(String fieldName) throws FrameworkException {
+    Object cached = fieldCache.get(fieldName);
+    if (cached != null) {
+      return cached;
+    }
+    Object raw = getRawValue(fieldName);
+    Object toCache = raw == null ? NULL_VALUE : raw;
+    Object previous = fieldCache.putIfAbsent(fieldName, toCache);
+    return previous != null ? previous : toCache;
+  }
+
+  private static @Nullable Object checkBackingData(
+      String fieldName, GraphQLType type, Class<?> backingDataClass, @Nullable Object value)
+      throws FrameworkException, TenantUsageException {
+    if (value == null) {
+      if (GraphQLTypeUtil.isNonNull(type)) {
+        throw new TenantUsageException(
+            "Got null backing data value for non-null type "
+                + GraphQLTypeUtil.simplePrint(type)
+                + " on field '"
+                + fieldName
+                + "'",
+            null);
+      }
+      return null;
+    }
+
+    GraphQLType unwrappedType = GraphQLTypeUtil.unwrapNonNull(type);
+    if (unwrappedType instanceof GraphQLList listType) {
+      if (!(value instanceof List<?> values)) {
+        throw new FrameworkException(
+            "Expected List for field '" + fieldName + "', got " + value.getClass().getName(), null);
+      }
+      for (Object element : values) {
+        checkBackingData(fieldName, listType.getWrappedType(), backingDataClass, element);
+      }
+      return values;
+    }
+
+    if (!(unwrappedType instanceof GraphQLScalarType)) {
+      throw new FrameworkException(
+          "Unexpected backing-data field type " + GraphQLTypeUtil.simplePrint(type), null);
+    }
+    if (!value.getClass().equals(backingDataClass)) {
+      throw new TenantUsageException(
+          "Expected backing data value of field '"
+              + fieldName
+              + "' to be of type "
+              + backingDataClass.getSimpleName()
+              + ", got "
+              + value.getClass().getSimpleName(),
+          null);
+    }
+    return value;
+  }
+
+  private static void checkBackingDataType(String fieldName, GraphQLType type)
+      throws FrameworkException {
+    GraphQLType unwrappedType = GraphQLTypeUtil.unwrapNonNull(type);
+    if (unwrappedType instanceof GraphQLList listType) {
+      checkBackingDataType(fieldName, listType.getWrappedType());
+      return;
+    }
+    if (!(unwrappedType instanceof GraphQLScalarType scalarType)
+        || !"BackingData".equals(scalarType.getName())) {
+      throw new FrameworkException(
+          "Dynamic backing-data getter cannot read field '"
+              + fieldName
+              + "' of type "
+              + GraphQLTypeUtil.simplePrint(type),
+          null);
     }
   }
 

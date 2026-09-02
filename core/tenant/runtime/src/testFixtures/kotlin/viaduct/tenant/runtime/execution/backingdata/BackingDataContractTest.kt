@@ -13,11 +13,9 @@ import viaduct.graphql.test.assertEquals
  * - Error when trying to subselect on a backing data scalar field (FieldUndefined)
  * - Error when querying a backing data field directly (FieldUndefined)
  *
- * Note: This contract test is Kotlin-only because @backingData is not available
- * in the Java Tenant API.
- *
  * Extend this class and provide resolver implementations to verify that a given
- * runtime correctly supports these patterns.
+ * runtime correctly supports these patterns. Each implementation supplies its own
+ * `BackingDataValue` class in this package, which is the class the SDL names below.
  */
 @TestSchema(
     """
@@ -33,11 +31,11 @@ import viaduct.graphql.test.assertEquals
       iValue: Int @resolver
       "Read s from backing data; return \"Hello, World!\""
       sValue: String @resolver
-      "Return a BackingDataValue(i=10, s=\"Hello, World!\") instance of class featureapps.example.BackingDataValue"
+      "Return a BackingDataValue(i=10, s=\"Hello, World!\") instance"
       backingDataValue: BackingData
         #@visibility(level:"private")
         @resolver
-        @backingData(class: "featureapps.example.BackingDataValue")
+        @backingData(class: "viaduct.tenant.runtime.execution.backingdata.BackingDataValue")
     }
 """
 )

@@ -56,9 +56,6 @@ public class User extends NodeObjectBase implements Node, SearchHit {
                 public static final Field<User> lastOrder =
                                 Field.of("lastOrder", Reflection);
 
-                public static final Field<User> internalState =
-                                Field.of("internalState", Reflection);
-
     }
 
     public User(InternalContext context, EngineObjectData.Sync data) {

@@ -247,31 +247,34 @@ class GraphQLSchemaParserTest {
   }
 
   @Test
-  void reflectsBackingDataWithoutGeneratingJavaAccessors() throws IOException {
+  void keepsBackingDataOnTheDynamicJavaAccessPath() throws IOException {
     ViaductSchema schema =
         parser.parse(
             new StringReader(
                 """
+                directive @backingData(class: String!) on FIELD_DEFINITION
                 scalar BackingData
                 type User {
                   name: String!
-                  internalState: BackingData
+                  internalState: BackingData @backingData(class: "com.example.internal.UserState")
+                  internalStates: [BackingData] @backingData(class: "com.example.internal.UserState")
                 }
                 """));
 
     ObjectModel user = parser.extractObjects(schema, "com.example.types").get(0);
 
     assertThat(user.fields()).extracting(FieldModel::name).containsExactly("name");
-    assertThat(user.reflectedFields())
-        .extracting(FieldModel::name)
-        .containsExactly("name", "internalState");
+    assertThat(user.reflectedFields()).extracting(FieldModel::name).containsExactly("name");
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(user);
     assertThat(generated)
-        .contains(
-            "public static final Field<User> internalState",
-            "Field.of(\"internalState\", Reflection)")
-        .doesNotContain("getInternalState()", "Builder internalState(");
+        .doesNotContain(
+            "Field<User> internalState",
+            "Field<User> internalStates",
+            "getInternalState",
+            "getInternalStates",
+            "Builder internalState(",
+            "Builder internalStates(");
   }
 
   @Test

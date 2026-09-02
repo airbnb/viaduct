@@ -6,7 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import graphql.Scalars;
+import graphql.schema.GraphQLFieldDefinition;
+import graphql.schema.GraphQLList;
+import graphql.schema.GraphQLNonNull;
 import graphql.schema.GraphQLObjectType;
+import graphql.schema.GraphQLOutputType;
+import graphql.schema.GraphQLScalarType;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -21,6 +27,7 @@ import viaduct.engine.api.EngineObjectData;
 import viaduct.engine.api.NodeReference;
 import viaduct.engine.api.RootFieldReference;
 import viaduct.errors.FrameworkException;
+import viaduct.errors.TenantUsageException;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.types.NodeCompositeOutput;
@@ -35,6 +42,12 @@ import viaduct.java.api.types.NodeCompositeOutput;
  * the list/object/enum/GlobalID fetch variants.
  */
 class ObjectBaseTest {
+
+  private static final GraphQLScalarType BACKING_DATA =
+      GraphQLScalarType.newScalar()
+          .name("BackingData")
+          .coercing(Scalars.GraphQLString.getCoercing())
+          .build();
 
   // ===== Test doubles =====
 
@@ -106,18 +119,36 @@ class ObjectBaseTest {
     GREEN
   }
 
+  static class State {
+    final int value;
+
+    State(int value) {
+      this.value = value;
+    }
+  }
+
+  static final class SubState extends State {
+    SubState(int value) {
+      super(value);
+    }
+  }
+
   /** In-memory fake of EngineObjectData.Sync backed by a map. */
   static final class FakeSync implements EngineObjectData.Sync {
     private final Map<String, Object> values;
-    private final String typeName;
+    private final GraphQLObjectType type;
 
     FakeSync(Map<String, Object> values) {
       this(values, "TestType");
     }
 
     FakeSync(Map<String, Object> values, String typeName) {
+      this(values, GraphQLObjectType.newObject().name(typeName).build());
+    }
+
+    FakeSync(Map<String, Object> values, GraphQLObjectType type) {
       this.values = values;
-      this.typeName = typeName;
+      this.type = type;
     }
 
     @Override
@@ -160,8 +191,15 @@ class ObjectBaseTest {
 
     @Override
     public GraphQLObjectType getType() {
-      return GraphQLObjectType.newObject().name(typeName).build();
+      return type;
     }
+  }
+
+  private static GraphQLObjectType typeWithField(String fieldName, GraphQLOutputType fieldType) {
+    return GraphQLObjectType.newObject()
+        .name("TestType")
+        .field(GraphQLFieldDefinition.newFieldDefinition().name(fieldName).type(fieldType))
+        .build();
   }
 
   /** Fake NodeReference exposing only an id, mirroring the engine's unresolved-node contract. */
@@ -519,6 +557,124 @@ class ObjectBaseTest {
 
     FrameworkException e = assertThrows(FrameworkException.class, () -> obj.globalIdList("ids"));
     assertTrue(e.getMessage().contains("Expected List"));
+  }
+
+  @Test
+  void dynamicGetter_returnsBackingDataValue() {
+    State state = new State(7);
+    TestObject obj =
+        new TestObject(
+            null, new FakeSync(map("state", state), typeWithField("state", BACKING_DATA)));
+
+    assertSame(state, obj.get("state", State.class));
+  }
+
+  @Test
+  void dynamicGetter_checksCachedValueAgainstEveryClassToken() {
+    State state = new State(7);
+    TestObject obj =
+        new TestObject(
+            null, new FakeSync(map("state", state), typeWithField("state", BACKING_DATA)));
+
+    assertSame(state, obj.get("state", State.class));
+    TenantUsageException e =
+        assertThrows(TenantUsageException.class, () -> obj.get("state", Color.class));
+    assertTrue(e.getMessage().contains("to be of type Color, got State"), e.getMessage());
+  }
+
+  @Test
+  void dynamicGetter_matchesKotlinExactClassContract() {
+    SubState state = new SubState(7);
+    TestObject obj =
+        new TestObject(
+            null, new FakeSync(map("state", state), typeWithField("state", BACKING_DATA)));
+
+    TenantUsageException e =
+        assertThrows(TenantUsageException.class, () -> obj.get("state", State.class));
+    assertTrue(e.getMessage().contains("to be of type State, got SubState"), e.getMessage());
+  }
+
+  @Test
+  void dynamicGetter_checksBackingDataListsAndPreservesNulls() {
+    State state = new State(7);
+    List<State> source = Arrays.asList(state, null);
+    TestObject obj =
+        new TestObject(
+            null,
+            new FakeSync(
+                map("states", source), typeWithField("states", GraphQLList.list(BACKING_DATA))));
+
+    List<State> result = obj.get("states", State.class);
+
+    assertSame(source, result);
+    assertSame(state, result.get(0));
+    assertNull(result.get(1));
+  }
+
+  @Test
+  void dynamicGetter_supportsNestedBackingDataLists() {
+    State state = new State(7);
+    List<List<State>> source = List.of(List.of(state));
+    TestObject obj =
+        new TestObject(
+            null,
+            new FakeSync(
+                map("states", source),
+                typeWithField("states", GraphQLList.list(GraphQLList.list(BACKING_DATA)))));
+
+    List<List<State>> result = obj.get("states", State.class);
+
+    assertSame(source, result);
+    assertSame(state, result.get(0).get(0));
+  }
+
+  @Test
+  void dynamicGetter_rejectsNonListValueForListField() {
+    TestObject obj =
+        new TestObject(
+            null,
+            new FakeSync(
+                map("states", new State(7)),
+                typeWithField("states", GraphQLList.list(BACKING_DATA))));
+
+    FrameworkException e =
+        assertThrows(FrameworkException.class, () -> obj.get("states", State.class));
+    assertTrue(e.getMessage().contains("Expected List for field 'states'"), e.getMessage());
+  }
+
+  @Test
+  void dynamicGetter_rejectsNullForNonNullBackingData() {
+    TestObject obj =
+        new TestObject(
+            null,
+            new FakeSync(
+                map("state", null), typeWithField("state", GraphQLNonNull.nonNull(BACKING_DATA))));
+
+    TenantUsageException e =
+        assertThrows(TenantUsageException.class, () -> obj.get("state", State.class));
+    assertTrue(e.getMessage().contains("Got null backing data value"), e.getMessage());
+  }
+
+  @Test
+  void dynamicGetter_rejectsNonBackingDataFields() {
+    TestObject obj =
+        new TestObject(
+            null, new FakeSync(map("name", "Ada"), typeWithField("name", Scalars.GraphQLString)));
+
+    FrameworkException e =
+        assertThrows(FrameworkException.class, () -> obj.get("name", String.class));
+    assertTrue(e.getMessage().contains("cannot read field 'name'"), e.getMessage());
+  }
+
+  @Test
+  void dynamicGetter_rejectsNullNonBackingDataFields() {
+    TestObject obj =
+        new TestObject(
+            null, new FakeSync(map("name", null), typeWithField("name", Scalars.GraphQLString)));
+
+    FrameworkException e =
+        assertThrows(FrameworkException.class, () -> obj.get("name", String.class));
+    assertTrue(e.getMessage().contains("cannot read field 'name'"), e.getMessage());
   }
 
   // ===== No backing data =====
