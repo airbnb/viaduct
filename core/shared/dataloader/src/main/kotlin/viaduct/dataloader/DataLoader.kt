@@ -41,6 +41,7 @@ abstract class DataLoader<K : Any, V, C : Any> {
             dispatchStrategy,
             cacheKeyFn,
             cacheKeyMatchFn,
+            cacheKeyMatchCandidateFn,
         )
     }
 
@@ -159,4 +160,12 @@ abstract class DataLoader<K : Any, V, C : Any> {
      * used for the new cache key
      */
     protected open val cacheKeyMatchFn: CacheKeyMatchFn<C>? = null
+
+    /**
+     * Narrows custom cache-key matching to keys with the same candidate value.
+     *
+     * The candidate function must preserve every possible match: if [cacheKeyMatchFn] can match
+     * two keys, this function must return the same value for both keys.
+     */
+    protected open val cacheKeyMatchCandidateFn: CacheKeyMatchCandidateFn<C>? = null
 }

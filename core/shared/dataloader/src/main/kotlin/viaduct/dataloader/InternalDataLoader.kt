@@ -103,18 +103,27 @@ interface InternalDataLoader<K : Any, V, C : Any> {
             internalDispatchStrategy: InternalDispatchStrategy<K, V>,
             cacheKeyFn: CacheKeyFn<K, C> = { k: K -> k as C },
             cacheKeyMatchFn: CacheKeyMatchFn<C>? = null,
-        ): InternalDataLoader<K, V, C> = createInternalDataLoader(internalDispatchStrategy, cacheKeyFn, cacheKeyMatchFn)
+            cacheKeyMatchCandidateFn: CacheKeyMatchCandidateFn<C>? = null,
+        ): InternalDataLoader<K, V, C> =
+            createInternalDataLoader(
+                internalDispatchStrategy,
+                cacheKeyFn,
+                cacheKeyMatchFn,
+                cacheKeyMatchCandidateFn,
+            )
 
         private fun <K : Any, V, C : Any> createInternalDataLoader(
             internalDispatchStrategy: InternalDispatchStrategy<K, V>,
             cacheKeyFn: CacheKeyFn<K, C>,
             cacheKeyMatchFn: CacheKeyMatchFn<C>?,
+            cacheKeyMatchCandidateFn: CacheKeyMatchCandidateFn<C>? = null,
         ): InternalDataLoader<K, V, C> {
             // default to thread safe loader
             return ThreadSafeInternalDataLoader(
                 internalDispatchStrategy,
                 cacheKeyFn,
                 cacheKeyMatchFn,
+                cacheKeyMatchCandidateFn,
             )
         }
     }
@@ -206,3 +215,8 @@ typealias CacheKeyFn<K, C> = (K) -> C
  * used for the new cache key
  */
 typealias CacheKeyMatchFn<C> = (C, C) -> Boolean
+
+/**
+ * Maps a cache key to the group of existing keys that [CacheKeyMatchFn] may match.
+ */
+typealias CacheKeyMatchCandidateFn<C> = (C) -> Any

@@ -79,6 +79,7 @@ class DataLoaderTest {
             val oldParts = existingKey.split(":")
             newParts[0] == oldParts[0] && oldParts[1].contains(newParts[1])
         }
+        override val cacheKeyMatchCandidateFn: CacheKeyMatchCandidateFn<String> = { key -> key.substringBefore(":") }
     }
 
     @Test

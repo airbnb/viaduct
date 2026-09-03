@@ -11,9 +11,19 @@ internal class ThreadSafeInternalDataLoader<K : Any, V, C : Any> internal constr
     private val internalDispatchStrategy: InternalDispatchStrategy<K, V>,
     private val cacheKeyFn: CacheKeyFn<K, C>,
     private val cacheKeyMatchFn: CacheKeyMatchFn<C>? = null,
+    private val cacheKeyMatchCandidateFn: CacheKeyMatchCandidateFn<C>? = null,
 ) : InternalDataLoader<K, V, C> {
-    private val cacheMap: ConcurrentHashMap<C, InternalDataLoader.Batch.BatchResult<V?>> = ConcurrentHashMap()
+    private val cacheMap = ConcurrentHashMap<C, InternalDataLoader.Batch.BatchResult<V?>>()
+    private val candidateCacheMap:
+        ConcurrentHashMap<Any, ConcurrentHashMap<C, InternalDataLoader.Batch.BatchResult<V?>>>? =
+        if (cacheKeyMatchCandidateFn != null) ConcurrentHashMap() else null
     private val instrumentation = internalDispatchStrategy.instrumentation
+
+    init {
+        require(cacheKeyMatchCandidateFn == null || cacheKeyMatchFn != null) {
+            "cacheKeyMatchCandidateFn requires cacheKeyMatchFn"
+        }
+    }
 
     override suspend fun loadMany(
         keys: List<K>,
@@ -37,7 +47,13 @@ internal class ThreadSafeInternalDataLoader<K : Any, V, C : Any> internal constr
         val cacheKey = cacheKeyFn(key)
         val defaultResult = InternalDataLoader.Batch.BatchResult(CompletableDeferred<V?>())
         val entryResult =
-            cacheKeyMatchFn?.let { matchFn ->
+            cacheKeyMatchCandidateFn?.let { candidateFn ->
+                val candidateCache = checkNotNull(candidateCacheMap)
+                    .computeIfAbsent(candidateFn(cacheKey)) { ConcurrentHashMap() }
+                val matchFn = checkNotNull(cacheKeyMatchFn)
+                candidateCache.entries.firstOrNull { matchFn(cacheKey, it.key) }?.value
+                    ?: candidateCache.computeIfAbsent(cacheKey) { defaultResult }
+            } ?: cacheKeyMatchFn?.let { matchFn ->
                 cacheMap
                     .searchKeys(50) { existingKey ->
                         if (matchFn(cacheKey, existingKey)) existingKey else null
@@ -65,11 +81,17 @@ internal class ThreadSafeInternalDataLoader<K : Any, V, C : Any> internal constr
 
     override fun clear(key: K) {
         val cacheKey = cacheKeyFn(key)
-        cacheMap.remove(cacheKey)
+        val candidateFn = cacheKeyMatchCandidateFn
+        if (candidateFn == null) {
+            cacheMap.remove(cacheKey)
+        } else {
+            candidateCacheMap?.get(candidateFn(cacheKey))?.remove(cacheKey)
+        }
     }
 
     override fun clearAll() {
         cacheMap.clear()
+        candidateCacheMap?.clear()
     }
 
     private fun failedDispatch(keys: List<K>) {

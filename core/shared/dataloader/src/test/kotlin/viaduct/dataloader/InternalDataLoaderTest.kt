@@ -310,6 +310,90 @@ class InternalDataLoaderTest {
         }
 
         @Test
+        fun testCachingWithCacheKeyMatchCandidates() {
+            runBlocking(singleThreadedNextTickDispatcher()) {
+                data class CacheKey(
+                    val id: Int,
+                    val fields: Set<String>,
+                )
+
+                val loadedKeys = CopyOnWriteArrayList<CacheKey>()
+                val matchCalls = AtomicInteger()
+                val dispatchStrategy = createDispatchStrategy(
+                    TestDispatchStrategy.BATCH,
+                    object : MappedBatchLoadFn<CacheKey, String> {
+                        override suspend fun load(
+                            keys: Set<CacheKey>,
+                            env: BatchLoaderEnvironment<CacheKey>,
+                        ): Map<CacheKey, String?> {
+                            loadedKeys.addAll(keys)
+                            return keys.associateWith { it.fields.sorted().joinToString() }
+                        }
+                    },
+                    DataLoaderOptions(),
+                    object : DataLoaderInstrumentation {},
+                )
+                val loader = InternalDataLoader.newLoader<CacheKey, String, CacheKey>(
+                    dispatchStrategy,
+                    cacheKeyMatchFn = { newKey, existingKey ->
+                        matchCalls.incrementAndGet()
+                        newKey.id == existingKey.id && existingKey.fields.containsAll(newKey.fields)
+                    },
+                    cacheKeyMatchCandidateFn = { it.id },
+                )
+
+                val initialKeys = (1..100).map { CacheKey(it, setOf("a", "b")) }
+                loader.loadMany(initialKeys)
+
+                assertEquals("a, b", loader.load(CacheKey(50, setOf("a"))))
+                assertEquals(1, matchCalls.get())
+                assertEquals(initialKeys.toSet(), loadedKeys.toSet())
+
+                val identicalKey = CacheKey(101, setOf("a", "b"))
+                listOf(
+                    async { loader.load(identicalKey) },
+                    async { loader.load(identicalKey) },
+                ).awaitAll()
+                assertEquals(1, loadedKeys.count { it == identicalKey })
+            }
+        }
+
+        @Test
+        fun testClearWithCacheKeyMatchCandidates() {
+            runBlocking(singleThreadedNextTickDispatcher()) {
+                val loadedKeys = CopyOnWriteArrayList<String>()
+                val dispatchStrategy = createDispatchStrategy(
+                    TestDispatchStrategy.BATCH,
+                    object : MappedBatchLoadFn<String, String> {
+                        override suspend fun load(
+                            keys: Set<String>,
+                            env: BatchLoaderEnvironment<String>,
+                        ): Map<String, String?> {
+                            loadedKeys.addAll(keys)
+                            return keys.associateWith { it }
+                        }
+                    },
+                    DataLoaderOptions(),
+                    object : DataLoaderInstrumentation {},
+                )
+                val loader = InternalDataLoader.newLoader<String, String, String>(
+                    dispatchStrategy,
+                    cacheKeyMatchFn = { newKey, existingKey -> existingKey.contains(newKey) },
+                    cacheKeyMatchCandidateFn = { it.substringBefore(":") },
+                )
+
+                assertEquals("1:a,b", loader.load("1:a,b"))
+                assertEquals("1:a,b", loader.load("1:a"))
+                loader.clear("1:a,b")
+                assertEquals("1:a", loader.load("1:a"))
+                loader.clearAll()
+                assertEquals("1:a", loader.load("1:a"))
+
+                assertEquals(listOf("1:a,b", "1:a", "1:a"), loadedKeys)
+            }
+        }
+
+        @Test
         fun testComplexBatchingWithNesting() {
             runBlocking(singleThreadedNextTickDispatcher()) {
                 val (loader, loadCalls) = trackableLoader<String>(TestDispatchStrategy.BATCH)
