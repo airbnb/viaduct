@@ -4,14 +4,23 @@ import buildroot.registerForOrchestrationAggregate
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
 import com.vanniktech.maven.publish.*
 import javax.inject.Inject
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.TaskAction
+import org.gradle.plugin.devel.GradlePluginDevelopmentExtension
 import org.gradle.plugins.signing.SigningExtension
+import org.gradle.work.DisableCachingByDefault
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.configure
+import org.gradle.kotlin.dsl.register
 
 plugins {
     id("com.vanniktech.maven.publish")
@@ -36,6 +45,24 @@ val publishMinimal = providers.gradleProperty("publishMinimal").isPresent
 registerForOrchestrationAggregate("publishToMavenLocal", "publishToMavenLocal")
 registerForOrchestrationAggregate("publishToMavenCentral", "publishAllPublicationsToMavenCentralRepository")
 registerForOrchestrationAggregate("publishToSnapshots", "publishAllPublicationsToSnapshotsRepository")
+
+@DisableCachingByDefault(because = "Writes a single small file")
+abstract class WritePublishedCoordinatesTask : DefaultTask() {
+    @get:Input abstract val coordinates: ListProperty<String>
+    @get:OutputFile abstract val outputFile: RegularFileProperty
+
+    @TaskAction
+    fun run() {
+        outputFile.get().asFile
+            .writeText(coordinates.get().joinToString(separator = "\n", postfix = "\n"))
+    }
+}
+
+val writePublishedCoordinates = tasks.register<WritePublishedCoordinatesTask>("writePublishedCoordinates") {
+    description = "Records this project's published coordinates for the release workflow to probe."
+    outputFile.set(layout.buildDirectory.file("reports/publication/coordinates.txt"))
+}
+registerForOrchestrationAggregate("writePublishedCoordinates", "writePublishedCoordinates")
 
 // Apply standard Viaduct POM metadata to all Maven publications.
 pluginManager.withPlugin("maven-publish") {
@@ -120,19 +147,33 @@ run {
 }
 
 // 🔑 Defer coordinates() until after the consumer has configured viaductPublishing { ... }.
+// `gradlePlugin.plugins` is likewise empty until the consumer's block is evaluated.
 afterEvaluate {
     // Resolve lazily here (now it's safe to .get()).
     val resolvedName = viaductPublishing.name.get().ifBlank { project.name }.let { "Viaduct :: $it" }
     val resolvedDescription = viaductPublishing.description.get().ifBlank { "" }
 
+    val publishedGroup = project.group.toString()
+    val publishedArtifact = project.name
+    val publishedVersion = project.version.toString()
+
     extensions.configure<MavenPublishBaseExtension> {
-        coordinates(project.group.toString(), project.name, project.version.toString())
+        coordinates(publishedGroup, publishedArtifact, publishedVersion)
 
         pom {
             name.set(resolvedName)
             if (resolvedDescription.isNotBlank()) description.set(resolvedDescription) else description.set("Viaduct library ${project.name}")
         }
     }
+
+    val central = "central $publishedGroup:$publishedArtifact:$publishedVersion"
+    val markers = if (pluginManager.hasPlugin("com.gradle.plugin-publish")) {
+        extensions.getByType(GradlePluginDevelopmentExtension::class.java)
+            .plugins.map { "portal ${it.id}:${it.id}.gradle.plugin:$publishedVersion" }
+    } else {
+        emptyList()
+    }
+    writePublishedCoordinates.configure { coordinates.set(listOf(central) + markers) }
 }
 
 plugins.withId("org.jetbrains.kotlin.jvm") {

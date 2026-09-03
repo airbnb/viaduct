@@ -468,6 +468,7 @@ packaged JVM — so this also exercises the packaged-distribution path.
 | `confirmDemoAppVersions` | Validates demo app versions match VERSION (fails on mismatch) |
 | `bumpSnapshotVersion` | Inserts/replaces `-rc.XXXX` in a SNAPSHOT version, syncs demo apps |
 | `unbumpSnapshotVersion` | Removes the `-rc.XXXX` marker from a SNAPSHOT version, syncs demo apps |
+| `writePublishedCoordinates` | Records every published coordinate to `<module>/build/reports/publication/coordinates.txt`; `release.yml` probes these for CDN visibility |
 
 `bumpSnapshotVersion` / `unbumpSnapshotVersion` are only for ephemeral SNAPSHOT publication testing. Public release candidates use explicit versions like `X.Y.Z-rc.N`.
 
@@ -514,6 +515,20 @@ If `release.yml` fails after some artifacts are published (e.g., Plugin Portal s
 ### RC publication fails partway through
 
 If `release.yml` fails during an RC publication after publishing `${RELEASE_VER}-${RC_VER}`, do not reuse that RC version. Fix the issue, increment to the next RC version, and rerun the workflow.
+
+### `Derive the published coordinates` fails
+
+This step runs in `publish` before anything is pushed, so Maven Central and the Plugin Portal are untouched and no cleanup is needed. Either a build configuration failure, or `if-no-files-found: error` on a derivation that produced nothing. Reproduce with `./gradlew writePublishedCoordinates` at the release SHA.
+
+A release branch cut before this step existed does not carry the task. Cherry-pick it onto the branch before releasing from it.
+
+### `wait-for-new-artifacts` fails
+
+Artifacts are already on Maven Central, but no tag or GitHub release exists yet. See [Publication fails partway through](#publication-fails-partway-through) before re-running.
+
+- **`not visible after 30m of polling`** — the error names each missing `.pom` URL and its last HTTP status. A `429` or `503` means retry. A persistent `404` means that coordinate is not on the CDN: either the derivation lists something the release does not publish, or the publication dropped it.
+- **`no coordinates found` / `no '<repository>' coordinates found`** — the `published-coordinates` artifact arrived with nothing the probe could use. The derivation itself runs in `publish`, so this points at the artifact hand-off rather than at the Gradle task.
+- **`coordinates carry version X, expected Y`** — the published `VERSION` disagrees with the version being probed. `validate` catches an `rc_ver` mismatch before publication, so reaching this points at the release branch moving between `validate` and `publish` rather than at a bad `rc_ver`. Check the branch's history for a push mid-release.
 
 ### Demo app tests fail after push
 

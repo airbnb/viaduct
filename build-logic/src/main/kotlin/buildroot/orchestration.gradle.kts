@@ -235,6 +235,11 @@ registerServiceBackedAggregate(
     aggregateKey = "publishToSnapshots",
     description = "[orchestration] Publishes all publishable SUBPROJECTS in THIS build to Central Portal snapshots.",
 )
+registerServiceBackedAggregate(
+    aggregateName = "orchestrationWritePublishedCoordinatesAll",
+    aggregateKey = "writePublishedCoordinates",
+    description = "[orchestration] Records the published coordinates of all publishable SUBPROJECTS in THIS build.",
+)
 
 // ---------------- In INCLUDED BUILDS: alias conventional tasks to aggregates ----------------
 
@@ -280,6 +285,12 @@ if (gradle.parent != null) {
         aggregateName = "orchestrationPublishAllToSnapshots",
         group = "publishing",
         description = "Publishes all publishable subprojects in this included build to Central Portal snapshots."
+    )
+    aliasConventionalTaskToAggregate(
+        conventionalName = "writePublishedCoordinates",
+        aggregateName = "orchestrationWritePublishedCoordinatesAll",
+        group = "publishing",
+        description = "Records the published coordinates of all publishable subprojects in this included build."
     )
     aliasConventionalTaskToAggregate(
         conventionalName = "detekt",
@@ -363,6 +374,13 @@ if (gradle.parent == null) {
         usesService(orchestrationRegistry)
         dependsOn(provider { orchestrationRegistry.get().tasksFor("publishToSnapshots") })
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationPublishAllToSnapshots") })
+    }
+
+    // published coordinates: root subprojects (via registry) + included builds' aggregate
+    ensureTask("writePublishedCoordinates", "publishing", "Records the published coordinates of root subprojects + participating included builds.") {
+        usesService(orchestrationRegistry)
+        dependsOn(provider { orchestrationRegistry.get().tasksFor("writePublishedCoordinates") })
+        dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationWritePublishedCoordinatesAll") })
     }
 
     // detekt: root subprojects (via registry) + included builds' aggregate

@@ -115,6 +115,7 @@ jobs:
       ref: ${{ needs.preflight.outputs.source_ref }}
       run_checks: true
       confirm_versions: true
+      expected_version: ${{ needs.preflight.outputs.published_version }}
     secrets: inherit
 
   # ---------------------------------------------------------------------------
@@ -135,41 +136,25 @@ jobs:
   # newly-published version even though publish succeeded.
   # ---------------------------------------------------------------------------
   wait-for-new-artifacts:
-    needs: [preflight, push-demoapps]
+    needs: [preflight, publish, push-demoapps]
     runs-on: ubuntu-latest
     steps:
+      # No `ref:` — the probe script must match the dispatched workflow, not the
+      # release branch, which may predate it.
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: published-coordinates
+          path: coordinates
+
       - name: Probe Maven Central and Plugin Portal for ${{ needs.preflight.outputs.published_version }}
         env:
           VERSION: ${{ needs.preflight.outputs.published_version }}
         run: |
           set -euo pipefail
-          URLS=(
-            "https://repo.maven.apache.org/maven2/com/airbnb/viaduct/api/${VERSION}/api-${VERSION}.pom"
-            "https://repo.maven.apache.org/maven2/com/airbnb/viaduct/runtime/${VERSION}/runtime-${VERSION}.pom"
-            "https://repo.maven.apache.org/maven2/com/airbnb/viaduct/gradle/common/${VERSION}/common-${VERSION}.pom"
-            "https://plugins.gradle.org/m2/com/airbnb/viaduct/application-gradle-plugin/com.airbnb.viaduct.application-gradle-plugin.gradle.plugin/${VERSION}/com.airbnb.viaduct.application-gradle-plugin.gradle.plugin-${VERSION}.pom"
-          )
-          MAX_ATTEMPTS=60
-          SLEEP_SECONDS=30
-          for url in "${URLS[@]}"; do
-            echo "Probing $url"
-            attempt=0
-            while [[ $attempt -lt $MAX_ATTEMPTS ]]; do
-              attempt=$((attempt + 1))
-              code=$(curl -sL -o /dev/null -w "%{http_code}" "$url" || echo "000")
-              if [[ "$code" == "200" ]]; then
-                echo "  ✅ available (attempt ${attempt})"
-                break
-              fi
-              if [[ $attempt -eq $MAX_ATTEMPTS ]]; then
-                echo "::error::Artifact $url not visible after $((MAX_ATTEMPTS * SLEEP_SECONDS / 60))m of polling (last status: $code)"
-                exit 1
-              fi
-              echo "  ⏳ HTTP $code (attempt ${attempt}/${MAX_ATTEMPTS}) — sleeping ${SLEEP_SECONDS}s"
-              sleep "$SLEEP_SECONDS"
-            done
-          done
-          echo "✅ All probed artifacts are visible"
+          python3 .github/scripts/probe_published_artifacts.py \
+            --root coordinates --version "$VERSION"
         shell: bash
 
   # ---------------------------------------------------------------------------
