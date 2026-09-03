@@ -1,8 +1,3 @@
-public final class viaduct/api/FetchUtilsKt {
-	public static final fun fetchOrDefault (Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static final fun fetchOrNull (Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-}
-
 public abstract interface class viaduct/api/FieldValue {
 	public static final field Companion Lviaduct/api/FieldValue$Companion;
 	public abstract fun get ()Ljava/lang/Object;

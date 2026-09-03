@@ -1,7 +1,7 @@
 package viaduct.api
 
 import kotlinx.coroutines.CancellationException
-import viaduct.apiannotations.StableApi
+import viaduct.apiannotations.InternalApi
 
 /**
  * Executes the given [block] and returns its result, or `null` if an exception is thrown.
@@ -19,7 +19,7 @@ import viaduct.apiannotations.StableApi
  * }
  * ```
  */
-@StableApi
+@InternalApi
 @Suppress("REDUNDANT_INLINE_SUSPEND_FUNCTION_TYPE")
 suspend inline fun <T> fetchOrNull(block: suspend () -> T): T? = fetchOrDefault<T?>(null) { block() }
 
@@ -39,7 +39,7 @@ suspend inline fun <T> fetchOrNull(block: suspend () -> T): T? = fetchOrDefault<
  * }
  * ```
  */
-@StableApi
+@InternalApi
 @Suppress("REDUNDANT_INLINE_SUSPEND_FUNCTION_TYPE")
 suspend inline fun <T> fetchOrDefault(
     default: T,
