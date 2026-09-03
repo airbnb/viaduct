@@ -10,7 +10,7 @@ public record ObjectModel(
     List<FieldModel> fields,
     List<FieldModel> reflectedFields,
     String description,
-    boolean isRootType,
+    String rootType,
     boolean isNodeType,
     boolean isConnection,
     boolean isEdge,
@@ -37,7 +37,7 @@ public record ObjectModel(
         fields,
         fields,
         description,
-        isRootType,
+        isRootType ? className : null,
         isNodeType,
         isConnection,
         isEdge,
@@ -137,7 +137,7 @@ public record ObjectModel(
    * type marker or user-defined interfaces) or a connection/edge marker interface.
    */
   public boolean getHasImplementsClause() {
-    return isRootType
+    return isQueryOrMutationRoot()
         || isConnection
         || isEdge
         || (implementedInterfaces != null && !implementedInterfaces.isEmpty());
@@ -152,9 +152,8 @@ public record ObjectModel(
   public String getImplementsClause() {
     List<String> clauses = new java.util.ArrayList<>();
 
-    if (isRootType) {
-      // Root types use their specific marker interface (which extends GraphQLObject)
-      clauses.add("viaduct.java.api.types." + className);
+    if (isQueryOrMutationRoot()) {
+      clauses.add("viaduct.java.api.types." + rootType);
     }
     if (isConnection && edgeTypeName != null && nodeTypeName != null) {
       clauses.add("viaduct.java.api.types.Connection<" + edgeTypeName + ", " + nodeTypeName + ">");
@@ -167,5 +166,9 @@ public record ObjectModel(
     }
 
     return String.join(", ", clauses);
+  }
+
+  private boolean isQueryOrMutationRoot() {
+    return "Query".equals(rootType) || "Mutation".equals(rootType);
   }
 }

@@ -196,18 +196,23 @@ class JavaGRTsGeneratorCliTest {
     }
 
     @Test
-    fun `includeRootTypes keeps Mutation but removes Subscription file`() {
+    fun `includeRootTypes uses schema root type names`() {
         val schemaFile = tempDir.resolve("schema.graphqls")
         Files.writeString(
             schemaFile,
             """
-            type Query {
+            schema {
+              query: CustomQuery
+              mutation: CustomMutation
+              subscription: CustomSubscription
+            }
+            type CustomQuery {
               hello: String
             }
-            type Mutation {
+            type CustomMutation {
               _: String
             }
-            type Subscription {
+            type CustomSubscription {
               _: String
             }
             type User {
@@ -229,12 +234,13 @@ class JavaGRTsGeneratorCliTest {
             )
         )
 
-        // Query and Mutation should be generated (root types included, _ field is skipped)
-        assertTrue(Files.exists(grtOutputDir.resolve("com/example/Query.java")))
-        assertTrue(Files.exists(grtOutputDir.resolve("com/example/Mutation.java")))
-        // Subscription should be removed (no viaduct.java.api.types.Subscription marker interface)
-        assertFalse(Files.exists(grtOutputDir.resolve("com/example/Subscription.java")))
-        // Regular types should still exist
+        val customQuery = grtOutputDir.resolve("com/example/CustomQuery.java")
+        val customMutation = grtOutputDir.resolve("com/example/CustomMutation.java")
+        val customSubscription = grtOutputDir.resolve("com/example/CustomSubscription.java")
+        assertTrue(Files.readString(customQuery).contains("implements viaduct.java.api.types.Query"))
+        assertTrue(Files.readString(customMutation).contains("implements viaduct.java.api.types.Mutation"))
+        assertTrue(Files.exists(customSubscription))
+        assertFalse(Files.readString(customSubscription).contains("viaduct.java.api.types.Subscription"))
         assertTrue(Files.exists(grtOutputDir.resolve("com/example/User.java")))
     }
 

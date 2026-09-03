@@ -95,10 +95,7 @@ public class JavaResolversCodegen {
 
     // Generate resolver base classes
     int resolverCount = 0;
-    String mutationTypeName =
-        schema.getMutationTypeDef() != null ? schema.getMutationTypeDef().getName() : null;
-    Map<String, List<ResolverModel>> resolversByType =
-        parser.extractResolvers(schema, grtPackage, mutationTypeName);
+    Map<String, List<ResolverModel>> resolversByType = parser.extractResolvers(schema, grtPackage);
 
     for (Map.Entry<String, List<ResolverModel>> entry : resolversByType.entrySet()) {
       String typeName = entry.getKey();

@@ -27,7 +27,7 @@ import viaduct.x.javaapi.codegen.JavaResolversCodegen
  * - tenantPackage: package name for resolver bases ({tenantPackage}.resolverbases)
  * - grtOutputArchive: optional srcjar path to zip GRT output directory into
  * - resolverOutputArchive: optional srcjar path to zip resolver output directory into
- * - includeRootTypes: if true, include Query/Mutation/Subscription GRTs
+ * - includeRootTypes: if true, include the schema's query/mutation/subscription GRTs
  *
  * GRTs and Resolvers are generated independently using separate codegen classes:
  * - [JavaGRTsCodegen] for GRT types (enums, objects, inputs, interfaces, unions)
@@ -66,7 +66,7 @@ class JavaGRTsGenerator : CliktCommand(
     private val resolverOutputArchive: File? by option("--resolver_output_archive", help = "Optional output srcjar path for generated resolver files")
         .file(mustExist = false, canBeDir = false)
 
-    private val includeRootTypes: Boolean by option("--include_root_types", help = "If set, include Query/Mutation/Subscription GRTs")
+    private val includeRootTypes: Boolean by option("--include_root_types", help = "If set, include the schema's query/mutation/subscription GRTs")
         .flag()
 
     private val appliedScopes: List<String>? by option(
@@ -97,13 +97,6 @@ class JavaGRTsGenerator : CliktCommand(
         // Generate GRTs (enums, objects, inputs, interfaces, unions)
         val grtsCodegen = JavaGRTsCodegen()
         val grtsResult = grtsCodegen.generate(schemaFiles, grtOutputDir, resolvedGrtPackage, includeRootTypes, scopeSet)
-
-        // Remove Subscription.java when includeRootTypes is true: the viaduct.java.api.types
-        // package defines marker interfaces for Query and Mutation but not Subscription.
-        if (includeRootTypes) {
-            val packageSubdir = resolvedGrtPackage.replace('.', File.separatorChar)
-            File(grtOutputDir, "$packageSubdir/Subscription.java").delete()
-        }
 
         // Generate Resolvers (separate step)
         val resolversCodegen = JavaResolversCodegen()

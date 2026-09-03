@@ -8,8 +8,7 @@ import viaduct.graphql.test.assertEquals
 /**
  * Contract test for schemas with custom root type names via the schema clause.
  *
- * Verifies that schemas declaring `schema { query: CustomQuery mutation: CustomMutation }`
- * work end-to-end: queries resolve, mutations resolve, and they work together.
+ * Verifies that schema-declared root type names work end-to-end for Kotlin and Java tenants.
  *
  * Note: This test intentionally does not use Node/implements Node to avoid triggering the default
  * schema provider's addition of `extend type Query` for node/nodes fields, which would fail since
@@ -25,10 +24,13 @@ import viaduct.graphql.test.assertEquals
     type CustomQuery {
       greeting(name: String!): String @resolver
       echo(message: String!): String @resolver
+      selectedGreeting: String @resolver
+      queriedGreeting(name: String!): String @resolver
     }
 
     type CustomMutation {
       saveMessage(content: String!): SaveMessagePayload @resolver
+      relayMessage(content: String!): SaveMessagePayload @resolver
     }
 
     type SaveMessagePayload {
@@ -70,6 +72,25 @@ abstract class RootTypesSchemaClauseContractTest : KotlinFeatureAppTestContractB
             "data" to {
                 "greeting" to "Hello, Alice!"
                 "echo" to "test message"
+            }
+        }
+    }
+
+    @Test
+    fun `required selections and subqueries use the custom query root`() {
+        val result = execute(
+            query = """
+                query {
+                    selectedGreeting
+                    queriedGreeting(name: "Runtime")
+                }
+            """.trimIndent()
+        )
+
+        result.assertEquals {
+            "data" to {
+                "selectedGreeting" to "Hello, Selection!"
+                "queriedGreeting" to "Hello, Runtime!"
             }
         }
     }
@@ -132,6 +153,29 @@ abstract class RootTypesSchemaClauseContractTest : KotlinFeatureAppTestContractB
             "data" to {
                 "greeting" to "Hello, Mutation User!"
                 "echo" to "After mutation"
+            }
+        }
+    }
+
+    @Test
+    fun `submutations use the custom mutation root`() {
+        val result = execute(
+            query = """
+                mutation {
+                    relayMessage(content: "Relayed message") {
+                        messageId
+                        content
+                    }
+                }
+            """.trimIndent()
+        )
+
+        result.assertEquals {
+            "data" to {
+                "relayMessage" to {
+                    "messageId" to "msg-${("Relayed message").hashCode()}"
+                    "content" to "Relayed message"
+                }
             }
         }
     }

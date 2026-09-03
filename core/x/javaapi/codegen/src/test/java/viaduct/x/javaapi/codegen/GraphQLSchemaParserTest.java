@@ -141,6 +141,57 @@ class GraphQLSchemaParserTest {
   }
 
   @Test
+  void usesSchemaRootTypeNamesForObjectsAndResolvers() throws IOException {
+    ViaductSchema schema =
+        parser.parse(
+            new StringReader(
+                """
+                schema {
+                  query: CustomQuery
+                  mutation: CustomMutation
+                  subscription: CustomSubscription
+                }
+                directive @resolver on FIELD_DEFINITION
+                type Query { conventional: String }
+                type Mutation { conventional: String }
+                type Subscription { conventional: String }
+                type CustomQuery { placeholder: String }
+                extend type CustomQuery { greeting: String @resolver }
+                type CustomMutation { placeholder: String }
+                extend type CustomMutation { saveMessage: String @resolver }
+                type CustomSubscription { event: String }
+                """));
+
+    List<ObjectModel> nonRootObjects = parser.extractObjects(schema, "com.example.types");
+    assertThat(nonRootObjects)
+        .extracting(ObjectModel::className)
+        .containsExactlyInAnyOrder("Query", "Mutation", "Subscription")
+        .doesNotContain("CustomQuery", "CustomMutation", "CustomSubscription");
+
+    Map<String, ObjectModel> objectsByName =
+        parser.extractObjects(schema, "com.example.types", true).stream()
+            .collect(Collectors.toMap(ObjectModel::className, object -> object));
+    assertThat(objectsByName.get("CustomQuery").rootType()).isEqualTo("Query");
+    assertThat(objectsByName.get("CustomQuery").getImplementsClause())
+        .isEqualTo("viaduct.java.api.types.Query");
+    assertThat(objectsByName.get("CustomMutation").rootType()).isEqualTo("Mutation");
+    assertThat(objectsByName.get("CustomMutation").getImplementsClause())
+        .isEqualTo("viaduct.java.api.types.Mutation");
+    assertThat(objectsByName.get("CustomSubscription").rootType()).isEqualTo("Subscription");
+    assertThat(objectsByName.get("CustomSubscription").getImplementsClause()).isEmpty();
+    assertThat(objectsByName.get("Query").rootType()).isNull();
+
+    Map<String, List<ResolverModel>> resolvers =
+        parser.extractResolvers(schema, "com.example.types");
+    assertThat(resolvers.get("CustomQuery").get(0).queryType())
+        .isEqualTo("com.example.types.CustomQuery");
+    assertThat(resolvers.get("CustomQuery").get(0).mutationType())
+        .isEqualTo("com.example.types.CustomMutation");
+    assertThat(resolvers.get("CustomMutation").get(0).queryType())
+        .isEqualTo("com.example.types.CustomQuery");
+  }
+
+  @Test
   void extractsReflectionMetadataForRootAndCompositeFields() throws IOException {
     ViaductSchema schema =
         parser.parse(
@@ -631,7 +682,7 @@ class GraphQLSchemaParserTest {
     ViaductSchema schema = parser.parse(getTestSchemaReader());
 
     Map<String, List<ResolverModel>> resolversByType =
-        parser.extractResolvers(schema, "com.example.types", "Mutation");
+        parser.extractResolvers(schema, "com.example.types");
 
     // Shared default schema contributes Query.node and Query.nodes.
     assertThat(resolversByType).hasSize(4);
@@ -645,7 +696,7 @@ class GraphQLSchemaParserTest {
     ViaductSchema schema = parser.parse(getTestSchemaReader());
 
     Map<String, List<ResolverModel>> resolversByType =
-        parser.extractResolvers(schema, "com.example.types", "Mutation");
+        parser.extractResolvers(schema, "com.example.types");
 
     List<ResolverModel> userResolvers = resolversByType.get("User");
     assertThat(userResolvers).hasSize(3);
@@ -703,7 +754,7 @@ class GraphQLSchemaParserTest {
                 """));
 
     Map<String, List<ResolverModel>> resolversByType =
-        parser.extractResolvers(schema, "com.example.types", null);
+        parser.extractResolvers(schema, "com.example.types");
 
     ResolverModel userResolver = resolversByType.get("Query").get(0);
     assertThat(userResolver.gqlFieldName()).isEqualTo("user");
@@ -735,7 +786,7 @@ class GraphQLSchemaParserTest {
                 }
                 """));
 
-    assertThatThrownBy(() -> parser.extractResolvers(schema, "com.example.types", "Mutation"))
+    assertThatThrownBy(() -> parser.extractResolvers(schema, "com.example.types"))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("StayFooMutations.doThing");
   }
@@ -762,7 +813,7 @@ class GraphQLSchemaParserTest {
                 }
                 """));
 
-    assertThatThrownBy(() -> parser.extractResolvers(schema, "com.example.types", "Mutation"))
+    assertThatThrownBy(() -> parser.extractResolvers(schema, "com.example.types"))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("StayFooMutations.doThing");
   }
@@ -772,7 +823,7 @@ class GraphQLSchemaParserTest {
     ViaductSchema schema = parser.parse(getTestSchemaReader());
 
     Map<String, List<ResolverModel>> resolversByType =
-        parser.extractResolvers(schema, "com.example.types", "Mutation");
+        parser.extractResolvers(schema, "com.example.types");
 
     List<ResolverModel> listingResolvers = resolversByType.get("Listing");
     assertThat(listingResolvers).hasSize(2);
@@ -803,7 +854,7 @@ class GraphQLSchemaParserTest {
     ViaductSchema schema = parser.parse(getTestSchemaReader());
 
     Map<String, List<ResolverModel>> resolversByType =
-        parser.extractResolvers(schema, "com.example.types", "Mutation");
+        parser.extractResolvers(schema, "com.example.types");
 
     List<ResolverModel> mutationResolvers = resolversByType.get("Mutation");
     assertThat(mutationResolvers).hasSize(1);
@@ -825,7 +876,7 @@ class GraphQLSchemaParserTest {
     ViaductSchema schema = parser.parse(getTestSchemaReader());
 
     Map<String, List<ResolverModel>> resolversByType =
-        parser.extractResolvers(schema, "com.example.types", "Mutation");
+        parser.extractResolvers(schema, "com.example.types");
 
     ResolverModel profilePicture =
         resolversByType.get("User").stream()
@@ -895,7 +946,7 @@ class GraphQLSchemaParserTest {
             }
             """);
 
-    return parser.extractResolvers(schema, "com.example.types", null).get("Query").stream()
+    return parser.extractResolvers(schema, "com.example.types").get("Query").stream()
         .collect(Collectors.toMap(ResolverModel::gqlFieldName, model -> model));
   }
 
@@ -915,7 +966,7 @@ class GraphQLSchemaParserTest {
     ViaductSchema schema = parser.parse(new StringReader(minimalSchema));
 
     Map<String, List<ResolverModel>> resolversByType =
-        parser.extractResolvers(schema, "com.example.types", null);
+        parser.extractResolvers(schema, "com.example.types");
 
     assertThat(resolversByType).isEmpty();
   }

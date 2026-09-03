@@ -92,8 +92,7 @@ public class GraphQLSchemaParser {
   }
 
   /**
-   * Extracts object models from a ViaductSchema. Excludes root types (Query, Mutation,
-   * Subscription).
+   * Extracts object models from a ViaductSchema. Excludes the schema's root types.
    *
    * @param schema the ViaductSchema
    * @param packageName the package name for generated objects
@@ -108,7 +107,7 @@ public class GraphQLSchemaParser {
    *
    * @param schema the ViaductSchema
    * @param packageName the package name for generated objects
-   * @param includeRootTypes if true, includes Query, Mutation, Subscription types
+   * @param includeRootTypes if true, includes the schema's query, mutation, and subscription types
    * @return the list of object models
    */
   public List<ObjectModel> extractObjects(
@@ -117,15 +116,23 @@ public class GraphQLSchemaParser {
     TypeMapper typeMapper = new TypeMapper();
     ViaductReverseSchema reverseSchema = ViaductReverseSchema.Companion.from(schema);
 
-    // Root types to exclude from generation (unless explicitly included)
-    Set<String> rootTypes = Set.of("Query", "Mutation", "Subscription");
+    Map<String, String> rootTypes = new java.util.HashMap<>();
+    if (schema.getQueryTypeDef() != null) {
+      rootTypes.put(schema.getQueryTypeDef().getName(), "Query");
+    }
+    if (schema.getMutationTypeDef() != null) {
+      rootTypes.put(schema.getMutationTypeDef().getName(), "Mutation");
+    }
+    if (schema.getSubscriptionTypeDef() != null) {
+      rootTypes.put(schema.getSubscriptionTypeDef().getName(), "Subscription");
+    }
 
     for (ViaductSchema.TypeDef typeDef : schema.getTypes().values()) {
       if (typeDef instanceof ViaductSchema.Object objectDef) {
         String name = objectDef.getName();
 
         // Skip root types unless includeRootTypes is true
-        if (!includeRootTypes && rootTypes.contains(name)) {
+        if (!includeRootTypes && rootTypes.containsKey(name)) {
           continue;
         }
 
@@ -182,7 +189,7 @@ public class GraphQLSchemaParser {
                 fields,
                 reflectedFields,
                 getDescription(),
-                rootTypes.contains(name),
+                rootTypes.get(name),
                 isNodeType,
                 isConnection,
                 isEdge,
@@ -409,17 +416,20 @@ public class GraphQLSchemaParser {
    *
    * @param schema the ViaductSchema
    * @param grtPackage the package name for GRT types
-   * @param mutationTypeName the name of the mutation type (or null if none)
    * @return a map from type name to list of resolver models for that type
    */
   public Map<String, List<ResolverModel>> extractResolvers(
-      ViaductSchema schema, String grtPackage, String mutationTypeName) {
+      ViaductSchema schema, String grtPackage) {
     TypeMapper typeMapper = new TypeMapper(grtPackage);
     Map<String, List<ResolverModel>> result = new java.util.LinkedHashMap<>();
 
     // Names of @namespaceType objects reachable from the mutation root. Reuses the same helper as
     // the Kotlin codegen so both paths reject selective/batching resolvers on namespaced mutations.
     Set<String> mutationNamespaceNames = mutationNamespaceTypeNames(schema);
+    String queryTypeName =
+        schema.getQueryTypeDef() != null ? schema.getQueryTypeDef().getName() : "Query";
+    String mutationTypeName =
+        schema.getMutationTypeDef() != null ? schema.getMutationTypeDef().getName() : null;
 
     for (ViaductSchema.TypeDef typeDef : schema.getTypes().values()) {
       if (!(typeDef instanceof ViaductSchema.Object objectDef)) {
@@ -440,6 +450,7 @@ public class GraphQLSchemaParser {
                       typeName,
                       grtPackage,
                       typeMapper,
+                      queryTypeName,
                       mutationTypeName,
                       mutationNamespaceNames);
               resolvers.add(model);
@@ -463,6 +474,7 @@ public class GraphQLSchemaParser {
    * @param typeName the containing type name
    * @param grtPackage the GRT package name
    * @param typeMapper the type mapper
+   * @param queryTypeName the query root type name
    * @param mutationTypeName the mutation type name
    * @param mutationNamespaceNames names of @namespaceType objects reachable from the mutation root
    * @return the resolver model
@@ -472,6 +484,7 @@ public class GraphQLSchemaParser {
       String typeName,
       String grtPackage,
       TypeMapper typeMapper,
+      String queryTypeName,
       String mutationTypeName,
       Set<String> mutationNamespaceNames) {
     String fieldName = field.getName();
@@ -484,8 +497,7 @@ public class GraphQLSchemaParser {
     // Object type (the type containing this field)
     String objectType = grtPackage + "." + typeName;
 
-    // Query type is always the Query GRT
-    String queryType = grtPackage + ".Query";
+    String queryType = grtPackage + "." + queryTypeName;
 
     // Mutation type is the Mutation GRT if the schema has a Mutation type, otherwise null
     String mutationType = mutationTypeName != null ? grtPackage + "." + mutationTypeName : null;
