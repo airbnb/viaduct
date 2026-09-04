@@ -551,6 +551,25 @@ class GraphQLTypesTest : KotestPropertyBase() {
                 unimplemented.isEmpty()
             }
         }
+
+    @Test
+    fun `GraphQLTypes -- field names on the same type never differ only by case`(): Unit =
+        runBlocking {
+            // A short name pool and a large field count make case-only collisions likely on every
+            // generation if they aren't being deduped.
+            val cfg = minimalConfig +
+                (FieldNameLength to 1..2) +
+                (ObjectTypeSize to 30..30) +
+                (InterfaceTypeSize to 30..30) +
+                (InputObjectTypeSize to 30..30)
+
+            fun List<String>.hasCaseCollision() = size != map { it.lowercase() }.distinct().size
+
+            Arb.graphQLTypes(cfg).forAll { types ->
+                (types.objects.values + types.interfaces.values).none { it.fields.map { f -> f.name }.hasCaseCollision() } &&
+                    types.inputs.values.none { it.fields.map { f -> f.name }.hasCaseCollision() }
+            }
+        }
 }
 
 private val GraphQLType.listSomewhere: Boolean

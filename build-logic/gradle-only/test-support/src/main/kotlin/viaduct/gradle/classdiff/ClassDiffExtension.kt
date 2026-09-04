@@ -82,6 +82,17 @@ class SchemaDiff(
         schemaResources.add(path)
     }
 
+    /** Generates [path] at build time via viaduct.arbitrary.cli.GenerateSchema; requires `viaductCodegenClasspath(libs.viaduct.shared.arbitrary.cli)`. */
+    fun generatedSchemaResource(path: String) {
+        require(!generatedSchemaResourcePath.isPresent) {
+            "schemaDiff '$diffName' already has a generatedSchemaResource() configured; only one is supported."
+        }
+        generatedSchemaResourcePath.set(path)
+        schemaResource(path)
+    }
+
+    internal val generatedSchemaResourcePath: Property<String> = project.objects.property(String::class.java)
+
     /**
      * Add multiple schema resource file paths.
      */

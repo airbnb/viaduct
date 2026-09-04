@@ -42,6 +42,7 @@ abstract class CodegenWorkAction : WorkAction<CodegenWorkAction.Params> {
         const val KOTLIN_GRTS_GENERATOR = "viaduct.tenant.codegen.cli.KotlinGRTsGenerator\$Main"
         const val JAVA_GRTS_GENERATOR = "viaduct.x.javaapi.codegen.cli.JavaGRTsGenerator\$Main"
         const val ASSEMBLE_TENANT_MODULE_CONFIG_FILE = "viaduct.tenant.codegen.cli.AssembleTenantModuleConfigFile\$Main"
+        const val GENERATE_SCHEMA = "viaduct.arbitrary.cli.GenerateSchema\$Main"
     }
 }
 
@@ -69,3 +70,14 @@ fun Project.getOrCreateCodegenClasspath(): Configuration =
         isCanBeConsumed = false
         isCanBeResolved = true
     }
+
+/** [projectPath] is lazy so `Task.project` (disallowed at execution time under config cache) is only read on failure. */
+fun ConfigurableFileCollection.requireNonEmptyCodegenClasspath(
+    projectPath: () -> String,
+    dependencyHint: String
+) {
+    require(!isEmpty) {
+        "Project '${projectPath()}' has an empty viaductCodegenClasspath. " +
+            "Add viaductCodegenClasspath($dependencyHint) to your dependencies block."
+    }
+}

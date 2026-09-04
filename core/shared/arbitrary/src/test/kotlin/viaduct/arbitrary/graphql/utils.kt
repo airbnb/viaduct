@@ -1,9 +1,16 @@
 package viaduct.arbitrary.graphql
 
+import graphql.schema.GraphQLEnumType
+import graphql.schema.GraphQLInputObjectType
+import graphql.schema.GraphQLInterfaceType
+import graphql.schema.GraphQLNamedType
 import graphql.schema.GraphQLObjectType
+import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLSchema
+import graphql.schema.GraphQLUnionType
 import io.kotest.property.Arb
 import io.kotest.property.checkAll
+import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.NodeReference
@@ -70,6 +77,58 @@ internal suspend fun Arb<*>.assertNoErrors() =
     checkAll {
         markSuccess()
     }
+
+/**
+ * Pushes schema generation to cover every TypeType at once (including custom scalars), guarantees
+ * every interface has an implementing object, and uses large type/field counts.
+ *
+ * Slower than [Config.default] -- callers should use a low iteration count (5-20). Kept local to
+ * this test module rather than exported as a shared preset, since the knobs it tunes are only
+ * meaningful for tests that want to exercise every TypeType at once.
+ */
+internal val coverageConfig: Config = Config.default +
+    (SchemaSize to 150) +
+    (
+        // Types not listed here fall back to the default weight of 1.0.
+        TypeTypeWeights to mapOf(
+            TypeType.Object to 4.0,
+            TypeType.Interface to 1.5,
+            TypeType.Input to 1.5
+        )
+    ) +
+    (GenCustomScalars to true) +
+    (GenInterfaceStubsIfNeeded to true) +
+    (ObjectImplementsInterface to CompoundingWeight(.6, 4)) +
+    (InterfaceImplementsInterface to CompoundingWeight(.4, 3)) +
+    (ObjectTypeSize to 4..10) +
+    (InterfaceTypeSize to 3..8) +
+    (InputObjectTypeSize to 3..8) +
+    (UnionTypeSize to 3..8) +
+    (EnumTypeSize to 3..8) +
+    (FieldArgumentWeight to CompoundingWeight(.5, 3)) +
+    (DefaultValueWeight to 0.0) +
+    (AppliedDirectiveWeight to CompoundingWeight(.4, 3)) +
+    (DirectiveHasArgs to CompoundingWeight.Never) +
+    (OneOfTypeWeight to .3) +
+    (DescriptionLength to 0..0)
+
+/** Type-kind breakdown and coverage checks for a list of GraphQL named types. */
+internal class TypeKindCoverage(types: List<GraphQLNamedType>) {
+    val objects = types.filterIsInstance<GraphQLObjectType>()
+    val interfaces = types.filterIsInstance<GraphQLInterfaceType>()
+    val unions = types.filterIsInstance<GraphQLUnionType>()
+    val inputs = types.filterIsInstance<GraphQLInputObjectType>()
+    val enums = types.filterIsInstance<GraphQLEnumType>()
+    val scalars = types.filterIsInstance<GraphQLScalarType>()
+    val customScalars = scalars.filterNot { it.name in builtinScalars }
+
+    val everyInterfaceImplemented: Boolean =
+        interfaces.all { iface -> objects.any { obj -> obj.interfaces.any { it.name == iface.name } } }
+
+    fun summary(label: String): String =
+        "[$label] objects=${objects.size} interfaces=${interfaces.size} unions=${unions.size} " +
+            "inputs=${inputs.size} enums=${enums.size} scalars=${scalars.size} (custom=${customScalars.size})"
+}
 
 class MockEngineCtx(
     override val globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,

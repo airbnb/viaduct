@@ -9,7 +9,10 @@ viaductClassDiff {
     schemaDiff("schema") {
         actualPackage.set("actuals.api.generated")
         expectedPackage.set("viaduct.api.grts")
-        schemaResource("graphql/schema.graphqls")
+        // Generated at build time from shared/arbitrary (with a fresh random seed every build)
+        // rather than hand-maintained, so classdiff exercises a large, varied set of schema
+        // constructs instead of a small fixed set. See SchemaDiff.generatedSchemaResource's doc.
+        generatedSchemaResource("graphql/schema.graphqls")
     }
 }
 
@@ -55,6 +58,7 @@ dependencies {
 
     /** Codegen classpath for test-classdiff worker isolation **/
     viaductCodegenClasspath(libs.viaduct.tenant.codegen)
+    viaductCodegenClasspath(libs.viaduct.shared.arbitrary.cli)
 
     jmh(libs.jmh.annotation.processor)
     jmhAnnotationProcessor(libs.jmh.annotation.processor)

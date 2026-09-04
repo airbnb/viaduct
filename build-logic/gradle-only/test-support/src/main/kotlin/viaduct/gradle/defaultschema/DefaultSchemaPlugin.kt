@@ -6,9 +6,11 @@ import org.gradle.api.file.Directory
 import org.gradle.api.file.RegularFile
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.register
+import viaduct.gradle.utils.capitalize
 
 /**
  * Plugin that automatically sets up default schema extraction for Viaduct projects.
@@ -60,14 +62,25 @@ abstract class DefaultSchemaPlugin : Plugin<Project> {
             sourceSetName: String
         ) {
             if (sourceSetName == "test") return
-            val javaExt = project.extensions.getByType(JavaPluginExtension::class.java)
-            javaExt.sourceSets.getByName(sourceSetName).resources.srcDir(
-                getGeneratedResourcesDir(project)
+            wireGeneratedResourcesIntoSourceSet(
+                project,
+                sourceSetName,
+                getGeneratedResourcesDir(project),
+                project.tasks.named(TASK_NAME)
             )
-            val processResourcesTaskName = "process${sourceSetName.replaceFirstChar { it.uppercase() }}Resources"
-            project.tasks.named(processResourcesTaskName).configure {
-                dependsOn(project.tasks.named(TASK_NAME))
-            }
+        }
+
+        /** Shared by [wireToSourceSet] and other plugins (e.g. viaduct-classdiff) with their own generated resources. */
+        fun wireGeneratedResourcesIntoSourceSet(
+            project: Project,
+            sourceSetName: String,
+            resourcesDir: Provider<Directory>,
+            dependency: TaskProvider<*>
+        ) {
+            val javaExt = project.extensions.getByType(JavaPluginExtension::class.java)
+            javaExt.sourceSets.named(sourceSetName).configure { resources.srcDir(resourcesDir) }
+            val processResourcesTaskName = "process${sourceSetName.capitalize()}Resources"
+            project.tasks.named(processResourcesTaskName).configure { dependsOn(dependency) }
         }
     }
 

@@ -191,6 +191,9 @@ internal val builtinScalars: Map<String, GraphQLScalarType> =
         Scalars.GraphQLString
     ).associateBy { it.name }
 
+/** Names of [builtinScalars], for callers outside this module that only need membership checks. */
+val builtinScalarNames: Set<String> = builtinScalars.keys
+
 internal val builtinDirectives: Map<String, GraphQLDirective> =
     listOf(
         Directives.DeferDirective,

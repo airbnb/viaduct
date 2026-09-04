@@ -3,6 +3,7 @@
 package viaduct.arbitrary.graphql
 
 import io.kotest.property.Arb
+import io.kotest.property.arbitrary.removeEdgecases
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -18,6 +19,27 @@ class ViaductSchemasTest : KotestPropertyBase() {
     fun `Arb_viaductSchema`(): Unit =
         runBlocking {
             Arb.viaductSchema().checkAll {
+                markSuccess()
+            }
+        }
+
+    @Test
+    fun `Arb_viaductSchema -- covers every TypeType`(): Unit =
+        runBlocking {
+            // removeEdgecases: Arb.graphQLNames declares GraphQLNames.empty as an edgecase, which
+            // yields a near-empty schema that no config can make extensive.
+            Arb.viaductSchema(coverageConfig).removeEdgecases().checkAll(10) { schema ->
+                val coverage = TypeKindCoverage(schema.schema.allTypesAsList)
+                println(coverage.summary("coverageConfig via viaductSchema"))
+
+                assertTrue(coverage.objects.isNotEmpty(), "expected at least one object type")
+                assertTrue(coverage.interfaces.isNotEmpty(), "expected at least one interface type")
+                assertTrue(coverage.unions.any { it.types.size > 1 }, "expected a union with multiple members")
+                assertTrue(coverage.inputs.isNotEmpty(), "expected at least one input type")
+                assertTrue(coverage.enums.isNotEmpty(), "expected at least one enum type")
+                assertTrue(coverage.scalars.size > 5, "expected at least one custom scalar beyond the 5 builtins")
+                assertTrue(coverage.everyInterfaceImplemented, "expected every interface to have an implementing object")
+
                 markSuccess()
             }
         }

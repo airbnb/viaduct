@@ -131,8 +131,9 @@ fun Arb.Companion.graphQLNames(cfg: Config = Config.default): Arb<GraphQLNames> 
         .set(
             Arb.graphQLName(cfg[TypeNameLength]),
             cfg[SchemaSize]
-        ).map {
-            GraphQLNames.fromRawNames(it.toList(), cfg)
+        ).map { rawNames ->
+            val names = if (cfg[DedupeCaseInsensitiveNames]) rawNames.distinctBy { it.lowercase() } else rawNames.toList()
+            GraphQLNames.fromRawNames(names, cfg)
         }.withEdgecases(GraphQLNames.empty)
         .map { names ->
             if (cfg[IncludeBuiltinScalars]) {

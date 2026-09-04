@@ -64,10 +64,7 @@ abstract class SchemaTaskBase : DefaultTask() {
      * Common schema generation logic that can be called by subclasses
      */
     protected fun executeSchemaGeneration() {
-        require(!codegenClasspath.isEmpty) {
-            "Project '${project.path}' has an empty viaductCodegenClasspath. " +
-                "Add viaductCodegenClasspath(libs.viaduct.tenant.codegen) to your dependencies block."
-        }
+        codegenClasspath.requireNonEmptyCodegenClasspath({ project.path }, "libs.viaduct.tenant.codegen")
         val outputDir = generatedSrcDir.get().asFile
 
         // Write build flags to temporary file

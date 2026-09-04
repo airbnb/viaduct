@@ -480,3 +480,13 @@ object CheckerErrorWeight : ConfigKey<Double>(.3, WeightValidator)
 
 /** The generator to use when generating a value for ID scalar */
 object IDValueGenFactory : ConfigKey<IDValueGen.Factory>(IDValueGen.Factory.default, Unvalidated)
+
+/**
+ * If enabled, generated type names that are equal case-insensitively (e.g. "A" and "a") are
+ * deduplicated so that only one survives.
+ *
+ * Disabled by default, since case-only-different names are a valuable edge case for schemas that
+ * don't get written to a case-insensitive filesystem. Callers that codegen one file per type name
+ * -- where such names would collide -- should enable this.
+ */
+object DedupeCaseInsensitiveNames : ConfigKey<Boolean>(false, Unvalidated)

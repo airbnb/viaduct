@@ -58,6 +58,7 @@ include(":x:javaapi:runtime")
 // Include all shared modules
 include(":shared:apiannotations")
 include(":shared:arbitrary")
+include(":shared:arbitrary-cli")
 include(":shared:dataloader")
 include(":shared:utils")
 include(":shared:deferred")

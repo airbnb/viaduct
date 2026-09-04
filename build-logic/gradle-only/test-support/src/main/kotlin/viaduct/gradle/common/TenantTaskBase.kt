@@ -66,10 +66,7 @@ abstract class TenantTaskBase : DefaultTask() {
      * Common tenant generation logic that can be called by subclasses
      */
     protected fun executeTenantGeneration() {
-        require(!codegenClasspath.isEmpty) {
-            "Project '${project.path}' has an empty viaductCodegenClasspath. " +
-                "Add viaductCodegenClasspath(libs.viaduct.tenant.codegen) to your dependencies block."
-        }
+        codegenClasspath.requireNonEmptyCodegenClasspath({ project.path }, "libs.viaduct.tenant.codegen")
         // Get temporary generation directories
         val modernModuleSrcDirFile = modernModuleSrcDir.get().asFile
         val resolverSrcDirFile = resolverSrcDir.get().asFile

@@ -111,10 +111,23 @@ internal class GraphQLTypesGen(
     private val names: GraphQLNames,
     private val rs: RandomSource
 ) {
+    /**
+     * Canonical casing per lowercased field name, for the lifetime of one schema generation.
+     *
+     * Ensures no type ever declares two fields whose names differ only by case. This can't be
+     * fixed up after generation: an object must declare every field its interfaces declare, so
+     * dropping one of a colliding pair could yield an invalid schema.
+     */
+    private val canonicalFieldNames = mutableMapOf<String, String>()
+
     private fun sampleWeight(key: ConfigKey<Double>): Boolean = rs.sampleWeight(cfg[key])
 
     @JvmName("sampleCompoundingWeight")
     private fun sampleWeight(key: ConfigKey<CompoundingWeight>): Boolean = rs.sampleWeight(cfg[key].weight)
+
+    private fun canonicalFieldName(name: String): String = canonicalFieldNames.getOrPut(name.lowercase()) { name }
+
+    private fun genFieldName(): String = canonicalFieldName(Arb.graphQLFieldName(cfg).next(rs))
 
     fun gen(): GraphQLTypes =
         Arb
@@ -338,7 +351,7 @@ internal class GraphQLTypesGen(
                 val itd = genInputTypeDescriptor().next(rs)
                 val arg = GraphQLArgument
                     .newArgument()
-                    .name(Arb.graphQLArgumentName(cfg).next(rs))
+                    .name(canonicalFieldName(Arb.graphQLArgumentName(cfg).next(rs)))
                     .description(genDescription())
                     .type(itd.type)
                     .build()
@@ -392,7 +405,7 @@ internal class GraphQLTypesGen(
     private fun genField(): GraphQLFieldDefinition =
         GraphQLFieldDefinition
             .newFieldDefinition()
-            .name(Arb.graphQLFieldName(cfg).next(rs))
+            .name(genFieldName())
             .description(genDescription())
             .arguments(genArguments(FieldArgumentWeight))
             .type(genOutputTypeRef())
@@ -494,7 +507,7 @@ internal class GraphQLTypesGen(
             .map { itd ->
                 GraphQLInputObjectField
                     .newInputObjectField()
-                    .name(Arb.graphQLFieldName(cfg).next(rs))
+                    .name(genFieldName())
                     .description(genDescription())
                     .type(itd.type)
                     .build()
@@ -505,10 +518,12 @@ internal class GraphQLTypesGen(
     }
 
     private fun genEscapeInputField(): GraphQLInputObjectField {
-        val escapeFieldName = Arb.graphQLFieldName(cfg)
-            // prefix the escape field name for better debuggability
-            .map { "escape_" + it }
-            .next(rs)
+        val escapeFieldName = canonicalFieldName(
+            Arb.graphQLFieldName(cfg)
+                // prefix the escape field name for better debuggability
+                .map { "escape_" + it }
+                .next(rs)
+        )
 
         return GraphQLInputObjectField.newInputObjectField()
             .name(escapeFieldName)
