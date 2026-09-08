@@ -16,6 +16,7 @@ import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.graphql.AppliedDirectiveWeight
 import viaduct.arbitrary.graphql.BanFieldNames
+import viaduct.arbitrary.graphql.DedupeCaseInsensitiveNames
 import viaduct.arbitrary.graphql.DefaultValueWeight
 import viaduct.arbitrary.graphql.DescriptionLength
 import viaduct.arbitrary.graphql.DirectiveHasArgs
@@ -65,10 +66,14 @@ class GenerateSchema : CliktCommand(name = "generate-schema") {
      * literal for a runtime-generated custom scalar name, and would throw. [BanFieldNames] excludes
      * "_" (Kotlin reserves it as a declaration name) and "of" (the Kotlin GRT codegen's `_Arguments`
      * class always declares a nested `object of`, which a field literally named "of" collides with).
+     *
+     * [DedupeCaseInsensitiveNames] is on because GRT codegen writes one file per type name, and
+     * "Object_i" and "Object_I" are one path on a case-insensitive filesystem.
      */
     private val extensiveSchemaFragmentConfig: Config = Config.default +
         (SchemaSize to 150) +
         (BanFieldNames to setOf("_", "of")) +
+        (DedupeCaseInsensitiveNames to true) +
         (
             // Types not listed here fall back to the default weight of 1.0.
             TypeTypeWeights to mapOf(
