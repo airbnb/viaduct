@@ -19,6 +19,7 @@ import viaduct.bootstrap.SelectionsBlockConfig
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.SelectionSetVariable
+import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.RequiredSelectionSetSupport
 import viaduct.engine.api.parse.CachedDocumentParser
@@ -41,9 +42,19 @@ class ViaductModernExecutorFactory(
     private val codeInjector: CodeInjector,
     private val grtPackagePrefix: String,
     private val registry: ExecutionRegistryConfigFile,
+    private val tenantPackageFinder: TenantPackageFinder,
 ) : ExecutorFactory {
+    /**
+     * Reflection constructor used by [viaduct.engine.runtime.tenantloading.ModuleConfigBootstrapper]
+     * when the GRT package prefix is overridden. Declared explicitly (no default parameters) so its
+     * JVM signature matches exactly what that bootstrapper looks up via reflection.
+     */
+    constructor(codeInjector: CodeInjector, grtPackagePrefix: String, registry: ExecutionRegistryConfigFile) :
+        this(codeInjector, grtPackagePrefix, registry, ViaductTenantPackageFinder())
+
     /** Production constructor — GRT package sourced from the compile-time constant. */
-    constructor(codeInjector: CodeInjector, registry: ExecutionRegistryConfigFile) : this(codeInjector, GRT_PACKAGE_PREFIX, registry)
+    constructor(codeInjector: CodeInjector, registry: ExecutionRegistryConfigFile) :
+        this(codeInjector, GRT_PACKAGE_PREFIX, registry, ViaductTenantPackageFinder())
 
     private val grtConvFactory = DefaultGRTConvFactory
     private val reflectionLoader = ReflectionLoaderImpl { name ->
@@ -52,6 +63,18 @@ class ViaductModernExecutorFactory(
     }
 
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory(reflectionLoader)
+
+    // Sorted longest-package-first so a resolver's package resolves to its most specific tenant module.
+    private val tenantPackagesByLength: List<TenantPackageInfo> by lazy {
+        tenantPackageFinder.tenantPackages().sortedByDescending { it.packageName.length }
+    }
+
+    private fun tenantMetadataFor(resolverClass: Class<*>): TenantModuleMetadata? {
+        val resolverPackage = resolverClass.packageName
+        return tenantPackagesByLength.firstOrNull {
+            resolverPackage == it.packageName || resolverPackage.startsWith("${it.packageName}.")
+        }?.metadata
+    }
 
     private val namedFragments: Map<String, FragmentDefinition> by lazy {
         registry.namedFragments
@@ -93,6 +116,7 @@ class ViaductModernExecutorFactory(
         )
         val argumentVariables = buildArgumentVariables(configData.objectSelections, configData.querySelections)
         val resolverId = "${configData.typeName}.${configData.fieldName}"
+        val tenantMetadata = tenantMetadataFor(resolverClass)
 
         return if (configData.isBatching) {
             requireBaseResolver(resolverClass, BaseBatchedFieldResolver::class.java, "Batch field resolver")
@@ -106,6 +130,7 @@ class ViaductModernExecutorFactory(
                 resolverContextFactory = contextFactory,
                 resolverName = apiData.resolverClass,
                 argumentVariables = argumentVariables,
+                tenantMetadata = tenantMetadata,
             )
         } else {
             requireBaseResolver(resolverClass, BaseUnbatchedFieldResolver::class.java, "Field resolver")
@@ -119,6 +144,7 @@ class ViaductModernExecutorFactory(
                 resolverContextFactory = contextFactory,
                 resolverName = apiData.resolverClass,
                 argumentVariables = argumentVariables,
+                tenantMetadata = tenantMetadata,
             )
         }
     }
@@ -141,6 +167,8 @@ class ViaductModernExecutorFactory(
             knownFragments = namedFragments,
         )
 
+        val tenantMetadata = tenantMetadataFor(resolverClass)
+
         return if (configData.isBatching) {
             requireBaseResolver(resolverClass, BaseBatchedNodeResolver::class.java, "Batch node resolver")
             log.info("- Adding batch node resolver for '{}'", configData.typeName)
@@ -150,6 +178,7 @@ class ViaductModernExecutorFactory(
                 factory = contextFactory,
                 resolverName = apiData.resolverClass,
                 isSelective = configData.isSelective,
+                tenantMetadata = tenantMetadata,
             )
         } else {
             requireBaseResolver(resolverClass, BaseUnbatchedNodeResolver::class.java, "Node resolver")
@@ -160,6 +189,7 @@ class ViaductModernExecutorFactory(
                 factory = contextFactory,
                 resolverName = apiData.resolverClass,
                 isSelective = configData.isSelective,
+                tenantMetadata = tenantMetadata,
             )
         }
     }

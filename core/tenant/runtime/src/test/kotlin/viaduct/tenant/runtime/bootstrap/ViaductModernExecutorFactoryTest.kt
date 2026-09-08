@@ -1,5 +1,6 @@
 package viaduct.tenant.runtime.bootstrap
 
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.FieldResolverBase
@@ -29,6 +30,7 @@ import viaduct.bootstrap.NodeEntryConfig
 import viaduct.bootstrap.ProviderVariablesAPIData
 import viaduct.bootstrap.SelectionsBlockConfig
 import viaduct.bootstrap.VariableProviderEntryConfig
+import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -119,11 +121,12 @@ class ViaductModernExecutorFactoryTest {
 
     private val pkg = ViaductModernExecutorFactoryTest::class.java.name
 
-    private fun factory() =
+    private fun factory(tenantPackageFinder: TenantPackageFinder = TenantPackageFinder { emptySet() }) =
         ViaductModernExecutorFactory(
             codeInjector = CodeInjector.Naive,
             grtPackagePrefix = "viaduct.api.bootstrap.test.grts",
             registry = ExecutionRegistryConfigFile(version = "1", executorFactory = ViaductModernExecutorFactory::class.java.name),
+            tenantPackageFinder = tenantPackageFinder,
         )
 
     private fun fieldEntry(
@@ -267,6 +270,44 @@ class ViaductModernExecutorFactoryTest {
         }
     }
 
+    @Test
+    fun `createFieldResolverExecutor - resolver metadata carries tenant metadata for the resolver's package`() {
+        val tenantPackageFinder = TenantPackageFinder {
+            setOf(TenantPackageInfo(packageName = ViaductModernExecutorFactoryTest::class.java.packageName, metadata = TenantModuleMetadata(name = "viaduct-data-test")))
+        }
+        val executor = factory(tenantPackageFinder).createFieldResolverExecutor(
+            fieldEntry(resolverSimpleName = "TestFieldResolver", resolverBaseSimpleName = "TestFieldResolverBase"),
+            schema,
+        )
+        assertEquals("viaduct-data-test", executor.metadata.tenantMetadata?.name)
+    }
+
+    @Test
+    fun `createFieldResolverExecutor - resolver metadata uses the most specific of multiple matching tenant packages`() {
+        val resolverPackage = ViaductModernExecutorFactoryTest::class.java.packageName
+        val outerPackage = resolverPackage.substringBeforeLast(".")
+        val tenantPackageFinder = TenantPackageFinder {
+            setOf(
+                TenantPackageInfo(packageName = outerPackage, metadata = TenantModuleMetadata(name = "viaduct-data-outer")),
+                TenantPackageInfo(packageName = resolverPackage, metadata = TenantModuleMetadata(name = "viaduct-data-inner")),
+            )
+        }
+        val executor = factory(tenantPackageFinder).createFieldResolverExecutor(
+            fieldEntry(resolverSimpleName = "TestFieldResolver", resolverBaseSimpleName = "TestFieldResolverBase"),
+            schema,
+        )
+        assertEquals("viaduct-data-inner", executor.metadata.tenantMetadata?.name)
+    }
+
+    @Test
+    fun `createFieldResolverExecutor - no matching tenant package leaves tenant metadata null`() {
+        val executor = factory().createFieldResolverExecutor(
+            fieldEntry(resolverSimpleName = "TestFieldResolver", resolverBaseSimpleName = "TestFieldResolverBase"),
+            schema,
+        )
+        assertEquals(null, executor.metadata.tenantMetadata)
+    }
+
     // ── Node resolver ─────────────────────────────────────────────────────────
 
     @Test
@@ -277,6 +318,18 @@ class ViaductModernExecutorFactoryTest {
         )
         assert(executor is NodeResolverExecutor)
         assert(!executor.isBatching)
+    }
+
+    @Test
+    fun `createNodeResolverExecutor - resolver metadata carries tenant metadata for the resolver's package`() {
+        val tenantPackageFinder = TenantPackageFinder {
+            setOf(TenantPackageInfo(packageName = ViaductModernExecutorFactoryTest::class.java.packageName, metadata = TenantModuleMetadata(name = "viaduct-data-test")))
+        }
+        val executor = factory(tenantPackageFinder).createNodeResolverExecutor(
+            nodeEntry("TestNode", "TestNodeResolver", "TestNodeResolverBase"),
+            schema,
+        )
+        assertEquals("viaduct-data-test", executor.metadata.tenantMetadata?.name)
     }
 
     @Test
