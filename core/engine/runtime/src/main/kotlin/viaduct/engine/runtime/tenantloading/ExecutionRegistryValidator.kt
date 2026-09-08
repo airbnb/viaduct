@@ -1,8 +1,8 @@
 package viaduct.engine.runtime.tenantloading
 
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
-import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
+import viaduct.bootstrap.ExecutionRegistryConfigFile
+import viaduct.bootstrap.FieldEntryConfig
+import viaduct.bootstrap.NodeEntryConfig
 import viaduct.engine.api.spi.TenantModuleException
 
 internal fun validateSchemaFree(registry: ExecutionRegistryConfigFile) {

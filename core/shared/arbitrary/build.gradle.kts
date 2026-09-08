@@ -25,6 +25,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.javax.inject)
     implementation(libs.viaduct.engine.api)
+    implementation(libs.viaduct.shared.bootstrap)
     implementation(libs.viaduct.engine.runtime)
     implementation(libs.viaduct.engine.wiring)
     implementation(libs.viaduct.service.api)

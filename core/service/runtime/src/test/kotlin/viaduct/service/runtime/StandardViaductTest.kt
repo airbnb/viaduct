@@ -21,12 +21,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
+import viaduct.bootstrap.ExecutionRegistryConfigFile
+import viaduct.bootstrap.FieldEntryConfig
+import viaduct.bootstrap.NodeEntryConfig
 import viaduct.engine.api.GraphQLBuildError
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
-import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockExecutorCodeInjector
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor

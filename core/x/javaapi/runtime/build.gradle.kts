@@ -19,6 +19,7 @@ dependencies {
 
     // Viaduct engine API (Kotlin)
     api(libs.viaduct.engine.api)
+    implementation(libs.viaduct.shared.bootstrap)
 
     // Viaduct service API (for CodeInjector)
     api(libs.viaduct.service.api)

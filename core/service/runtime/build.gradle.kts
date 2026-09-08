@@ -15,6 +15,7 @@ dependencies {
 
 
     implementation(libs.viaduct.engine.api)
+    implementation(libs.viaduct.shared.bootstrap)
     implementation(libs.viaduct.engine.runtime)
     implementation(libs.viaduct.engine.wiring)
 

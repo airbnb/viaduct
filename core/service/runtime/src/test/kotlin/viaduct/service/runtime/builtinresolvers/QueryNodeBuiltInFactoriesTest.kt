@@ -10,9 +10,9 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.bootstrap.ExecutionRegistryConfigFile
+import viaduct.bootstrap.FieldEntryConfig
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.service.api.spi.CodeInjector
 
 class QueryNodeBuiltInFactoriesTest {

@@ -22,6 +22,7 @@ dependencies {
     implementation(libs.classgraph)
 
     implementation(libs.viaduct.engine.api)
+    implementation(libs.viaduct.shared.bootstrap)
     implementation(libs.viaduct.shared.apiannotations)
     implementation(libs.viaduct.service.api)
     implementation(libs.viaduct.shared.dataloader)

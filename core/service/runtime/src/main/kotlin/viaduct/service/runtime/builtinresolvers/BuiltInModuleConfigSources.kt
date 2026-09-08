@@ -1,8 +1,8 @@
 package viaduct.service.runtime.builtinresolvers
 
+import viaduct.bootstrap.ExecutionRegistryConfigFile
+import viaduct.bootstrap.FieldEntryConfig
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigFactory
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.service.api.spi.InputStreamSource

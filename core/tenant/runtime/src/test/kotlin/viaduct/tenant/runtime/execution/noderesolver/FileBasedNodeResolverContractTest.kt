@@ -3,11 +3,11 @@ package viaduct.tenant.runtime.execution.noderesolver
 import com.google.inject.AbstractModule
 import com.google.inject.Guice
 import javax.inject.Singleton
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
-import viaduct.engine.api.bootstrap.executionregistry.KOTLIN_API_NAME
+import viaduct.bootstrap.ExecutionRegistryConfigFile
+import viaduct.bootstrap.FieldEntryConfig
+import viaduct.bootstrap.KOTLIN_API_NAME
+import viaduct.bootstrap.NodeEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
-import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 import viaduct.service.api.spi.InputStreamSource
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 import viaduct.service.api.spi.TenantModuleInjectorFactory

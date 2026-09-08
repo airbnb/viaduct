@@ -1,8 +1,8 @@
 package viaduct.engine.api.spi
 
+import viaduct.bootstrap.FieldEntryConfig
+import viaduct.bootstrap.NodeEntryConfig
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
-import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 
 /**
  * Tenant API implementations provide this to the engine to create executors from registry entries.

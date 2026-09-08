@@ -61,6 +61,24 @@ DispatcherRegistry = validatedUnion(
 executors. The factory therefore belongs to the **value** side of the map. It does not identify the
 map entry.
 
+## Where these types live
+
+The wire model — `ExecutionRegistryConfigFile` and its entry types — together with `ConfigKey` and
+`KOTLIN_API_NAME` lives in [`core/shared/bootstrap`](../core/shared/bootstrap/README.md), package
+`viaduct.bootstrap`. That module depends on nothing but Jackson and dependency-free marker
+annotations, so a producer of bootstrap data does not have to depend on the engine in order to write
+a config the engine can read.
+
+`ModuleConfigSource`, `ModuleConfigFactory`, and `RequiredSelectionSetSupport` stay in `engine/api`
+under `viaduct.engine.api.bootstrap.executionregistry`, because each needs an engine-side type.
+
+## Lifecycle and compatibility
+
+Execution-registry JSON is generated build metadata, not durable storage or a cross-version
+protocol. It is regenerated whenever its owning artifact is built, and Viaduct assumes its producer
+and runtime consumer use compatible code. Backward compatibility with registry files produced by
+older Viaduct versions is not a supported invariant.
+
 ## Why `apiName` and not the executor factory
 
 There is today a de facto one-to-one mapping between API names and factory classes:

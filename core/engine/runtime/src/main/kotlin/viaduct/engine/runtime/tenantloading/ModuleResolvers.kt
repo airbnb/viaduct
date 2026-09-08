@@ -1,8 +1,8 @@
 package viaduct.engine.runtime.tenantloading
 
+import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor

@@ -1,12 +1,12 @@
 @file:Suppress("MemberVisibilityCanBePrivate")
 
-package viaduct.engine.api.bootstrap.executionregistry
+package viaduct.bootstrap
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import viaduct.service.api.spi.InputStreamSource
+import java.io.InputStream
 
 /**
  * Stable `apiName` wire value for the default tenant API — the one this engine ships and generates for
@@ -18,8 +18,9 @@ import viaduct.service.api.spi.InputStreamSource
  * open string so any other tenant API — including ones built outside this engine — declares its own
  * name in its own module. Do not add names here.
  *
- * Producers that cannot reference Kotlin mirror this literal instead: the `api_name` attr default in
- * the Bazel rule, and the Gradle plugin/build-logic constants.
+ * Producers that do not depend on this module mirror this literal instead: the `api_name` attr default
+ * in the Bazel rule, and the Gradle plugin/build-logic constants — the latter can depend on this module
+ * now and should be pointed here.
  */
 const val KOTLIN_API_NAME = "kotlin"
 
@@ -34,6 +35,9 @@ const val KOTLIN_API_NAME = "kotlin"
  * Identified by the pair `<`[tenantName]`, `[apiName]`>`; [executorFactory] selects how a config is
  * materialized but does not identify it. See [ConfigKey] and
  * `projects/viaduct/oss/impldocs/execution-registry-bootstrap.md`.
+ *
+ * This is generated build metadata regenerated on every build, not a durable or cross-version wire
+ * protocol; see the "Lifecycle and compatibility" section of that doc.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class ExecutionRegistryConfigFile(
@@ -50,7 +54,7 @@ data class ExecutionRegistryConfigFile(
      * Slash-separated tenant module name associated with this registry file.
      *
      * The tenant-module half of the `<tenantName, apiName>` configuration key. Nullable only for
-     * wire compatibility; [ModuleConfigSource.from] rejects sources that omit it.
+     * wire compatibility; `ModuleConfigSource.from` rejects sources that omit it.
      */
     val tenantName: String? = null,
     /**
@@ -68,7 +72,7 @@ data class ExecutionRegistryConfigFile(
      * to identifier syntax keeps it usable as a bare token in all of them and keeps names comparable
      * without normalization rules. Build tooling enforces this when it assembles a config.
      *
-     * Nullable only for wire compatibility; [ModuleConfigSource.from] rejects sources that omit it
+     * Nullable only for wire compatibility; `ModuleConfigSource.from` rejects sources that omit it
      * or leave it blank.
      */
     val apiName: String? = null,
@@ -82,7 +86,13 @@ data class ExecutionRegistryConfigFile(
     companion object {
         private val objectMapper = jacksonObjectMapper()
 
-        fun parse(source: InputStreamSource): ExecutionRegistryConfigFile = source.openStream().use { objectMapper.readValue(it) }
+        /**
+         * Parses one registry config from [inputStream], which this function does not close.
+         *
+         * Takes a plain [InputStream] rather than an engine-side source abstraction so that this
+         * model stays usable from build tooling that has no engine on its classpath.
+         */
+        fun parse(inputStream: InputStream): ExecutionRegistryConfigFile = objectMapper.readValue(inputStream)
 
         fun toJson(config: ExecutionRegistryConfigFile): String = objectMapper.writeValueAsString(config)
     }

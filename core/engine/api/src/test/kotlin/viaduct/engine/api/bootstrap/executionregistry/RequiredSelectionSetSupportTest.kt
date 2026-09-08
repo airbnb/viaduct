@@ -5,6 +5,9 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.bootstrap.ProviderVariablesAPIData
+import viaduct.bootstrap.SelectionsBlockConfig
+import viaduct.bootstrap.VariableProviderEntryConfig
 import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.FromQueryFieldVariable

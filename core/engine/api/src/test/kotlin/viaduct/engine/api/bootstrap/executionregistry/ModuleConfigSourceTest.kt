@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.bootstrap.ConfigKey
 import viaduct.service.api.spi.InputStreamSource
 
 /**
@@ -82,13 +83,6 @@ class ModuleConfigSourceTest {
         val downstream = ModuleConfigSource.from(config(tenantName = "data/todo", apiName = "acme-dsl"))
 
         assertEquals(ConfigKey("data/todo", "acme-dsl"), downstream.key)
-    }
-
-    @Test
-    fun `the default api name is a stable wire value`() {
-        // Written into every Kotlin tenant config at build time and matched at runtime, so changing
-        // this literal breaks every already-generated config.
-        assertEquals("kotlin", KOTLIN_API_NAME)
     }
 
     @Test

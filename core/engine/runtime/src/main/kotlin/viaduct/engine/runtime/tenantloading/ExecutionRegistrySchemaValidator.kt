@@ -2,9 +2,9 @@ package viaduct.engine.runtime.tenantloading
 
 import graphql.schema.GraphQLObjectType
 import org.slf4j.LoggerFactory
+import viaduct.bootstrap.FieldEntryConfig
+import viaduct.bootstrap.NodeEntryConfig
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
-import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
 
 private val log = LoggerFactory.getLogger("viaduct.engine.runtime.tenantloading.ExecutionRegistrySchemaValidator")
 

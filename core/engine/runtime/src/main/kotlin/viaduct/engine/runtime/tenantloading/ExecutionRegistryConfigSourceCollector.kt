@@ -1,7 +1,7 @@
 package viaduct.engine.runtime.tenantloading
 
 import io.github.classgraph.ClassGraph
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
+import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.service.api.spi.InputStreamSource
 

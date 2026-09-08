@@ -1,5 +1,7 @@
 package viaduct.engine.api.bootstrap.executionregistry
 
+import viaduct.bootstrap.ProviderVariablesAPIData
+import viaduct.bootstrap.SelectionsBlockConfig
 import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.FromQueryFieldVariable

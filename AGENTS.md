@@ -28,6 +28,7 @@ The `shared/` directory contains libraries used across the Viaduct engine and te
 - **`shared/codegen/`** — Bytecode generation library used to compile tenant field resolvers into JVM bytecode at startup. See `shared/codegen/AGENTS.md` for details.
 - **`shared/viaductschema/`** — Unified abstraction layer for working with GraphQL schemas. See `shared/viaductschema/AGENTS.md` for details.
 - **`shared/apiannotations/`** — Annotations used in the Viaduct public API.
+- **`shared/bootstrap/`** — Data model (`viaduct.bootstrap`) for the bootstrap data build tooling emits and the engine reads. Deliberately tiny — Jackson plus marker annotations — so a producer in any build system can import it. See `core/shared/bootstrap/README.md`.
 - **`tenant/`** — The Tenant API, which application developers use to write resolvers. See `tenant/api/module.md` for package-level descriptions.
 
 ## Implementation Documentation

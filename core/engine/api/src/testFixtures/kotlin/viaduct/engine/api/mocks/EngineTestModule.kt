@@ -5,14 +5,14 @@ package viaduct.engine.api.mocks
 
 import graphql.language.AstPrinter
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.bootstrap.ExecutionRegistryConfigFile
+import viaduct.bootstrap.FieldEntryConfig
+import viaduct.bootstrap.NodeEntryConfig
+import viaduct.bootstrap.SelectionsBlockConfig
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
-import viaduct.engine.api.bootstrap.executionregistry.NodeEntryConfig
-import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor

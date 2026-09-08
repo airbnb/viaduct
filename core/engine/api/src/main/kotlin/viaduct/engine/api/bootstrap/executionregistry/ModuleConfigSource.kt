@@ -1,25 +1,9 @@
 package viaduct.engine.api.bootstrap.executionregistry
 
+import viaduct.bootstrap.ConfigKey
+import viaduct.bootstrap.ExecutionRegistryConfigFile
+import viaduct.bootstrap.KOTLIN_API_NAME
 import viaduct.service.api.spi.InputStreamSource
-
-/**
- * Identity of a single execution registry configuration: the tenant module that owns it plus the
- * tenant API implementation that produced it.
- *
- * The inputs to one dispatcher-registry build form a map keyed by this type — at most one
- * configuration per key. Notably absent is the executor factory: it selects *how* a configuration is
- * materialized into executors, but an API implementation may rename or replace its factory class
- * without becoming a different API, so the factory cannot identify the configuration slot.
- *
- * See `projects/viaduct/oss/impldocs/execution-registry-bootstrap.md`.
- */
-data class ConfigKey(
-    val tenantName: String,
-    val apiName: String,
-) {
-    /** Renders as `<tenantName, apiName>`, the form used in diagnostics and the impldoc. */
-    override fun toString(): String = "<$tenantName, $apiName>"
-}
 
 /**
  * Internal representation of a single tenant module's configuration input, prior to parsing.
@@ -75,7 +59,7 @@ data class ModuleConfigSource private constructor(
          *   `apiName`.
          */
         fun from(source: InputStreamSource): ModuleConfigSource {
-            val config = ExecutionRegistryConfigFile.parse(source)
+            val config = source.openStream().use { ExecutionRegistryConfigFile.parse(it) }
             val tenantName = config.tenantName
                 ?: throw IllegalArgumentException("Execution registry config source must include tenantName: $source")
             val apiName = config.apiName?.takeIf { it.isNotBlank() }

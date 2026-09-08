@@ -2,8 +2,8 @@ package viaduct.remote.config
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
-import viaduct.engine.api.bootstrap.executionregistry.KOTLIN_API_NAME
+import viaduct.bootstrap.ExecutionRegistryConfigFile
+import viaduct.bootstrap.KOTLIN_API_NAME
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 
 /**

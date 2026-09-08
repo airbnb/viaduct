@@ -29,6 +29,7 @@ dependencies {
 
     /** Viaduct dependencies **/
     api(libs.viaduct.service.api)
+    api(libs.viaduct.shared.bootstrap)
     api(libs.viaduct.errors)
     implementation(libs.viaduct.shared.utils)
     implementation(libs.viaduct.shared.graphql)

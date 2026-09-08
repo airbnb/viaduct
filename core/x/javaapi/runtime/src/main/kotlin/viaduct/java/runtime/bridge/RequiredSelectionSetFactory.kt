@@ -1,15 +1,15 @@
 package viaduct.java.runtime.bridge
 
 import javax.inject.Provider
+import viaduct.bootstrap.FieldEntryConfig
+import viaduct.bootstrap.SelectionsBlockConfig
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.RequiredSelectionSets
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.ViaductSchema
-import viaduct.engine.api.bootstrap.executionregistry.FieldEntryConfig
 import viaduct.engine.api.bootstrap.executionregistry.RequiredSelectionSetSupport
-import viaduct.engine.api.bootstrap.executionregistry.SelectionsBlockConfig
 import viaduct.engine.api.checkDisjoint
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.graphql.utils.ParsedSelections

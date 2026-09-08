@@ -3,7 +3,7 @@ package viaduct.engine.runtime.tenantloading
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import viaduct.engine.api.bootstrap.executionregistry.ExecutionRegistryConfigFile
+import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.service.api.spi.CodeInjector
@@ -49,7 +49,7 @@ class ModuleConfigBootstrapper(
         val parsedRegistries = coroutineScope {
             moduleConfigSources.map { moduleConfigSource ->
                 async {
-                    val registry = ExecutionRegistryConfigFile.parse(moduleConfigSource.source)
+                    val registry = moduleConfigSource.source.openStream().use { ExecutionRegistryConfigFile.parse(it) }
                     ParsedRegistry(
                         source = moduleConfigSource,
                         registry = registry,
