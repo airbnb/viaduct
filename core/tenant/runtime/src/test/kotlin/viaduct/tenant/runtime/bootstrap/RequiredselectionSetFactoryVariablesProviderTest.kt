@@ -65,10 +65,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
         emptyMap(),
     )
 
-    private fun mkFactory(): RequiredSelectionSetFactory =
-        RequiredSelectionSetFactory(
-            mockReflectionLoader("viaduct.api.bootstrap.test.grts"),
-        )
+    private fun mkFactory(): RequiredSelectionSetFactory = RequiredSelectionSetFactory
 
     class MockArguments : Arguments
 

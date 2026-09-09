@@ -3,7 +3,6 @@
 package viaduct.tenant.runtime.bootstrap
 
 import com.google.inject.Guice
-import kotlin.reflect.full.findAnnotation
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -16,8 +15,6 @@ import viaduct.api.context.VariablesProviderContext
 import viaduct.api.internal.DefaultGRTConvFactory
 import viaduct.api.internal.ResolverFor
 import viaduct.api.mocks.mockReflectionLoader
-import viaduct.api.resolver.Resolver
-import viaduct.api.resolver.Variable
 import viaduct.api.resolver.Variables
 import viaduct.api.resolver.VariablesProvider
 import viaduct.api.types.Arguments
@@ -25,7 +22,6 @@ import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.FromQueryFieldVariable
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.variableNames
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
@@ -39,10 +35,8 @@ import viaduct.tenant.runtime.internal.VariablesProviderInfo
  * [RequiredSelectionSet]s (and throws errors where it's supposed to).
  *
  * WHAT THESE TESTS ARE TESTING:
- * - Variable declaration validation (variables require fragments, must have exactly one source, etc.)
- * - Variable conflict detection (duplicate names, VariablesProvider vs annotation conflicts)
+ * - Variable conflict detection (duplicate names, VariablesProvider vs declared-variable conflicts)
  * - Variable binding correctness (variables from arguments/fields/VariablesProvider are registered)
- * - Annotation parsing and injector integration (@Resolver, @Variables annotations)
  * - Unused variable detection (variables declared but not used in selections)
  *
  * WHAT THESE TESTS ARE NOT TESTING:
@@ -54,45 +48,9 @@ import viaduct.tenant.runtime.internal.VariablesProviderInfo
  * because they only validate structure and configuration, not runtime execution behavior.
  */
 class RequiredSelectionSetFactoryTest {
-    private val injector = GuiceCodeInjector(Guice.createInjector())
-    private val defaultSchema = MockSchema.mk(
-        """
-        extend type Query {
-            foo(x:Int!):Int!,
-            bar(x:Int!, y:Int!, z:Int!):Int!,
-            baz:Int!,
-            testField(
-                nonNullableInt: Int!,
-                intList: [Int!]!,
-                stringList: [String]
-            ): String
-        }
-
-        # Object type (not valid as variable type)
-        type User {
-            id: ID!
-            name: String!
-        }
-
-        # Union type (not valid as variable type)
-        union SearchResult = User
-
-        # Input type (valid as variable type)
-        input UserInput {
-            name: String!
-        }
-        """.trimIndent()
-    )
-
-    private fun mkFactory(): RequiredSelectionSetFactory =
-        RequiredSelectionSetFactory(
-            mockReflectionLoader("viaduct.api.bootstrap.test.grts"),
-        )
+    private fun mkFactory(): RequiredSelectionSetFactory = RequiredSelectionSetFactory
 
     class MockArguments : Arguments
-
-    @ResolverFor(typeName = "Query", fieldName = "testField", isSelective = false)
-    abstract class TestResolverBase : ResolverBase<Unit>
 
     private class MockVariablesProvider(val vars: Map<String, Any?> = emptyMap()) : VariablesProvider<MockArguments> {
         override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = vars
@@ -114,13 +72,16 @@ class RequiredSelectionSetFactoryTest {
         }
     }
 
-    @Resolver(
-        "y(x:\$x, y:\$y, z:\$z), baz",
-        variables = [
-            Variable(name = "x", fromArgument = "x"),
-            Variable(name = "z", fromObjectField = "baz")
-        ]
-    )
+    // ============================================================================
+    // variablesProvider() Tests (reflective discovery of a nested @Variables class,
+    // still used in production by ViaductModernExecutorFactory)
+    // ============================================================================
+
+    private val injector = GuiceCodeInjector(Guice.createInjector())
+
+    @ResolverFor(typeName = "Query", fieldName = "testField", isSelective = false)
+    abstract class TestResolverBase : ResolverBase<Unit>
+
     class MyResolverBase : TestResolverBase() {
         @Suppress("unused")
         @Variables("y:Int!")
@@ -129,146 +90,30 @@ class RequiredSelectionSetFactoryTest {
         }
     }
 
-    // ============================================================================
-    // Injector Tests (testing injector parsing of resolver classes)
-    // ============================================================================
+    class NoVariablesProviderResolver : TestResolverBase()
 
-    @Test
-    fun `createRequiredSelectionSets -- via injector`() {
-        val rss = mkFactory().createRequiredSelectionSets(
-            schema = defaultSchema,
-            injector = injector,
-            resolverCls = MyResolverBase::class,
-            variablesProviderContextFactory = variablesProviderContextFactory,
-            annotation = MyResolverBase::class.findAnnotation<Resolver>()!!,
-            resolverForType = "Query",
-        ).first
-        assertEquals(setOf("x", "y", "z"), rss?.variablesResolvers?.variableNames)
-    }
-
-    @Resolver // No variables, no fragments - should work
-    class EmptyAnnotationResolver : TestResolverBase()
-
-    @Test
-    fun `createRequiredSelectionSets -- injector handles empty annotation`() {
-        val rss = mkFactory().createRequiredSelectionSets(
-            schema = defaultSchema,
-            injector = injector,
-            resolverCls = EmptyAnnotationResolver::class,
-            variablesProviderContextFactory = variablesProviderContextFactory,
-            annotation = EmptyAnnotationResolver::class.findAnnotation<Resolver>()!!,
-            resolverForType = "Query",
-        )
-        // Should create empty result for no fragments
-        assertEquals(null, rss.first)
-        assertEquals(null, rss.second)
-    }
-
-    @Resolver(variables = [Variable("x", "baz")]) // Variable without fragment should throw
-    class VariableWithoutFragmentResolver : TestResolverBase()
-
-    @Test
-    fun `createRequiredSelectionSets -- injector validates variable requires fragment`() {
-        assertThrows<IllegalStateException> {
-            mkFactory().createRequiredSelectionSets(
-                schema = defaultSchema,
-                injector = injector,
-                resolverCls = VariableWithoutFragmentResolver::class,
-                variablesProviderContextFactory = variablesProviderContextFactory,
-                annotation = VariableWithoutFragmentResolver::class.findAnnotation<Resolver>()!!,
-                resolverForType = "Query",
-            )
+    class InvalidVariablesClassResolver : TestResolverBase() {
+        @Variables("x:Int!")
+        class NotAVariablesProvider {
+            // This class has @Variables but doesn't implement VariablesProvider
         }
     }
 
-    @Resolver("bar", variables = [Variable("x")]) // Variable without fromField or fromArgument
-    class VariableWithoutSourceResolver : TestResolverBase()
-
     @Test
-    fun `createRequiredSelectionSets -- injector validates variable requires source`() {
-        assertThrows<IllegalStateException> {
-            mkFactory().createRequiredSelectionSets(
-                schema = defaultSchema,
-                injector = injector,
-                resolverCls = VariableWithoutSourceResolver::class,
-                variablesProviderContextFactory = variablesProviderContextFactory,
-                annotation = VariableWithoutSourceResolver::class.findAnnotation<Resolver>()!!,
-                resolverForType = "Query",
-            )
-        }
-    }
-
-    @Resolver(
-        "bar",
-        variables = [Variable(name = "x", fromObjectField = "baz", fromArgument = "x")]
-    ) // Variable with both fromField and fromArgument
-    class VariableWithBothSourcesResolver : TestResolverBase()
-
-    @Test
-    fun `createRequiredSelectionSets -- injector validates variable cannot have both sources`() {
-        assertThrows<IllegalStateException> {
-            mkFactory().createRequiredSelectionSets(
-                schema = defaultSchema,
-                injector = injector,
-                resolverCls = VariableWithBothSourcesResolver::class,
-                variablesProviderContextFactory = variablesProviderContextFactory,
-                annotation = VariableWithBothSourcesResolver::class.findAnnotation<Resolver>()!!,
-                resolverForType = "Query",
-            )
-        }
-    }
-
-    @Resolver(
-        "field(arg: \$z) baz",
-        variables = [Variable("z", fromObjectField = "baz")]
-    )
-    class ValidFromFieldResolver : TestResolverBase()
-
-    @Test
-    fun `createRequiredSelectionSets -- injector handles valid fromField variable`() {
-        val rss = mkFactory().createRequiredSelectionSets(
-            schema = defaultSchema,
-            injector = injector,
-            resolverCls = ValidFromFieldResolver::class,
-            variablesProviderContextFactory = variablesProviderContextFactory,
-            annotation = ValidFromFieldResolver::class.findAnnotation<Resolver>()!!,
-            resolverForType = "Query",
-        )
-        // Should successfully create selection set with fromField variable
-        assertEquals(setOf("z"), rss.first?.variablesResolvers?.variableNames)
-    }
-
-    @Resolver(
-        "field(arg: \$x)",
-        variables = [Variable("x", fromArgument = "x")]
-    )
-    class ValidFromArgumentResolver : TestResolverBase()
-
-    @Test
-    fun `createRequiredSelectionSets -- injector handles valid fromArgument variable`() {
-        val rss = mkFactory().createRequiredSelectionSets(
-            schema = defaultSchema,
-            injector = injector,
-            resolverCls = ValidFromArgumentResolver::class,
-            variablesProviderContextFactory = variablesProviderContextFactory,
-            annotation = ValidFromArgumentResolver::class.findAnnotation<Resolver>()!!,
-            resolverForType = "Query",
-        )
-        // Should successfully create selection set with fromArgument variable
-        assertEquals(setOf("x"), rss.first?.variablesResolvers?.variableNames)
+    fun `variablesProvider -- discovers nested @Variables class implementing VariablesProvider`() {
+        val info = MyResolverBase::class.variablesProvider(injector)
+        assertEquals(setOf("y"), info?.variables)
     }
 
     @Test
-    fun `createRequiredSelectionSets -- injector validates @Variables class implements VariablesProvider`() {
+    fun `variablesProvider -- returns null when no nested @Variables class is present`() {
+        assertNull(NoVariablesProviderResolver::class.variablesProvider(injector))
+    }
+
+    @Test
+    fun `variablesProvider -- throws when nested @Variables class does not implement VariablesProvider`() {
         assertThrows<IllegalArgumentException> {
-            mkFactory().createRequiredSelectionSets(
-                schema = defaultSchema,
-                injector = injector,
-                resolverCls = InvalidVariablesClassResolver::class,
-                variablesProviderContextFactory = variablesProviderContextFactory,
-                annotation = InvalidVariablesClassResolver::class.findAnnotation<Resolver>()!!,
-                resolverForType = "Query",
-            )
+            InvalidVariablesClassResolver::class.variablesProvider(injector)
         }
     }
 
@@ -433,7 +278,7 @@ class RequiredSelectionSetFactoryTest {
     @Test
     fun `createRequiredSelectionSets -- VariablesProvider declares unused variable -- should throw at bootstrap time`() {
         // VariablesProvider declares variable 'undeclaredVar' that is not used in the selection set
-        // and not declared in @Variable annotations
+        // and not declared in variables
         val exception = assertThrows<IllegalArgumentException> {
             val objectSelections = SelectionsParser.parse("Query", "foo(x: 123)") // no variables referenced
             mkFactory().createRequiredSelectionSets(
@@ -444,7 +289,7 @@ class RequiredSelectionSetFactoryTest {
                 objectSelections = objectSelections,
                 querySelections = null,
                 variablesProviderContextFactory = variablesProviderContextFactory,
-                variables = emptyList(), // no @Variable annotations
+                variables = emptyList(), // no declared variables
             )
         }
 
@@ -474,8 +319,8 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `createRequiredSelectionSets -- annotation variables and VariablesProvider variables both validated for usage`() {
-        // Test that both annotation variables and VariablesProvider variables are validated for usage
+    fun `createRequiredSelectionSets -- declared variables and VariablesProvider variables both validated for usage`() {
+        // Test that both declared variables and VariablesProvider variables are validated for usage
         val exception = assertThrows<IllegalArgumentException> {
             val objectSelections = SelectionsParser.parse("Query", "foo(x: \$usedVar)") // only usedVar is referenced
             mkFactory().createRequiredSelectionSets(
@@ -501,9 +346,9 @@ class RequiredSelectionSetFactoryTest {
     }
 
     @Test
-    fun `createRequiredSelectionSets -- VariablesProvider with annotation variable -- should be allowed`() {
-        // Test that VariablesProvider variables are allowed if they match annotation variables
-        // Scenario 1: VariablesProvider provides variable used in GraphQL, annotation provides different variable
+    fun `createRequiredSelectionSets -- VariablesProvider with declared variable -- should be allowed`() {
+        // Test that VariablesProvider variables are allowed if they match declared variables
+        // Scenario 1: VariablesProvider provides variable used in GraphQL, declared variables provide a different variable
         val objectSelections = SelectionsParser.parse("Query", "foo(y:\$y, z:\$z)") // uses variables
         val rss = mkFactory().createRequiredSelectionSets(
             variablesProvider = VariablesProviderInfo(
@@ -513,7 +358,7 @@ class RequiredSelectionSetFactoryTest {
             objectSelections = objectSelections,
             querySelections = null,
             variablesProviderContextFactory = variablesProviderContextFactory,
-            variables = listOf(FromArgumentVariable("y", "y")), // annotation variable y
+            variables = listOf(FromArgumentVariable("y", "y")), // declared variable y
         )
 
         // Both variables should be present
@@ -521,127 +366,9 @@ class RequiredSelectionSetFactoryTest {
         assertNull(rss.second)
     }
 
-    // Test basic @Variables syntax validation
-
-    @Resolver("__typename") // No variables used in selection
-    class EmptyVariablesResolver : TestResolverBase() {
-        @Variables("")
-        class EmptyVariablesProvider : VariablesProvider<MockArguments> {
-            override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = emptyMap()
-        }
-    }
-
-    @Resolver("__typename") // No variables used in selection
-    class BlankVariablesResolver : TestResolverBase() {
-        @Variables("", " ")
-        class BlankVariablesProvider : VariablesProvider<MockArguments> {
-            override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = emptyMap()
-        }
-    }
-
-    @Resolver("foo(x: \$testVar)")
-    class InvalidSyntaxVariablesResolver : TestResolverBase() {
-        @Variables("invalidSyntax")
-        class InvalidSyntaxVariablesProvider : VariablesProvider<MockArguments> {
-            override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = emptyMap()
-        }
-    }
-
-    @Resolver("foo(x: \$testVar)")
-    class NonExistentTypeVariablesResolver : TestResolverBase() {
-        @Variables("testVar:NonExistentType!")
-        class NonExistentTypeVariablesProvider : VariablesProvider<MockArguments> {
-            override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = mapOf("testVar" to "someValue")
-        }
-    }
-
-    @Resolver("foo(x: \$testVar)")
-    class UnionTypeVariablesResolver : TestResolverBase() {
-        @Variables("testVar:SearchResult!")
-        class UnionTypeVariablesProvider : VariablesProvider<MockArguments> {
-            override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = mapOf("testVar" to mapOf("id" to "123"))
-        }
-    }
-
-    @Resolver("foo(x: \$testVar)")
-    class InterfaceTypeVariablesResolver : TestResolverBase() {
-        @Variables("testVar:Node!")
-        class InterfaceTypeVariablesProvider : VariablesProvider<MockArguments> {
-            override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = mapOf("testVar" to mapOf("id" to "123"))
-        }
-    }
-
-    @Resolver("foo(x: \$testVar)")
-    class ObjectTypeVariablesResolver : TestResolverBase() {
-        @Variables("testVar:User!")
-        class ObjectTypeVariablesProvider : VariablesProvider<MockArguments> {
-            override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = mapOf("testVar" to mapOf("id" to "123", "name" to "Test"))
-        }
-    }
-
-    @Resolver("foo(x: \$testVar)")
-    class ValidInputTypeVariablesResolver : TestResolverBase() {
-        @Variables("testVar:UserInput!")
-        class ValidInputTypeVariablesProvider : VariablesProvider<MockArguments> {
-            override suspend fun provide(context: VariablesProviderContext<MockArguments>): Map<String, Any?> = mapOf("testVar" to mapOf("name" to "Test"))
-        }
-    }
-
     // ============================================================================
     // @Variables Syntax Parsing Tests (testing Variables.asTypeMap() functionality)
     // ============================================================================
-
-    @Test
-    fun `@Variables string is empty -- should be allowed at bootstrap time`() {
-        // Empty @Variables strings are valid and result in no variables being declared
-        val rss = mkFactory().createRequiredSelectionSets(
-            schema = defaultSchema,
-            injector = injector,
-            resolverCls = EmptyVariablesResolver::class,
-            variablesProviderContextFactory = variablesProviderContextFactory,
-            annotation = EmptyVariablesResolver::class.findAnnotation<Resolver>()!!,
-            resolverForType = "Query",
-        ).first
-
-        // Should create RequiredSelectionSet successfully with no variables
-        assertEquals(emptySet<String>(), rss?.variablesResolvers?.variableNames)
-    }
-
-    @Test
-    fun `@Variables with blank entries -- should be allowed at bootstrap time`() {
-        // Blank @Variables entries are filtered out and result in no variables being declared
-        val rss = mkFactory().createRequiredSelectionSets(
-            schema = defaultSchema,
-            injector = injector,
-            resolverCls = BlankVariablesResolver::class,
-            variablesProviderContextFactory = variablesProviderContextFactory,
-            annotation = BlankVariablesResolver::class.findAnnotation<Resolver>()!!,
-            resolverForType = "Query",
-        ).first
-
-        // Should create RequiredSelectionSet successfully with no variables
-        assertEquals(emptySet<String>(), rss?.variablesResolvers?.variableNames)
-    }
-
-    @Test
-    fun `@Variables string is syntactically invalid -- should throw at bootstrap time`() {
-        val exception = assertThrows<IllegalArgumentException> {
-            mkFactory().createRequiredSelectionSets(
-                schema = defaultSchema,
-                injector = injector,
-                resolverCls = InvalidSyntaxVariablesResolver::class,
-                variablesProviderContextFactory = variablesProviderContextFactory,
-                annotation = InvalidSyntaxVariablesResolver::class.findAnnotation<Resolver>()!!,
-                resolverForType = "Query",
-            )
-        }
-
-        val message = exception.message.orEmpty().lowercase()
-        assertTrue(
-            listOf("syntax", "invalid", "parse", "failed requirement").any { it in message },
-            "Expected error message to mention syntax/parsing issue, but got: $message"
-        )
-    }
 
     @Test
     fun `Variables -- asTypeMap`() {
@@ -675,123 +402,24 @@ class RequiredSelectionSetFactoryTest {
         assertThrows("a:b:c")
         assertThrows(":")
     }
-
-    @Test
-    fun `@Variables string refers to types that do not exist -- should throw at bootstrap time`() {
-        // Note: This test documents the current behavior. Type validation may happen at GraphQL execution time,
-        // not at bootstrap time. The @Variables annotation currently only validates syntax, not type existence.
-        // If type validation is needed at bootstrap time, additional schema validation would be required.
-
-        // For now, we test that the resolver can be created successfully (no bootstrap-time type validation)
-        val rss = mkFactory().createRequiredSelectionSets(
-            schema = defaultSchema,
-            injector = injector,
-            resolverCls = NonExistentTypeVariablesResolver::class,
-            variablesProviderContextFactory = variablesProviderContextFactory,
-            annotation = NonExistentTypeVariablesResolver::class.findAnnotation<Resolver>()!!,
-            resolverForType = "Query",
-        ).first
-
-        // The RequiredSelectionSet should be created successfully
-        assertEquals(setOf("testVar"), rss?.variablesResolvers?.variableNames)
-    }
-
-    @Test
-    @org.junit.jupiter.api.Disabled("Disabled due to https://app.asana.com/1/150975571430/project/1207604899751448/task/1210664713712227")
-    fun `@Variables string refers to union type -- should throw at bootstrap time`() {
-        // Union types are not valid as GraphQL variable types and should throw at bootstrap time
-        assertThrows<IllegalArgumentException> {
-            mkFactory().createRequiredSelectionSets(
-                schema = defaultSchema,
-                injector = injector,
-                resolverCls = UnionTypeVariablesResolver::class,
-                variablesProviderContextFactory = variablesProviderContextFactory,
-                annotation = UnionTypeVariablesResolver::class.findAnnotation<Resolver>()!!,
-                resolverForType = "Query",
-            )
-        }
-    }
-
-    @Test
-    @org.junit.jupiter.api.Disabled("Disabled due to https://app.asana.com/1/150975571430/project/1207604899751448/task/1210664713712227")
-    fun `@Variables string refers to interface type -- should throw at bootstrap time`() {
-        // Interface types are not valid as GraphQL variable types and should throw at bootstrap time
-        assertThrows<IllegalArgumentException> {
-            mkFactory().createRequiredSelectionSets(
-                schema = defaultSchema,
-                injector = injector,
-                resolverCls = InterfaceTypeVariablesResolver::class,
-                variablesProviderContextFactory = variablesProviderContextFactory,
-                annotation = InterfaceTypeVariablesResolver::class.findAnnotation<Resolver>()!!,
-                resolverForType = "Query",
-            )
-        }
-    }
-
-    @Test
-    @org.junit.jupiter.api.Disabled("Disabled due to https://app.asana.com/1/150975571430/project/1207604899751448/task/1210664713712227")
-    fun `@Variables string refers to object type -- should throw at bootstrap time`() {
-        // Object types are not valid as GraphQL variable types and should throw at bootstrap time
-        assertThrows<IllegalArgumentException> {
-            mkFactory().createRequiredSelectionSets(
-                schema = defaultSchema,
-                injector = injector,
-                resolverCls = ObjectTypeVariablesResolver::class,
-                variablesProviderContextFactory = variablesProviderContextFactory,
-                annotation = ObjectTypeVariablesResolver::class.findAnnotation<Resolver>()!!,
-                resolverForType = "Query",
-            )
-        }
-    }
-
-    @Test
-    fun `@Variables string refers to valid input type -- should be allowed at bootstrap time`() {
-        // Input types are valid as GraphQL variable types and should be allowed
-        val rss = mkFactory().createRequiredSelectionSets(
-            schema = defaultSchema,
-            injector = injector,
-            resolverCls = ValidInputTypeVariablesResolver::class,
-            variablesProviderContextFactory = variablesProviderContextFactory,
-            annotation = ValidInputTypeVariablesResolver::class.findAnnotation<Resolver>()!!,
-            resolverForType = "Query",
-        ).first
-
-        // Should successfully create RequiredSelectionSet with valid input type
-        assertEquals(setOf("testVar"), rss?.variablesResolvers?.variableNames)
-    }
-
     // ============================================================================
     // Query Selections Tests
     // ============================================================================
 
     @Test
-    fun `createRequiredSelectionSets -- injector handles queryValueFragment only`() {
+    fun `createRequiredSelectionSets -- queryValueFragment only, no objectValueFragment`() {
+        val querySelections = SelectionsParser.parse("Query", "bar(y: \$y) baz")
         val rss = mkFactory().createRequiredSelectionSets(
-            schema = defaultSchema,
-            injector = injector,
-            resolverCls = QueryOnlyResolver::class,
+            variablesProvider = null,
+            objectSelections = null,
+            querySelections = querySelections,
             variablesProviderContextFactory = variablesProviderContextFactory,
-            annotation = QueryOnlyResolver::class.findAnnotation<Resolver>()!!,
-            resolverForType = "Query",
+            variables = listOf(FromQueryFieldVariable("y", "baz")),
         )
-        // Should create query selections but no object selections
+
+        // No object selections were provided, so there's no object RequiredSelectionSet
         assertNull(rss.first)
         assertEquals(setOf("y"), rss.second?.variablesResolvers?.variableNames)
-    }
-
-    @Test
-    fun `createRequiredSelectionSets -- injector handles both objectValueFragment and queryValueFragment`() {
-        val rss = mkFactory().createRequiredSelectionSets(
-            schema = defaultSchema,
-            injector = injector,
-            resolverCls = DualFragmentResolver::class,
-            variablesProviderContextFactory = variablesProviderContextFactory,
-            annotation = DualFragmentResolver::class.findAnnotation<Resolver>()!!,
-            resolverForType = "Query",
-        )
-        // Should create both object and query selection sets with shared variables
-        assertEquals(setOf("x", "y"), rss.first?.variablesResolvers?.variableNames)
-        assertEquals(setOf("x", "y"), rss.second?.variablesResolvers?.variableNames)
     }
 
     @Test
@@ -813,30 +441,6 @@ class RequiredSelectionSetFactoryTest {
         // Variables are shared across both selection sets since they come from the same resolver
         assertEquals(setOf("objVar", "queryVar"), selections.first?.variablesResolvers?.variableNames)
         assertEquals(setOf("objVar", "queryVar"), selections.second?.variablesResolvers?.variableNames)
-    }
-
-    @Resolver(
-        queryValueFragment = "bar(y: \$y) baz",
-        variables = [Variable(name = "y", fromQueryField = "baz")]
-    )
-    class QueryOnlyResolver : TestResolverBase()
-
-    @Resolver(
-        objectValueFragment = "foo(x: \$x) baz",
-        queryValueFragment = "bar(y: \$y)",
-        variables = [
-            Variable(name = "x", fromArgument = "x"),
-            Variable(name = "y", fromObjectField = "baz")
-        ]
-    )
-    class DualFragmentResolver : TestResolverBase()
-
-    @Resolver("foo")
-    class InvalidVariablesClassResolver : TestResolverBase() {
-        @Variables("x:Int!")
-        class NotAVariablesProvider {
-            // This class has @Variables but doesn't implement VariablesProvider
-        }
     }
 
     @Test
@@ -926,126 +530,9 @@ class RequiredSelectionSetFactoryTest {
         assertEquals(setOf("objVar", "queryVar", "argVar"), selections.second?.variablesResolvers?.variableNames)
     }
 
-    @Test
-    fun `createRequiredSelectionSets -- validation error for multiple field sources`() {
-        // This will test the validation indirectly through the factory method
-        assertThrows<IllegalStateException> {
-            mkFactory().createRequiredSelectionSets(
-                defaultSchema,
-                injector,
-                BadMultipleFieldsResolver::class,
-                variablesProviderContextFactory,
-                Resolver(
-                    objectValueFragment = "obj",
-                    variables = arrayOf(
-                        Variable("badVar", fromObjectField = "obj", fromQueryField = "query")
-                    )
-                ),
-                "TestType"
-            )
-        }
-    }
-
-    @Test
-    fun `createRequiredSelectionSets -- validation error for no field sources`() {
-        // This will test the validation indirectly through the factory method
-        assertThrows<IllegalStateException> {
-            mkFactory().createRequiredSelectionSets(
-                defaultSchema,
-                injector,
-                BadNoFieldsResolver::class,
-                variablesProviderContextFactory,
-                Resolver(
-                    objectValueFragment = "obj",
-                    variables = arrayOf(
-                        Variable("badVar") // No fields set
-                    )
-                ),
-                "TestType"
-            )
-        }
-    }
-
-    @Resolver(
-        objectValueFragment = "obj(x: \$objVar)",
-        queryValueFragment = "query(y: \$queryVar)",
-        variables = [
-            Variable(name = "objVar", fromObjectField = "objData"),
-            Variable(name = "queryVar", fromQueryField = "queryData")
-        ]
-    )
-    class MixedFieldSourceResolver : TestResolverBase()
-
-    @Resolver(objectValueFragment = "obj")
-    class BadMultipleFieldsResolver : TestResolverBase()
-
-    @Resolver(objectValueFragment = "obj")
-    class BadNoFieldsResolver : TestResolverBase()
-
     // ============================================================================
     // FromQueryFieldVariable Edge Case Tests
     // ============================================================================
-
-    @Resolver(
-        queryValueFragment = "fragment _ on Query { foo(var: \$emptyVar) }",
-        variables = [Variable(name = "emptyVar", fromQueryField = "")]
-    )
-    class EmptyQueryFieldPathResolver : TestResolverBase()
-
-    @Test
-    fun `createRequiredSelectionSets -- validation error for empty fromQueryField path`() {
-        assertThrows<IllegalArgumentException>("Path for variable `emptyVar` is empty") {
-            mkFactory().createRequiredSelectionSets(
-                defaultSchema,
-                injector,
-                EmptyQueryFieldPathResolver::class,
-                variablesProviderContextFactory,
-                EmptyQueryFieldPathResolver::class.findAnnotation<Resolver>()!!,
-                "Query"
-            )
-        }
-    }
-
-    @Resolver(
-        queryValueFragment = "fragment _ on Query { foo(x: \$invalidVar) }",
-        variables = [Variable(name = "invalidVar", fromQueryField = "nonExistentField")]
-    )
-    class InvalidQueryFieldPathResolver : TestResolverBase()
-
-    @Test
-    fun `createRequiredSelectionSets -- validation error for invalid fromQueryField path`() {
-        assertThrows<IllegalArgumentException> {
-            mkFactory().createRequiredSelectionSets(
-                defaultSchema,
-                injector,
-                InvalidQueryFieldPathResolver::class,
-                variablesProviderContextFactory,
-                InvalidQueryFieldPathResolver::class.findAnnotation<Resolver>()!!,
-                "Query"
-            )
-        }
-    }
-
-    @Resolver(
-        queryValueFragment = "fragment _ on Query { foo(var: \$objectTypeVar) testField }",
-        variables = [Variable(name = "objectTypeVar", fromQueryField = "testField")]
-    )
-    class QueryFieldToObjectTypeResolver : TestResolverBase()
-
-    @Test
-    fun `createRequiredSelectionSets -- validation allows scalar query field paths`() {
-        // Should work fine - testField returns String which is a valid scalar type
-        assertDoesNotThrow {
-            mkFactory().createRequiredSelectionSets(
-                defaultSchema,
-                injector,
-                QueryFieldToObjectTypeResolver::class,
-                variablesProviderContextFactory,
-                QueryFieldToObjectTypeResolver::class.findAnnotation<Resolver>()!!,
-                "Query"
-            )
-        }
-    }
 
     @Test
     fun `createRequiredSelectionSets -- fromQueryField and fromArgument combination validation`() {
@@ -1065,6 +552,21 @@ class RequiredSelectionSetFactoryTest {
                 )
             )
         }
+    }
+
+    @Test
+    fun `createRequiredSelectionSets -- validation error for empty fromQueryField path`() {
+        val querySelections = SelectionsParser.parse("Query", "foo(var: \$emptyVar)")
+        val exception = assertThrows<IllegalArgumentException> {
+            mkFactory().createRequiredSelectionSets(
+                variablesProvider = null,
+                objectSelections = null,
+                querySelections = querySelections,
+                variablesProviderContextFactory = variablesProviderContextFactory,
+                variables = listOf(FromQueryFieldVariable("emptyVar", "")),
+            )
+        }
+        assertEquals("Path for variable `emptyVar` is empty", exception.message)
     }
 
     @Test

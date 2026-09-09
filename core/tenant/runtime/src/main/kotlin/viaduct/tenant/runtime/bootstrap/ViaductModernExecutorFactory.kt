@@ -62,7 +62,7 @@ class ViaductModernExecutorFactory(
         Class.forName("$grtPackagePrefix.$name").kotlin
     }
 
-    private val requiredSelectionSetFactory = RequiredSelectionSetFactory(reflectionLoader)
+    private val requiredSelectionSetFactory = RequiredSelectionSetFactory
 
     // Sorted longest-package-first so a resolver's package resolves to its most specific tenant module.
     private val tenantPackagesByLength: List<TenantPackageInfo> by lazy {

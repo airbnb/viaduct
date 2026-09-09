@@ -1,28 +1,19 @@
 package viaduct.tenant.runtime.bootstrap
 
-import graphql.language.FragmentDefinition
 import kotlin.reflect.KClass
 import kotlin.reflect.full.findAnnotations
 import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.isSubclassOf
 import viaduct.api.ResolverBase
-import viaduct.api.internal.ReflectionLoader
-import viaduct.api.resolver.Resolver
-import viaduct.api.resolver.Variable
 import viaduct.api.resolver.Variables
 import viaduct.api.resolver.VariablesProvider
 import viaduct.api.types.Arguments
 import viaduct.engine.api.ExecutionAttribution
-import viaduct.engine.api.FromArgumentVariable
-import viaduct.engine.api.FromObjectFieldVariable
-import viaduct.engine.api.FromQueryFieldVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.RequiredSelectionSetSupport
 import viaduct.engine.api.checkDisjoint
-import viaduct.engine.api.select.SelectionsParser
 import viaduct.graphql.utils.ParsedSelections
 import viaduct.graphql.utils.collectVariableReferences
 import viaduct.service.api.spi.CodeInjector
@@ -31,52 +22,7 @@ import viaduct.tenant.runtime.execution.VariablesProviderExecutor
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 
 /** methods for constructing a [RequiredSelectionSet] for a resolver */
-class RequiredSelectionSetFactory(
-    private val reflectionLoader: ReflectionLoader,
-) {
-    /**
-     * Create a [RequiredSelectionSet] for the provided parameters.
-     * Classes and objects provided to this method are expected to be well-formed objects
-     * that match what the viaduct code generator produces.
-     */
-    fun createRequiredSelectionSets(
-        schema: ViaductSchema,
-        injector: CodeInjector,
-        resolverCls: KClass<out ResolverBase<*>>,
-        variablesProviderContextFactory: VariablesProviderContextFactory,
-        annotation: Resolver,
-        resolverForType: String,
-        // Classic (reflection-based) bootstrapper only: fragment definitions discovered via
-        // classpath scanning of @GraphQLFragment objects. Empty for the KSP/codegen path,
-        // where named fragments are inlined into selections strings at assembly time.
-        namedFragments: Map<String, FragmentDefinition> = emptyMap(),
-    ): Pair<RequiredSelectionSet?, RequiredSelectionSet?> {
-        val objectValueFragment = annotation.objectValueFragment
-        val queryValueFragment = annotation.queryValueFragment
-
-        // Parse selections
-        val objectSelections = if (!objectValueFragment.isBlank()) {
-            SelectionsParser.parse(resolverForType, objectValueFragment, namedFragments)
-        } else {
-            null
-        }
-
-        val querySelections = if (!queryValueFragment.isBlank()) {
-            SelectionsParser.parse(schema.schema.queryType.name, queryValueFragment, namedFragments)
-        } else {
-            null
-        }
-
-        return createRequiredSelectionSets(
-            variablesProvider = resolverCls.variablesProvider(injector),
-            objectSelections = objectSelections,
-            querySelections = querySelections,
-            variablesProviderContextFactory = variablesProviderContextFactory,
-            variables = annotation.selectionSetVariables,
-            attribution = ExecutionAttribution.fromResolver(resolverCls.qualifiedName!!)
-        )
-    }
-
+object RequiredSelectionSetFactory {
     /**
      * Create a [Pair] of [RequiredSelectionSet]s for the provided parameters with cross-selection-set validation.
      * This method performs validation that ensures VariablesProvider variables are used across both
@@ -165,36 +111,6 @@ class RequiredSelectionSetFactory(
             attribution
         )
 }
-
-/** parse a [Resolver]'s variables into a list of [SelectionSetVariable] */
-private val Resolver.selectionSetVariables: List<SelectionSetVariable>
-    get() {
-        if (variables.isNotEmpty()) {
-            check(objectValueFragment != "" || queryValueFragment != "") {
-                "@Resolver: cannot use a variable without an `objectValueFragment` or `queryValueFragment`"
-            }
-        }
-        return variables.map {
-            val objectFieldIsSet = it.fromObjectField != Variable.UNSET_STRING_VALUE
-            val queryFieldIsSet = it.fromQueryField != Variable.UNSET_STRING_VALUE
-            val argIsSet = it.fromArgument != Variable.UNSET_STRING_VALUE
-
-            val setFields = listOf(objectFieldIsSet, queryFieldIsSet, argIsSet)
-            val setCount = setFields.count { inner -> inner }
-
-            check(setCount == 1) {
-                "Variable named `${it.name}` must set exactly one of `fromObjectField`, `fromQueryField`, or `fromArgument`. " +
-                    "It set fromObjectField=${it.fromObjectField}, fromQueryField=${it.fromQueryField}, fromArgument=${it.fromArgument}"
-            }
-
-            when {
-                objectFieldIsSet -> FromObjectFieldVariable(it.name, it.fromObjectField)
-                queryFieldIsSet -> FromQueryFieldVariable(it.name, it.fromQueryField)
-                argIsSet -> FromArgumentVariable(it.name, it.fromArgument)
-                else -> error("Unreachable: exactly one field should be set")
-            }
-        }
-    }
 
 /**
  * Return a [VariablesProviderInfo] that describes a nested
