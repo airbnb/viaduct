@@ -13,6 +13,7 @@ import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.errors.PassthroughException
 import viaduct.errors.TenantException
 import viaduct.remote.api.RemoteResolverContextCaptureInput
+import viaduct.remote.api.spi.RemoteDispatchInstrumentation
 import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
 import viaduct.remote.api.spi.RemoteResolverResponseContextApplier
 import viaduct.remote.grpc.BatchResolveNodeRequest
@@ -35,6 +36,7 @@ abstract class RemoteNodeProxyExecutor(
     private val originalExecutor: NodeResolverExecutor,
     protected val executorId: String,
     private val responseContextApplier: RemoteResolverResponseContextApplier,
+    private val dispatchInstrumentation: RemoteDispatchInstrumentation,
 ) : NodeResolverExecutor {
     private val log = LoggerFactory.getLogger(RemoteNodeProxyExecutor::class.java)
 
@@ -139,7 +141,9 @@ class UnaryRemoteNodeProxyExecutor(
         RemoteResolverContextCapturerProvider.NO_OP,
     responseContextApplier: RemoteResolverResponseContextApplier =
         RemoteResolverResponseContextApplier.NO_OP,
-) : RemoteNodeProxyExecutor(originalExecutor, executorId, responseContextApplier) {
+    dispatchInstrumentation: RemoteDispatchInstrumentation =
+        RemoteDispatchInstrumentation.NO_OP,
+) : RemoteNodeProxyExecutor(originalExecutor, executorId, responseContextApplier, dispatchInstrumentation) {
     private val rrsStub = RemoteResolverServiceGrpcKt.RemoteResolverServiceCoroutineStub(rrsChannel)
 
     override suspend fun callRemote(

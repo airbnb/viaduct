@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory
 import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.remote.EngineCallbackServiceImpl
 import viaduct.remote.RemoteProxyResolverFactory
+import viaduct.remote.api.spi.RemoteDispatchInstrumentation
 import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
 import viaduct.remote.api.spi.RemoteResolverResponseContextApplier
 
@@ -27,6 +28,8 @@ class RemoteResolverInitializer(
         RemoteResolverContextCapturerProvider.NO_OP,
     private val responseContextApplier: RemoteResolverResponseContextApplier =
         RemoteResolverResponseContextApplier.NO_OP,
+    private val dispatchInstrumentation: RemoteDispatchInstrumentation =
+        RemoteDispatchInstrumentation.NO_OP,
 ) : AutoCloseable {
     private val log = LoggerFactory.getLogger(RemoteResolverInitializer::class.java)
 
@@ -124,6 +127,7 @@ class RemoteResolverInitializer(
             shouldProxyField = { it.resolverId in selection.fieldCoordinates },
             contextCapturerProvider = contextCapturerProvider,
             responseContextApplier = responseContextApplier,
+            dispatchInstrumentation = dispatchInstrumentation,
         )
 
     private fun logEnabled(selection: RemoteResolverSelection) {

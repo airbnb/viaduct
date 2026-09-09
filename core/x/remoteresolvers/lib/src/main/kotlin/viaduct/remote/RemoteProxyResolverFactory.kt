@@ -5,6 +5,7 @@ import java.time.Duration
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.ProxyResolverFactory
+import viaduct.remote.api.spi.RemoteDispatchInstrumentation
 import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
 import viaduct.remote.api.spi.RemoteResolverResponseContextApplier
 import viaduct.remote.registry.FieldExecutorRegistry
@@ -38,6 +39,7 @@ import viaduct.remote.registry.NodeExecutorRegistry
  * @param contextCapturerProvider Host hook that resolves the capturer associated with the active
  *   top-level request.
  * @param responseContextApplier Host hook that applies context returned by remote execution.
+ * @param dispatchInstrumentation Experimental hook for observing remote dispatch latency/outcome.
  */
 class RemoteProxyResolverFactory(
     private val rrsChannel: ManagedChannel,
@@ -50,6 +52,8 @@ class RemoteProxyResolverFactory(
         RemoteResolverContextCapturerProvider.NO_OP,
     private val responseContextApplier: RemoteResolverResponseContextApplier =
         RemoteResolverResponseContextApplier.NO_OP,
+    private val dispatchInstrumentation: RemoteDispatchInstrumentation =
+        RemoteDispatchInstrumentation.NO_OP,
 ) : ProxyResolverFactory {
     override fun proxyNode(executor: NodeResolverExecutor): NodeResolverExecutor? {
         // Skip selective resolvers before registering (see class KDoc).
@@ -64,6 +68,7 @@ class RemoteProxyResolverFactory(
                 requestDeadline = requestDeadline,
                 contextCapturerProvider = contextCapturerProvider,
                 responseContextApplier = responseContextApplier,
+                dispatchInstrumentation = dispatchInstrumentation,
             )
         } else {
             UnaryRemoteNodeProxyExecutor(
@@ -74,6 +79,7 @@ class RemoteProxyResolverFactory(
                 requestDeadline = requestDeadline,
                 contextCapturerProvider = contextCapturerProvider,
                 responseContextApplier = responseContextApplier,
+                dispatchInstrumentation = dispatchInstrumentation,
             )
         }
     }
@@ -91,6 +97,7 @@ class RemoteProxyResolverFactory(
             requestDeadline = requestDeadline,
             contextCapturerProvider = contextCapturerProvider,
             responseContextApplier = responseContextApplier,
+            dispatchInstrumentation = dispatchInstrumentation,
         )
     }
 

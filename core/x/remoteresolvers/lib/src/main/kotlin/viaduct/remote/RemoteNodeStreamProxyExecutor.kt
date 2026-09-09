@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.remote.api.RemoteResolverContextCaptureInput
+import viaduct.remote.api.spi.RemoteDispatchInstrumentation
 import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
 import viaduct.remote.api.spi.RemoteResolverResponseContextApplier
 import viaduct.remote.grpc.BatchResolveNodeRequest
@@ -33,7 +34,9 @@ class RemoteNodeStreamProxyExecutor(
         RemoteResolverContextCapturerProvider.NO_OP,
     responseContextApplier: RemoteResolverResponseContextApplier =
         RemoteResolverResponseContextApplier.NO_OP,
-) : RemoteNodeProxyExecutor(originalExecutor, executorId, responseContextApplier) {
+    dispatchInstrumentation: RemoteDispatchInstrumentation =
+        RemoteDispatchInstrumentation.NO_OP,
+) : RemoteNodeProxyExecutor(originalExecutor, executorId, responseContextApplier, dispatchInstrumentation) {
     private val rrsStub = RemoteResolverStreamServiceGrpcKt.RemoteResolverStreamServiceCoroutineStub(rrsChannel)
 
     override suspend fun callRemote(

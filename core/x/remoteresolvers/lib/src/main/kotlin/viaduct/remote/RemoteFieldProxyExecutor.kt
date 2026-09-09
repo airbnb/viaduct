@@ -14,6 +14,7 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.remote.api.RemoteResolverContextCaptureInput
+import viaduct.remote.api.spi.RemoteDispatchInstrumentation
 import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
 import viaduct.remote.api.spi.RemoteResolverResponseContextApplier
 import viaduct.remote.grpc.BatchResolveFieldRequest
@@ -42,6 +43,8 @@ class RemoteFieldProxyExecutor(
         RemoteResolverContextCapturerProvider.NO_OP,
     private val responseContextApplier: RemoteResolverResponseContextApplier =
         RemoteResolverResponseContextApplier.NO_OP,
+    private val dispatchInstrumentation: RemoteDispatchInstrumentation =
+        RemoteDispatchInstrumentation.NO_OP,
 ) : FieldResolverExecutor {
     init {
         // Selective field resolvers vary their result by the requested sub-selections, which the
