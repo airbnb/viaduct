@@ -7,12 +7,15 @@ import graphql.schema.GraphQLObjectType
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
@@ -25,6 +28,8 @@ import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.errors.TenantResolverException
+import viaduct.remote.api.spi.RemoteDispatchInstrumentation
+import viaduct.remote.api.spi.RemoteDispatchInstrumentationContext
 import viaduct.remote.fixtures.ArgumentEchoFieldResolverExecutor
 import viaduct.remote.fixtures.CallbackFieldResolverExecutor
 import viaduct.remote.fixtures.SimpleFieldResolverExecutor
@@ -129,6 +134,23 @@ class RemoteFieldProxyIntegrationTest {
             FieldExecutorRegistry.clear()
             ContextRegistry.clear()
             SelectionsRegistry.clear()
+        }
+    }
+
+    /** Like [withServers], but also wires a [RecordingDispatchInstrumentation] into the proxy. */
+    private suspend inline fun withRecordingProxy(block: (proxy: RemoteFieldProxyExecutor, recording: RecordingDispatchInstrumentation, context: EngineExecutionContext) -> Unit) {
+        withServers { rrsChannel, callbackEndpoint, context ->
+            val executor = SimpleFieldResolverExecutor()
+            val executorId = FieldExecutorRegistry.register(executor)
+            val recording = RecordingDispatchInstrumentation()
+            val proxy = RemoteFieldProxyExecutor(
+                originalExecutor = executor,
+                executorId = executorId,
+                rrsChannel = rrsChannel,
+                callbackEndpoint = callbackEndpoint,
+                dispatchInstrumentation = recording
+            )
+            block(proxy, recording, context)
         }
     }
 
@@ -891,6 +913,147 @@ class RemoteFieldProxyIntegrationTest {
             assertTrue(byKey.getValue("0").hasError(), "selector 0 should be an isolated per-selector error")
             assertTrue(byKey.getValue("1").hasError(), "selector 1 should be an isolated per-selector error")
         }
+
+    @Test
+    fun `a successful batch reports onSerializationCompleted then onCompleted with SUCCESS`() =
+        runBlocking {
+            withRecordingProxy { proxy, recording, context ->
+                proxy.batchResolve(listOf(selectorForAge(25)), context)
+
+                assertEquals(1, recording.contexts.size, "beginRemoteDispatch should be called once")
+                val dispatch = recording.contexts.single()
+                assertEquals(listOf("serialization", "completed"), dispatch.events)
+                assertEquals(RemoteDispatchInstrumentationContext.RemoteDispatchOutcome.SUCCESS, dispatch.completedOutcome)
+                assertNull(dispatch.completedCause, "a successful dispatch should report a null cause")
+            }
+        }
+
+    @Test
+    fun `a transport failure reports onCompleted with TRANSPORT_ERROR and the real exception`() =
+        runBlocking {
+            // Point the proxy at an in-process server name nothing is listening on, so the RPC
+            // itself fails (UNAVAILABLE) rather than the remote resolver returning an error.
+            val deadChannel = InProcessChannelBuilder.forName("dead-rrs-${System.nanoTime()}").directExecutor().build()
+            try {
+                FieldExecutorRegistry.clear()
+                ContextRegistry.clear()
+                SelectionsRegistry.clear()
+
+                val executor = SimpleFieldResolverExecutor()
+                val executorId = FieldExecutorRegistry.register(executor)
+                val recording = RecordingDispatchInstrumentation()
+                val proxy = RemoteFieldProxyExecutor(
+                    originalExecutor = executor,
+                    executorId = executorId,
+                    rrsChannel = deadChannel,
+                    callbackEndpoint = "cb-${System.nanoTime()}",
+                    dispatchInstrumentation = recording
+                )
+                val context = ContextMocks(testSchema).engineExecutionContext
+
+                val thrown = try {
+                    proxy.batchResolve(listOf(selectorForAge(25)), context)
+                    fail("Expected the RPC to fail against a server nothing is listening on")
+                } catch (e: Exception) {
+                    e
+                }
+
+                assertEquals(1, recording.contexts.size, "beginRemoteDispatch should be called once")
+                val dispatch = recording.contexts.single()
+                assertEquals(listOf("serialization", "completed"), dispatch.events)
+                assertEquals(RemoteDispatchInstrumentationContext.RemoteDispatchOutcome.TRANSPORT_ERROR, dispatch.completedOutcome)
+                assertEquals(thrown, dispatch.completedCause, "the reported cause should be the exception that propagated")
+            } finally {
+                deadChannel.shutdownNow()
+                FieldExecutorRegistry.clear()
+                ContextRegistry.clear()
+                SelectionsRegistry.clear()
+            }
+        }
+
+    @Test
+    fun `every selector failing serialization reports onCompleted with CODEC_ERROR and no RPC`() =
+        runBlocking {
+            withRecordingProxy { proxy, recording, context ->
+                val throwingSelector = FieldResolverExecutor.Selector(
+                    arguments = emptyMap(),
+                    selections = null,
+                    syncObjectValueGetter = { throw RuntimeException("boom") },
+                    syncQueryValueGetter = { emptyQueryValue() }
+                )
+
+                proxy.batchResolve(listOf(throwingSelector), context)
+
+                assertEquals(1, recording.contexts.size, "serialization is still captured even though no RPC was attempted")
+                val dispatch = recording.contexts.single()
+                assertEquals(listOf("serialization", "completed"), dispatch.events)
+                assertEquals(RemoteDispatchInstrumentationContext.RemoteDispatchOutcome.CODEC_ERROR, dispatch.completedOutcome)
+                assertTrue(
+                    dispatch.completedCause is RemoteResolverCodecException,
+                    "the reported cause should be the codec exception from the failed selector, got ${dispatch.completedCause}"
+                )
+            }
+        }
+
+    @Test
+    fun `a cancelled dispatch still reports onCompleted before rethrowing`() =
+        runBlocking {
+            withRecordingProxy { proxy, recording, context ->
+                val cancellingSelector = FieldResolverExecutor.Selector(
+                    arguments = emptyMap(),
+                    selections = null,
+                    syncObjectValueGetter = { throw CancellationException("cancelled") },
+                    syncQueryValueGetter = { emptyQueryValue() }
+                )
+
+                assertThrows<CancellationException> {
+                    proxy.batchResolve(listOf(cancellingSelector), context)
+                }
+
+                assertEquals(1, recording.contexts.size, "beginRemoteDispatch should be called once")
+                val dispatch = recording.contexts.single()
+                assertEquals(listOf("completed"), dispatch.events)
+                assertEquals(RemoteDispatchInstrumentationContext.RemoteDispatchOutcome.TRANSPORT_ERROR, dispatch.completedOutcome)
+                assertTrue(dispatch.completedCause is CancellationException, "the reported cause should be the cancellation, got ${dispatch.completedCause}")
+            }
+        }
+
+    /** Records the checkpoint call sequence and terminal outcome for one [beginRemoteDispatch] call. */
+    private class RecordingDispatchInstrumentation : RemoteDispatchInstrumentation {
+        val contexts = mutableListOf<RecordingContext>()
+
+        override fun beginRemoteDispatch(parameters: RemoteDispatchInstrumentation.BeginRemoteDispatchParameters): RemoteDispatchInstrumentationContext = RecordingContext().also { contexts.add(it) }
+    }
+
+    private class RecordingContext : RemoteDispatchInstrumentationContext {
+        val events = mutableListOf<String>()
+        var completedOutcome: RemoteDispatchInstrumentationContext.RemoteDispatchOutcome? = null
+        var completedCause: Throwable? = null
+
+        override fun onSerializationCompleted(error: Throwable?) {
+            events.add("serialization")
+        }
+
+        override fun onResponseReceived(
+            response: RemoteDispatchInstrumentationContext.RemoteDispatchResponse?,
+            error: Throwable?
+        ) {
+            events.add("response")
+        }
+
+        override fun onDeserializationCompleted(error: Throwable?) {
+            events.add("deserialization")
+        }
+
+        override fun onCompleted(
+            outcome: RemoteDispatchInstrumentationContext.RemoteDispatchOutcome,
+            cause: Throwable?
+        ) {
+            events.add("completed")
+            completedOutcome = outcome
+            completedCause = cause
+        }
+    }
 
     // An arbitrary type the wire format can't carry (not a scalar, list, map, EngineObjectData, or
     // NodeReference), used to exercise the per-selector serialization-failure path.

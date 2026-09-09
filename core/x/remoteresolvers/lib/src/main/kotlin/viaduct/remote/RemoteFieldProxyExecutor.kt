@@ -15,6 +15,7 @@ import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.remote.api.RemoteResolverContextCaptureInput
 import viaduct.remote.api.spi.RemoteDispatchInstrumentation
+import viaduct.remote.api.spi.RemoteDispatchInstrumentationContext
 import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
 import viaduct.remote.api.spi.RemoteResolverResponseContextApplier
 import viaduct.remote.grpc.BatchResolveFieldRequest
@@ -82,6 +83,9 @@ class RemoteFieldProxyExecutor(
         // serialization (which can throw) or the RPC — can't leak them in the process-global registries.
         val contextHandle = ContextRegistry.register(context, currentCoroutineContext())
         val selectionsHandles = mutableListOf<String>()
+        val dispatch = dispatchInstrumentation.beginRemoteDispatch(
+            RemoteDispatchInstrumentation.BeginRemoteDispatchParameters(originalExecutor.metadata)
+        )
         try {
             // Correlate results positionally via selector_key: a field Selector has no natural id and
             // distinct selectors can compare equal. The value getters are suspend, so build with a loop.
@@ -144,8 +148,15 @@ class RemoteFieldProxyExecutor(
                 }
             }
 
-            // Every selector failed to serialize — return their failures without an RPC.
-            if (sent.isEmpty()) return preFailed
+            // Every selector failed to serialize -- still report the dispatch, just as CODEC_ERROR.
+            if (sent.isEmpty()) {
+                val codecCause = preFailed.values.firstNotNullOfOrNull { it.exceptionOrNull() }
+                dispatch.onSerializationCompleted(codecCause)
+                dispatch.onCompleted(RemoteDispatchInstrumentationContext.RemoteDispatchOutcome.CODEC_ERROR, codecCause)
+                return preFailed
+            }
+            // Loop failures went into preFailed, so reaching here means serialization succeeded.
+            dispatch.onSerializationCompleted()
 
             val capturedContext =
                 contextCapturerProvider.get().capture(RemoteResolverContextCaptureInput.EMPTY)
@@ -165,10 +176,10 @@ class RemoteFieldProxyExecutor(
             log.debug("Received {} field result(s) for executor '{}'", response.resultsCount, executorId)
 
             val resultsByKey = response.resultsList.associateBy { it.selectorKey }
-            return sent.associate { (index, selector) ->
+            val result = sent.associate { (index, selector) ->
                 val resolved = resultsByKey[index.toString()]
                     ?: error("Response missing result for selector_key=$index (executor '$executorId')")
-                val result = when {
+                val selectorResult = when {
                     // deserializeValue rebuilds references/objects against the live schema; a failure
                     // (unknown type, malformed payload) is a local codec bug, isolated to this
                     // selector's Result as a RemoteResolverCodecException (isolatedRemoteFailure).
@@ -182,8 +193,14 @@ class RemoteFieldProxyExecutor(
                         Result.failure(RemoteResolverException(message = resolved.error.message, errorType = resolved.error.errorType))
                     else -> error("Field result for selector_key=$index has neither value nor error")
                 }
-                selector to result
+                selector to selectorResult
             } + preFailed
+            // Coarse for now -- a follow-up PR classifies CODEC_ERROR/APPLICATION_ERROR from resultsByKey.
+            dispatch.onCompleted(RemoteDispatchInstrumentationContext.RemoteDispatchOutcome.SUCCESS, null)
+            return result
+        } catch (e: Exception) {
+            dispatch.onCompleted(RemoteDispatchInstrumentationContext.RemoteDispatchOutcome.TRANSPORT_ERROR, e)
+            throw e
         } finally {
             ContextRegistry.unregister(contextHandle)
             selectionsHandles.forEach { SelectionsRegistry.unregister(it) }
