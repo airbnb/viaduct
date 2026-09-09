@@ -4,7 +4,7 @@ description: Creating lazy references to root fields in resolvers
 ---
 
 
-Resolvers can delegate construction of an object type to a *root object field* resolver. A root field is a field on the root query type or on a [`@namespaceType`](../namespace_types/index.md) reachable from the root query type. The generated API described below covers the `@namespaceType` case only.
+Resolvers can delegate construction of an object type to a *root object field* resolver. A root field is a field on the root query type or on a [`@namespaceType`](../namespace_types/index.md) reachable from the root query type.
 
 Rather than executing a full [subquery](subqueries.md) and eagerly resolving the result, `ctx.ref()` returns a *lazy reference* that the engine resolves later with the client's selection set.
 
@@ -15,7 +15,7 @@ Like `ctx.nodeRef()`, `ctx.ref()` returns a lazy reference. The difference is `n
 Use a root field reference when:
 
 * You want to return an object type that another resolver knows how to construct, without coupling to that resolver's implementation.
-* The target field lives on a `@namespaceType` reachable from the root Query type.
+* The target field is a root field — declared on the root Query type, or on a `@namespaceType` reachable from it.
 * You don't need to read fields from the result inside your resolver — you just need to pass it along.
 
 If you need to read fields from the result in the same resolver, use [`ctx.query()`](subqueries.md) instead.
@@ -24,7 +24,7 @@ If you need to read fields from the result in the same resolver, use [`ctx.query
 
 Reference a field by calling it on its parent type and passing the result to `ctx.ref()`. The call does not execute the field; `ctx.ref()` creates the lazy reference.
 
-A field is referenceable when it is declared on a `@namespaceType` reachable from the root Query type, carries `@resolver`, and has a non-list object type.
+A field is referenceable when it is declared on the root Query type or on a `@namespaceType` reachable from it, and has a non-list object type.
 
 For a field **with arguments**, set each one inside the configuration lambda:
 
@@ -137,7 +137,7 @@ class QueryProductResolver : QueryResolvers.Product() {
 
 1. Calling the field captures it and your argument values. Nothing executes yet.
 2. `ctx.ref(...)` turns that into a reference with no accessible fields, which your resolver returns — directly or nested inside a builder.
-3. The engine sees the reference and executes the target field's resolver, applying the selection set that the client originally requested for that position in the query.
+3. The engine sees the reference and executes the target field, applying the selection set that the client originally requested for that position in the query.
 4. The target resolver runs with full context: the correct arguments, its own required selection set, and the client's field selections.
 
 Because resolution is deferred, the engine can batch and optimize — the target resolver only computes what the client actually selected.
@@ -156,7 +156,7 @@ The test harness does not resolve references, so a test asserts the calls the re
 
 ## Constraints
 
-* The target field must be declared on a `@namespaceType` that is reachable from the root Query type. Fields declared directly on `Query` cannot be referenced with `ctx.ref`.
+* The target field must be a root field — declared on the root Query type, or on a [`@namespaceType`](../namespace_types/index.md) reachable from it.
 * The target field must have an object output type — scalar, enum, interface, union, and list fields are not supported.
 * Fields on the returned GRT are not accessible in the calling resolver. If you need to inspect the result, use `ctx.query()`.
 * `ctx.ref` is currently marked `@ExperimentalApi`.
