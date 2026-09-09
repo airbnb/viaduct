@@ -337,9 +337,13 @@ class ViaductWiringFactoryTest {
         source: EngineObjectData,
         localContext: CompositeLocalContext,
     ): Any? {
+        // The block below is dispatched, so anything built inside it counts against the wait.
+        val fetcher = dataFetcher()
+        val environment = dataFetchingEnvironment(source, localContext)
+
         val future =
             DefaultCoroutineInterop.enterThreadLocalCoroutineContext(EmptyCoroutineContext) {
-                dataFetcher().get(dataFetchingEnvironment(source, localContext)) as CompletionStage<*>
+                fetcher.get(environment) as CompletionStage<*>
             }.thenCompose { it }
         return future.toCompletableFuture().get(5, TimeUnit.SECONDS)
     }
