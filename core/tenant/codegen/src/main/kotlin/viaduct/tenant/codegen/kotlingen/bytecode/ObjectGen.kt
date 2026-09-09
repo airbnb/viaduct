@@ -14,7 +14,7 @@ import viaduct.tenant.codegen.bytecode.config.hasConnectionDirective
 import viaduct.tenant.codegen.bytecode.config.hasEdgeDirective
 import viaduct.tenant.codegen.bytecode.config.isNode
 import viaduct.tenant.codegen.bytecode.config.kmType
-import viaduct.tenant.codegen.bytecode.config.rootFieldReferenceFields
+import viaduct.tenant.codegen.bytecode.config.rootObjectFields
 import viaduct.tenant.codegen.bytecode.config.typeOfNodeField
 
 @VisibleForTest
@@ -180,9 +180,9 @@ private val rootFieldReferencesST = stTemplate(
         <field.arguments: { arg |
         fun <arg.name>(value: <arg.type>): <arg.argumentsReceiverName> = apply {
             arguments.<arg.name>(value)
-        }
+        \}
         }; separator="\n">
-    }
+    \}
     }; separator="\n\n">
 
     <mdl.fields: { field |
@@ -206,8 +206,8 @@ private val rootFieldReferencesST = stTemplate(
     <else>
             return viaduct.api.types.Arguments.NoArguments
     <endif>
-        }
-    }
+        \}
+    \}
     }; separator="\n\n">
 """
 )
@@ -405,7 +405,7 @@ private class ObjectModelImpl(
 }
 
 private fun KotlinGRTFilesBuilder.rootFieldReferences(typeDef: ViaductSchema.Object): String {
-    val fields = typeDef.rootFieldReferenceFields(reverseSchema, schema.queryTypeDef)
+    val fields = typeDef.rootObjectFields(reverseSchema, schema.queryTypeDef)
     if (fields.isEmpty()) return ""
 
     val model = object : RootFieldReferencesModel {

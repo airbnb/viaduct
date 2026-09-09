@@ -37,7 +37,7 @@ import viaduct.tenant.codegen.bytecode.config.hasConnectionDirective
 import viaduct.tenant.codegen.bytecode.config.hasEdgeDirective
 import viaduct.tenant.codegen.bytecode.config.isNode
 import viaduct.tenant.codegen.bytecode.config.kmType
-import viaduct.tenant.codegen.bytecode.config.rootFieldReferenceFields
+import viaduct.tenant.codegen.bytecode.config.rootObjectFields
 import viaduct.tenant.codegen.bytecode.config.typeOfNodeField
 
 internal fun GRTClassFilesBuilder.objectGenV2(def: ViaductSchema.Object) {
@@ -335,7 +335,7 @@ private class ObjectClassGenV2(
     }
 
     private fun CustomClassBuilder.addRootFieldReferences(): CustomClassBuilder {
-        val fields = def.rootFieldReferenceFields(grtClassFilesBuilder.reverseSchema, grtClassFilesBuilder.schema.queryTypeDef)
+        val fields = def.rootObjectFields(grtClassFilesBuilder.reverseSchema, grtClassFilesBuilder.schema.queryTypeDef)
         if (fields.isEmpty()) return this
 
         val companion = companionObjectBuilder()

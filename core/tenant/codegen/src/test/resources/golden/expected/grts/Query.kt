@@ -66,6 +66,88 @@ class Query(context: InternalContext, engineObject: EngineObject)
     fun toBuilder(): Builder =
         Builder(__context, __engineObject.type, toBuilderEOD())
 
+    companion object {
+            fun order(
+                configure: OrderArguments.() -> Unit,
+            ): viaduct.api.context.RootFieldCall<viaduct.api.grts.Order> =
+                OrderRootFieldCall(configure)
+
+            fun topUser(): viaduct.api.context.RootFieldCall<viaduct.api.grts.User> = TopUserRootFieldCall
+
+            fun ordersConnection(
+                configure: OrdersConnectionArguments.() -> Unit,
+            ): viaduct.api.context.RootFieldCall<viaduct.api.grts.OrderConnection> =
+                OrdersConnectionRootFieldCall(configure)
+
+    }
+
+    class OrderArguments internal constructor(
+        private val arguments: viaduct.api.grts.Query_Order_Arguments.Builder
+    ) {
+            fun id(value: kotlin.String): OrderArguments = apply {
+                arguments.id(value)
+            }
+
+    }
+
+
+    class OrdersConnectionArguments internal constructor(
+        private val arguments: viaduct.api.grts.Query_OrdersConnection_Arguments.Builder
+    ) {
+            fun first(value: kotlin.Int): OrdersConnectionArguments = apply {
+                arguments.first(value)
+            }
+
+            fun after(value: kotlin.String?): OrdersConnectionArguments = apply {
+                arguments.after(value)
+            }
+
+    }
+
+
+    internal class OrderRootFieldCall(
+        private val configure: OrderArguments.() -> Unit
+    ) : viaduct.api.context.RootFieldCall<viaduct.api.grts.Order> {
+        override fun field(): viaduct.api.reflect.RootObjectField<*, viaduct.api.grts.Order, viaduct.api.types.Arguments> =
+            Fields.order
+
+        override fun arguments(
+            context: viaduct.api.context.ExecutionContext
+        ): viaduct.api.types.Arguments {
+            val arguments = viaduct.api.grts.Query_Order_Arguments.Builder(context)
+            configure.invoke(OrderArguments(arguments))
+            return arguments.build()
+        }
+    }
+
+
+    internal object TopUserRootFieldCall : viaduct.api.context.RootFieldCall<viaduct.api.grts.User> {
+        override fun field(): viaduct.api.reflect.RootObjectField<*, viaduct.api.grts.User, viaduct.api.types.Arguments> =
+            Fields.topUser
+
+        override fun arguments(
+            context: viaduct.api.context.ExecutionContext
+        ): viaduct.api.types.Arguments {
+            return viaduct.api.types.Arguments.NoArguments
+        }
+    }
+
+
+    internal class OrdersConnectionRootFieldCall(
+        private val configure: OrdersConnectionArguments.() -> Unit
+    ) : viaduct.api.context.RootFieldCall<viaduct.api.grts.OrderConnection> {
+        override fun field(): viaduct.api.reflect.RootObjectField<*, viaduct.api.grts.OrderConnection, viaduct.api.types.Arguments> =
+            Fields.ordersConnection
+
+        override fun arguments(
+            context: viaduct.api.context.ExecutionContext
+        ): viaduct.api.types.Arguments {
+            val arguments = viaduct.api.grts.Query_OrdersConnection_Arguments.Builder(context)
+            configure.invoke(OrdersConnectionArguments(arguments))
+            return arguments.build()
+        }
+    }
+
     object of {
         operator fun invoke(context: ExecutionContext, block: Builder.() -> Unit): Query =
             Builder(context).apply(block).build()

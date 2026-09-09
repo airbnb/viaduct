@@ -75,6 +75,54 @@ class ObjectGenTest {
         assertTrue(result.contains("""listOf("_factories", "products", "create")"""), "Should include full path through two namespace levels")
     }
 
+    private val nestedNamespaceSdl = """
+        directive @namespaceType on OBJECT
+        directive @resolver on FIELD_DEFINITION
+        type Foo { name: String }
+        type Baz @namespaceType { foo: Foo @resolver }
+        type Bar @namespaceType {
+            baz: Baz
+            foo: Foo @resolver
+            name: String @resolver
+            foos: [Foo] @resolver
+            qux: Foo
+        }
+        type Query {
+            bar: Bar
+            foo: Foo @resolver
+        }
+    """.trimIndent()
+
+    @Test
+    fun `root field call generated at each namespace depth`() {
+        val onBar = genObject(nestedNamespaceSdl, "Bar").toString()
+        assertTrue(onBar.contains("viaduct.api.context.RootFieldCall<pkg.Foo>"), "Namespace type directly under Query should get a RootFieldCall")
+        assertTrue(onBar.contains("""listOf("bar", "foo")"""), "Call on Bar should carry a two-segment path")
+
+        val onBaz = genObject(nestedNamespaceSdl, "Baz").toString()
+        assertTrue(onBaz.contains("viaduct.api.context.RootFieldCall<pkg.Foo>"), "Namespace type nested under another should get a RootFieldCall")
+        assertTrue(onBaz.contains("""listOf("bar", "baz", "foo")"""), "Call on Baz should carry the full path through both namespaces")
+    }
+
+    @Test
+    fun `root field call generated for Query declared field`() {
+        val onQuery = genObject(nestedNamespaceSdl, "Query").toString()
+        assertTrue(onQuery.contains("FooRootFieldCall"), "Field declared directly on Query should get a RootFieldCall")
+        assertTrue(onQuery.contains("""listOf("foo")"""), "Query-declared call should carry a single-segment path")
+        assertTrue(onQuery.contains("BarRootFieldCall"), "Namespace pointer on Query gets a call under the shared trigger")
+    }
+
+    @Test
+    fun `root field call requires a non-list object field`() {
+        val onBar = genObject(nestedNamespaceSdl, "Bar").toString()
+
+        assertTrue(onBar.contains("FooRootFieldCall"), "Object field with @resolver should get a call")
+        assertTrue(onBar.contains("QuxRootFieldCall"), "Object field gets a call whether or not it carries @resolver")
+        assertTrue(onBar.contains("BazRootFieldCall"), "Namespace pointer is an object field, so it gets a call too")
+        assertFalse(onBar.contains("NameRootFieldCall"), "Scalar output type should get no call")
+        assertFalse(onBar.contains("FoosRootFieldCall"), "List output type should get no call")
+    }
+
     @Test
     fun `root field reference exposes all arguments through lambda receiver`() {
         val sdl = """
@@ -149,7 +197,7 @@ class ObjectGenTest {
     }
 
     @Test
-    fun `namespace fields without resolver do not get root field reference methods`() {
+    fun `namespace type with no resolvers emits root field calls`() {
         val sdl = """
             directive @namespaceType on OBJECT
             type Product { name: String }
@@ -159,8 +207,8 @@ class ObjectGenTest {
 
         val result = genObject(sdl, "ProductFactory").toString()
 
-        assertFalse(result.contains("companion object"))
-        assertFalse(result.contains("class FactoryMethods"))
+        assertTrue(result.contains("companion object"), "Should emit a companion object to host the call")
+        assertTrue(result.contains("CreateRootFieldCall"), "Should emit a call for the object field")
     }
 
     @Test
