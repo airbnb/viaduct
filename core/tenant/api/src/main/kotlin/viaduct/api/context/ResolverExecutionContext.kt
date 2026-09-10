@@ -63,11 +63,7 @@ interface ResolverExecutionContext<Q : QueryType> : ExecutionContext {
         variables: Map<String, Any?> = emptyMap()
     ): SelectionSet<T>
 
-    /**
-     * Creates a Node object reference given an ID. Only the ID field is accessible from the
-     * created reference. Attempting to access other fields will result in an exception.
-     * This can be used to construct resolver responses for fields with Node types.
-     */
+    /** Use [ref] instead. */
     fun <T : NodeObject> nodeRef(id: GlobalID<T>): T
 
     /**
@@ -78,6 +74,13 @@ interface ResolverExecutionContext<Q : QueryType> : ExecutionContext {
         type: Type<T>,
         internalID: String
     ): String
+
+    /**
+     * Creates a lazy reference given a Node ID. Only the ID field is accessible from the
+     * created reference. Attempting to access other fields will result in an exception.
+     * This can be used to construct resolver responses for fields with Node types.
+     */
+    fun <T : NodeObject> ref(id: GlobalID<T>): T = nodeRef(id)
 
     /**
      * Creates a lazy reference to a root field that will be later resolved by the engine.

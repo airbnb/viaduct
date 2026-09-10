@@ -39,16 +39,20 @@ private object GeneratedTypesCache {
 @PublishedApi
 internal fun <T : NodeObject> publishedGeneratedType(clazz: Class<T>): Type<T> = GeneratedTypesCache.get(clazz)
 
+/** Use [ref] instead. */
+@StableApi
+inline fun <reified T : NodeObject> ResolverExecutionContext<*>.nodeRef(localId: String): T = ref(localId)
+
 /**
  * Creates a Node object reference given a Local ID String representation.
  *
- * @see [viaduct.api.context.ResolverExecutionContext.nodeRef]
+ * @see [viaduct.api.context.ResolverExecutionContext.ref]
  */
 @StableApi
-inline fun <reified T : NodeObject> ResolverExecutionContext<*>.nodeRef(localId: String): T {
+inline fun <reified T : NodeObject> ResolverExecutionContext<*>.ref(localNodeId: String): T {
     val type = publishedGeneratedType(T::class.java)
-    val gid = globalIDFor(type, localId)
-    return nodeRef(gid)
+    val gid = globalIDFor(type, localNodeId)
+    return ref(gid)
 }
 
 /**

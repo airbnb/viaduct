@@ -36,11 +36,32 @@ class ResolverExecutionContextExtensionsTest {
         val typeSlot = slot<Type<DummyNode>>()
 
         every { ctx.globalIDFor(capture(typeSlot), "42") } returns gid
-        every { ctx.nodeRef(gid) } returns returned
+        every { ctx.ref(gid) } returns returned
 
         val result = ctx.nodeRef<DummyNode>("42")
 
-        assertSame(returned, result, "Extension should return the value from ctx.nodeRef(GlobalID).")
+        assertSame(returned, result, "Extension should return the value from ctx.ref(GlobalID).")
+        assertSame(
+            DummyNode.Reflection,
+            typeSlot.captured,
+            "Extension must resolve the nested object Reflection and pass it as Type<T>."
+        )
+    }
+
+    @Test
+    fun `ref T forwards to ctx with Type from nested Reflection`() {
+        val ctx = mockk<ResolverExecutionContext<*>>()
+        val gid = mockk<GlobalID<DummyNode>>()
+        val returned = DummyNode()
+
+        val typeSlot = slot<Type<DummyNode>>()
+
+        every { ctx.globalIDFor(capture(typeSlot), "42") } returns gid
+        every { ctx.ref(gid) } returns returned
+
+        val result = ctx.ref<DummyNode>("42")
+
+        assertSame(returned, result, "Extension should return the value from ctx.ref(GlobalID).")
         assertSame(
             DummyNode.Reflection,
             typeSlot.captured,
@@ -98,10 +119,10 @@ class ResolverExecutionContextExtensionsTest {
         val typeSlot2 = slot<Type<DummyNode>>()
 
         every { ctx.globalIDFor(capture(typeSlot1), "1") } returns gid1
-        every { ctx.nodeRef(gid1) } returns ret1
+        every { ctx.ref(gid1) } returns ret1
 
         every { ctx.globalIDFor(capture(typeSlot2), "2") } returns gid2
-        every { ctx.nodeRef(gid2) } returns ret2
+        every { ctx.ref(gid2) } returns ret2
 
         val r1 = ctx.nodeRef<DummyNode>("1")
         val r2 = ctx.nodeRef<DummyNode>("2")
