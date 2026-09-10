@@ -6,7 +6,6 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.FileCollection
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.TaskOutputs
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.register
@@ -78,7 +77,7 @@ abstract class ClassDiffPlugin : Plugin<Project> {
             "generateSchemaDiff${schemaDiff.name.capitalize()}ArbitrarySchema"
         ) {
             group = PLUGIN_GROUP
-            description = "Generates a random, extensive GraphQL schema fragment for schema diff '${schemaDiff.name}'"
+            description = "Generates a seeded, extensive GraphQL schema fragment for schema diff '${schemaDiff.name}'"
             this.codegenClasspath.from(codegenClasspath)
             outputFile.set(resourcePath.flatMap { resourcesDir.map { dir -> dir.file(it) } })
             onlyIf { resourcePath.isPresent }
@@ -87,11 +86,6 @@ abstract class ClassDiffPlugin : Plugin<Project> {
         DefaultSchemaPlugin.wireGeneratedResourcesIntoSourceSet(project, sourceSetName, resourcesDir, task)
 
         return task
-    }
-
-    /** A generated schema is re-randomized every build, so caching it is always a miss. */
-    private fun TaskOutputs.cacheIfNotGenerated(generatedResourcePath: Property<String>) {
-        cacheIf("schema is not regenerated with a random seed every build") { !generatedResourcePath.isPresent }
     }
 
     private data class GenTasks(
@@ -119,7 +113,6 @@ abstract class ClassDiffPlugin : Plugin<Project> {
         schemaFiles: FileCollection,
         codegenClasspath: Configuration
     ): TaskProvider<ClassDiffSchemaTask> {
-        val generatedResourcePath: Property<String> = schemaDiff.generatedSchemaResourcePath
         return project.tasks.register<ClassDiffSchemaTask>(
             "generateSchemaDiff${schemaDiff.name.capitalize()}SchemaObjects"
         ) {
@@ -137,7 +130,6 @@ abstract class ClassDiffPlugin : Plugin<Project> {
             generatedSrcDir.set(project.layout.buildDirectory.dir(GENERATED_SOURCES_PATH))
             dependsOn(project.tasks.named("processResources"))
             doFirst { generatedSrcDir.get().asFile.mkdirs() }
-            outputs.cacheIfNotGenerated(generatedResourcePath)
         }
     }
 
@@ -147,7 +139,6 @@ abstract class ClassDiffPlugin : Plugin<Project> {
         schemaFiles: FileCollection,
         codegenClasspath: Configuration
     ): TaskProvider<ClassDiffGRTKotlinTask> {
-        val generatedResourcePath: Property<String> = schemaDiff.generatedSchemaResourcePath
         return project.tasks.register<ClassDiffGRTKotlinTask>(
             "generateSchemaDiff${schemaDiff.name.capitalize()}KotlinGrts"
         ) {
@@ -165,7 +156,6 @@ abstract class ClassDiffPlugin : Plugin<Project> {
             )
             dependsOn(project.tasks.named("processResources"))
             doFirst { generatedSrcDir.get().asFile.mkdirs() }
-            outputs.cacheIfNotGenerated(generatedResourcePath)
         }
     }
 }

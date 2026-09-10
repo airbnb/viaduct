@@ -2,7 +2,6 @@ package viaduct.arbitrary.cli
 
 import graphql.schema.idl.SchemaParser
 import java.nio.file.Path
-import kotlin.io.path.readText
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -24,7 +23,8 @@ class GenerateSchemaTest {
         // A handful of fixed seeds rather than one: generation is randomized, and any single seed
         // could land on a config-legal but low-coverage schema.
         for (seed in 0 until 5) {
-            val schema = ViaductSchema.fromTypeDefinitionRegistry(generate(seed).readText())
+            val registry = SchemaParser().parse(generate(seed).toFile())
+            val schema = ViaductSchema.fromTypeDefinitionRegistry(registry)
             val defs = schema.types.values
 
             val objects = defs.filterIsInstance<ViaductSchema.Object>()

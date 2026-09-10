@@ -71,7 +71,7 @@ class GenerateSchema : CliktCommand(name = "generate-schema") {
      * "Object_i" and "Object_I" are one path on a case-insensitive filesystem.
      */
     private val extensiveSchemaFragmentConfig: Config = Config.default +
-        (SchemaSize to 150) +
+        (SchemaSize to 300) +
         (BanFieldNames to setOf("_", "of")) +
         (DedupeCaseInsensitiveNames to true) +
         (

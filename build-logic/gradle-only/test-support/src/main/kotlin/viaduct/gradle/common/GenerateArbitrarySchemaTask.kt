@@ -4,12 +4,14 @@ import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.workers.WorkerExecutor
 
-/** Generates a random GraphQL schema via viaduct.arbitrary.cli.GenerateSchema; never up-to-date. */
+/** Generates a reproducible GraphQL schema via viaduct.arbitrary.cli.GenerateSchema with seed 0. */
+@CacheableTask
 abstract class GenerateArbitrarySchemaTask : DefaultTask() {
     @get:Inject
     abstract val workerExecutor: WorkerExecutor
@@ -20,10 +22,6 @@ abstract class GenerateArbitrarySchemaTask : DefaultTask() {
     @get:OutputFile
     abstract val outputFile: RegularFileProperty
 
-    init {
-        outputs.upToDateWhen { false }
-    }
-
     @TaskAction
     fun generate() {
         codegenClasspath.requireNonEmptyCodegenClasspath({ project.path }, "libs.viaduct.shared.arbitrary.cli")
@@ -32,7 +30,7 @@ abstract class GenerateArbitrarySchemaTask : DefaultTask() {
         workerExecutor.runCodegen(
             codegenClasspath,
             CodegenWorkAction.MainClasses.GENERATE_SCHEMA,
-            listOf("--output", output.absolutePath)
+            listOf("--output", output.absolutePath, "--seed", "0")
         )
     }
 }
