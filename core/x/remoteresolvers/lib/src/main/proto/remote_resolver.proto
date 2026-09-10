@@ -157,6 +157,11 @@ message BatchResolveFieldResponse {
 
   // Opaque host-defined context captured after remote field resolver execution.
   EncodedRemoteContext response_context = 2;
+
+  // Wall-clock time RRS spent inside the resolver's own batchResolve() call, in nanoseconds --
+  // excludes RRS's own request/response (de)serialization. Absent when the RRS binary predates
+  // this field (rolling deploy); callers must check presence rather than assume zero.
+  optional int64 body_duration_nanos = 3;
 }
 
 // Result for a single field resolution

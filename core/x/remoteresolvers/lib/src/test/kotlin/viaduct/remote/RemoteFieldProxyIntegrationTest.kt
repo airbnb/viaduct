@@ -915,6 +915,72 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
+    fun `a successful batchResolveField reports the resolver's own body duration`() =
+        runBlocking {
+            FieldExecutorRegistry.clear()
+            ContextRegistry.clear()
+            SelectionsRegistry.clear()
+            SchemaRegistry.register(testSchema)
+
+            val executorId = FieldExecutorRegistry.register(SimpleFieldResolverExecutor())
+            val request = BatchResolveFieldRequest.newBuilder()
+                .setExecutorId(executorId)
+                .setContextHandle("net-${System.nanoTime()}")
+                .setCallbackEndpoint("cb-${System.nanoTime()}")
+                .addSelectors(
+                    FieldSelector.newBuilder()
+                        .setSelectorKey("0")
+                        .setArgumentsJson(ByteString.copyFrom(FieldValueSerializer.serializeArguments(emptyMap())))
+                        .setSelectionsHandle("")
+                        .setObjectValueJson(ByteString.copyFrom(EngineObjectDataSerializer.serialize(characterObjectValue(30))))
+                        .setQueryValueJson(ByteString.copyFrom(EngineObjectDataSerializer.serialize(emptyQueryValue())))
+                        .build()
+                )
+                .build()
+
+            val response = InProcessCallbackRemoteResolverService().batchResolveField(request)
+
+            assertTrue(response.hasBodyDurationNanos(), "a successful batch should report its body duration")
+            assertTrue(response.bodyDurationNanos >= 0, "body duration should be non-negative, got ${response.bodyDurationNanos}")
+        }
+
+    @Test
+    fun `a whole-batch resolver failure still reports a body duration`() =
+        runBlocking {
+            FieldExecutorRegistry.clear()
+            ContextRegistry.clear()
+            SelectionsRegistry.clear()
+            SchemaRegistry.register(testSchema)
+
+            val failing = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
+                override suspend fun batchResolve(
+                    selectors: List<FieldResolverExecutor.Selector>,
+                    context: EngineExecutionContext
+                ): Map<FieldResolverExecutor.Selector, Result<Any?>> = throw IllegalStateException("boom")
+            }
+            val executorId = FieldExecutorRegistry.register(failing)
+            val request = BatchResolveFieldRequest.newBuilder()
+                .setExecutorId(executorId)
+                .setContextHandle("net-${System.nanoTime()}")
+                .setCallbackEndpoint("cb-${System.nanoTime()}")
+                .addSelectors(
+                    FieldSelector.newBuilder()
+                        .setSelectorKey("0")
+                        .setArgumentsJson(ByteString.copyFrom(FieldValueSerializer.serializeArguments(emptyMap())))
+                        .setSelectionsHandle("")
+                        .setObjectValueJson(ByteString.copyFrom(EngineObjectDataSerializer.serialize(characterObjectValue(30))))
+                        .setQueryValueJson(ByteString.copyFrom(EngineObjectDataSerializer.serialize(emptyQueryValue())))
+                        .build()
+                )
+                .build()
+
+            val response = InProcessCallbackRemoteResolverService().batchResolveField(request)
+
+            assertTrue(response.hasBodyDurationNanos(), "even a thrown batchResolve() should report a body duration")
+            assertTrue(response.bodyDurationNanos >= 0, "body duration should be non-negative, got ${response.bodyDurationNanos}")
+        }
+
+    @Test
     fun `a successful batch reports onSerializationCompleted then onCompleted with SUCCESS`() =
         runBlocking {
             withRecordingProxy { proxy, recording, context ->

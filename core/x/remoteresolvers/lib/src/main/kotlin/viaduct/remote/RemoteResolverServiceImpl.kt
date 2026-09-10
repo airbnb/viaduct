@@ -122,6 +122,7 @@ open class RemoteResolverServiceImpl(
             return BatchResolveFieldResponse.newBuilder().addAllResults(preFailed).build()
         }
 
+        val bodyStartNanos = System.nanoTime()
         val results = try {
             executor.batchResolve(keyedSelectors.map { it.second }, remoteContext)
         } catch (e: CancellationException) {
@@ -131,8 +132,10 @@ open class RemoteResolverServiceImpl(
             return BatchResolveFieldResponse.newBuilder()
                 .addAllResults(keyedSelectors.map { fieldError(it.first, e) })
                 .addAllResults(preFailed)
+                .setBodyDurationNanos(System.nanoTime() - bodyStartNanos)
                 .build()
         }
+        val bodyDurationNanos = System.nanoTime() - bodyStartNanos
 
         // Isolate a non-serializable success value to that selector's error rather than fail the batch.
         val protoResults = keyedSelectors.map { (key, selector) ->
@@ -157,6 +160,7 @@ open class RemoteResolverServiceImpl(
         log.debug("Returning {} field result(s) for executor '{}'", protoResults.size, request.executorId)
         return BatchResolveFieldResponse.newBuilder()
             .addAllResults(protoResults)
+            .setBodyDurationNanos(bodyDurationNanos)
             .build()
     }
 
