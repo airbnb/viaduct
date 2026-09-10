@@ -17,10 +17,44 @@ public record FieldModel(
     String reflectedTypeName,
     boolean rootObjectField,
     String argumentsTypeName,
-    List<String> pathFromQueryRoot) {
+    List<String> pathFromQueryRoot,
+    List<FieldModel> rootFieldArguments) {
 
   public FieldModel {
     pathFromQueryRoot = pathFromQueryRoot == null ? null : List.copyOf(pathFromQueryRoot);
+    rootFieldArguments = rootFieldArguments == null ? List.of() : List.copyOf(rootFieldArguments);
+  }
+
+  /** Constructor for fields that declare no root-field-call arguments. */
+  public FieldModel(
+      String name,
+      String javaType,
+      boolean nullable,
+      boolean compositeType,
+      boolean list,
+      boolean enumType,
+      boolean abstractType,
+      boolean globalIDType,
+      String baseTypeName,
+      String reflectedTypeName,
+      boolean rootObjectField,
+      String argumentsTypeName,
+      List<String> pathFromQueryRoot) {
+    this(
+        name,
+        javaType,
+        nullable,
+        compositeType,
+        list,
+        enumType,
+        abstractType,
+        globalIDType,
+        baseTypeName,
+        reflectedTypeName,
+        rootObjectField,
+        argumentsTypeName,
+        pathFromQueryRoot,
+        List.of());
   }
 
   /** Legacy constructor for fields without reflection metadata. */
@@ -197,6 +231,22 @@ public record FieldModel(
   /** Returns the generated arguments type for a root-object field. */
   public String getArgumentsTypeName() {
     return argumentsTypeName;
+  }
+
+  /** Returns whether this root-object field takes schematic arguments. */
+  public boolean getRootFieldCallWithArguments() {
+    return rootObjectField && !"Arguments.NoArguments".equals(argumentsTypeName);
+  }
+
+  /** Returns this root-object field's arguments, typed as the generated builder setters take. */
+  public List<FieldModel> getRootFieldArguments() {
+    return rootFieldArguments;
+  }
+
+  /** Returns the name of the generated builder class that assembles a call to this root field. */
+  public String getRootFieldCallClassName() {
+    String fieldName = getSafeName();
+    return Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1) + "RootFieldCall";
   }
 
   /** Returns the path segments from the query root to this root-object field. */

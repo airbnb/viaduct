@@ -46,11 +46,8 @@ class ResolverGeneratorTest {
                 + " Arguments.NoArguments, com.example.types.Profile>,"
                 + " BaseUnbatchedFieldResolver"));
     assertTrue(generated.contains("public static final class Context"));
-    assertTrue(
-        generated.contains(
-            "public <A extends Arguments, T extends GraphQLObject> T rootFieldRef("));
-    assertTrue(generated.contains("RootObjectField<?, T, A> field, A arguments)"));
-    assertTrue(generated.contains("return inner.rootFieldRef(field, arguments);"));
+    assertTrue(generated.contains("public <T extends GraphQLObject> T ref(RootFieldCall<T> call)"));
+    assertTrue(generated.contains("return inner.ref(call);"));
     assertTrue(
         generated.contains("public abstract CompletableFuture<Profile> resolve(Context ctx)"));
     assertTrue(generated.contains("public final CompletableFuture<?> invokeFieldResolver("));

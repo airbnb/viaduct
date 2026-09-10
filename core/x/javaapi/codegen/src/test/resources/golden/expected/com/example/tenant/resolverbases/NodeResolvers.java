@@ -7,13 +7,13 @@ import graphql.schema.GraphQLInputObjectType;
 import viaduct.engine.api.ViaductSchema;
 import viaduct.java.api.annotations.NodeResolverFor;
 import viaduct.java.api.context.NodeExecutionContext;
+import viaduct.java.api.context.RootFieldCall;
 import viaduct.java.api.context.SelectiveNodeExecutionContext;
 import viaduct.java.api.documents.MutationFromAnnotation;
 import viaduct.java.api.documents.QueryFromAnnotation;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.BaseUnbatchedNodeResolver;
-import viaduct.java.api.reflect.RootObjectField;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.resolvers.FieldValue;
 import viaduct.java.api.resolvers.NodeResolverBase;
@@ -78,9 +78,8 @@ public final class NodeResolvers {
                 }
 
                 @Override
-                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
-                        RootObjectField<?, T, A> field, A arguments) {
-                    return inner.rootFieldRef(field, arguments);
+                public <T extends GraphQLObject> T ref(RootFieldCall<T> call) {
+                    return inner.ref(call);
                 }
 
                 @Override

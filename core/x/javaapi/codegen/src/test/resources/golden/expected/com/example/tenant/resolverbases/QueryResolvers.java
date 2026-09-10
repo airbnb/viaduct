@@ -9,6 +9,7 @@ import viaduct.engine.api.ViaductSchema;
 import viaduct.java.api.annotations.ResolverFor;
 import viaduct.java.api.context.ConnectionFieldExecutionContext;
 import viaduct.java.api.context.FieldExecutionContext;
+import viaduct.java.api.context.RootFieldCall;
 import viaduct.java.api.context.SelectiveFieldExecutionContext;
 import viaduct.java.api.documents.MutationFromAnnotation;
 import viaduct.java.api.documents.QueryFromAnnotation;
@@ -16,7 +17,6 @@ import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.BaseBatchedFieldResolver;
 import viaduct.java.api.internal.BaseUnbatchedFieldResolver;
-import viaduct.java.api.reflect.RootObjectField;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.resolvers.ConnectionResolverBase;
 import viaduct.java.api.resolvers.FieldResolverBase;
@@ -96,9 +96,8 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
-                        RootObjectField<?, T, A> field, A arguments) {
-                    return inner.rootFieldRef(field, arguments);
+                public <T extends GraphQLObject> T ref(RootFieldCall<T> call) {
+                    return inner.ref(call);
                 }
 
                 @Override
@@ -255,9 +254,8 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
-                        RootObjectField<?, T, A> field, A arguments) {
-                    return inner.rootFieldRef(field, arguments);
+                public <T extends GraphQLObject> T ref(RootFieldCall<T> call) {
+                    return inner.ref(call);
                 }
 
                 @Override
@@ -409,9 +407,8 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
-                        RootObjectField<?, T, A> field, A arguments) {
-                    return inner.rootFieldRef(field, arguments);
+                public <T extends GraphQLObject> T ref(RootFieldCall<T> call) {
+                    return inner.ref(call);
                 }
 
                 @Override
@@ -597,9 +594,8 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
-                        RootObjectField<?, T, A> field, A arguments) {
-                    return inner.rootFieldRef(field, arguments);
+                public <T extends GraphQLObject> T ref(RootFieldCall<T> call) {
+                    return inner.ref(call);
                 }
 
                 @Override
@@ -780,9 +776,8 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
-                        RootObjectField<?, T, A> field, A arguments) {
-                    return inner.rootFieldRef(field, arguments);
+                public <T extends GraphQLObject> T ref(RootFieldCall<T> call) {
+                    return inner.ref(call);
                 }
 
                 @Override
@@ -934,9 +929,8 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
-                        RootObjectField<?, T, A> field, A arguments) {
-                    return inner.rootFieldRef(field, arguments);
+                public <T extends GraphQLObject> T ref(RootFieldCall<T> call) {
+                    return inner.ref(call);
                 }
 
                 @Override
@@ -1088,9 +1082,8 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
-                        RootObjectField<?, T, A> field, A arguments) {
-                    return inner.rootFieldRef(field, arguments);
+                public <T extends GraphQLObject> T ref(RootFieldCall<T> call) {
+                    return inner.ref(call);
                 }
 
                 @Override
@@ -1242,9 +1235,8 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
-                        RootObjectField<?, T, A> field, A arguments) {
-                    return inner.rootFieldRef(field, arguments);
+                public <T extends GraphQLObject> T ref(RootFieldCall<T> call) {
+                    return inner.ref(call);
                 }
 
                 @Override

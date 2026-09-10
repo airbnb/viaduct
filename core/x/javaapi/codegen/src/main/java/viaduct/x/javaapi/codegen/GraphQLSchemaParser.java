@@ -335,64 +335,12 @@ public class GraphQLSchemaParser {
             SchemaAnalysis.INSTANCE.argumentsTypeName(objectType.getName(), field.getName());
 
         // Connection fields: their arguments type additionally implements a ConnectionArguments
-        // sub-interface, and pagination args must be boxed and nullable to match its getters.
+        // sub-interface.
         String connectionArgsInterface = connectionArgumentsInterface(field);
-        boolean isConnectionArgs = connectionArgsInterface != null;
-        Set<String> requiredConnectionArgNames =
-            SchemaAnalysis.INSTANCE.connectionArgumentRequiredNames(
-                SchemaAnalysis.INSTANCE.connectionArgumentsDirection(field));
 
-        List<FieldModel> fields = new ArrayList<>();
-        for (ViaductSchema.FieldArg arg : field.getArgs()) {
-          ViaductSchema.TypeDef argBaseTypeDef = arg.getType().getBaseTypeDef();
-          boolean argCompositeType =
-              (argBaseTypeDef instanceof ViaductSchema.Object)
-                  || (argBaseTypeDef instanceof ViaductSchema.Input);
-          boolean argList = arg.getType().isList();
-          boolean argEnumType = argBaseTypeDef instanceof ViaductSchema.Enum;
-          boolean argAbstractType =
-              (argBaseTypeDef instanceof ViaductSchema.Interface)
-                  || (argBaseTypeDef instanceof ViaductSchema.Union);
-          String argBaseTypeName =
-              (argCompositeType || argEnumType || argAbstractType)
-                  ? argBaseTypeDef.getName()
-                  : null;
-
-          String argIdOfTypeName = SchemaAnalysis.INSTANCE.idOfTypeName(arg);
-          boolean argGlobalIDType = false;
-          boolean paginationArg = requiredConnectionArgNames.contains(arg.getName());
-          boolean argNullable = arg.getType().isNullable() || paginationArg;
-          String argJavaType =
-              paginationArg
-                  ? typeMapper.toBoxedJavaType(arg.getType())
-                  : typeMapper.toJavaType(arg.getType());
-          if (argIdOfTypeName != null) {
-            argGlobalIDType = true;
-            argBaseTypeName = argIdOfTypeName;
-            argJavaType =
-                argList
-                    ? "List<GlobalID<" + argIdOfTypeName + ">>"
-                    : "GlobalID<" + argIdOfTypeName + ">";
-          }
-
-          fields.add(
-              new FieldModel(
-                  arg.getName(),
-                  argJavaType,
-                  argNullable,
-                  argCompositeType,
-                  argList,
-                  argEnumType,
-                  argAbstractType,
-                  argGlobalIDType,
-                  argBaseTypeName,
-                  getHasReflectedType(argBaseTypeDef) ? argBaseTypeDef.getName() : null,
-                  false,
-                  null,
-                  null));
-        }
+        List<FieldModel> fields = argumentFieldModels(field, typeMapper);
         List<FieldModel> synthesizedConnectionFields =
-            isConnectionArgs ? synthesizedConnectionArgGetters(field) : List.of();
+            connectionArgsInterface != null ? synthesizedConnectionArgGetters(field) : List.of();
         arguments.add(
             new ArgumentModel(
                 packageName,
@@ -406,6 +354,68 @@ public class GraphQLSchemaParser {
     }
 
     return arguments;
+  }
+
+  /**
+   * Returns models for {@code field}'s arguments, typed the way the setters on its generated
+   * arguments builder take them. Shared by the arguments type and the root-field-call builder so
+   * both expose one signature per argument.
+   */
+  private List<FieldModel> argumentFieldModels(ViaductSchema.Field field, TypeMapper typeMapper) {
+    // Pagination args on a connection field must be boxed and nullable to match the
+    // ConnectionArguments getters its arguments type inherits.
+    Set<String> requiredConnectionArgNames =
+        SchemaAnalysis.INSTANCE.connectionArgumentRequiredNames(
+            SchemaAnalysis.INSTANCE.connectionArgumentsDirection(field));
+
+    List<FieldModel> fields = new ArrayList<>();
+    for (ViaductSchema.FieldArg arg : field.getArgs()) {
+      ViaductSchema.TypeDef argBaseTypeDef = arg.getType().getBaseTypeDef();
+      boolean argCompositeType =
+          (argBaseTypeDef instanceof ViaductSchema.Object)
+              || (argBaseTypeDef instanceof ViaductSchema.Input);
+      boolean argList = arg.getType().isList();
+      boolean argEnumType = argBaseTypeDef instanceof ViaductSchema.Enum;
+      boolean argAbstractType =
+          (argBaseTypeDef instanceof ViaductSchema.Interface)
+              || (argBaseTypeDef instanceof ViaductSchema.Union);
+      String argBaseTypeName =
+          (argCompositeType || argEnumType || argAbstractType) ? argBaseTypeDef.getName() : null;
+
+      String argIdOfTypeName = SchemaAnalysis.INSTANCE.idOfTypeName(arg);
+      boolean argGlobalIDType = false;
+      boolean paginationArg = requiredConnectionArgNames.contains(arg.getName());
+      boolean argNullable = arg.getType().isNullable() || paginationArg;
+      String argJavaType =
+          paginationArg
+              ? typeMapper.toBoxedJavaType(arg.getType())
+              : typeMapper.toJavaType(arg.getType());
+      if (argIdOfTypeName != null) {
+        argGlobalIDType = true;
+        argBaseTypeName = argIdOfTypeName;
+        argJavaType =
+            argList
+                ? "List<GlobalID<" + argIdOfTypeName + ">>"
+                : "GlobalID<" + argIdOfTypeName + ">";
+      }
+
+      fields.add(
+          new FieldModel(
+              arg.getName(),
+              argJavaType,
+              argNullable,
+              argCompositeType,
+              argList,
+              argEnumType,
+              argAbstractType,
+              argGlobalIDType,
+              argBaseTypeName,
+              getHasReflectedType(argBaseTypeDef) ? argBaseTypeDef.getName() : null,
+              false,
+              null,
+              null));
+    }
+    return fields;
   }
 
   /**
@@ -763,6 +773,7 @@ public class GraphQLSchemaParser {
     boolean rootObjectField = isRootObjectFieldEligible(field, pathToContainer);
     String argumentsTypeName = null;
     List<String> pathFromQueryRoot = null;
+    List<FieldModel> rootFieldArguments = List.of();
     if (rootObjectField) {
       argumentsTypeName =
           field.getHasArgs()
@@ -770,6 +781,9 @@ public class GraphQLSchemaParser {
               : "Arguments.NoArguments";
       pathFromQueryRoot = new ArrayList<>(pathToContainer);
       pathFromQueryRoot.add(field.getName());
+      if (field.getHasArgs()) {
+        rootFieldArguments = argumentFieldModels(field, typeMapper);
+      }
     }
 
     return new FieldModel(
@@ -785,7 +799,8 @@ public class GraphQLSchemaParser {
         reflectedTypeName,
         rootObjectField,
         argumentsTypeName,
-        pathFromQueryRoot);
+        pathFromQueryRoot,
+        rootFieldArguments);
   }
 
   /** Extracts description from a type definition. Returns null for now. */

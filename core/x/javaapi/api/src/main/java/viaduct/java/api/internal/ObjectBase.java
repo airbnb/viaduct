@@ -221,7 +221,7 @@ public abstract class ObjectBase implements GraphQLObject {
           "Field '"
               + fieldName
               + "' cannot be accessed on an unresolved root field reference created using"
-              + " ctx.rootFieldRef.",
+              + " ctx.ref.",
           null);
     } else {
       throw new FrameworkException(

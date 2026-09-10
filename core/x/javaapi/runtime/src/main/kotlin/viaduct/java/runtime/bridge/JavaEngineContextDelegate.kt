@@ -116,9 +116,9 @@ internal class JavaEngineContextDelegate(
 
     // ── Root field reference ──
 
-    fun <A : Arguments, T : GraphQLObject> rootFieldRef(
-        field: RootObjectField<*, T, A>,
-        arguments: A,
+    fun <T : GraphQLObject> rootFieldRef(
+        field: RootObjectField<*, T, *>,
+        arguments: Arguments,
     ): T {
         val engineCtx = requireEngineContext("rootFieldRef")
         val typeName = field.type.name

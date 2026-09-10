@@ -9,11 +9,11 @@ import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
 import viaduct.errors.handleFrameworkErrors
 import viaduct.java.api.context.FieldExecutionContext
+import viaduct.java.api.context.RootFieldCall
 import viaduct.java.api.context.SelectiveFieldExecutionContext
 import viaduct.java.api.documents.MutationFromAnnotation
 import viaduct.java.api.documents.QueryFromAnnotation
 import viaduct.java.api.internal.InternalContext
-import viaduct.java.api.reflect.RootObjectField
 import viaduct.java.api.resolvers.FieldResolverBase
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.CompositeOutput
@@ -121,10 +121,7 @@ class SimpleFieldExecutionContext(
         return delegate.nodeRef(id, grtClass)
     }
 
-    override fun <A : Arguments, T : GraphQLObject> rootFieldRef(
-        field: RootObjectField<*, T, A>,
-        arguments: A,
-    ): T = delegate.rootFieldRef(field, arguments)
+    override fun <T : GraphQLObject> ref(call: RootFieldCall<T>): T = delegate.rootFieldRef(call.field(), call.arguments(this))
 
     override fun <T : Any> query(
         selections: String,

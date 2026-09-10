@@ -4,6 +4,7 @@ import viaduct.engine.api.EngineObjectData;
 import viaduct.engine.api.NodeReference;
 import viaduct.engine.api.RootFieldReference;
 import viaduct.java.api.context.ExecutionContext;
+import viaduct.java.api.context.RootFieldCall;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.NodeObjectBase;
@@ -19,6 +20,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetTime;
 import java.util.LinkedHashMap;
+import java.util.function.Consumer;
 import java.util.List;
 import java.util.Map;
 
@@ -57,6 +59,117 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
                                 CompositeField.of("nodes", Reflection, Node.Reflection);
 
     }
+
+        public static OrderRootFieldCall order() {
+            return new OrderRootFieldCall();
+        }
+
+        /** Collects the arguments for a call to the order root field. */
+        public static final class OrderRootFieldCall {
+            private Consumer<Query_Order_Arguments.Builder> __arguments = __builder -> {};
+
+            private OrderRootFieldCall() {}
+
+            public OrderRootFieldCall id(String id) {
+                __arguments = __arguments.andThen(__builder -> __builder.id(id));
+                return this;
+            }
+
+            public RootFieldCall<Order> build() {
+                return new RootFieldCall<Order>() {
+                    @Override
+                    public RootObjectField<?, Order, ? extends Arguments> field() {
+                        return Fields.order;
+                    }
+
+                    @Override
+                    public Arguments arguments(ExecutionContext context) {
+                        Query_Order_Arguments.Builder __builder = Query_Order_Arguments.builder(context);
+                        __arguments.accept(__builder);
+                        return __builder.build();
+                    }
+                };
+            }
+        }
+
+        public static RootFieldCall<User> topUser() {
+            return new RootFieldCall<User>() {
+                @Override
+                public RootObjectField<?, User, ? extends Arguments> field() {
+                    return Fields.topUser;
+                }
+
+                @Override
+                public Arguments arguments(ExecutionContext context) {
+                    return Arguments.None;
+                }
+            };
+        }
+
+        public static OrdersConnectionRootFieldCall ordersConnection() {
+            return new OrdersConnectionRootFieldCall();
+        }
+
+        /** Collects the arguments for a call to the ordersConnection root field. */
+        public static final class OrdersConnectionRootFieldCall {
+            private Consumer<Query_OrdersConnection_Arguments.Builder> __arguments = __builder -> {};
+
+            private OrdersConnectionRootFieldCall() {}
+
+            public OrdersConnectionRootFieldCall first(Integer first) {
+                __arguments = __arguments.andThen(__builder -> __builder.first(first));
+                return this;
+            }
+
+            public RootFieldCall<OrderConnection> build() {
+                return new RootFieldCall<OrderConnection>() {
+                    @Override
+                    public RootObjectField<?, OrderConnection, ? extends Arguments> field() {
+                        return Fields.ordersConnection;
+                    }
+
+                    @Override
+                    public Arguments arguments(ExecutionContext context) {
+                        Query_OrdersConnection_Arguments.Builder __builder = Query_OrdersConnection_Arguments.builder(context);
+                        __arguments.accept(__builder);
+                        return __builder.build();
+                    }
+                };
+            }
+        }
+
+        public static LookupOrderRootFieldCall lookupOrder() {
+            return new LookupOrderRootFieldCall();
+        }
+
+        /** Collects the arguments for a call to the lookupOrder root field. */
+        public static final class LookupOrderRootFieldCall {
+            private Consumer<Query_LookupOrder_Arguments.Builder> __arguments = __builder -> {};
+
+            private LookupOrderRootFieldCall() {}
+
+            public LookupOrderRootFieldCall filter(OrderLookupInput filter) {
+                __arguments = __arguments.andThen(__builder -> __builder.filter(filter));
+                return this;
+            }
+
+            public RootFieldCall<Order> build() {
+                return new RootFieldCall<Order>() {
+                    @Override
+                    public RootObjectField<?, Order, ? extends Arguments> field() {
+                        return Fields.lookupOrder;
+                    }
+
+                    @Override
+                    public Arguments arguments(ExecutionContext context) {
+                        Query_LookupOrder_Arguments.Builder __builder = Query_LookupOrder_Arguments.builder(context);
+                        __arguments.accept(__builder);
+                        return __builder.build();
+                    }
+                };
+            }
+        }
+
 
     public Query(InternalContext context, EngineObjectData.Sync data) {
         super(context, data);

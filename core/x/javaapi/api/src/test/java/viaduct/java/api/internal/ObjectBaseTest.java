@@ -410,7 +410,7 @@ class ObjectBaseTest {
     TestObject obj = new TestObject(null, new FakeRootFieldReference());
 
     FrameworkException e = assertThrows(FrameworkException.class, () -> obj.scalar("name"));
-    assertTrue(e.getMessage().contains("ctx.rootFieldRef"));
+    assertTrue(e.getMessage().contains("ctx.ref"));
   }
 
   // ===== fetchScalarList =====

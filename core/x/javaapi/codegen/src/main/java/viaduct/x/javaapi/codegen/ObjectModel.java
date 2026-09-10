@@ -92,6 +92,18 @@ public record ObjectModel(
     return reflectedFields;
   }
 
+  /** Returns the reflected fields that a tenant can call through {@code ctx.ref}. */
+  public List<FieldModel> getRootFieldCalls() {
+    return reflectedFields == null
+        ? List.of()
+        : reflectedFields.stream().filter(FieldModel::getRootObjectField).toList();
+  }
+
+  /** Returns whether any of those root fields takes arguments. */
+  public boolean getHasRootFieldCallArguments() {
+    return getRootFieldCalls().stream().anyMatch(FieldModel::getRootFieldCallWithArguments);
+  }
+
   public String getDescription() {
     return description;
   }

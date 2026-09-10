@@ -24,7 +24,7 @@ public class JavaRootFieldRefContractTest extends RootFieldRefContractTest {
   }
 
   @Test
-  void rootFieldRefResolvesNoArgumentsAndNestedReferencesThroughNamespaceTypes() {
+  void refResolvesNoArgumentsAndNestedReferencesThroughNamespaceTypes() {
     var result = execute("{ product { name price related { name price metadata } } }");
 
     assertTrue(result.getErrors().isEmpty());
@@ -51,8 +51,16 @@ public class JavaRootFieldRefContractTest extends RootFieldRefContractTest {
   public static class ProductFactoryCreateResolver extends ProductFactoryResolvers.Create {
     @Override
     public CompletableFuture<Product> resolve(ProductFactoryResolvers.Create.Context ctx) {
-      var arguments = productArguments(ctx);
-      var related = ctx.rootFieldRef(ProductFactory.Fields.createWithArguments, arguments);
+      var related =
+          ctx.ref(
+              ProductFactory.createWithArguments()
+                  .name("Widget")
+                  .metadata(Map.of("source", "catalog", "scores", List.of(1, 2)))
+                  .spec(ProductSpecInput.builder(ctx).quantity(42).build())
+                  .kind(ProductKind.PHYSICAL)
+                  .tags(List.of("featured", "new"))
+                  .ownerId(ctx.globalIDFor(Owner.Reflection, "owner-1"))
+                  .build());
 
       return CompletableFuture.completedFuture(
           Product.builder(ctx).name("Container").price(0).related(related).build());
@@ -87,20 +95,7 @@ public class JavaRootFieldRefContractTest extends RootFieldRefContractTest {
   public static class ProductResolver extends QueryResolvers.Product {
     @Override
     public CompletableFuture<Product> resolve(QueryResolvers.Product.Context ctx) {
-      return CompletableFuture.completedFuture(
-          ctx.rootFieldRef(ProductFactory.Fields.create, Arguments.None));
+      return CompletableFuture.completedFuture(ctx.ref(ProductFactory.create()));
     }
-  }
-
-  private static ProductFactory_CreateWithArguments_Arguments productArguments(
-      ProductFactoryResolvers.Create.Context ctx) {
-    return ProductFactory_CreateWithArguments_Arguments.builder(ctx)
-        .name("Widget")
-        .metadata(Map.of("source", "catalog", "scores", List.of(1, 2)))
-        .spec(ProductSpecInput.builder(ctx).quantity(42).build())
-        .kind(ProductKind.PHYSICAL)
-        .tags(List.of("featured", "new"))
-        .ownerId(ctx.globalIDFor(Owner.Reflection, "owner-1"))
-        .build();
   }
 }

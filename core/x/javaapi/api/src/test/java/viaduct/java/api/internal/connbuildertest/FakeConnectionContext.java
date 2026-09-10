@@ -13,11 +13,10 @@ import org.jspecify.annotations.Nullable;
 import viaduct.engine.api.ViaductSchema;
 import viaduct.java.api.context.ConnectionFieldExecutionContext;
 import viaduct.java.api.context.ResolverExecutionContext;
+import viaduct.java.api.context.RootFieldCall;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
-import viaduct.java.api.reflect.RootObjectField;
 import viaduct.java.api.reflect.Type;
-import viaduct.java.api.types.Arguments;
 import viaduct.java.api.types.Connection;
 import viaduct.java.api.types.ConnectionArguments;
 import viaduct.java.api.types.GraphQLObject;
@@ -156,8 +155,7 @@ class FakeExecutionContext implements ResolverExecutionContext, InternalContext 
   }
 
   @Override
-  public <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
-      RootObjectField<?, T, A> field, A arguments) {
+  public <T extends GraphQLObject> T ref(RootFieldCall<T> call) {
     throw new UnsupportedOperationException();
   }
 

@@ -5,9 +5,7 @@ import java.util.concurrent.CompletableFuture;
 import viaduct.java.api.documents.MutationFromAnnotation;
 import viaduct.java.api.documents.QueryFromAnnotation;
 import viaduct.java.api.globalid.GlobalID;
-import viaduct.java.api.reflect.RootObjectField;
 import viaduct.java.api.reflect.Type;
-import viaduct.java.api.types.Arguments;
 import viaduct.java.api.types.GraphQLObject;
 import viaduct.java.api.types.NodeCompositeOutput;
 import viaduct.java.api.types.NodeObject;
@@ -23,16 +21,13 @@ public interface ResolverExecutionContext extends ExecutionContext {
    * <p>The engine resolves the reference after the current resolver returns it directly or embeds
    * it in another GRT. Fields cannot be read from the unresolved reference.
    *
-   * <p>Example: {@code ctx.rootFieldRef(ProductFactory.Fields.create, Arguments.None)}.
+   * <p>Example: {@code ctx.ref(ProductFactory.create())}.
    *
-   * @param field the generated root field descriptor
-   * @param arguments the field's generated arguments, or {@link Arguments.NoArguments}
-   * @param <A> the field's arguments type
+   * @param call the generated root field call
    * @param <T> the field's object output type
    * @return an unresolved reference GRT
    */
-  <A extends Arguments, T extends GraphQLObject> T rootFieldRef(
-      RootObjectField<?, T, A> field, A arguments);
+  <T extends GraphQLObject> T ref(RootFieldCall<T> call);
 
   /**
    * Creates a serialized GlobalID string for the given Node type and internal ID.

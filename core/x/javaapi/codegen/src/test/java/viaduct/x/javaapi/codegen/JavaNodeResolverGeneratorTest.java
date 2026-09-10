@@ -155,11 +155,8 @@ class JavaNodeResolverGeneratorTest {
             "public <T extends NodeCompositeOutput> String serialize(GlobalID<T> globalID)"));
     assertTrue(
         generated.contains("public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id)"));
-    assertTrue(
-        generated.contains(
-            "public <A extends Arguments, T extends GraphQLObject> T rootFieldRef("));
-    assertTrue(generated.contains("RootObjectField<?, T, A> field, A arguments)"));
-    assertTrue(generated.contains("return inner.rootFieldRef(field, arguments);"));
+    assertTrue(generated.contains("public <T extends GraphQLObject> T ref(RootFieldCall<T> call)"));
+    assertTrue(generated.contains("return inner.ref(call);"));
     assertTrue(
         generated.contains(
             "public <T> CompletableFuture<T> query(String selections,"

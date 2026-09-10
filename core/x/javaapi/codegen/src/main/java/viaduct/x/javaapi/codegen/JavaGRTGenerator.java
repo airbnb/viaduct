@@ -155,6 +155,9 @@ public final class JavaGRTGenerator {
             import viaduct.engine.api.NodeReference;
             import viaduct.engine.api.RootFieldReference;
             import viaduct.java.api.context.ExecutionContext;
+            <if(mdl.rootFieldCalls)>
+            import viaduct.java.api.context.RootFieldCall;
+            <endif>
             import viaduct.java.api.globalid.GlobalID;
             import viaduct.java.api.internal.InternalContext;
             import viaduct.java.api.internal.NodeObjectBase;
@@ -170,6 +173,9 @@ public final class JavaGRTGenerator {
             import java.time.LocalDate;
             import java.time.OffsetTime;
             import java.util.LinkedHashMap;
+            <if(mdl.hasRootFieldCallArguments)>
+            import java.util.function.Consumer;
+            <endif>
             import java.util.List;
             import java.util.Map;
 
@@ -200,6 +206,59 @@ public final class JavaGRTGenerator {
                     }; separator="\\n">
                 }
 
+                <if(mdl.rootFieldCalls)>
+                <mdl.rootFieldCalls: {f |
+                <if(f.rootFieldCallWithArguments)>
+                public static <f.rootFieldCallClassName> <f.safeName>() {
+                    return new <f.rootFieldCallClassName>();
+                \\}
+
+                /** Collects the arguments for a call to the <f.name> root field. */
+                public static final class <f.rootFieldCallClassName> {
+                    private Consumer\\<<f.argumentsTypeName>.Builder> __arguments = __builder -> {\\};
+
+                    private <f.rootFieldCallClassName>() {\\}
+
+                    <f.rootFieldArguments: {a |
+            public <f.rootFieldCallClassName> <a.safeName>(<a.javaType> <a.safeName>) {
+                __arguments = __arguments.andThen(__builder -> __builder.<a.safeName>(<a.safeName>));
+                return this;
+            \\}
+            }; separator="\\n">
+                    public RootFieldCall\\<<f.reflectedTypeName>\\> build() {
+                        return new RootFieldCall\\<<f.reflectedTypeName>\\>() {
+                            @Override
+                            public RootObjectField\\<?, <f.reflectedTypeName>, ? extends Arguments> field() {
+                                return Fields.<f.safeName>;
+                            \\}
+
+                            @Override
+                            public Arguments arguments(ExecutionContext context) {
+                                <f.argumentsTypeName>.Builder __builder = <f.argumentsTypeName>.builder(context);
+                                __arguments.accept(__builder);
+                                return __builder.build();
+                            \\}
+                        \\};
+                    \\}
+                \\}
+                <else>
+                public static RootFieldCall\\<<f.reflectedTypeName>\\> <f.safeName>() {
+                    return new RootFieldCall\\<<f.reflectedTypeName>\\>() {
+                        @Override
+                        public RootObjectField\\<?, <f.reflectedTypeName>, ? extends Arguments> field() {
+                            return Fields.<f.safeName>;
+                        \\}
+
+                        @Override
+                        public Arguments arguments(ExecutionContext context) {
+                            return Arguments.None;
+                        \\}
+                    \\};
+                \\}
+                <endif>
+                }; separator="\\n">
+
+                <endif>
                 public <mdl.className>(InternalContext context, EngineObjectData.Sync data) {
                     super(context, data);
                 }
