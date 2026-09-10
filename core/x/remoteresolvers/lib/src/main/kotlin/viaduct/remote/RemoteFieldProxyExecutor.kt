@@ -170,6 +170,11 @@ class RemoteFieldProxyExecutor(
 
             val stub = requestDeadline?.let { rrsStub.withDeadlineAfter(it.toMillis(), TimeUnit.MILLISECONDS) } ?: rrsStub
             val response = stub.batchResolveField(request)
+            dispatch.onResponseReceived(
+                RemoteDispatchInstrumentationContext.RemoteDispatchResponse(
+                    resolverExecutionLatencyNs = response.bodyDurationNanos.takeIf { response.hasBodyDurationNanos() }
+                )
+            )
             responseContextApplier.apply(
                 response.responseContext.takeIf { response.hasResponseContext() }?.fromWire()
             )

@@ -988,9 +988,11 @@ class RemoteFieldProxyIntegrationTest {
 
                 assertEquals(1, recording.contexts.size, "beginRemoteDispatch should be called once")
                 val dispatch = recording.contexts.single()
-                assertEquals(listOf("serialization", "completed"), dispatch.events)
+                assertEquals(listOf("serialization", "response", "completed"), dispatch.events)
                 assertEquals(RemoteDispatchInstrumentationContext.RemoteDispatchOutcome.SUCCESS, dispatch.completedOutcome)
                 assertNull(dispatch.completedCause, "a successful dispatch should report a null cause")
+                val latencyNs = dispatch.receivedResponse?.resolverExecutionLatencyNs
+                assertTrue(latencyNs != null && latencyNs >= 0, "RRS's real batchResolve() call should report a body duration, got $latencyNs")
             }
         }
 
@@ -1095,6 +1097,7 @@ class RemoteFieldProxyIntegrationTest {
         val events = mutableListOf<String>()
         var completedOutcome: RemoteDispatchInstrumentationContext.RemoteDispatchOutcome? = null
         var completedCause: Throwable? = null
+        var receivedResponse: RemoteDispatchInstrumentationContext.RemoteDispatchResponse? = null
 
         override fun onSerializationCompleted(error: Throwable?) {
             events.add("serialization")
@@ -1105,6 +1108,7 @@ class RemoteFieldProxyIntegrationTest {
             error: Throwable?
         ) {
             events.add("response")
+            receivedResponse = response
         }
 
         override fun onDeserializationCompleted(error: Throwable?) {
