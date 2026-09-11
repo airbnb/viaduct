@@ -116,7 +116,7 @@ class SimpleFieldExecutionContext(
     ): String = delegate.globalIDStringFor(type, internalID)
 
     @Suppress("UNCHECKED_CAST")
-    override fun <T : viaduct.java.api.types.NodeCompositeOutput> nodeRef(id: viaduct.java.api.globalid.GlobalID<T>): T {
+    override fun <T : viaduct.java.api.types.NodeCompositeOutput> ref(id: viaduct.java.api.globalid.GlobalID<T>): T {
         val grtClass = id.getType().getJavaClass() as Class<T>
         return delegate.nodeRef(id, grtClass)
     }

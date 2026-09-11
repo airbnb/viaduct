@@ -147,7 +147,7 @@ class NodeBatchResolverExecutorImpl(
             }
             if (raw.javaNodeReference != null) {
                 throw TenantUsageException(
-                    "NodeReference returned from node resolver. Use a GRT builder instead of ctx.nodeRef to construct your node object."
+                    "NodeReference returned from node resolver. Use a GRT builder instead of ctx.ref to construct your node object."
                 )
             }
             convertResult(raw, graphqlSchema) as? EngineObjectData

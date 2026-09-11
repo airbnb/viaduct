@@ -28,7 +28,7 @@ public final class PlanetResidentsQueryResolver extends PlanetResolvers.Resident
         planetsResidentsRepository.findResidentsByPlanetId(planetId).stream()
             .map(
                 relation ->
-                    context.nodeRef(
+                    context.ref(
                         context.globalIDFor(Type.ofClass(Character.class), relation.characterId())))
             .toList();
     return CompletableFuture.completedFuture(residents);

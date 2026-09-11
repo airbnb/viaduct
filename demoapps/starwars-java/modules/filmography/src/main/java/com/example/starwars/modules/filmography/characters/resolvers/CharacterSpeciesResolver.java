@@ -33,7 +33,7 @@ public final class CharacterSpeciesResolver extends CharacterResolvers.Species {
       Species species =
           character == null || character.speciesId() == null
               ? null
-              : context.nodeRef(
+              : context.ref(
                   context.globalIDFor(Type.ofClass(Species.class), character.speciesId()));
       results.put(context, species);
     }

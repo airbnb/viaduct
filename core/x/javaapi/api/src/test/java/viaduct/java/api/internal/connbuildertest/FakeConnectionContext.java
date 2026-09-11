@@ -150,7 +150,7 @@ class FakeExecutionContext implements ResolverExecutionContext, InternalContext 
   }
 
   @Override
-  public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id) {
+  public <T extends NodeCompositeOutput> T ref(GlobalID<T> id) {
     throw new UnsupportedOperationException();
   }
 

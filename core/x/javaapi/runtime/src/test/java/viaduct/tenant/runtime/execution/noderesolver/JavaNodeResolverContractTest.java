@@ -28,7 +28,7 @@ public class JavaNodeResolverContractTest extends NodeResolverContractTest {
     public CompletableFuture<NodeObj> resolve(QueryResolvers.NodeReference.Context ctx) {
       String internalId = ctx.getArguments().getId();
       return CompletableFuture.completedFuture(
-          ctx.nodeRef(ctx.globalIDFor(Type.ofClass(NodeObj.class), internalId)));
+          ctx.ref(ctx.globalIDFor(Type.ofClass(NodeObj.class), internalId)));
     }
   }
 
@@ -37,7 +37,7 @@ public class JavaNodeResolverContractTest extends NodeResolverContractTest {
     @Override
     public CompletableFuture<ObjectWithNodeField> resolve(
         QueryResolvers.ObjectWithNodeField.Context ctx) {
-      NodeObj node = ctx.nodeRef(ctx.globalIDFor(Type.ofClass(NodeObj.class), "nestedNode"));
+      NodeObj node = ctx.ref(ctx.globalIDFor(Type.ofClass(NodeObj.class), "nestedNode"));
       return CompletableFuture.completedFuture(ObjectWithNodeField.builder(ctx).node(node).build());
     }
   }
@@ -55,7 +55,7 @@ public class JavaNodeResolverContractTest extends NodeResolverContractTest {
       extends QueryResolvers.NodeRefWithIllegalAccess {
     @Override
     public CompletableFuture<NodeObj> resolve(QueryResolvers.NodeRefWithIllegalAccess.Context ctx) {
-      NodeObj ref = ctx.nodeRef(ctx.globalIDFor(Type.ofClass(NodeObj.class), "1"));
+      NodeObj ref = ctx.ref(ctx.globalIDFor(Type.ofClass(NodeObj.class), "1"));
       ref.getIdOrThrow(); // valid — id can always be read
       ref.getValueOrThrow(); // illegal — must throw
       return CompletableFuture.completedFuture(ref);

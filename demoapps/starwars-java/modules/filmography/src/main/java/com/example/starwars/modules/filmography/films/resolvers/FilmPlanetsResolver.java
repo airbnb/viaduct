@@ -41,7 +41,7 @@ public final class FilmPlanetsResolver extends FilmResolvers.Planets {
             });
     return CompletableFuture.completedFuture(
         planetIds.stream()
-            .map(id -> context.nodeRef(context.globalIDFor(Type.ofClass(Planet.class), id)))
+            .map(id -> context.ref(context.globalIDFor(Type.ofClass(Planet.class), id)))
             .toList());
   }
 }

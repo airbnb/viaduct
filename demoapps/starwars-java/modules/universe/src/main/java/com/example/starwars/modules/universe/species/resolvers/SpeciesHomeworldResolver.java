@@ -28,7 +28,7 @@ public final class SpeciesHomeworldResolver extends SpeciesResolvers.Homeworld {
       return CompletableFuture.completedFuture(null);
     }
     Planet homeworld =
-        context.nodeRef(context.globalIDFor(Type.ofClass(Planet.class), species.homeworldId()));
+        context.ref(context.globalIDFor(Type.ofClass(Planet.class), species.homeworldId()));
     return CompletableFuture.completedFuture(homeworld);
   }
 }

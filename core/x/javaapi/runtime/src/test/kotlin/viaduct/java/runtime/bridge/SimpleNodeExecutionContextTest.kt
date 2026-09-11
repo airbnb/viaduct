@@ -132,13 +132,13 @@ class SimpleNodeExecutionContextTest {
     }
 
     @Test
-    fun `nodeRef throws FrameworkException when engineExecutionContext is missing`() {
+    fun `ref throws FrameworkException when engineExecutionContext is missing`() {
         val ctx = newContext(engineCtx = null)
-        assertThrows<FrameworkException> { ctx.nodeRef(GlobalIDImpl(nodeType(), "abc")) }
+        assertThrows<FrameworkException> { ctx.ref(GlobalIDImpl(nodeType(), "abc")) }
     }
 
     @Test
-    fun `nodeRef throws FrameworkException when GraphQL type not found in schema`() {
+    fun `ref throws FrameworkException when GraphQL type not found in schema`() {
         val viaductSchema = mockk<ViaductSchema> {
             every { schema } returns mockk<GraphQLSchema> {
                 every { getObjectType(any()) } returns null
@@ -152,13 +152,13 @@ class SimpleNodeExecutionContextTest {
         val ctx = newContext(engineCtx = engineCtx)
 
         val ex = assertThrows<FrameworkException> {
-            ctx.nodeRef(GlobalIDImpl(nodeType("Missing"), "abc"))
+            ctx.ref(GlobalIDImpl(nodeType("Missing"), "abc"))
         }
         assertTrue(ex.message!!.contains("GraphQL type 'Missing' not found in schema"))
     }
 
     @Test
-    fun `nodeRef constructs the typed Java GRT instance from the GlobalID`() {
+    fun `ref constructs the typed Java GRT instance from the GlobalID`() {
         val nodeRef = mockk<NodeReference>()
         val gqlType = mockk<GraphQLObjectType>()
         val viaductSchema = mockk<ViaductSchema> {
@@ -181,7 +181,7 @@ class SimpleNodeExecutionContextTest {
                 override fun getJavaClass(): Class<out NodeObject> = TestNodeObject::class.java
             }
 
-        val result: NodeObject = ctx.nodeRef(GlobalIDImpl(typedType, "abc"))
+        val result: NodeObject = ctx.ref(GlobalIDImpl(typedType, "abc"))
 
         result.shouldBeInstanceOf<TestNodeObject>()
         assertSame(nodeRef, result.javaNodeReference)

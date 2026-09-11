@@ -294,8 +294,7 @@ class ResolverGeneratorTest {
         generated.contains(
             "public <T extends NodeCompositeOutput> String serialize(GlobalID<T> globalID)"));
     assertTrue(generated.contains("public Object getRequestContext()"));
-    assertTrue(
-        generated.contains("public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id)"));
+    assertTrue(generated.contains("public <T extends NodeCompositeOutput> T ref(GlobalID<T> id)"));
   }
 
   @Test

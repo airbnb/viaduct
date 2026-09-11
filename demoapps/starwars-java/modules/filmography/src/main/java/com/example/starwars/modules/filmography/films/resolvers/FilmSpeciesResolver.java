@@ -41,7 +41,7 @@ public final class FilmSpeciesResolver extends FilmResolvers.Species {
             });
     return CompletableFuture.completedFuture(
         speciesIds.stream()
-            .map(id -> context.nodeRef(context.globalIDFor(Type.ofClass(Species.class), id)))
+            .map(id -> context.ref(context.globalIDFor(Type.ofClass(Species.class), id)))
             .toList());
   }
 }

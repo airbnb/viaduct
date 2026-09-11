@@ -33,7 +33,7 @@ public final class CharacterHomeworldResolver extends CharacterResolvers.Homewor
       Planet planet =
           character == null || character.homeworldId() == null
               ? null
-              : context.nodeRef(
+              : context.ref(
                   context.globalIDFor(Type.ofClass(Planet.class), character.homeworldId()));
       results.put(context, planet);
     }

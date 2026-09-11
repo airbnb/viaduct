@@ -37,7 +37,7 @@ public class JavaIdOfContractTest extends IdOfContractTest {
     @Override
     public CompletableFuture<User> resolve(UserResolvers.Cohost.Context ctx) {
       GlobalID<User> cohostId = ctx.getObjectValue().getCohostIDOrThrow();
-      return CompletableFuture.completedFuture(ctx.nodeRef(cohostId));
+      return CompletableFuture.completedFuture(ctx.ref(cohostId));
     }
   }
 
@@ -47,7 +47,7 @@ public class JavaIdOfContractTest extends IdOfContractTest {
     @Override
     public CompletableFuture<User> resolve(QueryResolvers.UserFromInput.Context ctx) {
       GlobalID<User> inputId = ctx.getArguments().getId().getId();
-      return CompletableFuture.completedFuture(ctx.nodeRef(inputId));
+      return CompletableFuture.completedFuture(ctx.ref(inputId));
     }
   }
 
@@ -75,7 +75,7 @@ public class JavaIdOfContractTest extends IdOfContractTest {
         throw new IllegalArgumentException("Can only handle user entities (" + id + ")");
       }
       GlobalID<User> userId = ctx.globalIDFor(Type.ofClass(User.class), id.getInternalID());
-      return CompletableFuture.completedFuture(ctx.nodeRef(userId));
+      return CompletableFuture.completedFuture(ctx.ref(userId));
     }
   }
 }

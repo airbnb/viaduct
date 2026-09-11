@@ -28,8 +28,7 @@ public final class PlanetFilmsQueryResolver extends PlanetResolvers.Films {
         planetsFilmsRepository.findFilmsByPlanetId(planetId).stream()
             .map(
                 relation ->
-                    context.nodeRef(
-                        context.globalIDFor(Type.ofClass(Film.class), relation.filmId())))
+                    context.ref(context.globalIDFor(Type.ofClass(Film.class), relation.filmId())))
             .toList();
     return CompletableFuture.completedFuture(films);
   }

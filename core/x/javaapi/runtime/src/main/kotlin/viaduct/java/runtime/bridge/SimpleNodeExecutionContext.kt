@@ -26,7 +26,7 @@ import viaduct.service.api.spi.GlobalIDCodec
  * Concrete [NodeExecutionContext] for Java node resolvers.
  *
  * Bridges the engine's serialized GlobalID string to the typed Java [GlobalID] interface and
- * provides full implementations of [query], [mutation], and [nodeRef] (mirroring
+ * provides full implementations of [query], [mutation], and [ref] (mirroring
  * [SimpleFieldExecutionContext] for the field resolver side).
  *
  * Also implements [SelectiveNodeExecutionContext] so the same instance can serve both
@@ -36,7 +36,7 @@ import viaduct.service.api.spi.GlobalIDCodec
  * @param typeName the GraphQL type name this resolver handles (e.g. "NodeObj")
  * @param requestContext the per-request context object
  * @param engineExecutionContext the engine execution context, required for ctx.query, ctx.mutation
- *     and ctx.nodeRef
+ *     and ctx.ref
  * @param coroutineScope the coroutine scope for launching subquery coroutines
  * @param grtPackagePrefix package containing generated GRT classes
  */
@@ -91,7 +91,7 @@ class SimpleNodeExecutionContext(
     ): String = delegate.globalIDStringFor(type, internalID)
 
     @Suppress("UNCHECKED_CAST")
-    override fun <T : NodeCompositeOutput> nodeRef(id: GlobalID<T>): T {
+    override fun <T : NodeCompositeOutput> ref(id: GlobalID<T>): T {
         val grtClass = id.getType().getJavaClass() as Class<T>
         return delegate.nodeRef(id, grtClass)
     }

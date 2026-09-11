@@ -21,7 +21,7 @@ public class JavaMissingNodeResolverContractTest extends MissingNodeResolverCont
     @Override
     public CompletableFuture<Widget> resolve(Context ctx) {
       return CompletableFuture.completedFuture(
-          ctx.nodeRef(ctx.globalIDFor(Type.ofClass(Widget.class), ctx.getArguments().getId())));
+          ctx.ref(ctx.globalIDFor(Type.ofClass(Widget.class), ctx.getArguments().getId())));
     }
   }
 }

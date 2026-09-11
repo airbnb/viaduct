@@ -91,8 +91,8 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id) {
-                    return inner.nodeRef(id);
+                public <T extends NodeCompositeOutput> T ref(GlobalID<T> id) {
+                    return inner.ref(id);
                 }
 
                 @Override
@@ -249,8 +249,8 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id) {
-                    return inner.nodeRef(id);
+                public <T extends NodeCompositeOutput> T ref(GlobalID<T> id) {
+                    return inner.ref(id);
                 }
 
                 @Override
@@ -402,8 +402,8 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id) {
-                    return inner.nodeRef(id);
+                public <T extends NodeCompositeOutput> T ref(GlobalID<T> id) {
+                    return inner.ref(id);
                 }
 
                 @Override
@@ -589,8 +589,8 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id) {
-                    return inner.nodeRef(id);
+                public <T extends NodeCompositeOutput> T ref(GlobalID<T> id) {
+                    return inner.ref(id);
                 }
 
                 @Override
@@ -771,8 +771,8 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id) {
-                    return inner.nodeRef(id);
+                public <T extends NodeCompositeOutput> T ref(GlobalID<T> id) {
+                    return inner.ref(id);
                 }
 
                 @Override
@@ -924,8 +924,8 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id) {
-                    return inner.nodeRef(id);
+                public <T extends NodeCompositeOutput> T ref(GlobalID<T> id) {
+                    return inner.ref(id);
                 }
 
                 @Override
@@ -1077,8 +1077,8 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id) {
-                    return inner.nodeRef(id);
+                public <T extends NodeCompositeOutput> T ref(GlobalID<T> id) {
+                    return inner.ref(id);
                 }
 
                 @Override
@@ -1230,8 +1230,8 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id) {
-                    return inner.nodeRef(id);
+                public <T extends NodeCompositeOutput> T ref(GlobalID<T> id) {
+                    return inner.ref(id);
                 }
 
                 @Override

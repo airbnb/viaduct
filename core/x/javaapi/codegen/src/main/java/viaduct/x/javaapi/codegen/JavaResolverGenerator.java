@@ -129,8 +129,8 @@ public final class JavaResolverGenerator {
                       \\}
 
                       @Override
-                      public \\<T extends NodeCompositeOutput> T nodeRef(GlobalID\\<T> id) {
-                          return inner.nodeRef(id);
+                      public \\<T extends NodeCompositeOutput> T ref(GlobalID\\<T> id) {
+                          return inner.ref(id);
                       \\}
 
                       @Override

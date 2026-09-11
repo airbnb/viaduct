@@ -12,7 +12,19 @@ import viaduct.java.api.types.NodeObject;
 
 /** A generic context for resolving fields or types. */
 public interface ResolverExecutionContext extends ExecutionContext {
-  <T extends NodeCompositeOutput> T nodeRef(GlobalID<T> id);
+  /**
+   * Creates a lazy reference to a Node from its GlobalID.
+   *
+   * <p>Only the {@code id} field is accessible on the returned reference; reading any other field
+   * throws. Use it to build resolver responses for fields with Node types.
+   *
+   * <p>Example: {@code ctx.ref(ctx.globalIDFor(Type.ofClass(Planet.class), planetId))}.
+   *
+   * @param id the Node's GlobalID
+   * @param <T> the Node GRT type
+   * @return an unresolved reference GRT
+   */
+  <T extends NodeCompositeOutput> T ref(GlobalID<T> id);
 
   /**
    * Creates a lazy reference to an object-valued query root field or a field reachable through

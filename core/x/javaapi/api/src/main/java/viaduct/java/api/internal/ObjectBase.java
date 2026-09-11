@@ -93,7 +93,7 @@ public abstract class ObjectBase implements GraphQLObject {
   /**
    * Node reference path constructor: wraps a NodeReference for deferred node resolution.
    *
-   * <p>Used by {@code ctx.nodeRef()} to create a lazy reference that the engine resolves later.
+   * <p>Used by {@code ctx.ref()} to create a lazy reference that the engine resolves later.
    */
   protected ObjectBase(@Nullable InternalContext __context, NodeReference nodeReference) {
     this.__context = __context;
@@ -213,7 +213,7 @@ public abstract class ObjectBase implements GraphQLObject {
       throw new FrameworkException(
           "Field '"
               + fieldName
-              + "' cannot be accessed on an unresolved Node reference created using ctx.nodeRef —"
+              + "' cannot be accessed on an unresolved Node reference created using ctx.ref —"
               + " only `id` is accessible.",
           null);
     } else if (rootFieldReference != null) {

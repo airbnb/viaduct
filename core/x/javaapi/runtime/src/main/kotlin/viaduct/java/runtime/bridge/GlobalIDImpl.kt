@@ -81,7 +81,7 @@ internal fun <T : NodeCompositeOutput> GlobalIDCodec.serializeGlobalID(globalID:
 /**
  * A minimal [ObjectBase] subclass wrapping a [NodeReference].
  *
- * Used by [SimpleFieldExecutionContext.nodeRef] to return a node reference to the engine.
+ * Used by [SimpleFieldExecutionContext.ref] to return a node reference to the engine.
  * [GRTConverter.convertResult] detects this via [ObjectBase.getJavaNodeReference] and
  * passes the [NodeReference] directly to the engine instead of converting to
  * [viaduct.engine.api.EngineObjectData.Sync].
