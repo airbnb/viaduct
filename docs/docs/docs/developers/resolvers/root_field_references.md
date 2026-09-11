@@ -8,7 +8,7 @@ Resolvers can delegate construction of an object type to a *root object field* r
 
 Rather than executing a full [subquery](subqueries.md) and eagerly resolving the result, `ctx.ref()` returns a *lazy reference* that the engine resolves later with the client's selection set.
 
-Like `ctx.nodeRef()`, `ctx.ref()` returns a lazy reference. The difference is `nodeRef` delegates to a node resolver, whereas `ctx.ref` delegates to a root object field resolver.
+`ctx.ref` is overloaded. Passing a [GlobalID](../globalids/index.md) delegates to a node resolver; passing a root field call delegates to a root object field resolver.
 
 ## When to use a root field reference
 
@@ -150,7 +150,7 @@ The test harness does not resolve references, so a test asserts the calls the re
 
 | Method | What you get |
 |--------|--------------|
-| `ctx.nodeRef(id)` | A reference to a node, resolved later by that node's resolver |
+| `ctx.ref(id)` | A reference to a node, resolved later by that node's resolver |
 | `ctx.ref(call)` | A reference to a root field, resolved later by that field's resolver |
 | `ctx.query()` | The query result, executed immediately — you can read fields from it inside your resolver |
 
