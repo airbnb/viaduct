@@ -280,9 +280,16 @@ internal class GraphQLTypesGen(
             types.copy(interfaces = types.interfaces + genInterfaces())
         }
 
-    private fun genInterfaces(): Map<String, GraphQLInterfaceType> =
-        names.interfaces.fold(emptyMap()) { acc, name ->
-            val edges = genImplements(acc, InterfaceImplementsInterface)
+    private fun genInterfaces(): Map<String, GraphQLInterfaceType> {
+        // Depth of a leaf interface (one with no supers) is 0. [MaxInterfaceNestingDepth] is the
+        // maximum depth (inclusive) that a chain may reach; only interfaces whose depth leaves
+        // room for at least one more level are eligible as a super for the interface being built.
+        val depths = mutableMapOf<String, Int>()
+        val maxParentDepth = cfg[MaxInterfaceNestingDepth] - 1
+
+        return names.interfaces.fold(emptyMap()) { acc, name ->
+            val eligibleParents = acc.filterValues { (depths[it.name] ?: 0) <= maxParentDepth }
+            val edges = genImplements(eligibleParents, InterfaceImplementsInterface)
             val localFields = genFields(InterfaceTypeSize)
             val allFields = (edges.flatMap { it.fields } + localFields)
                 .distinctBy { it.name }
@@ -295,8 +302,10 @@ internal class GraphQLTypesGen(
                 .replaceInterfaces(edges.toList())
                 .build()
 
+            depths[name] = if (edges.isEmpty()) 0 else 1 + edges.maxOf { depths[it.name] ?: 0 }
             acc + (name to iface)
         }
+    }
 
     private fun genImplements(
         pool: Map<String, GraphQLInterfaceType>,

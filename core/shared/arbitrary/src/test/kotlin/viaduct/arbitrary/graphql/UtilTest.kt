@@ -9,6 +9,7 @@ import graphql.language.ListType
 import graphql.language.NonNullType
 import graphql.language.Type
 import graphql.language.TypeName
+import graphql.schema.idl.SchemaParser
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
@@ -45,6 +46,26 @@ import viaduct.arbitrary.common.WeightValidator
 import viaduct.graphql.utils.allChildrenOfType
 
 class UtilTest : KotestPropertyBase() {
+    @Test
+    fun `builtinDirectives includes graphql-java defaults`() {
+        val schema = "type Query { value: String }".asSchema
+        val missing = schema.directives.map { it.name }.toSet() - builtinDirectives.keys
+
+        assertTrue(missing.isEmpty(), "Missing builtin directives: $missing")
+    }
+
+    @Test
+    fun `printAsSDLFragment preserves custom directives and omits builtins`() {
+        val schema = """
+            directive @custom on OBJECT
+            type Query @custom { value: String }
+        """.trimIndent().asSchema
+
+        val fragment = SchemaParser().parse(schema.printAsSDLFragment())
+
+        assertEquals(setOf("custom"), fragment.getDirectiveDefinitions().keys)
+    }
+
     @Test
     fun `Int asIntRange`(): Unit =
         runBlocking {

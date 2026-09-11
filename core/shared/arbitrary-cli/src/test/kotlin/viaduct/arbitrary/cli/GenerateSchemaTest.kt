@@ -2,11 +2,15 @@ package viaduct.arbitrary.cli
 
 import graphql.schema.idl.SchemaParser
 import java.nio.file.Path
+import kotlin.io.path.readText
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
+import viaduct.graphql.utils.DefaultSchemaFactory
 
 /** Sanity checks for the SDL fragment [GenerateSchema] produces. */
 class GenerateSchemaTest {
@@ -20,10 +24,30 @@ class GenerateSchemaTest {
 
     @Test
     fun `generated schema fragment is valid SDL and covers every type kind it guarantees`() {
+        val observedDirectives = mutableSetOf<String>()
         // A handful of fixed seeds rather than one: generation is randomized, and any single seed
         // could land on a config-legal but low-coverage schema.
         for (seed in 0 until 5) {
-            val registry = SchemaParser().parse(generate(seed).toFile())
+            // The fragment applies Viaduct's directives and implements `Node` without declaring
+            // them, so decode it the way real consumers do: spliced into the default schema.
+            val output = generate(seed)
+            val sdl = output.readText()
+            val registry = SchemaParser().parse(output.toFile())
+            val defaultDirectiveNames = DefaultSchemaFactory.DefaultDirective.values().map { it.directiveName } +
+                setOf("skip", "include", "deprecated", "specifiedBy", "oneOf", "defer", "experimental_disableErrorPropagation")
+
+            assertFalse(registry.schemaDefinition().isPresent, "seed=$seed: fragment must omit root operation wiring")
+            assertFalse(registry.types().containsKey("Node"), "seed=$seed: fragment must omit the Node definition")
+            assertTrue(registry.getDirectiveDefinitions().keys.none { it in defaultDirectiveNames })
+            assertTrue(registry.getDirectiveDefinitions().isNotEmpty(), "seed=$seed: expected custom directive definitions")
+            listOf("idOf", "resolver").filterTo(observedDirectives) { sdl.contains("@$it(") }
+
+            DefaultSchemaFactory.addDefaults(
+                registry = registry,
+                includeNodeDefinition = DefaultSchemaFactory.IncludeNodeSchema.Always,
+                includeNodeQueries = DefaultSchemaFactory.IncludeNodeSchema.Never,
+            )
+
             val schema = ViaductSchema.fromTypeDefinitionRegistry(registry)
             val defs = schema.types.values
 
@@ -43,6 +67,7 @@ class GenerateSchemaTest {
                 "seed=$seed: expected every interface to have an implementing object"
             )
         }
+        assertEquals(setOf("idOf", "resolver"), observedDirectives)
     }
 
     // Case-only-different names only break on a case-insensitive filesystem, so no Linux CI job can

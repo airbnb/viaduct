@@ -36,6 +36,17 @@ object InterfaceImplementsInterface : ConfigKey<CompoundingWeight>(
 )
 
 /**
+ * The maximum depth of an interface-implements-interface chain, where a leaf interface (one that
+ * implements no other interface) has a depth of 0. Unbounded by default.
+ *
+ * [InterfaceImplementsInterface] bounds how many direct supers a single interface may sample, which
+ * bounds chain depth only indirectly -- through generation order and the size of the interface pool.
+ * This key bounds depth directly, so an interface may have many direct supers while its inheritance
+ * chains stay shallow.
+ */
+object MaxInterfaceNestingDepth : ConfigKey<Int>(Int.MAX_VALUE, IntValidator(0..Int.MAX_VALUE))
+
+/**
  * The probability that an interface or object field has arguments.
  * This is a compounding probability, meaning that if configured with value .1, then 10% of
  * fields will have at least 1 argument, 1% will have at least 2 arguments,
@@ -328,12 +339,16 @@ object IncludeRequiredResolvers : ConfigKey<Boolean>(true, Unvalidated)
 /**
  * The probability that a field resolver will be generated for a field that does not apply
  * a `@resolver` directive.
+ *
+ * See [DeclaredFieldResolverWeight] for the converse -- emitting the directive into the SDL.
  */
 object UndeclaredFieldResolverWeight : ConfigKey<Double>(0.0, WeightValidator)
 
 /**
  * The probability that a node resolver will be configured for a Node type that does not apply
  * a `@resolver` directive
+ *
+ * See [DeclaredNodeResolverWeight] for the converse -- emitting the directive into the SDL.
  **/
 object UndeclaredNodeResolverWeight : ConfigKey<Double>(0.0, WeightValidator)
 
@@ -490,3 +505,50 @@ object IDValueGenFactory : ConfigKey<IDValueGen.Factory>(IDValueGen.Factory.defa
  * -- where such names would collide -- should enable this.
  */
 object DedupeCaseInsensitiveNames : ConfigKey<Boolean>(false, Unvalidated)
+
+/**
+ * The probability that an object field whose base type is the `ID` scalar is annotated with
+ * `@idOf(type: "...")`, referencing one of the schema's direct `Node`-implementing object types.
+ * Never samples true when no `Node`-implementing object exists.
+ *
+ * Sampled independently of [AppliedDirectiveWeight]: that key applies arbitrary directives from the
+ * pool wherever they are legal, which cannot produce a valid `@idOf` because its `type` argument
+ * must name an existing `Node` implementor. This key chooses that argument deliberately.
+ *
+ * Requires the `Node` interface in the generator's pool, e.g. via [IncludeTypes]; a no-op otherwise.
+ */
+object IdOfFieldWeight : ConfigKey<Double>(.8, WeightValidator)
+
+/**
+ * The number of synthetic Connection shapes to add. Each one adds two objects for a
+ * `Node`-implementing type -- an `Edge` with a `node` field and the `@edge` directive, and a
+ * `Connection` with an `edges` field and the `@connection` directive -- then retypes one existing
+ * field elsewhere in the schema to return that `Connection`, giving it pagination arguments.
+ *
+ * Requires the `Node` interface in the generator's pool, e.g. via [IncludeTypes]; a no-op otherwise.
+ */
+object ConnectionCount : ConfigKey<IntRange>(0..0, IntRangeValidator(0..Int.MAX_VALUE))
+
+/**
+ * The probability that an ordinary object field is annotated with
+ * `@resolver(isSelective:, isBatching:)`.
+ *
+ * Where [UndeclaredFieldResolverWeight] wires a field resolver onto an already-built schema for a
+ * field carrying no `@resolver` directive, this key puts the directive in the generated SDL itself.
+ * The two are sampled independently. Argument values come from [SelectiveResolverWeight] and
+ * [BatchingResolverWeight].
+ */
+object DeclaredFieldResolverWeight : ConfigKey<Double>(.2, WeightValidator)
+
+/**
+ * The probability that a direct `Node`-implementing object type is annotated with
+ * `@resolver(isSelective:, isBatching:)`.
+ *
+ * Where [UndeclaredNodeResolverWeight] configures a node resolver on an already-built schema for a
+ * Node type carrying no `@resolver` directive, this key puts the directive in the generated SDL
+ * itself. The two are sampled independently. Argument values come from [SelectiveResolverWeight]
+ * and [BatchingResolverWeight].
+ *
+ * Requires the `Node` interface in the generator's pool, e.g. via [IncludeTypes]; a no-op otherwise.
+ */
+object DeclaredNodeResolverWeight : ConfigKey<Double>(.8, WeightValidator)

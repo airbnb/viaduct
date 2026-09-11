@@ -21,6 +21,7 @@ import io.kotest.property.arbitrary.intRange
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.of
 import io.kotest.property.arbitrary.pair
+import io.kotest.property.arbitrary.removeEdgecases
 import io.kotest.property.arbitrary.set
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
@@ -431,6 +432,44 @@ class GraphQLTypesTest : KotestPropertyBase() {
                 }
         }
 
+    /** Interface-heavy and nesting-hungry, so chains actually get deep enough to bound. */
+    private val nestedInterfaceConfig = minimalConfig +
+        (SchemaSize to 20) +
+        (TypeTypeWeights to mapOf(TypeType.Interface to 4.0)) +
+        (InterfaceImplementsInterface to CompoundingWeight(1.0, 3))
+
+    @Test
+    fun `GraphQLTypes - MaxInterfaceNestingDepth`(): Unit =
+        runBlocking {
+            Arb
+                .int(0..3)
+                .flatMap { maxDepth ->
+                    val cfg = nestedInterfaceConfig + (MaxInterfaceNestingDepth to maxDepth)
+                    Arb.graphQLTypes(cfg).map { maxDepth to it }
+                }.removeEdgecases().checkInvariants(30) { (maxDepth, types), check ->
+                    types.interfaces.values.forEach { iface ->
+                        check.isTrue(
+                            iface.nestingDepth() <= maxDepth,
+                            "interface {0} has nesting depth {1}, exceeding max {2}",
+                            arrayOf(iface.name, iface.nestingDepth().toString(), maxDepth.toString())
+                        )
+                    }
+                }
+        }
+
+    @Test
+    fun `GraphQLTypes - MaxInterfaceNestingDepth is unbounded by default`(): Unit =
+        runBlocking {
+            // InterfaceImplementsInterface alone still nests several levels deep -- it bounds how many
+            // direct supers one interface samples, not how long a chain gets.
+            //
+            // removeEdgecases: Arb.graphQLNames declares GraphQLNames.empty as an edgecase, which
+            // yields a schema with no interfaces at all.
+            Arb.graphQLTypes(nestedInterfaceConfig).removeEdgecases().forAll(30) { types ->
+                types.interfaces.values.any { it.nestingDepth() > 1 }
+            }
+        }
+
     @Test
     fun `GraphQLTypes - UnionTypeSize`(): Unit =
         runBlocking {
@@ -571,6 +610,9 @@ class GraphQLTypesTest : KotestPropertyBase() {
             }
         }
 }
+
+/** Longest implements-chain above this interface; a leaf that implements nothing has depth 0. */
+private fun GraphQLInterfaceType.nestingDepth(): Int = interfaces.filterIsInstance<GraphQLInterfaceType>().maxOfOrNull { 1 + it.nestingDepth() } ?: 0
 
 private val GraphQLType.listSomewhere: Boolean
     get() = when (this) {

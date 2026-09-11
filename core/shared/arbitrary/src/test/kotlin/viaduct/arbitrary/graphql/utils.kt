@@ -8,6 +8,7 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLUnionType
+import graphql.schema.idl.SchemaPrinter
 import io.kotest.property.Arb
 import io.kotest.property.checkAll
 import viaduct.arbitrary.common.CompoundingWeight
@@ -158,5 +159,25 @@ class MockEngineCtx(
             schema: ViaductSchema,
             globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault
         ): MockEngineCtx = MockEngineCtx(globalIDCodec, FieldRefs(schema))
+    }
+}
+
+/** Print an SDL fragment without root operation wiring, introspection, builtins, or Viaduct defaults. */
+fun GraphQLSchema.printAsSDLFragment(): String {
+    val printer = SchemaPrinter()
+    val types = allTypesAsList.filter { it.name.isNonDefaultName() }
+
+    return buildString {
+        directives
+            .filter { it.name.isNonDefaultName() && it.name !in builtinDirectives }
+            .forEach { appendLine(printer.print(it)) }
+        types.filterIsInstance<GraphQLEnumType>().forEach { appendLine(printer.print(it)) }
+        types.filterIsInstance<GraphQLScalarType>()
+            .filterNot { it.name in builtinScalarNames }
+            .forEach { appendLine(printer.print(it)) }
+        types.filterIsInstance<GraphQLInterfaceType>().forEach { appendLine(printer.print(it)) }
+        types.filterIsInstance<GraphQLObjectType>().forEach { appendLine(printer.print(it)) }
+        types.filterIsInstance<GraphQLUnionType>().forEach { appendLine(printer.print(it)) }
+        types.filterIsInstance<GraphQLInputObjectType>().forEach { appendLine(printer.print(it)) }
     }
 }

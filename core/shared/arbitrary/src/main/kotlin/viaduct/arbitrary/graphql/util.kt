@@ -58,6 +58,7 @@ import viaduct.engine.SchemaFactory
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
+import viaduct.graphql.utils.DefaultSchemaFactory.DefaultDirective
 import viaduct.graphql.utils.allChildren
 
 internal fun Set<GraphQLInterfaceType>.nonConflicting(): Set<GraphQLInterfaceType> {
@@ -198,11 +199,20 @@ internal val builtinDirectives: Map<String, GraphQLDirective> =
     listOf(
         Directives.DeferDirective,
         Directives.DeprecatedDirective,
+        Directives.ExperimentalDisableErrorPropagationDirective,
         Directives.IncludeDirective,
         Directives.OneOfDirective,
         Directives.SkipDirective,
         Directives.SpecifiedByDirective,
     ).associateBy { it.name }
+
+/** Names of the builtin directives. */
+val builtinDirectiveNames: Set<String> = builtinDirectives.keys
+
+/** Names declared by Viaduct's default schema. */
+val viaductDefaultNames: Set<String> = setOf("Node") + DefaultDirective.values().map { it.directiveName }
+
+internal fun String.isNonDefaultName(): Boolean = !startsWith("__") && this !in viaductDefaultNames
 
 /**
  * This method is a replacement for [Arb.Companion.choose]. This method will
