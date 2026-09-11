@@ -18,6 +18,11 @@ class FlagManagerTest {
     }
 
     @Test
+    fun `FlagManager_default disables cache key lookup partitioning`() {
+        assertFalse(FlagManager.Default.isEnabled(Flags.ENABLE_CACHE_KEY_LOOKUP_PARTITIONING))
+    }
+
+    @Test
     fun `FlagManager_default does not enable field RSS origin filtering killswitch`() {
         assertFalse(FlagManager.Default.isEnabled(Flags.KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING))
     }

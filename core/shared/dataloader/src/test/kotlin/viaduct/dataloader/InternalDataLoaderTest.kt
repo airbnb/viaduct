@@ -598,6 +598,44 @@ class InternalDataLoaderTest {
 
     @ParameterizedTest
     @EnumSource(TestDispatchStrategy::class)
+    fun testFailedDispatchEvictsOnlyItsCacheKeyMatchCandidate(testDispatchStrategy: TestDispatchStrategy) {
+        runBlocking(singleThreadedNextTickDispatcher()) {
+            val expectedException = RuntimeException("Temporary dispatch failure")
+            val loadedKeys = CopyOnWriteArrayList<String>()
+            var failNextRetry = true
+            val dispatchStrategy = createDispatchStrategyWithTryFn(
+                testDispatchStrategy,
+                GenericBatchLoadFn<String, String> { keys, _ ->
+                    loadedKeys.addAll(keys)
+                    if ("retry:a,b" in keys && failNextRetry) {
+                        failNextRetry = false
+                        throw expectedException
+                    }
+                    keys.map { Try(value = it) }
+                },
+                DataLoaderOptions(),
+                object : DataLoaderInstrumentation {},
+            )
+            val loader = InternalDataLoader.newLoader<String, String, String>(
+                dispatchStrategy,
+                cacheKeyMatchFn = { newKey, existingKey -> existingKey.contains(newKey) },
+                cacheKeyMatchCandidateFn = { it.substringBefore(":") },
+            )
+
+            loader.load("stable:a,b")
+            supervisorScope {
+                val actualException = runCatching { loader.load("retry:a,b") }.exceptionOrNull()
+                assertEquals(expectedException.message, actualException?.message)
+            }
+            loader.load("retry:a,b")
+            assertEquals("retry:a,b", loader.load("retry:a"))
+            assertEquals("stable:a,b", loader.load("stable:a"))
+            assertEquals(listOf("stable:a,b", "retry:a,b", "retry:a,b"), loadedKeys)
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(TestDispatchStrategy::class)
     fun testCoalescingOfIdenticalRequests(testDispatchStrategy: TestDispatchStrategy) {
         runBlocking(singleThreadedNextTickDispatcher()) {
             val (loader, loadCalls) = trackableLoader<Int>(testDispatchStrategy)

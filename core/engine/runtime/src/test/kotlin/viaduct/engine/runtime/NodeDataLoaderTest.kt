@@ -5,6 +5,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.Caller
@@ -304,7 +305,27 @@ class NodeDataLoaderTest {
     }
 
     @Test
-    fun `loadByKey reuses cached result when cached selections cover requested selections`() =
+    fun `loadByKey reuses cached result with cache partitioning enabled`() =
+        runTest {
+            var resolveCount = 0
+            val resolver = MockNodeUnbatchedResolverExecutor(
+                typeName = "Test",
+                isSelective = true,
+            ) { _, _, _ ->
+                resolveCount++
+                createEngineObjectData(schema.schema.getObjectType("Test"), emptyMap())
+            }
+            val loader = NodeDataLoader(resolver, cacheKeyLookupPartitioningEnabled = true)
+            val context = mockk<EngineExecutionContext>()
+
+            loader.loadByKey(selector("foo { a b }"), context)
+            loader.loadByKey(selector("foo { a }"), context)
+
+            assertEquals(1, resolveCount)
+        }
+
+    @Test
+    fun `one-argument constructor retains legacy cache behavior`() =
         runTest {
             var resolveCount = 0
             val resolver = MockNodeUnbatchedResolverExecutor(
@@ -318,7 +339,6 @@ class NodeDataLoaderTest {
             val context = mockk<EngineExecutionContext>()
 
             loader.loadByKey(selector("foo { a b }"), context)
-            // load a subset: previous load should cover this one
             loader.loadByKey(selector("foo { a }"), context)
 
             assertEquals(1, resolveCount)
@@ -335,7 +355,7 @@ class NodeDataLoaderTest {
                 resolveCount++
                 createEngineObjectData(schema.schema.getObjectType("Test"), emptyMap())
             }
-            val loader = NodeDataLoader(resolver)
+            val loader = NodeDataLoader(resolver, cacheKeyLookupPartitioningEnabled = true)
             val context = mockk<EngineExecutionContext>()
 
             loader.loadByKey(selector("foo { a }"), context).getOrThrow()
@@ -343,6 +363,28 @@ class NodeDataLoaderTest {
             loader.loadByKey(selector("foo { a b }"), context).getOrThrow()
 
             assertEquals(2, resolveCount)
+        }
+
+    @Test
+    fun `loadByKey caches covering selections independently for each ID`() =
+        runTest {
+            val resolvedIds = mutableListOf<String>()
+            val resolver = MockNodeUnbatchedResolverExecutor(
+                typeName = "Test",
+                isSelective = true,
+            ) { id, _, _ ->
+                resolvedIds += id
+                createEngineObjectData(schema.schema.getObjectType("Test"), mapOf("id" to id))
+            }
+            val loader = NodeDataLoader(resolver, cacheKeyLookupPartitioningEnabled = true)
+            val context = mockk<EngineExecutionContext>()
+
+            val first = loader.loadByKey(selector("foo { a b }", id1), context).getOrThrow()
+            val second = loader.loadByKey(selector("foo { a b }", id2), context).getOrThrow()
+
+            assertSame(first, loader.loadByKey(selector("foo { a }", id1), context).getOrThrow())
+            assertSame(second, loader.loadByKey(selector("foo { a }", id2), context).getOrThrow())
+            assertEquals(listOf(id1, id2), resolvedIds)
         }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -533,9 +575,11 @@ class NodeDataLoaderTest {
         }
     }
 
-    private fun selector(selections: String) =
-        NodeResolverExecutor.Selector(
-            id = id1,
-            selections = selectionSetFactory.engineSelectionSet("Test", selections, emptyMap()),
-        )
+    private fun selector(
+        selections: String,
+        id: String = id1
+    ) = NodeResolverExecutor.Selector(
+        id = id,
+        selections = selectionSetFactory.engineSelectionSet("Test", selections, emptyMap()),
+    )
 }

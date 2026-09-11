@@ -92,6 +92,21 @@ class EngineExecutionContextImplTest {
         assertFalse(engineExecutionContext(flagManager).matResolutionEnabled)
     }
 
+    @Test
+    fun `cache key lookup partitioning flag is latched per request`() {
+        var enabled = true
+        val flagManager = object : FlagManager {
+            override fun isEnabled(flag: FlagManager.Flag): Boolean = flag == FlagManager.Flags.ENABLE_CACHE_KEY_LOOKUP_PARTITIONING && enabled
+        }
+        val enabledContext = engineExecutionContext(flagManager)
+
+        enabled = false
+
+        assertTrue(enabledContext.cacheKeyLookupPartitioningEnabled)
+        assertTrue(enabledContext.copy().cacheKeyLookupPartitioningEnabled)
+        assertFalse(engineExecutionContext(flagManager).cacheKeyLookupPartitioningEnabled)
+    }
+
     private fun engineExecutionContext(
         flagManager: FlagManager,
         fullSchema: ViaductSchema = this.fullSchema,

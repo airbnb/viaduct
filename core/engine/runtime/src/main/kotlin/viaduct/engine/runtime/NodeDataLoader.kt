@@ -5,6 +5,7 @@ import graphql.language.SelectionSet
 import viaduct.apiannotations.ExcludeFromJacocoGeneratedReport
 import viaduct.dataloader.BatchLoaderEnvironment
 import viaduct.dataloader.CacheKeyFn
+import viaduct.dataloader.CacheKeyMatchCandidateFn
 import viaduct.dataloader.CacheKeyMatchFn
 import viaduct.dataloader.DataLoader
 import viaduct.engine.api.EngineExecutionContext
@@ -24,8 +25,14 @@ import viaduct.engine.runtime.select.covers
  * There should be exactly one instance of this data loader per node type per request.
  */
 class NodeDataLoader(
-    private val resolver: NodeResolverExecutor
+    private val resolver: NodeResolverExecutor,
+    private val cacheKeyLookupPartitioningEnabled: Boolean,
 ) : DataLoader<NodeResolverExecutor.Selector, Result<EngineObjectData>, NodeResolverExecutor.Selector>() {
+    constructor(resolver: NodeResolverExecutor) : this(
+        resolver,
+        cacheKeyLookupPartitioningEnabled = false,
+    )
+
     suspend fun loadByKey(
         key: NodeResolverExecutor.Selector,
         context: EngineExecutionContext
@@ -52,6 +59,13 @@ class NodeDataLoader(
     override val cacheKeyMatchFn: CacheKeyMatchFn<NodeResolverExecutor.Selector>? get() =
         if (resolver.isSelective) {
             { newKey, cachedKey -> cachedKey.covers(newKey) }
+        } else {
+            null
+        }
+
+    override val cacheKeyMatchCandidateFn: CacheKeyMatchCandidateFn<NodeResolverExecutor.Selector>? get() =
+        if (resolver.isSelective && cacheKeyLookupPartitioningEnabled) {
+            { selector -> selector.id }
         } else {
             null
         }
