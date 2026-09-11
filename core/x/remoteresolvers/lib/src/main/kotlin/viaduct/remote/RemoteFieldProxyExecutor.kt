@@ -181,7 +181,7 @@ class RemoteFieldProxyExecutor(
             log.debug("Received {} field result(s) for executor '{}'", response.resultsCount, executorId)
 
             val resultsByKey = response.resultsList.associateBy { it.selectorKey }
-            val result = sent.associate { (index, selector) ->
+            val deserialized = sent.associate { (index, selector) ->
                 val resolved = resultsByKey[index.toString()]
                     ?: error("Response missing result for selector_key=$index (executor '$executorId')")
                 val selectorResult = when {
@@ -199,9 +199,18 @@ class RemoteFieldProxyExecutor(
                     else -> error("Field result for selector_key=$index has neither value nor error")
                 }
                 selector to selectorResult
-            } + preFailed
-            // Coarse for now -- a follow-up PR classifies CODEC_ERROR/APPLICATION_ERROR from resultsByKey.
-            dispatch.onCompleted(RemoteDispatchInstrumentationContext.RemoteDispatchOutcome.SUCCESS, null)
+            }
+            val deserializeFailure = deserialized.values.mapNotNull { it.exceptionOrNull() }.firstOrNull { it is RemoteResolverCodecException }
+            dispatch.onDeserializationCompleted(deserializeFailure)
+
+            val result = deserialized + preFailed
+            val failures = result.values.mapNotNull { it.exceptionOrNull() }
+            val outcome = when {
+                failures.any { it is RemoteResolverCodecException } -> RemoteDispatchInstrumentationContext.RemoteDispatchOutcome.CODEC_ERROR
+                failures.any { it is RemoteResolverException } -> RemoteDispatchInstrumentationContext.RemoteDispatchOutcome.APPLICATION_ERROR
+                else -> RemoteDispatchInstrumentationContext.RemoteDispatchOutcome.SUCCESS
+            }
+            dispatch.onCompleted(outcome, failures.firstOrNull())
             return result
         } catch (e: Exception) {
             dispatch.onCompleted(RemoteDispatchInstrumentationContext.RemoteDispatchOutcome.TRANSPORT_ERROR, e)

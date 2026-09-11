@@ -988,11 +988,44 @@ class RemoteFieldProxyIntegrationTest {
 
                 assertEquals(1, recording.contexts.size, "beginRemoteDispatch should be called once")
                 val dispatch = recording.contexts.single()
-                assertEquals(listOf("serialization", "response", "completed"), dispatch.events)
+                assertEquals(listOf("serialization", "response", "deserialization", "completed"), dispatch.events)
                 assertEquals(RemoteDispatchInstrumentationContext.RemoteDispatchOutcome.SUCCESS, dispatch.completedOutcome)
                 assertNull(dispatch.completedCause, "a successful dispatch should report a null cause")
                 val latencyNs = dispatch.receivedResponse?.resolverExecutionLatencyNs
                 assertTrue(latencyNs != null && latencyNs >= 0, "RRS's real batchResolve() call should report a body duration, got $latencyNs")
+            }
+        }
+
+    @Test
+    fun `a remote resolver failure reports onCompleted with APPLICATION_ERROR`() =
+        runBlocking {
+            withServers { rrsChannel, callbackEndpoint, context ->
+                val failing = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
+                    override suspend fun batchResolve(
+                        selectors: List<FieldResolverExecutor.Selector>,
+                        context: EngineExecutionContext
+                    ): Map<FieldResolverExecutor.Selector, Result<Any?>> = selectors.associateWith { Result.failure(IllegalStateException("boom from remote field")) }
+                }
+                val executorId = FieldExecutorRegistry.register(failing)
+                val recording = RecordingDispatchInstrumentation()
+                val proxy = RemoteFieldProxyExecutor(
+                    originalExecutor = failing,
+                    executorId = executorId,
+                    rrsChannel = rrsChannel,
+                    callbackEndpoint = callbackEndpoint,
+                    dispatchInstrumentation = recording
+                )
+
+                proxy.batchResolve(listOf(selectorForAge(30)), context)
+
+                assertEquals(1, recording.contexts.size, "beginRemoteDispatch should be called once")
+                val dispatch = recording.contexts.single()
+                assertEquals(listOf("serialization", "response", "deserialization", "completed"), dispatch.events)
+                assertEquals(RemoteDispatchInstrumentationContext.RemoteDispatchOutcome.APPLICATION_ERROR, dispatch.completedOutcome)
+                assertTrue(
+                    dispatch.completedCause is RemoteResolverException,
+                    "the reported cause should be the remote resolver's error, got ${dispatch.completedCause}"
+                )
             }
         }
 
