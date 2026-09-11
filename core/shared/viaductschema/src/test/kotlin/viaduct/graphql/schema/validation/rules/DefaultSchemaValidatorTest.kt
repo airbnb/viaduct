@@ -232,6 +232,44 @@ class DefaultSchemaValidatorTest {
     }
 
     @Test
+    fun `should allow type-level resolver on node object`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            directive @resolver on FIELD_DEFINITION | OBJECT
+            interface Node { id: ID! }
+            type Query { user: User }
+            type User implements Node @resolver {
+                id: ID!
+                name: String
+            }
+            """.trimIndent()
+        )
+
+        val errors = DefaultSchemaValidator().validate(schema)
+
+        errors.shouldBeEmpty()
+    }
+
+    @Test
+    fun `should detect type-level resolver on non-node object`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(
+            """
+            directive @resolver on FIELD_DEFINITION | OBJECT
+            type Query { profile: Profile }
+            type Profile @resolver {
+                name: String
+            }
+            """.trimIndent()
+        )
+
+        val errors = DefaultSchemaValidator().validate(schema)
+
+        errors.map { it.code } shouldContainExactlyInAnyOrder listOf(
+            ValidationErrorCodes.RESOLVER_ON_NON_NODE_OBJECT
+        )
+    }
+
+    @Test
     fun `should enforce tenant-local validation in the default OSS validator`() {
         val schema = ViaductSchema.fromTypeDefinitionRegistry(
             """

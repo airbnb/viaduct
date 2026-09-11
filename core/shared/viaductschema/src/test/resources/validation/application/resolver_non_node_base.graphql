@@ -1,0 +1,9 @@
+directive @resolver on FIELD_DEFINITION | OBJECT
+
+type Query {
+  profile: Profile
+}
+
+type Profile {
+  name: String
+}

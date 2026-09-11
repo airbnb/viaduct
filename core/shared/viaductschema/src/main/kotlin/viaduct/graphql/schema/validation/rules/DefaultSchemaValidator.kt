@@ -25,6 +25,7 @@ import viaduct.graphql.schema.validation.SchemaValidator
  * - [StructuralDirectivesOnBaseTypeRule]: @connection, @edge, @namespaceType must be on the base type definition
  * - [CrossModuleExtensionFieldsResolverRule]: Fields added by cross-module extend type must have @resolver
  * - [NoResolverOnInterfaceFieldsRule]: Interface fields cannot declare @resolver
+ * - [NoTypeResolverOnNonNodeObjectsRule]: Type-level @resolver can only be applied to Node types
  * - [PageInfoLocationRule]: PageInfo must not be defined inside a module partition
  * - [ScopeDirectivesRule]: Validates @scope and @tenantLocal directives
  * - [NodeInterfaceIdConsistencyRule]: Interfaces with an id field implemented alongside Node must implement Node
@@ -60,6 +61,7 @@ class DefaultSchemaValidator(
                 add(StructuralDirectivesOnBaseTypeRule())
                 add(CrossModuleExtensionFieldsResolverRule(modulePartitionPathPrefix))
                 add(NoResolverOnInterfaceFieldsRule())
+                add(NoTypeResolverOnNonNodeObjectsRule())
                 add(PageInfoLocationRule(modulePartitionPathPrefix))
                 add(ScopeDirectivesRule(validateScopeConsistency))
                 add(NodeInterfaceIdConsistencyRule())

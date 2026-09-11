@@ -102,4 +102,7 @@ object ValidationErrorCodes {
 
     // NodeInterfaceIdConsistencyRule
     const val NODE_INTERFACE_ID_INCONSISTENT = "NODE_INTERFACE_ID_INCONSISTENT"
+
+    // NoTypeResolverOnNonNodeObjectsRule
+    const val RESOLVER_ON_NON_NODE_OBJECT = "RESOLVER_ON_NON_NODE_OBJECT"
 }
