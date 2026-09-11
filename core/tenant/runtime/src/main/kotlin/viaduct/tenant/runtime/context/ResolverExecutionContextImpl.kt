@@ -39,7 +39,7 @@ sealed class ResolverExecutionContextImpl<Q : Query>(
         variables: Map<String, Any?>
     ) = engineExecutionContextWrapper.selectionsFor(type, selections, variables)
 
-    override fun <T : NodeObject> nodeRef(id: GlobalID<T>) = engineExecutionContextWrapper.nodeRef(this, id)
+    override fun <T : NodeObject> ref(id: GlobalID<T>) = engineExecutionContextWrapper.nodeRef(this, id)
 
     override fun <T : Object> ref(call: RootFieldCall<T>): T = engineExecutionContextWrapper.rootFieldRef(this, call.field(), call.arguments(this))
 

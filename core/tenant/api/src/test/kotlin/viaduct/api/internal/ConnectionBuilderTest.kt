@@ -150,7 +150,7 @@ class ConnectionBuilderTest {
             variables: Map<String, Any?>
         ): SelectionSet<T> = throw NotImplementedError("Not needed for tests")
 
-        override fun <T : NodeObject> nodeRef(id: GlobalID<T>): T = throw NotImplementedError("Not needed for tests")
+        override fun <T : NodeObject> ref(id: GlobalID<T>): T = throw NotImplementedError("Not needed for tests")
 
         override fun <T : Object> ref(call: RootFieldCall<T>): T = throw NotImplementedError("Not needed for tests")
 

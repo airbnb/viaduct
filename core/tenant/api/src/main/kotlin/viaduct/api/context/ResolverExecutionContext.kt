@@ -63,9 +63,6 @@ interface ResolverExecutionContext<Q : QueryType> : ExecutionContext {
         variables: Map<String, Any?> = emptyMap()
     ): SelectionSet<T>
 
-    /** Use [ref] instead. */
-    fun <T : NodeObject> nodeRef(id: GlobalID<T>): T
-
     /**
      * Creates a GlobalID and returns it as a String. Example usage:
      *   globalIDStringFor(User.Reflection, "123")
@@ -80,7 +77,7 @@ interface ResolverExecutionContext<Q : QueryType> : ExecutionContext {
      * created reference. Attempting to access other fields will result in an exception.
      * This can be used to construct resolver responses for fields with Node types.
      */
-    fun <T : NodeObject> ref(id: GlobalID<T>): T = nodeRef(id)
+    fun <T : NodeObject> ref(id: GlobalID<T>): T
 
     /**
      * Creates a lazy reference to a root field that will be later resolved by the engine.

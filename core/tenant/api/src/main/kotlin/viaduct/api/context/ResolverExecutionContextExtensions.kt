@@ -39,10 +39,6 @@ private object GeneratedTypesCache {
 @PublishedApi
 internal fun <T : NodeObject> publishedGeneratedType(clazz: Class<T>): Type<T> = GeneratedTypesCache.get(clazz)
 
-/** Use [ref] instead. */
-@StableApi
-inline fun <reified T : NodeObject> ResolverExecutionContext<*>.nodeRef(localId: String): T = ref(localId)
-
 /**
  * Creates a Node object reference given a Local ID String representation.
  *
