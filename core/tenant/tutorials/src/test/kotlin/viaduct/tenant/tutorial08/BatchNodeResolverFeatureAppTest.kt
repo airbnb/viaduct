@@ -27,7 +27,7 @@ import viaduct.tenant.tutorial08.resolverbases.QueryResolvers
  * - Selective Batch Node Resolvers with batchResolve() method
  * - batchByOwnFields() selection-aware grouping
  * - FieldValue error handling for individual failures
- * - ctx.nodeRef() automatic batching
+ * - ctx.ref() automatic batching
  * - Multiple node requests in single GraphQL query
  *
  * CONCEPTS COVERED:
@@ -76,7 +76,7 @@ class BatchNodeResolverFeatureAppTest : BatchNodeResolverContractTest() {
      * - Return Map<Context, FieldValue<T>> with proper error handling
      *
      * What VIADUCT handles:
-     * - Collects all ctx.nodeRef() calls requesting same object type
+     * - Collects all ctx.ref() calls requesting same object type
      * - Routes to batchResolve() instead of individual resolve() calls
      * - Exposes each context's requested selections
      * - Maps results back to individual node requests
@@ -145,7 +145,7 @@ class BatchNodeResolverFeatureAppTest : BatchNodeResolverContractTest() {
         override suspend fun resolve(ctx: Context): List<Product> {
             // MULTIPLE NODE REQUESTS - automatically batched by Viaduct
             return ctx.arguments.ids.map { id ->
-                ctx.nodeRef(ctx.globalIDFor(Product.Reflection, id))
+                ctx.ref(ctx.globalIDFor(Product.Reflection, id))
             }
         }
     }
@@ -153,7 +153,7 @@ class BatchNodeResolverFeatureAppTest : BatchNodeResolverContractTest() {
     @Resolver
     class ProductResolver : QueryResolvers.Product() { // Generated from query field
         override suspend fun resolve(ctx: Context): Product {
-            return ctx.nodeRef(ctx.globalIDFor(Product.Reflection, ctx.arguments.id))
+            return ctx.ref(ctx.globalIDFor(Product.Reflection, ctx.arguments.id))
         }
     }
 
@@ -281,7 +281,7 @@ class BatchNodeResolverFeatureAppTest : BatchNodeResolverContractTest() {
      * Query: products(ids: ["laptop-123", "phone-456"])
      *
      * 1. productsResolver.resolve() called
-     * 2. For each ID: ctx.nodeRef(globalIDFor(Product.Reflection, id))
+     * 2. For each ID: ctx.ref(globalIDFor(Product.Reflection, id))
      * 3. Viaduct collects all Product node requests
      * 4. Single ProductNodeResolver.batchResolve() call with all contexts
      * 5. batchByOwnFields() partitions contexts by directly selected fields
@@ -292,7 +292,7 @@ class BatchNodeResolverFeatureAppTest : BatchNodeResolverContractTest() {
      *
      * KEY TAKEAWAYS:
      * - Batch Node Resolvers optimize multiple object creation
-     * - Use when multiple ctx.nodeRef() calls request same type
+     * - Use when multiple ctx.ref() calls request same type
      * - Selection-aware groups preserve batching without underfetching
      * - Omit missing nodes; use FieldValue.ofError() for other individual failures
      * - Automatic batching works across different query fields

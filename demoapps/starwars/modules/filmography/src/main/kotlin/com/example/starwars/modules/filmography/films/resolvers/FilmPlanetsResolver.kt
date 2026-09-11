@@ -5,7 +5,7 @@ import com.example.starwars.modules.filmography.characters.models.CharacterRepos
 import com.example.starwars.modules.filmography.films.models.FilmCharactersRepository
 import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
-import viaduct.api.context.nodeRef
+import viaduct.api.context.ref
 import viaduct.api.grts.Planet
 import viaduct.api.resolver.Resolver
 
@@ -33,7 +33,7 @@ class FilmPlanetsResolver
             val planetIds = characterIds.mapNotNull { characterRepository.findById(it)?.homeworldId }.toSet()
 
             return planetIds.map {
-                ctx.nodeRef<Planet>(it)
+                ctx.ref<Planet>(it)
             }
         }
     }

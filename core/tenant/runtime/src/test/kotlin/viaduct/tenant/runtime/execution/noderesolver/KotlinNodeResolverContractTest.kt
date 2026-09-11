@@ -23,7 +23,7 @@ class KotlinNodeResolverContractTest : NodeResolverContractTest() {
     @Resolver
     class NodeReferenceResolver : QueryResolvers.NodeReference() {
         override suspend fun resolve(ctx: Context): NodeObj {
-            return ctx.nodeRef(ctx.globalIDFor(NodeObj.Reflection, ctx.arguments.id))
+            return ctx.ref(ctx.globalIDFor(NodeObj.Reflection, ctx.arguments.id))
         }
     }
 
@@ -31,7 +31,7 @@ class KotlinNodeResolverContractTest : NodeResolverContractTest() {
     class ObjectWithNodeFieldResolver : QueryResolvers.ObjectWithNodeField() {
         override suspend fun resolve(ctx: Context): ObjectWithNodeField? {
             return ObjectWithNodeField.Builder(ctx)
-                .node(ctx.nodeRef(ctx.globalIDFor(NodeObj.Reflection, "nestedNode")))
+                .node(ctx.ref(ctx.globalIDFor(NodeObj.Reflection, "nestedNode")))
                 .build()
         }
     }
@@ -44,7 +44,7 @@ class KotlinNodeResolverContractTest : NodeResolverContractTest() {
 
         override suspend fun resolve(ctx: Context): NodeObj {
             if (shouldReturnNodeReference) {
-                return ctx.nodeRef(ctx.globalIDFor(NodeObj.Reflection, "tenant1"))
+                return ctx.ref(ctx.globalIDFor(NodeObj.Reflection, "tenant1"))
             }
             return NodeObj.Builder(ctx).value("foo").build()
         }
@@ -53,7 +53,7 @@ class KotlinNodeResolverContractTest : NodeResolverContractTest() {
     @Resolver
     class NodeRefWithIllegalAccessResolver : QueryResolvers.NodeRefWithIllegalAccess() {
         override suspend fun resolve(ctx: Context): NodeObj {
-            val ref = ctx.nodeRef(ctx.globalIDFor(NodeObj.Reflection, "1"))
+            val ref = ctx.ref(ctx.globalIDFor(NodeObj.Reflection, "1"))
             ref.getIdOrThrow() // valid — id can always be read
             ref.getValueOrThrow() // illegal — must throw
             return ref

@@ -47,7 +47,7 @@ class AddCharacterToFilmMutation
                     val character = characterRepository.findById(characterId)
                         ?: throw IllegalArgumentException("Character with ID $characterId not found")
 
-                    val filmRef = ctx.nodeRef(ctx.globalIDFor<Film>(film.id))
+                    val filmRef = ctx.ref(ctx.globalIDFor<Film>(film.id))
                     val characterGrt = CharacterBuilder(ctx).build(character)
 
                     film(filmRef)

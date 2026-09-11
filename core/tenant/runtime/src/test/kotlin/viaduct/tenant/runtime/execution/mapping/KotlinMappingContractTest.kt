@@ -4,7 +4,7 @@ package viaduct.tenant.runtime.execution.mapping
 
 import java.time.LocalDate
 import java.time.Month
-import viaduct.api.context.nodeRef
+import viaduct.api.context.ref
 import viaduct.api.mapping.GRTDomain
 import viaduct.api.mapping.JsonDomain
 import viaduct.api.resolver.Resolver
@@ -30,7 +30,7 @@ class KotlinMappingContractTest : MappingContractTest() {
 
     @Resolver
     class QueryUserResolver : QueryResolvers.User() {
-        override suspend fun resolve(ctx: Context): User = ctx.nodeRef("1")
+        override suspend fun resolve(ctx: Context): User = ctx.ref("1")
     }
 
     @Resolver

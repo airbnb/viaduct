@@ -29,7 +29,7 @@ class AllFilmsQueryResolver
             return filmsRepository.getAllFilms()
                 .take(limit)
                 .map { film ->
-                    ctx.nodeRef(ctx.globalIDFor<Film>(film.id))
+                    ctx.ref(ctx.globalIDFor<Film>(film.id))
                 }
         }
     }

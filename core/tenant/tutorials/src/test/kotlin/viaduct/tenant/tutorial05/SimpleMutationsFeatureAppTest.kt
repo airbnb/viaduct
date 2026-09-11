@@ -110,7 +110,7 @@ class SimpleMutationsFeatureAppTest : SimpleMutationsContractTest() {
     class userResolver : QueryResolvers.User() { // Generated from query field
         override suspend fun resolve(ctx: Context): User? {
             return try {
-                ctx.nodeRef(ctx.globalIDFor(User.Reflection, ctx.arguments.id))
+                ctx.ref(ctx.globalIDFor(User.Reflection, ctx.arguments.id))
             } catch (e: IllegalArgumentException) {
                 null // GraphQL handles null gracefully
             }
@@ -345,7 +345,7 @@ class SimpleMutationsFeatureAppTest : SimpleMutationsContractTest() {
      * Query: user(id: "user-1")
      *
      * 1. userResolver converts string to GlobalID
-     * 2. ctx.nodeRef() routes to UserNodeResolver
+     * 2. ctx.ref() routes to UserNodeResolver
      * 3. Extract internal ID from GlobalID
      * 4. Fetch data from your data source
      * 5. Build and return User object

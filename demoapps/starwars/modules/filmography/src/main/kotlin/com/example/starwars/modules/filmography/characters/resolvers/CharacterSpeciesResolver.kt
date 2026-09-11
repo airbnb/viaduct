@@ -44,7 +44,7 @@ class CharacterSpeciesResolver
                 val character = charactersById[characterId]
 
                 val specie = character?.speciesId?.let {
-                    ctx.nodeRef(ctx.globalIDFor<Species>(it))
+                    ctx.ref(ctx.globalIDFor<Species>(it))
                 }
 
                 if (specie != null) {

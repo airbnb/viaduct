@@ -21,7 +21,7 @@ class KotlinTenantExceptionWrappingContractTest : TenantExceptionWrappingContrac
 
     @Resolver
     class Query_ItemResolver : QueryResolvers.Item() {
-        override suspend fun resolve(ctx: Context): Item = ctx.nodeRef(ctx.arguments.id)
+        override suspend fun resolve(ctx: Context): Item = ctx.ref(ctx.arguments.id)
     }
 
     @Resolver

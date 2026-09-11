@@ -50,7 +50,7 @@ class AllFilmsConnectionQueryResolver
             return FilmsConnection.of(ctx) {
                 totalCount(allFilms.size)
                 fromList(allFilms) { film ->
-                    ctx.nodeRef(ctx.globalIDFor<Film>(film.id))
+                    ctx.ref(ctx.globalIDFor<Film>(film.id))
                 }
             }
         }

@@ -77,7 +77,7 @@ abstract class RemoteEngineExecutionContext(
             ?: localSelectionSetFactory
             ?: throw UnsupportedOperationException("'engineSelectionSetFactory' requires a local engine context or schema")
 
-    // A resolver running remotely may build a node reference (e.g. `ctx.nodeRef(...)`). Without a
+    // A resolver running remotely may build a node reference (e.g. `ctx.ref(...)`). Without a
     // local engine there is no way to construct a fully-resolvable reference, but a resolver-produced
     // reference only needs to carry its id + type to the wire — the engine side rebuilds a live
     // reference on receipt — so a lightweight holder suffices and avoids requiring engine state here.

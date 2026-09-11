@@ -114,7 +114,7 @@ class KotlinReflectionContractTest : ReflectionContractTest() {
 
     @Resolver
     class Query_OwnedSelectionNodeResolver : QueryResolvers.OwnedSelectionNode() {
-        override suspend fun resolve(ctx: Context): OwnedSelectionNode = ctx.nodeRef(ctx.globalIDFor(OwnedSelectionNode.Reflection, "node-1"))
+        override suspend fun resolve(ctx: Context): OwnedSelectionNode = ctx.ref(ctx.globalIDFor(OwnedSelectionNode.Reflection, "node-1"))
     }
 
     @Resolver

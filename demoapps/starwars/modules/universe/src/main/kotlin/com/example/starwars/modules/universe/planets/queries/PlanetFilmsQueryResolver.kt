@@ -4,7 +4,7 @@ import com.example.starwars.modules.universe.planets.models.PlanetsFilmsReposito
 import com.example.starwars.universe.resolverbases.PlanetResolvers
 import io.micronaut.context.annotation.Prototype
 import jakarta.inject.Inject
-import viaduct.api.context.nodeRef
+import viaduct.api.context.ref
 import viaduct.api.grts.Film
 import viaduct.api.resolver.Resolver
 
@@ -34,7 +34,7 @@ class PlanetFilmsQueryResolver
             // You need to iterate the internal films to request viaduct resolve the Films.
             return films.map {
                 // Request Viaduct to resolve the Film node using the global ID.
-                ctx.nodeRef<Film>(it.filmId)
+                ctx.ref<Film>(it.filmId)
             }
         }
     }

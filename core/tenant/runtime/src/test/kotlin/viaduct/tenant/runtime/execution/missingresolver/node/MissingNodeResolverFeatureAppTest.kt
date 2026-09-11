@@ -16,7 +16,7 @@ class MissingNodeResolverFeatureAppTest : MissingNodeResolverContractTest() {
     class WidgetQueryResolver : QueryResolvers.Widget() {
         override suspend fun resolve(ctx: Context): Widget {
             val globalId = ctx.globalIDFor(Widget.Reflection, ctx.arguments.id)
-            return ctx.nodeRef(globalId)
+            return ctx.ref(globalId)
         }
     }
 }

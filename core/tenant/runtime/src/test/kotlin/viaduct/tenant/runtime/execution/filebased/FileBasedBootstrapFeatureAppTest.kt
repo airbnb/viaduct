@@ -44,7 +44,7 @@ class FileBasedBootstrapFeatureAppTest : FileBasedBootstrapContractTest() {
 
     @Resolver
     class Query_ItemResolver : QueryResolvers.Item() {
-        override suspend fun resolve(ctx: Context) = ctx.nodeRef(ctx.globalIDFor(Item.Reflection, ctx.arguments.id))
+        override suspend fun resolve(ctx: Context) = ctx.ref(ctx.globalIDFor(Item.Reflection, ctx.arguments.id))
     }
 
     @Resolver

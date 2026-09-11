@@ -106,7 +106,7 @@ class ConnectionsFeatureAppTest : ConnectionsContractTest() {
         override suspend fun resolve(ctx: Context): BookConnection =
             BookConnection.of(ctx) {
                 fromList(ALL_BOOKS) { item ->
-                    ctx.nodeRef(ctx.globalIDFor(Book.Reflection, item.id))
+                    ctx.ref(ctx.globalIDFor(Book.Reflection, item.id))
                 }
             }
     }
@@ -129,7 +129,7 @@ class ConnectionsFeatureAppTest : ConnectionsContractTest() {
                 BookEdge.of(ctx) {
                     cursor(OffsetCursor.fromOffset(offsetLimit.offset + idx).value)
                     reason(genre.name)
-                    node(ctx.nodeRef(ctx.globalIDFor(Book.Reflection, item.id)))
+                    node(ctx.ref(ctx.globalIDFor(Book.Reflection, item.id)))
                 }
             }
             return BookConnection.Builder(ctx)
@@ -151,7 +151,7 @@ class ConnectionsFeatureAppTest : ConnectionsContractTest() {
             val hasNextPage = fetched.size > offsetLimit.limit
             return BookConnection.Builder(ctx)
                 .fromSlice(fetched.take(offsetLimit.limit), hasNextPage) { item ->
-                    ctx.nodeRef(ctx.globalIDFor(Book.Reflection, item.id))
+                    ctx.ref(ctx.globalIDFor(Book.Reflection, item.id))
                 }
                 .build()
         }
