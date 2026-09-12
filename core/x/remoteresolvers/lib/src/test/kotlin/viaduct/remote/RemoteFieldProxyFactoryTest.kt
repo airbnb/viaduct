@@ -10,8 +10,6 @@ import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.remote.fixtures.SimpleFieldResolverExecutor
 import viaduct.remote.fixtures.SimpleNodeResolverExecutor
-import viaduct.remote.registry.FieldExecutorRegistry
-import viaduct.remote.registry.NodeExecutorRegistry
 
 /**
  * Covers [RemoteProxyResolverFactory] field-proxying wiring: the default factory proxies every field
@@ -29,7 +27,6 @@ class RemoteFieldProxyFactoryTest {
             assertTrue(proxied is RemoteFieldProxyExecutor, "Default factory should proxy every field resolver")
         } finally {
             rrsChannel.shutdownNow()
-            FieldExecutorRegistry.clear()
         }
     }
 
@@ -46,7 +43,6 @@ class RemoteFieldProxyFactoryTest {
             assertNull(factory.proxyField(selective), "a selective field resolver must not be proxied")
         } finally {
             rrsChannel.shutdownNow()
-            FieldExecutorRegistry.clear()
         }
     }
 
@@ -67,7 +63,6 @@ class RemoteFieldProxyFactoryTest {
             assertNull(factory.proxyNode(selective), "a selective node resolver must not be proxied")
         } finally {
             rrsChannel.shutdownNow()
-            NodeExecutorRegistry.clear()
         }
     }
 
@@ -83,7 +78,6 @@ class RemoteFieldProxyFactoryTest {
             assertTrue(proxied?.metadata?.isRemote == true, "the proxy's metadata should be tagged isRemote")
         } finally {
             rrsChannel.shutdownNow()
-            FieldExecutorRegistry.clear()
         }
     }
 
@@ -102,7 +96,6 @@ class RemoteFieldProxyFactoryTest {
             assertNull(unlisted, "Unlisted coordinate should not be proxied")
         } finally {
             rrsChannel.shutdownNow()
-            FieldExecutorRegistry.clear()
         }
     }
 }

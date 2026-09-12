@@ -6,10 +6,10 @@ import org.slf4j.LoggerFactory
 /**
  * In-memory registry of resolver executors keyed by a stable, cross-JVM string id.
  *
- * The id is stable across JVMs, so both the proxy (which registers when a resolver is
- * wrapped at bootstrap) and the remote service (which registers at tenant bootstrap) can
- * use it as a shared identifier. [NodeExecutorRegistry] and [FieldExecutorRegistry] are
- * separate instances so the two keyspaces and value types never mix.
+ * The id is stable across JVMs, so the remote service can register its executor at tenant
+ * bootstrap and use the same identifier received from a proxy in the other process.
+ * [NodeExecutorRegistry] and [FieldExecutorRegistry] are separate instances so the two
+ * keyspaces and value types never mix.
  */
 sealed class ExecutorRegistry<T>(private val idOf: (T) -> String) {
     private val log = LoggerFactory.getLogger(ExecutorRegistry::class.java)

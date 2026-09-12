@@ -3,6 +3,7 @@
 package viaduct.remote
 
 import io.grpc.inprocess.InProcessChannelBuilder
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.remote.fixtures.SimpleFieldResolverExecutor
@@ -18,6 +19,24 @@ import viaduct.remote.registry.NodeExecutorRegistry
  */
 class RemoteProxyResolverFactoryTest {
     @Test
+    fun `proxying resolvers does not register originals`() {
+        val rrsChannel =
+            InProcessChannelBuilder.forName("test-rrs-no-registration-${System.nanoTime()}").directExecutor().build()
+        val nodeExecutor = SimpleNodeResolverExecutor(typeName = "RrpNoRegistration", nodeData = emptyMap())
+        val fieldExecutor = SimpleFieldResolverExecutor(resolverId = "RrpNoRegistration.field")
+        try {
+            val factory = RemoteProxyResolverFactory(rrsChannel, "test-cb")
+
+            assertTrue(factory.proxyNode(nodeExecutor) is UnaryRemoteNodeProxyExecutor)
+            assertTrue(factory.proxyField(fieldExecutor) is RemoteFieldProxyExecutor)
+            assertNull(NodeExecutorRegistry.get(nodeExecutor.typeName))
+            assertNull(FieldExecutorRegistry.get(fieldExecutor.resolverId))
+        } finally {
+            rrsChannel.shutdownNow()
+        }
+    }
+
+    @Test
     fun `default factory proxies nodes with the unary executor`() {
         val rrsChannel = InProcessChannelBuilder.forName("test-rrs-unary-${System.nanoTime()}").directExecutor().build()
         try {
@@ -26,7 +45,6 @@ class RemoteProxyResolverFactoryTest {
             assertTrue(node is UnaryRemoteNodeProxyExecutor, "expected the unary node proxy executor")
         } finally {
             rrsChannel.shutdownNow()
-            NodeExecutorRegistry.clear()
         }
     }
 
@@ -39,7 +57,6 @@ class RemoteProxyResolverFactoryTest {
             assertTrue(node is RemoteNodeStreamProxyExecutor, "expected the streaming node proxy executor")
         } finally {
             rrsChannel.shutdownNow()
-            NodeExecutorRegistry.clear()
         }
     }
 
@@ -75,7 +92,6 @@ class RemoteProxyResolverFactoryTest {
             assertTrue(field is RemoteFieldProxyExecutor, "expected the unary field proxy executor even with useStreamingTransport")
         } finally {
             rrsChannel.shutdownNow()
-            FieldExecutorRegistry.clear()
         }
     }
 }

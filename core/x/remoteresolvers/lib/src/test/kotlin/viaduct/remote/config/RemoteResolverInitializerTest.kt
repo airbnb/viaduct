@@ -12,8 +12,6 @@ import viaduct.remote.RemoteNodeStreamProxyExecutor
 import viaduct.remote.UnaryRemoteNodeProxyExecutor
 import viaduct.remote.fixtures.SimpleFieldResolverExecutor
 import viaduct.remote.fixtures.SimpleNodeResolverExecutor
-import viaduct.remote.registry.FieldExecutorRegistry
-import viaduct.remote.registry.NodeExecutorRegistry
 
 class RemoteResolverInitializerTest {
     private fun cfg(
@@ -95,8 +93,6 @@ class RemoteResolverInitializerTest {
             assertNull(factory.proxyField(fieldExecutor("Character.summary", "summary")))
         } finally {
             initializer.close()
-            NodeExecutorRegistry.clear()
-            FieldExecutorRegistry.clear()
         }
     }
 
@@ -113,8 +109,6 @@ class RemoteResolverInitializerTest {
             assertNull(factory.proxyField(fieldExecutor("Character.isAdult", "isAdult")))
         } finally {
             initializer.close()
-            NodeExecutorRegistry.clear()
-            FieldExecutorRegistry.clear()
         }
     }
 
@@ -131,7 +125,6 @@ class RemoteResolverInitializerTest {
             assertTrue(node is RemoteNodeStreamProxyExecutor, "expected the streaming node proxy executor, got $node")
         } finally {
             initializer.close()
-            NodeExecutorRegistry.clear()
         }
     }
 
@@ -148,7 +141,6 @@ class RemoteResolverInitializerTest {
             assertTrue(node is UnaryRemoteNodeProxyExecutor, "expected the unary node proxy executor, got $node")
         } finally {
             initializer.close()
-            NodeExecutorRegistry.clear()
         }
     }
 

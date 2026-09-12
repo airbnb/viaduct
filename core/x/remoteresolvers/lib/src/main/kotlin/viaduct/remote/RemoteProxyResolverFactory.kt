@@ -8,8 +8,6 @@ import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.remote.api.spi.RemoteDispatchInstrumentation
 import viaduct.remote.api.spi.RemoteResolverContextCapturerProvider
 import viaduct.remote.api.spi.RemoteResolverResponseContextApplier
-import viaduct.remote.registry.FieldExecutorRegistry
-import viaduct.remote.registry.NodeExecutorRegistry
 
 /**
  * [ProxyResolverFactory] that wraps resolvers with a gRPC proxy so their execution is
@@ -18,8 +16,8 @@ import viaduct.remote.registry.NodeExecutorRegistry
  *
  * Selective resolvers are never proxied, regardless of the predicates below:
  * [RemoteNodeProxyExecutor]/[RemoteFieldProxyExecutor] reject them at construction, so this factory
- * skips them *before* registering — otherwise the default "proxy all" would crash bootstrap on a
- * selective resolver, or orphan a registry entry when the constructor throws.
+ * skips them *before* constructing a proxy — otherwise the default "proxy all" would crash bootstrap
+ * on a selective resolver.
  *
  * @param rrsChannel Channel to the remote resolver service. Caller owns the channel.
  * @param callbackEndpoint Endpoint the remote service dials for re-entrant queries;
@@ -37,7 +35,7 @@ import viaduct.remote.registry.NodeExecutorRegistry
  *   Defaults to proxying every field resolver (mirroring nodes). Selective resolvers are always
  *   skipped regardless of this predicate — [RemoteFieldProxyExecutor] rejects them at construction.
  * @param contextCapturerProvider Host hook that resolves the capturer associated with the active
- *   top-level request.
+ *   top-level request. All proxy transports pass this along to the remote request.
  * @param responseContextApplier Host hook that applies context returned by remote execution.
  * @param dispatchInstrumentation Experimental hook for observing remote dispatch latency/outcome.
  */
@@ -56,10 +54,10 @@ class RemoteProxyResolverFactory(
         RemoteDispatchInstrumentation.NO_OP,
 ) : ProxyResolverFactory {
     override fun proxyNode(executor: NodeResolverExecutor): NodeResolverExecutor? {
-        // Skip selective resolvers before registering (see class KDoc).
+        // Skip selective resolvers before constructing a proxy (see class KDoc).
         if (executor.isSelective) return null
         if (!shouldProxyNode(executor)) return null
-        val executorId = NodeExecutorRegistry.register(executor)
+        val executorId = executor.typeName
         return if (useStreamingTransport) {
             RemoteNodeStreamProxyExecutor(
                 originalExecutor = executor,
@@ -85,13 +83,12 @@ class RemoteProxyResolverFactory(
     }
 
     override fun proxyField(executor: FieldResolverExecutor): FieldResolverExecutor? {
-        // Skip selective resolvers before registering (see class KDoc).
+        // Skip selective resolvers before constructing a proxy (see class KDoc).
         if (executor.isSelective) return null
         if (!shouldProxyField(executor)) return null
-        val executorId = FieldExecutorRegistry.register(executor)
         return RemoteFieldProxyExecutor(
             originalExecutor = executor,
-            executorId = executorId,
+            executorId = executor.resolverId,
             rrsChannel = rrsChannel,
             callbackEndpoint = callbackEndpoint,
             requestDeadline = requestDeadline,

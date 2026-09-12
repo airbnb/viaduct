@@ -83,7 +83,7 @@ During engine bootstrap, `DispatcherRegistryFactory` calls `ProxyResolverFactory
 - Node type, batching mode, selectivity, and metadata.
 - Field object RSS, query RSS, batching mode, selectivity, resolver ID, and metadata.
 
-Before returning a proxy, the factory registers the original executor in the main process's executor registry. This registration supports same-JVM tests. In a real two-process deployment, the remote process cannot see it and must register its own compatible executor under the same stable ID.
+Before returning a proxy, the factory derives the wire ID directly from the original executor (`typeName` for nodes and `resolverId` for fields). It does not register the original executor in the main process or mutate either executor registry. The remote process independently registers its compatible executor under the same stable ID.
 
 ### Proxy selection
 
@@ -288,8 +288,8 @@ All registries are in-memory JVM singletons:
 | --- | --- | --- | --- |
 | `ContextRegistry` | Random UUID | `ContextRegistry.Registration` (`EngineExecutionContext` and captured coroutine context) | Main server, one outbound RPC; removed in proxy `finally` |
 | `SelectionsRegistry` | Random UUID | `EngineSelectionSet` | Main server node or field proxy call; removed in proxy `finally`; same-JVM callback fallback |
-| `NodeExecutorRegistry` | GraphQL type name | `NodeResolverExecutor` | Both processes, bootstrap to shutdown |
-| `FieldExecutorRegistry` | `Type.field` | `FieldResolverExecutor` | Both processes, bootstrap to shutdown |
+| `NodeExecutorRegistry` | GraphQL type name | `NodeResolverExecutor` | RRS process, bootstrap to shutdown |
+| `FieldExecutorRegistry` | `Type.field` | `FieldResolverExecutor` | RRS process, bootstrap to shutdown |
 | `SchemaRegistry` | Singleton slot | `ViaductSchema` | Remote process, bootstrap to shutdown |
 
 `ContextRegistry`, `SelectionsRegistry`, and executor registries use `ConcurrentHashMap`. Every context registration returns a fresh UUID, even when concurrent RPCs use the same context, so one request's cleanup cannot remove another's entry.

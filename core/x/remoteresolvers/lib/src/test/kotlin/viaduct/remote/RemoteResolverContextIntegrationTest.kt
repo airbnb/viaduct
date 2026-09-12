@@ -141,15 +141,15 @@ class RemoteResolverContextIntegrationTest {
             try {
                 val engineContext = ContextMocks(testSchema).engineExecutionContext
                 val nodeExecutor = SimpleNodeResolverExecutor.createUserResolver()
-                val nodeProxy =
-                    UnaryRemoteNodeProxyExecutor(
-                        originalExecutor = nodeExecutor,
-                        executorId = "User",
+                val factory =
+                    RemoteProxyResolverFactory(
                         rrsChannel = channel,
                         callbackEndpoint = "unused",
                         contextCapturerProvider = capturerProvider,
                         responseContextApplier = responseApplier,
                     )
+                val nodeProxy =
+                    checkNotNull(factory.proxyNode(nodeExecutor)) as UnaryRemoteNodeProxyExecutor
                 val nodeSelector =
                     NodeResolverExecutor.Selector(
                         id = "user:1",
@@ -166,14 +166,7 @@ class RemoteResolverContextIntegrationTest {
                 val characterType = testSchema.schema.getObjectType("Character")
                 val queryType = testSchema.schema.queryType
                 val fieldProxy =
-                    RemoteFieldProxyExecutor(
-                        originalExecutor = fieldExecutor,
-                        executorId = fieldExecutor.resolverId,
-                        rrsChannel = channel,
-                        callbackEndpoint = "unused",
-                        contextCapturerProvider = capturerProvider,
-                        responseContextApplier = responseApplier,
-                    )
+                    checkNotNull(factory.proxyField(fieldExecutor)) as RemoteFieldProxyExecutor
                 val fieldSelector =
                     FieldResolverExecutor.Selector(
                         arguments = emptyMap(),
@@ -189,6 +182,8 @@ class RemoteResolverContextIntegrationTest {
                     )
                 fieldProxy.batchResolve(listOf(fieldSelector), engineContext)
 
+                assertEquals(nodeExecutor.typeName, nodeRequest.get().executorId)
+                assertEquals(fieldExecutor.resolverId, fieldRequest.get().executorId)
                 assertWireContext(expected, nodeRequest.get().remoteContext)
                 assertWireContext(expected, fieldRequest.get().remoteContext)
                 assertEquals(2, appliedResponses.size)
@@ -274,14 +269,16 @@ class RemoteResolverContextIntegrationTest {
             try {
                 val engineContext = ContextMocks(testSchema).engineExecutionContext
                 val nodeExecutor = SimpleNodeResolverExecutor.createUserResolver()
-                val nodeProxy =
-                    RemoteNodeStreamProxyExecutor(
-                        originalExecutor = nodeExecutor,
-                        executorId = "User",
+                val factory =
+                    RemoteProxyResolverFactory(
                         rrsChannel = channel,
+                        callbackEndpoint = "unused",
+                        useStreamingTransport = true,
                         contextCapturerProvider = capturerProvider,
                         responseContextApplier = responseApplier,
                     )
+                val nodeProxy =
+                    checkNotNull(factory.proxyNode(nodeExecutor)) as RemoteNodeStreamProxyExecutor
                 val nodeSelector =
                     NodeResolverExecutor.Selector(
                         id = "user:1",
@@ -294,6 +291,7 @@ class RemoteResolverContextIntegrationTest {
                     )
                 nodeProxy.resolve(listOf(nodeSelector), engineContext)
 
+                assertEquals(nodeExecutor.typeName, nodeRequest.get().executorId)
                 assertWireContext(expected, nodeRequest.get().remoteContext)
                 val actualResponse = appliedResponse.get()
                 assertNotNull(actualResponse)
