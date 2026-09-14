@@ -28,8 +28,6 @@ import viaduct.tenant.codegen.ksp.SelectionsBlock
 import viaduct.tenant.codegen.util.tenantModuleNameFromPackage
 
 internal object TenantModuleConfigAssembler {
-    private const val REGISTRY_VERSION = "1"
-
     // jacksonMapperBuilder()/JsonMapper.builder() (the non-deprecated path) isn't available in the
     // Jackson version on the build classpath, so we keep configure() and suppress the deprecation.
     @Suppress("DEPRECATION")
@@ -314,7 +312,6 @@ internal object TenantModuleConfigAssembler {
         }
 
         return ExecutionRegistryConfigFile(
-            version = REGISTRY_VERSION,
             tenantName = tenantModuleNameFromPackage(tenantPackage, tenantPackagePrefix),
             apiName = apiName,
             executorFactory = executorFactory,

@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /**
  * Tests for the bootstrap wire format.
@@ -15,9 +16,41 @@ import org.junit.jupiter.api.Test
  * The point of this module is that a producer outside the engine can build one of these files and
  * have the engine read it back, so these assert the wire contract itself: that a fully populated
  * config survives a round trip, that the JSON field names are what a producer has to write, and that
- * a config from a newer producer still parses.
+ * unknown fields remain compatible while unsupported wire-format versions are rejected.
  */
 class ExecutionRegistryConfigFileTest {
+    @Test
+    fun `new configs default to the current version`() {
+        val config = ExecutionRegistryConfigFile(executorFactory = "example.Factory")
+
+        assertEquals(ExecutionRegistryConfigFile.CURRENT_VERSION, config.version)
+    }
+
+    @Test
+    fun `parse defaults a missing version to the current version`() {
+        val config = parse("""{"executorFactory":"example.Factory"}""")
+
+        assertEquals(ExecutionRegistryConfigFile.CURRENT_VERSION, config.version)
+    }
+
+    @Test
+    fun `parse accepts the current version`() {
+        val config = parse(
+            """{"version":"${ExecutionRegistryConfigFile.CURRENT_VERSION}","executorFactory":"example.Factory"}""",
+        )
+
+        assertEquals(ExecutionRegistryConfigFile.CURRENT_VERSION, config.version)
+    }
+
+    @Test
+    fun `parse rejects a version other than current`() {
+        val ex = assertThrows<IllegalArgumentException> {
+            parse("""{"version":"999","executorFactory":"example.Factory"}""")
+        }
+        ex.message!! shouldContain "version '999'"
+        ex.message!! shouldContain "expected '${ExecutionRegistryConfigFile.CURRENT_VERSION}'"
+    }
+
     @Test
     fun `a fully populated config survives a round trip`() {
         val parsed = parse(ExecutionRegistryConfigFile.toJson(fullConfig))
@@ -40,7 +73,7 @@ class ExecutionRegistryConfigFileTest {
 
     @Test
     fun `optional fields fall back to their defaults`() {
-        val parsed = parse("""{"version":"1","executorFactory":"example.Factory"}""")
+        val parsed = parse("""{"version":"${ExecutionRegistryConfigFile.CURRENT_VERSION}","executorFactory":"example.Factory"}""")
 
         assertNull(parsed.tenantName)
         assertNull(parsed.apiName)
@@ -52,9 +85,9 @@ class ExecutionRegistryConfigFileTest {
 
     @Test
     fun `a config carrying fields this version does not know still parses`() {
-        // A config produced by a newer build must not break an older engine reading it.
+        // Unknown fields remain compatible within the current wire-format version.
         val parsed = parse(
-            """{"version":"1","executorFactory":"example.Factory","somethingNewer":{"a":1}}""",
+            """{"version":"${ExecutionRegistryConfigFile.CURRENT_VERSION}","executorFactory":"example.Factory","somethingNewer":{"a":1}}""",
         )
 
         assertEquals("example.Factory", parsed.executorFactory)
@@ -95,7 +128,6 @@ class ExecutionRegistryConfigFileTest {
     }
 
     private val fullConfig = ExecutionRegistryConfigFile(
-        version = "1",
         executorFactory = "example.Factory",
         tenantName = "data/todo",
         apiName = KOTLIN_API_NAME,

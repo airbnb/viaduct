@@ -41,8 +41,15 @@ const val KOTLIN_API_NAME = "kotlin"
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class ExecutionRegistryConfigFile(
-    /** Version of the module-index JSON schema */
-    val version: String,
+    /**
+     * Version of this wire format, checked by [parse] against [CURRENT_VERSION].
+     *
+     * Defaults to [CURRENT_VERSION] so producers don't need their own copy of the literal — and
+     * can't silently drift from it. This exists so a config produced by a stale build (e.g. one
+     * that predates a Gradle/Bazel plugin upgrade that changed this shape) fails fast and legibly
+     * at parse time instead of being silently misinterpreted downstream.
+     */
+    val version: String = CURRENT_VERSION,
     /**
      * FQN of the ExecutorFactory implementation used to interpret this config's entries.
      *
@@ -84,6 +91,14 @@ data class ExecutionRegistryConfigFile(
     val namedFragments: List<String> = emptyList(),
 ) {
     companion object {
+        /**
+         * Current wire-format version for this class. Every producer (KSP-driven assembly, the
+         * classic emitter, built-in synthetic configs) should stamp [version] with this constant
+         * rather than keeping its own copy, so a bump here is the single point that changes what
+         * [parse] accepts.
+         */
+        const val CURRENT_VERSION = "1"
+
         private val objectMapper = jacksonObjectMapper()
 
         /**
@@ -91,8 +106,19 @@ data class ExecutionRegistryConfigFile(
          *
          * Takes a plain [InputStream] rather than an engine-side source abstraction so that this
          * model stays usable from build tooling that has no engine on its classpath.
+         *
+         * @throws IllegalArgumentException if the config's `version` does not match [CURRENT_VERSION].
          */
-        fun parse(inputStream: InputStream): ExecutionRegistryConfigFile = objectMapper.readValue(inputStream)
+        fun parse(inputStream: InputStream): ExecutionRegistryConfigFile {
+            val config = objectMapper.readValue<ExecutionRegistryConfigFile>(inputStream)
+            require(config.version == CURRENT_VERSION) {
+                "Execution registry config file version '${config.version}' is not supported by this " +
+                    "engine (expected '$CURRENT_VERSION'). This file was likely produced by a " +
+                    "stale build; regenerate it, e.g. by re-running the Gradle/Bazel task that assembles " +
+                    "it, after upgrading the Viaduct plugin."
+            }
+            return config
+        }
 
         fun toJson(config: ExecutionRegistryConfigFile): String = objectMapper.writeValueAsString(config)
     }

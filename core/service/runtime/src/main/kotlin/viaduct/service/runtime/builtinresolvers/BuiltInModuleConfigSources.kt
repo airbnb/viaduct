@@ -7,9 +7,6 @@ import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigFactory
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.service.api.spi.InputStreamSource
 
-/** Config-file version emitted for all generated built-in module configs. */
-private const val BUILTIN_CONFIG_VERSION = "1"
-
 /**
  * Generates the built-in module config sources for [schema].
  *
@@ -66,7 +63,6 @@ internal fun buildBuiltinModuleConfigSource(
     fields: List<FieldEntryConfig>,
 ): ModuleConfigSource {
     val config = ExecutionRegistryConfigFile(
-        version = BUILTIN_CONFIG_VERSION,
         executorFactory = executorFactoryName,
         tenantName = tenantName,
         apiName = apiName,

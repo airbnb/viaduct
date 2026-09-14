@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.bootstrap.ConfigKey
+import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.service.api.spi.InputStreamSource
 
 /**
@@ -37,7 +38,7 @@ class ModuleConfigSourceTest {
         val ex = assertThrows<IllegalArgumentException> {
             ModuleConfigSource.from(
                 InputStreamSource.fromString(
-                    """{"version":"1","executorFactory":"example.Factory","apiName":"kotlin"}""",
+                    """{"version":"${ExecutionRegistryConfigFile.CURRENT_VERSION}","executorFactory":"example.Factory","apiName":"kotlin"}""",
                     name = "no-tenant",
                 ),
             )
@@ -50,7 +51,7 @@ class ModuleConfigSourceTest {
         val ex = assertThrows<IllegalArgumentException> {
             ModuleConfigSource.from(
                 InputStreamSource.fromString(
-                    """{"version":"1","executorFactory":"example.Factory","tenantName":"data/todo"}""",
+                    """{"version":"${ExecutionRegistryConfigFile.CURRENT_VERSION}","executorFactory":"example.Factory","tenantName":"data/todo"}""",
                     name = "no-api",
                 ),
             )
@@ -138,7 +139,7 @@ class ModuleConfigSourceTest {
         InputStreamSource.fromString(
             """
             {
-              "version": "1",
+              "version": "${ExecutionRegistryConfigFile.CURRENT_VERSION}",
               "executorFactory": "$executorFactory",
               "tenantName": "$tenantName",
               "apiName": "$apiName"
