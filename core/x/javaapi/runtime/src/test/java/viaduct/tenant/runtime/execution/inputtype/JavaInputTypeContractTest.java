@@ -1,6 +1,8 @@
 package viaduct.tenant.runtime.execution.inputtype;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
@@ -37,6 +39,31 @@ public class JavaInputTypeContractTest extends InputTypeContractTest {
     assertTrue(explicitNullArguments.isPresent(Query_UserByName_Arguments.Fields.limit));
   }
 
+  @Test
+  void inputCopyBuilderPreservesPresenceAndSnapshotsOverrides() {
+    UserInput original =
+        new UserInput(null, Map.of("name", "Alice", "balance", BigDecimal.TEN), null);
+    UserInput roundTrip = original.toBuilder().build();
+    UserInput.Builder builder = original.toBuilder().name("Bob").age(null);
+    UserInput first = builder.build();
+    UserInput nullRoundTrip = first.toBuilder().build();
+    UserInput second = builder.age(30).build();
+    UserInput chained = second.toBuilder().name("Charlie").build();
+
+    assertEquals("Alice", original.getName());
+    assertFalse(original.isPresent(UserInput.Fields.age));
+    assertFalse(roundTrip.isPresent(UserInput.Fields.age));
+    assertEquals("Bob", first.getName());
+    assertTrue(first.isPresent(UserInput.Fields.age));
+    assertNull(first.getAge());
+    assertTrue(nullRoundTrip.isPresent(UserInput.Fields.age));
+    assertNull(nullRoundTrip.getAge());
+    assertEquals(30, second.getAge());
+    assertEquals("Charlie", chained.getName());
+    assertEquals(30, chained.getAge());
+    assertEquals(BigDecimal.TEN, chained.getBalance());
+  }
+
   // --- Resolvers ---
 
   @Resolver
@@ -44,7 +71,7 @@ public class JavaInputTypeContractTest extends InputTypeContractTest {
     @Override
     public CompletableFuture<User> resolve(Context ctx) {
       var args = ctx.getArguments();
-      UserInput input = args.getInput();
+      UserInput input = args.getInput().toBuilder().build();
       BigDecimal balance = input.getBalance();
       BigInteger serial = input.getSerial();
       User user =

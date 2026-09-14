@@ -59,8 +59,13 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
         super(context, data);
     }
 
+    @SuppressWarnings("UnusedMethod")
     private Order(InternalContext context, Map<String, Object> data) {
         super(context, data);
+    }
+
+    private Order(InternalContext context, ObjectBase base, Map<String, Object> data) {
+        super(context, base, data);
     }
 
     public Order(InternalContext context, RootFieldReference rootFieldReference) {
@@ -121,16 +126,22 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
         }
 
 
+    public Builder toBuilder() {
+        return new Builder(__context(), toBuilderBase());
+    }
+
     public static Builder builder(ExecutionContext context) {
-        return new Builder(InternalContext.from(context));
+        return new Builder(InternalContext.from(context), null);
     }
 
     public static class Builder {
         private final InternalContext __context;
+        private final ObjectBase __base;
         private final Map<String, Object> data = new LinkedHashMap<>();
 
-        private Builder(InternalContext __context) {
+        private Builder(InternalContext __context, ObjectBase __base) {
             this.__context = __context;
+            this.__base = __base;
         }
 
                 public Builder id(GlobalID<Order> id) {
@@ -212,7 +223,7 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
 
 
         public Order build() {
-            return new Order(__context, new LinkedHashMap<>(data));
+            return new Order(__context, __base, new LinkedHashMap<>(data));
         }
     }
 }

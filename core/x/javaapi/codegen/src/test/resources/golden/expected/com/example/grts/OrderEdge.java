@@ -44,8 +44,13 @@ public class OrderEdge extends ObjectBase implements viaduct.java.api.types.Edge
         super(context, data);
     }
 
+    @SuppressWarnings("UnusedMethod")
     private OrderEdge(InternalContext context, Map<String, Object> data) {
         super(context, data);
+    }
+
+    private OrderEdge(InternalContext context, ObjectBase base, Map<String, Object> data) {
+        super(context, base, data);
     }
 
     public OrderEdge(InternalContext context, RootFieldReference rootFieldReference) {
@@ -66,16 +71,22 @@ public class OrderEdge extends ObjectBase implements viaduct.java.api.types.Edge
         }
 
 
+    public Builder toBuilder() {
+        return new Builder(__context(), toBuilderBase());
+    }
+
     public static Builder builder(ExecutionContext context) {
-        return new Builder(InternalContext.from(context));
+        return new Builder(InternalContext.from(context), null);
     }
 
     public static class Builder {
         private final InternalContext __context;
+        private final ObjectBase __base;
         private final Map<String, Object> data = new LinkedHashMap<>();
 
-        private Builder(InternalContext __context) {
+        private Builder(InternalContext __context, ObjectBase __base) {
             this.__context = __context;
+            this.__base = __base;
         }
 
                 public Builder cursor(String cursor) {
@@ -102,7 +113,7 @@ public class OrderEdge extends ObjectBase implements viaduct.java.api.types.Edge
 
 
         public OrderEdge build() {
-            return new OrderEdge(__context, new LinkedHashMap<>(data));
+            return new OrderEdge(__context, __base, new LinkedHashMap<>(data));
         }
     }
 }

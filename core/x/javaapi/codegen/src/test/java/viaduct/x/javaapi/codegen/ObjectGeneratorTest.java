@@ -39,6 +39,7 @@ class ObjectGeneratorTest {
     assertTrue(!generated.contains("public void setId("));
     assertTrue(generated.contains("public static Builder builder(ExecutionContext context)"));
     assertTrue(generated.contains("public static class Builder"));
+    assertTrue(generated.contains("public Builder toBuilder()"));
   }
 
   @Test
@@ -451,7 +452,7 @@ class ObjectGeneratorTest {
         generated.contains(
             "public User(InternalContext context, RootFieldReference rootFieldReference)"));
     assertTrue(generated.contains("private final Map<String, Object> data = new LinkedHashMap<>"));
-    assertTrue(generated.contains("return new User(__context, new LinkedHashMap<>(data))"));
+    assertTrue(generated.contains("return new User(__context, __base, new LinkedHashMap<>(data))"));
   }
 
   @Test

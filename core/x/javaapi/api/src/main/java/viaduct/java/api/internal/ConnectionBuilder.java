@@ -45,16 +45,19 @@ import viaduct.java.api.types.OffsetLimit;
 public abstract class ConnectionBuilder<C extends Connection<E, N>, E extends Edge<N>, N> {
   private static final String PAGE_INFO_SIMPLE_NAME = "PageInfo";
 
-  private final ExecutionContext context;
-  private final InternalContext internalContext;
+  protected final InternalContext internalContext;
   private final Class<C> connectionClass;
   private final Class<E> edgeClass;
   private final Map<String, Object> data = new LinkedHashMap<>();
 
   protected ConnectionBuilder(
       ExecutionContext context, Class<C> connectionClass, Class<E> edgeClass) {
-    this.context = context;
-    this.internalContext = InternalContext.from(context);
+    this(connectionClass, edgeClass, InternalContext.from(context));
+  }
+
+  protected ConnectionBuilder(
+      Class<C> connectionClass, Class<E> edgeClass, InternalContext context) {
+    this.internalContext = context;
     this.connectionClass = connectionClass;
     this.edgeClass = edgeClass;
   }
@@ -116,7 +119,11 @@ public abstract class ConnectionBuilder<C extends Connection<E, N>, E extends Ed
 
   /** Finalizes and returns the connection GRT from the accumulated fields. */
   public C build() {
-    return construct(connectionClass, new LinkedHashMap<>(data));
+    return construct(connectionClass, buildData());
+  }
+
+  protected final Map<String, Object> buildData() {
+    return new LinkedHashMap<>(data);
   }
 
   /**
@@ -125,13 +132,13 @@ public abstract class ConnectionBuilder<C extends Connection<E, N>, E extends Ed
    * these internally.
    */
   protected ConnectionArguments arguments() {
-    if (context instanceof ConnectionFieldExecutionContext<?, ?, ?, ?> connectionContext) {
+    if (internalContext instanceof ConnectionFieldExecutionContext<?, ?, ?, ?> connectionContext) {
       return connectionContext.getArguments();
     }
     throw new IllegalStateException(
         "Connection pagination requires a ConnectionFieldExecutionContext with"
             + " ConnectionArguments; this builder was created with "
-            + context.getClass().getName());
+            + internalContext.getClass().getName());
   }
 
   /**

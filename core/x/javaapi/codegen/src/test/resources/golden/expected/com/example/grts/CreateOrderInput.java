@@ -72,6 +72,10 @@ public class CreateOrderInput extends InputBase {
         }
 
 
+    public Builder toBuilder() {
+        return new Builder(__context(), getGraphQLInputObjectType(), getInputData());
+    }
+
     public static Builder builder(ExecutionContext context) {
         return new Builder(InternalContext.from(context));
     }
@@ -85,6 +89,12 @@ public class CreateOrderInput extends InputBase {
             this.__context = __context;
             this.graphQLInputObjectType =
                     (GraphQLInputObjectType) __context.getSchema().getSchema().getType("CreateOrderInput");
+        }
+
+        private Builder(InternalContext context, GraphQLInputObjectType type, Map<String, Object> data) {
+            this.__context = context;
+            this.graphQLInputObjectType = type;
+            this.data.putAll(data);
         }
 
                 public Builder buyerId(String buyerId) {

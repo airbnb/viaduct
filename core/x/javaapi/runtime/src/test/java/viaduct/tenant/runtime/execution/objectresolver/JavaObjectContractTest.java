@@ -11,8 +11,10 @@ import graphql.schema.GraphQLNonNull;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLSchema;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
+import viaduct.engine.api.ResolvedEngineObjectData;
 import viaduct.engine.api.ViaductSchema;
 import viaduct.engine.api.spi.FieldResolverExecutor;
 import viaduct.java.api.annotations.Resolver;
@@ -132,7 +134,14 @@ public class JavaObjectContractTest extends ObjectContractTest {
     public CompletableFuture<Person> resolve(QueryResolvers.PersonByName.Context ctx) {
       String name = ctx.getArguments().getName();
       Address address =
-          Address.builder(ctx).street("123 Main St").city("San Francisco").country("USA").build();
+          Address.builder(ctx)
+              .street("123 Main St")
+              .city("before override")
+              .country("USA")
+              .build()
+              .toBuilder()
+              .city("San Francisco")
+              .build();
       Person person = Person.builder(ctx).name(name).age(30).address(address).build();
       return CompletableFuture.completedFuture(person);
     }
@@ -249,6 +258,44 @@ public class JavaObjectContractTest extends ObjectContractTest {
     assertEquals("456 Oak", second.getStreetOrThrow());
     assertEquals("NYC", second.getCityOrThrow());
     assertEquals("US", second.getCountryOrThrow());
+  }
+
+  @Test
+  public void copyBuilderPreservesFieldsAndSnapshotsRepeatedOverrides() {
+    Address original =
+        Address.builder(STUB_CTX).street("123 Main").city("SF").country("US").build();
+    Address.Builder builder = original.toBuilder().street("456 Oak").country(null);
+    Address first = builder.build();
+    Address second = builder.city("NYC").build();
+    Address chained = second.toBuilder().street("789 Pine").build();
+
+    assertEquals("123 Main", original.getStreet());
+    assertEquals("US", original.getCountry());
+    assertEquals("456 Oak", first.getStreet());
+    assertEquals("SF", first.getCity());
+    assertNull(first.getCountry());
+    assertEquals("NYC", second.getCity());
+    assertEquals("456 Oak", second.getStreet());
+    assertEquals("789 Pine", chained.getStreet());
+    assertEquals("NYC", chained.getCity());
+    assertNull(chained.getCountry());
+  }
+
+  @Test
+  public void copyBuilderPreservesEngineFields() {
+    Address original =
+        new Address(
+            (InternalContext) STUB_CTX,
+            new ResolvedEngineObjectData(
+                STUB_SCHEMA.getSchema().getObjectType("Address"),
+                Map.of("street", "123 Main", "city", "SF", "country", "US")));
+    original.getCity();
+    Address copy = original.toBuilder().city("NYC").build();
+
+    assertEquals("123 Main", copy.getStreet());
+    assertEquals("NYC", copy.getCity());
+    assertEquals("US", copy.getCountry());
+    assertEquals("SF", original.getCity());
   }
 
   // --- Java-only wiring tests ---

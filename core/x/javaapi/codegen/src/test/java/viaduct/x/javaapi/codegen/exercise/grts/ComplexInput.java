@@ -50,6 +50,10 @@ public class ComplexInput extends InputBase {
     return getScalarList("tags");
   }
 
+  public Builder toBuilder() {
+    return new Builder(__context(), getGraphQLInputObjectType(), getInputData());
+  }
+
   public static Builder builder(ExecutionContext context) {
     return new Builder(InternalContext.from(context));
   }
@@ -73,6 +77,13 @@ public class ComplexInput extends InputBase {
     public Builder tags(List<String> tags) {
       data.put("tags", tags);
       return this;
+    }
+
+    private Builder(
+        InternalContext context, GraphQLInputObjectType type, Map<String, Object> data) {
+      this.__context = context;
+      this.graphQLInputObjectType = type;
+      this.data.putAll(data);
     }
 
     public ComplexInput build() {

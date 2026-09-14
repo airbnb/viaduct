@@ -23,6 +23,13 @@ public abstract class NodeObjectBase extends ObjectBase implements NodeObject {
     super(__context, data);
   }
 
+  protected NodeObjectBase(
+      @Nullable InternalContext __context,
+      @Nullable ObjectBase baseObject,
+      Map<String, Object> data) {
+    super(__context, baseObject, data);
+  }
+
   protected NodeObjectBase(@Nullable InternalContext __context, NodeReference nodeReference) {
     super(__context, nodeReference);
   }

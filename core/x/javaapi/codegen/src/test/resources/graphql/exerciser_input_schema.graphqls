@@ -56,3 +56,8 @@ enum StatusEnum {
   ACTIVE
   COMPLETED
 }
+
+input CopyChoice @oneOf {
+  byName: String
+  byEmail: String
+}

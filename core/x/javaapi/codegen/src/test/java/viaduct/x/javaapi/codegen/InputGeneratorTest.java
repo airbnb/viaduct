@@ -45,6 +45,7 @@ class InputGeneratorTest {
     assertTrue(!generated.contains("public void setName("));
     assertTrue(generated.contains("public static Builder builder(ExecutionContext context)"));
     assertTrue(generated.contains("public static class Builder"));
+    assertTrue(generated.contains("public Builder toBuilder()"));
     assertTrue(
         generated.contains(
             "(GraphQLInputObjectType)"

@@ -49,8 +49,13 @@ public class PageInfo extends ObjectBase {
         super(context, data);
     }
 
+    @SuppressWarnings("UnusedMethod")
     private PageInfo(InternalContext context, Map<String, Object> data) {
         super(context, data);
+    }
+
+    private PageInfo(InternalContext context, ObjectBase base, Map<String, Object> data) {
+        super(context, base, data);
     }
 
     public PageInfo(InternalContext context, RootFieldReference rootFieldReference) {
@@ -85,16 +90,22 @@ public class PageInfo extends ObjectBase {
         }
 
 
+    public Builder toBuilder() {
+        return new Builder(__context(), toBuilderBase());
+    }
+
     public static Builder builder(ExecutionContext context) {
-        return new Builder(InternalContext.from(context));
+        return new Builder(InternalContext.from(context), null);
     }
 
     public static class Builder {
         private final InternalContext __context;
+        private final ObjectBase __base;
         private final Map<String, Object> data = new LinkedHashMap<>();
 
-        private Builder(InternalContext __context) {
+        private Builder(InternalContext __context, ObjectBase __base) {
             this.__context = __context;
+            this.__base = __base;
         }
 
                 public Builder hasNextPage(boolean hasNextPage) {
@@ -143,7 +154,7 @@ public class PageInfo extends ObjectBase {
 
 
         public PageInfo build() {
-            return new PageInfo(__context, new LinkedHashMap<>(data));
+            return new PageInfo(__context, __base, new LinkedHashMap<>(data));
         }
     }
 }

@@ -47,6 +47,10 @@ public class SimpleInput extends InputBase {
     return get("count");
   }
 
+  public Builder toBuilder() {
+    return new Builder(__context(), getGraphQLInputObjectType(), getInputData());
+  }
+
   public static Builder builder(ExecutionContext context) {
     return new Builder(InternalContext.from(context));
   }
@@ -70,6 +74,13 @@ public class SimpleInput extends InputBase {
     public Builder count(Integer count) {
       data.put("count", count);
       return this;
+    }
+
+    private Builder(
+        InternalContext context, GraphQLInputObjectType type, Map<String, Object> data) {
+      this.__context = context;
+      this.graphQLInputObjectType = type;
+      this.data.putAll(data);
     }
 
     public SimpleInput build() {

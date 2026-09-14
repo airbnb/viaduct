@@ -48,7 +48,7 @@ public class JavaDefaultsContractTest extends DefaultsContractTest {
     @Override
     public CompletableFuture<Integer> resolve(QueryResolvers.Inner.Context ctx) {
       InputWithDefaults inp = ctx.getArguments().getInp();
-      int result = inp != null ? inp.getX() * 2 : -1;
+      int result = inp != null ? inp.toBuilder().build().getX() * 2 : -1;
       return CompletableFuture.completedFuture(result);
     }
   }

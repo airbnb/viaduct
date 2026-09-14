@@ -37,8 +37,10 @@ public class JavaConnectionsContractTest extends ConnectionsContractTest {
     public CompletableFuture<PostConnection> resolve(QueryResolvers.Posts.Context ctx) {
       return CompletableFuture.completedFuture(
           PostConnection.builder(ctx)
-              .totalCount(ALL_POSTS.size())
               .fromList(ALL_POSTS, p -> Post.builder(ctx).id(p.id()).title(p.title()).build())
+              .build()
+              .toBuilder()
+              .totalCount(ALL_POSTS.size())
               .build());
     }
   }
@@ -96,7 +98,9 @@ public class JavaConnectionsContractTest extends ConnectionsContractTest {
       boolean hasNextPage = startOffset + page.size() < ALL_POSTS.size();
       boolean hasPreviousPage = startOffset > 0;
       return CompletableFuture.completedFuture(
-          PostConnection.builder(ctx).fromEdges(edges, hasNextPage, hasPreviousPage).build());
+          PostConnection.builder(ctx).build().toBuilder()
+              .fromEdges(edges, hasNextPage, hasPreviousPage)
+              .build());
     }
   }
 

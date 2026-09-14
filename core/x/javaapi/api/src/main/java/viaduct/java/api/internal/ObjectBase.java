@@ -56,6 +56,7 @@ public abstract class ObjectBase implements GraphQLObject {
   @Nullable private final InternalContext __context;
   private final EngineObjectData.@Nullable Sync engineData;
   @Nullable private final Map<String, Object> mapData;
+  @Nullable private final ObjectBase baseObject;
   @Nullable private final NodeReference nodeReference;
   @Nullable private final RootFieldReference rootFieldReference;
   private final ConcurrentHashMap<String, Object> fieldCache = new ConcurrentHashMap<>();
@@ -72,6 +73,7 @@ public abstract class ObjectBase implements GraphQLObject {
     this.__context = __context;
     this.engineData = engineData;
     this.mapData = null;
+    this.baseObject = null;
     this.nodeReference = null;
     this.rootFieldReference = null;
   }
@@ -83,9 +85,17 @@ public abstract class ObjectBase implements GraphQLObject {
    * no execution context, so {@code context} is typically null.
    */
   protected ObjectBase(@Nullable InternalContext __context, Map<String, Object> mapData) {
+    this(__context, null, mapData);
+  }
+
+  protected ObjectBase(
+      @Nullable InternalContext __context,
+      @Nullable ObjectBase baseObject,
+      Map<String, Object> mapData) {
     this.__context = __context;
     this.engineData = null;
     this.mapData = mapData;
+    this.baseObject = baseObject;
     this.nodeReference = null;
     this.rootFieldReference = null;
   }
@@ -99,6 +109,7 @@ public abstract class ObjectBase implements GraphQLObject {
     this.__context = __context;
     this.engineData = null;
     this.mapData = null;
+    this.baseObject = null;
     this.nodeReference = nodeReference;
     this.rootFieldReference = null;
   }
@@ -112,6 +123,7 @@ public abstract class ObjectBase implements GraphQLObject {
     this.__context = __context;
     this.engineData = null;
     this.mapData = null;
+    this.baseObject = null;
     this.nodeReference = null;
     this.rootFieldReference = rootFieldReference;
   }
@@ -155,6 +167,26 @@ public abstract class ObjectBase implements GraphQLObject {
     return mapData != null ? Collections.unmodifiableMap(mapData) : null;
   }
 
+  public @Nullable ObjectBase getJavaBaseObject() {
+    return baseObject;
+  }
+
+  protected final ObjectBase toBuilderBase() {
+    return HandleErrors.framework(
+        "ObjectBase.toBuilder",
+        () -> {
+          if (nodeReference != null) {
+            throw new TenantUsageException(
+                "Cannot call toBuilder() on an unresolved NodeReference.", null);
+          }
+          if (rootFieldReference != null) {
+            throw new TenantUsageException(
+                "Cannot call toBuilder() on an unresolved RootFieldReference.", null);
+          }
+          return this;
+        });
+  }
+
   /** Dynamically reads a tenant-local {@code @backingData} field using its scalar leaf class. */
   @Nullable
   @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
@@ -176,6 +208,9 @@ public abstract class ObjectBase implements GraphQLObject {
   }
 
   private GraphQLFieldsContainer getFieldsContainer() throws FrameworkException {
+    if (baseObject != null) {
+      return baseObject.getFieldsContainer();
+    }
     if (engineData != null) {
       return engineData.getType();
     }
@@ -203,6 +238,9 @@ public abstract class ObjectBase implements GraphQLObject {
     if (engineData != null) {
       return engineData.getOrNull(fieldName);
     } else if (mapData != null) {
+      if (!mapData.containsKey(fieldName) && baseObject != null) {
+        return baseObject.getRawValue(fieldName);
+      }
       return mapData.get(fieldName);
     } else if (nodeReference != null) {
       // Mirrors Kotlin ObjectBase: only `id` is accessible on an unresolved NodeReference;

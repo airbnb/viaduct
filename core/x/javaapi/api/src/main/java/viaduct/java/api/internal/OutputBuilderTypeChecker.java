@@ -189,6 +189,9 @@ public final class OutputBuilderTypeChecker {
 
   private static GraphQLObjectType concreteObjectType(
       GraphQLSchema schema, ObjectBase value, Class<?> expectedGeneratedType) {
+    if (value.getJavaBaseObject() != null) {
+      return concreteObjectType(schema, value.getJavaBaseObject(), expectedGeneratedType);
+    }
     if (value.getJavaEngineObjectData() != null) {
       return value.getJavaEngineObjectData().getType();
     }

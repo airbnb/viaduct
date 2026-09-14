@@ -62,8 +62,13 @@ public class User extends NodeObjectBase implements Node, SearchHit {
         super(context, data);
     }
 
+    @SuppressWarnings("UnusedMethod")
     private User(InternalContext context, Map<String, Object> data) {
         super(context, data);
+    }
+
+    private User(InternalContext context, ObjectBase base, Map<String, Object> data) {
+        super(context, base, data);
     }
 
     public User(InternalContext context, RootFieldReference rootFieldReference) {
@@ -131,16 +136,22 @@ public class User extends NodeObjectBase implements Node, SearchHit {
         }
 
 
+    public Builder toBuilder() {
+        return new Builder(__context(), toBuilderBase());
+    }
+
     public static Builder builder(ExecutionContext context) {
-        return new Builder(InternalContext.from(context));
+        return new Builder(InternalContext.from(context), null);
     }
 
     public static class Builder {
         private final InternalContext __context;
+        private final ObjectBase __base;
         private final Map<String, Object> data = new LinkedHashMap<>();
 
-        private Builder(InternalContext __context) {
+        private Builder(InternalContext __context, ObjectBase __base) {
             this.__context = __context;
+            this.__base = __base;
         }
 
                 public Builder id(GlobalID<User> id) {
@@ -233,7 +244,7 @@ public class User extends NodeObjectBase implements Node, SearchHit {
 
 
         public User build() {
-            return new User(__context, new LinkedHashMap<>(data));
+            return new User(__context, __base, new LinkedHashMap<>(data));
         }
     }
 }

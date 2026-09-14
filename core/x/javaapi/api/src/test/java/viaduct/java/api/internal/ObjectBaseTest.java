@@ -61,6 +61,14 @@ class ObjectBaseTest {
       super(context, data);
     }
 
+    private TestObject(InternalContext context, ObjectBase base, Map<String, Object> data) {
+      super(context, base, data);
+    }
+
+    TestObject copy(Map<String, Object> data) {
+      return new TestObject(__context(), toBuilderBase(), data);
+    }
+
     TestObject(@Nullable InternalContext context, NodeReference ref) {
       super(context, ref);
     }
@@ -282,6 +290,48 @@ class ObjectBaseTest {
     public String getInternalID() {
       return internalId;
     }
+  }
+
+  @Test
+  void copyReadsUnmodifiedRawValuesWithOriginalContext() {
+    TestObject original =
+        new TestObject(
+            new FakeContext(),
+            new FakeSync(Map.of("id", "node-1", "time", "2026-09-08T10:00:00Z", "name", "Alice")));
+    original.scalar("time", "DateTime");
+    TestObject copy = original.copy(map("name", null));
+    TestObject chained = copy.copy(Map.of("other", "value"));
+
+    assertEquals("node-1", chained.globalId("id").getInternalID());
+    assertEquals(Instant.parse("2026-09-08T10:00:00Z"), chained.scalar("time", "DateTime"));
+    assertNull(chained.scalar("name"));
+    assertEquals("Alice", original.scalar("name"));
+    assertEquals("value", chained.scalar("other"));
+  }
+
+  @Test
+  void copyPreservesBackingDataType() {
+    State state = new State(7);
+    TestObject original =
+        new TestObject(
+            null, new FakeSync(Map.of("state", state), typeWithField("state", BACKING_DATA)));
+    TestObject copy = original.copy(Map.of());
+
+    assertSame(state, copy.get("state", State.class));
+    assertThrows(TenantUsageException.class, () -> copy.get("state", String.class));
+  }
+
+  @Test
+  void toBuilderRejectsUnresolvedReferences() {
+    TestObject node = new TestObject(null, new FakeNodeReference("node-1"));
+    TestObject root = new TestObject(null, new FakeRootFieldReference());
+
+    assertEquals(
+        "Cannot call toBuilder() on an unresolved NodeReference.",
+        assertThrows(TenantUsageException.class, node::toBuilderBase).getMessage());
+    assertEquals(
+        "Cannot call toBuilder() on an unresolved RootFieldReference.",
+        assertThrows(TenantUsageException.class, root::toBuilderBase).getMessage());
   }
 
   // ===== Helpers =====

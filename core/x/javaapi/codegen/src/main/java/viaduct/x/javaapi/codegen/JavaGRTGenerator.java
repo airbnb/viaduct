@@ -263,8 +263,13 @@ public final class JavaGRTGenerator {
                     super(context, data);
                 }
 
+                @SuppressWarnings("UnusedMethod")
                 private <mdl.className>(InternalContext context, Map\\<String, Object> data) {
                     super(context, data);
+                }
+
+                private <mdl.className>(InternalContext context, ObjectBase base, Map\\<String, Object> data) {
+                    super(context, base, data);
                 }
 
                 public <mdl.className>(InternalContext context, RootFieldReference rootFieldReference) {
@@ -287,16 +292,22 @@ public final class JavaGRTGenerator {
                 }; separator="
             ">
 
+                public Builder toBuilder() {
+                    return new Builder(__context(), toBuilderBase());
+                }
+
                 public static Builder builder(ExecutionContext context) {
-                    return new Builder(InternalContext.from(context));
+                    return new Builder(InternalContext.from(context), null);
                 }
 
                 public static class Builder {
                     private final InternalContext __context;
+                    private final ObjectBase __base;
                     private final Map\\<String, Object> data = new LinkedHashMap\\<>();
 
-                    private Builder(InternalContext __context) {
+                    private Builder(InternalContext __context, ObjectBase __base) {
                         this.__context = __context;
+                        this.__base = __base;
                     }
 
                     <mdl.fields: {f |
@@ -316,7 +327,7 @@ public final class JavaGRTGenerator {
             ">
 
                     public <mdl.className> build() {
-                        return new <mdl.className>(__context, new LinkedHashMap\\<>(data));
+                        return new <mdl.className>(__context, __base, new LinkedHashMap\\<>(data));
                     }
                 }
             }
@@ -390,6 +401,10 @@ public final class JavaGRTGenerator {
                     super(context, data);
                 }
 
+                private <mdl.className>(InternalContext context, ObjectBase base, Map\\<String, Object> data) {
+                    super(context, base, data);
+                }
+
                 public <mdl.className>(InternalContext context, RootFieldReference rootFieldReference) {
                     super(context, rootFieldReference);
                 }
@@ -404,6 +419,10 @@ public final class JavaGRTGenerator {
                 }; separator="
             ">
 
+                public Builder toBuilder() {
+                    return new Builder(__context(), toBuilderBase());
+                }
+
                 public static Builder builder(ExecutionContext context) {
                     return new Builder(context);
                 }
@@ -417,8 +436,20 @@ public final class JavaGRTGenerator {
                  * a pagination method and any setters can be combined in any order before {@code build()}.
                  */
                 public static class Builder extends <mdl.connectionBuilderSupertype> {
+                    private final ObjectBase __base;
+
                     private Builder(ExecutionContext context) {
-                        super(context, <mdl.className>.class, <mdl.edgeTypeName>.class);
+                        this(InternalContext.from(context), null);
+                    }
+
+                    private Builder(InternalContext context, ObjectBase base) {
+                        super(<mdl.className>.class, <mdl.edgeTypeName>.class, context);
+                        this.__base = base;
+                    }
+
+                    @Override
+                    public <mdl.className> build() {
+                        return new <mdl.className>(internalContext, __base, buildData());
                     }
 
                     @Override
@@ -582,6 +613,10 @@ public final class JavaGRTGenerator {
                 + INPUT_LIKE_FIELD_ACCESSORS_TEMPLATE
                 + """
 
+                    public Builder toBuilder() {
+                        return new Builder(__context(), getGraphQLInputObjectType(), getInputData());
+                    }
+
                     public static Builder builder(ExecutionContext context) {
                         return new Builder(InternalContext.from(context));
                     }
@@ -595,6 +630,12 @@ public final class JavaGRTGenerator {
                             this.__context = __context;
                             this.graphQLInputObjectType =
                                     (GraphQLInputObjectType) __context.getSchema().getSchema().getType("<mdl.className>");
+                        }
+
+                        private Builder(InternalContext context, GraphQLInputObjectType type, Map\\<String, Object> data) {
+                            this.__context = context;
+                            this.graphQLInputObjectType = type;
+                            this.data.putAll(data);
                         }
 
                 """

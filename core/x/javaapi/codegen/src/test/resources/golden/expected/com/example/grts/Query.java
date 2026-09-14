@@ -175,8 +175,13 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
         super(context, data);
     }
 
+    @SuppressWarnings("UnusedMethod")
     private Query(InternalContext context, Map<String, Object> data) {
         super(context, data);
+    }
+
+    private Query(InternalContext context, ObjectBase base, Map<String, Object> data) {
+        super(context, base, data);
     }
 
     public Query(InternalContext context, RootFieldReference rootFieldReference) {
@@ -239,16 +244,22 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
         }
 
 
+    public Builder toBuilder() {
+        return new Builder(__context(), toBuilderBase());
+    }
+
     public static Builder builder(ExecutionContext context) {
-        return new Builder(InternalContext.from(context));
+        return new Builder(InternalContext.from(context), null);
     }
 
     public static class Builder {
         private final InternalContext __context;
+        private final ObjectBase __base;
         private final Map<String, Object> data = new LinkedHashMap<>();
 
-        private Builder(InternalContext __context) {
+        private Builder(InternalContext __context, ObjectBase __base) {
             this.__context = __context;
+            this.__base = __base;
         }
 
                 public Builder order(Order order) {
@@ -341,7 +352,7 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
 
 
         public Query build() {
-            return new Query(__context, new LinkedHashMap<>(data));
+            return new Query(__context, __base, new LinkedHashMap<>(data));
         }
     }
 }

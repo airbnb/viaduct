@@ -4,6 +4,7 @@ import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLSchema
 import org.slf4j.LoggerFactory
 import viaduct.api.internal.InputTypeFactory
+import viaduct.api.internal.OverlayEngineObjectData
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
@@ -65,6 +66,11 @@ internal fun convertJavaGRTToEngineObjectData(
 
     // Builder-created data: wrap map with proper GraphQL type from schema
     val map = grt.javaMapData ?: return null
+    val base = grt.javaBaseObject?.let { convertJavaGRTToEngineObjectData(it, graphqlSchema) }
+    if (base != null) {
+        val overlay = ResolvedEngineObjectData(base.type, map.mapValues { (_, v) -> convertValue(v, graphqlSchema) })
+        return OverlayEngineObjectData(overlay, base)
+    }
     val schema = graphqlSchema ?: return null
     val typeName = grt.javaClass.simpleName
     val graphqlType = schema.getObjectType(typeName)

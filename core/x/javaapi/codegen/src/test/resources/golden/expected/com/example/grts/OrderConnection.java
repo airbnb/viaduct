@@ -52,6 +52,10 @@ public class OrderConnection extends ObjectBase implements viaduct.java.api.type
         super(context, data);
     }
 
+    private OrderConnection(InternalContext context, ObjectBase base, Map<String, Object> data) {
+        super(context, base, data);
+    }
+
     public OrderConnection(InternalContext context, RootFieldReference rootFieldReference) {
         super(context, rootFieldReference);
     }
@@ -78,6 +82,10 @@ public class OrderConnection extends ObjectBase implements viaduct.java.api.type
         }
 
 
+    public Builder toBuilder() {
+        return new Builder(__context(), toBuilderBase());
+    }
+
     public static Builder builder(ExecutionContext context) {
         return new Builder(context);
     }
@@ -91,8 +99,20 @@ public class OrderConnection extends ObjectBase implements viaduct.java.api.type
      * a pagination method and any setters can be combined in any order before {@code build()}.
      */
     public static class Builder extends ConnectionBuilder<OrderConnection, OrderEdge, Order> {
+        private final ObjectBase __base;
+
         private Builder(ExecutionContext context) {
-            super(context, OrderConnection.class, OrderEdge.class);
+            this(InternalContext.from(context), null);
+        }
+
+        private Builder(InternalContext context, ObjectBase base) {
+            super(OrderConnection.class, OrderEdge.class, context);
+            this.__base = base;
+        }
+
+        @Override
+        public OrderConnection build() {
+            return new OrderConnection(internalContext, __base, buildData());
         }
 
         @Override

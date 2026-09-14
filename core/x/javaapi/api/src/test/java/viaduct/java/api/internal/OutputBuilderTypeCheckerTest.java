@@ -220,6 +220,32 @@ class OutputBuilderTypeCheckerTest {
   }
 
   @Test
+  void validatesCopiedValuesUsingTheirOriginalEngineType() {
+    ObjectBaseTest.TestObject original =
+        new ObjectBaseTest.TestObject(
+            null, new ObjectBaseTest.FakeSync(Map.of("name", "tag"), TAG_TYPE));
+    ObjectBase copy = original.copy(Map.of("name", "changed")).copy(Map.of());
+    ObjectBase wrongType =
+        new ObjectBaseTest.TestObject(
+                null, new ObjectBaseTest.FakeSync(Map.of("name", "item"), ITEM_TYPE))
+            .copy(Map.of());
+
+    assertThatCode(
+            () -> OutputBuilderTypeChecker.checkField(CONTEXT, "Container", "tags", List.of(copy)))
+        .doesNotThrowAnyException();
+    assertThatCode(
+            () ->
+                OutputBuilderTypeChecker.checkField(
+                    CONTEXT, "Container", "namedValues", List.of(copy)))
+        .doesNotThrowAnyException();
+    assertThatThrownBy(
+            () ->
+                OutputBuilderTypeChecker.checkField(
+                    CONTEXT, "Container", "tags", List.of(wrongType)))
+        .isInstanceOf(TenantUsageException.class);
+  }
+
+  @Test
   void acceptsMatchingObjectInterfaceAndUnionValues() {
     ObjectBase tag = GeneratedGRTs.tag();
 

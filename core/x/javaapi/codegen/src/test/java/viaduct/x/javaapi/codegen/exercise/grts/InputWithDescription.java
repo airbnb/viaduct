@@ -43,6 +43,10 @@ public class InputWithDescription extends InputBase {
     return get("value");
   }
 
+  public Builder toBuilder() {
+    return new Builder(__context(), getGraphQLInputObjectType(), getInputData());
+  }
+
   public static Builder builder(ExecutionContext context) {
     return new Builder(InternalContext.from(context));
   }
@@ -62,6 +66,13 @@ public class InputWithDescription extends InputBase {
     public Builder value(String value) {
       data.put("value", value);
       return this;
+    }
+
+    private Builder(
+        InternalContext context, GraphQLInputObjectType type, Map<String, Object> data) {
+      this.__context = context;
+      this.graphQLInputObjectType = type;
+      this.data.putAll(data);
     }
 
     public InputWithDescription build() {

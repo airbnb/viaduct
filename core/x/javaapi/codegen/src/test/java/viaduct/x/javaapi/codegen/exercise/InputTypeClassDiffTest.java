@@ -1,10 +1,12 @@
 package viaduct.x.javaapi.codegen.exercise;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import graphql.schema.idl.SchemaParser;
 import graphql.schema.idl.UnExecutableSchemaGenerator;
 import java.io.InputStreamReader;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -13,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import viaduct.api.internal.InputTypeFactory;
 import viaduct.engine.api.ViaductSchema;
 import viaduct.java.api.context.ExecutionContext;
+import viaduct.java.api.internal.InputBase;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.reflect.Field;
 
@@ -82,6 +85,71 @@ class InputTypeClassDiffTest extends AbstractClassDiffTest {
 
     assertThat(isPresent.invoke(explicitNullInput, countField)).isEqualTo(true);
     assertThat(getCount.invoke(explicitNullInput)).isNull();
+  }
+
+  @Test
+  void generatedCopyBuilderPreservesDefaultsRawPresenceAndIndependentOverrides() throws Exception {
+    Class<?> inputClass = generateAndLoad("SimpleInput");
+    Object original = build(inputClass, contextForSchema());
+    Object copyBuilder = inputClass.getMethod("toBuilder").invoke(original);
+    Class<?> builderClass = copyBuilder.getClass();
+    var build = builderClass.getMethod("build");
+    var count = builderClass.getMethod("count", Integer.class);
+    var name = builderClass.getMethod("name", String.class);
+    var getCount = inputClass.getMethod("getCount");
+    var getName = inputClass.getMethod("getName");
+
+    Object roundTrip = build.invoke(copyBuilder);
+    assertThat(((InputBase) roundTrip).getInputData()).isEmpty();
+    assertThat(getCount.invoke(roundTrip)).isEqualTo(42);
+    assertThat(getName.invoke(roundTrip)).isNull();
+
+    name.invoke(copyBuilder, "Alice");
+    count.invoke(copyBuilder, new Object[] {null});
+    Object explicitNull = build.invoke(copyBuilder);
+    Object nullRoundTrip = build.invoke(inputClass.getMethod("toBuilder").invoke(explicitNull));
+    count.invoke(copyBuilder, 7);
+    Object overridden = build.invoke(copyBuilder);
+    Object chained = inputClass.getMethod("toBuilder").invoke(overridden);
+    name.invoke(chained, "Bob");
+    Object result = build.invoke(chained);
+
+    assertThat(getCount.invoke(original)).isEqualTo(42);
+    assertThat(((InputBase) original).getInputData()).isEmpty();
+    assertThat(((InputBase) explicitNull).getInputData()).containsEntry("count", null);
+    assertThat(getCount.invoke(explicitNull)).isNull();
+    assertThat(((InputBase) nullRoundTrip).getInputData()).containsEntry("count", null);
+    assertThat(getCount.invoke(nullRoundTrip)).isNull();
+    assertThat(getName.invoke(explicitNull)).isEqualTo("Alice");
+    assertThat(getCount.invoke(result)).isEqualTo(7);
+    assertThat(getName.invoke(result)).isEqualTo("Bob");
+    assertThat(getName.invoke(overridden)).isEqualTo("Alice");
+  }
+
+  @Test
+  void generatedOneOfCopyBuilderStillValidates() throws Exception {
+    Class<?> inputClass = generateAndLoad("CopyChoice");
+    Object builder =
+        inputClass.getMethod("builder", ExecutionContext.class).invoke(null, contextForSchema());
+    Class<?> builderClass = builder.getClass();
+    var build = builderClass.getMethod("build");
+    var byName = builderClass.getMethod("byName", String.class);
+    byName.invoke(builder, "Alice");
+    Object original = build.invoke(builder);
+    Object copy = inputClass.getMethod("toBuilder").invoke(original);
+
+    byName.invoke(copy, "Bob");
+    assertThat(inputClass.getMethod("getByName").invoke(build.invoke(copy))).isEqualTo("Bob");
+    builderClass.getMethod("byEmail", String.class).invoke(copy, "bob@example.com");
+    assertThat(assertThrows(InvocationTargetException.class, () -> build.invoke(copy)).getCause())
+        .hasMessageContaining("Exactly one field must be set for @oneOf type CopyChoice");
+
+    Object nullCopy = inputClass.getMethod("toBuilder").invoke(original);
+    byName.invoke(nullCopy, new Object[] {null});
+    assertThat(
+            assertThrows(InvocationTargetException.class, () -> build.invoke(nullCopy)).getCause())
+        .hasMessageContaining("must have a non-null value");
+    assertThat(inputClass.getMethod("getByName").invoke(original)).isEqualTo("Alice");
   }
 
   @Test
