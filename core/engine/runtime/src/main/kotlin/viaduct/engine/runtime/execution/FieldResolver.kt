@@ -1117,6 +1117,7 @@ class FieldResolver(
             materializationPlan = matPlan,
             selectionParameters = selectionParameters,
         )
+        // DFE.selectionSet is not updated during Mat; Mat selection consumers use the rewritten mergedField instead.
         val dataFetchingEnvironmentProvider =
             FpKit.intraThreadMemoize {
                 buildDataFetchingEnvironment(
