@@ -50,6 +50,25 @@ public final class MyInjectorFactory extends JavaTenantModuleInjectorFactory {
 
 The base class runs your method on an `Executor` — defaulting to `ForkJoinPool.commonPool()`, or one you pass to the constructor — so blocking work such as file IO never blocks the framework's coroutine thread.
 
+Java tenants declare their bootstrap class with the same annotation as Kotlin tenants:
+
+```java
+import viaduct.service.api.spi.TenantBootstrapper;
+
+@TenantBootstrapper
+public final class MyTenantBindings {}
+```
+
+The Java registry annotation processor records this class in the tenant's generated registry,
+including when its source file contains no resolvers. Viaduct loads the class and passes it to
+`bootstrapBlocking`. Nested declarations use their JVM binary name, such as
+`MyTenant$Bindings`, so they can also be loaded by the shared bootstrap path.
+
+A tenant configuration may declare at most one bootstrap class. Duplicate declarations fail during
+annotation processing or registry assembly. Omitting the annotation passes `null` to the injector
+factory. As with Kotlin, the injector factory defines and validates the bootstrap class's required
+type and construction rules; the annotation does not require a particular superclass or constructor.
+
 ## SharedTenantModuleInjectorFactory
 
 {{ kdoc("viaduct.service.api.spi.SharedTenantModuleInjectorFactory") }} is a pre-defined implementation of `TenantModuleInjectorFactory` that is adequate for most Viaduct applications.  (It's "shared" because it lets you define a single injector that's shared across all tenant modules.)  Its constructor takes an instance of {{ kdoc("viaduct.service.api.spi.CodeInjector") }}

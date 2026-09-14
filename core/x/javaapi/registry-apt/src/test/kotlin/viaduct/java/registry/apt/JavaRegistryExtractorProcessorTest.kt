@@ -15,7 +15,9 @@ import javax.tools.StandardLocation
 import javax.tools.ToolProvider
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
+import viaduct.tenant.codegen.cli.AssembleTenantModuleConfigFile
 
 /**
  * Golden tests that run [JavaRegistryExtractorProcessor] in-process via the JDK Java compiler over
@@ -48,6 +50,7 @@ class JavaRegistryExtractorProcessorTest {
         field.path("resolverBaseClass").asText() shouldBe "com.example.tenant.QueryResolvers\$Greeting"
         json.path("grtPackagePrefix").asText() shouldBe "com.example.grts"
         json.has("bootstrapClass").shouldBeFalse()
+        assembleModuleConfig(tempDir).has("bootstrapClass").shouldBeFalse()
     }
 
     @Test
@@ -325,7 +328,213 @@ class JavaRegistryExtractorProcessorTest {
         )
     }
 
+    @Test
+    fun `emits a bootstrap-only descriptor and preserves it in the assembled Java registry`(
+        @TempDir tempDir: File
+    ) {
+        val descriptors = compileAndReadDescriptors(tempDir, BOOTSTRAP_SOURCE)
+
+        val json = descriptors.getValue("com/example/tenant/TenantBootstrap.json")
+        json.path("bootstrapClass").asText() shouldBe "com.example.tenant.TenantBootstrap"
+        json.path("fields").shouldBeEmpty()
+        json.path("nodes").shouldBeEmpty()
+        json.has("grtPackagePrefix").shouldBeFalse()
+
+        val registry = assembleModuleConfig(tempDir)
+        registry.path("bootstrapClass").asText() shouldBe "com.example.tenant.TenantBootstrap"
+        registry.path("apiName").asText() shouldBe "java"
+        registry.path("executorFactory").asText() shouldBe "viaduct.java.runtime.bootstrap.ViaductJavaExecutorFactory"
+    }
+
+    @Test
+    fun `uses the JVM binary name for a bootstrap class nested in a record`(
+        @TempDir tempDir: File
+    ) {
+        val source = SourceFile(
+            "com.example.tenant.BootstrapContainer",
+            """
+            package com.example.tenant;
+
+            import viaduct.service.api.spi.TenantBootstrapper;
+
+            public record BootstrapContainer() {
+                @TenantBootstrapper
+                public static final class Bootstrap {}
+            }
+            """.trimIndent(),
+        )
+        val descriptors = compileAndReadDescriptors(tempDir, source)
+
+        descriptors.keys.single() shouldBe "com/example/tenant/BootstrapContainer.json"
+        descriptors.values.single().path("bootstrapClass").asText() shouldBe "com.example.tenant.BootstrapContainer\$Bootstrap"
+    }
+
+    @Test
+    fun `preserves resolver metadata when its source also declares a bootstrap class`(
+        @TempDir tempDir: File
+    ) {
+        val source = QUERY_RESOLVER_SOURCE.copy(
+            content = QUERY_RESOLVER_SOURCE.content.replace(
+                "public final class Resolvers {",
+                "@viaduct.service.api.spi.TenantBootstrapper public final class Resolvers {",
+            ),
+        )
+        val descriptors = compileAndReadDescriptors(tempDir, GRT_STUBS, QUERY_RESOLVER_BASES, source)
+
+        val json = descriptors.getValue("com/example/tenant/Resolvers.json")
+        json.path("bootstrapClass").asText() shouldBe "com.example.tenant.Resolvers"
+        json.path("fields").single().path("implFqn").asText() shouldBe "com.example.tenant.Resolvers\$GreetingResolver"
+        json.path("grtPackagePrefix").asText() shouldBe "com.example.grts"
+    }
+
+    @Test
+    fun `leaves bootstrap type and construction requirements to the injector factory`(
+        @TempDir tempDir: File
+    ) {
+        val interfaceSource = SourceFile(
+            "com.example.tenant.BootstrapInterface",
+            """
+            package com.example.tenant;
+
+            @viaduct.service.api.spi.TenantBootstrapper
+            public interface BootstrapInterface {}
+            """.trimIndent(),
+        )
+        val abstractSource = SourceFile(
+            "com.example.tenant.AbstractBootstrap",
+            """
+            package com.example.tenant;
+
+            @viaduct.service.api.spi.TenantBootstrapper
+            public abstract class AbstractBootstrap {
+                private AbstractBootstrap(String argument) {}
+            }
+            """.trimIndent(),
+        )
+        val descriptors = compileAndReadDescriptors(tempDir, interfaceSource, abstractSource)
+
+        descriptors.getValue("com/example/tenant/BootstrapInterface.json")
+            .path("bootstrapClass").asText() shouldBe "com.example.tenant.BootstrapInterface"
+        descriptors.getValue("com/example/tenant/AbstractBootstrap.json")
+            .path("bootstrapClass").asText() shouldBe "com.example.tenant.AbstractBootstrap"
+    }
+
+    @Test
+    fun `reports all bootstrap declarations when a source group contains duplicates`(
+        @TempDir tempDir: File
+    ) {
+        val source = SourceFile(
+            "com.example.tenant.DuplicateBootstraps",
+            """
+            package com.example.tenant;
+
+            import viaduct.service.api.spi.TenantBootstrapper;
+
+            @TenantBootstrapper
+            public final class DuplicateBootstraps {
+                @TenantBootstrapper
+                public static final class OtherBootstrap {}
+            }
+            """.trimIndent(),
+        )
+        val (success, diagnostics) = compile(tempDir, source)
+
+        success.shouldBeFalse()
+        assertTrue(
+            diagnostics.any {
+                it.contains("Each source file may contain at most one @TenantBootstrapper class") &&
+                    it.contains("com.example.tenant.DuplicateBootstraps") &&
+                    it.contains("com.example.tenant.DuplicateBootstraps\$OtherBootstrap")
+            }
+        )
+        File(tempDir, "classes/$DESCRIPTOR_ROOT/com/example/tenant/DuplicateBootstraps.json").exists().shouldBeFalse()
+    }
+
+    @Test
+    fun `common assembly rejects bootstrap declarations in separate Java source files`(
+        @TempDir tempDir: File
+    ) {
+        val otherSource = SourceFile(
+            "com.example.tenant.OtherBootstrap",
+            """
+            package com.example.tenant;
+
+            @viaduct.service.api.spi.TenantBootstrapper
+            public final class OtherBootstrap {}
+            """.trimIndent(),
+        )
+        val descriptors = compileAndReadDescriptors(tempDir, BOOTSTRAP_SOURCE, otherSource)
+        descriptors.keys.shouldHaveSize(2)
+
+        val error = assertThrows<IllegalStateException> { assembleModuleConfig(tempDir) }
+
+        assertTrue(error.message.orEmpty().contains("at most one @TenantBootstrapper class"))
+        assertTrue(error.message.orEmpty().contains("com.example.tenant.TenantBootstrap"))
+        assertTrue(error.message.orEmpty().contains("com.example.tenant.OtherBootstrap"))
+    }
+
+    @Test
+    fun `common assembly rejects multiple top-level bootstrap classes in one Java source file`(
+        @TempDir tempDir: File
+    ) {
+        val source = BOOTSTRAP_SOURCE.copy(
+            content = BOOTSTRAP_SOURCE.content + """
+
+                @viaduct.service.api.spi.TenantBootstrapper
+                final class OtherBootstrap {}
+            """.trimIndent(),
+        )
+        val descriptors = compileAndReadDescriptors(tempDir, source)
+        descriptors.keys.shouldHaveSize(2)
+
+        val error = assertThrows<IllegalStateException> { assembleModuleConfig(tempDir) }
+
+        assertTrue(error.message.orEmpty().contains("at most one @TenantBootstrapper class"))
+        assertTrue(error.message.orEmpty().contains("com.example.tenant.TenantBootstrap"))
+        assertTrue(error.message.orEmpty().contains("com.example.tenant.OtherBootstrap"))
+    }
+
+    @Test
+    fun `javac rejects TenantBootstrapper on a method`(
+        @TempDir tempDir: File
+    ) {
+        val source = SourceFile(
+            "com.example.tenant.InvalidBootstrap",
+            """
+            package com.example.tenant;
+
+            public final class InvalidBootstrap {
+                @viaduct.service.api.spi.TenantBootstrapper
+                public void bootstrap() {}
+            }
+            """.trimIndent(),
+        )
+        val (success, diagnostics) = compile(tempDir, source)
+
+        success.shouldBeFalse()
+        assertTrue(diagnostics.any { it.contains("not applicable") }) { diagnostics.joinToString("\n") }
+    }
+
     // ── Compilation harness ───────────────────────────────────────────────────
+
+    private fun assembleModuleConfig(tempDir: File): JsonNode {
+        val outputDir = File(tempDir, "assembled")
+        AssembleTenantModuleConfigFile().main(
+            listOf(
+                "--descriptor-dir",
+                File(tempDir, "classes/$DESCRIPTOR_ROOT").absolutePath,
+                "--tenant-package",
+                "com.example.tenant",
+                "--executor-factory",
+                "viaduct.java.runtime.bootstrap.ViaductJavaExecutorFactory",
+                "--api-name",
+                "java",
+                "--output-dir",
+                outputDir.absolutePath,
+            )
+        )
+        return mapper.readTree(File(outputDir, "META-INF/viaduct/modules/com.example.tenant.json"))
+    }
 
     private fun compileAndReadDescriptors(
         tempDir: File,
@@ -381,6 +590,16 @@ class JavaRegistryExtractorProcessorTest {
     }
 
     private companion object {
+        val BOOTSTRAP_SOURCE = SourceFile(
+            "com.example.tenant.TenantBootstrap",
+            """
+            package com.example.tenant;
+
+            @viaduct.service.api.spi.TenantBootstrapper
+            public final class TenantBootstrap {}
+            """.trimIndent(),
+        )
+
         // Minimal GRT stubs. Real Viaduct API types (FieldResolverBase, annotations, …) are on the
         // test classpath; only the schema-specific GRTs need stubbing to keep the test hermetic.
         val GRT_STUBS = SourceFile(

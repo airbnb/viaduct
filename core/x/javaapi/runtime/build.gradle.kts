@@ -1,13 +1,16 @@
 plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
+    id("feature-app-contracts")
     id("feature-app-contract-tests")
+    `java-test-fixtures`
 }
 
 viaductFeatureAppContracts {
     java {
         contractsFrom(":tenant:runtime")
         contractsFrom(":tenant:tutorials")
+        contractsFrom(":x:javaapi:runtime")
     }
 }
 
@@ -66,4 +69,7 @@ dependencies {
     testImplementation(libs.viaduct.service.wiring)
     testImplementation(testFixtures(libs.viaduct.service.api))
     testImplementation(testFixtures(libs.viaduct.tenant.runtime))
+    testFixturesImplementation(testFixtures(project(":x:javaapi:api")))
+    testFixturesImplementation(testFixtures(libs.viaduct.tenant.api))
+    testFixturesImplementation(testFixtures(libs.viaduct.tenant.runtime))
 }

@@ -5,8 +5,8 @@ import viaduct.apiannotations.StableApi
 /**
  * Marks a class as the bootstrapper for a Viaduct tenant module.
  *
- * Exactly one class per tenant module should carry this annotation. The framework's KSP processor
- * detects it at build time and writes the fully-qualified class name into the tenant's config file
+ * At most one class per tenant module may carry this annotation. The Kotlin KSP and Java annotation
+ * processors detect it at build time and write the class name into the tenant's config file
  * under `META-INF/viaduct/modules/`. At startup, [TenantModuleInjectorFactory.bootstrap] receives
  * this class and uses it to create a per-tenant [CodeInjector].
  *

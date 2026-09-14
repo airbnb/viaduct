@@ -21,4 +21,6 @@ dependencies {
 
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.jackson.databind)
+    testImplementation(libs.clikt.jvm)
+    testImplementation(libs.viaduct.service.api)
 }

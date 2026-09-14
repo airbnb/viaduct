@@ -7,7 +7,6 @@ import javax.annotation.processing.RoundEnvironment
 import javax.annotation.processing.SupportedAnnotationTypes
 import javax.lang.model.SourceVersion
 import javax.lang.model.element.Element
-import javax.lang.model.element.ElementKind
 import javax.lang.model.element.TypeElement
 import javax.tools.Diagnostic
 import javax.tools.StandardLocation
@@ -16,9 +15,11 @@ import viaduct.tenant.codegen.ksp.PerSourceDescriptorFile
 import viaduct.tenant.codegen.ksp.ResolverParams
 import viaduct.tenant.codegen.ksp.ResolverParamsJsonCodec
 
+internal const val TENANT_BOOTSTRAPPER_ANNOTATION_FQN = "viaduct.service.api.spi.TenantBootstrapper"
+
 /**
  * javac annotation processor that emits one registry descriptor JSON per source file containing
- * at least one `@Resolver`-annotated Java class.
+ * a resolver, document, or tenant bootstrap declaration.
  *
  * This is the Java twin of the Kotlin KSP `RegistryExtractorProcessor`. It produces the exact same
  * [PerSourceDescriptorFile] JSON shape (reusing the shared model + codec from `:tenant:codegen`),
@@ -38,12 +39,13 @@ import viaduct.tenant.codegen.ksp.ResolverParamsJsonCodec
  *
  * - Field resolvers (`@ResolverFor` bases) and node resolvers (`@NodeResolverFor` bases) are both
  *   supported.
- * - There is no Java `@TenantBootstrapper` annotation today, so `bootstrapClass` is always null.
+ * - `viaduct.service.api.spi.TenantBootstrapper` supplies the optional tenant bootstrap class.
  */
 @SupportedAnnotationTypes(
     RESOLVER_ANNOTATION_FQN,
     GRAPHQL_FRAGMENT_ANNOTATION_FQN,
     GRAPHQL_OPERATION_ANNOTATION_FQN,
+    TENANT_BOOTSTRAPPER_ANNOTATION_FQN,
 )
 class JavaRegistryExtractorProcessor : AbstractProcessor() {
     private val codec = ResolverParamsJsonCodec()
@@ -60,9 +62,7 @@ class JavaRegistryExtractorProcessor : AbstractProcessor() {
         val resolverExtractor = JavaResolverParamsExtractor(processingEnv, reportError)
         val documentExtractor = JavaDocumentParamsExtractor(processingEnv, reportError)
 
-        // Group all descriptors by their containing top-level source file. Document-only source
-        // files must emit descriptors too, so named fragments and operations reach assembly even
-        // when no resolver happens to share their file.
+        // Documents and bootstrappers must reach assembly even without a resolver in their file.
         val byTopLevel = mutableMapOf<TypeElement, SourceDescriptors>()
 
         for (type in annotatedTypes(roundEnv, RESOLVER_ANNOTATION_FQN)) {
@@ -80,8 +80,23 @@ class JavaRegistryExtractorProcessor : AbstractProcessor() {
             val topLevel = topLevelType(type)
             byTopLevel.getOrPut(topLevel, ::SourceDescriptors).operations.add(extracted)
         }
+        for (type in annotatedTypes(roundEnv, TENANT_BOOTSTRAPPER_ANNOTATION_FQN)) {
+            val topLevel = topLevelType(type)
+            byTopLevel.getOrPut(topLevel, ::SourceDescriptors).bootstrapClasses.add(
+                processingEnv.elementUtils.getBinaryName(type).toString(),
+            )
+        }
 
         for ((topLevel, descriptors) in byTopLevel) {
+            if (descriptors.bootstrapClasses.size > 1) {
+                reportError(
+                    "Each source file may contain at most one @TenantBootstrapper class, " +
+                        "but ${topLevel.qualifiedName} contains ${descriptors.bootstrapClasses.size}: " +
+                        descriptors.bootstrapClasses.sorted().joinToString(),
+                    topLevel,
+                )
+                continue
+            }
             writeDescriptor(topLevel, descriptors)
         }
 
@@ -104,7 +119,7 @@ class JavaRegistryExtractorProcessor : AbstractProcessor() {
             nodes = nodes,
             fields = fields,
             grtPackagePrefix = grtPackagePrefix,
-            bootstrapClass = null,
+            bootstrapClass = descriptors.bootstrapClasses.singleOrNull(),
             namedFragments = descriptors.fragments.map { it.descriptor }.sortedBy { it.text },
             namedOperations = descriptors.operations.sortedBy { it.implFqn },
         )
@@ -132,14 +147,11 @@ class JavaRegistryExtractorProcessor : AbstractProcessor() {
 
     private fun topLevelType(element: TypeElement): TypeElement {
         var current: Element = element
-        while (current.enclosingElement?.kind?.isTypeKind == true) {
+        while (current.enclosingElement is TypeElement) {
             current = current.enclosingElement
         }
         return current as TypeElement
     }
-
-    private val ElementKind.isTypeKind: Boolean
-        get() = this == ElementKind.CLASS || this == ElementKind.INTERFACE || this == ElementKind.ENUM
 
     private fun annotatedTypes(
         roundEnv: RoundEnvironment,
@@ -153,5 +165,6 @@ class JavaRegistryExtractorProcessor : AbstractProcessor() {
         val resolvers: MutableList<ExtractedResolver> = mutableListOf(),
         val fragments: MutableList<ExtractedNamedFragment> = mutableListOf(),
         val operations: MutableList<OperationDescriptor> = mutableListOf(),
+        val bootstrapClasses: MutableList<String> = mutableListOf(),
     )
 }
