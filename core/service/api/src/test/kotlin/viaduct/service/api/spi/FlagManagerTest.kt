@@ -18,6 +18,11 @@ class FlagManagerTest {
     }
 
     @Test
+    fun `FlagManager_default returns false for incremental execution`() {
+        assertFalse(FlagManager.Default.isEnabled(Flags.ENABLE_INCREMENTAL_EXECUTION))
+    }
+
+    @Test
     fun `FlagManager_default disables cache key lookup partitioning`() {
         assertFalse(FlagManager.Default.isEnabled(Flags.ENABLE_CACHE_KEY_LOOKUP_PARTITIONING))
     }

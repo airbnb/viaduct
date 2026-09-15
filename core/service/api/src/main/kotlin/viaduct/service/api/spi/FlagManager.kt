@@ -47,6 +47,9 @@ interface FlagManager {
         /** Enables the Mat-based resolver workflow, which differentially executes resolvers */
         ENABLE_MAT_RESOLUTION("enable_mat_resolution"),
 
+        /** Enables incremental query execution. */
+        ENABLE_INCREMENTAL_EXECUTION("enable_incremental_execution"),
+
         /** Adds field errors for requested fields absent from resolver-produced EngineObjectData. */
         ENABLE_RESOLVER_OUTPUT_MISSING_FIELD_ERRORS("enable_resolver_output_missing_field_errors"),
 
