@@ -16,9 +16,9 @@ import viaduct.graphql.test.assertEquals
  * - Mutation resolver using ctx.query() to fetch Query data
  * - queryValueFragment pattern as an alternative to ctx.query() for simple cases
  * - Nested subquery execution at depth (Level1 → Level2)
- * - ctx.query(selections, variables) with a variables map
+ * - ctx.query(operation, variables) with a variables map
  * - ctx.mutation() result combined with a field argument
- * - ctx.query(selections, variables) from a mutation context
+ * - ctx.query(operation, variables) from a mutation context
  *
  * Extend this class and provide resolver implementations to verify that a given
  * runtime correctly supports these patterns.

@@ -33,7 +33,7 @@ import viaduct.tenant.tutorial15.resolverbases.RunnerResolvers
  *
  * CONCEPTS COVERED:
  * - An operation is declared ONCE as an object, then executed by passing the object itself —
- *   no re-parsing an inline string at every call site (contrast ctx.query("...") in Tutorial 11)
+ *   no re-parsing an inline string at every call site
  * - The operation document is validated against the schema at compile time
  * - Operations may declare variables ($value) and receive them via the variables map
  * - Operations may reuse named fragments from the same module (see Tutorial 14 for fragments)

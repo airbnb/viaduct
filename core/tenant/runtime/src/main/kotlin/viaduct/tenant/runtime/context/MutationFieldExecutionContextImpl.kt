@@ -52,12 +52,6 @@ class MutationFieldExecutionContextImpl<Q : Query, M : Mutation>(
 
     override fun ownedSelections(): SelectionSet<CompositeOutput> = ownedSelectionSet()
 
-    @Deprecated("This API is not supported and will be deleted. Use the GraphQLOperation-based mutation(operation, variables) instead.")
-    override suspend fun mutation(
-        selections: String,
-        variables: Map<String, Any?>
-    ): M = mutation(selectionsFor(mutationType(), selections, variables))
-
     override suspend fun mutation(
         operation: MutationFromAnnotation,
         variables: Map<String, Any?>

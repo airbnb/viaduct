@@ -16,25 +16,6 @@ import viaduct.apiannotations.StableApi
 @StableApi
 interface ResolverExecutionContext<Q : QueryType> : ExecutionContext {
     /**
-     * Loads the provided selections on the root Query type, and returns the response typed as [Q].
-     * This is a convenience method that combines [selectionsFor] and [query].
-     *
-     * Example usage:
-     * ```
-     * val result = ctx.query("{ user { id name } }")
-     * ```
-     *
-     * @param selections The selections to load on the root Query type
-     * @param variables Optional variables to use in the selections
-     * @return The query result typed as [Q]
-     */
-    @Deprecated("This API is not supported and will be deleted. Use the GraphQLOperation-based query(operation, variables) instead.")
-    suspend fun query(
-        selections: @Selections String,
-        variables: Map<String, Any?> = emptyMap()
-    ): Q
-
-    /**
      * Loads the operation declared by a [@GraphQLOperation][viaduct.api.documents.GraphQLOperation]
      * query object on the root Query type, and returns the response typed as [Q].
      *

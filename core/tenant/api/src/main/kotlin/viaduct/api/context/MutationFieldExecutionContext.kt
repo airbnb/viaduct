@@ -1,7 +1,6 @@
 package viaduct.api.context
 
 import viaduct.api.documents.MutationFromAnnotation
-import viaduct.api.documents.Selections
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Mutation
@@ -16,25 +15,6 @@ interface MutationFieldExecutionContext<
     A : Arguments,
     R : CompositeOutput
 > : BaseFieldExecutionContext<Q, A, R> {
-    /**
-     * Loads the provided selections on the root Mutation type, and returns the response typed as [M].
-     * This is a convenience method that combines [selectionsFor] and [mutation].
-     *
-     * Example usage:
-     * ```
-     * val result = ctx.mutation("{ createUser(input: $input) { id name } }")
-     * ```
-     *
-     * @param selections The selections to load on the root Mutation type
-     * @param variables Optional variables to use in the selections
-     * @return The mutation result typed as [M]
-     */
-    @Deprecated("This API is not supported and will be deleted. Use the GraphQLOperation-based mutation(operation, variables) instead.")
-    suspend fun mutation(
-        selections: @Selections String,
-        variables: Map<String, Any?> = emptyMap()
-    ): M
-
     /**
      * Loads the operation declared by a
      * [@GraphQLOperation][viaduct.api.documents.GraphQLOperation] mutation object on the root

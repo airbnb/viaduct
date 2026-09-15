@@ -221,20 +221,6 @@ open class MockResolverExecutionContext<Q : Query>(
     }
 
     @Suppress("UNCHECKED_CAST")
-    @Deprecated("This API is not supported and will be deleted. Use the GraphQLOperation-based query(operation, variables) instead.")
-    override suspend fun query(
-        selections: String,
-        variables: Map<String, Any?>
-    ): Q {
-        val selectionSet = selectionsFor(
-            reflectionLoader.reflectionFor(schema.schema.queryType.name) as Type<Query>,
-            selections,
-            variables
-        )
-        return query(selectionSet) as Q
-    }
-
-    @Suppress("UNCHECKED_CAST")
     @ExperimentalApi
     override suspend fun query(
         operation: QueryFromAnnotation,
@@ -386,16 +372,6 @@ class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, 
     private fun <T : Mutation> mutation(selections: SelectionSet<T>): T {
         @Suppress("UNCHECKED_CAST")
         return mutationResults.get(selections as SelectionSet<Mutation>) as T
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    @Deprecated("This API is not supported and will be deleted. Use the GraphQLOperation-based query(operation, variables) instead.")
-    override suspend fun mutation(
-        selections: String,
-        variables: Map<String, Any?>
-    ): M {
-        val mutationType = reflectionLoader.reflectionFor(schema.schema.mutationType.name) as Type<M>
-        return mutation(selectionsFor(mutationType, selections, variables))
     }
 
     @Suppress("UNCHECKED_CAST")

@@ -28,7 +28,9 @@ import viaduct.apiannotations.ExperimentalApi
  *
  * or in subquery operations:
  * ```kotlin
- * val result = ctx.query("{ viewer { ...UserCoreFields } }")
+ * @GraphQLOperation("query { viewer { ...UserCoreFields } }")
+ * object ViewerQuery : QueryFromAnnotation()
+ * val result = ctx.query(ViewerQuery)
  * ```
  *
  * The subclass must be a Kotlin singleton `object` annotated with [GraphQLFragment].

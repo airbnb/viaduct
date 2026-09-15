@@ -20,7 +20,7 @@ extend type Query {
 type EnrichedGreeting {
   # ctx.query() — fetches data from the Query root at runtime
   message: String @resolver
-  # ctx.query(selections, variables) — passes a computed value as a subquery variable
+  # ctx.query(operation, variables) — passes a computed value as a subquery variable
   doubled(input: Int!): Int @resolver
 }
 

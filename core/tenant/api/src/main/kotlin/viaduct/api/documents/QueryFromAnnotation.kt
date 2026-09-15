@@ -14,7 +14,7 @@ import viaduct.apiannotations.StableApi
  *
  * Execute via `ctx.query`:
  * ```kotlin
- * val result = ctx.query(GetUserQuery.operationText)
+ * val result = ctx.query(GetUserQuery)
  * ```
  *
  * @see GraphQLOperation

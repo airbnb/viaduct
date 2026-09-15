@@ -22,7 +22,7 @@ import viaduct.tenant.tutorial11.resolverbases.QueryResolvers
  * VIADUCT FEATURES DEMONSTRATED:
  * - ctx.query() — imperative subquery against the Query root
  * - ctx.mutation() — submutation from a mutation resolver
- * - ctx.query(selections, variables) — subquery with a variables map
+ * - ctx.query(operation, variables) — subquery with a variables map
  * - Comparison with queryValueFragment in @Resolver
  *
  * CONCEPTS COVERED:
@@ -45,7 +45,7 @@ import viaduct.tenant.tutorial11.resolverbases.QueryResolvers
  * type EnrichedGreeting {
  *   # ctx.query() — fetches data from the Query root at runtime
  *   message: String @resolver
- *   # ctx.query(selections, variables) — passes a computed value as a subquery variable
+ *   # ctx.query(operation, variables) — passes a computed value as a subquery variable
  *   doubled(input: Int!): Int @resolver
  * }
  *
@@ -115,7 +115,7 @@ class SimpleSubqueriesFeatureAppTest : SimpleSubqueriesContractTest() {
     }
 
     /**
-     * USING ctx.query(selections, variables) — subquery with a variables map
+     * USING ctx.query(operation, variables) — subquery with a variables map
      *
      * Note: Subqueries do NOT inherit the parent request's GraphQL variables.
      * Two subqueries with the same selection string but different variables maps

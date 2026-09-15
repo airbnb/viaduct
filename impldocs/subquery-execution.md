@@ -2,7 +2,7 @@
 
 Resolvers sometimes need to ask follow-up questions of the graph.
 
-A tenant resolver might load an object, then need to run an ad-hoc query against that object or the root schema. The naive approach would be to build a new GraphQL-Java execution for each of these "subqueries," but that throws away all of the state the engine already has for the current request.
+A tenant resolver might load an object, then choose a named query operation to fetch more data from the root schema using values it just computed. Starting a new GraphQL-Java execution for each of these "subqueries" would throw away the state the engine already has for the current request.
 
 The selection execution path (`ctx.query()` / `ctx.mutation()`) is the engine's way of doing this without rebuilding everything. It reuses the existing request context through an opaque `ExecutionHandle`, but runs the selection with an isolated root/query result boundary so resolver-driven subqueries do not accidentally share root memoization with the parent query or sibling subqueries.
 
@@ -11,7 +11,7 @@ This document follows a selection execution from the resolver's `ctx.query()` ca
 ## Terminology
 
 - **Selection Execution**: An internal engine call issued from a resolver that runs against the same request and execution state, rather than starting a new GraphQL-Java execution. Sometimes called "subquery" in informal discussion.
-- **Tenant vs Engine**: "Tenant" refers to the generated resolver layer and its types (`Context`, `SelectionSet<Query>`). "Engine" refers to the shared execution core (planning, field resolution, access checks) that powers all tenants.
+- **Tenant vs Engine**: "Tenant" refers to the generated resolver layer and its API types (`Context`, `QueryFromAnnotation`, `MutationFromAnnotation`). "Engine" refers to the shared execution core (planning, field resolution, access checks) that powers all tenants. The tenant runtime uses `SelectionSet<T>` internally to bridge annotated operations to engine selections.
 - **ExecutionHandle**: An opaque reference to the parent request's `ExecutionParameters`. Used to recover engine state when running selection executions.
 - **EngineSelectionSet**: The engine's untyped representation of selections, variables, and fragments—what the planner actually consumes.
 - **GRT objects**: Generated, strongly-typed GraphQL Representational Types (e.g., `Query`, `Mutation`) returned to tenant resolvers.
@@ -23,7 +23,7 @@ Selection execution uses a three-tier API architecture:
 
 | Tier | API | Purpose | Consumers |
 |------|-----|---------|-----------|
-| **Tenant** | `ctx.query(SelectionSet<T>)` / `ctx.mutation(SelectionSet<T>)` | Typed, simple, opinionated | Resolver code |
+| **Kotlin Tenant** | `ctx.query(QueryFromAnnotation, variables)` / `ctx.mutation(MutationFromAnnotation, variables)` | Annotated operations, build-time validation | Resolver code |
 | **Engine API** | `EEC.resolveSelectionSet(selectionSet, options)` | Flexible, configurable, triggers resolution | Advanced tenant runtime integrations, engine internals |
 | **Engine API** | `EEC.completeSelectionSet(selectionSet, arguments, options)` | Complete already-resolved fields | Classic-on-Modern shims path |
 | **Wiring** | `Engine.resolveSelectionSet(handle, selectionSet, options)` | Implementation detail | Only called by EEC |
@@ -39,18 +39,18 @@ This layering provides:
 
 Typical use cases for `ctx.query()` / `ctx.mutation()`:
 
-- Selecting additional fields based on runtime data (e.g., only fetch expensive fields if a previous check passes)
+- Choosing among named operations based on runtime data (e.g., only execute an operation selecting expensive fields if a previous check passes)
 - Fetching fields from related types that aren't part of the current resolver's return type (e.g., loading user details when resolving a reservation)
 - Reusing existing schema logic instead of reimplementing it in tenant code
 
-For declarative, static sibling/root fields known at registration time, prefer `querySelections(...)` instead (see Comparison section).
+For dependencies that can be fetched before the resolver runs, prefer `@Resolver`'s `objectValueFragment` or `queryValueFragment` (represented as required selection sets in the engine). Subqueries still have fixed operation documents; runtime logic chooses which operation to execute and supplies its variables.
 
 ## Overview
 
 ```
 ┌─────────────────────────────────────┐
 │ Step 1: Tenant Resolver             │
-│ ctx.query(selections)               │
+│ ctx.query(operation, variables)     │
 └─────────────────┬───────────────────┘
                   │
                   ▼
@@ -95,9 +95,11 @@ For declarative, static sibling/root fields known at registration time, prefer `
 
 ## Step 1: The Resolver Calls ctx.query()
 
-From a resolver, subquery execution starts with `ctx.query()` or `ctx.mutation()`. The resolver builds a typed `SelectionSet<T>` via `ctx.selectionsFor(type, selectionString, variables)`, then passes it to `ctx.query()`.
+From a Kotlin resolver, subquery execution starts with `ctx.query(operation, variables)` or `ctx.mutation(operation, variables)`. The operation is a singleton `object` annotated with `@GraphQLOperation` that extends `QueryFromAnnotation` or `MutationFromAnnotation`, respectively. Its document is validated against the tenant module's compilation schema at build time.
 
-The selection string is parsed as GraphQL selection syntax (fields, arguments, inline fragments). You can use GraphQL variable syntax like `$var` in the selection string, but the values come from the `variables` map you pass to `selectionsFor`—not from the parent request's variables.
+Runtime-dependent fields are handled by choosing among predefined operation objects, not by constructing GraphQL strings. Variable values come from the map passed to `query()` or `mutation()`, not from the parent request's variables. See the [Kotlin operation examples](../docs/docs/docs/developers/resolvers/graphql_operations.md#runtime-branching).
+
+The public Kotlin execution methods accept neither strings nor `SelectionSet<T>`. `ctx.selectionsFor(...)` remains available for APIs that consume selection sets, but its result cannot be passed to `ctx.query()` or `ctx.mutation()`.
 
 `ctx.mutation()` works the same way but is only available in mutation resolvers — the generated tenant API doesn't expose `mutation()` on query resolver contexts, so attempting to call it is a compile-time error.
 
@@ -107,21 +109,27 @@ Nested subqueries are supported and run within the same parent execution handle.
 
 The `Context` type that resolvers see is generated from the resolver base class. At runtime, these are implementations that extend `ResolverExecutionContextImpl`.
 
-When a resolver calls `ctx.query(selections)`, the call flows through the bridge:
+When a resolver calls `ctx.query(operation, variables)`, the call flows through the bridge:
 
-1. `ResolverExecutionContextImpl.query()` delegates to `EngineExecutionContextWrapperImpl.query()`
-2. The wrapper converts the tenant's `SelectionSet<T>` into an `EngineSelectionSet`
-3. It calls `EngineExecutionContext.resolveSelectionSet(engineSelectionSet, options)`
+1. `ResolverExecutionContextImpl.query()` determines the root Query type and passes it, `operation.operationText`, and the variables to `EngineExecutionContextWrapperImpl.selectionsForOperation()`.
+2. `selectionsForOperation()` normalizes the operation into a fragment document, inlines reachable fragments from the tenant module's `knownFragments`, and normalizes input variable values for the engine. The engine selection-set factory creates an `EngineSelectionSet`, wrapped in a tenant `SelectionSetImpl`.
+3. A private `query(SelectionSet<T>)` helper delegates to the wrapper's `query()`, which unwraps the `EngineSelectionSet` and calls `EngineExecutionContext.resolveSelectionSet(engineSelectionSet, ResolveSelectionSetOptions.DEFAULT)`.
+4. The wrapper converts the returned `EngineObjectData` to a typed Query GRT using `toObjectGRT()`.
 
-This bridge is the only place the tenant runtime touches the engine. It converts:
+`MutationFieldExecutionContextImpl.mutation()` follows the same path with the root Mutation type, a `MutationFromAnnotation` object, and `ResolveSelectionSetOptions.MUTATION`.
 
-- **To engine**: `SelectionSet<Query>` → `EngineSelectionSet` (the `ExecutionHandle` is accessed internally)
+The subquery bridge converts:
+
+- **To engine**: annotated operation + variables → internal `SelectionSet<T>` wrapping an `EngineSelectionSet` (the `ExecutionHandle` is accessed internally)
 - **Back to tenant**: `EngineObjectData` → typed GRT objects (via `toObjectGRT()`)
+
+The lower-level engine selection APIs are unchanged. Their use of `EngineSelectionSet` does not expose string-based execution on Kotlin resolver contexts.
 
 **Key files:**
 
-- `tenant/runtime/.../context/ResolverExecutionContextImpl.kt` — tenant-facing `query()` method
-- `tenant/runtime/.../context/EngineExecutionContextWrapper.kt` — bridge implementation
+- `core/tenant/runtime/.../context/ResolverExecutionContextImpl.kt` — tenant-facing `query()` method
+- `core/tenant/runtime/.../context/MutationFieldExecutionContextImpl.kt` — tenant-facing `mutation()` method
+- `core/tenant/runtime/.../context/EngineExecutionContextWrapper.kt` — operation normalization and bridge implementation
 
 ## Step 3: The Engine API Layer
 
@@ -180,11 +188,11 @@ Subqueries always use `fullSchema`, not `activeSchema`. The active schema can be
 
 ### Variable Scoping
 
-Subqueries do not inherit variables from the parent request. Variables come only from the subquery's own `EngineSelectionSet`, which is derived from the tenant's `SelectionSet<T>`.
+Subqueries do not inherit variables from the parent request. Variables come only from the subquery's own `EngineSelectionSet`, built by the tenant runtime from the annotated operation and the explicit variables map.
 
 This means:
 
-- Two subqueries with identical selection strings but different `variables` maps remain independent
+- Two executions of the same operation object with different `variables` maps remain independent
 - Subquery variables don't leak back to the parent
 - Changes to parent request variables cannot affect subquery behavior
 
@@ -208,7 +216,7 @@ Normal child plans use semantic targets derived from their parent type: `Current
 
 ### Building the QueryPlan
 
-Subqueries don't start from a full GraphQL document—they start from an `EngineSelectionSet` that already contains the parent type, selection AST, fragment definitions, and variables. `QueryPlanFactory.buildFromSelections()` feeds this directly into the plan builder, skipping re-parsing and document construction.
+At the engine planning boundary, subqueries arrive as an `EngineSelectionSet` that already contains the parent type, selection AST, fragment definitions, and variables. The tenant runtime has already converted the annotated operation document into this representation. `QueryPlanFactory.buildFromSelections()` feeds it directly into the plan builder without re-parsing the original operation document.
 
 Plan caching keys on selection text, document key, and schema hash. Variables are not part of the cache key—the plan only depends on field/argument structure, not specific values.
 
@@ -252,12 +260,12 @@ Each `ExecutionParameters` has its own `ErrorAccumulator`, so selection errors f
 
 | Pattern | Use Case | Mechanism |
 |---------|----------|-----------|
-| `querySelections("field")` | Declarative sibling/root fields | Registered as child plans, executed with root query plan |
-| `ctx.query(selections)` | Dynamic selections | Executes via ExecutionHandle |
-| `EEC.resolveSelectionSet(options)` | Advanced use cases | Configurable execution options |
+| `@Resolver(objectValueFragment = ..., queryValueFragment = ...)` | Declarative parent/root dependencies | Registered as child plans, available before the resolver runs |
+| `ctx.query(operation, variables)` / `ctx.mutation(operation, variables)` | Imperative execution, including runtime choice among named operations | Converts annotated operation to engine selections and executes via ExecutionHandle |
+| `EEC.resolveSelectionSet(selectionSet, options)` | Advanced runtime integrations | Configurable execution options |
 | `EEC.completeSelectionSet(...)` | Completing already-resolved fields | No field resolution, just completion |
 
-Use `querySelections` when fields are known at registration time—it's simpler and more efficient. Use `ctx.query()` when selections depend on runtime data. Use `EEC.resolveSelectionSet()` with custom options for advanced tenant runtime integrations.
+Use `@Resolver` fragments for dependencies the engine can fetch and batch before the resolver runs. Use annotated operations with `ctx.query()` / `ctx.mutation()` when runtime logic determines execution, variable values, or which named operation to use. Use `EEC.resolveSelectionSet()` with custom options for advanced tenant runtime integrations, not as a replacement for the removed Kotlin string overloads.
 
 ## resolveSelectionSet vs completeSelectionSet
 

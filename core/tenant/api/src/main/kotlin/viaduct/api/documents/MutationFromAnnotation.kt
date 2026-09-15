@@ -14,7 +14,7 @@ import viaduct.apiannotations.StableApi
  *
  * Execute via `ctx.mutation`:
  * ```kotlin
- * val result = ctx.mutation(SendMessageMutation.operationText, mapOf("input" to inputValue))
+ * val result = ctx.mutation(SendMessageMutation, mapOf("input" to inputValue))
  * ```
  *
  * @see GraphQLOperation
