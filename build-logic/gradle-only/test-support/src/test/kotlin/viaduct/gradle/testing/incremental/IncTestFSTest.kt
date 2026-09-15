@@ -152,7 +152,7 @@ class IncTestFSTest {
     }
 
     @Test
-    fun `toChanges never includes directories`(
+    fun `toChanges includes changed directories`(
         @TempDir root: File
     ) {
         val tree = entries(
@@ -163,6 +163,35 @@ class IncTestFSTest {
                     IncTestFile(
                         "nested",
                         status = ChangeType.ADDED,
+                        files = listOf(
+                            IncTestFile("leaf.json", status = ChangeType.ADDED, files = null),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val fs = IncTestFS(root, tree)
+        val changes = fs.toChanges("sub")
+
+        changes.shouldHaveSize(2)
+        assertEquals("nested", changes[0].file.name)
+        assertEquals(FileType.DIRECTORY, changes[0].fileType)
+        assertEquals("leaf.json", changes[1].file.name)
+        assertEquals(FileType.FILE, changes[1].fileType)
+    }
+
+    @Test
+    fun `toChanges omits unchanged directories`(
+        @TempDir root: File
+    ) {
+        val tree = entries(
+            IncTestFile(
+                "sub",
+                status = null,
+                files = listOf(
+                    IncTestFile(
+                        "nested",
+                        status = null,
                         files = listOf(
                             IncTestFile("leaf.json", status = ChangeType.ADDED, files = null),
                         ),

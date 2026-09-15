@@ -223,11 +223,11 @@ class OutputBuilderTypeCheckerTest {
   void validatesCopiedValuesUsingTheirOriginalEngineType() {
     ObjectBaseTest.TestObject original =
         new ObjectBaseTest.TestObject(
-            null, new ObjectBaseTest.FakeSync(Map.of("name", "tag"), TAG_TYPE));
+            null, ObjectBaseTest.engineData(TAG_TYPE, Map.of("name", "tag")));
     ObjectBase copy = original.copy(Map.of("name", "changed")).copy(Map.of());
     ObjectBase wrongType =
         new ObjectBaseTest.TestObject(
-                null, new ObjectBaseTest.FakeSync(Map.of("name", "item"), ITEM_TYPE))
+                null, ObjectBaseTest.engineData(ITEM_TYPE, Map.of("name", "item")))
             .copy(Map.of());
 
     assertThatCode(
@@ -397,7 +397,7 @@ class OutputBuilderTypeCheckerTest {
 
   private static final class Tag extends ObjectBase implements GraphQLObject {
     private Tag() {
-      super(null, Map.of());
+      super(null, Map.of(), "Tag");
     }
   }
 

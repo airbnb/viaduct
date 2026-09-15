@@ -1,4 +1,4 @@
-public final class viaduct/errors/ErroneousFieldException : java/lang/Exception, viaduct/errors/TenantException {
+public final class viaduct/errors/ErroneousFieldException : java/lang/Exception, viaduct/errors/DataFailureException, viaduct/errors/TenantException {
 	public fun <init> (Ljava/util/List;)V
 	public final fun getFieldErrors ()Ljava/util/List;
 }

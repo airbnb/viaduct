@@ -1,7 +1,9 @@
 package viaduct.x.javaapi.codegen;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import viaduct.tenant.codegen.bytecode.config.AccessorForm;
 
 /** Model representing a GraphQL field for code generation. */
 public record FieldModel(
@@ -92,6 +94,9 @@ public record FieldModel(
     return new FieldModel(
         name, javaType, nullable, false, false, false, false, false, null, null, false, null, null);
   }
+
+  /** Parameter name of the selection alias an alias-aware accessor takes. */
+  static final String ALIAS_PARAM = "alias";
 
   private static final Set<String> JAVA_KEYWORDS =
       Set.of(
@@ -206,6 +211,62 @@ public record FieldModel(
   /** Returns the simple class name of the base type (for composite and enum fields). */
   public String getBaseTypeName() {
     return baseTypeName;
+  }
+
+  /**
+   * Returns every accessor generated for this field: each {@link AccessorForm} in an alias-taking
+   * and an alias-free overload, mirroring the Kotlin GRTs.
+   */
+  public List<AccessorModel> getAccessors() {
+    List<AccessorModel> accessors = new ArrayList<>();
+    for (AccessorForm form : AccessorForm.values()) {
+      accessors.add(accessorFor(form, true));
+      accessors.add(accessorFor(form, false));
+    }
+    return accessors;
+  }
+
+  private AccessorModel accessorFor(AccessorForm form, boolean aliased) {
+    String strictBody = getterExpression(aliased ? ALIAS_PARAM : "null");
+    return new AccessorModel(
+        "",
+        accessorReturnType(form),
+        form.methodName(getGetterName()),
+        accessorParameters(aliased),
+        accessorBody(form, strictBody));
+  }
+
+  private static String accessorBody(AccessorForm form, String strictBody) {
+    return switch (form.getFetchMethod()) {
+      case "getInternal" -> strictBody;
+      case "getOrNullInternal" -> "nullOnDataFailure(() -> " + strictBody + ")";
+      default ->
+          throw new IllegalArgumentException(
+              "Unsupported AccessorForm fetch method: " + form.getFetchMethod());
+    };
+  }
+
+  /** Soft accessors box, since they return null where the strict forms return a primitive. */
+  private String accessorReturnType(AccessorForm form) {
+    return form.getNullable() ? boxedJavaType() : javaType;
+  }
+
+  private String boxedJavaType() {
+    return switch (javaType) {
+      case "boolean" -> "Boolean";
+      case "byte" -> "Byte";
+      case "short" -> "Short";
+      case "int" -> "Integer";
+      case "long" -> "Long";
+      case "float" -> "Float";
+      case "double" -> "Double";
+      case "char" -> "Character";
+      default -> javaType;
+    };
+  }
+
+  private String accessorParameters(boolean aliased) {
+    return aliased ? "String " + ALIAS_PARAM : "";
   }
 
   /** Returns whether generated builders should pass a generated type token for this field. */
@@ -333,45 +394,57 @@ public record FieldModel(
   }
 
   /**
-   * Returns the expression used to read this field from an ObjectBase. Both ordinary and connection
-   * object templates consume this so their generated getters cannot drift.
+   * Returns the expression that reads this field from an ObjectBase under {@code aliasExpr}, which
+   * is either the accessor's alias parameter or the literal {@code null}.
    */
-  public String getGetterExpression() {
-    String fieldName = "\"" + name + "\"";
+  private String getterExpression(String aliasExpr) {
+    String selection = "\"" + name + "\", " + aliasExpr;
     if (getGlobalIDList()) {
-      return "fetchGlobalIDList(" + fieldName + ")";
+      return "fetchGlobalIDList(" + selection + ")";
     }
     if (globalIDType) {
-      return "fetchGlobalID(" + fieldName + ")";
+      return "fetchGlobalID(" + selection + ")";
     }
     if (getAbstractList()) {
-      return "fetchAbstractObjectList(" + fieldName + ", " + baseTypeName + ".class)";
+      return "fetchAbstractObjectList(" + selection + ", " + baseTypeName + ".class)";
     }
     if (abstractType) {
-      return "fetchAbstractObject(" + fieldName + ", " + baseTypeName + ".class)";
+      return "fetchAbstractObject(" + selection + ", " + baseTypeName + ".class)";
     }
     if (getCompositeList()) {
-      return "fetchObjectList(" + fieldName + ", " + baseTypeName + "::new)";
+      return "fetchObjectList("
+          + selection
+          + ", "
+          + baseTypeName
+          + ".class, "
+          + baseTypeName
+          + "::new)";
     }
     if (compositeType) {
-      return "fetchObject(" + fieldName + ", " + baseTypeName + "::new)";
+      return "fetchObject("
+          + selection
+          + ", "
+          + baseTypeName
+          + ".class, "
+          + baseTypeName
+          + "::new)";
     }
     if (getEnumList()) {
-      return "fetchEnumList(" + fieldName + ", " + baseTypeName + ".class)";
+      return "fetchEnumList(" + selection + ", " + baseTypeName + ".class)";
     }
     if (enumType) {
-      return "fetchEnum(" + fieldName + ", " + baseTypeName + ".class)";
+      return "fetchEnum(" + selection + ", " + baseTypeName + ".class)";
     }
     if (getTemporalScalarList()) {
-      return "fetchScalarList(" + fieldName + ", \"" + getScalarCoercionHint() + "\")";
+      return "fetchScalarList(" + selection + ", \"" + getScalarCoercionHint() + "\")";
     }
     if (getTemporalScalar()) {
-      return "fetchScalar(" + fieldName + ", \"" + getScalarCoercionHint() + "\")";
+      return "fetchScalar(" + selection + ", \"" + getScalarCoercionHint() + "\")";
     }
     if (getScalarList()) {
-      return "fetchScalarList(" + fieldName + ")";
+      return "fetchScalarList(" + selection + ")";
     }
-    return "fetchScalar(" + fieldName + ")";
+    return "fetchScalar(" + selection + ")";
   }
 
   /**

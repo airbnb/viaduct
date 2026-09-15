@@ -25,9 +25,24 @@ public abstract class NodeObjectBase extends ObjectBase implements NodeObject {
 
   protected NodeObjectBase(
       @Nullable InternalContext __context,
+      Map<String, Object> data,
+      @Nullable String graphQLTypeName) {
+    super(__context, data, graphQLTypeName);
+  }
+
+  protected NodeObjectBase(
+      @Nullable InternalContext __context,
       @Nullable ObjectBase baseObject,
       Map<String, Object> data) {
     super(__context, baseObject, data);
+  }
+
+  protected NodeObjectBase(
+      @Nullable InternalContext __context,
+      @Nullable ObjectBase baseObject,
+      Map<String, Object> data,
+      @Nullable String graphQLTypeName) {
+    super(__context, baseObject, data, graphQLTypeName);
   }
 
   protected NodeObjectBase(@Nullable InternalContext __context, NodeReference nodeReference) {

@@ -31,25 +31,25 @@ public final class GeneratedGRTs {
 
 final class Tag extends ObjectBase implements GraphQLObject {
   Tag() {
-    super(null, Map.of());
+    super(null, Map.of(), "Tag");
   }
 }
 
 final class Item extends ObjectBase implements GraphQLObject {
   Item() {
-    super(null, Map.of());
+    super(null, Map.of(), "Item");
   }
 }
 
 final class Other extends ObjectBase implements GraphQLObject {
   Other() {
-    super(null, Map.of());
+    super(null, Map.of(), "Other");
   }
 }
 
 final class Stale extends ObjectBase implements GraphQLObject {
   Stale() {
-    super(null, Map.of());
+    super(null, Map.of(), "Stale");
   }
 }
 

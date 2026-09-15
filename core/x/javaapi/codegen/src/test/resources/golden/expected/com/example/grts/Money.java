@@ -46,28 +46,62 @@ public class Money extends ObjectBase implements SearchHit {
 
     @SuppressWarnings("UnusedMethod")
     private Money(InternalContext context, Map<String, Object> data) {
-        super(context, data);
+        super(context, data, "Money");
     }
 
     private Money(InternalContext context, ObjectBase base, Map<String, Object> data) {
-        super(context, base, data);
+        super(context, base, data, "Money");
     }
 
     public Money(InternalContext context, RootFieldReference rootFieldReference) {
         super(context, rootFieldReference);
     }
-        public double getAmountOrThrow() {
-            return fetchScalar("amount");
+        public double getAmountOrThrow(String alias) {
+            return fetchScalar("amount", alias);
         }
+
+        public double getAmountOrThrow() {
+            return fetchScalar("amount", null);
+        }
+
+        public double getAmount(String alias) {
+            return fetchScalar("amount", alias);
+        }
+
         public double getAmount() {
-            return fetchScalar("amount");
+            return fetchScalar("amount", null);
+        }
+
+        public Double getAmountOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("amount", alias));
+        }
+
+        public Double getAmountOrNull() {
+            return nullOnDataFailure(() -> fetchScalar("amount", null));
+        }
+
+        public String getCurrencyOrThrow(String alias) {
+            return fetchScalar("currency", alias);
         }
 
         public String getCurrencyOrThrow() {
-            return fetchScalar("currency");
+            return fetchScalar("currency", null);
         }
+
+        public String getCurrency(String alias) {
+            return fetchScalar("currency", alias);
+        }
+
         public String getCurrency() {
-            return fetchScalar("currency");
+            return fetchScalar("currency", null);
+        }
+
+        public String getCurrencyOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("currency", alias));
+        }
+
+        public String getCurrencyOrNull() {
+            return nullOnDataFailure(() -> fetchScalar("currency", null));
         }
 
 

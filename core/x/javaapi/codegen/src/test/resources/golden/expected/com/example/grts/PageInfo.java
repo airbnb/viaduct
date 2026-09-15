@@ -51,42 +51,110 @@ public class PageInfo extends ObjectBase {
 
     @SuppressWarnings("UnusedMethod")
     private PageInfo(InternalContext context, Map<String, Object> data) {
-        super(context, data);
+        super(context, data, "PageInfo");
     }
 
     private PageInfo(InternalContext context, ObjectBase base, Map<String, Object> data) {
-        super(context, base, data);
+        super(context, base, data, "PageInfo");
     }
 
     public PageInfo(InternalContext context, RootFieldReference rootFieldReference) {
         super(context, rootFieldReference);
     }
-        public boolean getHasNextPageOrThrow() {
-            return fetchScalar("hasNextPage");
+        public boolean getHasNextPageOrThrow(String alias) {
+            return fetchScalar("hasNextPage", alias);
         }
+
+        public boolean getHasNextPageOrThrow() {
+            return fetchScalar("hasNextPage", null);
+        }
+
+        public boolean getHasNextPage(String alias) {
+            return fetchScalar("hasNextPage", alias);
+        }
+
         public boolean getHasNextPage() {
-            return fetchScalar("hasNextPage");
+            return fetchScalar("hasNextPage", null);
+        }
+
+        public Boolean getHasNextPageOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("hasNextPage", alias));
+        }
+
+        public Boolean getHasNextPageOrNull() {
+            return nullOnDataFailure(() -> fetchScalar("hasNextPage", null));
+        }
+
+        public boolean getHasPreviousPageOrThrow(String alias) {
+            return fetchScalar("hasPreviousPage", alias);
         }
 
         public boolean getHasPreviousPageOrThrow() {
-            return fetchScalar("hasPreviousPage");
+            return fetchScalar("hasPreviousPage", null);
         }
+
+        public boolean getHasPreviousPage(String alias) {
+            return fetchScalar("hasPreviousPage", alias);
+        }
+
         public boolean getHasPreviousPage() {
-            return fetchScalar("hasPreviousPage");
+            return fetchScalar("hasPreviousPage", null);
+        }
+
+        public Boolean getHasPreviousPageOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("hasPreviousPage", alias));
+        }
+
+        public Boolean getHasPreviousPageOrNull() {
+            return nullOnDataFailure(() -> fetchScalar("hasPreviousPage", null));
+        }
+
+        public String getStartCursorOrThrow(String alias) {
+            return fetchScalar("startCursor", alias);
         }
 
         public String getStartCursorOrThrow() {
-            return fetchScalar("startCursor");
+            return fetchScalar("startCursor", null);
         }
+
+        public String getStartCursor(String alias) {
+            return fetchScalar("startCursor", alias);
+        }
+
         public String getStartCursor() {
-            return fetchScalar("startCursor");
+            return fetchScalar("startCursor", null);
+        }
+
+        public String getStartCursorOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("startCursor", alias));
+        }
+
+        public String getStartCursorOrNull() {
+            return nullOnDataFailure(() -> fetchScalar("startCursor", null));
+        }
+
+        public String getEndCursorOrThrow(String alias) {
+            return fetchScalar("endCursor", alias);
         }
 
         public String getEndCursorOrThrow() {
-            return fetchScalar("endCursor");
+            return fetchScalar("endCursor", null);
         }
+
+        public String getEndCursor(String alias) {
+            return fetchScalar("endCursor", alias);
+        }
+
         public String getEndCursor() {
-            return fetchScalar("endCursor");
+            return fetchScalar("endCursor", null);
+        }
+
+        public String getEndCursorOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("endCursor", alias));
+        }
+
+        public String getEndCursorOrNull() {
+            return nullOnDataFailure(() -> fetchScalar("endCursor", null));
         }
 
 

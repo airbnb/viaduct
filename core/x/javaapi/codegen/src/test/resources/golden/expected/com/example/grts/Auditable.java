@@ -36,16 +36,29 @@ public interface Auditable extends NodeCompositeOutput, Node, Timestamped {
 
     }
 
-        GlobalID<? extends Auditable> getIdOrThrow();
-        GlobalID<? extends Auditable> getId();
-
-        String getCreatedAtOrThrow();
-        String getCreatedAt();
-
-        String getUpdatedAtOrThrow();
-        String getUpdatedAt();
-
-        List<String> getAuditTrailOrThrow();
-        List<String> getAuditTrail();
+    GlobalID<? extends Auditable> getIdOrThrow(String alias);
+    GlobalID<? extends Auditable> getIdOrThrow();
+    GlobalID<? extends Auditable> getId(String alias);
+    GlobalID<? extends Auditable> getId();
+    GlobalID<? extends Auditable> getIdOrNull(String alias);
+    GlobalID<? extends Auditable> getIdOrNull();
+    String getCreatedAtOrThrow(String alias);
+    String getCreatedAtOrThrow();
+    String getCreatedAt(String alias);
+    String getCreatedAt();
+    String getCreatedAtOrNull(String alias);
+    String getCreatedAtOrNull();
+    String getUpdatedAtOrThrow(String alias);
+    String getUpdatedAtOrThrow();
+    String getUpdatedAt(String alias);
+    String getUpdatedAt();
+    String getUpdatedAtOrNull(String alias);
+    String getUpdatedAtOrNull();
+    List<String> getAuditTrailOrThrow(String alias);
+    List<String> getAuditTrailOrThrow();
+    List<String> getAuditTrail(String alias);
+    List<String> getAuditTrail();
+    List<String> getAuditTrailOrNull(String alias);
+    List<String> getAuditTrailOrNull();
 
 }

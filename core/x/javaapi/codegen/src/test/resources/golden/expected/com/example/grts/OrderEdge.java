@@ -46,28 +46,62 @@ public class OrderEdge extends ObjectBase implements viaduct.java.api.types.Edge
 
     @SuppressWarnings("UnusedMethod")
     private OrderEdge(InternalContext context, Map<String, Object> data) {
-        super(context, data);
+        super(context, data, "OrderEdge");
     }
 
     private OrderEdge(InternalContext context, ObjectBase base, Map<String, Object> data) {
-        super(context, base, data);
+        super(context, base, data, "OrderEdge");
     }
 
     public OrderEdge(InternalContext context, RootFieldReference rootFieldReference) {
         super(context, rootFieldReference);
     }
-        public String getCursorOrThrow() {
-            return fetchScalar("cursor");
+        public String getCursorOrThrow(String alias) {
+            return fetchScalar("cursor", alias);
         }
+
+        public String getCursorOrThrow() {
+            return fetchScalar("cursor", null);
+        }
+
+        public String getCursor(String alias) {
+            return fetchScalar("cursor", alias);
+        }
+
         public String getCursor() {
-            return fetchScalar("cursor");
+            return fetchScalar("cursor", null);
+        }
+
+        public String getCursorOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("cursor", alias));
+        }
+
+        public String getCursorOrNull() {
+            return nullOnDataFailure(() -> fetchScalar("cursor", null));
+        }
+
+        public Order getNodeOrThrow(String alias) {
+            return fetchObject("node", alias, Order.class, Order::new);
         }
 
         public Order getNodeOrThrow() {
-            return fetchObject("node", Order::new);
+            return fetchObject("node", null, Order.class, Order::new);
         }
+
+        public Order getNode(String alias) {
+            return fetchObject("node", alias, Order.class, Order::new);
+        }
+
         public Order getNode() {
-            return fetchObject("node", Order::new);
+            return fetchObject("node", null, Order.class, Order::new);
+        }
+
+        public Order getNodeOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchObject("node", alias, Order.class, Order::new));
+        }
+
+        public Order getNodeOrNull() {
+            return nullOnDataFailure(() -> fetchObject("node", null, Order.class, Order::new));
         }
 
 

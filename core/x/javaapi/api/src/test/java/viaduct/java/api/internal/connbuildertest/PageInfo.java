@@ -16,14 +16,14 @@ final class PageInfo extends ObjectBase {
   }
 
   PageInfo(@Nullable InternalContext ctx, Map<String, Object> data) {
-    super(ctx, data);
+    super(ctx, data, "PageInfo");
   }
 
   String startCursor() {
-    return fetchScalar("startCursor");
+    return fetchScalar("startCursor", null);
   }
 
   String endCursor() {
-    return fetchScalar("endCursor");
+    return fetchScalar("endCursor", null);
   }
 }

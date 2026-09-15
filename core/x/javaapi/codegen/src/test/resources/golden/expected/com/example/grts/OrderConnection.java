@@ -49,36 +49,87 @@ public class OrderConnection extends ObjectBase implements viaduct.java.api.type
 
     @SuppressWarnings("UnusedMethod")
     private OrderConnection(InternalContext context, Map<String, Object> data) {
-        super(context, data);
+        super(context, data, "OrderConnection");
     }
 
     private OrderConnection(InternalContext context, ObjectBase base, Map<String, Object> data) {
-        super(context, base, data);
+        super(context, base, data, "OrderConnection");
     }
 
     public OrderConnection(InternalContext context, RootFieldReference rootFieldReference) {
         super(context, rootFieldReference);
     }
 
-        public List<OrderEdge> getEdgesOrThrow() {
-            return fetchObjectList("edges", OrderEdge::new);
+        public List<OrderEdge> getEdgesOrThrow(String alias) {
+            return fetchObjectList("edges", alias, OrderEdge.class, OrderEdge::new);
         }
+
+        public List<OrderEdge> getEdgesOrThrow() {
+            return fetchObjectList("edges", null, OrderEdge.class, OrderEdge::new);
+        }
+
+        public List<OrderEdge> getEdges(String alias) {
+            return fetchObjectList("edges", alias, OrderEdge.class, OrderEdge::new);
+        }
+
         public List<OrderEdge> getEdges() {
-            return fetchObjectList("edges", OrderEdge::new);
+            return fetchObjectList("edges", null, OrderEdge.class, OrderEdge::new);
+        }
+
+        public List<OrderEdge> getEdgesOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchObjectList("edges", alias, OrderEdge.class, OrderEdge::new));
+        }
+
+        public List<OrderEdge> getEdgesOrNull() {
+            return nullOnDataFailure(() -> fetchObjectList("edges", null, OrderEdge.class, OrderEdge::new));
+        }
+
+        public PageInfo getPageInfoOrThrow(String alias) {
+            return fetchObject("pageInfo", alias, PageInfo.class, PageInfo::new);
         }
 
         public PageInfo getPageInfoOrThrow() {
-            return fetchObject("pageInfo", PageInfo::new);
+            return fetchObject("pageInfo", null, PageInfo.class, PageInfo::new);
         }
+
+        public PageInfo getPageInfo(String alias) {
+            return fetchObject("pageInfo", alias, PageInfo.class, PageInfo::new);
+        }
+
         public PageInfo getPageInfo() {
-            return fetchObject("pageInfo", PageInfo::new);
+            return fetchObject("pageInfo", null, PageInfo.class, PageInfo::new);
+        }
+
+        public PageInfo getPageInfoOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchObject("pageInfo", alias, PageInfo.class, PageInfo::new));
+        }
+
+        public PageInfo getPageInfoOrNull() {
+            return nullOnDataFailure(() -> fetchObject("pageInfo", null, PageInfo.class, PageInfo::new));
+        }
+
+        public Integer getTotalCountOrThrow(String alias) {
+            return fetchScalar("totalCount", alias);
         }
 
         public Integer getTotalCountOrThrow() {
-            return fetchScalar("totalCount");
+            return fetchScalar("totalCount", null);
         }
+
+        public Integer getTotalCount(String alias) {
+            return fetchScalar("totalCount", alias);
+        }
+
         public Integer getTotalCount() {
-            return fetchScalar("totalCount");
+            return fetchScalar("totalCount", null);
+        }
+
+        public Integer getTotalCountOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("totalCount", alias));
+        }
+
+        public Integer getTotalCountOrNull() {
+            return nullOnDataFailure(() -> fetchScalar("totalCount", null));
         }
 
 

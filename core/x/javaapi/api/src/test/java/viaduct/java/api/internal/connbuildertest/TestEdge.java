@@ -14,6 +14,6 @@ final class TestEdge extends ObjectBase implements Edge<TestNode> {
   }
 
   TestEdge(@Nullable InternalContext ctx, Map<String, Object> data) {
-    super(ctx, data);
+    super(ctx, data, "TestEdge");
   }
 }

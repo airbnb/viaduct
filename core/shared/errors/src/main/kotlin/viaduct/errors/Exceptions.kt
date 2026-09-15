@@ -20,6 +20,10 @@ interface PassthroughException
 @InternalApi
 interface TenantException
 
+/** Marker for failures produced while resolving or materializing field data. */
+@InternalApi
+interface DataFailureException
+
 /**
  * Used in the tenant API and dependencies to indicate that an error is due to framework code
  * and shouldn't be attributed to tenant code.
@@ -51,7 +55,7 @@ open class TenantUsageException(
 class TenantResolverException(
     override val cause: Throwable,
     val resolver: String,
-) : Exception(cause), PassthroughException {
+) : Exception(cause), PassthroughException, DataFailureException {
     // The call chain of resolvers, e.g. "User.fullName > User.firstName" means
     // User.fullName's resolver called User.firstName's resolver which threw an exception
     val resolversCallChain: String by lazy {
@@ -86,7 +90,7 @@ data class FieldError(
 @OptIn(InternalApi::class)
 class ErroneousFieldException(
     val fieldErrors: List<FieldError>,
-) : Exception(), TenantException
+) : Exception(), TenantException, DataFailureException
 
 /**
  * Throws [TenantUsageException] if [value] is null, otherwise returns [value].
@@ -118,6 +122,20 @@ fun <T> handleFrameworkErrors(
     }
 }
 
+/** Framework attribution for generated accessors, where cancellation must remain cancellation. */
+@InternalApi
+@Suppress("Detekt.TooGenericExceptionCaught")
+fun <T> handleAccessorErrors(
+    message: String,
+    block: () -> T,
+): T =
+    try {
+        handleFrameworkErrors(message, block)
+    } catch (e: Exception) {
+        cancellationInPassthroughChain(e)?.let { throw it }
+        throw e
+    }
+
 /**
  * Same as [handleFrameworkErrors] but for suspend functions.
  */
@@ -135,6 +153,52 @@ suspend fun <T> handleFrameworkErrorsSuspend(
         if (e is PassthroughException || e is TenantException) throw e
         throw FrameworkException("$message ($e)", e)
     }
+}
+
+/**
+ * Runs [block] and turns data-side failures (upstream resolver errors, stored field errors) into
+ * `null`. Tenant bugs, framework bugs, and coroutine cancellation propagate.
+ *
+ * This is the behavior of the soft-failing `getXxxOrNull()` GRT accessors, shared by the Kotlin
+ * and Java tenant APIs so the two cannot drift.
+ */
+@InternalApi
+@OptIn(InternalApi::class)
+fun <T> nullOnDataFailure(block: () -> T): T? {
+    @Suppress("Detekt.TooGenericExceptionCaught")
+    return try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: TenantUsageException) {
+        throw e
+    } catch (e: Exception) {
+        cancellationInPassthroughChain(e)?.let { throw it }
+        if (hasDataFailureInPassthroughChain(e)) null else throw e
+    }
+}
+
+@OptIn(InternalApi::class)
+private fun cancellationInPassthroughChain(exception: Exception): CancellationException? {
+    var current: Throwable? = exception
+    while (current != null) {
+        if (current is CancellationException) return current
+        if (current !is PassthroughException) return null
+        current = current.cause
+    }
+    return null
+}
+
+@OptIn(InternalApi::class)
+private fun hasDataFailureInPassthroughChain(exception: Exception): Boolean {
+    var current: Throwable? = exception
+    while (current != null) {
+        if (current is TenantUsageException) return false
+        if (current is DataFailureException || current is TenantException) return true
+        if (current !is PassthroughException) return false
+        current = current.cause
+    }
+    return false
 }
 
 /**

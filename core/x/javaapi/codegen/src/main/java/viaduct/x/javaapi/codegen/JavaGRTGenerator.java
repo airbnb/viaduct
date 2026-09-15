@@ -2,12 +2,14 @@ package viaduct.x.javaapi.codegen;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import viaduct.codegen.GeneratedAccessorNames;
 import viaduct.codegen.st.STContents;
 import viaduct.codegen.st.STUtilsKt;
+import viaduct.tenant.codegen.bytecode.config.AccessorForm;
 
 /**
  * Combined generator for all Java GRT (GraphQL Representational Types) source files. Contains all
@@ -47,10 +49,11 @@ public final class JavaGRTGenerator {
       """;
 
   /**
-   * The suffixes appended to a field's accessor name on generated object and interface types.
-   * Unlike the Kotlin GRTs, the Java GRTs have no {@code OrNull} accessor.
+   * The suffixes appended to a field's accessor name on generated object and interface types, taken
+   * from the same {@link AccessorForm} the Kotlin GRTs use so the two cannot disagree.
    */
-  static final List<String> FIELD_ACCESSOR_SUFFIXES = List.of("OrThrow", "");
+  static final List<String> FIELD_ACCESSOR_SUFFIXES =
+      Arrays.stream(AccessorForm.values()).map(AccessorForm::getSuffix).toList();
 
   private JavaGRTGenerator() {
     // Static utility class
@@ -265,11 +268,11 @@ public final class JavaGRTGenerator {
 
                 @SuppressWarnings("UnusedMethod")
                 private <mdl.className>(InternalContext context, Map\\<String, Object> data) {
-                    super(context, data);
+                    super(context, data, "<mdl.className>");
                 }
 
                 private <mdl.className>(InternalContext context, ObjectBase base, Map\\<String, Object> data) {
-                    super(context, base, data);
+                    super(context, base, data, "<mdl.className>");
                 }
 
                 public <mdl.className>(InternalContext context, RootFieldReference rootFieldReference) {
@@ -282,15 +285,11 @@ public final class JavaGRTGenerator {
                 \\}
                 <endif>
 
-                <mdl.fields: {f |
-                public <f.javaType> <f.getterName>OrThrow() {
-                    return <f.getterExpression>;
+                <mdl.accessors: {a |
+                public <a.typeParameters><a.returnType> <a.methodName>(<a.parameters>) {
+                    return <a.body>;
                 \\}
-                public <f.javaType> <f.getterName>() {
-                    return <f.getterExpression>;
-                \\}
-                }; separator="
-            ">
+                }; separator="\\n">
 
                 public Builder toBuilder() {
                     return new Builder(__context(), toBuilderBase());
@@ -398,26 +397,22 @@ public final class JavaGRTGenerator {
 
                 @SuppressWarnings("UnusedMethod")
                 private <mdl.className>(InternalContext context, Map\\<String, Object> data) {
-                    super(context, data);
+                    super(context, data, "<mdl.className>");
                 }
 
                 private <mdl.className>(InternalContext context, ObjectBase base, Map\\<String, Object> data) {
-                    super(context, base, data);
+                    super(context, base, data, "<mdl.className>");
                 }
 
                 public <mdl.className>(InternalContext context, RootFieldReference rootFieldReference) {
                     super(context, rootFieldReference);
                 }
 
-                <mdl.fields: {f |
-                public <f.javaType> <f.getterName>OrThrow() {
-                    return <f.getterExpression>;
+                <mdl.accessors: {a |
+                public <a.typeParameters><a.returnType> <a.methodName>(<a.parameters>) {
+                    return <a.body>;
                 \\}
-                public <f.javaType> <f.getterName>() {
-                    return <f.getterExpression>;
-                \\}
-                }; separator="
-            ">
+                }; separator="\\n">
 
                 public Builder toBuilder() {
                     return new Builder(__context(), toBuilderBase());
@@ -723,10 +718,9 @@ public final class JavaGRTGenerator {
                     }; separator="\\n">
                 }
 
-                <mdl.fields: {f |
-                <f.javaType> <f.getterName>OrThrow();
-                <f.javaType> <f.getterName>();
-                }; separator="\\n">
+                <mdl.accessors: {a |
+                <a.typeParameters><a.returnType> <a.methodName>(<a.parameters>);
+                }>
             }
             """);
 

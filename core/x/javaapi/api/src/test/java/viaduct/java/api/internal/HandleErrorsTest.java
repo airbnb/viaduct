@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.concurrent.CancellationException;
 import org.junit.jupiter.api.Test;
 import viaduct.errors.FrameworkException;
 import viaduct.errors.HandleErrors;
@@ -67,6 +68,23 @@ class HandleErrorsTest {
     assertTrue(e.getMessage().contains("myOp"));
     assertTrue(e.getMessage().contains("boom"));
     assertEquals(boom, e.getCause());
+  }
+
+  @Test
+  void accessor_propagatesCancellationWithoutChangingTheGlobalFrameworkBoundary() {
+    CancellationException cancellation = new CancellationException("cancelled");
+
+    CancellationException e =
+        assertThrows(
+            CancellationException.class,
+            () ->
+                HandleErrors.accessor(
+                    "accessor",
+                    () -> {
+                      throw cancellation;
+                    }));
+
+    assertSame(cancellation, e);
   }
 
   // ── tenant() ──────────────────────────────────────────────────────────────────

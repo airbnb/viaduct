@@ -16,9 +16,7 @@ import org.junit.jupiter.api.Test;
  * Regression tests for the accessor-name collision check on the Java GRT generator.
  *
  * <p>Without the check the generator emits both accessors and javac rejects the file for a
- * duplicate method the schema author never wrote. The Java GRTs have no {@code OrNull} accessor, so
- * a {@code bar}/{@code barOrNull} pair generates cleanly here while the Kotlin generators must
- * reject it.
+ * duplicate method the schema author never wrote.
  */
 class AccessorNameCollisionTest {
 
@@ -118,10 +116,7 @@ class AccessorNameCollisionTest {
     assertTrue(generated.contains("public String getFooOrThrow()"), generated);
   }
 
-  /**
-   * The suffix list is maintained by hand, since the Java GRTs emit no soft accessor and so cannot
-   * derive it from {@code AccessorForm}. This asserts it agrees with what the templates emit.
-   */
+  /** The suffix list comes from {@code AccessorForm}; this pins it to what the templates emit. */
   @Test
   void emittedAccessorNamesMatchTheSuffixListTheCheckUses() {
     ObjectModel model = objectWith(List.of(FieldModel.simple("foo", "String", true)));
@@ -142,16 +137,19 @@ class AccessorNameCollisionTest {
   }
 
   @Test
-  void softSuffixPairIsGeneratedBecauseJavaHasNoSoftAccessor() {
+  void fieldCollidingWithSoftAccessorIsRejected() {
     ObjectModel model =
         objectWith(
             List.of(
                 FieldModel.simple("bar", "String", true),
                 FieldModel.simple("barOrNull", "String", true)));
 
-    String generated = assertDoesNotThrow(() -> JavaGRTGenerator.ObjectGenerator.generate(model));
+    IllegalArgumentException error =
+        assertThrows(
+            IllegalArgumentException.class, () -> JavaGRTGenerator.ObjectGenerator.generate(model));
 
-    assertTrue(generated.contains("public String getBarOrThrow()"), generated);
-    assertTrue(generated.contains("public String getBarOrNullOrThrow()"), generated);
+    assertTrue(
+        error.getMessage().contains("fields `bar` and `barOrNull` both generate `getBarOrNull`"),
+        error.getMessage());
   }
 }

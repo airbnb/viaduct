@@ -61,11 +61,11 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
 
     @SuppressWarnings("UnusedMethod")
     private Order(InternalContext context, Map<String, Object> data) {
-        super(context, data);
+        super(context, data, "Order");
     }
 
     private Order(InternalContext context, ObjectBase base, Map<String, Object> data) {
-        super(context, base, data);
+        super(context, base, data, "Order");
     }
 
     public Order(InternalContext context, RootFieldReference rootFieldReference) {
@@ -76,53 +76,172 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
         super(context, nodeReference);
     }
 
-        public GlobalID<Order> getIdOrThrow() {
-            return fetchGlobalID("id");
+        public GlobalID<Order> getIdOrThrow(String alias) {
+            return fetchGlobalID("id", alias);
         }
+
+        public GlobalID<Order> getIdOrThrow() {
+            return fetchGlobalID("id", null);
+        }
+
+        public GlobalID<Order> getId(String alias) {
+            return fetchGlobalID("id", alias);
+        }
+
         public GlobalID<Order> getId() {
-            return fetchGlobalID("id");
+            return fetchGlobalID("id", null);
+        }
+
+        public GlobalID<Order> getIdOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchGlobalID("id", alias));
+        }
+
+        public GlobalID<Order> getIdOrNull() {
+            return nullOnDataFailure(() -> fetchGlobalID("id", null));
+        }
+
+        public OrderStatus getStatusOrThrow(String alias) {
+            return fetchEnum("status", alias, OrderStatus.class);
         }
 
         public OrderStatus getStatusOrThrow() {
-            return fetchEnum("status", OrderStatus.class);
+            return fetchEnum("status", null, OrderStatus.class);
         }
+
+        public OrderStatus getStatus(String alias) {
+            return fetchEnum("status", alias, OrderStatus.class);
+        }
+
         public OrderStatus getStatus() {
-            return fetchEnum("status", OrderStatus.class);
+            return fetchEnum("status", null, OrderStatus.class);
+        }
+
+        public OrderStatus getStatusOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchEnum("status", alias, OrderStatus.class));
+        }
+
+        public OrderStatus getStatusOrNull() {
+            return nullOnDataFailure(() -> fetchEnum("status", null, OrderStatus.class));
+        }
+
+        public Money getTotalOrThrow(String alias) {
+            return fetchObject("total", alias, Money.class, Money::new);
         }
 
         public Money getTotalOrThrow() {
-            return fetchObject("total", Money::new);
+            return fetchObject("total", null, Money.class, Money::new);
         }
+
+        public Money getTotal(String alias) {
+            return fetchObject("total", alias, Money.class, Money::new);
+        }
+
         public Money getTotal() {
-            return fetchObject("total", Money::new);
+            return fetchObject("total", null, Money.class, Money::new);
+        }
+
+        public Money getTotalOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchObject("total", alias, Money.class, Money::new));
+        }
+
+        public Money getTotalOrNull() {
+            return nullOnDataFailure(() -> fetchObject("total", null, Money.class, Money::new));
+        }
+
+        public String getCreatedAtOrThrow(String alias) {
+            return fetchScalar("createdAt", alias);
         }
 
         public String getCreatedAtOrThrow() {
-            return fetchScalar("createdAt");
+            return fetchScalar("createdAt", null);
         }
+
+        public String getCreatedAt(String alias) {
+            return fetchScalar("createdAt", alias);
+        }
+
         public String getCreatedAt() {
-            return fetchScalar("createdAt");
+            return fetchScalar("createdAt", null);
+        }
+
+        public String getCreatedAtOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("createdAt", alias));
+        }
+
+        public String getCreatedAtOrNull() {
+            return nullOnDataFailure(() -> fetchScalar("createdAt", null));
+        }
+
+        public String getUpdatedAtOrThrow(String alias) {
+            return fetchScalar("updatedAt", alias);
         }
 
         public String getUpdatedAtOrThrow() {
-            return fetchScalar("updatedAt");
+            return fetchScalar("updatedAt", null);
         }
+
+        public String getUpdatedAt(String alias) {
+            return fetchScalar("updatedAt", alias);
+        }
+
         public String getUpdatedAt() {
-            return fetchScalar("updatedAt");
+            return fetchScalar("updatedAt", null);
+        }
+
+        public String getUpdatedAtOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("updatedAt", alias));
+        }
+
+        public String getUpdatedAtOrNull() {
+            return nullOnDataFailure(() -> fetchScalar("updatedAt", null));
+        }
+
+        public List<String> getAuditTrailOrThrow(String alias) {
+            return fetchScalarList("auditTrail", alias);
         }
 
         public List<String> getAuditTrailOrThrow() {
-            return fetchScalarList("auditTrail");
+            return fetchScalarList("auditTrail", null);
         }
+
+        public List<String> getAuditTrail(String alias) {
+            return fetchScalarList("auditTrail", alias);
+        }
+
         public List<String> getAuditTrail() {
-            return fetchScalarList("auditTrail");
+            return fetchScalarList("auditTrail", null);
+        }
+
+        public List<String> getAuditTrailOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchScalarList("auditTrail", alias));
+        }
+
+        public List<String> getAuditTrailOrNull() {
+            return nullOnDataFailure(() -> fetchScalarList("auditTrail", null));
+        }
+
+        public User getBuyerOrThrow(String alias) {
+            return fetchObject("buyer", alias, User.class, User::new);
         }
 
         public User getBuyerOrThrow() {
-            return fetchObject("buyer", User::new);
+            return fetchObject("buyer", null, User.class, User::new);
         }
+
+        public User getBuyer(String alias) {
+            return fetchObject("buyer", alias, User.class, User::new);
+        }
+
         public User getBuyer() {
-            return fetchObject("buyer", User::new);
+            return fetchObject("buyer", null, User.class, User::new);
+        }
+
+        public User getBuyerOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchObject("buyer", alias, User.class, User::new));
+        }
+
+        public User getBuyerOrNull() {
+            return nullOnDataFailure(() -> fetchObject("buyer", null, User.class, User::new));
         }
 
 

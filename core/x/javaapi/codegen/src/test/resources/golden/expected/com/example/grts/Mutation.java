@@ -43,21 +43,38 @@ public class Mutation extends ObjectBase implements viaduct.java.api.types.Mutat
 
     @SuppressWarnings("UnusedMethod")
     private Mutation(InternalContext context, Map<String, Object> data) {
-        super(context, data);
+        super(context, data, "Mutation");
     }
 
     private Mutation(InternalContext context, ObjectBase base, Map<String, Object> data) {
-        super(context, base, data);
+        super(context, base, data, "Mutation");
     }
 
     public Mutation(InternalContext context, RootFieldReference rootFieldReference) {
         super(context, rootFieldReference);
     }
-        public Order getCreateOrderOrThrow() {
-            return fetchObject("createOrder", Order::new);
+        public Order getCreateOrderOrThrow(String alias) {
+            return fetchObject("createOrder", alias, Order.class, Order::new);
         }
+
+        public Order getCreateOrderOrThrow() {
+            return fetchObject("createOrder", null, Order.class, Order::new);
+        }
+
+        public Order getCreateOrder(String alias) {
+            return fetchObject("createOrder", alias, Order.class, Order::new);
+        }
+
         public Order getCreateOrder() {
-            return fetchObject("createOrder", Order::new);
+            return fetchObject("createOrder", null, Order.class, Order::new);
+        }
+
+        public Order getCreateOrderOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchObject("createOrder", alias, Order.class, Order::new));
+        }
+
+        public Order getCreateOrderOrNull() {
+            return nullOnDataFailure(() -> fetchObject("createOrder", null, Order.class, Order::new));
         }
 
 

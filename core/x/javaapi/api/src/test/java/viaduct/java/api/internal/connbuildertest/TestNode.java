@@ -8,6 +8,6 @@ import viaduct.java.api.internal.ObjectBase;
 /** Minimal node test GRT. */
 final class TestNode extends ObjectBase {
   TestNode(@Nullable InternalContext ctx, Map<String, Object> data) {
-    super(ctx, data);
+    super(ctx, data, "TestNode");
   }
 }

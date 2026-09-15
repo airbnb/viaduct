@@ -26,6 +26,13 @@ object HandleErrors {
         block: Callable<T>
     ): T = handleFrameworkErrors(message) { block.call() }
 
+    /** Framework attribution for generated accessors, where cancellation must remain cancellation. */
+    @JvmStatic
+    fun <T> accessor(
+        message: String,
+        block: Callable<T>
+    ): T = handleAccessorErrors(message) { block.call() }
+
     /**
      * Wraps Java-side calls into tenant-written code. Delegates to the Kotlin top-level
      * [handleTenantErrors]: [PassthroughException] passes through unchanged; anything else
@@ -36,4 +43,12 @@ object HandleErrors {
         opName: String,
         block: Callable<T>
     ): T = handleTenantErrors(opName) { block.call() }
+
+    /**
+     * Java-friendly entry point to [nullOnDataFailure]: data-side failures become `null`, while
+     * tenant bugs, framework bugs, and cancellation propagate. Named differently from the Kotlin
+     * top-level function so that calls to the latter from within this object stay unambiguous.
+     */
+    @JvmStatic
+    fun <T> dataFailureToNull(block: Callable<T>): T? = nullOnDataFailure { block.call() }
 }

@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.mocks.createSchema
 import viaduct.errors.UnsetFieldException
+import viaduct.errors.handleFrameworkErrors
+import viaduct.errors.nullOnDataFailure
 
 class SyncProxyEngineObjectDataTest {
     private val schema = createSchema(
@@ -160,6 +162,20 @@ class SyncProxyEngineObjectDataTest {
             eod.get("x")
         }
         assertSame(storedException, thrown)
+    }
+
+    @Test
+    fun `soft accessor handling returns null for stored field errors`() {
+        val eod = SyncProxyEngineObjectData(
+            obj,
+            mapOf("x" to FieldErrorsException(emptyList()))
+        )
+
+        val result = nullOnDataFailure {
+            handleFrameworkErrors("Obj.x") { eod.get("x") }
+        }
+
+        assertNull(result)
     }
 
     @Test

@@ -312,7 +312,7 @@ public abstract class ConnectionBuilder<C extends Connection<E, N>, E extends Ed
    * edges — the latter of which would NPE if we assumed the builder's map representation.
    */
   private String cursorOf(E edge) {
-    String cursor = ((ObjectBase) edge).fetchScalar("cursor");
+    String cursor = ((ObjectBase) edge).fetchScalar("cursor", null);
     if (cursor == null) {
       throw new IllegalArgumentException("Edge is missing its required 'cursor' field: " + edge);
     }

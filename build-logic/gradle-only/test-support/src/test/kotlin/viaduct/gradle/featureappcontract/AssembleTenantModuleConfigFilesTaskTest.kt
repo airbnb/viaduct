@@ -2,6 +2,10 @@ package viaduct.gradle.featureappcontract
 
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import java.io.File
+import org.gradle.testkit.runner.GradleRunner
+import org.gradle.testkit.runner.TaskOutcome
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import viaduct.gradle.featureappcontract.AssembleTenantModuleConfigFilesTask.Companion.processChanges
@@ -272,12 +276,30 @@ class AssembleTenantModuleConfigFilesTaskTest {
                     schema(E)
                     desc("d1", E)
                 }
-                module("newmod") {
+                module("newmod", A) {
                     schema(A)
                     desc("d1", A)
                 }
                 expect {
                     assembled("newmod")
+                }
+            },
+            root,
+        )
+    }
+
+    @Test
+    fun `module whose directories are removed triggers delete`(
+        @TempDir root: File
+    ) {
+        run(
+            assemblyTestCase {
+                module("gone", R) {
+                    schema(R)
+                    desc("d1", R)
+                }
+                expect {
+                    deleted("gone")
                 }
             },
             root,
@@ -340,5 +362,103 @@ class AssembleTenantModuleConfigFilesTaskTest {
             },
             root,
         )
+    }
+
+    @Test
+    fun `Gradle reports leaf file changes when package directories are added and removed`(
+        @TempDir projectDir: File
+    ) {
+        projectDir.resolve("settings.gradle.kts").writeText("rootProject.name = \"incremental-probe\"")
+        projectDir.resolve("build.gradle.kts").writeText(
+            """
+            import org.gradle.api.DefaultTask
+            import org.gradle.api.file.DirectoryProperty
+            import org.gradle.api.file.RegularFileProperty
+            import org.gradle.api.tasks.Incremental
+            import org.gradle.api.tasks.InputDirectory
+            import org.gradle.api.tasks.InputFiles
+            import org.gradle.api.tasks.Optional
+            import org.gradle.api.tasks.OutputFile
+            import org.gradle.api.tasks.PathSensitive
+            import org.gradle.api.tasks.PathSensitivity
+            import org.gradle.api.tasks.TaskAction
+            import org.gradle.work.InputChanges
+
+            abstract class ObserveChanges : DefaultTask() {
+                @get:Incremental
+                @get:InputFiles
+                @get:Optional
+                @get:PathSensitive(PathSensitivity.RELATIVE)
+                abstract val descriptors: DirectoryProperty
+
+                @get:Incremental
+                @get:InputDirectory
+                @get:Optional
+                @get:PathSensitive(PathSensitivity.RELATIVE)
+                abstract val schemas: DirectoryProperty
+
+                @get:OutputFile
+                abstract val report: RegularFileProperty
+
+                @TaskAction
+                fun observe(inputChanges: InputChanges) {
+                    val changes = buildList {
+                        add("incremental=" + inputChanges.isIncremental)
+                        inputChanges.getFileChanges(descriptors).forEach {
+                            add("descriptor:" + it.changeType + ":" + it.fileType + ":" + it.normalizedPath)
+                        }
+                        inputChanges.getFileChanges(schemas).forEach {
+                            add("schema:" + it.changeType + ":" + it.fileType + ":" + it.normalizedPath)
+                        }
+                    }
+                    report.get().asFile.writeText(changes.joinToString("\\n"))
+                }
+            }
+
+            tasks.register<ObserveChanges>("observe") {
+                descriptors.set(layout.projectDirectory.dir("descriptors"))
+                schemas.set(layout.projectDirectory.dir("schemas"))
+                report.set(layout.buildDirectory.file("changes.txt"))
+            }
+            """.trimIndent()
+        )
+
+        projectDir.resolve("descriptors/gone/Old.json").apply {
+            parentFile.mkdirs()
+            writeText("{}")
+        }
+        projectDir.resolve("schemas/gone/schema.graphql").apply {
+            parentFile.mkdirs()
+            writeText("type Query")
+        }
+
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("observe", "--stacktrace")
+            .build()
+
+        projectDir.resolve("descriptors/gone").deleteRecursively()
+        projectDir.resolve("schemas/gone").deleteRecursively()
+        projectDir.resolve("descriptors/added/New.json").apply {
+            parentFile.mkdirs()
+            writeText("{}")
+        }
+        projectDir.resolve("schemas/added/schema.graphql").apply {
+            parentFile.mkdirs()
+            writeText("type Query")
+        }
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("observe", "--stacktrace")
+            .build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":observe")?.outcome)
+        val changes = projectDir.resolve("build/changes.txt").readLines()
+        assertTrue("incremental=true" in changes)
+        assertTrue("descriptor:REMOVED:FILE:gone/Old.json" in changes)
+        assertTrue("schema:REMOVED:FILE:gone/schema.graphql" in changes)
+        assertTrue("descriptor:ADDED:FILE:added/New.json" in changes)
+        assertTrue("schema:ADDED:FILE:added/schema.graphql" in changes)
     }
 }

@@ -13,7 +13,6 @@ import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.coroutines.cancellation.CancellationException
 import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 import viaduct.api.globalid.GlobalID
@@ -28,10 +27,11 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.RootFieldReference
 import viaduct.errors.FrameworkException
-import viaduct.errors.TenantException
 import viaduct.errors.TenantUsageException
 import viaduct.errors.UnsetFieldException
+import viaduct.errors.handleAccessorErrors
 import viaduct.errors.handleFrameworkErrors
+import viaduct.errors.nullOnDataFailure
 
 /**
  * Base class for object type GRTs.
@@ -59,7 +59,7 @@ abstract class ObjectBase(
         baseFieldTypeClass: KClass<*>,
         alias: String? = null
     ): T =
-        handleFrameworkErrors("${__engineObject.type.name}.$fieldName") {
+        handleAccessorErrors("${__engineObject.type.name}.$fieldName") {
             get(fieldName, baseFieldTypeClass, alias)
         }
 
@@ -82,23 +82,6 @@ abstract class ObjectBase(
         baseFieldTypeClass: KClass<*>,
         alias: String? = null
     ): T? = nullOnDataFailure { get(fieldName, baseFieldTypeClass, alias) }
-
-    /**
-     * Runs [block] and turns data-side failures (upstream resolver errors, stored field errors)
-     * into `null`. Tenant bugs, framework bugs, and coroutine cancellation propagate.
-     */
-    private inline fun <T> nullOnDataFailure(block: () -> T): T? =
-        try {
-            block()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: TenantUsageException) {
-            throw e
-        } catch (e: FrameworkException) {
-            throw e
-        } catch (e: Exception) {
-            if (e is TenantException) null else throw e
-        }
 
     /**
      * Fetches the given selection from the EngineObjectData and wraps it into a typed GRT or

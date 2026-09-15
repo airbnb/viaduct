@@ -185,9 +185,8 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
             val affectedPackages = mutableSetOf<String>()
 
             for (change in descriptorChanges) {
-                require(change.fileType == FileType.FILE) {
-                    "Unexpected directory in descriptor input: ${change.file.relativeTo(descriptorRoot).path}"
-                }
+                // Gradle reports the package directory itself when a contract appears or disappears.
+                if (change.fileType == FileType.DIRECTORY) continue
                 val relPath = change.file.relativeTo(descriptorRoot).path
                 require(change.file.extension == "json") {
                     "Unexpected non-JSON file in descriptor directory: $relPath"
@@ -200,10 +199,7 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
             }
 
             for (change in schemaChanges) {
-                require(change.fileType == FileType.FILE) {
-                    "Unexpected directory in contract schema input: " +
-                        change.file.relativeTo(schemasDir).path
-                }
+                if (change.fileType == FileType.DIRECTORY) continue
                 require(change.file.name == "schema.graphql") {
                     "Unexpected file in contract schema directory: " +
                         "${change.file.relativeTo(schemasDir).path} " +

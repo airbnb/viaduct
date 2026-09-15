@@ -44,6 +44,15 @@ public record InterfaceModel(
     return reflectedFields;
   }
 
+  /**
+   * Every accessor this interface declares, flattened across its fields. Flat rather than nested so
+   * the template loops over it once: StringTemplate re-indents the body of a nested sub-template
+   * loop.
+   */
+  public List<AccessorModel> getAccessors() {
+    return fields.stream().flatMap(field -> field.getAccessors().stream()).toList();
+  }
+
   public String getDescription() {
     return description;
   }

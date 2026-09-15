@@ -32,7 +32,7 @@ internal val R: ChangeType = ChangeType.REMOVED
  *         desc("d1", E)
  *         desc("d2", R)
  *     }
- *     module("mod2") {
+ *     module("mod2", A) {
  *         schema(A)
  *         desc("d1", A)
  *     }
@@ -53,11 +53,13 @@ internal class AssemblyTestCaseBuilder {
     private val modules = mutableListOf<ModuleSpec>()
     private var expectation: ExpectationSpec? = null
 
+    /** [status] is the change applied to the module's own descriptor and schema directories. */
     fun module(
         name: String,
+        status: ChangeType? = null,
         block: ModuleBuilder.() -> Unit
     ) {
-        val builder = ModuleBuilder(name)
+        val builder = ModuleBuilder(name, status)
         builder.block()
         modules.add(builder.build())
     }
@@ -76,7 +78,7 @@ internal class AssemblyTestCaseBuilder {
     }
 }
 
-internal class ModuleBuilder(private val name: String) {
+internal class ModuleBuilder(private val name: String, private val status: ChangeType?) {
     private var schemaStatus: ChangeType? = null
     private var schemaSet = false
     private val descriptors = mutableListOf<DescriptorSpec>()
@@ -95,7 +97,7 @@ internal class ModuleBuilder(private val name: String) {
 
     fun build(): ModuleSpec {
         require(schemaSet) { "schema() must be called for module '$name'" }
-        return ModuleSpec(name, schemaStatus, descriptors)
+        return ModuleSpec(name, status, schemaStatus, descriptors)
     }
 }
 
@@ -121,6 +123,7 @@ internal data class DescriptorSpec(val name: String, val status: ChangeType?)
 
 internal data class ModuleSpec(
     val name: String,
+    val status: ChangeType?,
     val schemaStatus: ChangeType?,
     val descriptors: List<DescriptorSpec>,
 )
@@ -149,7 +152,7 @@ internal data class AssemblyTestCase(
         val descriptorChildren = modules.map { mod ->
             IncTestFile(
                 name = mod.name,
-                status = null,
+                status = mod.status,
                 files = mod.descriptors.map { desc ->
                     IncTestFile("${desc.name}.json", status = desc.status, files = null)
                 },
@@ -159,7 +162,7 @@ internal data class AssemblyTestCase(
         val schemaChildren = modules.map { mod ->
             IncTestFile(
                 name = mod.name,
-                status = null,
+                status = mod.status,
                 files = listOf(
                     IncTestFile("schema.graphql", status = mod.schemaStatus, files = null),
                 ),

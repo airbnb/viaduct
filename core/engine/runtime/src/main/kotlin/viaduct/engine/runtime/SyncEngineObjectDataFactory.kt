@@ -9,6 +9,7 @@ import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentatio
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 import viaduct.engine.runtime.result.ObjectEngineResult
+import viaduct.errors.DataFailureException
 
 /**
  * Factory for creating [SyncProxyEngineObjectData] by eagerly resolving all selections
@@ -320,4 +321,6 @@ object SyncEngineObjectDataFactory {
     }
 }
 
-class FieldErrorsException(val graphQLErrors: List<graphql.GraphQLError>) : RuntimeException()
+class FieldErrorsException(
+    val graphQLErrors: List<graphql.GraphQLError>
+) : RuntimeException(), DataFailureException

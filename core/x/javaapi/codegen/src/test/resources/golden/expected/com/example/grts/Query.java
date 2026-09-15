@@ -177,70 +177,206 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
 
     @SuppressWarnings("UnusedMethod")
     private Query(InternalContext context, Map<String, Object> data) {
-        super(context, data);
+        super(context, data, "Query");
     }
 
     private Query(InternalContext context, ObjectBase base, Map<String, Object> data) {
-        super(context, base, data);
+        super(context, base, data, "Query");
     }
 
     public Query(InternalContext context, RootFieldReference rootFieldReference) {
         super(context, rootFieldReference);
     }
-        public Order getOrderOrThrow() {
-            return fetchObject("order", Order::new);
+        public Order getOrderOrThrow(String alias) {
+            return fetchObject("order", alias, Order.class, Order::new);
         }
+
+        public Order getOrderOrThrow() {
+            return fetchObject("order", null, Order.class, Order::new);
+        }
+
+        public Order getOrder(String alias) {
+            return fetchObject("order", alias, Order.class, Order::new);
+        }
+
         public Order getOrder() {
-            return fetchObject("order", Order::new);
+            return fetchObject("order", null, Order.class, Order::new);
+        }
+
+        public Order getOrderOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchObject("order", alias, Order.class, Order::new));
+        }
+
+        public Order getOrderOrNull() {
+            return nullOnDataFailure(() -> fetchObject("order", null, Order.class, Order::new));
+        }
+
+        public User getTopUserOrThrow(String alias) {
+            return fetchObject("topUser", alias, User.class, User::new);
         }
 
         public User getTopUserOrThrow() {
-            return fetchObject("topUser", User::new);
+            return fetchObject("topUser", null, User.class, User::new);
         }
+
+        public User getTopUser(String alias) {
+            return fetchObject("topUser", alias, User.class, User::new);
+        }
+
         public User getTopUser() {
-            return fetchObject("topUser", User::new);
+            return fetchObject("topUser", null, User.class, User::new);
+        }
+
+        public User getTopUserOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchObject("topUser", alias, User.class, User::new));
+        }
+
+        public User getTopUserOrNull() {
+            return nullOnDataFailure(() -> fetchObject("topUser", null, User.class, User::new));
+        }
+
+        public List<Order> getPopularOrdersOrThrow(String alias) {
+            return fetchObjectList("popularOrders", alias, Order.class, Order::new);
         }
 
         public List<Order> getPopularOrdersOrThrow() {
-            return fetchObjectList("popularOrders", Order::new);
+            return fetchObjectList("popularOrders", null, Order.class, Order::new);
         }
+
+        public List<Order> getPopularOrders(String alias) {
+            return fetchObjectList("popularOrders", alias, Order.class, Order::new);
+        }
+
         public List<Order> getPopularOrders() {
-            return fetchObjectList("popularOrders", Order::new);
+            return fetchObjectList("popularOrders", null, Order.class, Order::new);
+        }
+
+        public List<Order> getPopularOrdersOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchObjectList("popularOrders", alias, Order.class, Order::new));
+        }
+
+        public List<Order> getPopularOrdersOrNull() {
+            return nullOnDataFailure(() -> fetchObjectList("popularOrders", null, Order.class, Order::new));
+        }
+
+        public List<User> getTrendingUsersOrThrow(String alias) {
+            return fetchObjectList("trendingUsers", alias, User.class, User::new);
         }
 
         public List<User> getTrendingUsersOrThrow() {
-            return fetchObjectList("trendingUsers", User::new);
+            return fetchObjectList("trendingUsers", null, User.class, User::new);
         }
+
+        public List<User> getTrendingUsers(String alias) {
+            return fetchObjectList("trendingUsers", alias, User.class, User::new);
+        }
+
         public List<User> getTrendingUsers() {
-            return fetchObjectList("trendingUsers", User::new);
+            return fetchObjectList("trendingUsers", null, User.class, User::new);
+        }
+
+        public List<User> getTrendingUsersOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchObjectList("trendingUsers", alias, User.class, User::new));
+        }
+
+        public List<User> getTrendingUsersOrNull() {
+            return nullOnDataFailure(() -> fetchObjectList("trendingUsers", null, User.class, User::new));
+        }
+
+        public OrderConnection getOrdersConnectionOrThrow(String alias) {
+            return fetchObject("ordersConnection", alias, OrderConnection.class, OrderConnection::new);
         }
 
         public OrderConnection getOrdersConnectionOrThrow() {
-            return fetchObject("ordersConnection", OrderConnection::new);
+            return fetchObject("ordersConnection", null, OrderConnection.class, OrderConnection::new);
         }
+
+        public OrderConnection getOrdersConnection(String alias) {
+            return fetchObject("ordersConnection", alias, OrderConnection.class, OrderConnection::new);
+        }
+
         public OrderConnection getOrdersConnection() {
-            return fetchObject("ordersConnection", OrderConnection::new);
+            return fetchObject("ordersConnection", null, OrderConnection.class, OrderConnection::new);
+        }
+
+        public OrderConnection getOrdersConnectionOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchObject("ordersConnection", alias, OrderConnection.class, OrderConnection::new));
+        }
+
+        public OrderConnection getOrdersConnectionOrNull() {
+            return nullOnDataFailure(() -> fetchObject("ordersConnection", null, OrderConnection.class, OrderConnection::new));
+        }
+
+        public Order getLookupOrderOrThrow(String alias) {
+            return fetchObject("lookupOrder", alias, Order.class, Order::new);
         }
 
         public Order getLookupOrderOrThrow() {
-            return fetchObject("lookupOrder", Order::new);
+            return fetchObject("lookupOrder", null, Order.class, Order::new);
         }
+
+        public Order getLookupOrder(String alias) {
+            return fetchObject("lookupOrder", alias, Order.class, Order::new);
+        }
+
         public Order getLookupOrder() {
-            return fetchObject("lookupOrder", Order::new);
+            return fetchObject("lookupOrder", null, Order.class, Order::new);
+        }
+
+        public Order getLookupOrderOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchObject("lookupOrder", alias, Order.class, Order::new));
+        }
+
+        public Order getLookupOrderOrNull() {
+            return nullOnDataFailure(() -> fetchObject("lookupOrder", null, Order.class, Order::new));
+        }
+
+        public Node getNodeOrThrow(String alias) {
+            return fetchAbstractObject("node", alias, Node.class);
         }
 
         public Node getNodeOrThrow() {
-            return fetchAbstractObject("node", Node.class);
+            return fetchAbstractObject("node", null, Node.class);
         }
+
+        public Node getNode(String alias) {
+            return fetchAbstractObject("node", alias, Node.class);
+        }
+
         public Node getNode() {
-            return fetchAbstractObject("node", Node.class);
+            return fetchAbstractObject("node", null, Node.class);
+        }
+
+        public Node getNodeOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchAbstractObject("node", alias, Node.class));
+        }
+
+        public Node getNodeOrNull() {
+            return nullOnDataFailure(() -> fetchAbstractObject("node", null, Node.class));
+        }
+
+        public List<Node> getNodesOrThrow(String alias) {
+            return fetchAbstractObjectList("nodes", alias, Node.class);
         }
 
         public List<Node> getNodesOrThrow() {
-            return fetchAbstractObjectList("nodes", Node.class);
+            return fetchAbstractObjectList("nodes", null, Node.class);
         }
+
+        public List<Node> getNodes(String alias) {
+            return fetchAbstractObjectList("nodes", alias, Node.class);
+        }
+
         public List<Node> getNodes() {
-            return fetchAbstractObjectList("nodes", Node.class);
+            return fetchAbstractObjectList("nodes", null, Node.class);
+        }
+
+        public List<Node> getNodesOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchAbstractObjectList("nodes", alias, Node.class));
+        }
+
+        public List<Node> getNodesOrNull() {
+            return nullOnDataFailure(() -> fetchAbstractObjectList("nodes", null, Node.class));
         }
 
 

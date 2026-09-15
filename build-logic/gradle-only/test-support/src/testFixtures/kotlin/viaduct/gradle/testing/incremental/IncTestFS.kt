@@ -62,7 +62,8 @@ class IncTestFS(
     }
 
     /**
-     * Recursively collects [FileChange] entries for leaf nodes with non-null status.
+     * Recursively collects [FileChange] entries for nodes with non-null status, mirroring
+     * Gradle: a changed directory is reported alongside the changes to its contents.
      * [dir] is the resolved directory node; [dirPath] is its on-disk location.
      */
     private fun collectChildren(
@@ -74,17 +75,18 @@ class IncTestFS(
         val children = dir.files ?: return
         for (child in children) {
             val childPath = File(dirPath, child.name)
-            if (child.files != null) {
-                collectChildren(child, subtreeRoot, childPath, out)
-            } else if (child.status != null) {
+            if (child.status != null) {
                 out.add(
                     TestFileChange(
                         file = childPath,
                         changeType = child.status,
                         normalizedPath = normalizedPath(childPath, subtreeRoot),
-                        fileType = FileType.FILE,
+                        fileType = if (child.files != null) FileType.DIRECTORY else FileType.FILE,
                     ),
                 )
+            }
+            if (child.files != null) {
+                collectChildren(child, subtreeRoot, childPath, out)
             }
         }
     }

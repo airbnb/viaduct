@@ -30,11 +30,21 @@ class ObjectGeneratorTest {
     assertTrue(generated.contains("public class User extends ObjectBase"));
     assertTrue(!generated.contains("implements GraphQLObject"));
     assertTrue(generated.contains("public String getIdOrThrow()"));
-    assertTrue(generated.contains("return fetchScalar(\"id\")"));
+    assertTrue(generated.contains("return fetchScalar(\"id\", null)"));
     // Delegating instead would let a subclass declaring getIdOrThrow() change what getId() returns.
     assertTrue(generated.contains("public String getId()"));
     assertTrue(!generated.contains("return getIdOrThrow();"));
-    assertEquals(2, countOccurrences(generated, "return fetchScalar(\"id\");"));
+    // getFoo() is LEGACY_STRICT: same body as getFooOrThrow() while call sites migrate.
+    assertEquals(2, countOccurrences(generated, "return fetchScalar(\"id\", null);"));
+    assertTrue(generated.contains("public String getIdOrNull()"));
+    assertTrue(
+        generated.contains("return nullOnDataFailure(() -> fetchScalar(\"id\", null));"),
+        generated);
+    // Every form has an alias-taking overload for reads of aliased selections.
+    assertTrue(generated.contains("public String getIdOrThrow(String alias)"));
+    assertTrue(generated.contains("public String getId(String alias)"));
+    assertTrue(generated.contains("public String getIdOrNull(String alias)"));
+    assertEquals(2, countOccurrences(generated, "return fetchScalar(\"id\", alias);"));
     assertTrue(!generated.contains("private String id;"));
     assertTrue(!generated.contains("public void setId("));
     assertTrue(generated.contains("public static Builder builder(ExecutionContext context)"));
@@ -100,13 +110,15 @@ class ObjectGeneratorTest {
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
     assertTrue(generated.contains("public User getHostOrThrow()"));
-    assertTrue(generated.contains("return fetchObject(\"host\", User::new)"));
+    assertTrue(generated.contains("return fetchObject(\"host\", null, User.class, User::new)"));
     assertTrue(generated.contains("public List<String> getAmenitiesOrThrow()"));
-    assertTrue(generated.contains("return fetchScalar(\"amenities\")"));
+    assertTrue(generated.contains("return fetchScalar(\"amenities\", null)"));
     assertTrue(generated.contains("public double getPricePerNightOrThrow()"));
     assertTrue(generated.contains("public User getHost()"));
     assertTrue(generated.contains("public List<String> getAmenities()"));
     assertTrue(generated.contains("public double getPricePerNight()"));
+    // The soft form boxes, since a primitive cannot carry the null it returns on data failure.
+    assertTrue(generated.contains("public Double getPricePerNightOrNull()"));
   }
 
   @Test
@@ -126,7 +138,7 @@ class ObjectGeneratorTest {
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
     assertTrue(generated.contains("public List<String> getTags()"));
-    assertTrue(generated.contains("return fetchScalarList(\"tags\")"));
+    assertTrue(generated.contains("return fetchScalarList(\"tags\", null)"));
   }
 
   @Test
@@ -147,9 +159,10 @@ class ObjectGeneratorTest {
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
     assertTrue(generated.contains("public List<Book> getBooks()"));
-    assertTrue(generated.contains("return fetchObjectList(\"books\", Book::new)"));
+    assertTrue(
+        generated.contains("return fetchObjectList(\"books\", null, Book.class, Book::new)"));
     assertTrue(generated.contains("public List<Tag> getTags()"));
-    assertTrue(generated.contains("return fetchEnumList(\"tags\", Tag.class)"));
+    assertTrue(generated.contains("return fetchEnumList(\"tags\", null, Tag.class)"));
   }
 
   @Test
@@ -188,12 +201,14 @@ class ObjectGeneratorTest {
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
     assertTrue(generated.contains("public Node getTopNode()"));
-    assertTrue(generated.contains("return fetchAbstractObject(\"topNode\", Node.class)"));
+    assertTrue(generated.contains("return fetchAbstractObject(\"topNode\", null, Node.class)"));
     assertTrue(generated.contains("public SearchResult getTopResult()"));
-    assertTrue(generated.contains("return fetchAbstractObject(\"topResult\", SearchResult.class)"));
+    assertTrue(
+        generated.contains("return fetchAbstractObject(\"topResult\", null, SearchResult.class)"));
     assertTrue(generated.contains("public List<SearchResult> getAllResults()"));
     assertTrue(
-        generated.contains("return fetchAbstractObjectList(\"allResults\", SearchResult.class)"));
+        generated.contains(
+            "return fetchAbstractObjectList(\"allResults\", null, SearchResult.class)"));
   }
 
   @Test
@@ -276,7 +291,7 @@ class ObjectGeneratorTest {
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
     String normalized = normalizeWhitespace(generated);
 
-    assertTrue(generated.contains("return fetchEnum(\"status\", PostStatus.class)"));
+    assertTrue(generated.contains("return fetchEnum(\"status\", null, PostStatus.class)"));
     assertTrue(normalized.contains("putField( \"status\", status, PostStatus.class);"));
   }
 
@@ -345,15 +360,19 @@ class ObjectGeneratorTest {
 
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
-    assertTrue(generated.contains("return fetchEnumList(\"statusHistory\", PostStatus.class)"));
-    assertTrue(generated.contains("return fetchAbstractObject(\"metadata\", Metadata.class)"));
     assertTrue(
-        generated.contains("return fetchAbstractObjectList(\"metadataHistory\", Metadata.class)"));
-    assertTrue(generated.contains("return fetchScalarList(\"labels\")"));
-    assertTrue(generated.contains("return fetchScalar(\"publishedAt\", \"DateTime\")"));
-    assertTrue(generated.contains("return fetchScalarList(\"publishedHistory\", \"DateTime\")"));
-    assertTrue(generated.contains("return fetchGlobalID(\"ownerID\")"));
-    assertTrue(generated.contains("return fetchGlobalIDList(\"ownerIDs\")"));
+        generated.contains("return fetchEnumList(\"statusHistory\", null, PostStatus.class)"));
+    assertTrue(
+        generated.contains("return fetchAbstractObject(\"metadata\", null, Metadata.class)"));
+    assertTrue(
+        generated.contains(
+            "return fetchAbstractObjectList(\"metadataHistory\", null, Metadata.class)"));
+    assertTrue(generated.contains("return fetchScalarList(\"labels\", null)"));
+    assertTrue(generated.contains("return fetchScalar(\"publishedAt\", null, \"DateTime\")"));
+    assertTrue(
+        generated.contains("return fetchScalarList(\"publishedHistory\", null, \"DateTime\")"));
+    assertTrue(generated.contains("return fetchGlobalID(\"ownerID\", null)"));
+    assertTrue(generated.contains("return fetchGlobalIDList(\"ownerIDs\", null)"));
     assertTrue(generated.contains("import viaduct.java.api.globalid.GlobalID;"));
     assertTrue(generated.contains("import java.time.Instant;"));
     assertTrue(generated.contains("putGlobalIDField(\"ownerID\", ownerID)"));
@@ -379,13 +398,13 @@ class ObjectGeneratorTest {
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
     assertTrue(generated.contains("public Instant getCreatedAt()"));
-    assertTrue(generated.contains("return fetchScalar(\"createdAt\", \"DateTime\")"));
+    assertTrue(generated.contains("return fetchScalar(\"createdAt\", null, \"DateTime\")"));
     assertTrue(generated.contains("public LocalDate getEventDate()"));
-    assertTrue(generated.contains("return fetchScalar(\"eventDate\", \"Date\")"));
+    assertTrue(generated.contains("return fetchScalar(\"eventDate\", null, \"Date\")"));
     assertTrue(generated.contains("public OffsetTime getStartTime()"));
-    assertTrue(generated.contains("return fetchScalar(\"startTime\", \"Time\")"));
+    assertTrue(generated.contains("return fetchScalar(\"startTime\", null, \"Time\")"));
     assertTrue(generated.contains("public String getLabel()"));
-    assertTrue(generated.contains("return fetchScalar(\"label\")"));
+    assertTrue(generated.contains("return fetchScalar(\"label\", null)"));
   }
 
   @Test
@@ -403,7 +422,7 @@ class ObjectGeneratorTest {
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
     assertTrue(generated.contains("public Object getJson()"));
-    assertTrue(generated.contains("return fetchScalar(\"json\")"));
+    assertTrue(generated.contains("return fetchScalar(\"json\", null)"));
   }
 
   @Test
@@ -425,9 +444,9 @@ class ObjectGeneratorTest {
     String generated = JavaGRTGenerator.ObjectGenerator.generate(model);
 
     assertTrue(generated.contains("public List<Instant> getTimestamps()"));
-    assertTrue(generated.contains("return fetchScalarList(\"timestamps\", \"DateTime\")"));
+    assertTrue(generated.contains("return fetchScalarList(\"timestamps\", null, \"DateTime\")"));
     assertTrue(generated.contains("public List<LocalDate> getDates()"));
-    assertTrue(generated.contains("return fetchScalarList(\"dates\", \"Date\")"));
+    assertTrue(generated.contains("return fetchScalarList(\"dates\", null, \"Date\")"));
   }
 
   @Test

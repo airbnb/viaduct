@@ -18,15 +18,15 @@ final class TestConnection extends ObjectBase implements Connection<TestEdge, Te
   }
 
   TestConnection(@Nullable InternalContext ctx, Map<String, Object> data) {
-    super(ctx, data);
+    super(ctx, data, "TestConnection");
   }
 
   List<TestEdge> edges() {
-    return fetchObjectList("edges", TestEdge::new);
+    return fetchObjectList("edges", null, TestEdge.class, TestEdge::new);
   }
 
   PageInfo pageInfo() {
-    return fetchObject("pageInfo", PageInfo::new);
+    return fetchObject("pageInfo", null, PageInfo.class, PageInfo::new);
   }
 
   /** Minimal concrete builder for exercising the shared pagination behavior. */

@@ -13,6 +13,7 @@ import graphql.schema.GraphQLNonNull;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLOutputType;
 import graphql.schema.GraphQLScalarType;
+import graphql.schema.GraphQLSchema;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -25,9 +26,12 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import viaduct.engine.api.EngineObjectData;
 import viaduct.engine.api.NodeReference;
+import viaduct.engine.api.ResolvedEngineObjectData;
 import viaduct.engine.api.RootFieldReference;
+import viaduct.engine.api.ViaductSchema;
 import viaduct.errors.FrameworkException;
 import viaduct.errors.TenantUsageException;
+import viaduct.errors.UnsetFieldException;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.types.NodeCompositeOutput;
@@ -58,7 +62,7 @@ class ObjectBaseTest {
     }
 
     TestObject(@Nullable InternalContext context, Map<String, Object> data) {
-      super(context, data);
+      super(context, data, "TestType");
     }
 
     private TestObject(InternalContext context, ObjectBase base, Map<String, Object> data) {
@@ -79,46 +83,66 @@ class ObjectBaseTest {
 
     @SuppressWarnings("TypeParameterUnusedInFormals")
     <T> @Nullable T scalar(String field) {
-      return fetchScalar(field);
+      return fetchScalar(field, null);
+    }
+
+    @SuppressWarnings("TypeParameterUnusedInFormals")
+    <T> @Nullable T scalarAliased(String field, String alias) {
+      return fetchScalar(field, alias);
+    }
+
+    /** The body a generated {@code getXxxOrNull()} accessor emits. */
+    @Nullable Object softScalar(String field) {
+      return nullOnDataFailure(() -> fetchScalar(field, null));
     }
 
     @SuppressWarnings("TypeParameterUnusedInFormals")
     <T> @Nullable T scalar(String field, String scalarType) {
-      return fetchScalar(field, scalarType);
+      return fetchScalar(field, null, scalarType);
     }
 
     <T> @Nullable List<T> scalarList(String field) {
-      return fetchScalarList(field);
+      return fetchScalarList(field, null);
     }
 
     <T> @Nullable List<T> scalarList(String field, String scalarType) {
-      return fetchScalarList(field, scalarType);
+      return fetchScalarList(field, null, scalarType);
     }
 
     <T extends ObjectBase> @Nullable T object(
-        String field, BiFunction<InternalContext, EngineObjectData.Sync, T> ctor) {
-      return fetchObject(field, ctor);
+        String field,
+        Class<T> objectClass,
+        BiFunction<InternalContext, EngineObjectData.Sync, T> ctor) {
+      return fetchObject(field, null, objectClass, ctor);
     }
 
     <T extends ObjectBase> @Nullable List<T> objectList(
-        String field, BiFunction<InternalContext, EngineObjectData.Sync, T> ctor) {
-      return fetchObjectList(field, ctor);
+        String field,
+        Class<T> objectClass,
+        BiFunction<InternalContext, EngineObjectData.Sync, T> ctor) {
+      return fetchObjectList(field, null, objectClass, ctor);
     }
 
     <E extends Enum<E>> @Nullable E enumValue(String field, Class<E> type) {
-      return fetchEnum(field, type);
+      return fetchEnum(field, null, type);
     }
 
     <E extends Enum<E>> @Nullable List<E> enumList(String field, Class<E> type) {
-      return fetchEnumList(field, type);
+      return fetchEnumList(field, null, type);
     }
 
     <T extends NodeCompositeOutput> @Nullable GlobalID<T> globalId(String field) {
-      return fetchGlobalID(field);
+      return fetchGlobalID(field, null);
     }
 
     <T extends NodeCompositeOutput> @Nullable List<GlobalID<T>> globalIdList(String field) {
-      return fetchGlobalIDList(field);
+      return fetchGlobalIDList(field, null);
+    }
+  }
+
+  static final class OtherObject extends ObjectBase {
+    OtherObject() {
+      super(null, map(), null);
     }
   }
 
@@ -138,68 +162,6 @@ class ObjectBaseTest {
   static final class SubState extends State {
     SubState(int value) {
       super(value);
-    }
-  }
-
-  /** In-memory fake of EngineObjectData.Sync backed by a map. */
-  static final class FakeSync implements EngineObjectData.Sync {
-    private final Map<String, Object> values;
-    private final GraphQLObjectType type;
-
-    FakeSync(Map<String, Object> values) {
-      this(values, "TestType");
-    }
-
-    FakeSync(Map<String, Object> values, String typeName) {
-      this(values, GraphQLObjectType.newObject().name(typeName).build());
-    }
-
-    FakeSync(Map<String, Object> values, GraphQLObjectType type) {
-      this.values = values;
-      this.type = type;
-    }
-
-    @Override
-    public Object get(String selection) {
-      return values.get(selection);
-    }
-
-    @Override
-    public Object getOrNull(String selection) {
-      return values.get(selection);
-    }
-
-    @Override
-    public boolean isPresent(String selection) {
-      return values.containsKey(selection);
-    }
-
-    @Override
-    public Iterable<String> getSelections() {
-      return values.keySet();
-    }
-
-    @Override
-    public java.lang.Object fetch(
-        String selection, kotlin.coroutines.Continuation<? super java.lang.Object> $completion) {
-      return values.get(selection);
-    }
-
-    @Override
-    public java.lang.Object fetchOrNull(
-        String selection, kotlin.coroutines.Continuation<? super java.lang.Object> $completion) {
-      return values.get(selection);
-    }
-
-    @Override
-    public java.lang.Object fetchSelections(
-        kotlin.coroutines.Continuation<? super Iterable<String>> $completion) {
-      return values.keySet();
-    }
-
-    @Override
-    public GraphQLObjectType getType() {
-      return type;
     }
   }
 
@@ -251,9 +213,26 @@ class ObjectBaseTest {
 
   /** Fake InternalContext that deserializes a GlobalID by treating the raw string as the id. */
   static final class FakeContext implements InternalContext {
+    private static final ViaductSchema SCHEMA =
+        new ViaductSchema(
+            GraphQLSchema.newSchema()
+                .query(
+                    GraphQLObjectType.newObject()
+                        .name("TestType")
+                        .field(
+                            GraphQLFieldDefinition.newFieldDefinition()
+                                .name("name")
+                                .type(GraphQLNonNull.nonNull(Scalars.GraphQLString)))
+                        .field(
+                            GraphQLFieldDefinition.newFieldDefinition()
+                                .name("nickname")
+                                .type(Scalars.GraphQLString))
+                        .build())
+                .build());
+
     @Override
-    public viaduct.engine.api.ViaductSchema getSchema() {
-      throw new UnsupportedOperationException();
+    public ViaductSchema getSchema() {
+      return SCHEMA;
     }
 
     @Override
@@ -297,16 +276,28 @@ class ObjectBaseTest {
     TestObject original =
         new TestObject(
             new FakeContext(),
-            new FakeSync(Map.of("id", "node-1", "time", "2026-09-08T10:00:00Z", "name", "Alice")));
+            engineData(
+                Map.of(
+                    "id", "node-1",
+                    "time", "2026-09-08T10:00:00Z",
+                    "nickname", "Alice")));
     original.scalar("time", "DateTime");
-    TestObject copy = original.copy(map("name", null));
+    TestObject copy = original.copy(map("nickname", null));
     TestObject chained = copy.copy(Map.of("other", "value"));
 
     assertEquals("node-1", chained.globalId("id").getInternalID());
     assertEquals(Instant.parse("2026-09-08T10:00:00Z"), chained.scalar("time", "DateTime"));
-    assertNull(chained.scalar("name"));
-    assertEquals("Alice", original.scalar("name"));
+    assertNull(chained.scalar("nickname"));
+    assertEquals("Alice", original.scalar("nickname"));
     assertEquals("value", chained.scalar("other"));
+  }
+
+  @Test
+  void copyReadsAliasedSelectionsFromBaseObject() {
+    TestObject original = new TestObject(null, engineData(map("alias", "Alice")));
+    TestObject copy = original.copy(Map.of());
+
+    assertEquals("Alice", copy.scalarAliased("name", "alias"));
   }
 
   @Test
@@ -314,7 +305,7 @@ class ObjectBaseTest {
     State state = new State(7);
     TestObject original =
         new TestObject(
-            null, new FakeSync(Map.of("state", state), typeWithField("state", BACKING_DATA)));
+            null, engineData(typeWithField("state", BACKING_DATA), Map.of("state", state)));
     TestObject copy = original.copy(Map.of());
 
     assertSame(state, copy.get("state", State.class));
@@ -336,6 +327,26 @@ class ObjectBaseTest {
 
   // ===== Helpers =====
 
+  /**
+   * Engine-path backing data. Uses the engine's own {@link ResolvedEngineObjectData} rather than a
+   * hand-rolled fake so the strict-read contract under test is the real one.
+   */
+  private static EngineObjectData.Sync engineData(Map<String, Object> values) {
+    return engineData("TestType", values);
+  }
+
+  private static EngineObjectData.Sync engineData(String typeName, Map<String, Object> values) {
+    GraphQLObjectType type =
+        "TestType".equals(typeName)
+            ? FakeContext.SCHEMA.getSchema().getObjectType(typeName)
+            : GraphQLObjectType.newObject().name(typeName).build();
+    return engineData(type, values);
+  }
+
+  static EngineObjectData.Sync engineData(GraphQLObjectType type, Map<String, Object> values) {
+    return new ResolvedEngineObjectData(type, values);
+  }
+
   private static Map<String, Object> map(Object... keyValues) {
     Map<String, Object> m = new HashMap<>();
     for (int i = 0; i < keyValues.length; i += 2) {
@@ -348,7 +359,7 @@ class ObjectBaseTest {
 
   @Test
   void enginePath_exposesEngineObjectDataAndNullsForOthers() {
-    FakeSync sync = new FakeSync(map("name", "Alice"));
+    EngineObjectData.Sync sync = engineData(map("name", "Alice"));
     TestObject obj = new TestObject(null, sync);
 
     assertSame(sync, obj.getJavaEngineObjectData());
@@ -401,7 +412,7 @@ class ObjectBaseTest {
 
   @Test
   void fetchScalar_returnsValueFromEngineData() {
-    TestObject obj = new TestObject(null, new FakeSync(map("name", "Alice")));
+    TestObject obj = new TestObject(null, engineData(map("name", "Alice")));
 
     assertEquals("Alice", obj.scalar("name"));
   }
@@ -414,10 +425,81 @@ class ObjectBaseTest {
   }
 
   @Test
-  void fetchScalar_returnsNullForMissingField() {
-    TestObject obj = new TestObject(null, map("name", "Alice"));
+  void fetchScalar_returnsNullForNullValueInEngineData() {
+    TestObject obj = new TestObject(null, engineData(map("nickname", null)));
 
-    assertNull(obj.scalar("missing"));
+    assertNull(obj.scalar("nickname"));
+  }
+
+  @Test
+  void fetchScalar_throwsTenantUsageExceptionForNullValueInNonNullField() {
+    TestObject obj = new TestObject(null, engineData(map("name", null)));
+
+    TenantUsageException e = assertThrows(TenantUsageException.class, () -> obj.scalar("name"));
+    assertTrue(e.getMessage().contains("String!"), e.getMessage());
+  }
+
+  @Test
+  void softAccessor_throwsTenantUsageExceptionForNullValueInNonNullField() {
+    TestObject obj = new TestObject(null, engineData(map("name", null)));
+
+    assertThrows(TenantUsageException.class, () -> obj.softScalar("name"));
+  }
+
+  @Test
+  void fetchScalar_throwsUnsetFieldForSelectionMissingFromEngineData() {
+    TestObject obj = new TestObject(null, engineData(map("name", "Alice")));
+
+    assertThrows(UnsetFieldException.class, () -> obj.scalar("nickname"));
+  }
+
+  @Test
+  void fetchScalar_throwsUnsetFieldNamingTheTypeForFieldTheBuilderNeverSet() {
+    TestObject obj = new TestObject(new FakeContext(), map());
+
+    UnsetFieldException e = assertThrows(UnsetFieldException.class, () -> obj.scalar("name"));
+
+    assertEquals("TestType", e.getTypeName());
+    assertTrue(e.getMessage().contains("TestType.name"), e.getMessage());
+  }
+
+  @Test
+  void fetchScalar_throwsWithoutTypeWhenBuilderGRTHasNoContext() {
+    TestObject obj = new TestObject(null, map());
+
+    TenantUsageException e = assertThrows(TenantUsageException.class, () -> obj.scalar("name"));
+    assertTrue(e.getMessage().contains("was not set"), e.getMessage());
+  }
+
+  @Test
+  void softAccessor_rethrowsUnsetFieldRatherThanReturningNull() {
+    TestObject obj = new TestObject(new FakeContext(), map());
+
+    assertThrows(UnsetFieldException.class, () -> obj.softScalar("name"));
+  }
+
+  @Test
+  void softAccessor_returnsNullForNullValue() {
+    TestObject obj = new TestObject(new FakeContext(), map("nickname", null));
+
+    assertNull(obj.softScalar("nickname"));
+  }
+
+  @Test
+  void fetchScalar_readsAliasedSelectionInsteadOfFieldName() {
+    TestObject obj = new TestObject(null, engineData(map("name", "Alice", "shortName", "Ali")));
+
+    assertEquals("Alice", obj.scalar("name"));
+    assertEquals("Ali", obj.scalarAliased("name", "shortName"));
+  }
+
+  @Test
+  void fetchScalar_cachesAliasedAndUnaliasedReadsSeparately() {
+    Map<String, Object> backing = map("name", "Alice", "shortName", "Ali");
+    TestObject obj = new TestObject(null, backing);
+
+    assertEquals("Ali", obj.scalarAliased("name", "shortName"));
+    assertEquals("Alice", obj.scalar("name"));
   }
 
   @Test
@@ -448,19 +530,21 @@ class ObjectBaseTest {
   }
 
   @Test
-  void fetchScalar_onNodeReference_throwsForNonIdField() {
+  void fetchScalar_onNodeReference_throwsUnsetFieldForNonIdField() {
     TestObject obj = new TestObject(null, new FakeNodeReference("User:1"));
 
-    FrameworkException e = assertThrows(FrameworkException.class, () -> obj.scalar("name"));
-    assertTrue(e.getMessage().contains("only `id` is accessible"));
+    UnsetFieldException e = assertThrows(UnsetFieldException.class, () -> obj.scalar("name"));
+    assertEquals("Node", e.getTypeName());
+    assertTrue(e.getMessage().contains("ctx.ref"), e.getMessage());
   }
 
   @Test
-  void fetchScalar_onRootFieldReference_throwsForEveryField() {
+  void fetchScalar_onRootFieldReference_throwsUnsetFieldForEveryField() {
     TestObject obj = new TestObject(null, new FakeRootFieldReference());
 
-    FrameworkException e = assertThrows(FrameworkException.class, () -> obj.scalar("name"));
-    assertTrue(e.getMessage().contains("ctx.ref"));
+    UnsetFieldException e = assertThrows(UnsetFieldException.class, () -> obj.scalar("name"));
+    assertEquals("Product", e.getTypeName());
+    assertTrue(e.getMessage().contains("ctx.ref"), e.getMessage());
   }
 
   // ===== fetchScalarList =====
@@ -473,18 +557,32 @@ class ObjectBaseTest {
   }
 
   @Test
-  void fetchScalarList_returnsNullForMissingField() {
-    TestObject obj = new TestObject(null, map());
+  void fetchScalarList_throwsTenantUsageExceptionForNullValueInNonNullElement() {
+    TestObject obj =
+        new TestObject(
+            null,
+            engineData(
+                typeWithField(
+                    "tags", GraphQLList.list(GraphQLNonNull.nonNull(Scalars.GraphQLString))),
+                map("tags", Arrays.asList("a", null))));
 
-    assertNull(obj.scalarList("tags"));
+    TenantUsageException e = assertThrows(TenantUsageException.class, () -> obj.scalarList("tags"));
+    assertTrue(e.getMessage().contains("String!"), e.getMessage());
   }
 
   @Test
-  void fetchScalarList_throwsWhenValueIsNotAList() {
+  void fetchScalarList_throwsUnsetFieldForMissingField() {
+    TestObject obj = new TestObject(new FakeContext(), map());
+
+    assertThrows(UnsetFieldException.class, () -> obj.scalarList("tags"));
+  }
+
+  @Test
+  void fetchScalarList_reportsInvalidListAsTenantUsageException() {
     TestObject obj = new TestObject(null, map("tags", "not-a-list"));
 
-    FrameworkException e = assertThrows(FrameworkException.class, () -> obj.scalarList("tags"));
-    assertTrue(e.getMessage().contains("Expected List"));
+    TenantUsageException e = assertThrows(TenantUsageException.class, () -> obj.scalarList("tags"));
+    assertTrue(e.getMessage().contains("non-list value"));
   }
 
   @Test
@@ -500,10 +598,10 @@ class ObjectBaseTest {
 
   @Test
   void fetchObject_wrapsEngineDataWithConstructor() {
-    FakeSync nested = new FakeSync(map("name", "Nested"));
-    TestObject obj = new TestObject(null, new FakeSync(map("child", nested)));
+    EngineObjectData.Sync nested = engineData(map("name", "Nested"));
+    TestObject obj = new TestObject(null, engineData(map("child", nested)));
 
-    TestObject child = obj.object("child", TestObject::new);
+    TestObject child = obj.object("child", TestObject.class, TestObject::new);
 
     assertEquals("Nested", child.scalar("name"));
   }
@@ -513,23 +611,43 @@ class ObjectBaseTest {
     TestObject nested = new TestObject(null, map("name", "Nested"));
     TestObject obj = new TestObject(null, map("child", nested));
 
-    assertSame(nested, obj.object("child", TestObject::new));
+    assertSame(nested, obj.object("child", TestObject.class, TestObject::new));
   }
 
   @Test
-  void fetchObject_returnsNullForMissingField() {
-    TestObject obj = new TestObject(null, map());
+  void fetchObject_rejectsWrongBuilderObjectBeforeReturning() {
+    TestObject obj = new TestObject(null, map("child", new OtherObject()));
 
-    assertNull(obj.object("child", TestObject::new));
+    assertThrows(
+        FrameworkException.class, () -> obj.object("child", TestObject.class, TestObject::new));
+  }
+
+  @Test
+  void fetchObject_throwsUnsetFieldForMissingField() {
+    TestObject obj = new TestObject(new FakeContext(), map());
+
+    assertThrows(
+        UnsetFieldException.class, () -> obj.object("child", TestObject.class, TestObject::new));
+  }
+
+  @Test
+  void fetchObject_reportsInvalidValueAsTenantUsageException() {
+    TestObject obj = new TestObject(null, map("child", "not-an-object"));
+
+    TenantUsageException e =
+        assertThrows(
+            TenantUsageException.class,
+            () -> obj.object("child", TestObject.class, TestObject::new));
+    assertTrue(e.getMessage().contains("EngineObjectData"));
   }
 
   @Test
   void fetchObjectList_wrapsEachEngineDataElement() {
-    FakeSync a = new FakeSync(map("name", "A"));
-    FakeSync b = new FakeSync(map("name", "B"));
-    TestObject obj = new TestObject(null, new FakeSync(map("children", Arrays.asList(a, b))));
+    EngineObjectData.Sync a = engineData(map("name", "A"));
+    EngineObjectData.Sync b = engineData(map("name", "B"));
+    TestObject obj = new TestObject(null, engineData(map("children", Arrays.asList(a, b))));
 
-    List<TestObject> children = obj.objectList("children", TestObject::new);
+    List<TestObject> children = obj.objectList("children", TestObject.class, TestObject::new);
 
     assertEquals(2, children.size());
     assertEquals("A", children.get(0).scalar("name"));
@@ -539,21 +657,32 @@ class ObjectBaseTest {
   @Test
   void fetchObjectList_preservesNullElements() {
     List<Object> raw = new ArrayList<>();
-    raw.add(new FakeSync(map("name", "A")));
+    raw.add(engineData(map("name", "A")));
     raw.add(null);
-    TestObject obj = new TestObject(null, new FakeSync(map("children", raw)));
+    TestObject obj = new TestObject(null, engineData(map("children", raw)));
 
-    List<TestObject> children = obj.objectList("children", TestObject::new);
+    List<TestObject> children = obj.objectList("children", TestObject.class, TestObject::new);
 
     assertEquals("A", children.get(0).scalar("name"));
     assertNull(children.get(1));
+  }
+
+  @Test
+  void fetchObjectList_reportsInvalidValueAsTenantUsageException() {
+    TestObject obj = new TestObject(null, map("children", "not-a-list"));
+
+    TenantUsageException e =
+        assertThrows(
+            TenantUsageException.class,
+            () -> obj.objectList("children", TestObject.class, TestObject::new));
+    assertTrue(e.getMessage().contains("non-list value"));
   }
 
   // ===== fetchEnum / fetchEnumList =====
 
   @Test
   void fetchEnum_convertsStringNameToEnum() {
-    TestObject obj = new TestObject(null, new FakeSync(map("color", "RED")));
+    TestObject obj = new TestObject(null, engineData(map("color", "RED")));
 
     assertEquals(Color.RED, obj.enumValue("color", Color.class));
   }
@@ -572,6 +701,15 @@ class ObjectBaseTest {
     assertEquals(Arrays.asList(Color.RED, Color.GREEN), obj.enumList("colors", Color.class));
   }
 
+  @Test
+  void fetchEnumList_reportsInvalidValueAsTenantUsageException() {
+    TestObject obj = new TestObject(null, map("colors", "not-a-list"));
+
+    TenantUsageException e =
+        assertThrows(TenantUsageException.class, () -> obj.enumList("colors", Color.class));
+    assertTrue(e.getMessage().contains("non-list value"));
+  }
+
   // ===== fetchGlobalID / fetchGlobalIDList =====
 
   @Test
@@ -584,10 +722,10 @@ class ObjectBaseTest {
   }
 
   @Test
-  void fetchGlobalID_returnsNullForMissingField() {
+  void fetchGlobalID_throwsUnsetFieldForMissingField() {
     TestObject obj = new TestObject(new FakeContext(), map());
 
-    assertNull(obj.globalId("ownerId"));
+    assertThrows(UnsetFieldException.class, () -> obj.globalId("ownerId"));
   }
 
   @Test
@@ -605,16 +743,16 @@ class ObjectBaseTest {
   void fetchGlobalIDList_throwsWhenValueIsNotAList() {
     TestObject obj = new TestObject(new FakeContext(), map("ids", "not-a-list"));
 
-    FrameworkException e = assertThrows(FrameworkException.class, () -> obj.globalIdList("ids"));
-    assertTrue(e.getMessage().contains("Expected List"));
+    TenantUsageException e =
+        assertThrows(TenantUsageException.class, () -> obj.globalIdList("ids"));
+    assertTrue(e.getMessage().contains("non-list value"));
   }
 
   @Test
   void dynamicGetter_returnsBackingDataValue() {
     State state = new State(7);
     TestObject obj =
-        new TestObject(
-            null, new FakeSync(map("state", state), typeWithField("state", BACKING_DATA)));
+        new TestObject(null, engineData(typeWithField("state", BACKING_DATA), map("state", state)));
 
     assertSame(state, obj.get("state", State.class));
   }
@@ -623,8 +761,7 @@ class ObjectBaseTest {
   void dynamicGetter_checksCachedValueAgainstEveryClassToken() {
     State state = new State(7);
     TestObject obj =
-        new TestObject(
-            null, new FakeSync(map("state", state), typeWithField("state", BACKING_DATA)));
+        new TestObject(null, engineData(typeWithField("state", BACKING_DATA), map("state", state)));
 
     assertSame(state, obj.get("state", State.class));
     TenantUsageException e =
@@ -636,8 +773,7 @@ class ObjectBaseTest {
   void dynamicGetter_matchesKotlinExactClassContract() {
     SubState state = new SubState(7);
     TestObject obj =
-        new TestObject(
-            null, new FakeSync(map("state", state), typeWithField("state", BACKING_DATA)));
+        new TestObject(null, engineData(typeWithField("state", BACKING_DATA), map("state", state)));
 
     TenantUsageException e =
         assertThrows(TenantUsageException.class, () -> obj.get("state", State.class));
@@ -651,8 +787,8 @@ class ObjectBaseTest {
     TestObject obj =
         new TestObject(
             null,
-            new FakeSync(
-                map("states", source), typeWithField("states", GraphQLList.list(BACKING_DATA))));
+            engineData(
+                typeWithField("states", GraphQLList.list(BACKING_DATA)), map("states", source)));
 
     List<State> result = obj.get("states", State.class);
 
@@ -668,9 +804,9 @@ class ObjectBaseTest {
     TestObject obj =
         new TestObject(
             null,
-            new FakeSync(
-                map("states", source),
-                typeWithField("states", GraphQLList.list(GraphQLList.list(BACKING_DATA)))));
+            engineData(
+                typeWithField("states", GraphQLList.list(GraphQLList.list(BACKING_DATA))),
+                map("states", source)));
 
     List<List<State>> result = obj.get("states", State.class);
 
@@ -683,9 +819,9 @@ class ObjectBaseTest {
     TestObject obj =
         new TestObject(
             null,
-            new FakeSync(
-                map("states", new State(7)),
-                typeWithField("states", GraphQLList.list(BACKING_DATA))));
+            engineData(
+                typeWithField("states", GraphQLList.list(BACKING_DATA)),
+                map("states", new State(7))));
 
     FrameworkException e =
         assertThrows(FrameworkException.class, () -> obj.get("states", State.class));
@@ -697,8 +833,8 @@ class ObjectBaseTest {
     TestObject obj =
         new TestObject(
             null,
-            new FakeSync(
-                map("state", null), typeWithField("state", GraphQLNonNull.nonNull(BACKING_DATA))));
+            engineData(
+                typeWithField("state", GraphQLNonNull.nonNull(BACKING_DATA)), map("state", null)));
 
     TenantUsageException e =
         assertThrows(TenantUsageException.class, () -> obj.get("state", State.class));
@@ -709,7 +845,7 @@ class ObjectBaseTest {
   void dynamicGetter_rejectsNonBackingDataFields() {
     TestObject obj =
         new TestObject(
-            null, new FakeSync(map("name", "Ada"), typeWithField("name", Scalars.GraphQLString)));
+            null, engineData(typeWithField("name", Scalars.GraphQLString), map("name", "Ada")));
 
     FrameworkException e =
         assertThrows(FrameworkException.class, () -> obj.get("name", String.class));
@@ -720,7 +856,7 @@ class ObjectBaseTest {
   void dynamicGetter_rejectsNullNonBackingDataFields() {
     TestObject obj =
         new TestObject(
-            null, new FakeSync(map("name", null), typeWithField("name", Scalars.GraphQLString)));
+            null, engineData(typeWithField("name", Scalars.GraphQLString), map("name", null)));
 
     FrameworkException e =
         assertThrows(FrameworkException.class, () -> obj.get("name", String.class));
@@ -743,10 +879,10 @@ class ObjectBaseTest {
   @Test
   void enginePath_propagatesContextToNestedObject() {
     FakeContext context = new FakeContext();
-    FakeSync nested = new FakeSync(map("ownerId", "User:7"));
-    TestObject obj = new TestObject(context, new FakeSync(map("child", nested)));
+    EngineObjectData.Sync nested = engineData(map("ownerId", "User:7"));
+    TestObject obj = new TestObject(context, engineData(map("child", nested)));
 
-    TestObject child = obj.object("child", TestObject::new);
+    TestObject child = obj.object("child", TestObject.class, TestObject::new);
 
     // The nested GRT received the same context, so it can deserialize GlobalIDs.
     assertEquals("User:7", child.<TestNode>globalId("ownerId").getInternalID());
@@ -755,8 +891,8 @@ class ObjectBaseTest {
   @Test
   void instantiateConcrete_failure_isWrappedAsFrameworkException() {
     // The interface package has no class named after the engine type, so reflection fails.
-    FakeSync nested = new FakeSync(map(), "NoSuchConcreteType");
-    TestAbstractHolder holder = new TestAbstractHolder(null, new FakeSync(map("thing", nested)));
+    EngineObjectData.Sync nested = engineData("NoSuchConcreteType", map());
+    TestAbstractHolder holder = new TestAbstractHolder(null, engineData(map("thing", nested)));
 
     FrameworkException e =
         assertThrows(FrameworkException.class, () -> holder.abstractThing("thing"));
@@ -770,7 +906,7 @@ class ObjectBaseTest {
     }
 
     @Nullable Object abstractThing(String field) {
-      return fetchAbstractObject(field, NodeCompositeOutput.class);
+      return fetchAbstractObject(field, null, NodeCompositeOutput.class);
     }
   }
 }

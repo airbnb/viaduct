@@ -64,11 +64,11 @@ public class User extends NodeObjectBase implements Node, SearchHit {
 
     @SuppressWarnings("UnusedMethod")
     private User(InternalContext context, Map<String, Object> data) {
-        super(context, data);
+        super(context, data, "User");
     }
 
     private User(InternalContext context, ObjectBase base, Map<String, Object> data) {
-        super(context, base, data);
+        super(context, base, data, "User");
     }
 
     public User(InternalContext context, RootFieldReference rootFieldReference) {
@@ -79,60 +79,196 @@ public class User extends NodeObjectBase implements Node, SearchHit {
         super(context, nodeReference);
     }
 
-        public GlobalID<User> getIdOrThrow() {
-            return fetchGlobalID("id");
+        public GlobalID<User> getIdOrThrow(String alias) {
+            return fetchGlobalID("id", alias);
         }
+
+        public GlobalID<User> getIdOrThrow() {
+            return fetchGlobalID("id", null);
+        }
+
+        public GlobalID<User> getId(String alias) {
+            return fetchGlobalID("id", alias);
+        }
+
         public GlobalID<User> getId() {
-            return fetchGlobalID("id");
+            return fetchGlobalID("id", null);
+        }
+
+        public GlobalID<User> getIdOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchGlobalID("id", alias));
+        }
+
+        public GlobalID<User> getIdOrNull() {
+            return nullOnDataFailure(() -> fetchGlobalID("id", null));
+        }
+
+        public String getNameOrThrow(String alias) {
+            return fetchScalar("name", alias);
         }
 
         public String getNameOrThrow() {
-            return fetchScalar("name");
+            return fetchScalar("name", null);
         }
+
+        public String getName(String alias) {
+            return fetchScalar("name", alias);
+        }
+
         public String getName() {
-            return fetchScalar("name");
+            return fetchScalar("name", null);
+        }
+
+        public String getNameOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("name", alias));
+        }
+
+        public String getNameOrNull() {
+            return nullOnDataFailure(() -> fetchScalar("name", null));
+        }
+
+        public String getNicknameOrThrow(String alias) {
+            return fetchScalar("nickname", alias);
         }
 
         public String getNicknameOrThrow() {
-            return fetchScalar("nickname");
+            return fetchScalar("nickname", null);
         }
+
+        public String getNickname(String alias) {
+            return fetchScalar("nickname", alias);
+        }
+
         public String getNickname() {
-            return fetchScalar("nickname");
+            return fetchScalar("nickname", null);
+        }
+
+        public String getNicknameOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("nickname", alias));
+        }
+
+        public String getNicknameOrNull() {
+            return nullOnDataFailure(() -> fetchScalar("nickname", null));
+        }
+
+        public Integer getAgeOrThrow(String alias) {
+            return fetchScalar("age", alias);
         }
 
         public Integer getAgeOrThrow() {
-            return fetchScalar("age");
+            return fetchScalar("age", null);
         }
+
+        public Integer getAge(String alias) {
+            return fetchScalar("age", alias);
+        }
+
         public Integer getAge() {
-            return fetchScalar("age");
+            return fetchScalar("age", null);
+        }
+
+        public Integer getAgeOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("age", alias));
+        }
+
+        public Integer getAgeOrNull() {
+            return nullOnDataFailure(() -> fetchScalar("age", null));
+        }
+
+        public boolean getActiveOrThrow(String alias) {
+            return fetchScalar("active", alias);
         }
 
         public boolean getActiveOrThrow() {
-            return fetchScalar("active");
+            return fetchScalar("active", null);
         }
+
+        public boolean getActive(String alias) {
+            return fetchScalar("active", alias);
+        }
+
         public boolean getActive() {
-            return fetchScalar("active");
+            return fetchScalar("active", null);
+        }
+
+        public Boolean getActiveOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("active", alias));
+        }
+
+        public Boolean getActiveOrNull() {
+            return nullOnDataFailure(() -> fetchScalar("active", null));
+        }
+
+        public Color getFavoriteColorOrThrow(String alias) {
+            return fetchEnum("favoriteColor", alias, Color.class);
         }
 
         public Color getFavoriteColorOrThrow() {
-            return fetchEnum("favoriteColor", Color.class);
+            return fetchEnum("favoriteColor", null, Color.class);
         }
+
+        public Color getFavoriteColor(String alias) {
+            return fetchEnum("favoriteColor", alias, Color.class);
+        }
+
         public Color getFavoriteColor() {
-            return fetchEnum("favoriteColor", Color.class);
+            return fetchEnum("favoriteColor", null, Color.class);
+        }
+
+        public Color getFavoriteColorOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchEnum("favoriteColor", alias, Color.class));
+        }
+
+        public Color getFavoriteColorOrNull() {
+            return nullOnDataFailure(() -> fetchEnum("favoriteColor", null, Color.class));
+        }
+
+        public List<Integer> getScoresOrThrow(String alias) {
+            return fetchScalarList("scores", alias);
         }
 
         public List<Integer> getScoresOrThrow() {
-            return fetchScalarList("scores");
+            return fetchScalarList("scores", null);
         }
+
+        public List<Integer> getScores(String alias) {
+            return fetchScalarList("scores", alias);
+        }
+
         public List<Integer> getScores() {
-            return fetchScalarList("scores");
+            return fetchScalarList("scores", null);
+        }
+
+        public List<Integer> getScoresOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchScalarList("scores", alias));
+        }
+
+        public List<Integer> getScoresOrNull() {
+            return nullOnDataFailure(() -> fetchScalarList("scores", null));
+        }
+
+        public GlobalID<Order> getLastOrderOrThrow(String alias) {
+            return fetchGlobalID("lastOrder", alias);
         }
 
         public GlobalID<Order> getLastOrderOrThrow() {
-            return fetchGlobalID("lastOrder");
+            return fetchGlobalID("lastOrder", null);
         }
+
+        public GlobalID<Order> getLastOrder(String alias) {
+            return fetchGlobalID("lastOrder", alias);
+        }
+
         public GlobalID<Order> getLastOrder() {
-            return fetchGlobalID("lastOrder");
+            return fetchGlobalID("lastOrder", null);
+        }
+
+        public GlobalID<Order> getLastOrderOrNull(String alias) {
+            return nullOnDataFailure(() -> fetchGlobalID("lastOrder", alias));
+        }
+
+        public GlobalID<Order> getLastOrderOrNull() {
+            return nullOnDataFailure(() -> fetchGlobalID("lastOrder", null));
         }
 
 

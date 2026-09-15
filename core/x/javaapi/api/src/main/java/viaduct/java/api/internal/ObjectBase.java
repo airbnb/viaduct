@@ -1,12 +1,15 @@
 package viaduct.java.api.internal;
 
+import graphql.schema.GraphQLCompositeType;
 import graphql.schema.GraphQLFieldDefinition;
 import graphql.schema.GraphQLFieldsContainer;
+import graphql.schema.GraphQLInterfaceType;
 import graphql.schema.GraphQLList;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLScalarType;
 import graphql.schema.GraphQLType;
 import graphql.schema.GraphQLTypeUtil;
+import graphql.schema.GraphQLUnionType;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -16,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import org.jspecify.annotations.Nullable;
@@ -25,6 +29,7 @@ import viaduct.engine.api.RootFieldReference;
 import viaduct.errors.FrameworkException;
 import viaduct.errors.HandleErrors;
 import viaduct.errors.TenantUsageException;
+import viaduct.errors.UnsetFieldException;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.types.GraphQLObject;
 import viaduct.java.api.types.NodeCompositeOutput;
@@ -44,6 +49,11 @@ import viaduct.java.api.types.NodeCompositeOutput;
  *   <li>Root field reference path: wraps a {@link RootFieldReference} for deferred field resolution
  * </ul>
  *
+ * <p>Reads are strict on every path: a selection that was never set raises {@link
+ * UnsetFieldException}, which is how a tenant reading outside its fragment finds out. The generated
+ * {@code getXxxOrNull()} accessors wrap the read in {@link #nullOnDataFailure} instead, which turns
+ * data-side failures — but not that tenant bug — into null.
+ *
  * <p>Field access is cached using a {@link ConcurrentHashMap} with a {@code NULL_VALUE} sentinel to
  * represent null values (identical to Kotlin's {@code OBJECTBASE_GRT_NULL} pattern).
  */
@@ -57,6 +67,7 @@ public abstract class ObjectBase implements GraphQLObject {
   private final EngineObjectData.@Nullable Sync engineData;
   @Nullable private final Map<String, Object> mapData;
   @Nullable private final ObjectBase baseObject;
+  @Nullable private final String mapDataTypeName;
   @Nullable private final NodeReference nodeReference;
   @Nullable private final RootFieldReference rootFieldReference;
   private final ConcurrentHashMap<String, Object> fieldCache = new ConcurrentHashMap<>();
@@ -74,6 +85,7 @@ public abstract class ObjectBase implements GraphQLObject {
     this.engineData = engineData;
     this.mapData = null;
     this.baseObject = null;
+    this.mapDataTypeName = null;
     this.nodeReference = null;
     this.rootFieldReference = null;
   }
@@ -81,21 +93,39 @@ public abstract class ObjectBase implements GraphQLObject {
   /**
    * Builder path constructor: wraps a builder-populated map.
    *
-   * <p>Like Kotlin: {@code build() -> buildEngineObjectData() -> constructor}. The builder path has
-   * no execution context, so {@code context} is typically null.
+   * <p>Like Kotlin: {@code build() -> buildEngineObjectData() -> constructor}. {@code
+   * graphQLTypeName} names the GraphQL type this GRT represents; the map carries no type of its
+   * own, so it is the only way an unset-field failure on this path can report the type Kotlin
+   * reports.
    */
   protected ObjectBase(@Nullable InternalContext __context, Map<String, Object> mapData) {
-    this(__context, null, mapData);
+    this(__context, null, mapData, null);
   }
 
   protected ObjectBase(
       @Nullable InternalContext __context,
       @Nullable ObjectBase baseObject,
       Map<String, Object> mapData) {
+    this(__context, baseObject, mapData, null);
+  }
+
+  protected ObjectBase(
+      @Nullable InternalContext __context,
+      Map<String, Object> mapData,
+      @Nullable String graphQLTypeName) {
+    this(__context, null, mapData, graphQLTypeName);
+  }
+
+  protected ObjectBase(
+      @Nullable InternalContext __context,
+      @Nullable ObjectBase baseObject,
+      Map<String, Object> mapData,
+      @Nullable String graphQLTypeName) {
     this.__context = __context;
     this.engineData = null;
     this.mapData = mapData;
     this.baseObject = baseObject;
+    this.mapDataTypeName = graphQLTypeName;
     this.nodeReference = null;
     this.rootFieldReference = null;
   }
@@ -110,6 +140,7 @@ public abstract class ObjectBase implements GraphQLObject {
     this.engineData = null;
     this.mapData = null;
     this.baseObject = null;
+    this.mapDataTypeName = null;
     this.nodeReference = nodeReference;
     this.rootFieldReference = null;
   }
@@ -124,6 +155,7 @@ public abstract class ObjectBase implements GraphQLObject {
     this.engineData = null;
     this.mapData = null;
     this.baseObject = null;
+    this.mapDataTypeName = null;
     this.nodeReference = null;
     this.rootFieldReference = rootFieldReference;
   }
@@ -234,45 +266,54 @@ public abstract class ObjectBase implements GraphQLObject {
         "Cannot determine GraphQL type for dynamic field access on " + getClass().getName(), null);
   }
 
-  private @Nullable Object getRawValue(String fieldName) throws FrameworkException {
+  /**
+   * Runs {@code block}, returning null instead of propagating a data-side failure (an upstream
+   * resolver error, or a field whose value is stored as an error). Tenant bugs, framework bugs, and
+   * cancellation still propagate. Generated {@code getXxxOrNull()} accessors call this.
+   */
+  protected static <T> @Nullable T nullOnDataFailure(Callable<T> block) {
+    return HandleErrors.dataFailureToNull(block);
+  }
+
+  private @Nullable Object getRawValue(String fieldName, @Nullable String alias)
+      throws FrameworkException, TenantUsageException {
+    String selection = selectionOf(fieldName, alias);
     if (engineData != null) {
-      return engineData.getOrNull(fieldName);
+      return engineData.get(selection);
     } else if (mapData != null) {
-      if (!mapData.containsKey(fieldName) && baseObject != null) {
-        return baseObject.getRawValue(fieldName);
+      if (mapData.containsKey(selection)) {
+        return mapData.get(selection);
       }
-      return mapData.get(fieldName);
+      if (baseObject != null) {
+        return baseObject.getRawValue(fieldName, alias);
+      }
+      throw unsetField(selection, mapDataObjectType(), "no value was set for it on the builder");
     } else if (nodeReference != null) {
-      // Mirrors Kotlin ObjectBase: only `id` is accessible on an unresolved NodeReference;
-      // any other field is rejected as an unset field.
-      if ("id".equals(fieldName)) {
+      if ("id".equals(selection)) {
         return nodeReference.getId();
       }
-      throw new FrameworkException(
-          "Field '"
-              + fieldName
-              + "' cannot be accessed on an unresolved Node reference created using ctx.ref —"
-              + " only `id` is accessible.",
-          null);
+      throw unsetField(
+          selection,
+          nodeReference.getType(),
+          "only id can be accessed on an unresolved Node reference created using ctx.ref");
     } else if (rootFieldReference != null) {
-      throw new FrameworkException(
-          "Field '"
-              + fieldName
-              + "' cannot be accessed on an unresolved root field reference created using"
-              + " ctx.ref.",
-          null);
+      throw unsetField(
+          selection,
+          rootFieldReference.getType() instanceof GraphQLObjectType type ? type : null,
+          "fields cannot be accessed on an unresolved root field reference created using"
+              + " ctx.ref");
     } else {
       throw new FrameworkException(
-          "Cannot access field '" + fieldName + "': ObjectBase has no backing data.", null);
+          "Cannot access field '" + selection + "': ObjectBase has no backing data.", null);
     }
   }
 
-  private Object cachedRawValue(String fieldName) throws FrameworkException {
+  private Object cachedRawValue(String fieldName) throws FrameworkException, TenantUsageException {
     Object cached = fieldCache.get(fieldName);
     if (cached != null) {
       return cached;
     }
-    Object raw = getRawValue(fieldName);
+    Object raw = getRawValue(fieldName, null);
     Object toCache = raw == null ? NULL_VALUE : raw;
     Object previous = fieldCache.putIfAbsent(fieldName, toCache);
     return previous != null ? previous : toCache;
@@ -341,28 +382,170 @@ public abstract class ObjectBase implements GraphQLObject {
     }
   }
 
+  private static String selectionOf(String fieldName, @Nullable String alias) {
+    return alias != null ? alias : fieldName;
+  }
+
   /**
-   * Fetches a scalar field value. Like Kotlin: {@code fetch("fieldName", String::class) ->
-   * wrapScalar()}.
-   *
-   * <p>Uses field cache with NULL_VALUE sentinel (identical to Kotlin ObjectBase.get()).
+   * Resolves the GraphQL type of a builder-path GRT, or null when neither the type name nor the
+   * request context is available (hand-written GRTs in tests supply neither).
+   */
+  private @Nullable GraphQLObjectType mapDataObjectType() {
+    if (mapDataTypeName != null
+        && __context != null
+        && __context.getSchema().getSchema().getType(mapDataTypeName)
+            instanceof GraphQLObjectType type) {
+      return type;
+    }
+    return baseObject != null ? baseObject.backingObjectType() : null;
+  }
+
+  private @Nullable GraphQLObjectType backingObjectType() {
+    if (engineData != null) {
+      return engineData.getType();
+    }
+    if (mapData != null) {
+      return mapDataObjectType();
+    }
+    if (nodeReference != null) {
+      return nodeReference.getType();
+    }
+    return rootFieldReference != null
+            && rootFieldReference.getType() instanceof GraphQLObjectType type
+        ? type
+        : null;
+  }
+
+  private void validateValue(String fieldName, @Nullable Object value)
+      throws FrameworkException, TenantUsageException {
+    GraphQLObjectType objectType = backingObjectType();
+    if (objectType == null) {
+      return;
+    }
+    GraphQLFieldDefinition fieldDefinition = objectType.getFieldDefinition(fieldName);
+    if (fieldDefinition != null) {
+      validateValue(fieldDefinition.getType(), value);
+    }
+  }
+
+  private void validateValue(GraphQLType type, @Nullable Object value)
+      throws FrameworkException, TenantUsageException {
+    if (value == null) {
+      if (!GraphQLTypeUtil.isNonNull(type)) {
+        return;
+      }
+      throw new TenantUsageException(
+          "Got null value for non-null type " + GraphQLTypeUtil.simplePrint(type), null);
+    }
+    GraphQLType unwrappedType = GraphQLTypeUtil.unwrapNonNull(type);
+    if (unwrappedType instanceof GraphQLList listType && value instanceof List<?> values) {
+      for (Object element : values) {
+        validateValue(listType.getWrappedType(), element);
+      }
+    } else if (unwrappedType instanceof GraphQLCompositeType compositeType) {
+      validateCompositeValue(compositeType, value);
+    }
+  }
+
+  private void validateCompositeValue(GraphQLCompositeType expectedType, Object value)
+      throws FrameworkException {
+    GraphQLObjectType actualType = null;
+    if (value instanceof EngineObjectData.Sync syncData) {
+      actualType = syncData.getType();
+    } else if (value instanceof ObjectBase objectValue) {
+      actualType = objectValue.backingObjectType();
+    }
+    if (actualType == null) {
+      return;
+    }
+
+    boolean valid;
+    if (expectedType instanceof GraphQLObjectType objectType) {
+      valid = objectType.getName().equals(actualType.getName());
+    } else if (__context != null) {
+      valid = __context.getSchema().getSchema().isPossibleType(expectedType, actualType);
+    } else if (expectedType instanceof GraphQLInterfaceType interfaceType) {
+      valid =
+          actualType.getInterfaces().stream()
+              .anyMatch(type -> type.getName().equals(interfaceType.getName()));
+    } else if (expectedType instanceof GraphQLUnionType unionType) {
+      valid = unionType.isPossibleType(actualType);
+    } else {
+      throw new FrameworkException(
+          "Unexpected composite type " + GraphQLTypeUtil.simplePrint(expectedType), null);
+    }
+    if (!valid) {
+      throw new IllegalArgumentException(
+          "Expected value with GraphQL type "
+              + expectedType.getName()
+              + ", got "
+              + actualType.getName());
+    }
+  }
+
+  /**
+   * Builds the failure for reading a selection that was never set. Degrades to a plain {@link
+   * TenantUsageException} when the containing type is unavailable, since {@link
+   * UnsetFieldException} requires one; both are tenant-attributed, so read behavior is unaffected
+   * either way.
+   */
+  private static TenantUsageException unsetField(
+      String selection, @Nullable GraphQLObjectType objectType, String details) {
+    if (objectType != null) {
+      return new UnsetFieldException(selection, objectType, details);
+    }
+    return new TenantUsageException(
+        "Attempted to access field " + selection + " but it was not set: " + details, null);
+  }
+
+  /** Transforms a non-null raw engine or builder value into the value a {@code fetch*} returns. */
+  @FunctionalInterface
+  private interface ValueWrapper {
+    @Nullable Object wrap(Object raw) throws Exception;
+  }
+
+  /**
+   * Reads {@code fieldName} (under {@code alias}, when the caller selected one), runs it through
+   * {@code wrapper}, and memoizes the result. Mirrors the caching in Kotlin {@code ObjectBase.get}:
+   * keyed by selection, with a sentinel standing in for null.
    */
   @Nullable
   @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
-  protected <T> T fetchScalar(String fieldName) {
-    return HandleErrors.framework(
-        "ObjectBase.fetchScalar: " + fieldName,
+  private <T> T fetchCached(
+      String method, String fieldName, @Nullable String alias, ValueWrapper wrapper) {
+    String selection = selectionOf(fieldName, alias);
+    return HandleErrors.accessor(
+        "ObjectBase." + method + ": " + selection,
         () -> {
-          Object cached = fieldCache.get(fieldName);
+          Object cached = fieldCache.get(selection);
           if (cached != null) {
             return cached == NULL_VALUE ? null : (T) cached;
           }
-          Object raw = getRawValue(fieldName);
-          Object toCache = (raw == null) ? NULL_VALUE : raw;
-          Object prev = fieldCache.putIfAbsent(fieldName, toCache);
+          Object raw = getRawValue(fieldName, alias);
+          validateValue(fieldName, raw);
+          Object wrapped = (raw == null) ? null : wrapper.wrap(raw);
+          Object toCache = (wrapped == null) ? NULL_VALUE : wrapped;
+          Object prev = fieldCache.putIfAbsent(selection, toCache);
           Object result = (prev != null) ? prev : toCache;
           return result == NULL_VALUE ? null : (T) result;
         });
+  }
+
+  private static List<?> requireList(Object raw) throws TenantUsageException {
+    if (raw instanceof List<?> list) {
+      return list;
+    }
+    throw new TenantUsageException("Got non-list value " + raw + " for list type", null);
+  }
+
+  /**
+   * Fetches a scalar field value. Like Kotlin: {@code fetch("fieldName", String::class) ->
+   * wrapScalar()}.
+   */
+  @Nullable
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  protected <T> T fetchScalar(String fieldName, @Nullable String alias) {
+    return fetchCached("fetchScalar", fieldName, alias, raw -> raw);
   }
 
   /**
@@ -370,97 +553,43 @@ public abstract class ObjectBase implements GraphQLObject {
    * Instant::class) -> wrapScalar()} which coerces DateTime strings to Instant, Date strings to
    * LocalDate, and Time strings to OffsetTime.
    *
-   * @param fieldName the field name
    * @param scalarType the GraphQL scalar type name ("DateTime", "Date", or "Time")
    */
   @Nullable
-  @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
-  protected <T> T fetchScalar(String fieldName, String scalarType) {
-    return HandleErrors.framework(
-        "ObjectBase.fetchScalar: " + fieldName,
-        () -> {
-          Object cached = fieldCache.get(fieldName);
-          if (cached != null) {
-            return cached == NULL_VALUE ? null : (T) cached;
-          }
-          Object raw = getRawValue(fieldName);
-          Object coerced = coerceScalar(raw, scalarType);
-          Object toCache = (coerced == null) ? NULL_VALUE : coerced;
-          Object prev = fieldCache.putIfAbsent(fieldName, toCache);
-          Object result = (prev != null) ? prev : toCache;
-          return result == NULL_VALUE ? null : (T) result;
-        });
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  protected <T> T fetchScalar(String fieldName, @Nullable String alias, String scalarType) {
+    return fetchCached("fetchScalar", fieldName, alias, raw -> coerceScalar(raw, scalarType));
   }
 
   /**
    * Fetches a scalar list field. Like Kotlin: {@code fetch("fieldName", ...) -> wrapList() ->
    * wrapScalar()}.
-   *
-   * <p>Validates that the raw value is a {@link List} at runtime. Uses field cache with NULL_VALUE
-   * sentinel (identical to other fetch* methods).
    */
   @Nullable
-  @SuppressWarnings("unchecked")
-  protected <T> List<T> fetchScalarList(String fieldName) {
-    return HandleErrors.framework(
-        "ObjectBase.fetchScalarList: " + fieldName,
-        () -> {
-          Object cached = fieldCache.get(fieldName);
-          if (cached != null) {
-            return cached == NULL_VALUE ? null : (List<T>) cached;
-          }
-          Object raw = getRawValue(fieldName);
-          Object toCache;
-          if (raw == null) {
-            toCache = NULL_VALUE;
-          } else if (raw instanceof List<?>) {
-            toCache = raw;
-          } else {
-            throw new FrameworkException(
-                "Expected List for field '" + fieldName + "', got " + raw.getClass().getName(),
-                null);
-          }
-          Object prev = fieldCache.putIfAbsent(fieldName, toCache);
-          Object result = (prev != null) ? prev : toCache;
-          return result == NULL_VALUE ? null : (List<T>) result;
-        });
+  protected <T> List<T> fetchScalarList(String fieldName, @Nullable String alias) {
+    return fetchCached("fetchScalarList", fieldName, alias, ObjectBase::requireList);
   }
 
   /**
    * Fetches a scalar list field with temporal coercion. Each element in the list is coerced
    * according to the scalar type.
    *
-   * @param fieldName the field name
    * @param scalarType the GraphQL scalar type name ("DateTime", "Date", or "Time")
    */
   @Nullable
-  @SuppressWarnings("unchecked")
-  protected <T> List<T> fetchScalarList(String fieldName, String scalarType) {
-    return HandleErrors.framework(
-        "ObjectBase.fetchScalarList: " + fieldName,
-        () -> {
-          Object cached = fieldCache.get(fieldName);
-          if (cached != null) {
-            return cached == NULL_VALUE ? null : (List<T>) cached;
+  protected <T> List<T> fetchScalarList(
+      String fieldName, @Nullable String alias, String scalarType) {
+    return fetchCached(
+        "fetchScalarList",
+        fieldName,
+        alias,
+        raw -> {
+          List<?> list = requireList(raw);
+          List<Object> coerced = new ArrayList<>(list.size());
+          for (Object element : list) {
+            coerced.add(coerceScalar(element, scalarType));
           }
-          Object raw = getRawValue(fieldName);
-          Object toCache;
-          if (raw == null) {
-            toCache = NULL_VALUE;
-          } else if (raw instanceof List<?> list) {
-            List<Object> coerced = new ArrayList<>(list.size());
-            for (Object element : list) {
-              coerced.add(coerceScalar(element, scalarType));
-            }
-            toCache = coerced;
-          } else {
-            throw new FrameworkException(
-                "Expected List for field '" + fieldName + "', got " + raw.getClass().getName(),
-                null);
-          }
-          Object prev = fieldCache.putIfAbsent(fieldName, toCache);
-          Object result = (prev != null) ? prev : toCache;
-          return result == NULL_VALUE ? null : (List<T>) result;
+          return coerced;
         });
   }
 
@@ -473,29 +602,31 @@ public abstract class ObjectBase implements GraphQLObject {
    * {@link ObjectBase} (builder path), returns as-is.
    */
   @Nullable
-  @SuppressWarnings("unchecked")
   protected <T extends ObjectBase> T fetchObject(
-      String fieldName, BiFunction<InternalContext, EngineObjectData.Sync, T> constructor) {
-    return HandleErrors.framework(
-        "ObjectBase.fetchObject: " + fieldName,
-        () -> {
-          Object cached = fieldCache.get(fieldName);
-          if (cached != null) {
-            return cached == NULL_VALUE ? null : (T) cached;
+      String fieldName,
+      @Nullable String alias,
+      Class<T> objectClass,
+      BiFunction<InternalContext, EngineObjectData.Sync, T> constructor) {
+    return fetchCached(
+        "fetchObject",
+        fieldName,
+        alias,
+        raw -> {
+          if (raw instanceof EngineObjectData.Sync syncData) {
+            return constructor.apply(__context, syncData);
           }
-          Object raw = getRawValue(fieldName);
-          Object toCache;
-          if (raw == null) {
-            toCache = NULL_VALUE;
-          } else if (raw instanceof EngineObjectData.Sync syncData) {
-            toCache = constructor.apply(__context, syncData);
-          } else {
-            // Builder path: value is already a ObjectBase instance
-            toCache = raw;
+          if (objectClass.isInstance(raw)) {
+            return objectClass.cast(raw);
           }
-          Object prev = fieldCache.putIfAbsent(fieldName, toCache);
-          Object result = (prev != null) ? prev : toCache;
-          return result == NULL_VALUE ? null : (T) result;
+          if (raw instanceof ObjectBase) {
+            throw new IllegalArgumentException(
+                "Expected value of type "
+                    + objectClass.getSimpleName()
+                    + ", got "
+                    + raw.getClass().getSimpleName());
+          }
+          throw new TenantUsageException(
+              "Expected value to be an instance of EngineObjectData, got " + raw, null);
         });
   }
 
@@ -506,37 +637,36 @@ public abstract class ObjectBase implements GraphQLObject {
   @Nullable
   @SuppressWarnings("unchecked")
   protected <T extends ObjectBase> List<T> fetchObjectList(
-      String fieldName, BiFunction<InternalContext, EngineObjectData.Sync, T> constructor) {
-    return HandleErrors.framework(
-        "ObjectBase.fetchObjectList: " + fieldName,
-        () -> {
-          Object cached = fieldCache.get(fieldName);
-          if (cached != null) {
-            return cached == NULL_VALUE ? null : (List<T>) cached;
-          }
-          Object raw = getRawValue(fieldName);
-          Object toCache;
-          if (raw == null) {
-            toCache = NULL_VALUE;
-          } else if (raw instanceof List<?> list) {
-            List<T> wrapped = new ArrayList<>(list.size());
-            for (Object element : list) {
-              if (element == null) {
-                wrapped.add(null);
-              } else if (element instanceof EngineObjectData.Sync syncData) {
-                wrapped.add(constructor.apply(__context, syncData));
-              } else {
-                // Builder path: elements are already ObjectBase instances
-                wrapped.add((T) element);
-              }
+      String fieldName,
+      @Nullable String alias,
+      Class<T> objectClass,
+      BiFunction<InternalContext, EngineObjectData.Sync, T> constructor) {
+    return fetchCached(
+        "fetchObjectList",
+        fieldName,
+        alias,
+        raw -> {
+          List<?> list = requireList(raw);
+          List<T> wrapped = new ArrayList<>(list.size());
+          for (Object element : list) {
+            if (element == null) {
+              wrapped.add(null);
+            } else if (element instanceof EngineObjectData.Sync syncData) {
+              wrapped.add(constructor.apply(__context, syncData));
+            } else if (objectClass.isInstance(element)) {
+              wrapped.add(objectClass.cast(element));
+            } else if (element instanceof ObjectBase) {
+              throw new IllegalArgumentException(
+                  "Expected value of type "
+                      + objectClass.getSimpleName()
+                      + ", got "
+                      + element.getClass().getSimpleName());
+            } else {
+              throw new TenantUsageException(
+                  "Expected value to be an instance of EngineObjectData, got " + element, null);
             }
-            toCache = wrapped;
-          } else {
-            toCache = raw;
           }
-          Object prev = fieldCache.putIfAbsent(fieldName, toCache);
-          Object result = (prev != null) ? prev : toCache;
-          return result == NULL_VALUE ? null : (List<T>) result;
+          return wrapped;
         });
   }
 
@@ -552,28 +682,21 @@ public abstract class ObjectBase implements GraphQLObject {
    * interface, so it is returned as-is.
    */
   @Nullable
-  @SuppressWarnings("unchecked")
-  protected <T> T fetchAbstractObject(String fieldName, Class<T> interfaceClass) {
-    return HandleErrors.framework(
-        "ObjectBase.fetchAbstractObject: " + fieldName,
-        () -> {
-          Object cached = fieldCache.get(fieldName);
-          if (cached != null) {
-            return cached == NULL_VALUE ? null : (T) cached;
+  protected <T> T fetchAbstractObject(
+      String fieldName, @Nullable String alias, Class<T> interfaceClass) {
+    return fetchCached(
+        "fetchAbstractObject",
+        fieldName,
+        alias,
+        raw -> {
+          if (raw instanceof EngineObjectData.Sync syncData) {
+            return instantiateConcrete(__context, syncData, interfaceClass, fieldName);
           }
-          Object raw = getRawValue(fieldName);
-          Object toCache;
-          if (raw == null) {
-            toCache = NULL_VALUE;
-          } else if (raw instanceof EngineObjectData.Sync syncData) {
-            toCache = instantiateConcrete(__context, syncData, interfaceClass, fieldName);
-          } else {
-            // Builder path: value is already a concrete instance implementing the interface
-            toCache = raw;
+          if (interfaceClass.isInstance(raw)) {
+            return raw;
           }
-          Object prev = fieldCache.putIfAbsent(fieldName, toCache);
-          Object result = (prev != null) ? prev : toCache;
-          return result == NULL_VALUE ? null : (T) result;
+          throw new TenantUsageException(
+              "Expected value to be an instance of EngineObjectData, got " + raw, null);
         });
   }
 
@@ -583,38 +706,28 @@ public abstract class ObjectBase implements GraphQLObject {
    */
   @Nullable
   @SuppressWarnings("unchecked")
-  protected <T> List<T> fetchAbstractObjectList(String fieldName, Class<T> interfaceClass) {
-    return HandleErrors.framework(
-        "ObjectBase.fetchAbstractObjectList: " + fieldName,
-        () -> {
-          Object cached = fieldCache.get(fieldName);
-          if (cached != null) {
-            return cached == NULL_VALUE ? null : (List<T>) cached;
-          }
-          Object raw = getRawValue(fieldName);
-          Object toCache;
-          if (raw == null) {
-            toCache = NULL_VALUE;
-          } else if (raw instanceof List<?> list) {
-            List<T> wrapped = new ArrayList<>(list.size());
-            for (Object element : list) {
-              if (element == null) {
-                wrapped.add(null);
-              } else if (element instanceof EngineObjectData.Sync syncData) {
-                wrapped.add(
-                    (T) instantiateConcrete(__context, syncData, interfaceClass, fieldName));
-              } else {
-                // Builder path: elements are already concrete instances
-                wrapped.add((T) element);
-              }
+  protected <T> List<T> fetchAbstractObjectList(
+      String fieldName, @Nullable String alias, Class<T> interfaceClass) {
+    return fetchCached(
+        "fetchAbstractObjectList",
+        fieldName,
+        alias,
+        raw -> {
+          List<?> list = requireList(raw);
+          List<T> wrapped = new ArrayList<>(list.size());
+          for (Object element : list) {
+            if (element == null) {
+              wrapped.add(null);
+            } else if (element instanceof EngineObjectData.Sync syncData) {
+              wrapped.add((T) instantiateConcrete(__context, syncData, interfaceClass, fieldName));
+            } else if (interfaceClass.isInstance(element)) {
+              wrapped.add((T) element);
+            } else {
+              throw new TenantUsageException(
+                  "Expected value to be an instance of EngineObjectData, got " + element, null);
             }
-            toCache = wrapped;
-          } else {
-            toCache = raw;
           }
-          Object prev = fieldCache.putIfAbsent(fieldName, toCache);
-          Object result = (prev != null) ? prev : toCache;
-          return result == NULL_VALUE ? null : (List<T>) result;
+          return wrapped;
         });
   }
 
@@ -656,30 +769,13 @@ public abstract class ObjectBase implements GraphQLObject {
    * behavior). If the value is already an enum instance (builder path), returns as-is.
    */
   @Nullable
-  @SuppressWarnings("unchecked")
-  protected <E extends Enum<E>> E fetchEnum(String fieldName, Class<E> enumClass) {
-    return HandleErrors.framework(
-        "ObjectBase.fetchEnum: " + fieldName,
-        () -> {
-          Object cached = fieldCache.get(fieldName);
-          if (cached != null) {
-            return cached == NULL_VALUE ? null : (E) cached;
-          }
-          Object raw = getRawValue(fieldName);
-          Object toCache;
-          if (raw == null) {
-            toCache = NULL_VALUE;
-          } else if (enumClass.isInstance(raw)) {
-            // Builder path: already an enum instance
-            toCache = raw;
-          } else {
-            // Engine path: String name -> enum value (mirrors Kotlin wrapEnum)
-            toCache = Enum.valueOf(enumClass, raw.toString());
-          }
-          Object prev = fieldCache.putIfAbsent(fieldName, toCache);
-          Object result = (prev != null) ? prev : toCache;
-          return result == NULL_VALUE ? null : (E) result;
-        });
+  protected <E extends Enum<E>> E fetchEnum(
+      String fieldName, @Nullable String alias, Class<E> enumClass) {
+    return fetchCached(
+        "fetchEnum",
+        fieldName,
+        alias,
+        raw -> enumClass.isInstance(raw) ? raw : Enum.valueOf(enumClass, raw.toString()));
   }
 
   /**
@@ -688,36 +784,25 @@ public abstract class ObjectBase implements GraphQLObject {
    */
   @Nullable
   @SuppressWarnings("unchecked")
-  protected <E extends Enum<E>> List<E> fetchEnumList(String fieldName, Class<E> enumClass) {
-    return HandleErrors.framework(
-        "ObjectBase.fetchEnumList: " + fieldName,
-        () -> {
-          Object cached = fieldCache.get(fieldName);
-          if (cached != null) {
-            return cached == NULL_VALUE ? null : (List<E>) cached;
-          }
-          Object raw = getRawValue(fieldName);
-          Object toCache;
-          if (raw == null) {
-            toCache = NULL_VALUE;
-          } else if (raw instanceof List<?> list) {
-            List<E> wrapped = new ArrayList<>(list.size());
-            for (Object element : list) {
-              if (element == null) {
-                wrapped.add(null);
-              } else if (enumClass.isInstance(element)) {
-                wrapped.add((E) element);
-              } else {
-                wrapped.add(Enum.valueOf(enumClass, element.toString()));
-              }
+  protected <E extends Enum<E>> List<E> fetchEnumList(
+      String fieldName, @Nullable String alias, Class<E> enumClass) {
+    return fetchCached(
+        "fetchEnumList",
+        fieldName,
+        alias,
+        raw -> {
+          List<?> list = requireList(raw);
+          List<E> wrapped = new ArrayList<>(list.size());
+          for (Object element : list) {
+            if (element == null) {
+              wrapped.add(null);
+            } else if (enumClass.isInstance(element)) {
+              wrapped.add((E) element);
+            } else {
+              wrapped.add(Enum.valueOf(enumClass, element.toString()));
             }
-            toCache = wrapped;
-          } else {
-            toCache = raw;
           }
-          Object prev = fieldCache.putIfAbsent(fieldName, toCache);
-          Object result = (prev != null) ? prev : toCache;
-          return result == NULL_VALUE ? null : (List<E>) result;
+          return wrapped;
         });
   }
 
@@ -728,26 +813,10 @@ public abstract class ObjectBase implements GraphQLObject {
    * serialized ID using the context's GlobalIDCodec.
    */
   @Nullable
-  @SuppressWarnings("unchecked")
-  protected <T extends NodeCompositeOutput> GlobalID<T> fetchGlobalID(String fieldName) {
-    return HandleErrors.framework(
-        "ObjectBase.fetchGlobalID: " + fieldName,
-        () -> {
-          Object cached = fieldCache.get(fieldName);
-          if (cached != null) {
-            return cached == NULL_VALUE ? null : (GlobalID<T>) cached;
-          }
-          Object raw = getRawValue(fieldName);
-          Object toCache;
-          if (raw == null) {
-            toCache = NULL_VALUE;
-          } else {
-            toCache = __context.deserializeGlobalID((String) raw);
-          }
-          Object prev = fieldCache.putIfAbsent(fieldName, toCache);
-          Object result = (prev != null) ? prev : toCache;
-          return result == NULL_VALUE ? null : (GlobalID<T>) result;
-        });
+  protected <T extends NodeCompositeOutput> GlobalID<T> fetchGlobalID(
+      String fieldName, @Nullable String alias) {
+    return fetchCached(
+        "fetchGlobalID", fieldName, alias, raw -> __context.deserializeGlobalID((String) raw));
   }
 
   /**
@@ -755,33 +824,19 @@ public abstract class ObjectBase implements GraphQLObject {
    * into a typed {@link GlobalID}.
    */
   @Nullable
-  @SuppressWarnings("unchecked")
-  protected <T extends NodeCompositeOutput> List<GlobalID<T>> fetchGlobalIDList(String fieldName) {
-    return HandleErrors.framework(
-        "ObjectBase.fetchGlobalIDList: " + fieldName,
-        () -> {
-          Object cached = fieldCache.get(fieldName);
-          if (cached != null) {
-            return cached == NULL_VALUE ? null : (List<GlobalID<T>>) cached;
+  protected <T extends NodeCompositeOutput> List<GlobalID<T>> fetchGlobalIDList(
+      String fieldName, @Nullable String alias) {
+    return fetchCached(
+        "fetchGlobalIDList",
+        fieldName,
+        alias,
+        raw -> {
+          List<?> list = requireList(raw);
+          List<GlobalID<T>> decoded = new ArrayList<>(list.size());
+          for (Object element : list) {
+            decoded.add(element == null ? null : __context.deserializeGlobalID((String) element));
           }
-          Object raw = getRawValue(fieldName);
-          Object toCache;
-          if (raw == null) {
-            toCache = NULL_VALUE;
-          } else if (raw instanceof List<?> list) {
-            List<GlobalID<T>> decoded = new ArrayList<>(list.size());
-            for (Object element : list) {
-              decoded.add(element == null ? null : __context.deserializeGlobalID((String) element));
-            }
-            toCache = decoded;
-          } else {
-            throw new FrameworkException(
-                "Expected List for field '" + fieldName + "', got " + raw.getClass().getName(),
-                null);
-          }
-          Object prev = fieldCache.putIfAbsent(fieldName, toCache);
-          Object result = (prev != null) ? prev : toCache;
-          return result == NULL_VALUE ? null : (List<GlobalID<T>>) result;
+          return decoded;
         });
   }
 
