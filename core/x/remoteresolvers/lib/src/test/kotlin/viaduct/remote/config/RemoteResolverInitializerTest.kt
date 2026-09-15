@@ -1,5 +1,10 @@
 package viaduct.remote.config
 
+import io.grpc.CallOptions
+import io.grpc.Channel
+import io.grpc.ClientCall
+import io.grpc.ClientInterceptor
+import io.grpc.MethodDescriptor
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -139,6 +144,29 @@ class RemoteResolverInitializerTest {
             val factory = initializer.initialize()
             val node = factory.proxyNode(SimpleNodeResolverExecutor.createUserResolver())
             assertTrue(node is UnaryRemoteNodeProxyExecutor, "expected the unary node proxy executor, got $node")
+        } finally {
+            initializer.close()
+        }
+    }
+
+    @Test
+    fun `clientInterceptors are accepted without breaking the initialize-close lifecycle`() {
+        val interceptor =
+            object : ClientInterceptor {
+                override fun <ReqT, RespT> interceptCall(
+                    method: MethodDescriptor<ReqT, RespT>,
+                    callOptions: CallOptions,
+                    next: Channel,
+                ): ClientCall<ReqT, RespT> = next.newCall(method, callOptions)
+            }
+        val initializer =
+            RemoteResolverInitializer(
+                cfg(),
+                selection = RemoteResolverSelection(),
+                clientInterceptors = listOf(interceptor),
+            )
+        try {
+            assertTrue(initializer.initialize() !== ProxyResolverFactory.NO_OP)
         } finally {
             initializer.close()
         }

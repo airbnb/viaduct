@@ -1,5 +1,6 @@
 package viaduct.remote.config
 
+import io.grpc.ClientInterceptor
 import io.grpc.ManagedChannel
 import io.grpc.Server
 import io.grpc.ServerBuilder
@@ -30,6 +31,9 @@ class RemoteResolverInitializer(
         RemoteResolverResponseContextApplier.NO_OP,
     private val dispatchInstrumentation: RemoteDispatchInstrumentation =
         RemoteDispatchInstrumentation.NO_OP,
+    // Applied to the RRS gRPC channel. Empty by default; a host can supply interceptors here to
+    // propagate cross-cutting request context to the remote resolver call.
+    private val clientInterceptors: List<ClientInterceptor> = emptyList(),
 ) : AutoCloseable {
     private val log = LoggerFactory.getLogger(RemoteResolverInitializer::class.java)
 
@@ -101,6 +105,7 @@ class RemoteResolverInitializer(
         log.info("Connecting to remote RRS at {}:{}", config.rrsHost, config.rrsPort)
         rrsChannel = NettyChannelBuilder.forAddress(config.rrsHost, config.rrsPort)
             .usePlaintext()
+            .intercept(clientInterceptors)
             .build()
 
         log.info("Starting callback server on port {}", config.callbackPort)
