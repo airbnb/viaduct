@@ -5,8 +5,8 @@ package viaduct.api.grts
 interface Timestamped : viaduct.api.types.Interface {
           fun getCreatedAtOrThrow(alias: String?): kotlin.String
           fun getCreatedAtOrThrow(): kotlin.String
-          fun getCreatedAt(alias: String?): kotlin.String
-          fun getCreatedAt(): kotlin.String
+          fun getCreatedAt(alias: String?): kotlin.String?
+          fun getCreatedAt(): kotlin.String?
           fun getCreatedAtOrNull(alias: String?): kotlin.String?
           fun getCreatedAtOrNull(): kotlin.String?
 

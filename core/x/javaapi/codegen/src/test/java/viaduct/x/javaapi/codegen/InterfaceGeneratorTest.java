@@ -108,10 +108,10 @@ class InterfaceGeneratorTest {
     assertTrue(generated.contains("String getIdOrThrow();"));
     assertTrue(generated.contains("String getNameOrThrow();"));
     assertTrue(generated.contains("boolean getIsActiveOrThrow();"));
-    // The bare names remain declared as aliases until call sites have moved over.
+    // The bare names are soft, so a primitive field widens to its boxed form.
     assertTrue(generated.contains("String getId();"));
     assertTrue(generated.contains("String getName();"));
-    assertTrue(generated.contains("boolean getIsActive();"));
+    assertTrue(generated.contains("Boolean getIsActive();"));
   }
 
   @Test

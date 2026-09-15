@@ -85,11 +85,11 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
         }
 
         public GlobalID<Order> getId(String alias) {
-            return fetchGlobalID("id", alias);
+            return nullOnDataFailure(() -> fetchGlobalID("id", alias));
         }
 
         public GlobalID<Order> getId() {
-            return fetchGlobalID("id", null);
+            return nullOnDataFailure(() -> fetchGlobalID("id", null));
         }
 
         public GlobalID<Order> getIdOrNull(String alias) {
@@ -109,11 +109,11 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
         }
 
         public OrderStatus getStatus(String alias) {
-            return fetchEnum("status", alias, OrderStatus.class);
+            return nullOnDataFailure(() -> fetchEnum("status", alias, OrderStatus.class));
         }
 
         public OrderStatus getStatus() {
-            return fetchEnum("status", null, OrderStatus.class);
+            return nullOnDataFailure(() -> fetchEnum("status", null, OrderStatus.class));
         }
 
         public OrderStatus getStatusOrNull(String alias) {
@@ -133,11 +133,11 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
         }
 
         public Money getTotal(String alias) {
-            return fetchObject("total", alias, Money.class, Money::new);
+            return nullOnDataFailure(() -> fetchObject("total", alias, Money.class, Money::new));
         }
 
         public Money getTotal() {
-            return fetchObject("total", null, Money.class, Money::new);
+            return nullOnDataFailure(() -> fetchObject("total", null, Money.class, Money::new));
         }
 
         public Money getTotalOrNull(String alias) {
@@ -157,11 +157,11 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
         }
 
         public String getCreatedAt(String alias) {
-            return fetchScalar("createdAt", alias);
+            return nullOnDataFailure(() -> fetchScalar("createdAt", alias));
         }
 
         public String getCreatedAt() {
-            return fetchScalar("createdAt", null);
+            return nullOnDataFailure(() -> fetchScalar("createdAt", null));
         }
 
         public String getCreatedAtOrNull(String alias) {
@@ -181,11 +181,11 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
         }
 
         public String getUpdatedAt(String alias) {
-            return fetchScalar("updatedAt", alias);
+            return nullOnDataFailure(() -> fetchScalar("updatedAt", alias));
         }
 
         public String getUpdatedAt() {
-            return fetchScalar("updatedAt", null);
+            return nullOnDataFailure(() -> fetchScalar("updatedAt", null));
         }
 
         public String getUpdatedAtOrNull(String alias) {
@@ -205,11 +205,11 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
         }
 
         public List<String> getAuditTrail(String alias) {
-            return fetchScalarList("auditTrail", alias);
+            return nullOnDataFailure(() -> fetchScalarList("auditTrail", alias));
         }
 
         public List<String> getAuditTrail() {
-            return fetchScalarList("auditTrail", null);
+            return nullOnDataFailure(() -> fetchScalarList("auditTrail", null));
         }
 
         public List<String> getAuditTrailOrNull(String alias) {
@@ -229,11 +229,11 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
         }
 
         public User getBuyer(String alias) {
-            return fetchObject("buyer", alias, User.class, User::new);
+            return nullOnDataFailure(() -> fetchObject("buyer", alias, User.class, User::new));
         }
 
         public User getBuyer() {
-            return fetchObject("buyer", null, User.class, User::new);
+            return nullOnDataFailure(() -> fetchObject("buyer", null, User.class, User::new));
         }
 
         public User getBuyerOrNull(String alias) {

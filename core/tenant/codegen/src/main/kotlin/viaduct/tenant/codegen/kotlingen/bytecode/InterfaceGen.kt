@@ -51,7 +51,6 @@ private interface InterfaceModel {
         /** Kotlin GRT-type of this field. */
         val kotlinType: String = fieldDef.kmType(JavaName(pkg).asKmName, baseTypeMapper).kotlinTypeString
 
-        /** Nullable variant of [kotlinType], used for `OrNull` getters. */
         val kotlinTypeOrNull: String = if (kotlinType.endsWith("?")) kotlinType else "$kotlinType?"
     }
 }
@@ -67,8 +66,8 @@ private val interfaceSTGroup =
         <mdl.fieldsNeedingGetter: { f |
           fun <f.getterName>OrThrow(alias: String?): <f.kotlinType>
           fun <f.getterName>OrThrow(): <f.kotlinType>
-          fun <f.getterName>(alias: String?): <f.kotlinType>
-          fun <f.getterName>(): <f.kotlinType>
+          fun <f.getterName>(alias: String?): <f.kotlinTypeOrNull>
+          fun <f.getterName>(): <f.kotlinTypeOrNull>
           fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull>
           fun <f.getterName>OrNull(): <f.kotlinTypeOrNull>
         }; separator="\n">

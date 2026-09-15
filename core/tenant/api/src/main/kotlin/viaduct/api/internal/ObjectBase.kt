@@ -50,9 +50,9 @@ abstract class ObjectBase(
     private val fieldCache = ConcurrentHashMap<String, Any>()
 
     /**
-     * Codegen entry point for the strict `getXxx()` accessor. Same as [get], but any error that
-     * escapes is re-thrown as a [FrameworkException]: only generated code calls this, so a failure
-     * here is by definition a framework bug, not tenant misuse.
+     * Codegen entry point for the strict `getXxxOrThrow()` accessor. Same as [get], but any error
+     * that escapes is re-thrown as a [FrameworkException]: only generated code calls this, so a
+     * failure here is by definition a framework bug, not tenant misuse.
      */
     protected fun <T> getInternal(
         fieldName: String,
@@ -64,8 +64,9 @@ abstract class ObjectBase(
         }
 
     /**
-     * Codegen entry point for the soft-failing `getXxxOrNull()` accessor. Same as [getInternal],
-     * but data-side failures become `null`; tenant and framework bugs still propagate.
+     * Codegen entry point for both soft-failing accessors, `getXxxOrNull()` and the bare `getXxx()`.
+     * Same as [getInternal], but data-side failures become `null`; tenant and framework bugs still
+     * propagate.
      */
     protected fun <T> getOrNullInternal(
         fieldName: String,

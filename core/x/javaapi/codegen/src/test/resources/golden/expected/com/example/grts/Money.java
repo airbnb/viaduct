@@ -64,12 +64,12 @@ public class Money extends ObjectBase implements SearchHit {
             return fetchScalar("amount", null);
         }
 
-        public double getAmount(String alias) {
-            return fetchScalar("amount", alias);
+        public Double getAmount(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("amount", alias));
         }
 
-        public double getAmount() {
-            return fetchScalar("amount", null);
+        public Double getAmount() {
+            return nullOnDataFailure(() -> fetchScalar("amount", null));
         }
 
         public Double getAmountOrNull(String alias) {
@@ -89,11 +89,11 @@ public class Money extends ObjectBase implements SearchHit {
         }
 
         public String getCurrency(String alias) {
-            return fetchScalar("currency", alias);
+            return nullOnDataFailure(() -> fetchScalar("currency", alias));
         }
 
         public String getCurrency() {
-            return fetchScalar("currency", null);
+            return nullOnDataFailure(() -> fetchScalar("currency", null));
         }
 
         public String getCurrencyOrNull(String alias) {

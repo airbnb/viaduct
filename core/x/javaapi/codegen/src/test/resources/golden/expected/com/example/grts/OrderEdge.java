@@ -65,11 +65,11 @@ public class OrderEdge extends ObjectBase implements viaduct.java.api.types.Edge
         }
 
         public String getCursor(String alias) {
-            return fetchScalar("cursor", alias);
+            return nullOnDataFailure(() -> fetchScalar("cursor", alias));
         }
 
         public String getCursor() {
-            return fetchScalar("cursor", null);
+            return nullOnDataFailure(() -> fetchScalar("cursor", null));
         }
 
         public String getCursorOrNull(String alias) {
@@ -89,11 +89,11 @@ public class OrderEdge extends ObjectBase implements viaduct.java.api.types.Edge
         }
 
         public Order getNode(String alias) {
-            return fetchObject("node", alias, Order.class, Order::new);
+            return nullOnDataFailure(() -> fetchObject("node", alias, Order.class, Order::new));
         }
 
         public Order getNode() {
-            return fetchObject("node", null, Order.class, Order::new);
+            return nullOnDataFailure(() -> fetchObject("node", null, Order.class, Order::new));
         }
 
         public Order getNodeOrNull(String alias) {

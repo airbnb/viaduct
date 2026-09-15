@@ -62,11 +62,11 @@ public class Mutation extends ObjectBase implements viaduct.java.api.types.Mutat
         }
 
         public Order getCreateOrder(String alias) {
-            return fetchObject("createOrder", alias, Order.class, Order::new);
+            return nullOnDataFailure(() -> fetchObject("createOrder", alias, Order.class, Order::new));
         }
 
         public Order getCreateOrder() {
-            return fetchObject("createOrder", null, Order.class, Order::new);
+            return nullOnDataFailure(() -> fetchObject("createOrder", null, Order.class, Order::new));
         }
 
         public Order getCreateOrderOrNull(String alias) {

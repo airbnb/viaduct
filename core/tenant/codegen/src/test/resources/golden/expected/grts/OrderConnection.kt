@@ -17,8 +17,8 @@ class OrderConnection(context: InternalContext, engineObject: EngineObject)
 {
      fun getEdgesOrThrow(alias: String?): kotlin.collections.List<viaduct.api.grts.OrderEdge> = TODO()
      fun getEdgesOrThrow(): kotlin.collections.List<viaduct.api.grts.OrderEdge> = TODO()
-     fun getEdges(alias: String?): kotlin.collections.List<viaduct.api.grts.OrderEdge> = TODO()
-     fun getEdges(): kotlin.collections.List<viaduct.api.grts.OrderEdge> = TODO()
+     fun getEdges(alias: String?): kotlin.collections.List<viaduct.api.grts.OrderEdge>? = TODO()
+     fun getEdges(): kotlin.collections.List<viaduct.api.grts.OrderEdge>? = TODO()
      fun getEdgesOrNull(alias: String?): kotlin.collections.List<viaduct.api.grts.OrderEdge>? = TODO()
      fun getEdgesOrNull(): kotlin.collections.List<viaduct.api.grts.OrderEdge>? = TODO()
 

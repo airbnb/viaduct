@@ -34,17 +34,21 @@ class ObjectGeneratorTest {
     // Delegating instead would let a subclass declaring getIdOrThrow() change what getId() returns.
     assertTrue(generated.contains("public String getId()"));
     assertTrue(!generated.contains("return getIdOrThrow();"));
-    // getFoo() is LEGACY_STRICT: same body as getFooOrThrow() while call sites migrate.
-    assertEquals(2, countOccurrences(generated, "return fetchScalar(\"id\", null);"));
+    // getFoo() is LEGACY_SOFT: same body as getFooOrNull(), so only OrThrow reads strictly.
+    assertEquals(1, countOccurrences(generated, "return fetchScalar(\"id\", null);"));
     assertTrue(generated.contains("public String getIdOrNull()"));
-    assertTrue(
-        generated.contains("return nullOnDataFailure(() -> fetchScalar(\"id\", null));"),
+    assertEquals(
+        2,
+        countOccurrences(generated, "return nullOnDataFailure(() -> fetchScalar(\"id\", null));"),
         generated);
     // Every form has an alias-taking overload for reads of aliased selections.
     assertTrue(generated.contains("public String getIdOrThrow(String alias)"));
     assertTrue(generated.contains("public String getId(String alias)"));
     assertTrue(generated.contains("public String getIdOrNull(String alias)"));
-    assertEquals(2, countOccurrences(generated, "return fetchScalar(\"id\", alias);"));
+    assertEquals(1, countOccurrences(generated, "return fetchScalar(\"id\", alias);"));
+    assertEquals(
+        2,
+        countOccurrences(generated, "return nullOnDataFailure(() -> fetchScalar(\"id\", alias));"));
     assertTrue(!generated.contains("private String id;"));
     assertTrue(!generated.contains("public void setId("));
     assertTrue(generated.contains("public static Builder builder(ExecutionContext context)"));
@@ -116,8 +120,8 @@ class ObjectGeneratorTest {
     assertTrue(generated.contains("public double getPricePerNightOrThrow()"));
     assertTrue(generated.contains("public User getHost()"));
     assertTrue(generated.contains("public List<String> getAmenities()"));
-    assertTrue(generated.contains("public double getPricePerNight()"));
-    // The soft form boxes, since a primitive cannot carry the null it returns on data failure.
+    // The soft forms box, since a primitive cannot carry the null they return on data failure.
+    assertTrue(generated.contains("public Double getPricePerNight()"));
     assertTrue(generated.contains("public Double getPricePerNightOrNull()"));
   }
 

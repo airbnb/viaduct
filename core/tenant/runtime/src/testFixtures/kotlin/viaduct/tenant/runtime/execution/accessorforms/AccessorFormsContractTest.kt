@@ -138,14 +138,14 @@ abstract class AccessorFormsContractTest : KotlinFeatureAppTestContractBase() {
     }
 
     @Test
-    fun `failure classification is identical across every accessor form`() {
+    fun `the bare and soft forms return null only for data-side failures`() {
         execute("{ widget { failureReads } }").assertEquals {
             "data" to {
                 "widget" to {
                     "failureReads" to
-                        "resolver=FieldFetchingException,FieldFetchingException,null;" +
-                        "stored=ErroneousFieldException,ErroneousFieldException,null;" +
-                        "wrapped=FrameworkException,FrameworkException,null;" +
+                        "resolver=FieldFetchingException,null,null;" +
+                        "stored=ErroneousFieldException,null,null;" +
+                        "wrapped=FrameworkException,null,null;" +
                         "framework=FrameworkException,FrameworkException,FrameworkException;" +
                         "cancellation=CancellationException,CancellationException,CancellationException;" +
                         "wrappedCancellation=CancellationException,CancellationException,CancellationException"

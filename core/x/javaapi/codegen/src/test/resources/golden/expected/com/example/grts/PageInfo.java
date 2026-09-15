@@ -69,12 +69,12 @@ public class PageInfo extends ObjectBase {
             return fetchScalar("hasNextPage", null);
         }
 
-        public boolean getHasNextPage(String alias) {
-            return fetchScalar("hasNextPage", alias);
+        public Boolean getHasNextPage(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("hasNextPage", alias));
         }
 
-        public boolean getHasNextPage() {
-            return fetchScalar("hasNextPage", null);
+        public Boolean getHasNextPage() {
+            return nullOnDataFailure(() -> fetchScalar("hasNextPage", null));
         }
 
         public Boolean getHasNextPageOrNull(String alias) {
@@ -93,12 +93,12 @@ public class PageInfo extends ObjectBase {
             return fetchScalar("hasPreviousPage", null);
         }
 
-        public boolean getHasPreviousPage(String alias) {
-            return fetchScalar("hasPreviousPage", alias);
+        public Boolean getHasPreviousPage(String alias) {
+            return nullOnDataFailure(() -> fetchScalar("hasPreviousPage", alias));
         }
 
-        public boolean getHasPreviousPage() {
-            return fetchScalar("hasPreviousPage", null);
+        public Boolean getHasPreviousPage() {
+            return nullOnDataFailure(() -> fetchScalar("hasPreviousPage", null));
         }
 
         public Boolean getHasPreviousPageOrNull(String alias) {
@@ -118,11 +118,11 @@ public class PageInfo extends ObjectBase {
         }
 
         public String getStartCursor(String alias) {
-            return fetchScalar("startCursor", alias);
+            return nullOnDataFailure(() -> fetchScalar("startCursor", alias));
         }
 
         public String getStartCursor() {
-            return fetchScalar("startCursor", null);
+            return nullOnDataFailure(() -> fetchScalar("startCursor", null));
         }
 
         public String getStartCursorOrNull(String alias) {
@@ -142,11 +142,11 @@ public class PageInfo extends ObjectBase {
         }
 
         public String getEndCursor(String alias) {
-            return fetchScalar("endCursor", alias);
+            return nullOnDataFailure(() -> fetchScalar("endCursor", alias));
         }
 
         public String getEndCursor() {
-            return fetchScalar("endCursor", null);
+            return nullOnDataFailure(() -> fetchScalar("endCursor", null));
         }
 
         public String getEndCursorOrNull(String alias) {

@@ -15,8 +15,8 @@ class OrderEdge(context: InternalContext, engineObject: EngineObject)
 {
      fun getCursorOrThrow(alias: String?): kotlin.String = TODO()
      fun getCursorOrThrow(): kotlin.String = TODO()
-     fun getCursor(alias: String?): kotlin.String = TODO()
-     fun getCursor(): kotlin.String = TODO()
+     fun getCursor(alias: String?): kotlin.String? = TODO()
+     fun getCursor(): kotlin.String? = TODO()
      fun getCursorOrNull(alias: String?): kotlin.String? = TODO()
      fun getCursorOrNull(): kotlin.String? = TODO()
 

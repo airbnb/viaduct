@@ -123,7 +123,6 @@ private interface ObjectModel {
         /** Kotlin GRT-type of this field. */
         val kotlinType: String = fieldDef.kmType(JavaName(pkg).asKmName, baseTypeMapper).kotlinTypeString
 
-        /** Nullable variant of [kotlinType], used for `OrNull` getters. */
         val kotlinTypeOrNull: String = if (kotlinType.endsWith("?")) kotlinType else "$kotlinType?"
     }
 }
@@ -232,8 +231,8 @@ private val objectSTGroup = stTemplate(
         <mdl.fields: { f |
           <f.overrideKeywords> fun <f.getterName>OrThrow(alias: String?): <f.kotlinType> = TODO()
           <f.overrideKeywords> fun <f.getterName>OrThrow(): <f.kotlinType> = TODO()
-          <f.overrideKeywords> fun <f.getterName>(alias: String?): <f.kotlinType> = TODO()
-          <f.overrideKeywords> fun <f.getterName>(): <f.kotlinType> = TODO()
+          <f.overrideKeywords> fun <f.getterName>(alias: String?): <f.kotlinTypeOrNull> = TODO()
+          <f.overrideKeywords> fun <f.getterName>(): <f.kotlinTypeOrNull> = TODO()
           <f.overrideKeywords> fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull> = TODO()
           <f.overrideKeywords> fun <f.getterName>OrNull(): <f.kotlinTypeOrNull> = TODO()
         }; separator="\n">
@@ -298,8 +297,8 @@ private val connectionObjectSTGroup = stTemplate(
         <mdl.fields: { f |
           <f.overrideKeywords> fun <f.getterName>OrThrow(alias: String?): <f.kotlinType> = TODO()
           <f.overrideKeywords> fun <f.getterName>OrThrow(): <f.kotlinType> = TODO()
-          <f.overrideKeywords> fun <f.getterName>(alias: String?): <f.kotlinType> = TODO()
-          <f.overrideKeywords> fun <f.getterName>(): <f.kotlinType> = TODO()
+          <f.overrideKeywords> fun <f.getterName>(alias: String?): <f.kotlinTypeOrNull> = TODO()
+          <f.overrideKeywords> fun <f.getterName>(): <f.kotlinTypeOrNull> = TODO()
           <f.overrideKeywords> fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull> = TODO()
           <f.overrideKeywords> fun <f.getterName>OrNull(): <f.kotlinTypeOrNull> = TODO()
         }; separator="\n">

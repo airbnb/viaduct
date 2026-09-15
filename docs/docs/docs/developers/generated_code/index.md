@@ -25,7 +25,7 @@ The signature of the GRT for this type would look approximately like this:
 package viaduct.api.grts
 
 class User private constructor(...): NodeObject {
-  suspend fun getId(alias: String? = null): GlobalID<User>
+  suspend fun getId(alias: String? = null): GlobalID<User>?
   suspend fun getFirstName(alias: String? = null): String?
   suspend fun getLastName(alias: String? = null): String?
   suspend fun getDisplayName(alias: String? = null): String?
@@ -58,9 +58,9 @@ The values from a fragment on `User` (for example) are accessed through the GRT 
 
 ### Strict and soft-failing accessors
 
-For every field, Viaduct generates three accessors: `getX()`, `getXOrThrow()`, and `getXOrNull()`. The distinction is **not** about whether the field is nullable in the schema — all three already return `T?` when the schema field is nullable. It is about how *errors* are surfaced.
+For every field, Viaduct generates three accessors: `getX()`, `getXOrThrow()`, and `getXOrNull()`. The distinction is about how *errors* are surfaced, not about whether the field is nullable in the schema.
 
-`getXOrThrow()` is the strict accessor: it throws on any failure. `getX()` behaves identically to it today. `getXOrNull()` returns `null` for data-side failures (upstream resolver errors, field values stored as errors) so callers can degrade gracefully when a dependency fails. Tenant misuse (e.g. accessing a field that wasn't selected, throwing `UnsetFieldException`), framework bugs (`FrameworkException`), and `CancellationException` still propagate from **all three**, so real bugs and coroutine cancellation remain visible. In particular, `getXOrNull()` does not return `null` for a field that was left out of the selection set — it throws, just as the strict accessors do.
+`getXOrThrow()` is the strict accessor: it throws on any failure, and its return type is non-null when the schema field is non-null. `getX()` and `getXOrNull()` are the soft accessors: they return `null` for data-side failures (upstream resolver errors, field values stored as errors) so callers can degrade gracefully when a dependency fails, and their return type is always nullable. Tenant misuse (e.g. accessing a field that wasn't selected, throwing `UnsetFieldException`), framework bugs (`FrameworkException`), and `CancellationException` still propagate from **all three**, so real bugs and coroutine cancellation remain visible. In particular, the soft accessors do not return `null` for a field that was left out of the selection set — they throw, just as the strict accessor does.
 
 ```kotlin
 // Strict: throws on any failure.
@@ -70,14 +70,29 @@ val name: String? = user.getDisplayNameOrThrow()
 val nameOrNull: String? = user.getDisplayNameOrNull()
 ```
 
-Because `getXOrNull()` discards the underlying data-side error, a caller that needs to distinguish "field is genuinely null" from "field errored and was swallowed" should use `getXOrThrow()` and handle the exception explicitly.
+Because the soft accessors discard the underlying data-side error, a caller that needs to distinguish "field is genuinely null" from "field errored and was swallowed" should use `getXOrThrow()` and handle the exception explicitly.
 
-!!! note "`getX()` is being renamed"
+!!! warning "`getX()` changed behavior"
 
-    `getXOrThrow()` exists so that an accessor which throws says so at the call site. A later
-    release removes `getX()` and reintroduces it with the data-side-tolerant behavior
-    `getXOrNull()` has today. Prefer `getXOrThrow()` for strict access and `getXOrNull()` for
-    tolerant access; avoid adding new `getX()` calls, because their meaning will change.
+    `getX()` used to be a second name for `getXOrThrow()`. It is now a second name for
+    `getXOrNull()`: it returns `null` on a data-side failure instead of throwing. This is a breaking
+    change to generated code — call sites that relied on the throwing behavior need `getXOrThrow()`.
+
+    How the change surfaces depends on the field:
+
+    - **A non-null field whose type maps to a Kotlin primitive** — `Boolean!`, `Int!`, `Float!` —
+      changes its JVM signature, because the primitive becomes its boxed form: `boolean` becomes
+      `java.lang.Boolean`, `int` becomes `java.lang.Integer`. Kotlin call sites that use the value in a
+      boolean or arithmetic context stop compiling, and a caller compiled against the old signature
+      fails with `NoSuchMethodError`.
+    - **A non-null field of any other type** becomes `T?`. Kotlin call sites that use the value
+      non-nullably stop compiling; Java call sites see only a changed nullability annotation. The JVM
+      signature is unchanged here, so a caller compiled against the previous release keeps linking and
+      propagates an unchecked `null` rather than failing at the call. `Node.id` is in this group:
+      `getId()` now returns `GlobalID<T>?`.
+    - **A field that is already nullable in the schema** keeps its exact signature. These call sites
+      keep compiling and switch from throwing to returning `null` with no diagnostic, so they are the
+      ones to audit by hand.
 
 The GRTs for interface types are Kotlin interfaces with suspending getters (but no builders), while the GRTs for union types are simply Kotlin "tagging" interfaces (i.e., Kotlin interfaces with no members).
 
@@ -135,8 +150,8 @@ The generated connection GRT implements {{ kdoc("viaduct.api.types.Connection") 
 
 ```kotlin
 class UserConnection private constructor(...): Connection<UserEdge, User> {
-  suspend fun getEdges(alias: String? = null): List<UserEdge>
-  suspend fun getPageInfo(alias: String? = null): PageInfo
+  suspend fun getEdges(alias: String? = null): List<UserEdge>?
+  suspend fun getPageInfo(alias: String? = null): PageInfo?
 }
 ```
 
@@ -144,8 +159,8 @@ The generated edge GRT implements {{ kdoc("viaduct.api.types.Edge") }}:
 
 ```kotlin
 class UserEdge private constructor(...): Edge<User> {
-  suspend fun getNode(alias: String? = null): User
-  suspend fun getCursor(alias: String? = null): String
+  suspend fun getNode(alias: String? = null): User?
+  suspend fun getCursor(alias: String? = null): String?
 }
 ```
 

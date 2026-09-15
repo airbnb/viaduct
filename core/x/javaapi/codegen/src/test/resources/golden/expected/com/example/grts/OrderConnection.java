@@ -69,11 +69,11 @@ public class OrderConnection extends ObjectBase implements viaduct.java.api.type
         }
 
         public List<OrderEdge> getEdges(String alias) {
-            return fetchObjectList("edges", alias, OrderEdge.class, OrderEdge::new);
+            return nullOnDataFailure(() -> fetchObjectList("edges", alias, OrderEdge.class, OrderEdge::new));
         }
 
         public List<OrderEdge> getEdges() {
-            return fetchObjectList("edges", null, OrderEdge.class, OrderEdge::new);
+            return nullOnDataFailure(() -> fetchObjectList("edges", null, OrderEdge.class, OrderEdge::new));
         }
 
         public List<OrderEdge> getEdgesOrNull(String alias) {
@@ -93,11 +93,11 @@ public class OrderConnection extends ObjectBase implements viaduct.java.api.type
         }
 
         public PageInfo getPageInfo(String alias) {
-            return fetchObject("pageInfo", alias, PageInfo.class, PageInfo::new);
+            return nullOnDataFailure(() -> fetchObject("pageInfo", alias, PageInfo.class, PageInfo::new));
         }
 
         public PageInfo getPageInfo() {
-            return fetchObject("pageInfo", null, PageInfo.class, PageInfo::new);
+            return nullOnDataFailure(() -> fetchObject("pageInfo", null, PageInfo.class, PageInfo::new));
         }
 
         public PageInfo getPageInfoOrNull(String alias) {
@@ -117,11 +117,11 @@ public class OrderConnection extends ObjectBase implements viaduct.java.api.type
         }
 
         public Integer getTotalCount(String alias) {
-            return fetchScalar("totalCount", alias);
+            return nullOnDataFailure(() -> fetchScalar("totalCount", alias));
         }
 
         public Integer getTotalCount() {
-            return fetchScalar("totalCount", null);
+            return nullOnDataFailure(() -> fetchScalar("totalCount", null));
         }
 
         public Integer getTotalCountOrNull(String alias) {
