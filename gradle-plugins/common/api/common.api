@@ -2,3 +2,13 @@ public class viaduct/gradle/ViaductApplicationExtension {
 	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
 }
 
+public abstract interface class viaduct/gradle/ViaductModulePackageLayout {
+	public abstract fun getFullTenantPackage ()Ljava/lang/String;
+	public abstract fun getFullTenantPackagePath ()Ljava/lang/String;
+	public abstract fun getModulePackagePrefix ()Ljava/lang/String;
+	public abstract fun getModulePackageSuffix ()Ljava/lang/String;
+	public abstract fun getResolverBasePackage ()Ljava/lang/String;
+	public abstract fun getResolverBasePackagePrefix ()Ljava/lang/String;
+	public abstract fun getSchemaPartitionPrefixPath ()Ljava/lang/String;
+}
+

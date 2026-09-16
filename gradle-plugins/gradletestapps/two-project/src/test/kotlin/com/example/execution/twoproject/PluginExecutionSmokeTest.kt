@@ -1,5 +1,8 @@
 package com.example.execution.twoproject
 
+import java.nio.file.Path
+import kotlin.io.path.exists
+import kotlin.io.path.readText
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -8,6 +11,23 @@ import viaduct.service.BasicViaductFactory
 import viaduct.service.api.ExecutionInput
 
 class PluginExecutionSmokeTest {
+    @Test
+    fun modulePartitionAndApplicationCentralSchemaAreWiredBidirectionally() {
+        val applicationBuildDir = Path.of(System.getProperty("projectBuildDir"))
+        val resolverBuildDir = Path.of(System.getProperty("resolverBuildDir"))
+        val partitionSchema = applicationBuildDir.resolve(
+            "viaduct/centralSchema/partition/resolvers/graphql/schema.graphqls"
+        )
+        val resolverBases = resolverBuildDir.resolve(
+            "generated-sources/viaduct/resolverBases/" +
+                "com/example/execution/twoproject/resolvers/QueryResolvers.kt"
+        )
+
+        assertTrue(partitionSchema.exists(), "Expected the module partition in the application central schema")
+        assertTrue(partitionSchema.readText().contains("greeting: String @resolver"))
+        assertTrue(resolverBases.exists(), "Expected resolver bases generated from the application central schema")
+    }
+
     @Test
     fun queriesAndMutationsExecuteThroughViaduct() {
         val viaduct = BasicViaductFactory.create()

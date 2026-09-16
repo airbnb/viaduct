@@ -10,4 +10,8 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     systemProperty("projectBuildDir", layout.buildDirectory.asFile.get().absolutePath)
+    systemProperty(
+        "resolverBuildDir",
+        project(":two-project:resolvers").layout.buildDirectory.asFile.get().absolutePath,
+    )
 }

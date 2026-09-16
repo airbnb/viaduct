@@ -7,32 +7,41 @@ import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
-import org.gradle.api.file.RegularFile
-import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
 import schemaPartitionDirectory
 import viaduct.apiannotations.InternalApi
+import viaduct.apiannotations.StableApi
 import viaduct.gradle.ViaductPluginCommon.APPLICATION_PLUGIN_IDS
 import viaduct.gradle.ViaductPluginCommon.prettyPath
 import viaduct.gradle.ViaductPluginCommon.requireViaductTopology
 import viaduct.gradle.ViaductPluginCommon.requireViaductTopologyModuleProjectPaths
 import viaduct.gradle.task.AssembleSchemaPartitionTask
 
-@InternalApi
-data class ViaductModulePackageLayout(
-    val modulePackagePrefix: String,
-    val modulePackageSuffix: String,
-) {
-    val resolverBasePackagePrefix: String = if (modulePackageSuffix.isBlank()) "" else modulePackagePrefix
-    val resolverBasePackage: String = if (modulePackageSuffix.isBlank()) modulePackagePrefix else modulePackageSuffix
-    val fullTenantPackage: String = if (modulePackageSuffix.isBlank()) modulePackagePrefix else "$modulePackagePrefix.$modulePackageSuffix"
-    val schemaPartitionPrefixPath: String =
+@StableApi
+interface ViaductModulePackageLayout {
+    val modulePackagePrefix: String
+    val modulePackageSuffix: String
+    val resolverBasePackagePrefix: String
+    val resolverBasePackage: String
+    val fullTenantPackage: String
+    val schemaPartitionPrefixPath: String
+    val fullTenantPackagePath: String
+}
+
+internal data class DefaultViaductModulePackageLayout(
+    override val modulePackagePrefix: String,
+    override val modulePackageSuffix: String,
+) : ViaductModulePackageLayout {
+    override val resolverBasePackagePrefix: String = if (modulePackageSuffix.isBlank()) "" else modulePackagePrefix
+    override val resolverBasePackage: String = if (modulePackageSuffix.isBlank()) modulePackagePrefix else modulePackageSuffix
+    override val fullTenantPackage: String = if (modulePackageSuffix.isBlank()) modulePackagePrefix else "$modulePackagePrefix.$modulePackageSuffix"
+    override val schemaPartitionPrefixPath: String =
         if (modulePackageSuffix.isBlank()) {
             "graphql"
         } else {
             "${modulePackageSuffix.replace('.', '/')}/graphql"
         }
-    val fullTenantPackagePath: String = fullTenantPackage.replace('.', '/')
+    override val fullTenantPackagePath: String = fullTenantPackage.replace('.', '/')
 }
 
 @InternalApi
@@ -46,7 +55,7 @@ object ViaductModulePluginSupport {
                 "Project ${project.prettyPath()} is declared as a Viaduct module, but no " +
                     "modulePackageSuffix is present for it in the Viaduct settings topology.",
             )
-        return ViaductModulePackageLayout(
+        return DefaultViaductModulePackageLayout(
             modulePackagePrefix = topology.modulePackagePrefix,
             modulePackageSuffix = suffix,
         )
@@ -145,14 +154,11 @@ object ViaductModulePluginSupport {
             }
         }
 
-    fun wireToTopologyApplicationProject(
+    fun wireCentralSchemaToTopologyApplicationProject(
         project: Project,
         topology: ViaductApplicationTopology,
         viaductApplication: Configuration,
         centralSchemaIncomingCfg: Configuration,
-        grtIncomingCfg: Configuration,
-        grtOutgoingConfigName: String,
-        grtJar: (ViaductApplicationOutputProviders) -> Provider<RegularFile>,
     ) {
         if (topology.applicationProjectPath == project.path) {
             APPLICATION_PLUGIN_IDS.forEach { pluginId ->
@@ -161,10 +167,6 @@ object ViaductModulePluginSupport {
                     project.dependencies.add(
                         centralSchemaIncomingCfg.name,
                         project.files(outputs.centralSchemaDirectory),
-                    )
-                    project.dependencies.add(
-                        grtIncomingCfg.name,
-                        project.files(grtJar(outputs)),
                     )
                 }
             }
@@ -176,15 +178,6 @@ object ViaductModulePluginSupport {
             project.dependencies.project(
                 mapOf(
                     "path" to topology.applicationProjectPath,
-                ),
-            ),
-        )
-        project.dependencies.add(
-            grtIncomingCfg.name,
-            project.dependencies.project(
-                mapOf(
-                    "path" to topology.applicationProjectPath,
-                    "configuration" to grtOutgoingConfigName,
                 ),
             ),
         )

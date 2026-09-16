@@ -15,7 +15,6 @@ import viaduct.apiannotations.InternalApi
 import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.pluginVersion
-import viaduct.gradle.ViaductPluginCommon.validateModuleProjectPlacement
 import viaduct.gradle.task.AssembleTenantModuleConfigFileTask
 import viaduct.gradle.task.GenerateResolverBasesTask
 
@@ -23,37 +22,21 @@ import viaduct.gradle.task.GenerateResolverBasesTask
 class ViaductModulePlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
-            val topology = validateModuleProjectPlacement("com.airbnb.viaduct.module-gradle-plugin")
-            val moduleLayout = ViaductModulePluginSupport.modulePackageLayout(this, topology)
-
-            ViaductModulePluginSupport.configureDirectModuleDependencyChecks(this, topology)
-
-            val viaductApplication = ViaductModulePluginSupport.setupViaductApplicationConfiguration(this)
+            pluginManager.apply(ViaductMetamodulePlugin.ID)
+            val metamodule = extensions.getByType(ViaductMetamoduleExtension::class.java)
+            val moduleLayout = metamodule.layout
             val grtIncomingCfg = ViaductModulePluginSupport.createGRTIncomingConfiguration(
                 this,
                 ViaductPluginCommon.Configs.GRT_CLASSES_KOTLIN_INCOMING,
                 ViaductPluginCommon.Kind.KOTLIN_GRT_CLASSES,
             )
 
-            val assembleSchemaPartitionTask =
-                ViaductModulePluginSupport.setupAssembleSchemaPartitionTask(this, moduleLayout)
-            ViaductModulePluginSupport.setupOutgoingConfigurationForPartitionSchema(this, assembleSchemaPartitionTask)
-
-            val centralSchemaIncomingCfg =
-                ViaductModulePluginSupport.setupIncomingConfigurationForCentralSchema(this, viaductApplication)
+            val centralSchemaIncomingCfg = metamodule.centralSchemaConfiguration
             val generateResolverBasesTask = setupGenerateResolverBasesTask(moduleLayout, centralSchemaIncomingCfg)
 
             setupKspRegistryExtractor(moduleLayout, generateResolverBasesTask, centralSchemaIncomingCfg)
 
-            ViaductModulePluginSupport.wireToTopologyApplicationProject(
-                this,
-                topology,
-                viaductApplication,
-                centralSchemaIncomingCfg,
-                grtIncomingCfg,
-                ViaductPluginCommon.Configs.GRT_CLASSES_KOTLIN_OUTGOING,
-                ViaductApplicationOutputProviders::kotlinGrtJar,
-            )
+            wireKotlinGrtToApplication(metamodule.applicationProjectPath, grtIncomingCfg)
 
             // GRT classes into source sets
             plugins.withId("java") {
@@ -81,6 +64,31 @@ class ViaductModulePlugin : Plugin<Project> {
                 dependsOn(generateResolverBasesTask)
             }
         }
+
+    private fun Project.wireKotlinGrtToApplication(
+        applicationProjectPath: String,
+        grtIncomingCfg: Configuration,
+    ) {
+        if (applicationProjectPath == path) {
+            ViaductPluginCommon.APPLICATION_PLUGIN_IDS.forEach { pluginId ->
+                pluginManager.withPlugin(pluginId) {
+                    val outputs = extensions.getByType(ViaductApplicationOutputProviders::class.java)
+                    dependencies.add(grtIncomingCfg.name, files(outputs.kotlinGrtJar))
+                }
+            }
+            return
+        }
+
+        dependencies.add(
+            grtIncomingCfg.name,
+            dependencies.project(
+                mapOf(
+                    "path" to applicationProjectPath,
+                    "configuration" to ViaductPluginCommon.Configs.GRT_CLASSES_KOTLIN_OUTGOING,
+                ),
+            ),
+        )
+    }
 
     private fun Project.setupKspRegistryExtractor(
         moduleLayout: ViaductModulePackageLayout,

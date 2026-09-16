@@ -1,0 +1,6 @@
+public abstract interface class viaduct/gradle/ViaductMetamoduleExtension {
+	public abstract fun getApplicationProjectPath ()Ljava/lang/String;
+	public abstract fun getCentralSchemaConfiguration ()Lorg/gradle/api/artifacts/Configuration;
+	public abstract fun getLayout ()Lviaduct/gradle/ViaductModulePackageLayout;
+}
+

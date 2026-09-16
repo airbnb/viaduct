@@ -115,19 +115,14 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
                     dependencies.project(mapOf("path" to modulePath)),
                 )
             } else {
-                listOf(
-                    "com.airbnb.viaduct.module-gradle-plugin",
-                    "com.airbnb.viaduct.module-java-gradle-plugin",
-                ).forEach { pluginId ->
-                    pluginManager.withPlugin(pluginId) {
-                        dependencies.add(
-                            ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING,
-                            files(
-                                tasks.named("prepareViaductSchemaPartition", AssembleSchemaPartitionTask::class.java)
-                                    .flatMap { it.outputDirectory },
-                            ),
-                        )
-                    }
+                pluginManager.withPlugin("com.airbnb.viaduct.metamodule-gradle-plugin") {
+                    dependencies.add(
+                        ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING,
+                        files(
+                            tasks.named("prepareViaductSchemaPartition", AssembleSchemaPartitionTask::class.java)
+                                .flatMap { it.outputDirectory },
+                        ),
+                    )
                 }
             }
         }

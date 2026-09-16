@@ -15,6 +15,7 @@ java {
 
 dependencies {
     implementation(project(":common"))
+    implementation(project(":metamodule"))
 
     // Libraries the plugin source imports directly (binary schema generation).
     // tenant-codegen is NOT here — it is an external tool artifact resolved at

@@ -45,6 +45,7 @@ includeBuild("../publications")
 include(":common")
 include(":settings")
 include(":application")
+include(":metamodule")
 include(":module")
 include(":module-java")
 
