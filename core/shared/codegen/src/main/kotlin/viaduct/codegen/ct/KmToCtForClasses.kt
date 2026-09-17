@@ -116,9 +116,8 @@ internal fun CtClass.applySupers(
 }
 
 /**
- * This function deals with the way in which Kotlin "traditionally" implements the default
- * implementation of interface functions (we say "traditionally" because Kotlin now supports
- * the JVM's implementation of these defaults, but that approach isn't yet widely used).
+ * Adapts legacy Kotlin interface defaults through DefaultImpls. Classes inherit native JVM
+ * defaults directly; interfaces retain available helpers for legacy callers.
  * See the DefaultImpls section in learnings.md for more information.
  *
  * For the following Kotlin code:
@@ -197,6 +196,10 @@ private fun CtClass.useDefaultImpls(
         // The DefaultImpls method is static, and its first param is an instance of the interface.
         // Strip this param from the descriptor to get the descriptor of the corresponding method in the interface
         val methodDescriptor = "(" + defaultImplsMethod.methodInfo.descriptor.substringAfter(";")
+
+        // Native defaults are inherited by the JVM. Copying compatibility helpers into a class
+        // introduces unnecessary overrides (and may copy compiler-generated deprecation annotations).
+        if (!this.isInterface && iface.getMethod(defaultImplsMethod.name, methodDescriptor).modifiers and AccessFlag.ABSTRACT == 0) continue
 
         // Check if the interface function is overridden in the KmClass
         val overridden =
@@ -380,9 +383,9 @@ private fun CtClass.addBridgedClassFunction(
 
 /**
  * Converts a KmFunction to one or more CtMethods and adds it to the interface CtClass. The methods include:
- * 1. An abstract method is added to interface
- * 2. If the KmFunction is non-abstract, adds a static method to <this>$DefaultImpls
- * 3. If the KmFunction has default param values, adds a synthetic <funcName>$default method to <this>$DefaultImpls
+ * 1. An abstract or JVM default method is added to the interface.
+ * 2. Non-abstract functions retain a static implementation in <this>$DefaultImpls for legacy callers.
+ * 3. Default arguments get synthetic <funcName>$default dispatchers on both the interface and its helper.
  */
 private fun CtClass.addInterfaceFunctionFromKm(
     ctx: CtGenContext,
@@ -394,7 +397,7 @@ private fun CtClass.addInterfaceFunctionFromKm(
     fnWrapper.checkAbstract()
 
     ctx.withContext(fnWrapper.function.name) {
-        val abstractMethod =
+        val interfaceMethod =
             CtNewMethod.abstractMethod(
                 ctx.getClass(fnWrapper.function.javaReturnTypeName),
                 fnWrapper.function.name,
@@ -405,8 +408,8 @@ private fun CtClass.addInterfaceFunctionFromKm(
                 null,
                 this
             )
-        abstractMethod.setAdditionalInfoFromKm(fnWrapper, this.classFile.constPool)
-        this.addMethod(abstractMethod)
+        interfaceMethod.setAdditionalInfoFromKm(fnWrapper, this.classFile.constPool)
+        this.addMethod(interfaceMethod)
 
         if (this.isInterface && fnWrapper.body != null) {
             val defaultImpls = ctx.getOrCreateDefaultImpls(this)
@@ -424,6 +427,13 @@ private fun CtClass.addInterfaceFunctionFromKm(
             method.setAdditionalInfoFromKm(fnWrapper, defaultImpls.classFile.constPool)
             ctx.addCompilable(fnWrapper.body, method)
             defaultImpls.addMethod(method)
+
+            // Keep the legacy helper ABI while allowing modern implementations to inherit the body.
+            interfaceMethod.modifiers = interfaceMethod.modifiers and AccessFlag.ABSTRACT.inv()
+            ctx.addCompilable(
+                "{ return ${defaultImpls.name}.${fnWrapper.function.name}(this, $$); }",
+                interfaceMethod
+            )
         }
     }
 
@@ -432,7 +442,7 @@ private fun CtClass.addInterfaceFunctionFromKm(
 
 /**
  * Adds a synthetic <fn name>$default method if any of the params have a default value. If the receiver
- * CtClass is an interface, the default method gets added to <this>$DefaultImpls.
+ * CtClass is an interface, the dispatcher is available on both the interface and <this>$DefaultImpls.
  */
 private fun CtClass.addDefaultMethodIfNecessary(
     ctx: CtGenContext,
@@ -478,6 +488,21 @@ private fun CtClass.addDefaultMethodIfNecessary(
             defaultMethod
         )
         declaringClass.addMethod(defaultMethod)
+
+        if (this.isInterface) {
+            // Modern callers resolve the dispatcher on the interface; legacy callers use DefaultImpls.
+            val interfaceDefaultMethod = CtNewMethod.make(
+                accessFlags,
+                ctx.getClass(fnWrapper.function.javaReturnTypeName),
+                defaultName,
+                paramsForDefaultMethod.toTypedArray(),
+                null,
+                null,
+                this
+            )
+            ctx.addCompilable("{ return ${declaringClass.name}.$defaultName($$); }", interfaceDefaultMethod)
+            this.addMethod(interfaceDefaultMethod)
+        }
     }
 }
 

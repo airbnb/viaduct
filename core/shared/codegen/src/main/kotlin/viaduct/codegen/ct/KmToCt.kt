@@ -11,6 +11,8 @@ import kotlinx.metadata.KmClass
 import kotlinx.metadata.isInner
 import kotlinx.metadata.jvm.JvmMetadataVersion
 import kotlinx.metadata.jvm.KotlinClassMetadata
+import kotlinx.metadata.jvm.hasMethodBodiesInInterface
+import kotlinx.metadata.jvm.isCompiledInCompatibilityMode
 import kotlinx.metadata.kind
 import viaduct.codegen.utils.DEFAULT_IMPLS
 import viaduct.codegen.utils.INVISIBLE
@@ -233,6 +235,11 @@ private fun updateAttributes(
     results: Map<KmName, Pair<KmClassWrapper, CtClass>>
 ) {
     results.values.forEach { (wrapper, cls) ->
+        if (wrapper.kmClass.kind == ClassKind.INTERFACE) {
+            // Advertise native bodies and retained DefaultImpls to downstream Kotlin compilers.
+            wrapper.kmClass.hasMethodBodiesInInterface = true
+            wrapper.kmClass.isCompiledInCompatibilityMode = true
+        }
         val kmMetadataAnnotation =
             cls.asCtAnnotation(
                 KotlinClassMetadata.Class(wrapper.kmClass, JvmMetadataVersion.LATEST_STABLE_SUPPORTED, 0).write()

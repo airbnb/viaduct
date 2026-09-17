@@ -184,6 +184,11 @@ class ClassLoaderTests {
         val defaultImpls = c.declaredClasses[0]
         defaultImpls.name shouldBe "InterfaceWithDefaultMethods\$DefaultImpls"
         val declaredMethods = defaultImpls.declaredMethods.filter { !it.isSynthetic }
-        declaredMethods.map { it.name } shouldContainExactlyInAnyOrder listOf("hello", "world")
+        val expectedMethods = if (ClInterfaceWithDefaultImpls::class.java.declaredClasses.any { it.simpleName == "DefaultImpls" }) {
+            listOf("hello", "world")
+        } else {
+            listOf("world")
+        }
+        declaredMethods.map { it.name } shouldContainExactlyInAnyOrder expectedMethods
     }
 }

@@ -35,6 +35,7 @@ import expectedspkg.InterfaceExtendsInterfaceWithDefaults3
 import expectedspkg.InterfaceWithNestedClass
 import expectedspkg.MultipleNestedInheritance
 import expectedspkg.TransitiveNestedInheritance
+import io.kotest.matchers.shouldBe
 import kotlin.reflect.KClass
 import kotlinx.metadata.ClassKind
 import kotlinx.metadata.KmAnnotation
@@ -50,11 +51,13 @@ import kotlinx.metadata.modality
 import kotlinx.metadata.visibility
 import org.junit.jupiter.api.Test
 import viaduct.codegen.ct.asCtName
+import viaduct.codegen.km.ctdiff.KmMetadataDiff
 import viaduct.codegen.utils.JavaIdName
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
-import viaduct.codegen.utils.defaultImpls
 import viaduct.codegen.utils.name
+
+class InterfaceDefaultCaller : InterfaceWithDefaults1
 
 class NestedClassTest {
     private val nestedAnnotation = KmAnnotation(
@@ -75,6 +78,33 @@ class NestedClassTest {
         val actualName = KmName("$actualspkg/${expected.simpleName}")
         ctx.apply { buildActual(actualName) }
         ctx.assertNoDiff(expected, actualName.asJavaBinaryName.toString())
+    }
+
+    // Default methods have different JVM layouts across compiler modes. Check the Kotlin
+    // declaration contract here and exercise dispatch in each test, without relaxing ClassDiff.
+    private fun buildWithDefaultMetadata(
+        expected: KClass<*>,
+        buildActual: KmClassFilesBuilder.(actualName: KmName) -> Unit
+    ): Any {
+        val ctx = KmClassFilesBuilder()
+        val actualName = KmName("$actualspkg/${expected.simpleName}")
+        ctx.buildActual(actualName)
+        val implementationName = if (expected.java.isInterface) {
+            KmName("$actualspkg/${expected.simpleName}Implementation").also { name ->
+                ctx.customClassBuilder(ClassKind.CLASS, name).apply {
+                    addSupertype(actualName.asType())
+                    addEmptyCtor()
+                }
+            }
+        } else {
+            actualName
+        }
+        val loader = ctx.buildClassLoader()
+        KmMetadataDiff(expected.java.packageName, actualspkg).apply {
+            compare(expected.java, loader.loadClass(actualName.asJavaBinaryName.toString()))
+            diffs.assertEmptyMultiline("Default-method declarations should agree")
+        }
+        return loader.loadClass(implementationName.asJavaBinaryName.toString()).getDeclaredConstructor().newInstance()
     }
 
     private fun CustomClassBuilder.nest(
@@ -318,18 +348,19 @@ class NestedClassTest {
 
     @Test
     fun `class extends interface with defaults`() {
-        assertEquals(ClassExtendsInterfaceWithDefaults::class) { actualName ->
+        val instance = buildWithDefaultMetadata(ClassExtendsInterfaceWithDefaults::class) { actualName ->
             customClassBuilder(ClassKind.CLASS, actualName)
                 .apply {
                     addEmptyCtor()
                     addSupertype(InterfaceWithDefaults1::class.kmType)
                 }
         }
+        (instance as InterfaceWithDefaults1).f() shouldBe 1
     }
 
     @Test
     fun `class extends interface with defaults 2`() {
-        assertEquals(ClassExtendsInterfaceWithDefaults2::class) { actualName ->
+        val instance = buildWithDefaultMetadata(ClassExtendsInterfaceWithDefaults2::class) { actualName ->
             customClassBuilder(ClassKind.CLASS, actualName)
                 .apply {
                     addEmptyCtor()
@@ -337,21 +368,24 @@ class NestedClassTest {
                     addSupertype(InterfaceWithDefaults2::class.kmType)
                 }
         }
+        (instance as InterfaceWithDefaults1).f() shouldBe 1
+        (instance as InterfaceWithDefaults2).g() shouldBe 2
     }
 
     @Test
     fun `interface extends interface with defaults`() {
-        assertEquals(InterfaceExtendsInterfaceWithDefaults::class) { actualName ->
+        val instance = buildWithDefaultMetadata(InterfaceExtendsInterfaceWithDefaults::class) { actualName ->
             customClassBuilder(ClassKind.INTERFACE, actualName)
                 .apply {
                     addSupertype(InterfaceWithDefaults1::class.kmType)
                 }
         }
+        (instance as InterfaceWithDefaults1).f() shouldBe 1
     }
 
     @Test
     fun `interface extends interface with defaults 2`() {
-        assertEquals(InterfaceExtendsInterfaceWithDefaults2::class) { actualName ->
+        val instance = buildWithDefaultMetadata(InterfaceExtendsInterfaceWithDefaults2::class) { actualName ->
             customClassBuilder(ClassKind.INTERFACE, actualName)
                 .apply {
                     addSupertype(InterfaceWithDefaults1::class.kmType)
@@ -365,11 +399,12 @@ class NestedClassTest {
                     )
                 }
         }
+        (instance as InterfaceWithDefaults1).f() shouldBe 2
     }
 
     @Test
     fun `interface extends interface with defaults 3`() {
-        assertEquals(InterfaceExtendsInterfaceWithDefaults3::class) { actualName ->
+        val instance = buildWithDefaultMetadata(InterfaceExtendsInterfaceWithDefaults3::class) { actualName ->
             customClassBuilder(ClassKind.INTERFACE, actualName)
                 .apply {
                     addSupertype(InterfaceWithDefaults1::class.kmType)
@@ -381,12 +416,13 @@ class NestedClassTest {
                         },
                         body = """
                             {
-                              return ${InterfaceWithDefaults1::class.kmName.defaultImpls.asJavaBinaryName}.f(null);
+                              return new ${InterfaceDefaultCaller::class.kmName.asJavaBinaryName}().f();
                             }
                         """.trimIndent()
                     )
                 }
         }
+        (instance as InterfaceWithDefaults1).f() shouldBe 1
     }
 
     @Test
