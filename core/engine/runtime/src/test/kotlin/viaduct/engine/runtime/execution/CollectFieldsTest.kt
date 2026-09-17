@@ -1,16 +1,17 @@
 package viaduct.engine.runtime.execution
 
 import graphql.execution.CoercedVariables
-import graphql.execution.MergedField
+import graphql.execution.ResultPath
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.collections.shouldNotContain
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
-import viaduct.engine.runtime.execution.QueryPlan.CollectedField
 import viaduct.engine.runtime.execution.QueryPlan.Field
 import viaduct.engine.runtime.execution.QueryPlan.InlineFragment
 import viaduct.engine.runtime.execution.QueryPlan.SelectionSet
@@ -36,17 +37,8 @@ class CollectFieldsTest {
 
         checkEquals(
             collected,
-            SelectionSet(
-                schema.queryType,
-                listOf(
-                    CollectedField(
-                        "x",
-                        null,
-                        MergedField.newMergedField().addField(xField.field).build(),
-                        emptyList(),
-                        FieldTypeChildPlans.empty
-                    )
-                )
+            listOf(
+                CollectedField(listOf(FieldDetails(xField, null)), schema)
             )
         )
     }
@@ -67,7 +59,7 @@ class CollectFieldsTest {
 
         checkEquals(
             collected,
-            SelectionSet.empty(schema.queryType)
+            emptyList()
         )
     }
 
@@ -87,22 +79,12 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
+        assertEquals(listOf(x0.field, x1.field), collected.single().occurrences.map { it.field.field })
+        assertEquals(listOf(null, null), collected.single().occurrences.map { it.deferUsage })
         checkEquals(
             collected,
-            SelectionSet(
-                schema.queryType,
-                listOf(
-                    CollectedField(
-                        "x",
-                        null,
-                        MergedField.newMergedField()
-                            .addField(x0.field)
-                            .addField(x1.field)
-                            .build(),
-                        emptyList(),
-                        FieldTypeChildPlans.empty
-                    )
-                )
+            listOf(
+                CollectedField(listOf(FieldDetails(x0, null), FieldDetails(x1, null)), schema)
             )
         )
     }
@@ -125,17 +107,8 @@ class CollectFieldsTest {
 
         checkEquals(
             collected,
-            SelectionSet(
-                schema.queryType,
-                listOf(
-                    CollectedField(
-                        "x",
-                        null,
-                        MergedField.newMergedField().addField(xField.field).build(),
-                        emptyList(),
-                        FieldTypeChildPlans.empty
-                    )
-                )
+            listOf(
+                CollectedField(listOf(FieldDetails(xField, null)), schema)
             )
         )
     }
@@ -163,17 +136,8 @@ class CollectFieldsTest {
 
         checkEquals(
             collected,
-            SelectionSet(
-                schema.queryType,
-                listOf(
-                    CollectedField(
-                        "x",
-                        null,
-                        MergedField.newMergedField().addField(xField.field).build(),
-                        emptyList(),
-                        FieldTypeChildPlans.empty
-                    )
-                )
+            listOf(
+                CollectedField(listOf(FieldDetails(xField, null)), schema)
             )
         )
     }
@@ -224,7 +188,7 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
-        val collectedRestricted = collected.selections[0] as CollectedField
+        val collectedRestricted = collected[0]
         val collectedRestrictedParentTypes =
             collectedRestricted.childPlans.map { it.queryPlanParentType }
 
@@ -305,7 +269,7 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
-        val collectedId = collected.selections.filterIsInstance<CollectedField>().single { it.fieldName == "id" }
+        val collectedId = collected.single { it.fieldName == "id" }
         // Only the HiveTable.id RSS should survive.
         collectedId.childPlans.shouldHaveSize(1)
         assertEquals("HiveTable" to "id", collectedId.childPlans.single().originCoordinate)
@@ -326,7 +290,7 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = true,
         )
 
-        val collectedId = collected.selections.filterIsInstance<CollectedField>().single { it.fieldName == "id" }
+        val collectedId = collected.single { it.fieldName == "id" }
         // Both RSS entries are kept under legacy filter — HiveTable's matches by parentType,
         // OtherNode's slips through via the root-type permissive clause.
         collectedId.childPlans.shouldHaveSize(2)
@@ -349,7 +313,7 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
-        val collectedId = collected.selections.filterIsInstance<CollectedField>().single { it.fieldName == "id" }
+        val collectedId = collected.single { it.fieldName == "id" }
         collectedId.childPlans.shouldHaveSize(1)
         assertEquals("OtherNode" to "id", collectedId.childPlans.single().originCoordinate)
     }
@@ -379,7 +343,7 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
-        val collectedX = collected.selections.filterIsInstance<CollectedField>().single { it.fieldName == "x" }
+        val collectedX = collected.single { it.fieldName == "x" }
         collectedX.childPlans.shouldHaveSize(1)
         assertEquals("Query" to "x", collectedX.childPlans.single().originCoordinate)
     }
@@ -431,12 +395,31 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
-        val collectedMetadata = collected.selections.filterIsInstance<CollectedField>().single { it.responseKey == "sectionMetadata" }
+        val collectedMetadata = collected.single { it.responseKey == "sectionMetadata" }
         val mergedSelectionSet = requireNotNull(collectedMetadata.selectionSet)
         assertEquals(rawSchema.getObjectType("MediationMetadata"), mergedSelectionSet.parentType)
 
         val mergedFieldNames = mergedSelectionSet.selections.filterIsInstance<Field>().map { it.field.name }
         mergedFieldNames shouldContain "pageTitle"
         mergedFieldNames shouldContain "prefillValues"
+    }
+}
+
+private fun checkEquals(
+    exp: List<CollectedField>,
+    act: List<CollectedField>,
+) {
+    act.shouldHaveSize(exp.size)
+    exp.zip(act).forEach { (exp, act) ->
+        assertEquals(exp.responseKey, act.responseKey)
+        val expSelectionSet = exp.selectionSet
+        if (expSelectionSet != null) {
+            assertNotNull(act.selectionSet)
+            checkEquals(expSelectionSet, act.selectionSet!!)
+        } else {
+            assertNull(act.selectionSet)
+        }
+        assertMergedFieldsEqual(ResultPath.rootPath(), exp.mergedField, act.mergedField)
+        checkEqualsFieldChildPlanList(exp.childPlans, act.childPlans)
     }
 }

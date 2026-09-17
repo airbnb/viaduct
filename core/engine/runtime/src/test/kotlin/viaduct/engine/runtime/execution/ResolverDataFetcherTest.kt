@@ -162,7 +162,7 @@ class ResolverDataFetcherTest {
             registry = baseEngineExecutionContextImpl.dispatcherRegistry,
             dispatcherRegistry = baseEngineExecutionContextImpl.dispatcherRegistry,
         )
-        private val currentField = QueryPlan.CollectedField(
+        private val currentField = mkCollectedField(
             responseKey = testField,
             selectionSet = null,
             mergedField = MergedField.newMergedField()
@@ -170,9 +170,10 @@ class ResolverDataFetcherTest {
                 .build(),
             childPlans = emptyList(),
             fieldTypeChildPlans = FieldTypeChildPlans.empty,
+            schema = schema.schema,
         )
         private val currentQueryPlan = QueryPlan(
-            selectionSet = QueryPlan.SelectionSet(testTypeObject, currentField),
+            selectionSet = QueryPlan.SelectionSet(testTypeObject, currentField.toQueryPlanFields()),
             fragments = QueryPlan.Fragments.empty,
             variablesResolvers = emptyList(),
             childPlanIds = emptyList(),

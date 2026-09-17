@@ -576,7 +576,6 @@ private class QueryPlanBuilder(
                 if (!selection.isStaticallyDropped()) {
                     addReferences(selection.variableReferences)
                     when (selection) {
-                        is QueryPlan.CollectedField -> selection.selectionSet?.let(::visitSelectionSet)
                         is QueryPlan.Field -> selection.selectionSet?.let(::visitSelectionSet)
                         is QueryPlan.InlineFragment -> visitSelectionSet(selection.selectionSet)
                         is QueryPlan.FragmentSpread -> {

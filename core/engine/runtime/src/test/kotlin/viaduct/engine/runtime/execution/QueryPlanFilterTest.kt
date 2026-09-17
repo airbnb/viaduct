@@ -292,7 +292,7 @@ class QueryPlanFilterTest {
                 fieldRssOriginFilteringKillSwitchEnabled = true,
             )
 
-            collected.fieldResultKeys().shouldContainExactly("foo")
+            collected.map { it.responseKey }.shouldContainExactly("foo")
         }
     }
 
@@ -333,7 +333,7 @@ class QueryPlanFilterTest {
                 fieldRssOriginFilteringKillSwitchEnabled = true,
             )
 
-            collected.fieldResultKeys().shouldContainExactly("foo")
+            collected.map { it.responseKey }.shouldContainExactly("foo")
         }
     }
 
@@ -382,8 +382,8 @@ class QueryPlanFilterTest {
                 fieldRssOriginFilteringKillSwitchEnabled = true,
             )
 
-            included.fieldResultKeys().shouldContainExactly("foo")
-            excluded.fieldResultKeys().shouldBeEmpty()
+            included.map { it.responseKey }.shouldContainExactly("foo")
+            excluded.map { it.responseKey }.shouldBeEmpty()
         }
     }
 
@@ -429,7 +429,7 @@ class QueryPlanFilterTest {
                 fieldRssOriginFilteringKillSwitchEnabled = true,
             )
 
-            collected.fieldResultKeys().shouldContainExactly("x")
+            collected.map { it.responseKey }.shouldContainExactly("x")
         }
     }
 
@@ -765,10 +765,10 @@ class QueryPlanFilterTest {
                         field("Foo", key("x"))
                     }
                 },
-                source = collected,
+                source = QueryPlan.SelectionSet(query, collected.flatMap { it.toQueryPlanFields() }),
             )
 
-            val filteredFoo = filtered.selectionSet.selections.single() as QueryPlan.CollectedField
+            val filteredFoo = filtered.selectionSet.selections.single() as QueryPlan.Field
             filteredFoo.selectionSet!!.fieldResultKeys().shouldContainExactly("x")
 
             val fooAst = filtered.selectionSet.toAstSelectionSet().selections.single() as GJField
@@ -876,7 +876,6 @@ class QueryPlanFilterTest {
 private fun QueryPlan.SelectionSet.fieldResultKeys(): List<String> =
     selections.mapNotNull {
         when (it) {
-            is QueryPlan.CollectedField -> it.responseKey
             is QueryPlan.Field -> it.resultKey
             else -> null
         }
@@ -885,13 +884,11 @@ private fun QueryPlan.SelectionSet.fieldResultKeys(): List<String> =
 private fun QueryPlan.SelectionSet.fieldSelectionSet(resultKey: String): QueryPlan.SelectionSet? {
     val field = selections.single { selection ->
         when (selection) {
-            is QueryPlan.CollectedField -> selection.responseKey == resultKey
             is QueryPlan.Field -> selection.resultKey == resultKey
             else -> false
         }
     }
     return when (field) {
-        is QueryPlan.CollectedField -> field.selectionSet
         is QueryPlan.Field -> field.selectionSet
         else -> error("Expected a field for `$resultKey`")
     }

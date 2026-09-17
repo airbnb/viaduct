@@ -97,7 +97,7 @@ class FieldCompleter(
      * schemas omit its definition, so client operations cannot use this path.
      */
     private fun shouldBypassChecker(
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         parameters: ExecutionParameters,
     ): Boolean =
         parameters.bypassChecksDuringCompletion ||
@@ -155,10 +155,8 @@ class FieldCompleter(
     @Suppress("UNCHECKED_CAST")
     private fun objectFieldMap(parameters: ExecutionParameters): Value<Map<String, Any?>> {
         val currentOER = parameters.currentObjectEngineResult
-        val fields = collectFields(currentOER.type, parameters).selections
+        val fields = collectFields(currentOER.type, parameters)
         val fieldValues = fields.map { field ->
-            field as QueryPlan.CollectedField
-
             val newParams = parameters.forField(currentOER.type, field)
             val fieldKey = buildOERKeyForField(newParams, field)
             val bypassChecker = shouldBypassChecker(field, parameters)
@@ -249,7 +247,7 @@ class FieldCompleter(
      */
     private fun Value<FieldResolutionResult>.handleExceptionWithCapture(
         params: ExecutionParameters,
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
     ): Value<Pair<FieldResolutionResult, Throwable?>> {
         return this.thenCompose { result, throwable ->
             if (throwable == null) {
@@ -267,7 +265,7 @@ class FieldCompleter(
 
     private fun Value<FieldResolutionResult>.handleException(
         params: ExecutionParameters,
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
     ): Value<FieldResolutionResult> = handleExceptionWithCapture(params, field).map { (frr, _) -> frr }
 
     /**
@@ -310,7 +308,7 @@ class FieldCompleter(
      */
     @Suppress("TooGenericExceptionCaught")
     fun completeField(
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         parameters: ExecutionParameters,
         fieldResolutionResult: Value<FieldResolutionResult>,
     ): Value<FieldCompletionResult> {
@@ -361,7 +359,7 @@ class FieldCompleter(
      * @return The [Value] of [FieldCompletionResult] representing the completed value.
      */
     private fun completeValue(
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         parameters: ExecutionParameters,
         fieldResultValue: Value<FieldResolutionResult>,
         fieldCompleteInstCtx: InstrumentationContext<*>?,
@@ -455,7 +453,7 @@ class FieldCompleter(
      * @return The [Value] of [FieldCompletionResult] representing the list value.
      */
     private fun completeValueForList(
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         parameters: ExecutionParameters,
         result: Any
     ): Value<FieldCompletionResult> {
@@ -622,7 +620,7 @@ class FieldCompleter(
      * @return The [Value] of [FieldCompletionResult] representing the object value.
      */
     private fun completeValueForObject(
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         parameters: ExecutionParameters,
         result: FieldResolutionResult,
     ): Value<FieldCompletionResult> {

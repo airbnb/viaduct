@@ -68,12 +68,13 @@ class FieldResolverExecutionConditionTest {
             variableDefinitions = emptyList(),
             requiredSelectionSetId = childRss.id,
         )
-        val collectedField = QueryPlan.CollectedField(
+        val collectedField = mkCollectedField(
             responseKey = "id",
             selectionSet = null,
             mergedField = MergedField.newMergedField().addField(field).build(),
             childPlans = listOf(FieldChildPlan(childPlan, "OtherNode" to "id")),
             fieldTypeChildPlans = FieldTypeChildPlans.empty,
+            schema = schema,
         )
         val parameters = mockk<ExecutionParameters>()
         val executionStepInfo = mockk<ExecutionStepInfo>()

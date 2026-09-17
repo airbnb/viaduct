@@ -2,7 +2,6 @@ package viaduct.engine.runtime.execution
 
 import graphql.GraphQLContext
 import graphql.execution.CoercedVariables
-import graphql.execution.MergedField
 import graphql.execution.ValuesResolver
 import graphql.language.Argument
 import graphql.language.ArrayValue
@@ -54,20 +53,18 @@ internal class VariableInliner(
         fieldArgumentDefinitions = parameters.executionStepInfo.fieldDefinition.arguments,
     )
 
-    fun shallowInline(field: QueryPlan.CollectedField): QueryPlan.CollectedField {
+    fun shallowInline(field: CollectedField): CollectedField {
         var changed = false
-        val fields = field.mergedField.fields.map { astField ->
-            shallowInline(astField).also {
-                changed = changed || it !== astField
+        val fields = field.occurrences.map { details ->
+            val astField = shallowInline(details.field.field)
+            if (astField === details.field.field) {
+                details
+            } else {
+                changed = true
+                details.copy(field = details.field.copy(field = astField))
             }
         }
-        if (!changed) return field
-
-        return field.copy(
-            mergedField = MergedField.newMergedField(fields)
-                .addDeferredExecutions(field.mergedField.deferredExecutions)
-                .build()
-        )
+        return if (changed) field.withOccurrences(fields) else field
     }
 
     fun shallowInline(field: GJField): GJField {

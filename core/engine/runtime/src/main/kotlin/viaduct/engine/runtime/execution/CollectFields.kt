@@ -2,11 +2,13 @@ package viaduct.engine.runtime.execution
 
 import graphql.execution.CoercedVariables
 import graphql.execution.MergedField
+import graphql.language.AstPrinter
+import graphql.language.SourceLocation
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
-import viaduct.engine.runtime.execution.QueryPlan.CollectedField
 import viaduct.engine.runtime.execution.QueryPlan.Field
+import viaduct.engine.runtime.execution.QueryPlan.FieldMetadata
 import viaduct.engine.runtime.execution.QueryPlan.FragmentDefinition
 import viaduct.engine.runtime.execution.QueryPlan.FragmentSpread
 import viaduct.engine.runtime.execution.QueryPlan.Fragments
@@ -16,6 +18,45 @@ import viaduct.engine.runtime.execution.QueryPlan.SelectionSet
 import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.engine.runtime.execution.constraints.Constraints.Resolution
 import viaduct.utils.collections.MaskedSet
+
+/** A planned field occurrence and its enclosing defer context. */
+data class FieldDetails(val field: Field, val deferUsage: DeferUsage?)
+
+/** Unmerged occurrences of one response key, with shared derived views for execution. */
+class CollectedField(
+    val occurrences: List<FieldDetails>,
+    private val schema: GraphQLSchema,
+) {
+    val responseKey: String get() = occurrences.first().field.resultKey
+    val fieldName: String get() = occurrences.first().field.field.name
+    val alias: String? get() = occurrences.first().field.field.alias
+    val sourceLocation: SourceLocation get() = occurrences.first().field.field.sourceLocation ?: SourceLocation.EMPTY
+    val childPlans: List<FieldChildPlan> get() = occurrences.first().field.childPlans
+    val fieldTypeChildPlans: FieldTypeChildPlans get() = occurrences.first().field.fieldTypeChildPlans
+    val collectedFieldMetadata: FieldMetadata? get() = occurrences.first().field.metadata
+
+    val mergedField: MergedField by lazy {
+        MergedField.newMergedField(occurrences.map { it.field.field }).build()
+    }
+
+    val selectionSet: SelectionSet? by lazy {
+        val first = occurrences.first().field.selectionSet
+        check(occurrences.all { (it.field.selectionSet == null) == (first == null) }) {
+            "Cannot merge fields with different subselection flavors"
+        }
+        if (first == null) {
+            null
+        } else {
+            occurrences.drop(1).fold(first) { acc, details -> acc.merge(details.field.selectionSet!!, schema) }
+        }
+    }
+
+    fun withOccurrences(occurrences: List<FieldDetails>): CollectedField = CollectedField(occurrences, schema)
+
+    internal fun toQueryPlanFields(): List<Field> = occurrences.map { it.field }
+
+    override fun toString(): String = AstPrinter.printAst(mergedField.singleField)
+}
 
 object CollectFields {
     /**
@@ -32,7 +73,7 @@ object CollectFields {
         parentType: GraphQLObjectType,
         fragments: Fragments,
         fieldRssOriginFilteringKillSwitchEnabled: Boolean,
-    ): SelectionSet {
+    ): List<CollectedField> {
         val result = collect(
             State(
                 schema = schema,
@@ -45,13 +86,13 @@ object CollectFields {
             ),
             fieldRssOriginFilteringKillSwitchEnabled = fieldRssOriginFilteringKillSwitchEnabled,
         )
-        return result.asSelectionSet()
+        return result.acc
     }
 
     /** models the state while collecting fields within a single SelectionSet */
     private data class State(
         val schema: GraphQLSchema,
-        val acc: List<Selection>,
+        val acc: List<CollectedField>,
         val pending: List<Selection>,
         val spreadFragments: Set<String>,
         val fragments: Fragments,
@@ -59,8 +100,6 @@ object CollectFields {
         val parentType: GraphQLObjectType,
     ) {
         fun fragmentDef(name: String): FragmentDefinition = requireNotNull(fragments[name]) { "Fragment `$name` is not defined" }
-
-        fun asSelectionSet(): SelectionSet = SelectionSet(parentType, acc)
 
         fun constrainedTypes() = constraintsCtx.parentTypes?.toSet()
     }
@@ -77,7 +116,7 @@ object CollectFields {
         fieldRssOriginFilteringKillSwitchEnabled: Boolean,
     ): State {
         val visitedFragments = state.spreadFragments.toMutableSet()
-        val acc = ArrayList<Selection>(state.pending.size)
+        val acc = ArrayList<CollectedField>(state.pending.size)
 
         // map of resultKey to index of collected field in acc
         val collectedFieldIndices = mutableMapOf<String, Int>()
@@ -102,31 +141,10 @@ object CollectFields {
                     throw IllegalStateException("Could not collect selection: $sel")
 
                 // getting to this point implies that resolution == Resolution.Collect
-                sel is CollectedField ->
-                    when (val extantIndex = collectedFieldIndices[sel.responseKey]) {
-                        null -> {
-                            // no existing field with this responseKey
-                            // Nothing to merge with, and we can always add this selection to the accumulator
-                            collectedFieldIndices[sel.responseKey] = acc.size
-                            acc += sel
-                        }
-
-                        else -> {
-                            // we've already collected a field with this responseKey.
-                            // Look it up by its index and merge
-                            val extant = acc[extantIndex] as CollectedField
-                            acc[extantIndex] = merge(state.schema, extant, sel)
-                        }
-                    }
-
-                sel is Field ->
-                    // Collect this field by pushing a CollectedField onto the stack.
-                    // It will be merged in the next iteration.
-                    queue.addFirst(
-                        CollectedField(
-                            sel.resultKey,
-                            sel.selectionSet,
-                            MergedField.newMergedField(sel.field).build(),
+                sel is Field -> {
+                    val field =
+                        sel.copy(
+                            constraints = Constraints.Unconstrained,
                             childPlans = sel.childPlans.filter { fcp ->
                                 val types = state.constrainedTypes()
                                 val planParentType = fcp.queryPlanParentType
@@ -148,10 +166,24 @@ object CollectFields {
 
                                 planParentApplies && originApplies
                             },
-                            fieldTypeChildPlans = sel.fieldTypeChildPlans,
-                            collectedFieldMetadata = sel.metadata
                         )
-                    )
+                    val collectedField = CollectedField(listOf(FieldDetails(field, null)), state.schema)
+                    when (val extantIndex = collectedFieldIndices[sel.resultKey]) {
+                        null -> {
+                            // no existing field with this responseKey
+                            // Nothing to merge with, and we can always add this selection to the accumulator
+                            collectedFieldIndices[sel.resultKey] = acc.size
+                            acc += collectedField
+                        }
+
+                        else -> {
+                            // we've already collected a field with this responseKey.
+                            // Look it up by its index and merge
+                            val extant = acc[extantIndex]
+                            acc[extantIndex] = merge(extant, collectedField)
+                        }
+                    }
+                }
 
                 sel is InlineFragment ->
                     // push all fragment fields onto the stack
@@ -182,26 +214,7 @@ object CollectFields {
             this == schema.subscriptionType
 
     private fun merge(
-        schema: GraphQLSchema,
         host: CollectedField,
         donor: CollectedField
-    ): CollectedField {
-        check((host.selectionSet == null) == (donor.selectionSet == null)) {
-            "Cannot merge fields with different subselection flavors"
-        }
-
-        val newSelectionSet = host.selectionSet?.let { hss ->
-            val dss = donor.selectionSet!!
-            hss.merge(dss, schema)
-        }
-        return host.copy(
-            mergedField = merge(host.mergedField, donor.mergedField),
-            selectionSet = newSelectionSet
-        )
-    }
-
-    private fun merge(
-        host: MergedField,
-        donor: MergedField
-    ): MergedField = host.transform { it.fields(donor.fields) }
+    ): CollectedField = host.withOccurrences(host.occurrences + donor.occurrences)
 }

@@ -50,7 +50,7 @@ internal fun QueryPlan.keyTree(
  */
 internal fun QueryPlan.keyTree(
     parameters: ExecutionParameters,
-    field: QueryPlan.CollectedField,
+    field: CollectedField,
     outputSelectionSetFilter: KeyTreeFilter = KeyTreeFilter.KeepAll,
 ): KeyTree =
     field.selectionSet?.let {
@@ -68,7 +68,7 @@ internal data class ResolvedField(
 )
 
 /** Resolves this field using execution state from [parameters] for [parentType]. */
-internal fun QueryPlan.CollectedField.resolveField(
+internal fun CollectedField.resolveField(
     parameters: ExecutionParameters,
     parentType: GraphQLObjectType,
 ): ResolvedField =
@@ -83,7 +83,7 @@ internal fun QueryPlan.CollectedField.resolveField(
 /**
  * Resolves this field's definition on [parentType] and coerces its argument values.
  */
-internal fun QueryPlan.CollectedField.resolveField(
+internal fun CollectedField.resolveField(
     schema: GraphQLSchema,
     parentType: GraphQLObjectType,
     variables: CoercedVariables,
@@ -177,8 +177,7 @@ private fun QueryPlan.keyTreeForType(
         fieldRssOriginFilteringKillSwitchEnabled = context.fieldRssOriginFilteringKillSwitchEnabled,
     )
     val fields = mutableMapOf<ObjectEngineResult.Key, KeyTree>()
-    for (selection in collected.selections) {
-        val field = selection as QueryPlan.CollectedField
+    for (field in collected) {
         val resolvedField = field.resolveField(
             schema = context.schema,
             parentType = type,
@@ -204,7 +203,7 @@ private fun QueryPlan.keyTreeForType(
  */
 internal fun mkEmbeddedMatSource(
     parameters: ExecutionParameters,
-    field: QueryPlan.CollectedField,
+    field: CollectedField,
     memberType: GraphQLObjectType,
     memberIndices: List<Int>,
 ): MatSource? {
@@ -231,7 +230,7 @@ internal fun mkEmbeddedMatSource(
 
 internal fun isFieldMatBacked(
     parameters: ExecutionParameters,
-    field: QueryPlan.CollectedField,
+    field: CollectedField,
     effectiveData: Any?,
 ): Boolean {
     if (!parameters.engineExecutionContext.matResolutionEnabled) return false

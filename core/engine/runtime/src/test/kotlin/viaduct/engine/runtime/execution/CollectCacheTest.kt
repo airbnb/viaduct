@@ -24,7 +24,7 @@ class CollectCacheTest {
         val result1 = cache.collectForTest(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
         val result2 = cache.collectForTest(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
 
-        result1.selections.shouldHaveSize(2)
+        result1.shouldHaveSize(2)
         assertSame(result1, result2)
     }
 
@@ -42,10 +42,10 @@ class CollectCacheTest {
         val queryResult = cache.collectForTest(schema, queryPlan.selectionSet, emptyVars, schema.queryType, queryPlan.fragments)
         val mutationResult = cache.collectForTest(schema, mutationPlan.selectionSet, emptyVars, schema.mutationType!!, mutationPlan.fragments)
 
-        queryResult.selections.shouldHaveSize(1)
-        mutationResult.selections.shouldHaveSize(1)
-        assertEquals("x", (queryResult.selections[0] as QueryPlan.CollectedField).responseKey)
-        assertEquals("y", (mutationResult.selections[0] as QueryPlan.CollectedField).responseKey)
+        queryResult.shouldHaveSize(1)
+        mutationResult.shouldHaveSize(1)
+        assertEquals("x", queryResult[0].responseKey)
+        assertEquals("y", mutationResult[0].responseKey)
     }
 
     @Test
@@ -79,8 +79,8 @@ class CollectCacheTest {
         val queryResult = cache.collectForTest(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
         val fooResult = cache.collectForTest(schema, fooSelectionSet, emptyVars, fooType, plan.fragments)
 
-        queryResult.selections.shouldHaveSize(1)
-        fooResult.selections.shouldHaveSize(2)
+        queryResult.shouldHaveSize(1)
+        fooResult.shouldHaveSize(2)
 
         val fooResultAgain = cache.collectForTest(schema, fooSelectionSet, emptyVars, fooType, plan.fragments)
         assertSame(fooResult, fooResultAgain)
@@ -115,10 +115,10 @@ class CollectCacheTest {
         val skipUserResult =
             cache.collectForTest(schema, userSelectionSet, CoercedVariables.of(mapOf("includeUser" to false, "id" to "1")), userType, plan.fragments)
 
-        assertEquals(listOf("id", "name"), includeUserResult.selections.map { (it as QueryPlan.CollectedField).responseKey })
+        assertEquals(listOf("id", "name"), includeUserResult.map { it.responseKey })
         assertSame(includeUserResult, sameDirectiveDifferentArgumentResult)
         assertNotSame(includeUserResult, skipUserResult)
-        skipUserResult.selections.shouldHaveSize(0)
+        skipUserResult.shouldHaveSize(0)
     }
 
     @Test
@@ -134,10 +134,10 @@ class CollectCacheTest {
         val differentDirectiveResult =
             cache.collectForTest(schema, plan.selectionSet, CoercedVariables.of(mapOf("directive" to false, "id" to "1")), schema.queryType, plan.fragments)
 
-        assertEquals("x", (firstResult.selections.single() as QueryPlan.CollectedField).responseKey)
+        assertEquals("x", firstResult.single().responseKey)
         assertSame(firstResult, sameDirectiveDifferentArgumentResult)
         assertNotSame(firstResult, differentDirectiveResult)
-        assertEquals("y", (differentDirectiveResult.selections.single() as QueryPlan.CollectedField).responseKey)
+        assertEquals("y", differentDirectiveResult.single().responseKey)
     }
 
     @Test
@@ -165,11 +165,11 @@ class CollectCacheTest {
         val skipFragmentResult =
             cache.collectForTest(schema, plan.selectionSet, CoercedVariables.of(mapOf("spread" to true, "field" to true)), schema.queryType, plan.fragments)
 
-        assertEquals(listOf("y", "x"), includeFragmentResult.selections.map { (it as QueryPlan.CollectedField).responseKey })
+        assertEquals(listOf("y", "x"), includeFragmentResult.map { it.responseKey })
         assertNotSame(includeFragmentResult, excludeFragmentFieldResult)
-        assertEquals(listOf("y"), excludeFragmentFieldResult.selections.map { (it as QueryPlan.CollectedField).responseKey })
+        assertEquals(listOf("y"), excludeFragmentFieldResult.map { it.responseKey })
         assertNotSame(includeFragmentResult, skipFragmentResult)
-        assertEquals(listOf("y"), skipFragmentResult.selections.map { (it as QueryPlan.CollectedField).responseKey })
+        assertEquals(listOf("y"), skipFragmentResult.map { it.responseKey })
     }
 
     @Test
@@ -205,7 +205,7 @@ class CollectCacheTest {
         val skipNameResult =
             cache.collectForTest(schema, nodeSelectionSet, CoercedVariables.of(mapOf("includeName" to false)), listingType, plan.fragments)
 
-        assertEquals("id", (includeNameResult.selections.single() as QueryPlan.CollectedField).responseKey)
+        assertEquals("id", includeNameResult.single().responseKey)
         assertSame(includeNameResult, skipNameResult)
     }
 }
@@ -216,7 +216,7 @@ private fun CollectCache.collectForTest(
     variables: CoercedVariables,
     parentType: GraphQLObjectType,
     fragments: QueryPlan.Fragments,
-): QueryPlan.SelectionSet =
+): List<CollectedField> =
     collect(
         schema,
         selectionSet,

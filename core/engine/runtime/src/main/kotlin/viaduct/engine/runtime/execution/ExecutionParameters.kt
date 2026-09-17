@@ -166,7 +166,7 @@ data class ExecutionParameters(
     val selectionSet: QueryPlan.SelectionSet,
     val errorAccumulator: ErrorAccumulator,
     val executionOrigin: ExecutionOrigin = ExecutionOrigin.Root,
-    val field: QueryPlan.CollectedField? = null,
+    val field: CollectedField? = null,
     val bypassChecksDuringCompletion: Boolean = false,
     val resolutionPolicy: ResolutionPolicy = ResolutionPolicy.STANDARD,
     val attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
@@ -401,7 +401,7 @@ data class ExecutionParameters(
      */
     fun forField(
         objectType: GraphQLObjectType,
-        field: QueryPlan.CollectedField
+        field: CollectedField
     ): ExecutionParameters {
         val coord = objectType.name to field.mergedField.name
         val fieldDef = executionContext.graphQLSchema.getFieldDefinition(coord.gj)
@@ -431,7 +431,7 @@ data class ExecutionParameters(
      * Creates parameters for rerunning this field with a later requested selection.
      */
     internal fun forFieldMaterialization(
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         materializationPlan: QueryPlan,
         selectionParameters: ExecutionParameters,
     ): ExecutionParameters {
@@ -442,7 +442,7 @@ data class ExecutionParameters(
         val parentStepInfo =
             originalParentStepInfo.field?.let { parentField ->
                 val ownerSelectionSet =
-                    QueryPlan.SelectionSet(currentObjectEngineResult.type, field)
+                    QueryPlan.SelectionSet(currentObjectEngineResult.type, field.toQueryPlanFields())
                 ExecutionStepInfo
                     .newExecutionStepInfo(originalParentStepInfo)
                     .field(
@@ -742,7 +742,7 @@ data class ExecutionParameters(
      * @return New ExecutionParameters configured for object traversal
      */
     fun forObjectTraversal(
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         engineResult: ObjectEngineResultImpl,
         localContext: CompositeLocalContext,
         source: Any?,
@@ -768,7 +768,7 @@ data class ExecutionParameters(
     }
 
     private fun resolverOutputContext(
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         source: Any?,
     ): ResolverOutputContext? {
         val dispatcherRegistry = engineExecutionContext.dispatcherRegistry
@@ -798,7 +798,7 @@ data class ExecutionParameters(
      * parent fields keep walking upward through the original object chain.
      */
     fun forParentFieldTraversal(
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         parentParameters: ExecutionParameters,
         localContext: CompositeLocalContext,
         resolutionPolicy: ResolutionPolicy = this.resolutionPolicy,

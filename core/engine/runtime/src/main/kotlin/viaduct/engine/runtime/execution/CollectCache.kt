@@ -46,7 +46,7 @@ internal class CollectCache {
         }
     }
 
-    private val map = ConcurrentHashMap<CollectKey, QueryPlan.SelectionSet>()
+    private val map = ConcurrentHashMap<CollectKey, List<CollectedField>>()
 
     // The primary cache key needs collection-sensitive variable values, so we need to
     // discover the relevant variable names before we can query it. Keep that discovery
@@ -60,7 +60,7 @@ internal class CollectCache {
         parentType: GraphQLObjectType,
         fragments: QueryPlan.Fragments,
         fieldRssOriginFilteringKillSwitchEnabled: Boolean,
-    ): QueryPlan.SelectionSet {
+    ): List<CollectedField> {
         val key = CollectKey(
             parentType,
             selectionSet,
@@ -162,8 +162,6 @@ internal class CollectCache {
 
         while (queue.isNotEmpty()) {
             when (val selection = queue.removeFirst()) {
-                is QueryPlan.CollectedField -> Unit
-
                 is QueryPlan.Field -> {
                     if (selection.isDroppedFor(ctx)) continue
                     visit(selection.variableReferences)

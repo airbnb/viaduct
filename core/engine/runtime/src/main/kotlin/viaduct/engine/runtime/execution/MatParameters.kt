@@ -121,7 +121,7 @@ internal data class MatParameters(
 private data class FieldRoute(
     val fieldParameters: ExecutionParameters,
     val parentParameters: ExecutionParameters,
-    val field: QueryPlan.CollectedField,
+    val field: CollectedField,
 )
 
 private fun ExecutionParameters.routeFor(segment: Segment): FieldRoute {
@@ -155,11 +155,11 @@ private fun ExecutionParameters.routeFor(segment: Segment): FieldRoute {
 
 private fun ExecutionParameters.matches(
     segment: Segment,
-    field: QueryPlan.CollectedField,
+    field: CollectedField,
 ): Boolean = FieldExecutionHelpers.buildOERKeyForField(this, field) == segment.key
 
 private fun QueryPlan.SelectionSet.wrappedIn(
-    field: QueryPlan.CollectedField,
+    field: CollectedField,
     fieldParameters: ExecutionParameters,
 ): QueryPlan.SelectionSet {
     // Ancestor variables belong to the frame that originally collected the field. Close them
@@ -167,6 +167,6 @@ private fun QueryPlan.SelectionSet.wrappedIn(
     val closedField = VariableInliner(fieldParameters).shallowInline(field)
     return QueryPlan.SelectionSet(
         fieldParameters.currentObjectEngineResult.type,
-        closedField.copy(selectionSet = this),
+        closedField.occurrences.map { it.field.copy(selectionSet = this) },
     )
 }

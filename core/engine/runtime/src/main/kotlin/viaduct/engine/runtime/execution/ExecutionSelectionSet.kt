@@ -345,12 +345,6 @@ internal data class ExecutionSelectionSet(
             }
 
             when (selection) {
-                is QueryPlan.CollectedField ->
-                    fields += CollectedFieldSelection(
-                        currentType,
-                        selection,
-                        inheritedConstraints.and(selection.constraints),
-                    )
                 is QueryPlan.Field ->
                     fields += QueryPlanFieldSelection(
                         currentType,
@@ -400,8 +394,6 @@ internal data class ExecutionSelectionSet(
         possibleObjectTypes: MaskedSet<GraphQLObjectType>,
     ) {
         when (selection) {
-            is QueryPlan.CollectedField ->
-                excluded.getOrPut(selection.responseKey) { mutableSetOf() } += possibleObjectTypes
             is QueryPlan.Field ->
                 excluded.getOrPut(selection.resultKey) { mutableSetOf() } += possibleObjectTypes
             is QueryPlan.InlineFragment -> {
@@ -643,20 +635,6 @@ internal data class ExecutionSelectionSet(
             override val arguments: List<Argument> get() = queryPlanField.field.arguments
             override val directives: List<Directive> get() = queryPlanField.field.directives
             override val field: GJField get() = queryPlanField.field
-        }
-
-        private data class CollectedFieldSelection(
-            override val typeCondition: GraphQLCompositeType,
-            private val collectedField: QueryPlan.CollectedField,
-            override val constraints: Constraints,
-        ) : FieldSelection {
-            override val selection: QueryPlan.Selection get() = collectedField
-            override val fieldName: String get() = collectedField.fieldName
-            override val resultKey: String get() = collectedField.responseKey
-            override val selectionSet: QueryPlan.SelectionSet? get() = collectedField.selectionSet
-            override val arguments: List<Argument> get() = collectedField.mergedField.arguments
-            override val directives: List<Directive> get() = collectedField.mergedField.singleField.directives
-            override val field: GJField get() = collectedField.mergedField.singleField
         }
 
         private class FieldDirectivesImpl(

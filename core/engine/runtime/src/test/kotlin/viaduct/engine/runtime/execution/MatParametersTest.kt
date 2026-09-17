@@ -268,12 +268,12 @@ class MatParametersTest {
             },
         )
 
-        val rebuiltField = matParams.parameters.selectionSet.selections.single() as QueryPlan.CollectedField
+        val rebuiltField = matParams.parameters.selectionSet.selections.single() as QueryPlan.Field
         assertEquals(
             1,
-            rebuiltField.mergedField.arguments.single().value.rawValue(),
+            rebuiltField.field.arguments.single().value.rawValue(),
         )
-        rebuiltField.mergedField.singleField.collectVariableReferences().shouldBeEmpty()
+        rebuiltField.field.collectVariableReferences().shouldBeEmpty()
     }
 
     private fun createAtRoot(

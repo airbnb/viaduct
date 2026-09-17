@@ -155,9 +155,8 @@ private class QueryPlanFilter(
             fieldRssOriginFilteringKillSwitchEnabled = context.fieldRssOriginFilteringKillSwitchEnabled,
         )
         val selections = mutableListOf<QueryPlan.Selection>()
-        val collectedFields = collected.selections.map { it as QueryPlan.CollectedField }
 
-        for (field in collectedFields) {
+        for (field in collected) {
             val resolvedField = field.resolveField(
                 schema = context.schema,
                 parentType = concreteType,
@@ -173,24 +172,13 @@ private class QueryPlanFilter(
                 "Field `${concreteType.name}.${field.fieldName}` has child selections but is not composite"
             }
             val sources = fieldSources.getValue(field.responseKey)
-            val collectedSource = sources.singleOrNull() as? QueryPlan.CollectedField
-            val projection =
-                if (collectedSource == null) {
-                    projectFieldOccurrences(
-                        field = field,
-                        sourceFields = sources.map { it as QueryPlan.Field },
-                        concreteType = concreteType,
-                        childShape = childShape,
-                        childType = childType,
-                    )
-                } else {
-                    projectCollectedField(
-                        field = collectedSource,
-                        concreteType = concreteType,
-                        childShape = childShape,
-                        childType = childType,
-                    )
-                }
+            val projection = projectFieldOccurrences(
+                field = field,
+                sourceFields = sources,
+                concreteType = concreteType,
+                childShape = childShape,
+                childType = childType,
+            )
             selections += projection.selectionSet.selections
         }
         // Every retained type branch must remain valid GraphQL, including branches whose
@@ -210,7 +198,7 @@ private class QueryPlanFilter(
     }
 
     private fun projectFieldOccurrences(
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         sourceFields: List<QueryPlan.Field>,
         concreteType: GraphQLObjectType,
         childShape: KeyTree,
@@ -243,42 +231,6 @@ private class QueryPlanFilter(
         )
     }
 
-    private fun projectCollectedField(
-        field: QueryPlan.CollectedField,
-        concreteType: GraphQLObjectType,
-        childShape: KeyTree,
-        childType: GraphQLCompositeType?,
-    ): FilteredSelectionSet {
-        val childProjection = if (childType == null) {
-            null
-        } else {
-            val childSelectionSet = requireNotNull(field.selectionSet) {
-                "Composite field `${concreteType.name}.${field.fieldName}` has no selection set"
-            }
-            projectSelectionSet(
-                childSelectionSet,
-                childShape,
-            )
-        }
-        if (
-            childProjection != null &&
-            !childShape.isEmpty() &&
-            childProjection.selectionSet.selections.isEmpty()
-        ) {
-            return FilteredSelectionSet(
-                selectionSet = QueryPlan.SelectionSet.empty(concreteType),
-            )
-        }
-        return FilteredSelectionSet(
-            selectionSet = QueryPlan.SelectionSet(
-                concreteType,
-                field.copy(
-                    selectionSet = childProjection?.selectionSet,
-                )
-            ),
-        )
-    }
-
     private fun emptyCompositeSelectionSet(type: GraphQLCompositeType): QueryPlan.SelectionSet {
         val field = GJField.newField("__typename").build()
         return QueryPlan.SelectionSet(
@@ -300,8 +252,8 @@ private class QueryPlanFilter(
     private fun activeFieldSourcesByResponseKey(
         selectionSet: QueryPlan.SelectionSet,
         concreteType: GraphQLObjectType,
-    ): Map<String, List<QueryPlan.Selection>> {
-        val result = linkedMapOf<String, MutableList<QueryPlan.Selection>>()
+    ): Map<String, List<QueryPlan.Field>> {
+        val result = linkedMapOf<String, MutableList<QueryPlan.Field>>()
         val pending = ArrayDeque(selectionSet.selections)
         val visitedFragments = mutableSetOf<String>()
         val constraintsCtx = Constraints.Ctx(context.variables, MaskedSet(listOf(concreteType)))
@@ -315,13 +267,9 @@ private class QueryPlanFilter(
             }
 
             when (selection) {
-                is QueryPlan.CollectedField ->
-                    result[selection.responseKey] = mutableListOf(selection)
                 is QueryPlan.Field -> {
                     val sources = result.getOrPut(selection.resultKey) { mutableListOf() }
-                    if (sources.firstOrNull() !is QueryPlan.CollectedField) {
-                        sources += selection
-                    }
+                    sources += selection
                 }
                 is QueryPlan.InlineFragment ->
                     pending.addAll(0, selection.selectionSet.selections)

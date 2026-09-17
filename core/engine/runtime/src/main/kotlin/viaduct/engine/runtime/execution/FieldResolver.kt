@@ -186,7 +186,7 @@ class FieldResolver(
         )
         resolveObjectCtx.onDispatched()
         try {
-            val fields = collectFields(objectType, parameters).selections
+            val fields = collectFields(objectType, parameters)
             val dispatch = if (serialDispatch) {
                 dispatchFieldsSerially(objectType, parameters, fields, ledgerReader)
             } else {
@@ -219,11 +219,10 @@ class FieldResolver(
     private fun dispatchFieldsInParallel(
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters,
-        fields: List<QueryPlan.Selection>,
+        fields: List<CollectedField>,
         ledgerReader: LedgerReader?,
     ): Dispatch<Unit> {
         val results = fields.map { field ->
-            field as QueryPlan.CollectedField
             val newParams = parameters.forField(objectType, field)
             resolveField(newParams, field, ledgerReader)
         }
@@ -237,7 +236,7 @@ class FieldResolver(
     private fun dispatchFieldsSerially(
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters,
-        fields: List<QueryPlan.Selection>,
+        fields: List<CollectedField>,
         ledgerReader: LedgerReader?,
     ): Dispatch<Unit> {
         val initial: Value<Unit> = Value.fromValue(Unit)
@@ -246,7 +245,6 @@ class FieldResolver(
         // iterate over each field to build a chained execution
         // Each field will kick off only after the previous one completes
         val deep = fields.fold(initial) { acc, field ->
-            field as QueryPlan.CollectedField
             acc.flatMap { _ ->
                 val fieldParameters = parameters.forField(objectType, field)
                 val fd = resolveField(fieldParameters, field, ledgerReader)
@@ -275,7 +273,7 @@ class FieldResolver(
      */
     internal fun resolveField(
         parameters: ExecutionParameters,
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         ledgerReader: LedgerReader? = null,
         resolveNestedSelections: Boolean = true,
     ): Dispatch<FieldResolutionResult> {
@@ -300,7 +298,7 @@ class FieldResolver(
 
     private fun launchFieldChildPlans(
         parameters: ExecutionParameters,
-        field: QueryPlan.CollectedField
+        field: CollectedField
     ) {
         val fieldResolverDispatcher =
             parameters.engineExecutionContext.dispatcherRegistry.getFieldResolverDispatcher(
@@ -448,7 +446,7 @@ class FieldResolver(
     @Suppress("UNCHECKED_CAST")
     private fun executeField(
         parameters: ExecutionParameters,
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         ledgerReader: LedgerReader?,
         resolveNestedSelections: Boolean,
     ): Dispatch<FieldResolutionResult> {
@@ -571,7 +569,7 @@ class FieldResolver(
     @Suppress("TooGenericExceptionCaught")
     private fun launchShadowFieldExecution(
         parameters: ExecutionParameters,
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         productionDispatch: Dispatch<FieldResolutionResult>,
         comparison: ShadowFieldExecutionComparison,
     ) {
@@ -601,7 +599,7 @@ class FieldResolver(
     @Suppress("TooGenericExceptionCaught")
     private suspend fun executeShadowField(
         parameters: ExecutionParameters,
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
     ): ShadowFieldExecutionResults.Outcome =
         supervisorScope {
             try {
@@ -623,7 +621,7 @@ class FieldResolver(
 
     private fun validateRegisteredFieldResolver(
         parameters: ExecutionParameters,
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
     ) {
         val objectType = checkNotNull(parameters.executionStepInfo.objectType)
         checkNotNull(
@@ -687,7 +685,7 @@ class FieldResolver(
      */
     suspend fun resolveShallowFieldResult(
         parameters: ExecutionParameters,
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
     ): FieldResolutionResult {
         val dispatch = resolveField(
             parameters = parameters,
@@ -715,7 +713,7 @@ class FieldResolver(
     }
 
     private fun fetchParentField(
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         parameters: ExecutionParameters,
         dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
     ): FieldFetchResult {
@@ -947,7 +945,7 @@ class FieldResolver(
 
     private fun mkOER(
         parameters: ExecutionParameters,
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         fieldType: GraphQLObjectType,
         effectiveData: Any,
         fetchedValue: FetchedValue,
@@ -1029,7 +1027,7 @@ class FieldResolver(
     @Suppress("TooGenericExceptionCaught")
     private fun mkNodeMatOER(
         parameters: ExecutionParameters,
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         fieldType: GraphQLObjectType,
         reference: NodeEngineObjectData,
         lazyReference: LazyEngineObjectData,
@@ -1100,7 +1098,7 @@ class FieldResolver(
     /** Re-executes [originalField] for the requested Mat coverage. */
     private suspend fun matFieldObject(
         originalParameters: ExecutionParameters,
-        originalField: QueryPlan.CollectedField,
+        originalField: CollectedField,
         keyTree: KeyTree,
         selectionParameters: ExecutionParameters,
         memberIndices: List<Int>,
@@ -1266,7 +1264,7 @@ class FieldResolver(
      * 3. Path management for nested fields to maintain proper error tracking
      *
      * @param fieldResolutionResult The result of the parent field execution
-     * @param field the [QueryPlan.CollectedField] containing potential nested selections
+     * @param field the [CollectedField] containing potential nested selections
      * @param parameters The [ExecutionParameters] for the current context
      *
      * @throws IllegalStateException if a selection set is missing for object types
@@ -1274,7 +1272,7 @@ class FieldResolver(
     private fun maybeFetchNestedObject(
         fieldResolutionResult: FieldResolutionResult,
         outputType: GraphQLOutputType,
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         parameters: ExecutionParameters,
     ): Value<Unit> {
         // if engineResult is null, then there is no nested object to fetch and we can return early
@@ -1343,7 +1341,7 @@ class FieldResolver(
      * @return The executable field result and its access-check result.
      */
     private fun fetchField(
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         parameters: ExecutionParameters,
         fieldFetchSource: FieldFetchSource,
         dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
@@ -1420,7 +1418,7 @@ class FieldResolver(
      * that checker succeeds.
      */
     private fun fetchRawFieldValue(
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         parameters: ExecutionParameters,
         fieldFetchSource: FieldFetchSource,
         dataFetchingEnvironmentProvider: Supplier<DataFetchingEnvironment>,
@@ -1521,7 +1519,7 @@ class FieldResolver(
 
     private fun FieldFetchSource.asDataFetcher(
         parameters: ExecutionParameters,
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
     ): DataFetcher<*> =
         when (this) {
             FieldFetchSource.RegisteredDataFetcher ->
@@ -1564,7 +1562,7 @@ class FieldResolver(
     }
 
     private fun fieldResolutionResultFromDataFetcherResult(
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         parameters: ExecutionParameters,
         fieldType: GraphQLOutputType,
         dataFetcherResult: Value<out Any?>,
@@ -1583,7 +1581,7 @@ class FieldResolver(
     }
 
     private fun fieldResolutionResultFromFetchedValue(
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         parameters: ExecutionParameters,
         fieldType: GraphQLOutputType,
         fetchedValue: Value<FetchedValueWithExtensions>,

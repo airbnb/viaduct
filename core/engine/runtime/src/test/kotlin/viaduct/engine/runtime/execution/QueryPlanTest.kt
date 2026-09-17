@@ -3,7 +3,6 @@
 package viaduct.engine.runtime.execution
 
 import graphql.execution.MergedField
-import graphql.execution.ResultPath
 import graphql.language.Argument
 import graphql.language.AstPrinter
 import graphql.language.Directive as GJDirective
@@ -45,7 +44,6 @@ import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.QueryPlanExecutionCondition.Companion.ALWAYS_EXECUTE
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
-import viaduct.engine.runtime.execution.QueryPlan.CollectedField
 import viaduct.engine.runtime.execution.QueryPlan.Field
 import viaduct.engine.runtime.execution.QueryPlan.FragmentDefinition
 import viaduct.engine.runtime.execution.QueryPlan.FragmentSpread
@@ -1763,12 +1761,13 @@ class QueryPlanTest {
         // sanity check
         assertNull(mergedField.singleField.sourceLocation)
 
-        val cf = CollectedField(
+        val cf = mkCollectedField(
             "field",
             null,
             mergedField,
             emptyList(),
             FieldTypeChildPlans.empty,
+            "type Query { field: Int }".asSchema,
         )
 
         assertEquals(SourceLocation.EMPTY, cf.sourceLocation)
@@ -1885,20 +1884,6 @@ internal fun checkEqualsSelection(
             checkEquals(exp.selectionSet, actInline.selectionSet)
             assertEquals(exp.constraints, actInline.constraints)
         }
-
-        is CollectedField -> {
-            val actCollected = act.shouldBeInstanceOf<CollectedField>()
-            assertEquals(exp.responseKey, actCollected.responseKey)
-            val expSelectionSet = exp.selectionSet
-            if (expSelectionSet != null) {
-                assertNotNull(actCollected.selectionSet)
-                checkEquals(expSelectionSet, actCollected.selectionSet!!)
-            } else {
-                assertNull(actCollected.selectionSet)
-            }
-            assertMergedFieldsEqual(ResultPath.rootPath(), exp.mergedField, actCollected.mergedField)
-            checkEqualsFieldChildPlanList(exp.childPlans, actCollected.childPlans)
-        }
     }
 }
 
@@ -1987,6 +1972,31 @@ internal fun mkQPParameters(
         requiredSelectionSetRegistry,
     )
 
+internal fun mkCollectedField(
+    responseKey: String,
+    selectionSet: SelectionSet?,
+    mergedField: MergedField,
+    childPlans: List<FieldChildPlan>,
+    fieldTypeChildPlans: FieldTypeChildPlans,
+    schema: GraphQLSchema,
+): CollectedField =
+    CollectedField(
+        mergedField.fields.map { field ->
+            FieldDetails(
+                Field(
+                    resultKey = responseKey,
+                    constraints = Constraints.Unconstrained,
+                    field = field,
+                    selectionSet = selectionSet,
+                    childPlans = childPlans,
+                    fieldTypeChildPlans = fieldTypeChildPlans,
+                ),
+                null,
+            )
+        },
+        schema,
+    )
+
 private fun mkField(
     resultKey: String,
     constraints: Constraints,
@@ -2027,7 +2037,6 @@ private fun SelectionSet.findField(resultKey: String): Field? =
                 }
 
             is InlineFragment -> selection.selectionSet.findField(resultKey)
-            is CollectedField -> selection.selectionSet?.findField(resultKey)
             is FragmentSpread -> null
         }
     }

@@ -63,7 +63,7 @@ import viaduct.engine.runtime.observability.ExecutionObservabilityContext
 import viaduct.engine.runtime.result.ObjectEngineResult
 import viaduct.graphql.utils.ParsedSelections
 
-internal fun QueryPlan.CollectedField.oerKey(arguments: Map<String, Any?>): ObjectEngineResult.Key =
+internal fun CollectedField.oerKey(arguments: Map<String, Any?>): ObjectEngineResult.Key =
     ObjectEngineResult.Key(
         name = fieldName,
         alias = alias,
@@ -75,7 +75,7 @@ object FieldExecutionHelpers {
 
     fun coordinateOfField(
         parameters: ExecutionParameters,
-        field: QueryPlan.CollectedField
+        field: CollectedField
     ): FieldCoordinates {
         val objectType = parameters.executionStepInfo.objectType
         val fieldName = field.mergedField.name
@@ -137,7 +137,7 @@ object FieldExecutionHelpers {
 
     /** Converts a data fetcher result or failure into a fetched-value [Value]. */
     internal fun dataFetcherResultToValue(
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         parameters: ExecutionParameters,
         value: Any?,
         error: Throwable?,
@@ -196,20 +196,24 @@ object FieldExecutionHelpers {
      * while keeping the field's name, arguments, directives, and other details.
      */
     internal fun withMaterializationSelectionSet(
-        originalField: QueryPlan.CollectedField,
+        originalField: CollectedField,
         originalParameters: ExecutionParameters,
         selectionSet: QueryPlan.SelectionSet,
-    ): QueryPlan.CollectedField =
-        originalField.copy(
-            selectionSet = selectionSet,
-            mergedField =
-                originalField.mergedField.withSelectionSet(
-                    materializationSelectionSet(
-                        originalParameters.executionStepInfo.fieldDefinition.type,
-                        selectionSet,
-                    )
-                ),
+    ): CollectedField {
+        val astSelectionSet = materializationSelectionSet(
+            originalParameters.executionStepInfo.fieldDefinition.type,
+            selectionSet,
         )
+        val occurrences = originalField.occurrences.map { details ->
+            details.copy(
+                field = details.field.copy(
+                    selectionSet = selectionSet,
+                    field = details.field.field.transform { it.selectionSet(astSelectionSet) },
+                ),
+            )
+        }
+        return originalField.withOccurrences(occurrences)
+    }
 
     internal fun materializationSelectionSet(
         fieldType: GraphQLOutputType,
@@ -296,7 +300,7 @@ object FieldExecutionHelpers {
      */
     fun buildOERKeyForField(
         parameters: ExecutionParameters,
-        field: QueryPlan.CollectedField
+        field: CollectedField
     ): ObjectEngineResult.Key = field.oerKey(parameters.executionStepInfo.arguments)
 
     internal fun engineSelectionSet(ctx: EngineExecutionContext): EngineSelectionSet? = engineSelectionSet(ctx.executionHandle!!.asExecutionParameters(), ctx)
@@ -376,7 +380,7 @@ object FieldExecutionHelpers {
      */
     fun buildDataFetchingEnvironment(
         parameters: ExecutionParameters,
-        field: QueryPlan.CollectedField,
+        field: CollectedField,
         currentOER: ObjectEngineResultImpl,
     ): DataFetchingEnvironment {
         val mergedField = checkNotNull(field.mergedField) {
@@ -563,7 +567,7 @@ object FieldExecutionHelpers {
     fun collectFields(
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters
-    ): QueryPlan.SelectionSet =
+    ): List<CollectedField> =
         parameters.constants.collectCache.collect(
             parameters.graphQLSchema,
             parameters.selectionSet,

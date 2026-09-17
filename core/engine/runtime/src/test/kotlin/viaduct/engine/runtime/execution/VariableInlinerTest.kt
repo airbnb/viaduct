@@ -223,6 +223,7 @@ class VariableInlinerTest {
 
     @Test
     fun `inlines every field in a merged field`() {
+        val schema = mkSchema("type Query { f(value: Int!): Int }")
         val inliner = mkInliner(
             "type Query { f(value: Int!): Int }",
             mapOf("value" to 3),
@@ -230,13 +231,18 @@ class VariableInlinerTest {
         val fields = parseFields(
             "{ f(value: ${"$"}value) f(value: ${"$"}value) }"
         )
-        val original = QueryPlan.CollectedField(
+        val parentUsage = DeferUsage(Defer("parent"), null)
+        val usages = listOf(null, DeferUsage(Defer("child"), parentUsage))
+        val original = mkCollectedField(
             responseKey = "f",
             selectionSet = null,
             mergedField = MergedField.newMergedField(fields).build(),
             childPlans = emptyList(),
             fieldTypeChildPlans = FieldTypeChildPlans.empty,
-        )
+            schema = schema,
+        ).let { field ->
+            field.withOccurrences(field.occurrences.zip(usages) { details, usage -> details.copy(deferUsage = usage) })
+        }
 
         val inlined = inliner.shallowInline(original)
 
@@ -244,6 +250,8 @@ class VariableInlinerTest {
         inlined.mergedField.fields
             .map { it.arguments.single().value.rawValue() }
             .shouldContainExactly(3, 3)
+        assertEquals(usages, inlined.occurrences.map { it.deferUsage })
+        assertEquals(listOf("value", "value"), original.mergedField.fields.flatMap { it.collectVariableReferences() })
     }
 
     @Test
@@ -286,12 +294,13 @@ class VariableInlinerTest {
             "type Query { f(value: Int!): Int }",
         )
         val field = parseField("{ f(value: 3) }")
-        val collectedField = QueryPlan.CollectedField(
+        val collectedField = mkCollectedField(
             responseKey = "f",
             selectionSet = null,
             mergedField = MergedField.newMergedField(field).build(),
             childPlans = emptyList(),
             fieldTypeChildPlans = FieldTypeChildPlans.empty,
+            schema = mkSchema("type Query { f(value: Int!): Int }"),
         )
 
         assertSame(field, inliner.shallowInline(field))

@@ -558,7 +558,7 @@ class ExecutionParametersTest {
         assertEquals(ResultPath.rootPath().segment("foo"), result.executionStepInfo.path)
         assertSame(fooFieldDefinition, result.executionStepInfo.fieldDefinition)
         assertSame(queryType, result.executionStepInfo.objectType)
-        assertSame(mergedField, result.executionStepInfo.field)
+        assertSame(collectedField.mergedField, result.executionStepInfo.field)
         val arguments = result.executionStepInfo.arguments
         assertEquals(argumentValue, arguments["id"])
         assertSame(arguments, result.executionStepInfo.arguments)
@@ -618,7 +618,10 @@ class ExecutionParametersTest {
 
         val originalParameters = parameters("originalX", 1, "x")
         val selectionParameters = parameters("laterX", 2, "y")
-        val originalField = checkNotNull(originalParameters.field)
+        val usage = DeferUsage(Defer("child"), DeferUsage(Defer("parent"), null))
+        val originalField = checkNotNull(originalParameters.field).let { field ->
+            field.withOccurrences(field.occurrences.map { it.copy(deferUsage = usage) })
+        }
         val requestedSelectionSet = checkNotNull(selectionParameters.field?.selectionSet)
         val materializationField =
             FieldExecutionHelpers.withMaterializationSelectionSet(
@@ -646,6 +649,8 @@ class ExecutionParametersTest {
         val enclosingChildSelection =
             enclosingField.selectionSet.selections.single() as GJField
 
+        assertSame(usage, materializationField.occurrences.single().deferUsage)
+        assertSame(requestedSelectionSet, materializationField.occurrences.single().field.selectionSet)
         assertEquals("y", currentSelection.name)
         assertEquals("Bar", enclosingTypeSelection.typeCondition.name)
         assertEquals("y", enclosingField.name)
@@ -1271,25 +1276,27 @@ class ExecutionParametersTest {
     private fun collectedFooField(
         mergedField: MergedField,
         selectionSet: QueryPlan.SelectionSet = QueryPlan.SelectionSet.empty(fooType)
-    ): QueryPlan.CollectedField =
-        QueryPlan.CollectedField(
+    ): CollectedField =
+        mkCollectedField(
             responseKey = mergedField.name,
             selectionSet = selectionSet,
             mergedField = mergedField,
             childPlans = emptyList(),
-            fieldTypeChildPlans = FieldTypeChildPlans.empty
+            fieldTypeChildPlans = FieldTypeChildPlans.empty,
+            schema = schema,
         )
 
     private fun collectedField(
         responseKey: String,
         mergedField: MergedField,
         selectionSet: QueryPlan.SelectionSet? = null
-    ): QueryPlan.CollectedField =
-        QueryPlan.CollectedField(
+    ): CollectedField =
+        mkCollectedField(
             responseKey = responseKey,
             selectionSet = selectionSet,
             mergedField = mergedField,
             childPlans = emptyList(),
-            fieldTypeChildPlans = FieldTypeChildPlans.empty
+            fieldTypeChildPlans = FieldTypeChildPlans.empty,
+            schema = schema,
         )
 }

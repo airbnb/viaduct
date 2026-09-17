@@ -8,7 +8,6 @@ import graphql.language.FragmentSpread as GJFragmentSpread
 import graphql.language.InlineFragment as GJInlineFragment
 import graphql.language.Selection as GJSelection
 import graphql.language.SelectionSet as GJSelectionSet
-import graphql.language.SourceLocation
 import graphql.language.VariableDefinition
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
@@ -29,7 +28,7 @@ import viaduct.engine.runtime.execution.constraints.Constraints
  * It includes models of viaduct-specific concepts, including required selection sets
  * and their variables.
  *
- * @property selectionSet The collected fields and selections for this plan level.
+ * @property selectionSet The selections for this plan level.
  * @property fragments Named fragment definitions available during plan execution.
  * @property variablesResolvers Resolvers that produce variable values at execution time.
  * @property childPlanIds RequiredSelectionSet plans resolved before any selections in this plan.
@@ -106,37 +105,11 @@ data class QueryPlan(
     /**
      * A Selection models any kind of element that may appear in a QueryPlan SelectionSet.
      *
-     * Selection comes in some of the same flavors as graphql-java's [graphql.language.Selection],
-     * though with the significant inclusion of CollectedField.
+     * Selection comes in the same flavors as graphql-java's [graphql.language.Selection].
      */
     sealed interface Selection {
         val constraints: Constraints
         val variableReferences: List<SelectionVariableReference> get() = emptyList()
-    }
-
-    /**
-     * A CollectedField is the result of applying the CollectFields algorithm.
-     *
-     * It represents a merged and normalized selection within a selection set, and has
-     * no unresolved constraints like unapplied conditional directives.
-     *
-     * A CollectedField will always be executed.
-     */
-    data class CollectedField(
-        val responseKey: String,
-        val selectionSet: SelectionSet?,
-        val mergedField: MergedField,
-        val childPlans: List<FieldChildPlan>,
-        val fieldTypeChildPlans: FieldTypeChildPlans,
-        val collectedFieldMetadata: FieldMetadata? = FieldMetadata.empty,
-    ) : Selection {
-        override val constraints: Constraints get() = Constraints.Unconstrained
-
-        val sourceLocation: SourceLocation get() = mergedField.singleField.sourceLocation ?: SourceLocation.EMPTY
-        val fieldName: String get() = mergedField.name
-        val alias: String? get() = mergedField.singleField.alias
-
-        override fun toString(): String = AstPrinter.printAst(mergedField.singleField)
     }
 
     /**
@@ -344,10 +317,6 @@ internal fun QueryPlan.SelectionSet.toAstSelectionSet(): GJSelectionSet =
 
 private fun QueryPlan.Selection.toAstSelections(): List<GJSelection<*>> =
     when (this) {
-        is QueryPlan.CollectedField -> {
-            val childAst = selectionSet?.toAstSelectionSet()
-            mergedField.fields.map { field -> field.withSelectionSet(childAst) }
-        }
         is QueryPlan.Field ->
             listOf(field.withSelectionSet(selectionSet?.toAstSelectionSet()))
         is QueryPlan.InlineFragment -> listOf(

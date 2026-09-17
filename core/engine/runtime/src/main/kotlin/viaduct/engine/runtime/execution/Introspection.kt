@@ -42,16 +42,11 @@ object Introspection {
         val queryType = parameters.graphQLSchema.queryType
 
         val collected = collectFields(queryType, parameters)
-        return collected.selections.firstNotNullOfOrNull {
-            when (val sel = it) {
-                is QueryPlan.CollectedField -> {
-                    if (sel.fieldName in disallowedIntrospectionFields) {
-                        IntrospectionDisabledError(sel.mergedField.singleField.sourceLocation)
-                    } else {
-                        null
-                    }
-                }
-                else -> null
+        return collected.firstNotNullOfOrNull { field ->
+            if (field.fieldName in disallowedIntrospectionFields) {
+                IntrospectionDisabledError(field.mergedField.singleField.sourceLocation)
+            } else {
+                null
             }
         }
     }
