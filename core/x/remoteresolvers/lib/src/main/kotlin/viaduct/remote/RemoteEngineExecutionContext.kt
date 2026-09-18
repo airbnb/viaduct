@@ -7,12 +7,12 @@ import viaduct.engine.api.CompleteSelectionSetOptions
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.RootFieldReference
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.remote.grpc.EngineCallbackServiceGrpcKt
 import viaduct.remote.grpc.QueryRequest
@@ -33,17 +33,17 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
  */
 abstract class RemoteEngineExecutionContext(
     private val delegate: EngineExecutionContext?,
-    private val localSchema: ViaductSchema? = null
+    private val localSchema: EngineSchema? = null
 ) : EngineExecutionContext {
     private fun requireDelegate(operation: String): EngineExecutionContext = delegate ?: throw UnsupportedOperationException("'$operation' requires a local engine context")
 
-    override val fullSchema: ViaductSchema
+    override val fullSchema: EngineSchema
         get() = localSchema ?: requireDelegate("fullSchema").fullSchema
 
-    override val scopedSchema: ViaductSchema
+    override val scopedSchema: EngineSchema
         get() = localSchema ?: requireDelegate("scopedSchema").scopedSchema
 
-    override val activeSchema: ViaductSchema
+    override val activeSchema: EngineSchema
         get() = localSchema ?: requireDelegate("activeSchema").activeSchema
 
     override val requestContext: Any?
@@ -115,7 +115,7 @@ class UnaryRemoteEngineExecutionContext(
     delegate: EngineExecutionContext?,
     callbackChannel: ManagedChannel,
     private val contextHandle: String,
-    localSchema: ViaductSchema? = null
+    localSchema: EngineSchema? = null
 ) : RemoteEngineExecutionContext(delegate, localSchema) {
     private val callbackStub = EngineCallbackServiceGrpcKt.EngineCallbackServiceCoroutineStub(callbackChannel)
 

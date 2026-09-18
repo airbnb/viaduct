@@ -9,7 +9,7 @@ import graphql.schema.GraphQLTypeUtil
 import io.kotest.property.RandomSource
 import viaduct.arbitrary.common.Config
 import viaduct.engine.api.Coordinate
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.gj
 import viaduct.graphql.utils.DefaultSchemaFactory.DefaultDirective
 import viaduct.graphql.utils.isParentField
@@ -82,7 +82,7 @@ interface ResolverConfig {
          * @see BatchingResolverWeight
          */
         operator fun invoke(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             cfg: Config,
             rs: RandomSource
         ): ResolverConfig = ResolverConfigImpl(schema, cfg, rs)
@@ -90,11 +90,11 @@ interface ResolverConfig {
 }
 
 class ResolverConfigImpl private constructor(
-    private val schema: ViaductSchema,
+    private val schema: EngineSchema,
     private val resolvers: Map<TypeOrFieldCoordinate, ResolverProperties>,
 ) : ResolverConfig {
     constructor(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         fieldResolvers: Set<Coordinate>,
         nodeResolvers: Set<String>
     ) : this(
@@ -248,7 +248,7 @@ class ResolverConfigImpl private constructor(
 
     companion object {
         operator fun invoke(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             cfg: Config,
             rs: RandomSource
         ): ResolverConfigImpl {
@@ -269,7 +269,7 @@ class ResolverConfigImpl private constructor(
         }
 
         private fun initialResolvers(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             cfg: Config,
             rs: RandomSource
         ): Map<TypeOrFieldCoordinate, ResolverProperties> {
@@ -349,7 +349,7 @@ private fun GraphQLDirectiveContainer.declaredResolver(): ResolverProperties? {
     )
 }
 
-private fun ViaductSchema.resolvableRootField(coord: Coordinate): Boolean {
+private fun EngineSchema.resolvableRootField(coord: Coordinate): Boolean {
     if (schema.getFieldDefinition(coord.gj).returnsNamespaceType()) {
         return false
     }
@@ -364,4 +364,4 @@ private fun ViaductSchema.resolvableRootField(coord: Coordinate): Boolean {
 }
 
 /** Returns true if [coord] describes a field marked with the `@parent` directive. */
-internal fun ViaductSchema.isParentField(coord: Coordinate): Boolean = schema.getFieldDefinition(coord.gj).isParentField()
+internal fun EngineSchema.isParentField(coord: Coordinate): Boolean = schema.getFieldDefinition(coord.gj).isParentField()

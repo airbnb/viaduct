@@ -8,8 +8,8 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
 import java.util.concurrent.ConcurrentHashMap
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
 import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.ConvMemo
@@ -59,7 +59,7 @@ private val mappableFieldsCache =
  *   If [selectionSet] is not null, the returned Map will be keyed by selection name
  */
 internal fun <From, To> createSelectionConvs(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     type: GraphQLObjectType,
     selectionSet: EngineSelectionSet?,
     buildFieldConv: (GraphQLType, EngineSelectionSet?) -> Conv<From, To>,

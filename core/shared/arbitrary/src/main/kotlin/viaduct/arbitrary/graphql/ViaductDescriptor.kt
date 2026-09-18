@@ -7,10 +7,10 @@ import java.util.IdentityHashMap
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -348,7 +348,7 @@ internal fun RequiredSelectionSet.describe(): ViaductDescriptor.RequiredSelectio
 internal fun VariablesResolver.describe(): ViaductDescriptor.VariablesResolverDescriptor = ViaductDescriptor.from(this)
 
 internal data class GeneratedViaductDescriptorConfig(
-    val schema: ViaductSchema,
+    val schema: EngineSchema,
     val fieldResolverExecutors: List<Pair<Coordinate, FieldResolverExecutor>>,
     val instrumentedFieldResolverFactory: FieldResolver.Factory.Instrumented?,
     val nodeResolverExecutors: List<Pair<String, NodeResolverExecutor>>,

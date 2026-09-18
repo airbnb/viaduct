@@ -6,9 +6,9 @@ import graphql.language.TypeName
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLTypeUtil
 import viaduct.engine.api.Coordinate
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
 import viaduct.graphql.utils.GraphQLTypeRelation
 import viaduct.graphql.utils.SelectionsParserUtils.EntryPointFragmentName
@@ -43,7 +43,7 @@ fun EngineSelectionSet.toFragmentDefinition(fragmentName: String = EntryPointFra
  * Recursively returns all field coordinates transitively selected by
  * this [EngineSelectionSet].
  */
-fun EngineSelectionSet.allCoords(schema: ViaductSchema): Set<Coordinate> =
+fun EngineSelectionSet.allCoords(schema: EngineSchema): Set<Coordinate> =
     buildSet {
         fun visit(selectionSet: EngineSelectionSet) {
             val selectionSetType = schema.schema.getTypeAs<GraphQLCompositeType>(selectionSet.type)
@@ -67,7 +67,7 @@ fun EngineSelectionSet.allCoords(schema: ViaductSchema): Set<Coordinate> =
  * Returns all concrete object type names reachable through composite selections in this
  * [EngineSelectionSet].
  */
-fun EngineSelectionSet.reachableObjects(schema: ViaductSchema): Set<String> =
+fun EngineSelectionSet.reachableObjects(schema: EngineSchema): Set<String> =
     buildSet {
         fun visit(selectionSet: EngineSelectionSet) {
             val selectionSetType = schema.schema.getTypeAs<GraphQLCompositeType>(selectionSet.type)
@@ -106,7 +106,7 @@ val EngineSelectionSet.coordinates: Set<Coordinate>
  * [EngineSelectionSet]'s type and the type condition of the provided [selection].
  */
 fun EngineSelectionSet.relation(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     selection: EngineSelection
 ): GraphQLTypeRelation.Relation {
     val ssType = schema.schema.getTypeAs<GraphQLCompositeType>(type)
@@ -117,7 +117,7 @@ fun EngineSelectionSet.relation(
 private fun concreteObjectTypeNames(
     typeName: String,
     scopeType: GraphQLCompositeType,
-    schema: ViaductSchema
+    schema: EngineSchema
 ): List<String> {
     val type = schema.schema.getTypeAs<GraphQLCompositeType>(typeName)
     return schema.rels.possibleObjectTypes(type)
@@ -127,7 +127,7 @@ private fun concreteObjectTypeNames(
 
 private fun concreteObjectTypeNames(
     typeName: String,
-    schema: ViaductSchema
+    schema: EngineSchema
 ): List<String> {
     val type = schema.schema.getTypeAs<GraphQLCompositeType>(typeName)
     return schema.rels.possibleObjectTypes(type).map { it.name }

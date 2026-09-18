@@ -13,7 +13,7 @@ import viaduct.api.grts.MissingToBuilderInputV2
 import viaduct.api.grts.TestArgObject
 import viaduct.api.grts.Under_Score_Object
 import viaduct.codegen.utils.JavaName
-import viaduct.engine.api.ViaductSchema as ViaductGraphQLSchema
+import viaduct.engine.api.EngineSchema as ViaductGraphQLSchema
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.test.createGraphQLSchema
 import viaduct.graphql.schema.test.createSchema

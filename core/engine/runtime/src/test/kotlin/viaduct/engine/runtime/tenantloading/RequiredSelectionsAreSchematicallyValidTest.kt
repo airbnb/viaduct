@@ -10,8 +10,8 @@ import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.api.Coordinate
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 
 class RequiredSelectionsAreSchematicallyValidTest {
@@ -277,12 +277,12 @@ class RequiredSelectionsAreSchematicallyValidTest {
                     .typeCheckerEntry("Query", "y")
                     .build()
             )
-            RequiredSelectionsAreSchematicallyValid(ViaductSchema("type Query {x:Int}".asSchema)).validate(ctx)
+            RequiredSelectionsAreSchematicallyValid(EngineSchema("type Query {x:Int}".asSchema)).validate(ctx)
         }
     }
 
     private class Fixture(sdl: String, fn: Fixture.() -> Unit = {}) {
-        val schema = ViaductSchema(
+        val schema = EngineSchema(
             """
             directive @parent on FIELD_DEFINITION
             $sdl

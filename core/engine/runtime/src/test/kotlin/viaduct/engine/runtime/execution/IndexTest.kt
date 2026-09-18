@@ -14,8 +14,8 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.graphql.asDocument
 import viaduct.arbitrary.graphql.asSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionAttribution
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.runtime.QueryPlanExecutionCondition.Companion.ALWAYS_EXECUTE
@@ -187,7 +187,7 @@ class IndexTest {
                 QueryPlanFactory.Default.build(
                     QueryPlan.Parameters(
                         query = document,
-                        schema = ViaductSchema("type Query { x: Int y: Int }".asSchema),
+                        schema = EngineSchema("type Query { x: Int y: Int }".asSchema),
                         registry = registry,
                     ),
                     document.asDocument,

@@ -8,7 +8,7 @@ import graphql.language.Directive
 import graphql.language.VariableReference
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.utils.collections.MaskedSet
 
 /**
@@ -69,7 +69,7 @@ interface Constraints {
     /** narrow the current type constraints to the possible implementations of the provided [type] */
     fun narrowToImpls(
         type: GraphQLCompositeType,
-        schema: ViaductSchema
+        schema: EngineSchema
     ): Constraints = narrowTypes(schema.rels.possibleObjectTypes(type))
 
     /** add a new constraint based on the provided [directive] */

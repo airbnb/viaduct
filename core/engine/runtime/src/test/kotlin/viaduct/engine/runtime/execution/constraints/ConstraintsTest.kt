@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.graphql.asSchema
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.execution.constraints.Constraints.Resolution
 import viaduct.utils.collections.MaskedSet
 
@@ -250,7 +250,7 @@ class ConstraintsTest {
             type Dog implements Animal { name: String }
             type Cat implements Animal { name: String }
         """.trimIndent().asSchema
-        val viaductSchema = ViaductSchema(interfaceSchema)
+        val viaductSchema = EngineSchema(interfaceSchema)
         val animalType = interfaceSchema.getType("Animal") as GraphQLCompositeType
         val Dog = interfaceSchema.getObjectType("Dog")
         val Cat = interfaceSchema.getObjectType("Cat")
@@ -268,7 +268,7 @@ class ConstraintsTest {
             interface Node { id: String }
             type Item implements Node { id: String }
         """.trimIndent().asSchema
-        val viaductSchema = ViaductSchema(interfaceSchema)
+        val viaductSchema = EngineSchema(interfaceSchema)
         val nodeType = interfaceSchema.getType("Node") as GraphQLCompositeType
 
         assertSame(Constraints.Drop, Constraints.Drop.narrowToImpls(nodeType, viaductSchema))

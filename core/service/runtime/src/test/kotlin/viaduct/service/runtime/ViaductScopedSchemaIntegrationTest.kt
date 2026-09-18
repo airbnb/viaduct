@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.scopes.errors.SchemaScopeValidationError
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.service.api.ExecutionInput
@@ -29,7 +29,7 @@ import viaduct.service.api.spi.FlagManager.Flag
  * Integration tests for Viaduct scoped schema functionality.
  *
  * These tests validate the complete scoped schema lifecycle:
- * - Schema registration via different configuration methods (SDL, resources, ViaductSchema)
+ * - Schema registration via different configuration methods (SDL, resources, EngineSchema)
  * - Query execution against scoped schemas
  * - Scope isolation and field-level access control
  * - Error handling for missing schemas and invalid scope access
@@ -109,7 +109,7 @@ class ViaductScopedSchemaIntegrationTest {
                     scopes = setOf(schemaId.toScopeConfig())
                 )
                 SchemaConfigMethod.FROM_SCHEMA -> {
-                    val schema = ViaductSchema(
+                    val schema = EngineSchema(
                         SchemaGenerator().makeExecutableSchema(
                             SchemaParser().parse(sdl).apply {
                                 DefaultSchemaFactory.addDefaults(this)

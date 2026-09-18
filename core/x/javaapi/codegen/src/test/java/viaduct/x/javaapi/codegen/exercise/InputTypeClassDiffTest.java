@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import viaduct.api.internal.InputTypeFactory;
-import viaduct.engine.api.ViaductSchema;
+import viaduct.engine.api.EngineSchema;
 import viaduct.java.api.context.ExecutionContext;
 import viaduct.java.api.internal.InputBase;
 import viaduct.java.api.internal.InternalContext;
@@ -187,14 +187,14 @@ class InputTypeClassDiffTest extends AbstractClassDiffTest {
   }
 
   private ExecutionContext contextForSchema() throws Exception {
-    ViaductSchema schema;
+    EngineSchema schema;
     try (var stream =
         Objects.requireNonNull(
             getClass().getClassLoader().getResourceAsStream(SCHEMA_RESOURCE),
             "Schema resource not found: " + SCHEMA_RESOURCE)) {
       var registry =
           new SchemaParser().parse(new InputStreamReader(stream, StandardCharsets.UTF_8));
-      schema = new ViaductSchema(UnExecutableSchemaGenerator.makeUnExecutableSchema(registry));
+      schema = new EngineSchema(UnExecutableSchemaGenerator.makeUnExecutableSchema(registry));
     }
 
     return (ExecutionContext)

@@ -2,7 +2,7 @@ package viaduct.engine.api.spi
 
 import javax.inject.Inject
 import javax.inject.Singleton
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 
 /**
  * No-op [CheckerExecutorFactory] that always returns `null`, effectively disabling all
@@ -18,13 +18,13 @@ class NoOpCheckerExecutorFactoryImpl
     @Inject
     constructor() : CheckerExecutorFactory {
         override fun checkerExecutorForField(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             typeName: String,
             fieldName: String
         ): CheckerExecutor? = null
 
         override fun checkerExecutorForType(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             typeName: String
         ): CheckerExecutor? = null
     }

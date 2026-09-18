@@ -2,7 +2,7 @@ package viaduct.service.runtime
 
 import java.util.concurrent.ConcurrentHashMap
 import viaduct.engine.SchemaFactory
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.scopes.SchemaScopingMode
 import viaduct.graphql.scopes.SchemaView
 import viaduct.graphql.scopes.ScopedSchemaBuilder
@@ -53,12 +53,12 @@ class SchemaConfiguration private constructor(
      * - [FromSchema]: Wrap an existing schema
      */
     internal sealed interface FullSchemaConfig {
-        fun build(schemaFactory: SchemaFactory): ViaductSchema
+        fun build(schemaFactory: SchemaFactory): EngineSchema
 
         class FromSdl(
             private val sdl: String,
         ) : FullSchemaConfig {
-            override fun build(schemaFactory: SchemaFactory): ViaductSchema {
+            override fun build(schemaFactory: SchemaFactory): EngineSchema {
                 return schemaFactory.fromSdl(sdl)
             }
         }
@@ -67,15 +67,15 @@ class SchemaConfiguration private constructor(
             private val grtPackagePrefix: String?,
             private val filesIncluded: Regex?,
         ) : FullSchemaConfig {
-            override fun build(schemaFactory: SchemaFactory): ViaductSchema {
+            override fun build(schemaFactory: SchemaFactory): EngineSchema {
                 return schemaFactory.fromResources(grtPackagePrefix, filesIncluded)
             }
         }
 
         class FromSchema(
-            private val schema: ViaductSchema,
+            private val schema: EngineSchema,
         ) : FullSchemaConfig {
-            override fun build(schemaFactory: SchemaFactory): ViaductSchema {
+            override fun build(schemaFactory: SchemaFactory): EngineSchema {
                 return schema
             }
         }
@@ -88,7 +88,7 @@ class SchemaConfiguration private constructor(
      * full schema and applying the explicitly configured schema view.
      *
      * Key characteristics:
-     * - Does NOT require a [SchemaFactory] - operates on an already-built [ViaductSchema]
+     * - Does NOT require a [SchemaFactory] - operates on an already-built [EngineSchema]
      * - Takes the full schema as input (from [FullSchemaConfig.build])
      * - Only performs fast filtering operations (no parsing or schema building)
      * - Supports lazy evaluation - can defer filtering until schema is first accessed
@@ -105,7 +105,7 @@ class SchemaConfiguration private constructor(
         val schemaId: SchemaId
         val lazy: Boolean
 
-        fun build(fullSchema: ViaductSchema): ViaductSchema
+        fun build(fullSchema: EngineSchema): EngineSchema
 
         class Derived(
             private val scopeConfig: ScopeConfig,
@@ -113,7 +113,7 @@ class SchemaConfiguration private constructor(
         ) : ScopedSchemaConfig {
             override val schemaId: SchemaId = scopeConfig.schemaId()
 
-            override fun build(fullSchema: ViaductSchema): ViaductSchema {
+            override fun build(fullSchema: EngineSchema): EngineSchema {
                 val scopedSchema = ScopedSchemaBuilder(
                     inputSchema = fullSchema.schema,
                     additionalVisitorConstructors = emptyList(),
@@ -188,19 +188,19 @@ class SchemaConfiguration private constructor(
         }
 
         /**
-         * Creates a [SchemaConfiguration] that registers schemas from an existing [ViaductSchema].
+         * Creates a [SchemaConfiguration] that registers schemas from an existing [EngineSchema].
          * Registers exactly one external schema for each provided [ScopeConfig].
          * The internal full schema includes all fields; the base schema filters tenant-local fields.
          * The provided [schema] is used as the basis for all registered schemas.
          *
-         * @param schema the existing [ViaductSchema] to register schemas from
+         * @param schema the existing [EngineSchema] to register schemas from
          * @param scopes set of [ScopeConfig] defining named external schemas to register
          * @param lazyScopedSchemas if true, named schemas are treated as lazy; otherwise,
          *                          they are computed immediately during initialization.
          * @return a [SchemaConfiguration] with the registered schemas
          */
         fun fromSchema(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             scopes: Set<ScopeConfig> = setOf(ScopeConfig.Base),
             lazyScopedSchemas: Boolean = false,
         ): SchemaConfiguration {
@@ -216,47 +216,47 @@ class SchemaConfiguration private constructor(
     // The following classes are used to wrap prebuilt schemas for the deprecated mutable registration method.
 
     /**
-     * Wraps a prebuilt full [ViaductSchema] for use in the deprecated mutable registration method.
+     * Wraps a prebuilt full [EngineSchema] for use in the deprecated mutable registration method.
      * The schema is provided via a computation block to allow for lazy evaluation if needed.
      */
     private class FromPrebuiltFullSchema(
-        private val computeBlock: () -> ViaductSchema
+        private val computeBlock: () -> EngineSchema
     ) : FullSchemaConfig {
-        override fun build(schemaFactory: SchemaFactory): ViaductSchema {
+        override fun build(schemaFactory: SchemaFactory): EngineSchema {
             return computeBlock()
         }
     }
 
     /**
-     * Wraps a prebuilt _scoped_ [ViaductSchema] for use in the deprecated mutable registration method.
+     * Wraps a prebuilt _scoped_ [EngineSchema] for use in the deprecated mutable registration method.
      * The schema is provided via a computation block to allow for lazy evaluation if needed.
      */
     private class FromPrebuiltScopedSchema(
         override val schemaId: SchemaId,
-        private val computeBlock: () -> ViaductSchema,
+        private val computeBlock: () -> EngineSchema,
         override val lazy: Boolean
     ) : ScopedSchemaConfig {
-        override fun build(fullSchema: ViaductSchema): ViaductSchema {
+        override fun build(fullSchema: EngineSchema): EngineSchema {
             return computeBlock()
         }
     }
 
     /**
      * Registers a schema with the given [schemaId]. If a schema with the same ID already exists, it is not replaced.
-     * The schema can be provided either as a prebuilt [ViaductSchema] or as a lazy computation block.
+     * The schema can be provided either as a prebuilt [EngineSchema] or as a lazy computation block.
      * If [lazy] is true, the schema is computed only when needed.
      * This method is thread-safe.
      *
      * @deprecated This mutable registration method will be removed in favor of immutable configuration.
      * Use the [fromSchema] factory method to create an immutable configuration instead.
      * @param schemaId unique identifier for the schema, can be base or scoped
-     * @param scopedSchemaComputeBlock function that returns the [ViaductSchema] when needed
+     * @param scopedSchemaComputeBlock function that returns the [EngineSchema] when needed
      * @param lazy if true, the schema is computed lazily; otherwise, it is computed immediately
      */
     @Deprecated("DO NOT USE. Airbnb use only. Will be removed in favor of immutable configuration.", level = DeprecationLevel.WARNING)
     fun registerSchema(
         schemaId: SchemaId,
-        scopedSchemaComputeBlock: () -> ViaductSchema,
+        scopedSchemaComputeBlock: () -> EngineSchema,
         lazy: Boolean = false,
     ) {
         when (schemaId) {
@@ -298,7 +298,7 @@ private fun SchemaConfiguration.ScopeConfig.schemaView(): SchemaView =
         is SchemaConfiguration.ScopeConfig.Scoped -> SchemaView.Scoped(scopeIds)
     }
 
-internal fun SchemaConfiguration.ScopeConfig.scopingMode(fullSchema: ViaductSchema): SchemaScopingMode = fullSchema.schemaScopingMode()
+internal fun SchemaConfiguration.ScopeConfig.scopingMode(fullSchema: EngineSchema): SchemaScopingMode = fullSchema.schemaScopingMode()
 
 /**
  * Converts a [SchemaId.Scoped] to a [SchemaConfiguration.ScopeConfig].

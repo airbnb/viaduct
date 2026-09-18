@@ -22,28 +22,28 @@ import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.next
 import viaduct.arbitrary.common.Config
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.utils.DefaultSchemaFactory.DefaultDirective
 
-/** Generate arbitrary instances of [viaduct.engine.api.ViaductSchema] from a static [Config]. */
-fun Arb.Companion.viaductSchema(cfg: Config = Config.default): Arb<ViaductSchema> =
+/** Generate arbitrary instances of [viaduct.engine.api.EngineSchema] from a static [Config]. */
+fun Arb.Companion.viaductSchema(cfg: Config = Config.default): Arb<EngineSchema> =
     arbitrary { rs ->
         ViaductSchemaGen(cfg, rs).gen()
     }
 
-/** Generate arbitrary instances of [viaduct.engine.api.ViaductSchema] from a [GraphQLSchema] and [Config]. */
+/** Generate arbitrary instances of [viaduct.engine.api.EngineSchema] from a [GraphQLSchema] and [Config]. */
 fun Arb.Companion.viaductSchema(
     gjSchema: GraphQLSchema,
     cfg: Config = Config.default
-): Arb<ViaductSchema> =
+): Arb<EngineSchema> =
     arbitrary { rs ->
         ViaductSchemaGen(cfg, rs).gen(gjSchema)
     }
 
 internal class ViaductSchemaGen(val cfg: Config, val rs: RandomSource) {
-    fun gen(): ViaductSchema = gen(Arb.graphQLSchema(cfg).next(rs))
+    fun gen(): EngineSchema = gen(Arb.graphQLSchema(cfg).next(rs))
 
-    fun gen(gjSchema: GraphQLSchema): ViaductSchema {
+    fun gen(gjSchema: GraphQLSchema): EngineSchema {
         val transformed = gjSchema.let {
             if (cfg[UndeclaredNamespaceTypeWeight] > 0.0) {
                 AddNamespaceTypes(it, cfg, rs)
@@ -52,7 +52,7 @@ internal class ViaductSchemaGen(val cfg: Config, val rs: RandomSource) {
             }
         }
 
-        return ViaductSchema(transformed)
+        return EngineSchema(transformed)
     }
 }
 

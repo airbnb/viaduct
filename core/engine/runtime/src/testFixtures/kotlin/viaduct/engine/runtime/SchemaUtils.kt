@@ -4,11 +4,11 @@ import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
 import org.intellij.lang.annotations.Language
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 
 fun createSchema(
     @Language("GraphQL") sdl: String
-): ViaductSchema {
+): EngineSchema {
     val tdr = SchemaParser().parse(sdl)
-    return ViaductSchema(SchemaGenerator().makeExecutableSchema(tdr, RuntimeWiring.MOCKED_WIRING))
+    return EngineSchema(SchemaGenerator().makeExecutableSchema(tdr, RuntimeWiring.MOCKED_WIRING))
 }

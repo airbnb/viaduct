@@ -7,7 +7,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.NodeEntryConfig
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -147,12 +147,12 @@ class TestExecutorFactory(
 ) : ExecutorFactory {
     override fun createFieldResolverExecutor(
         configData: FieldEntryConfig,
-        schema: ViaductSchema
+        schema: EngineSchema
     ): FieldResolverExecutor = throw UnsupportedOperationException("not needed for bootstrapper tests")
 
     override fun createNodeResolverExecutor(
         configData: NodeEntryConfig,
-        schema: ViaductSchema
+        schema: EngineSchema
     ): NodeResolverExecutor = throw UnsupportedOperationException("not needed for bootstrapper tests")
 }
 

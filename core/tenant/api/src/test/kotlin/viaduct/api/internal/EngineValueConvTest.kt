@@ -27,9 +27,9 @@ import viaduct.arbitrary.graphql.TypenameValueWeight
 import viaduct.arbitrary.graphql.graphQLSchema
 import viaduct.arbitrary.graphql.ir
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolvedEngineObjectData
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.engineObjectsAreEquivalent
 import viaduct.engine.api.mocks.createEngineSelectionSet
 import viaduct.engine.api.mocks.createSchema
@@ -38,7 +38,7 @@ import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.IR
 
 class EngineValueConvTest : KotestPropertyBase() {
-    private val emptySchema: ViaductSchema = createSchema("extend type Query { x:Int }")
+    private val emptySchema: EngineSchema = createSchema("extend type Query { x:Int }")
 
     @Test
     fun `roundtrips arbitrary ir for arbitrary schemas`(): Unit =
@@ -52,10 +52,10 @@ class EngineValueConvTest : KotestPropertyBase() {
                 // exactly the same as the input IR
                 (TypenameValueWeight to 1.0)
 
-            // generate arbitrary triples of (ViaductSchema, GraphQLType, IR)
+            // generate arbitrary triples of (EngineSchema, GraphQLType, IR)
             val arb = Arb.graphQLSchema(cfg)
                 .flatMap { gjSchema ->
-                    val vschema = ViaductSchema(gjSchema)
+                    val vschema = EngineSchema(gjSchema)
                     arbitrary {
                         val type = Arb.of(gjSchema.allTypesAsList)
                             .flatMap { type ->
@@ -438,7 +438,7 @@ internal fun valuesEqual(
     }
 
 private fun mkEngineSelectionSet(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     selectionsType: String,
     selections: String,
     variables: Map<String, Any?> = emptyMap()

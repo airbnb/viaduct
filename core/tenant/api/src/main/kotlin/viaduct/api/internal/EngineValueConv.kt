@@ -15,9 +15,9 @@ import java.time.temporal.TemporalAccessor
 import viaduct.api.internal.EngineValueConv.invoke
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolvedEngineObjectData
-import viaduct.engine.api.ViaductSchema
 import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.ConvMemo
 import viaduct.mapping.graphql.IR
@@ -52,7 +52,7 @@ object EngineValueConv {
      * Any aliases used in [selectionSet] will be used as object keys in both the EngineValue and IR Values
      */
     operator fun invoke(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         type: GraphQLType,
         selectionSet: EngineSelectionSet?
     ): Conv<Any?, IR.Value> = Builder(schema).build(type, selectionSet)
@@ -273,7 +273,7 @@ object EngineValueConv {
             },
         )
 
-    private class Builder(val schema: ViaductSchema) {
+    private class Builder(val schema: EngineSchema) {
         private val memo = ConvMemo()
 
         fun build(

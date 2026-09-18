@@ -41,17 +41,17 @@ import java.util.LinkedList
 import kotlin.math.max
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.utils.allChildren
 import viaduct.mapping.graphql.GJValueConv
 
 /**
- * Generate an arbitrary GraphQL [Document] for the provided [ViaductSchema] and config.
+ * Generate an arbitrary GraphQL [Document] for the provided [EngineSchema] and config.
  * The returned Document is guaranteed to be valid according to the rules at
  *   https://spec.graphql.org/draft/#sec-Documents
  */
 fun Arb.Companion.graphQLDocument(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     cfg: Config = Config.default,
 ): Arb<Document> = graphQLDocument(schema.schema, cfg)
 

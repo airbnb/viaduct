@@ -9,7 +9,7 @@ import javax.inject.Qualifier
 import javax.inject.Singleton
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineFactory
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.CheckerExecutorFactoryCreator
@@ -70,7 +70,7 @@ internal class SchemaScopedModule(
         @Exposed
         fun providesFullViaductSchema(
             @BaseRegistry engineRegistry: EngineRegistry
-        ): ViaductSchema {
+        ): EngineSchema {
             return engineRegistry.getFullSchema()
         }
 
@@ -88,14 +88,14 @@ internal class SchemaScopedModule(
 
     @Provides
     @Singleton
-    fun providesExecutorValidator(schema: ViaductSchema): ExecutorValidator {
+    fun providesExecutorValidator(schema: EngineSchema): ExecutorValidator {
         return ExecutorValidator(schema)
     }
 
     @Provides
     @Singleton
     fun providesCheckerExecutorFactory(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         creator: CheckerExecutorFactoryCreator,
     ): CheckerExecutorFactory {
         return creator.create(schema)
@@ -106,7 +106,7 @@ internal class SchemaScopedModule(
     fun providesDispatcherRegistry(
         validator: ExecutorValidator,
         checkerExecutorFactory: CheckerExecutorFactory,
-        schema: ViaductSchema,
+        schema: EngineSchema,
         moduleBootstrapConfiguration: ModuleBootstrapConfiguration,
         proxyResolverFactory: ProxyResolverFactory,
         resolverInstrumentation: ViaductResolverInstrumentation,

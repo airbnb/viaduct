@@ -6,7 +6,7 @@ import io.kotest.property.arbitrary.map
 import java.util.Collections
 import java.util.WeakHashMap
 import viaduct.arbitrary.common.Config
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.scopes.SchemaView
 import viaduct.graphql.scopes.ScopedSchemaBuilder
 import viaduct.service.api.ExecutionInput
@@ -21,7 +21,7 @@ import viaduct.service.runtime.schemaScopingMode
  * Documents are generated against [schema]'s [SchemaView.Base] view rather than [schema] itself.
  */
 fun Arb.Companion.viaductExecutionInput(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     cfg: Config = Config.default
 ): Arb<ExecutionInput> =
     Arb.graphQLExecutionInput(schema.baseView, cfg).map { input ->
@@ -39,13 +39,13 @@ fun Arb.Companion.viaductExecutionInput(
  * [viaductExecutionInput] Arb for every generated sample. Weak keys let the entry go away with the
  * schema it describes.
  */
-private val baseViews = Collections.synchronizedMap(WeakHashMap<GraphQLSchema, ViaductSchema>())
+private val baseViews = Collections.synchronizedMap(WeakHashMap<GraphQLSchema, EngineSchema>())
 
 /**
  * The client-facing [SchemaView.Base] view of this schema, or this schema itself if it has no
  * fields to filter.
  */
-private val ViaductSchema.baseView: ViaductSchema get() =
+private val EngineSchema.baseView: EngineSchema get() =
     baseViews.getOrPut(schema) {
         val filtered = ScopedSchemaBuilder(
             inputSchema = schema,

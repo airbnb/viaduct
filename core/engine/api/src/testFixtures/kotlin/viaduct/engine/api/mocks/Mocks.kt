@@ -33,13 +33,13 @@ import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CheckerExecutorFactory
@@ -87,7 +87,7 @@ fun EngineSelectionSet.variables() = this.variables
 
 fun createEngineSelectionSet(
     parsedSelections: ParsedSelections,
-    viaductSchema: ViaductSchema,
+    viaductSchema: EngineSchema,
     variables: Map<String, Any?>
 ): EngineSelectionSet =
     EngineSelectionSetImpl.create(
@@ -96,7 +96,7 @@ fun createEngineSelectionSet(
         viaductSchema
     )
 
-fun createEngineSelectionSetFactory(viaductSchema: ViaductSchema) = EngineSelectionSetFactoryImpl(viaductSchema)
+fun createEngineSelectionSetFactory(viaductSchema: EngineSchema) = EngineSelectionSetFactoryImpl(viaductSchema)
 
 fun createRSS(
     typeName: String,
@@ -121,21 +121,21 @@ class MockVariablesResolver(
 }
 
 /**
- * Create a [ViaductSchema] with mock wiring, which allows for schema parsing and validation.
+ * Create a [EngineSchema] with mock wiring, which allows for schema parsing and validation.
  * This is useful for testing local changes that are unnecessary for a full engine execution,
  * e.g., unit tests.
  *
  * @param sdl The SDL string to parse and create the schema.
  */
-fun createSchema(sdl: String): ViaductSchema {
+fun createSchema(sdl: String): EngineSchema {
     val tdr = SchemaParser().parse(sdl).apply {
         DefaultSchemaFactory.addDefaults(this)
     }
-    return ViaductSchema(SchemaGenerator().makeExecutableSchema(tdr, RuntimeWiring.MOCKED_WIRING))
+    return EngineSchema(SchemaGenerator().makeExecutableSchema(tdr, RuntimeWiring.MOCKED_WIRING))
 }
 
 /**
- * Create a [ViaductSchema] with actual wiring, which allows for real execution.
+ * Create a [EngineSchema] with actual wiring, which allows for real execution.
  * This is useful for testing the actual engine behaviors, e.g., engine feature test.
  *
  * @param sdl The SDL string to parse and create the schema.
@@ -147,7 +147,7 @@ fun createSchemaWithWiring(
     sdl: String,
     allowExistingDefaultSchemaComponents: Boolean = false,
     airbnbModeEnabled: Boolean = false,
-): ViaductSchema {
+): EngineSchema {
     val tdr = SchemaParser().parse(sdl)
     try {
         DefaultSchemaFactory.addDefaults(
@@ -167,11 +167,11 @@ fun createSchemaWithWiring(
     }.build()
 
     // Let SchemaProblem and other GraphQL validation errors pass through
-    return ViaductSchema(SchemaGenerator().makeExecutableSchema(tdr, wiring))
+    return EngineSchema(SchemaGenerator().makeExecutableSchema(tdr, wiring))
 }
 
 object MockSchema {
-    val minimal: ViaductSchema = createSchema("extend type Query { empty: Int }")
+    val minimal: EngineSchema = createSchema("extend type Query { empty: Int }")
 
     fun mk(sdl: String) = createSchema(sdl)
 }
@@ -230,7 +230,7 @@ private val internalDispatcher: TestDispatcher = UnconfinedTestDispatcher(testSc
 
 @OptIn(ExperimentalCoroutinesApi::class)
 fun FieldResolverExecutor.invoke(
-    fullSchema: ViaductSchema,
+    fullSchema: EngineSchema,
     coord: Coordinate,
     arguments: Map<String, Any?> = emptyMap(),
     objectValue: Map<String, Any?> = emptyMap(),
@@ -251,7 +251,7 @@ fun FieldResolverExecutor.invoke(
 
 @OptIn(ExperimentalCoroutinesApi::class)
 fun CheckerExecutor.invoke(
-    fullSchema: ViaductSchema,
+    fullSchema: EngineSchema,
     coord: Coordinate,
     arguments: Map<String, Any?> = emptyMap(),
     objectDataMap: Map<String, Map<String, Any?>> = emptyMap(),
@@ -368,7 +368,7 @@ fun List<MockTenantModuleBootstrapper>.toDispatcherRegistryFactory(
  * [EngineTestModule] before handing them to the engine.
  */
 class MockTenantModuleBootstrapper(
-    val fullSchema: ViaductSchema,
+    val fullSchema: EngineSchema,
     val fieldResolverExecutors: Iterable<Pair<Coordinate, FieldResolverExecutor>> = emptyList(),
     val nodeResolverExecutors: Iterable<Pair<String, NodeResolverExecutor>> = emptyList(),
     val checkerExecutors: Map<Coordinate, CheckerExecutor> = emptyMap(),
@@ -390,7 +390,7 @@ class MockTenantModuleBootstrapper(
     companion object {
         /**
          * Create a [MockTenantModuleBootstrapper] with the provided schema SDL.
-         * This will parse the SDL and create a [ViaductSchema] with actual wiring.
+         * This will parse the SDL and create a [EngineSchema] with actual wiring.
          */
         operator fun invoke(
             schemaSDL: String,
@@ -398,12 +398,12 @@ class MockTenantModuleBootstrapper(
         ) = invoke(createSchemaWithWiring(schemaSDL), block)
 
         /**
-         * Create a [MockTenantModuleBootstrapper] with the provided [ViaductSchema].
+         * Create a [MockTenantModuleBootstrapper] with the provided [EngineSchema].
          * The provided schema should already be built with actual wiring via `mkSchemaWithWiring`,
          * not `mkSchema` with mock wiring.
          */
         operator fun invoke(
-            schemaWithWiring: ViaductSchema,
+            schemaWithWiring: EngineSchema,
             block: MockTenantModuleDSL<Unit>.() -> Unit
         ) = MockTenantModuleDSL(schemaWithWiring, Unit).apply { block() }.create()
     }
@@ -483,7 +483,7 @@ class MockCheckerExecutorFactory(
     val typeCheckerExecutors: Map<String, CheckerExecutor>? = null
 ) : CheckerExecutorFactory {
     override fun checkerExecutorForField(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         typeName: String,
         fieldName: String
     ): CheckerExecutor? {
@@ -491,7 +491,7 @@ class MockCheckerExecutorFactory(
     }
 
     override fun checkerExecutorForType(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         typeName: String
     ): CheckerExecutor? {
         return typeCheckerExecutors?.get(typeName)

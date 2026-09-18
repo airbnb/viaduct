@@ -24,8 +24,8 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.NodeEntryConfig
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.GraphQLBuildError
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockExecutorCodeInjector
@@ -424,8 +424,8 @@ class StandardViaductTest {
     }
 }
 
-private fun makeSchema(schema: String): ViaductSchema {
-    return ViaductSchema(
+private fun makeSchema(schema: String): EngineSchema {
+    return EngineSchema(
         UnExecutableSchemaGenerator.makeUnExecutableSchema(
             SchemaParser().parse(schema).apply {
                 DefaultSchemaFactory.addDefaults(this)
@@ -482,7 +482,7 @@ class GeneratedRegistryTestExecutorFactory(
 ) : ExecutorFactory {
     override fun createFieldResolverExecutor(
         configData: FieldEntryConfig,
-        schema: ViaductSchema
+        schema: EngineSchema
     ): FieldResolverExecutor =
         MockFieldUnbatchedResolverExecutor(
             resolverId = "${configData.typeName}.${configData.fieldName}",
@@ -490,7 +490,7 @@ class GeneratedRegistryTestExecutorFactory(
 
     override fun createNodeResolverExecutor(
         configData: NodeEntryConfig,
-        schema: ViaductSchema
+        schema: EngineSchema
     ): NodeResolverExecutor {
         throw UnsupportedOperationException("Node resolvers are not used by this test")
     }

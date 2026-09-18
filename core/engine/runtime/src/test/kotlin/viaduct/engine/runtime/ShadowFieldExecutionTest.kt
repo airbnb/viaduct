@@ -17,9 +17,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ParentManagedValue
 import viaduct.engine.api.StandardResolutionValue
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.IViaductInstrumentation
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
 import viaduct.engine.api.mocks.EngineTestModule
@@ -544,7 +544,7 @@ class ShadowFieldExecutionTest {
         assertEquals(1, comparisonCalls.get())
     }
 
-    private fun schemaWithClassicFetcher(): ViaductSchema {
+    private fun schemaWithClassicFetcher(): EngineSchema {
         val baseSchema = createSchemaWithWiring(
             """
             extend type Query {
@@ -574,7 +574,7 @@ class ShadowFieldExecutionTest {
             )
         }
 
-        return ViaductSchema(
+        return EngineSchema(
             baseSchema.schema.transform { builder ->
                 builder.codeRegistry(codeRegistry)
             }

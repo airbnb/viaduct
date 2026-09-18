@@ -5,7 +5,7 @@ import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.NodeEntryConfig
 import viaduct.engine.api.Coordinate
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -91,11 +91,11 @@ class MockExecutorFactory(
 
     override fun createFieldResolverExecutor(
         configData: FieldEntryConfig,
-        schema: ViaductSchema,
+        schema: EngineSchema,
     ): FieldResolverExecutor = mockExecutorRegistry.fieldExecutor(configData.typeName to configData.fieldName)
 
     override fun createNodeResolverExecutor(
         configData: NodeEntryConfig,
-        schema: ViaductSchema,
+        schema: EngineSchema,
     ): NodeResolverExecutor = mockExecutorRegistry.nodeExecutor(configData.typeName)
 }

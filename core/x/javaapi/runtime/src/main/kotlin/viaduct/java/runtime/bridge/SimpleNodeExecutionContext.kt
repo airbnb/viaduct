@@ -5,7 +5,7 @@ import graphql.schema.GraphQLInputObjectType
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.CoroutineScope
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.errors.FrameworkException
 import viaduct.errors.handleFrameworkErrors
 import viaduct.java.api.context.NodeExecutionContext
@@ -66,7 +66,7 @@ class SimpleNodeExecutionContext(
 
     // ── InternalContext implementation (delegated to JavaEngineContextDelegate) ──
 
-    override fun getSchema(): ViaductSchema = delegate.getSchema()
+    override fun getSchema(): EngineSchema = delegate.getSchema()
 
     override fun getArgumentsInputType(
         name: String,

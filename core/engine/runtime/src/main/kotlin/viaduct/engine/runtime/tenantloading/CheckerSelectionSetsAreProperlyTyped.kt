@@ -1,6 +1,6 @@
 package viaduct.engine.runtime.tenantloading
 
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.validation.Validator
 
 /**
@@ -10,7 +10,7 @@ import viaduct.engine.runtime.validation.Validator
 * - the root query type.
  */
 class CheckerSelectionSetsAreProperlyTyped(
-    private val schema: ViaductSchema,
+    private val schema: EngineSchema,
 ) : Validator<CheckerExecutorValidationCtx> {
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
     override fun validate(ctx: CheckerExecutorValidationCtx) =

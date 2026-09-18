@@ -3,7 +3,7 @@ package viaduct.engine
 import graphql.execution.preparsed.NoOpPreparsedDocumentProvider
 import graphql.execution.preparsed.PreparsedDocumentProvider
 import viaduct.engine.api.Engine
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.execution.QueryPlanFactory
 
@@ -24,9 +24,9 @@ class EngineFactory(
      * @return A configured Engine instance.
      */
     fun create(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         documentProvider: PreparsedDocumentProvider = NoOpPreparsedDocumentProvider(),
-        fullSchema: ViaductSchema = schema,
+        fullSchema: EngineSchema = schema,
     ): Engine {
         return EngineImpl(
             config,

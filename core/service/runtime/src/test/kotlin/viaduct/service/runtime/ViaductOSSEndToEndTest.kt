@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.FlagManager
@@ -233,5 +233,5 @@ class ViaductOSSEndToEndTest {
     private fun mkSchema(
         sdl: String,
         wiring: RuntimeWiring
-    ): ViaductSchema = ViaductSchema(SchemaGenerator().makeExecutableSchema(SchemaParser().parse(sdl), wiring))
+    ): EngineSchema = EngineSchema(SchemaGenerator().makeExecutableSchema(SchemaParser().parse(sdl), wiring))
 }

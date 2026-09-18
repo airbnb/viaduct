@@ -13,10 +13,10 @@ import io.kotest.property.Arb
 import io.kotest.property.checkAll
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.RootFieldReference
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.service.api.spi.GlobalIDCodec
@@ -63,7 +63,7 @@ internal fun mkConfig(
         (GenInterfaceStubsIfNeeded to genInterfaceStubs) +
         (ListValueSize to listValueSize..listValueSize)
 
-fun ViaductSchema.mkEngineSelectionSet(
+fun EngineSchema.mkEngineSelectionSet(
     typeName: String,
     selections: String,
     variables: Map<String, Any?> = emptyMap()
@@ -156,7 +156,7 @@ class MockEngineCtx(
 
     companion object {
         operator fun invoke(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault
         ): MockEngineCtx = MockEngineCtx(globalIDCodec, FieldRefs(schema))
     }

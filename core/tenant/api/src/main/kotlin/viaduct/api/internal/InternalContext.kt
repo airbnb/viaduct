@@ -4,7 +4,7 @@ import viaduct.api.context.ExecutionContext
 import viaduct.api.globalid.GlobalID
 import viaduct.api.types.NodeCompositeOutput
 import viaduct.apiannotations.InternalApi
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.errors.FrameworkException
 import viaduct.service.api.spi.GlobalIDCodec
 
@@ -19,7 +19,7 @@ import viaduct.service.api.spi.GlobalIDCodec
 @InternalApi
 interface InternalContext {
     /** the Viaduct schema that underpins GRTs */
-    val schema: ViaductSchema
+    val schema: EngineSchema
 
     /**
      * A codec that is used to translate between [viaduct.api.globalid.GlobalID] tenant-space

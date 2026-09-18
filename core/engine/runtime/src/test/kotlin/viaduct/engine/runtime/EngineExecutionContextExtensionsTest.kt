@@ -17,12 +17,12 @@ import viaduct.engine.api.Coordinate
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.RootFieldReference
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dataFetchingEnvironment
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
@@ -48,7 +48,7 @@ class EngineExecutionContextExtensionsTest {
     )
 
     private fun createContext(
-        schema: ViaductSchema = testSchema,
+        schema: EngineSchema = testSchema,
         dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
         flagManager: FlagManager = MockFlagManager.Enabled,
     ): EngineExecutionContextImpl {
@@ -244,9 +244,9 @@ class EngineExecutionContextExtensionsTest {
     @Test
     fun `extension throws when used on non-impl class`() {
         val fakeContext = object : EngineExecutionContext {
-            override val fullSchema: ViaductSchema get() = mockk()
-            override val scopedSchema: ViaductSchema get() = mockk()
-            override val activeSchema: ViaductSchema get() = mockk()
+            override val fullSchema: EngineSchema get() = mockk()
+            override val scopedSchema: EngineSchema get() = mockk()
+            override val activeSchema: EngineSchema get() = mockk()
             override val engineSelectionSetFactory get() = mockk<EngineSelectionSet.Factory>()
             override val globalIDCodec: GlobalIDCodec get() = mockk()
             override val requestContext: Any? get() = null

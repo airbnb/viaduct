@@ -12,15 +12,15 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.engine.api.Coordinate
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.service.api.spi.CodeInjector
 
 class NamespaceTypeBuiltInFactoriesTest {
     private val objectMapper = jacksonObjectMapper()
 
-    private fun mkSchema(sdl: String): ViaductSchema {
+    private fun mkSchema(sdl: String): EngineSchema {
         val fullSdl = "directive @namespaceType on OBJECT\n$sdl"
-        return ViaductSchema(UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(fullSdl)))
+        return EngineSchema(UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(fullSdl)))
     }
 
     private fun testRegistry() =

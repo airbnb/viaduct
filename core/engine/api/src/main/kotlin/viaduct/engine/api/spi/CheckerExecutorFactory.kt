@@ -1,6 +1,6 @@
 package viaduct.engine.api.spi
 
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 
 /**
  * SPI for providing per-field and per-type access-control checkers.
@@ -17,7 +17,7 @@ interface CheckerExecutorFactory {
      * if no check is needed for [typeName].[fieldName].
      */
     fun checkerExecutorForField(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         typeName: String,
         fieldName: String
     ): CheckerExecutor?
@@ -27,7 +27,7 @@ interface CheckerExecutorFactory {
      * `null` if no check is needed.
      */
     fun checkerExecutorForType(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         typeName: String
     ): CheckerExecutor?
 }

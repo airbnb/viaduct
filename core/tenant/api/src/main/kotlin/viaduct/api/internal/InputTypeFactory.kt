@@ -6,7 +6,7 @@ import graphql.schema.GraphQLInputObjectField
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLObjectType
 import viaduct.apiannotations.InternalApi
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 
 /**
  * Internal factory for creating GraphQLInputObjectType instances for Arguments and Input GRTs.
@@ -30,7 +30,7 @@ object InputTypeFactory {
         name: String,
         typeName: String,
         fieldName: String,
-        schema: ViaductSchema
+        schema: EngineSchema
     ): GraphQLInputObjectType {
         val type = requireNotNull(schema.schema.getType(typeName)) {
             "Type $typeName not in schema."
@@ -47,7 +47,7 @@ object InputTypeFactory {
     private fun buildArgumentsInputType(
         name: String,
         field: GraphQLFieldDefinition,
-        schema: ViaductSchema
+        schema: EngineSchema
     ): GraphQLInputObjectType {
         val fields = field.arguments.map {
             val builder = GraphQLInputObjectField.Builder()
@@ -84,7 +84,7 @@ object InputTypeFactory {
     @JvmStatic
     fun inputObjectInputType(
         name: String,
-        schema: ViaductSchema
+        schema: EngineSchema
     ): GraphQLInputObjectType {
         val result = requireNotNull(schema.schema.getType(name)) {
             "Type $name does not exist in schema."

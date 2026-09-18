@@ -16,11 +16,11 @@ import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.NodeEntryConfig
 import viaduct.bootstrap.SelectionsBlockConfig
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.TenantModuleMetadata
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.RequiredSelectionSetSupport
 import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.engine.api.select.SelectionsParser
@@ -85,7 +85,7 @@ class ViaductModernExecutorFactory(
     @Suppress("UNCHECKED_CAST")
     override fun createFieldResolverExecutor(
         configData: FieldEntryConfig,
-        schema: ViaductSchema
+        schema: EngineSchema
     ): FieldResolverExecutor {
         val apiData = configData.tenantAPIData.toFieldAPIData()
         val resolverClass = loadClass<ResolverBase<*>>(apiData.resolverClass, "field ${configData.typeName}.${configData.fieldName}")
@@ -152,7 +152,7 @@ class ViaductModernExecutorFactory(
     @Suppress("UNCHECKED_CAST")
     override fun createNodeResolverExecutor(
         configData: NodeEntryConfig,
-        schema: ViaductSchema
+        schema: EngineSchema
     ): NodeResolverExecutor {
         val apiData = configData.tenantAPIData.toNodeAPIData()
         val resolverClass = loadClass<NodeResolverBase<*>>(apiData.resolverClass, "node ${configData.typeName}")

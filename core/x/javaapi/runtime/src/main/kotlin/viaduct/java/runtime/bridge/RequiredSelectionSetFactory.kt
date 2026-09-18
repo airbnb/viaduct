@@ -3,12 +3,12 @@ package viaduct.java.runtime.bridge
 import javax.inject.Provider
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.SelectionsBlockConfig
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.RequiredSelectionSets
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.RequiredSelectionSetSupport
 import viaduct.engine.api.checkDisjoint
 import viaduct.engine.api.select.SelectionsParser
@@ -47,7 +47,7 @@ class RequiredSelectionSetFactory {
      * @return A [RequiredSelectionSets] containing the parsed object and query selections
      */
     fun mkRequiredSelectionSets(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         entry: FieldEntryConfig,
         resolverClass: Class<*>,
         injector: CodeInjector,

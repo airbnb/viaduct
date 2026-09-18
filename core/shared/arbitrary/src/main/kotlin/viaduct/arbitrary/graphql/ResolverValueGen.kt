@@ -26,11 +26,11 @@ import viaduct.arbitrary.common.Config
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.RootFieldReference
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
 import viaduct.service.api.spi.GlobalIDCodec
 
@@ -48,7 +48,7 @@ import viaduct.service.api.spi.GlobalIDCodec
  * @param cfg a [Config] to control generation
  */
 fun Arb.Companion.fieldResolverValue(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     coord: Coordinate,
     selections: EngineSelectionSet?,
     ctx: EngineCtx,
@@ -92,7 +92,7 @@ fun interface FieldResolverValueGen {
  * @param cfg a [Config] to control generation
  */
 fun Arb.Companion.nodeResolverValue(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     type: String,
     selections: EngineSelectionSet,
     ctx: EngineCtx,
@@ -124,7 +124,7 @@ interface NodeResolverValueGen {
 }
 
 internal class ResolverValueGen(
-    private val schema: ViaductSchema,
+    private val schema: EngineSchema,
     private val resolverConfig: ResolverConfig,
     private val cfg: Config,
     private val coordinateIndex: CoordinateIndex,
@@ -502,7 +502,7 @@ interface FieldRefs {
             override fun refFieldsFor(type: GraphQLOutputType): List<FieldRef> = emptyList()
         }
 
-        operator fun invoke(schema: ViaductSchema): FieldRefs = Impl(buildRefMap(schema.schema.queryType))
+        operator fun invoke(schema: EngineSchema): FieldRefs = Impl(buildRefMap(schema.schema.queryType))
 
         private fun buildRefMap(root: GraphQLObjectType): Map<TypeExpr, List<FieldRef>> {
             val map = mutableMapOf<TypeExpr, MutableList<FieldRef>>()

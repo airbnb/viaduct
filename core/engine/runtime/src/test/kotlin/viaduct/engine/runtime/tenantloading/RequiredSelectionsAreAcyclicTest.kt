@@ -4,10 +4,10 @@ import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.FromQueryFieldVariable
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.select.SelectionsParser
@@ -584,7 +584,7 @@ class RequiredSelectionsAreAcyclicTest {
     }
 
     private fun validateOne(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         registry: MockRequiredSelectionSetRegistry,
         coord: TypeOrFieldCoordinate
     ) {

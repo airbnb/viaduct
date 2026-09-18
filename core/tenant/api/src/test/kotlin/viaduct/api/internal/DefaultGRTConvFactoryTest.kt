@@ -41,8 +41,8 @@ import viaduct.arbitrary.graphql.ir
 import viaduct.arbitrary.graphql.objectIR
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.engineObjectsAreEquivalent
 import viaduct.engine.api.gj
 import viaduct.engine.api.mocks.createEngineSelectionSet
@@ -815,13 +815,13 @@ class DefaultGRTConvFactoryTest : KotestPropertyBase() {
         return from2 as From
     }
 
-    private fun ViaductSchema.type(name: String): GraphQLType = typeAs(name)
+    private fun EngineSchema.type(name: String): GraphQLType = typeAs(name)
 
-    private fun <T : GraphQLType> ViaductSchema.typeAs(name: String): T = schema.getTypeAs(name)!!
+    private fun <T : GraphQLType> EngineSchema.typeAs(name: String): T = schema.getTypeAs(name)!!
 
-    private fun ViaductSchema.field(coord: Coordinate): GraphQLFieldDefinition = schema.getFieldDefinition(coord.gj)
+    private fun EngineSchema.field(coord: Coordinate): GraphQLFieldDefinition = schema.getFieldDefinition(coord.gj)
 
-    private fun ViaductSchema.inputField(coord: Coordinate): GraphQLInputObjectField = typeAs<GraphQLInputObjectType>(coord.first).getField(coord.second)
+    private fun EngineSchema.inputField(coord: Coordinate): GraphQLInputObjectField = typeAs<GraphQLInputObjectType>(coord.first).getField(coord.second)
 
     private fun mkEngineSelectionSet(
         selectionsType: String,

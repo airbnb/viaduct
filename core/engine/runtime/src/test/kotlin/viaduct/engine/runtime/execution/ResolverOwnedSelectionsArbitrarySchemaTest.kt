@@ -43,10 +43,10 @@ import viaduct.arbitrary.graphql.graphQLDocument
 import viaduct.arbitrary.graphql.graphQLExecutionInput
 import viaduct.arbitrary.graphql.viaductSchema
 import viaduct.engine.api.Coordinate
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolverType
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.FieldResolverDispatcher
 import viaduct.engine.runtime.NodeResolverDispatcher
@@ -448,7 +448,7 @@ private data class SemanticSelection(
 )
 
 data class GeneratedProjectionCase(
-    val schema: ViaductSchema,
+    val schema: EngineSchema,
     val document: String,
     val operation: OperationDefinition,
     val fragments: Map<String, FragmentDefinition>,

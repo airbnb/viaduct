@@ -13,7 +13,7 @@ import viaduct.arbitrary.common.CompoundingWeight.Companion.Never
 import viaduct.arbitrary.common.CompoundingWeight.Companion.Once
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 
 class FieldResolversTest : KotestPropertyBase() {
     private val schema = """
@@ -68,7 +68,7 @@ class FieldResolversTest : KotestPropertyBase() {
         runBlocking {
             Exhaustive.of(
                 "extend type Query { x:Int @resolver }".asViaductSchema to false,
-                ViaductSchema(
+                EngineSchema(
                     """
                     directive @resolver(isSelective: Boolean! = false) on FIELD_DEFINITION | OBJECT
                     type Query { x:Int @resolver(isSelective: true) }

@@ -310,7 +310,7 @@ class EngineTestModuleTest {
     }
 
     @Test
-    fun `invoke with ViaductSchema`() {
+    fun `invoke with EngineSchema`() {
         val schema = createSchemaWithWiring(
             """
             extend type Query {

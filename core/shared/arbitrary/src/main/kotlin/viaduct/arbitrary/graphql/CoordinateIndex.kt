@@ -1,7 +1,7 @@
 package viaduct.arbitrary.graphql
 
 import io.kotest.property.RandomSource
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 
 /**
  * [CoordinateIndex] provides a random, stable ordering of all [TypeOrFieldCoordinate] in a schema
@@ -51,7 +51,7 @@ interface CoordinateIndex {
          * The returned [CoordinateIndex] will have random indices assigned using the random of [rs].
          */
         operator fun invoke(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             rs: RandomSource
         ): CoordinateIndex {
             val index = buildList {

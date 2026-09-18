@@ -12,9 +12,9 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.RootFieldReference
-import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
 import viaduct.java.api.internal.InputBase
 import viaduct.java.api.internal.InternalContext
@@ -74,7 +74,7 @@ class JavaEngineContextDelegateTest {
 
     private fun engineContextResolvingNodeRef(): EngineExecutionContext {
         val gqlType = mockk<GraphQLObjectType>()
-        val viaductSchema = mockk<ViaductSchema> {
+        val viaductSchema = mockk<EngineSchema> {
             every { schema } returns mockk<GraphQLSchema> {
                 every { getObjectType("ContextExposingNode") } returns gqlType
             }
@@ -110,10 +110,10 @@ class JavaEngineContextDelegateTest {
         val fullGraphqlSchema = mockk<GraphQLSchema> {
             every { getObjectType("RootResult") } returns graphqlType
         }
-        val fullViaductSchema = mockk<ViaductSchema> {
+        val fullViaductSchema = mockk<EngineSchema> {
             every { schema } returns fullGraphqlSchema
         }
-        val activeViaductSchema = mockk<ViaductSchema> {
+        val activeViaductSchema = mockk<EngineSchema> {
             every { schema } returns mockk<GraphQLSchema> {
                 every { getObjectType("RootResult") } returns null
             }

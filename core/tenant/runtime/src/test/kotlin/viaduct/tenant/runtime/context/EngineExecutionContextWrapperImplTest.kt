@@ -21,8 +21,8 @@ import viaduct.api.types.Query
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.RootFieldReference
-import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
 import viaduct.tenant.runtime.FakeObject
 
@@ -47,12 +47,12 @@ class EngineExecutionContextWrapperImplTest {
         override val containingType: Type<Query> = queryType
     }
 
-    private fun mockSchema(): ViaductSchema =
+    private fun mockSchema(): EngineSchema =
         mockk {
             every { schema.getObjectType("Foo") } returns graphqlObjectType
         }
 
-    private fun mockCtx(schema: ViaductSchema = mockSchema()): InternalContext =
+    private fun mockCtx(schema: EngineSchema = mockSchema()): InternalContext =
         mockk(relaxed = true) {
             every { this@mockk.schema } returns schema
         }

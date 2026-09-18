@@ -18,7 +18,7 @@ import viaduct.api.types.Query
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.mocks.ContextMocks
 
 /**
@@ -47,7 +47,7 @@ abstract class ContextTestBase {
      * @param mutationMock Optional mock to return for mutation() calls
      */
     protected fun createMockingWrapper(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         queryMock: Query? = null,
         mutationMock: Mutation? = null,
         caller: Caller? = null,

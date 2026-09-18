@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.KotestPropertyBase
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 
 class CoordinateIndexTest : KotestPropertyBase() {
     @Test
@@ -130,7 +130,7 @@ class CoordinateIndexTest : KotestPropertyBase() {
             }
         }
 
-    private val ViaductSchema.allCoords: Set<TypeOrFieldCoordinate>
+    private val EngineSchema.allCoords: Set<TypeOrFieldCoordinate>
         get() = buildSet {
             addAll(objectCoordinates)
             addAll(compositeTypeNames)

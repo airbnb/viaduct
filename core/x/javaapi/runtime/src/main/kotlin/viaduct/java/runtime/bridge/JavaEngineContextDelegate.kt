@@ -7,10 +7,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.future
 import viaduct.api.internal.InputTypeFactory
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.RootFieldReference
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
@@ -58,7 +58,7 @@ internal class JavaEngineContextDelegate(
 
     // ── InternalContext surface ──
 
-    fun getSchema(): ViaductSchema = requireEngineContext("getSchema()").fullSchema
+    fun getSchema(): EngineSchema = requireEngineContext("getSchema()").fullSchema
 
     fun getArgumentsInputType(
         name: String,

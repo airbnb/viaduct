@@ -3,9 +3,9 @@ package viaduct.arbitrary.graphql
 import graphql.schema.GraphQLTypeUtil
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
 import viaduct.engine.runtime.select.coord
 
@@ -28,7 +28,7 @@ internal object EngineDataExerciser {
 
     suspend fun exercise(
         engineObjectData: EngineObjectData,
-        schema: ViaductSchema,
+        schema: EngineSchema,
         ss: EngineSelectionSet,
     ) {
         val projected = ss.selectionSetForType(engineObjectData.type.name)
@@ -74,7 +74,7 @@ internal object EngineDataExerciser {
 
     suspend fun traverseAndExercise(
         value: Any?,
-        schema: ViaductSchema,
+        schema: EngineSchema,
         subSelections: EngineSelectionSet
     ): Unit =
         when (value) {

@@ -4,11 +4,11 @@ import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLTypeUtil
 import viaduct.engine.api.Coordinate
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.FromArgument
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.Validated
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
 import viaduct.engine.runtime.validation.Validator
 import viaduct.graphql.utils.collectVariableUsages
@@ -19,7 +19,7 @@ import viaduct.graphql.utils.collectVariableUsages
  * This includes null vs nullable, nested paths, default argument values, and OneOf fields.
  */
 class FromArgumentVariablesHaveValidPaths(
-    private val schema: ViaductSchema
+    private val schema: EngineSchema
 ) : Validator<RequiredSelectionsValidationCtx> {
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
     override fun validate(ctx: RequiredSelectionsValidationCtx) {

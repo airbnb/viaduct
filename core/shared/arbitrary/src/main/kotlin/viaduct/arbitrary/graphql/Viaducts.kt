@@ -9,7 +9,7 @@ import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.arbitrary.common.Config
 import viaduct.engine.api.Coordinate
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CheckerExecutorFactory as EngineCheckerExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -26,7 +26,7 @@ import viaduct.service.runtime.StandardViaduct
  * `@resolver` directives, though it may insert additional resolvers depending on [cfg] (see configuration
  * notes below).
  *
- * Note that when using this generator with arbitrarily-generated [ViaductSchema]s, you will likely want
+ * Note that when using this generator with arbitrarily-generated [EngineSchema]s, you will likely want
  * to increase the resolver density with [UndeclaredFieldResolverWeight] and [UndeclaredNodeResolverWeight].
  *
  * For all configurations, generated Viaduct instances are guaranteed to be free of illegal RSS cycles
@@ -48,7 +48,7 @@ import viaduct.service.runtime.StandardViaduct
  */
 @VisibleForTest
 fun Arb.Companion.viaduct(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     cfg: Config = Config.default
 ): Arb<Viaduct> =
     arbitrary { rs ->
@@ -94,7 +94,7 @@ internal interface ViaductGenEnv {
         }
 
         operator fun invoke(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             cfg: Config,
             rs: RandomSource,
             resolverConfig: ResolverConfig = ResolverConfig(schema, cfg, rs),
@@ -184,13 +184,13 @@ private class ViaductGen(private val env: ViaductGenEnv) {
     ): EngineCheckerExecutorFactory {
         return object : EngineCheckerExecutorFactory {
             override fun checkerExecutorForField(
-                schema: ViaductSchema,
+                schema: EngineSchema,
                 typeName: String,
                 fieldName: String
             ): CheckerExecutor? = fieldCheckerExecutors[typeName to fieldName]
 
             override fun checkerExecutorForType(
-                schema: ViaductSchema,
+                schema: EngineSchema,
                 typeName: String
             ): CheckerExecutor? = typeCheckerExecutors[typeName]
         }

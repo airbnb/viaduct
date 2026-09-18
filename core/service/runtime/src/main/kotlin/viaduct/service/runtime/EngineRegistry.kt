@@ -16,7 +16,7 @@ import kotlinx.coroutines.runBlocking
 import viaduct.engine.EngineFactory
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.Engine
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.scopes.SchemaView
 import viaduct.graphql.scopes.ScopedSchemaBuilder
 import viaduct.service.api.SchemaId
@@ -28,15 +28,15 @@ import viaduct.utils.slf4j.logger
  * Supports both full and scoped schemas, with optional lazy initialization for scoped schemas.
  */
 class EngineRegistry private constructor(
-    private val schemasById: Map<SchemaId, Lazy<ViaductSchema>> = emptyMap(),
-    private val fullSchema: ViaductSchema,
+    private val schemasById: Map<SchemaId, Lazy<EngineSchema>> = emptyMap(),
+    private val fullSchema: EngineSchema,
     private val documentProviderFactory: DocumentProviderFactory,
 ) {
     /**
      * Returns all schemas (both initialized and lazy)
      */
     @VisibleForTesting
-    internal fun getAllSchemas(): Map<SchemaId, Lazy<ViaductSchema>> {
+    internal fun getAllSchemas(): Map<SchemaId, Lazy<EngineSchema>> {
         return schemasById
     }
 
@@ -44,12 +44,12 @@ class EngineRegistry private constructor(
      * Complete internal schema used for planning and execution. Unlike [SchemaId.Base], this
      * schema includes tenant-local fields.
      */
-    fun getFullSchema(): ViaductSchema = fullSchema
+    fun getFullSchema(): EngineSchema = fullSchema
 
     /**
      * Returns the base view without requiring it to be registered for execution.
      */
-    internal fun getBaseSchemaView(): ViaductSchema {
+    internal fun getBaseSchemaView(): EngineSchema {
         schemasById[SchemaId.Base]?.let { return it.value }
 
         val baseGraphQLSchema = ScopedSchemaBuilder(
@@ -159,8 +159,8 @@ class EngineRegistry private constructor(
             @OptIn(ExperimentalCoroutinesApi::class)
             private suspend fun buildScopedSchemas(
                 scopedSchemas: Map<SchemaId, SchemaConfiguration.ScopedSchemaConfig>,
-                fullSchema: ViaductSchema
-            ): List<Pair<SchemaId, Lazy<ViaductSchema>>> =
+                fullSchema: EngineSchema
+            ): List<Pair<SchemaId, Lazy<EngineSchema>>> =
                 scopedSchemas.entries.parallelMap(parallelWorkers = 4) { (schemaId, scopeConfig) ->
                     schemaId to
                         if (scopeConfig.lazy) {
@@ -237,12 +237,12 @@ class EngineRegistry private constructor(
     }
 
     /**
-     * Retrieve the [ViaductSchema] associated with the given [schemaId].
+     * Retrieve the [EngineSchema] associated with the given [schemaId].
      *
      * @throws SchemaNotFoundException if no engine is registered for the provided [schemaId].
-     * @return the [ViaductSchema] instance for the specified [schemaId].
+     * @return the [EngineSchema] instance for the specified [schemaId].
      */
-    fun getSchema(schemaId: SchemaId): ViaductSchema {
+    fun getSchema(schemaId: SchemaId): EngineSchema {
         val maybeLazySchema = schemasById[schemaId]
             ?: throw SchemaNotFoundException(schemaId)
         if (!maybeLazySchema.isInitialized()) {

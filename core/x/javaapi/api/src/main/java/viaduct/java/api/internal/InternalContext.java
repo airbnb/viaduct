@@ -1,7 +1,7 @@
 package viaduct.java.api.internal;
 
 import graphql.schema.GraphQLInputObjectType;
-import viaduct.engine.api.ViaductSchema;
+import viaduct.engine.api.EngineSchema;
 import viaduct.java.api.context.ExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.types.NodeCompositeOutput;
@@ -42,7 +42,7 @@ public interface InternalContext {
   }
 
   /** The Viaduct schema that underpins GRTs. */
-  ViaductSchema getSchema();
+  EngineSchema getSchema();
 
   /** Returns the GraphQL input type for a field's generated arguments GRT. */
   GraphQLInputObjectType getArgumentsInputType(

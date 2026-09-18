@@ -20,11 +20,11 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLTypeUtil
 import java.util.Locale
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.FieldDirectives
 import viaduct.engine.api.ResolverType
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.fragment.FragmentSource
 import viaduct.engine.api.fragment.FragmentVariables
@@ -44,7 +44,7 @@ internal data class ExecutionSelectionSet(
     private val requestsBaseType: Boolean,
 ) : EngineSelectionSet, ResolverOwnedSelectionProjectable {
     data class Ctx(
-        val schema: ViaductSchema,
+        val schema: EngineSchema,
         val fragments: QueryPlan.Fragments,
         val variables: Map<String, Any?>,
         val graphQLContext: GraphQLContext,
@@ -71,7 +71,7 @@ internal data class ExecutionSelectionSet(
                 )
     }
 
-    override val schema: ViaductSchema get() = ctx.schema
+    override val schema: EngineSchema get() = ctx.schema
     override val variables: Map<String, Any?> get() = ctx.variables
     override val type: String get() = projectionType.name
 
@@ -521,7 +521,7 @@ internal data class ExecutionSelectionSet(
 
     companion object {
         fun create(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             queryPlan: QueryPlan,
             variables: Map<String, Any?> = emptyMap(),
             graphQLContext: GraphQLContext = GraphQLContext.getDefault(),
@@ -543,7 +543,7 @@ internal data class ExecutionSelectionSet(
         }
 
         fun create(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             fieldType: GraphQLOutputType,
             selectionSet: QueryPlan.SelectionSet?,
             fragments: QueryPlan.Fragments,
@@ -571,7 +571,7 @@ internal data class ExecutionSelectionSet(
         }
 
         fun create(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             typeName: String,
             selectionSet: QueryPlan.SelectionSet,
             fragments: QueryPlan.Fragments,

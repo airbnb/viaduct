@@ -22,7 +22,7 @@ import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.ConfigKey
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.mapping.graphql.IR
 
 /**
@@ -38,7 +38,7 @@ import viaduct.mapping.graphql.IR
  * - [StringValueSize]
  */
 fun Arb.Companion.ir(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     type: GraphQLOutputType,
     selections: SelectionSet?,
     fragments: Map<String, FragmentDefinition> = emptyMap(),
@@ -49,7 +49,7 @@ fun Arb.Companion.ir(
     }
 
 internal class IRResultGen(
-    private val schema: ViaductSchema,
+    private val schema: EngineSchema,
     private val cfg: Config,
     private val rs: RandomSource,
 ) {

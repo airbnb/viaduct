@@ -14,8 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
+import viaduct.engine.api.EngineSchema;
 import viaduct.engine.api.ResolvedEngineObjectData;
-import viaduct.engine.api.ViaductSchema;
 import viaduct.engine.api.spi.FieldResolverExecutor;
 import viaduct.java.api.annotations.Resolver;
 import viaduct.java.api.context.ExecutionContext;
@@ -178,8 +178,8 @@ public class JavaObjectContractTest extends ObjectContractTest {
 
   private interface StubContext extends ExecutionContext, InternalContext {}
 
-  private static final ViaductSchema STUB_SCHEMA =
-      new ViaductSchema(
+  private static final EngineSchema STUB_SCHEMA =
+      new EngineSchema(
           GraphQLSchema.newSchema()
               .query(
                   GraphQLObjectType.newObject()
@@ -224,7 +224,7 @@ public class JavaObjectContractTest extends ObjectContractTest {
         }
 
         @Override
-        public ViaductSchema getSchema() {
+        public EngineSchema getSchema() {
           return STUB_SCHEMA;
         }
 

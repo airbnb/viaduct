@@ -9,8 +9,8 @@ import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineFactory
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionInput
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.tenantloading.ExecutorValidator
 import viaduct.engine.runtime.tenantloading.StandardDispatcherRegistryFactory
@@ -62,7 +62,7 @@ import viaduct.service.runtime.builtinresolvers.builtinModuleConfigSources
  */
 fun MockTenantModuleBootstrapper.runFeatureTest(
     withoutDefaultQueryNodeResolvers: Boolean = false,
-    schema: ViaductSchema? = null,
+    schema: EngineSchema? = null,
     engineConfig: EngineConfiguration? = null,
     block: FeatureTest.() -> Unit
 ) = toEngineTestModule().runFeatureTest(withoutDefaultQueryNodeResolvers, schema, engineConfig, block)
@@ -73,7 +73,7 @@ fun MockTenantModuleBootstrapper.runFeatureTest(
 @Suppress("OPT_IN_USAGE") // DispatcherRegistryFactory is experimental
 fun EngineTestModule.runFeatureTest(
     withoutDefaultQueryNodeResolvers: Boolean = false,
-    schema: ViaductSchema? = null,
+    schema: EngineSchema? = null,
     engineConfig: EngineConfiguration? = null,
     block: FeatureTest.() -> Unit,
 ) {

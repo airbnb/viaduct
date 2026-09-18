@@ -16,9 +16,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.RootFieldReference
-import viaduct.engine.api.ViaductSchema
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.types.Arguments
@@ -103,7 +103,7 @@ class GRTConverterTest {
 
     @Test
     fun `buildInternalContext creates InternalContextImpl from engine context`() {
-        val schema = mockk<ViaductSchema>()
+        val schema = mockk<EngineSchema>()
         val codec = mockk<GlobalIDCodec>()
         val engineCtx = mockk<EngineExecutionContext> {
             every { fullSchema } returns schema
@@ -134,7 +134,7 @@ class GRTConverterTest {
         val graphqlSchema = GraphQLSchema.newSchema()
             .query(objectType)
             .build()
-        val viaductSchema = mockk<ViaductSchema> {
+        val viaductSchema = mockk<EngineSchema> {
             every { schema } returns graphqlSchema
         }
         val context = mockk<InternalContext> {
@@ -170,7 +170,7 @@ class GRTConverterTest {
         val graphqlSchema = GraphQLSchema.newSchema()
             .query(objectType)
             .build()
-        val viaductSchema = mockk<ViaductSchema> {
+        val viaductSchema = mockk<EngineSchema> {
             every { schema } returns graphqlSchema
         }
         val context = mockk<InternalContext> {

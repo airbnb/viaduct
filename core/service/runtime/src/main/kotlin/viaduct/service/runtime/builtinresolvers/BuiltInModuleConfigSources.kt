@@ -2,7 +2,7 @@ package viaduct.service.runtime.builtinresolvers
 
 import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.FieldEntryConfig
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigFactory
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.service.api.spi.InputStreamSource
@@ -19,7 +19,7 @@ import viaduct.service.api.spi.InputStreamSource
  * single flag.
  */
 fun builtinModuleConfigSources(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     defaultQueryNodeResolversEnabled: Boolean,
 ): List<ModuleConfigSource> {
     if (!defaultQueryNodeResolversEnabled) return emptyList()

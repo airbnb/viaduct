@@ -68,7 +68,7 @@ Useful generators and methods provided by this library.
 | Arb.graphQLDocument       | generate arbitrary `graphql.language.Document` objects            |
 | Arb.graphQLExecutionInput | generate arbitrary `graphql.ExecutionInput` objects               |
 | Arb.vSchema               | generate arbitrary `viaduct.graphql.schema.ViaductSchema` objects |
-| Arb.viaductSchema         | generate arbitrary `viaduct.engine.api.ViaductSchema` objects     |
+| Arb.viaductSchema         | generate arbitrary `viaduct.engine.api.EngineSchema` objects     |
 | Arb.graphQLName           | generate names suitable for use in GraphQL                        |
 
 ### Values

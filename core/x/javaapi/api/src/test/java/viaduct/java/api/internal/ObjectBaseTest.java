@@ -25,10 +25,10 @@ import java.util.function.BiFunction;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import viaduct.engine.api.EngineObjectData;
+import viaduct.engine.api.EngineSchema;
 import viaduct.engine.api.NodeReference;
 import viaduct.engine.api.ResolvedEngineObjectData;
 import viaduct.engine.api.RootFieldReference;
-import viaduct.engine.api.ViaductSchema;
 import viaduct.errors.FrameworkException;
 import viaduct.errors.TenantUsageException;
 import viaduct.errors.UnsetFieldException;
@@ -213,8 +213,8 @@ class ObjectBaseTest {
 
   /** Fake InternalContext that deserializes a GlobalID by treating the raw string as the id. */
   static final class FakeContext implements InternalContext {
-    private static final ViaductSchema SCHEMA =
-        new ViaductSchema(
+    private static final EngineSchema SCHEMA =
+        new EngineSchema(
             GraphQLSchema.newSchema()
                 .query(
                     GraphQLObjectType.newObject()
@@ -231,7 +231,7 @@ class ObjectBaseTest {
                 .build());
 
     @Override
-    public ViaductSchema getSchema() {
+    public EngineSchema getSchema() {
       return SCHEMA;
     }
 

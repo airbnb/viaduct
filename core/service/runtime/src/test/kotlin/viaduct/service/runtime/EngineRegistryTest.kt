@@ -21,7 +21,7 @@ import viaduct.engine.EngineFactory
 import viaduct.engine.EngineImpl
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.Engine
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.execution.withThreadLocalCoroutineContext
 import viaduct.graphql.scopes.SchemaScopingMode
@@ -43,11 +43,11 @@ class EngineRegistryTest {
             }
         """
 
-        fun createSchemaFromSdl(sdl: String = SIMPLE_SDL): ViaductSchema {
+        fun createSchemaFromSdl(sdl: String = SIMPLE_SDL): EngineSchema {
             val graphQLSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(
                 SchemaParser().parse(sdl)
             )
-            return ViaductSchema(schema = graphQLSchema)
+            return EngineSchema(schema = graphQLSchema)
         }
 
         fun createSchemaFactory(): SchemaFactory {
@@ -67,7 +67,7 @@ class EngineRegistryTest {
 
         fun createDocumentProviderFactory() = mockk<DocumentProviderFactory>(relaxed = true)
 
-        fun assertValidSchema(schema: ViaductSchema) {
+        fun assertValidSchema(schema: EngineSchema) {
             assertNotNull(schema.schema, "GraphQL schema should not be null")
             assertNotNull(schema.schema.queryType, "Query type should exist in schema")
             assertEquals("Query", schema.schema.queryType.name, "Query type should be named 'Query'")
@@ -82,7 +82,7 @@ class EngineRegistryTest {
             }
         }
 
-        private fun createEngine(schema: ViaductSchema): Engine {
+        private fun createEngine(schema: EngineSchema): Engine {
             return mockk<Engine> {
                 every { this@mockk.schema } returns schema
             }
@@ -365,8 +365,8 @@ class EngineRegistryTest {
                 internalOnly: String @tenantLocal
             }
         """.trimIndent()
-        var selectedSchema: ViaductSchema? = null
-        var fullSchema: ViaductSchema? = null
+        var selectedSchema: EngineSchema? = null
+        var fullSchema: EngineSchema? = null
         val engineFactory = mockk<EngineFactory> {
             every { create(any(), any(), any()) } answers {
                 selectedSchema = firstArg()

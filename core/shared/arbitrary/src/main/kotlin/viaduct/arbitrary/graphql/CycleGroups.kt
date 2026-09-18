@@ -6,7 +6,7 @@ import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLTypeUtil
 import graphql.schema.GraphQLUnmodifiedType
 import kotlin.reflect.KClass
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 
 /**
  * Represents groups of input object types that participate in recursive cycles.
@@ -43,7 +43,7 @@ internal class CycleGroups(val map: Map<String, Set<String>>) {
          * non-cyclic "exit" field (such as a scalar or an optional dependency) to
          * terminate the recursion.
          */
-        fun mandatoryInputCycles(schema: ViaductSchema): CycleGroups =
+        fun mandatoryInputCycles(schema: EngineSchema): CycleGroups =
             buildScc(schema, GraphQLInputObjectType::class) { inputObject ->
                 val edges = mutableSetOf<String>()
 
@@ -70,7 +70,7 @@ internal class CycleGroups(val map: Map<String, Set<String>>) {
          * This considers every reference between input objects as an edge, regardless
          * of nullability, list wrappers, or default values.
          */
-        fun allInputCycles(schema: ViaductSchema): CycleGroups =
+        fun allInputCycles(schema: EngineSchema): CycleGroups =
             buildScc(schema, GraphQLInputObjectType::class) { inputObject ->
                 val edges = mutableSetOf<String>()
 
@@ -85,7 +85,7 @@ internal class CycleGroups(val map: Map<String, Set<String>>) {
             }
 
         private fun <T : GraphQLUnmodifiedType> buildScc(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             targetClass: KClass<T>,
             extractNeighbors: (T) -> MutableSet<String>
         ): CycleGroups {

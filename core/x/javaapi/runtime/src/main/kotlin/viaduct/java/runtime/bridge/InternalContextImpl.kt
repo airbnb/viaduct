@@ -2,7 +2,7 @@ package viaduct.java.runtime.bridge
 
 import graphql.schema.GraphQLInputObjectType
 import viaduct.api.internal.InputTypeFactory
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.errors.TenantUsageException
 import viaduct.java.api.globalid.GlobalID
 import viaduct.java.api.internal.InternalContext
@@ -18,11 +18,11 @@ import viaduct.service.api.spi.GlobalIDCodec
  * propagated to nested GRTs via their constructors.
  */
 internal class InternalContextImpl(
-    private val schema: ViaductSchema,
+    private val schema: EngineSchema,
     private val globalIDCodec: GlobalIDCodec,
     private val grtPackagePrefix: String? = null,
 ) : InternalContext {
-    override fun getSchema(): ViaductSchema = schema
+    override fun getSchema(): EngineSchema = schema
 
     override fun getArgumentsInputType(
         name: String,

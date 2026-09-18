@@ -50,7 +50,7 @@ class FieldResolverExecutionConditionTest {
             .build()
         val schema = GraphQLSchema.newSchema().query(runtimeType).build()
         val engineExecutionContext = ContextMocks(
-            myFullSchema = viaduct.engine.api.ViaductSchema(schema),
+            myFullSchema = viaduct.engine.api.EngineSchema(schema),
             myFlagManager = FlagManager.Default,
         ).engineExecutionContext
         val field = GJField.newField("id").build()

@@ -10,7 +10,7 @@ import graphql.schema.GraphQLSchema;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.jspecify.annotations.Nullable;
-import viaduct.engine.api.ViaductSchema;
+import viaduct.engine.api.EngineSchema;
 import viaduct.java.api.context.ConnectionFieldExecutionContext;
 import viaduct.java.api.context.ResolverExecutionContext;
 import viaduct.java.api.context.RootFieldCall;
@@ -111,8 +111,8 @@ class FakeExecutionContext implements ResolverExecutionContext, InternalContext 
                   .type(TEST_CONNECTION_TYPE))
           .build();
 
-  private static final ViaductSchema SCHEMA =
-      new ViaductSchema(
+  private static final EngineSchema SCHEMA =
+      new EngineSchema(
           GraphQLSchema.newSchema()
               .query(QUERY_TYPE)
               .additionalType(TEST_CONNECTION_TYPE)
@@ -177,7 +177,7 @@ class FakeExecutionContext implements ResolverExecutionContext, InternalContext 
   }
 
   @Override
-  public ViaductSchema getSchema() {
+  public EngineSchema getSchema() {
     return SCHEMA;
   }
 

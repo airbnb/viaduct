@@ -13,10 +13,10 @@ import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import viaduct.engine.api.Coordinate
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.QueryPlanExecutionCondition.Companion.ALWAYS_EXECUTE
@@ -77,7 +77,7 @@ data class QueryPlan(
      */
     data class Parameters(
         val query: String = "",
-        val schema: ViaductSchema,
+        val schema: EngineSchema,
         val registry: RequiredSelectionSetRegistry,
         val dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
         val executionCondition: QueryPlanExecutionCondition = ALWAYS_EXECUTE

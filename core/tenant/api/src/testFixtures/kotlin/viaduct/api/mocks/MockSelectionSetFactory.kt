@@ -11,7 +11,7 @@ import viaduct.api.select.SelectionSet
 import viaduct.api.types.CompositeOutput
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 
 /**
  * Mock implementation of SelectionSetFactory for testing.
@@ -45,7 +45,7 @@ import viaduct.engine.api.ViaductSchema
  */
 @OptIn(InternalApi::class)
 class MockSelectionSetFactory(
-    private val schema: ViaductSchema
+    private val schema: EngineSchema
 ) : SelectionSetFactory {
     override fun <T : CompositeOutput> selectionsOn(
         type: Type<T>,

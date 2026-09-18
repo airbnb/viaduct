@@ -12,12 +12,12 @@ import graphql.validation.ValidationError.newValidationError
 import graphql.validation.ValidationErrorType
 import graphql.validation.Validator as GJValidator
 import java.util.Locale
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.validation.Validator
 import viaduct.graphql.utils.SelectionsParserUtils.EntryPointFragmentName
 
-class RequiredSelectionsAreSchematicallyValid(private val schema: ViaductSchema) : Validator<RequiredSelectionsValidationCtx> {
+class RequiredSelectionsAreSchematicallyValid(private val schema: EngineSchema) : Validator<RequiredSelectionsValidationCtx> {
     private val validator = DocumentValidator()
 
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")

@@ -6,7 +6,7 @@ import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
 import viaduct.api.testing.TestSchema
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.utils.DefaultSchemaFactory
 
 @TestSchema(
@@ -135,11 +135,11 @@ import viaduct.graphql.utils.DefaultSchemaFactory
 object ApiTestSchema {
     val sdl: String = this::class.java.getAnnotation(TestSchema::class.java)!!.value.trimIndent()
 
-    val schema: ViaductSchema by lazy { createSchema(sdl) }
+    val schema: EngineSchema by lazy { createSchema(sdl) }
 
-    fun createSchema(sdl: String): ViaductSchema {
+    fun createSchema(sdl: String): EngineSchema {
         val tdr = SchemaParser().parse(sdl)
         DefaultSchemaFactory.addDefaults(tdr, allowExisting = true)
-        return ViaductSchema(SchemaGenerator().makeExecutableSchema(tdr, RuntimeWiring.MOCKED_WIRING))
+        return EngineSchema(SchemaGenerator().makeExecutableSchema(tdr, RuntimeWiring.MOCKED_WIRING))
     }
 }

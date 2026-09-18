@@ -15,7 +15,7 @@ import viaduct.api.grts.ObjectV2
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
 import viaduct.codegen.utils.JavaName
-import viaduct.engine.api.ViaductSchema as ViaductGraphQLSchema
+import viaduct.engine.api.EngineSchema as ViaductGraphQLSchema
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.test.createGraphQLSchema
 import viaduct.graphql.schema.test.createSchema

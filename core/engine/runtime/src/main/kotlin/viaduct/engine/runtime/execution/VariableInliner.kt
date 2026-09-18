@@ -21,7 +21,7 @@ import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLScalarType
 import graphql.util.FpKit
 import java.util.Locale
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.utils.collectVariableReferences
 
 /**
@@ -39,7 +39,7 @@ import viaduct.graphql.utils.collectVariableReferences
  * scalars.
  */
 internal class VariableInliner(
-    private val schema: ViaductSchema,
+    private val schema: EngineSchema,
     private val variables: CoercedVariables,
     private val ctx: GraphQLContext,
     private val locale: Locale,

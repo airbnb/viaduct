@@ -18,8 +18,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.graphql.asDocument
 import viaduct.arbitrary.graphql.asSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelection
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 import viaduct.engine.api.mocks.MockVariablesResolver
 import viaduct.engine.api.mocks.createRSS
@@ -456,7 +456,7 @@ class QueryPlanFilterTest {
             )
 
             val selections = ExecutionSelectionSet
-                .create(ViaductSchema(schema), filtered)
+                .create(EngineSchema(schema), filtered)
                 .selectionSetForField("Query", "value")
                 .selections()
                 .toSet()
@@ -550,7 +550,7 @@ class QueryPlanFilterTest {
             )
 
             val fooSelections = ExecutionSelectionSet
-                .create(ViaductSchema(schema), filtered)
+                .create(EngineSchema(schema), filtered)
                 .selectionSetForField("Query", "foo")
 
             fooSelections.conditionallyExcludedResultKeys().shouldContainExactlyInAnyOrder("x")
@@ -834,7 +834,7 @@ class QueryPlanFilterTest {
         test: Fixture.() -> Unit,
     ) {
         val schema = sdl.asSchema
-        val viaductSchema = ViaductSchema(schema)
+        val viaductSchema = EngineSchema(schema)
         val query: GraphQLObjectType = schema.queryType
         val foo: GraphQLObjectType
             get() = schema.getObjectType("Foo")!!

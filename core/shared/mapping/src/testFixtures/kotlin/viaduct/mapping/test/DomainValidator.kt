@@ -10,7 +10,7 @@ import io.kotest.property.arbitrary.take
 import kotlinx.coroutines.runBlocking
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.graphql.objectIR
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.Domain
 import viaduct.mapping.graphql.IR
@@ -104,7 +104,7 @@ class DomainValidator<From, To> private constructor(
             equalsFn: Function2<From, From, Boolean>? = null,
         ): DomainValidator<From, IR.Value.Object> =
             DomainValidator(
-                Arb.objectIR(ViaductSchema(schema), cfg).map(domain.conv.inverse()),
+                Arb.objectIR(EngineSchema(schema), cfg).map(domain.conv.inverse()),
                 domain.conv,
                 random,
                 Equals(equalsFn),

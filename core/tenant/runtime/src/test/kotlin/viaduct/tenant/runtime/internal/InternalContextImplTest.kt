@@ -18,7 +18,7 @@ import viaduct.api.reflect.Type
 import viaduct.api.types.NodeCompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
@@ -108,7 +108,7 @@ private open class TestExecutionContext : ExecutionContext {
 }
 
 private open class TestCompositeContext : TestExecutionContext(), InternalContext {
-    override val schema: ViaductSchema get() = TODO()
+    override val schema: EngineSchema get() = TODO()
     override val globalIDCodec: GlobalIDCodec get() = TODO()
     override val reflectionLoader: ReflectionLoader get() = TODO()
     override val grtConvFactory get() = TODO()

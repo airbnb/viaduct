@@ -4,7 +4,7 @@ import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
 import viaduct.api.testing.TestSchema
 import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.utils.DefaultSchemaFactory
 
 @TestSchema(
@@ -39,8 +39,8 @@ union FooOrBar = Foo | Bar
 object ExecutionContextTestSchema : KotlinFeatureAppTestContractBase() {
     public override fun sdl(): String = super.sdl()
 
-    val schema: ViaductSchema by lazy {
-        ViaductSchema(
+    val schema: EngineSchema by lazy {
+        EngineSchema(
             UnExecutableSchemaGenerator.makeUnExecutableSchema(
                 SchemaParser().parse(sdl()).apply {
                     DefaultSchemaFactory.addDefaults(this)

@@ -7,7 +7,7 @@ import viaduct.api.context.ExecutionContext
 import viaduct.api.internal.InputTypeFactory
 import viaduct.api.internal.InternalContext
 import viaduct.api.mocks.MockExecutionContext
-import viaduct.engine.api.ViaductSchema as ViaductGraphQLSchema
+import viaduct.engine.api.EngineSchema as ViaductGraphQLSchema
 import viaduct.errors.TenantUsageException
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.cfg

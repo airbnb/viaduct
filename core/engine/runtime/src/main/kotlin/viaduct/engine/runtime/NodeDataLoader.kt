@@ -10,9 +10,9 @@ import viaduct.dataloader.CacheKeyMatchFn
 import viaduct.dataloader.DataLoader
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.select.covers
@@ -93,7 +93,7 @@ internal fun NodeResolverExecutor.Selector.covers(other: NodeResolverExecutor.Se
 private object NonSelectiveCacheMarker : EngineSelectionSet {
     override val type: String get() = throw UnsupportedOperationException()
 
-    override val schema: ViaductSchema get() = throw UnsupportedOperationException()
+    override val schema: EngineSchema get() = throw UnsupportedOperationException()
 
     override fun selections(): List<EngineSelection> = throw UnsupportedOperationException()
 

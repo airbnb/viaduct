@@ -10,8 +10,8 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.graphql.test.assertEquals
@@ -66,12 +66,12 @@ class PolicyCheckFeatureAppTest : PolicyCheckContractTest() {
 
     // Copy of TestAppCheckerExecutorFactoryImpl for policy check functionality
     private class PolicyCheckExecutorFactory(
-        private val schema: ViaductSchema,
+        private val schema: EngineSchema,
     ) : CheckerExecutorFactory {
         private val graphQLSchema = schema.schema
 
         override fun checkerExecutorForField(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             typeName: String,
             fieldName: String
         ): CheckerExecutor? {
@@ -88,7 +88,7 @@ class PolicyCheckFeatureAppTest : PolicyCheckContractTest() {
         }
 
         override fun checkerExecutorForType(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             typeName: String
         ): CheckerExecutor? {
             println("DEBUG: checkerExecutorForType called for type: $typeName")
@@ -156,7 +156,7 @@ class PolicyCheckFeatureAppTest : PolicyCheckContractTest() {
     fun setupPolicyCheck() {
         // Configure the viaduct builder with policy check support
         withViaductBuilder {
-            withCheckerExecutorFactoryCreator { schema: ViaductSchema -> PolicyCheckExecutorFactory(schema) }
+            withCheckerExecutorFactoryCreator { schema: EngineSchema -> PolicyCheckExecutorFactory(schema) }
         }
     }
 

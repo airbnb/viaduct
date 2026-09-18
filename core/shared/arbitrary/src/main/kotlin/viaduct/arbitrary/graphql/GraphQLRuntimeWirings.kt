@@ -53,7 +53,7 @@ private class ArbRuntimeWiringGen(
     private val seed: Long,
     private val cfg: Config
 ) {
-    private val schema = viaduct.engine.api.ViaductSchema(sdl.asSchema)
+    private val schema = viaduct.engine.api.EngineSchema(sdl.asSchema)
 
     fun gen(): RuntimeWiring {
         val wb = RuntimeWiring.newRuntimeWiring()

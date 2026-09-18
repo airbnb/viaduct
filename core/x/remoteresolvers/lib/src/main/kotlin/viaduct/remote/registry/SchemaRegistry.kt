@@ -1,7 +1,7 @@
 package viaduct.remote.registry
 
 import org.slf4j.LoggerFactory
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 
 /**
  * Holds the schema [RemoteEngineExecutionContext] reads when no delegate is available.
@@ -11,14 +11,14 @@ object SchemaRegistry {
     private val log = LoggerFactory.getLogger(SchemaRegistry::class.java)
 
     @Volatile
-    private var schema: ViaductSchema? = null
+    private var schema: EngineSchema? = null
 
-    fun register(viaductSchema: ViaductSchema) {
+    fun register(viaductSchema: EngineSchema) {
         schema = viaductSchema
         log.info("Registered schema")
     }
 
-    fun get(): ViaductSchema? = schema
+    fun get(): EngineSchema? = schema
 
     fun isRegistered(): Boolean = schema != null
 

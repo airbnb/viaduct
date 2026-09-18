@@ -1,10 +1,10 @@
 package viaduct.engine.runtime.mat
 
 import graphql.schema.GraphQLObjectType
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.result.ObjectEngineResult
 
-class KeyTreeBuilder(private val schema: ViaductSchema) {
+class KeyTreeBuilder(private val schema: EngineSchema) {
     private val byType = mutableMapOf<GraphQLObjectType, MutableMap<ObjectEngineResult.Key, KeyTreeBuilder>>()
 
     fun field(
@@ -32,6 +32,6 @@ class KeyTreeBuilder(private val schema: ViaductSchema) {
 }
 
 fun KeyTree.Companion.build(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     build: KeyTreeBuilder.() -> Unit = {}
 ): KeyTree = KeyTreeBuilder(schema).also(build).build()

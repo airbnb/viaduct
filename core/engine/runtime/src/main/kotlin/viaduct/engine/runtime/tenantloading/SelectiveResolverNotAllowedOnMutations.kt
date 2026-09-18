@@ -1,6 +1,6 @@
 package viaduct.engine.runtime.tenantloading
 
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.validation.Validator
 
 /**
@@ -15,7 +15,7 @@ import viaduct.engine.runtime.validation.Validator
  * flow through tenant-load validation regardless of how they were produced.
  */
 class SelectiveResolverNotAllowedOnMutations(
-    private val schema: ViaductSchema,
+    private val schema: EngineSchema,
 ) : Validator<FieldResolverExecutorValidationCtx> {
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
     override fun validate(ctx: FieldResolverExecutorValidationCtx) =

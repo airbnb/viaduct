@@ -3,9 +3,9 @@ package viaduct.engine.runtime.tenantloading
 import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLUnionType
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.engine.runtime.validation.Validator
@@ -30,7 +30,7 @@ import viaduct.engine.runtime.validation.Validator
  * Validator declares this topology to be a cycle and always invalid.
  */
 class RequiredSelectionsAreAcyclic(
-    private val schema: ViaductSchema,
+    private val schema: EngineSchema,
 ) : Validator<RequiredSelectionsValidationCtx> {
     private val engineSelectionSetFactory = EngineSelectionSetFactoryImpl(schema)
 

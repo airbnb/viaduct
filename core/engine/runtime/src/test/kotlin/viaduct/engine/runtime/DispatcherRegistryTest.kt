@@ -17,9 +17,9 @@ import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.KOTLIN_API_NAME
 import viaduct.bootstrap.NodeEntryConfig
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockCheckerExecutor
@@ -550,11 +550,11 @@ class ThrowingExecutorFactory(
 ) : ExecutorFactory {
     override fun createFieldResolverExecutor(
         configData: FieldEntryConfig,
-        schema: ViaductSchema
+        schema: EngineSchema
     ): FieldResolverExecutor = throw TenantModuleException("Test exception")
 
     override fun createNodeResolverExecutor(
         configData: NodeEntryConfig,
-        schema: ViaductSchema
+        schema: EngineSchema
     ): NodeResolverExecutor = throw TenantModuleException("Test exception")
 }

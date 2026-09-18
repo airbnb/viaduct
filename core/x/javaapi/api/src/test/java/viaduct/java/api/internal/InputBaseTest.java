@@ -110,7 +110,7 @@ class InputBaseTest {
   /** Fake InternalContext whose codec treats the raw string as the internal id. */
   static final class FakeContext implements InternalContext {
     @Override
-    public viaduct.engine.api.ViaductSchema getSchema() {
+    public viaduct.engine.api.EngineSchema getSchema() {
       throw new UnsupportedOperationException();
     }
 

@@ -43,7 +43,7 @@ import java.time.OffsetTime
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.ConfigKey
 import viaduct.engine.api.Coordinate
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.globalIDType
 import viaduct.graphql.hasIdOfDirective
 import viaduct.graphql.isGlobalID
@@ -70,7 +70,7 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
  *   - [IDValueGen]
  */
 fun Arb.Companion.objectIR(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     cfg: Config = Config.default
 ): Arb<IR.Value.Object> {
     val mandatoryEdgesGraph = CycleGroups.mandatoryInputCycles(schema)
@@ -89,7 +89,7 @@ fun Arb.Companion.objectIR(
  * @param cfg see docs for [Arb.Companion.objectIR] for a list of support [ConfigKey]s
  */
 fun Arb.Companion.outputObjectIR(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     cfg: Config = Config.default
 ): Arb<IR.Value.Object> = objectIR(schema, cfg + (OutputObjectValueWeight to 1.0) + (InputObjectValueWeight to 0.0))
 
@@ -103,7 +103,7 @@ fun Arb.Companion.outputObjectIR(
  * @param cfg see docs for [Arb.Companion.objectIR] for a list of support [ConfigKey]s
  */
 fun Arb.Companion.inputObjectIR(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     cfg: Config = Config.default
 ): Arb<IR.Value.Object> = objectIR(schema, cfg + (OutputObjectValueWeight to 0.0) + (InputObjectValueWeight to 1.0))
 
@@ -117,7 +117,7 @@ fun Arb.Companion.inputObjectIR(
  * @param cfg see docs for [Arb.Companion.objectIR] for a list of support [ConfigKey]s
  */
 fun Arb.Companion.ir(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     type: GraphQLType,
     cfg: Config = Config.default,
 ): Arb<IR.Value> {
@@ -129,7 +129,7 @@ fun Arb.Companion.ir(
 
 /** Return an [Arb] that can generate an [IR.Value] for the provided [Document] */
 fun Arb.Companion.ir(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     document: Document,
     cfg: Config = Config.default
 ): Arb<IR.Value> {
@@ -195,7 +195,7 @@ data class TypeCtx(
 }
 
 internal class IRGen(
-    private val schema: ViaductSchema,
+    private val schema: EngineSchema,
     // SCC graph used to decide which input fields must be retained in the non-oneOf branch
     // to preserve well-formedness. Callers may supply either [CycleGroups.mandatoryInputCycles]
     // (default) or [CycleGroups.allInputCycles] (e.g. [AddDefaults], which needs finite
@@ -388,7 +388,7 @@ internal class IRGen(
 
     companion object {
         operator fun invoke(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             uncoercedValueWeight: Double,
             cfg: Config,
             rs: RandomSource
@@ -413,7 +413,7 @@ internal class EnumValueGen(private val rs: RandomSource) {
 }
 
 internal class ScalarValueGen(
-    private val schema: ViaductSchema,
+    private val schema: EngineSchema,
     private val cfg: Config,
     private val rs: RandomSource,
     private val uncoercedValueWeight: Double = 0.0
@@ -472,7 +472,7 @@ fun interface IDValueGen {
 
     /** A Factory for producing [IDValueGen]s */
     fun interface Factory {
-        data class Params(val schema: ViaductSchema, val cfg: Config, val rs: RandomSource)
+        data class Params(val schema: EngineSchema, val cfg: Config, val rs: RandomSource)
 
         operator fun invoke(params: Params): IDValueGen
 

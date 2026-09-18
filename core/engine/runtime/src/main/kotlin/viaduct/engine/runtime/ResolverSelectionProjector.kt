@@ -8,9 +8,9 @@ import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import java.util.concurrent.ConcurrentHashMap
 import viaduct.engine.api.Coordinate
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolverType
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.select.EngineSelectionSetImpl
 import viaduct.engine.runtime.select.FieldSelection
 import viaduct.engine.runtime.select.ProjectedEngineSelectionSet
@@ -18,7 +18,7 @@ import viaduct.engine.runtime.select.TypedFieldSelection
 
 /** Projects a runtime selection set to fields owned by the current resolver. */
 internal class ResolverSelectionProjector(
-    private val schema: ViaductSchema,
+    private val schema: EngineSchema,
     private val dispatcherRegistry: DispatcherRegistry,
 ) {
     private val nonBoundaryObjectTypes = ConcurrentHashMap<String, List<GraphQLObjectType>>()

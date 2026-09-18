@@ -11,11 +11,11 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionInput
 import viaduct.engine.api.ResolveRootFieldReferenceOptions
 import viaduct.engine.api.ResolveSelectionSetOptions
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextFactory
 import viaduct.engine.runtime.EngineExecutionContextImpl
@@ -27,7 +27,7 @@ import viaduct.service.api.spi.mocks.MockFlagManager
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ContextMocks(
-    myFullSchema: ViaductSchema? = null,
+    myFullSchema: EngineSchema? = null,
     myDispatcherRegistry: DispatcherRegistry? = null,
     myResolverInstrumentation: Instrumentation? = null,
     myFlagManager: FlagManager? = null,
@@ -36,10 +36,10 @@ class ContextMocks(
     myEngineExecutionContextFactory: EngineExecutionContextFactory? = null,
     private val myEngineExecutionContext: EngineExecutionContext? = null,
     myBaseLocalContext: CompositeLocalContext? = null,
-    myScopedSchema: ViaductSchema? = myFullSchema,
+    myScopedSchema: EngineSchema? = myFullSchema,
     private val myRequestContext: Any? = null,
 ) {
-    val fullSchema: ViaductSchema = myFullSchema ?: ViaductSchema(
+    val fullSchema: EngineSchema = myFullSchema ?: EngineSchema(
         GraphQLSchema.newSchema()
             .query(
                 GraphQLObjectType.newObject().name("Query")
@@ -48,8 +48,8 @@ class ContextMocks(
             )
             .build()
     )
-    val scopedSchema: ViaductSchema = myScopedSchema ?: fullSchema
-    val viaductSchema: ViaductSchema = myFullSchema ?: fullSchema
+    val scopedSchema: EngineSchema = myScopedSchema ?: fullSchema
+    val viaductSchema: EngineSchema = myFullSchema ?: fullSchema
 
     val dispatcherRegistry: DispatcherRegistry = myDispatcherRegistry ?: DispatcherRegistry.Empty
     val resolverInstrumentation: Instrumentation = myResolverInstrumentation ?: SimplePerformantInstrumentation()
@@ -83,7 +83,7 @@ class ContextMocks(
 }
 
 private object NoOpEngine : Engine {
-    override val schema: ViaductSchema get() = error("NoOpEngine: schema not configured")
+    override val schema: EngineSchema get() = error("NoOpEngine: schema not configured")
 
     override suspend fun execute(executionInput: ExecutionInput): ExecutionResult = error("NoOpEngine: execute not configured")
 

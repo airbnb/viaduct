@@ -46,7 +46,7 @@ import io.kotest.property.arbitrary.of
 import viaduct.arbitrary.common.Config
 import viaduct.engine.ViaductWiringFactory
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.mapping.graphql.GJValueConv
 
@@ -146,7 +146,7 @@ internal class SchemaGenerator(val cfg: Config, val rs: RandomSource) {
     }
 
     fun finalize(schema: GraphQLSchema): GraphQLSchema {
-        val vschema = ViaductSchema(schema)
+        val vschema = EngineSchema(schema)
 
         /**
          * Default values in a schema have different requirements than those used in a Document.
@@ -247,7 +247,7 @@ internal class AddDefaults(
 }
 
 internal class AddAppliedDirectives(
-    private val schema: ViaductSchema,
+    private val schema: EngineSchema,
     private val irGen: IRGen,
     private val cfg: Config,
     private val rs: RandomSource

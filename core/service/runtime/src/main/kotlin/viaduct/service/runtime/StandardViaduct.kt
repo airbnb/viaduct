@@ -22,8 +22,8 @@ import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineImpl
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.GraphQLBuildError
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.spi.CheckerExecutorFactory
@@ -113,7 +113,7 @@ class StandardViaduct
             private var instrumentation: Instrumentation? = null
             private var flagManager: FlagManager? = null
             private var checkerExecutorFactory: CheckerExecutorFactory? = null
-            private var checkerExecutorFactoryCreator: ((ViaductSchema) -> CheckerExecutorFactory)? = null
+            private var checkerExecutorFactoryCreator: ((EngineSchema) -> CheckerExecutorFactory)? = null
             private var dataFetcherExceptionHandler: DataFetcherExceptionHandler? = null
             private var resolverErrorReporter: ErrorReporter? = null
             private var resolverErrorBuilder: ResolverErrorBuilder? = null
@@ -176,7 +176,7 @@ class StandardViaduct
                     this.checkerExecutorFactory = checkerExecutorFactory
                 }
 
-            fun withCheckerExecutorFactoryCreator(factoryCreator: (ViaductSchema) -> CheckerExecutorFactory): Builder =
+            fun withCheckerExecutorFactoryCreator(factoryCreator: (EngineSchema) -> CheckerExecutorFactory): Builder =
                 apply {
                     this.checkerExecutorFactoryCreator = factoryCreator
                 }
@@ -395,7 +395,7 @@ class StandardViaduct
              * @param schema the schema to check
              * @return true if schema has subscriptions defined, false otherwise
              */
-            private fun hasSubscriptions(schema: ViaductSchema): Boolean {
+            private fun hasSubscriptions(schema: EngineSchema): Boolean {
                 return schema.schema.subscriptionType != null
             }
 
@@ -548,7 +548,7 @@ class StandardViaduct
          *
          * @return GraphQLSchema instance of the registered scope
          */
-        fun getSchema(schemaId: SchemaId): ViaductSchema = engineRegistry.getSchema(schemaId)
+        fun getSchema(schemaId: SchemaId): EngineSchema = engineRegistry.getSchema(schemaId)
 
         /**
          * Creates a new StandardViaduct instance that reuses this instance's schemas.

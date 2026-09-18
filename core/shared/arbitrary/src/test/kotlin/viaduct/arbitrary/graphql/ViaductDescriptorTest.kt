@@ -17,10 +17,10 @@ import viaduct.arbitrary.common.CompoundingWeight.Companion.Once
 import viaduct.arbitrary.common.Config
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.VariablesResolver as EngineVariablesResolver
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.service.api.ExecutionInput
 
@@ -209,7 +209,7 @@ class ViaductDescriptorTest {
     @Test
     fun `generated viaduct descriptor includes schema and resolver configuration`(): Unit =
         runBlocking {
-            val schema = ViaductSchema(
+            val schema = EngineSchema(
                 """
                 directive @resolver(isSelective: Boolean! = false) on FIELD_DEFINITION | OBJECT
                 type Foo { x: Int, y: Int }

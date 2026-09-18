@@ -32,11 +32,11 @@ import viaduct.arbitrary.graphql.asDocument
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.select.SelectionsParser
@@ -450,7 +450,7 @@ class QueryPlanTest {
 
             val rssPlan = runExecutionTest {
                 QueryPlanFactory.Default.buildFromRequiredSelectionSet(
-                    mkQPParameters("", ViaductSchema(schema), registry),
+                    mkQPParameters("", EngineSchema(schema), registry),
                     fooXRss
                 )
             }
@@ -1064,7 +1064,7 @@ class QueryPlanTest {
     @Test
     fun `QueryPlanFactory_Cached -- caches plan within same instance`() {
         val factory = QueryPlanFactory.Cached()
-        val schema = ViaductSchema("type Query {x:Int}".asSchema)
+        val schema = EngineSchema("type Query {x:Int}".asSchema)
         val params = mkQPParameters("{__typename}", schema)
         runExecutionTest {
             val plan1 = factory.build(params, "{__typename}".asDocument)
@@ -1076,7 +1076,7 @@ class QueryPlanTest {
     @Test
     fun `QueryPlanFactory_Cached -- maximumSize bounds document plan cache`() {
         val factory = QueryPlanFactory.Cached(maximumSize = 1)
-        val schema = ViaductSchema("type Query {x:Int}".asSchema)
+        val schema = EngineSchema("type Query {x:Int}".asSchema)
         val firstQuery = "{a:x}"
         val secondQuery = "{b:x}"
         val firstParams = mkQPParameters(firstQuery, schema)
@@ -1095,7 +1095,7 @@ class QueryPlanTest {
     fun `QueryPlanFactory_Cached -- emits cache metrics for document plans`() {
         val meterRegistry = SimpleMeterRegistry()
         val factory = QueryPlanFactory.Cached(meterRegistry)
-        val schema = ViaductSchema("type Query {x:Int}".asSchema)
+        val schema = EngineSchema("type Query {x:Int}".asSchema)
         val query = "{x}"
         val params = mkQPParameters(query, schema)
         val document = query.asDocument
@@ -1152,7 +1152,7 @@ class QueryPlanTest {
     fun `QueryPlanFactory_Cached -- emits cache metrics for parsed selection plans`() {
         val meterRegistry = SimpleMeterRegistry()
         val factory = QueryPlanFactory.Cached(meterRegistry)
-        val schema = ViaductSchema("type Query {x:Int}".asSchema)
+        val schema = EngineSchema("type Query {x:Int}".asSchema)
         val params = mkQPParameters("{x}", schema)
         val parsedSelections = SelectionsParser.parse("Query", "x")
 
@@ -1206,7 +1206,7 @@ class QueryPlanTest {
 
     @Test
     fun `QueryPlanFactory_Default -- does not cache`() {
-        val schema = ViaductSchema("type Query {x:Int}".asSchema)
+        val schema = EngineSchema("type Query {x:Int}".asSchema)
         val params = mkQPParameters("{__typename}", schema)
         runExecutionTest {
             val plan1 = QueryPlanFactory.Default.build(params, "{__typename}".asDocument)
@@ -1218,7 +1218,7 @@ class QueryPlanTest {
     @Test
     fun `QueryPlanFactory_Cached -- buildFromParsedSelections -- overlays executionCondition without invalidating cache`() {
         val factory = QueryPlanFactory.Cached()
-        val schema = ViaductSchema("type Query {x:Int}".asSchema)
+        val schema = EngineSchema("type Query {x:Int}".asSchema)
         val params = mkQPParameters("{__typename}", schema)
         val condition1 = QueryPlanExecutionCondition { true }
         val condition2 = QueryPlanExecutionCondition { false }
@@ -1247,7 +1247,7 @@ class QueryPlanTest {
             .typeCheckerEntry("ObjectA", "id")
             .build()
         val factory = QueryPlanFactory.Cached()
-        val schema = ViaductSchema(
+        val schema = EngineSchema(
             """
             type Query { x:ObjectA y:ObjectA }
             type ObjectA { id:Int }
@@ -1282,7 +1282,7 @@ class QueryPlanTest {
             .fieldCheckerEntry("Query" to "x", "z")
             .build()
         val factory = QueryPlanFactory.Cached()
-        val schema = ViaductSchema("type Query { x:Int z:Int }".asSchema)
+        val schema = EngineSchema("type Query { x:Int z:Int }".asSchema)
         val params = QueryPlan.Parameters(
             query = "{x}",
             schema = schema,
@@ -1314,7 +1314,7 @@ class QueryPlanTest {
             .fieldCheckerEntry("Query" to "y", "z")
             .build()
         val factory = QueryPlanFactory.Cached()
-        val schema = ViaductSchema("type Query { x:Int y:Int z:Int }".asSchema)
+        val schema = EngineSchema("type Query { x:Int y:Int z:Int }".asSchema)
         val params = QueryPlan.Parameters(
             query = "{x y}",
             schema = schema,
@@ -1345,7 +1345,7 @@ class QueryPlanTest {
             .fieldCheckerEntry("Query" to "x", "x")
             .build()
         val factory = QueryPlanFactory.Cached()
-        val schema = ViaductSchema("type Query { x:Int }".asSchema)
+        val schema = EngineSchema("type Query { x:Int }".asSchema)
         val params = QueryPlan.Parameters(
             query = "{x}",
             schema = schema,
@@ -1376,7 +1376,7 @@ class QueryPlanTest {
             .typeCheckerEntry("ObjectX", "y")
             .build()
         val factory = QueryPlanFactory.Cached()
-        val schema = ViaductSchema(
+        val schema = EngineSchema(
             """
             type Query { x:ObjectX }
             type ObjectX { y:ObjectX z:Int }
@@ -1417,7 +1417,7 @@ class QueryPlanTest {
             .fieldCheckerEntry("Query" to "b", "a") // RSS2
             .build()
         val factory = QueryPlanFactory.Cached()
-        val schema = ViaductSchema("type Query { a: Int b: Int }".asSchema)
+        val schema = EngineSchema("type Query { a: Int b: Int }".asSchema)
         val params = QueryPlan.Parameters(
             schema = schema,
             registry = reg,
@@ -1463,7 +1463,7 @@ class QueryPlanTest {
     @Test
     fun `QueryPlanFactory_Cached -- buildFromParsedSelections preserves attribution per call`() {
         val factory = QueryPlanFactory.Cached()
-        val schema = ViaductSchema("type Query { x:Int }".asSchema)
+        val schema = EngineSchema("type Query { x:Int }".asSchema)
         val params = mkQPParameters("{x}", schema)
         val parsedSelections = SelectionsParser.parse("Query", "x")
         val resolver1 = ExecutionAttribution.fromResolver("ResolverOne")
@@ -1701,7 +1701,7 @@ class QueryPlanTest {
         Fixture("type Query { x:Int }") {
             val customCondition = QueryPlanExecutionCondition { false }
             val plan = runExecutionTest {
-                val params = mkQPParameters("{x}", ViaductSchema(schema), requiredSelectionSetRegistry)
+                val params = mkQPParameters("{x}", EngineSchema(schema), requiredSelectionSetRegistry)
                     .copy(executionCondition = customCondition)
                 QueryPlanFactory.Default.build(params, "{x}".asDocument)
             }
@@ -1722,7 +1722,7 @@ class QueryPlanTest {
         Fixture("type Query { x:Int, y:Int }", reg) {
             val customCondition = QueryPlanExecutionCondition { false }
             val plan = runExecutionTest {
-                val params = mkQPParameters("{x}", ViaductSchema(schema), reg)
+                val params = mkQPParameters("{x}", EngineSchema(schema), reg)
                     .copy(executionCondition = customCondition)
                 QueryPlanFactory.Default.build(params, "{x}".asDocument)
             }
@@ -1785,7 +1785,7 @@ class QueryPlanTest {
             fn(this)
         }
 
-        fun buildPlan(doc: String): QueryPlan = buildPlan(doc, ViaductSchema(schema), requiredSelectionSetRegistry)
+        fun buildPlan(doc: String): QueryPlan = buildPlan(doc, EngineSchema(schema), requiredSelectionSetRegistry)
     }
 }
 
@@ -1925,7 +1925,7 @@ internal fun <T : Node<*>> checkEqualsNode(
 
 internal fun buildPlan(
     doc: String,
-    schema: ViaductSchema,
+    schema: EngineSchema,
     requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty
 ): QueryPlan =
     runExecutionTest {
@@ -1963,7 +1963,7 @@ private fun QueryPlan.withRequiredSelectionSetIdForTest(): QueryPlan =
 
 internal fun mkQPParameters(
     doc: String,
-    schema: ViaductSchema,
+    schema: EngineSchema,
     requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty,
 ): QueryPlan.Parameters =
     QueryPlan.Parameters(

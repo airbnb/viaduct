@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.SchemaFactory
 import viaduct.graphql.utils.DefaultSchemaFactory
 
-class ViaductSchemaTest {
+class EngineSchemaTest {
     @Test
     fun `mutation namespace type returns true for namespace type reachable from mutation root`() {
         val schema = mkSchema(
@@ -108,21 +108,21 @@ class ViaductSchemaTest {
         assertFalse(schema.isParentField("User", "parent"))
     }
 
-    private fun mkSchema(sdl: String): ViaductSchema {
+    private fun mkSchema(sdl: String): EngineSchema {
         return SchemaFactory().fromSdl(sdl)
     }
 
-    private fun ViaductSchema.isParentField(
+    private fun EngineSchema.isParentField(
         parentTypeName: String,
         fieldName: String,
     ): Boolean = parentFieldDefinition(parentTypeName, fieldName) != null
 
-    private fun ViaductSchema.parentFieldType(
+    private fun EngineSchema.parentFieldType(
         parentTypeName: String,
         fieldName: String,
     ): GraphQLOutputType? = parentFieldDefinition(parentTypeName, fieldName)?.type
 
-    private fun ViaductSchema.parentFieldDefinition(
+    private fun EngineSchema.parentFieldDefinition(
         parentTypeName: String,
         fieldName: String,
     ): GraphQLFieldDefinition? =

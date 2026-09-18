@@ -7,8 +7,8 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.GraphQLBuildError
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.service.api.ExecutionInput
@@ -266,13 +266,13 @@ class ViaductBuilderTest {
     fun testWithCheckerExecutorFactoryCreator() {
         val factory = object : CheckerExecutorFactory {
             override fun checkerExecutorForField(
-                schema: ViaductSchema,
+                schema: EngineSchema,
                 typeName: String,
                 fieldName: String
             ) = null
 
             override fun checkerExecutorForType(
-                schema: ViaductSchema,
+                schema: EngineSchema,
                 typeName: String
             ) = null
         }

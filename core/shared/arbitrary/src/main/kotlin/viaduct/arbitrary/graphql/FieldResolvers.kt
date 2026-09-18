@@ -9,9 +9,9 @@ import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.graphql.FieldResolver.Instrumented
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
 import viaduct.engine.api.spi.FieldResolverExecutor
 
@@ -31,7 +31,7 @@ import viaduct.engine.api.spi.FieldResolverExecutor
  * If many cycle-free resolvers are needed, see [Arb.Companion.viaduct]
  */
 fun Arb.Companion.fieldResolverExecutor(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     cfg: Config = Config.default
 ): Arb<FieldResolverExecutor> =
     arbitrary { rs ->
@@ -46,7 +46,7 @@ fun Arb.Companion.fieldResolverExecutor(
  * Resolvers produced by this generator will always resolve their own output selection set
  */
 fun Arb.Companion.fieldResolverExecutor(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     coord: Coordinate,
     cfg: Config = Config.default
 ): Arb<FieldResolverExecutor> {
@@ -175,7 +175,7 @@ fun interface FieldResolver {
          * @property rs Random source used during value generation.
          */
         data class Params(
-            val schema: ViaductSchema,
+            val schema: EngineSchema,
             val fieldResolverValueGen: FieldResolverValueGen,
             val resolverConfig: ResolverConfig,
             val coordinateIndex: CoordinateIndex,

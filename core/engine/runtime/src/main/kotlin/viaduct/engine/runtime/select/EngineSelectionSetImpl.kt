@@ -20,10 +20,10 @@ import graphql.schema.GraphQLImplementingType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLTypeUtil
 import java.util.Locale
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.FieldDirectives
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.fragment.FragmentSource
 import viaduct.engine.api.fragment.FragmentVariables
@@ -35,7 +35,7 @@ import viaduct.graphql.utils.ParsedSelections
 data class EngineSelectionSetContext(
     val variables: Map<String, Any?>,
     val fragmentDefinitions: Map<String, FragmentDefinition>,
-    val schema: ViaductSchema,
+    val schema: EngineSchema,
     val gjContext: GraphQLContext,
     val locale: Locale
 ) {
@@ -129,7 +129,7 @@ data class EngineSelectionSetImpl(
 ) : EngineSelectionSet {
     override val type: String get() = def.name
 
-    override val schema: ViaductSchema = ctx.schema
+    override val schema: EngineSchema = ctx.schema
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -749,7 +749,7 @@ data class EngineSelectionSetImpl(
         fun create(
             parsedSelections: ParsedSelections,
             variables: Map<String, Any?>,
-            schema: ViaductSchema,
+            schema: EngineSchema,
             graphQLContext: GraphQLContext = emptyGraphQLContext
         ): EngineSelectionSetImpl {
             val typeName = parsedSelections.typeName

@@ -4,7 +4,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.StableApi
 import viaduct.apiannotations.VisibleForTest
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.service.api.SchemaId
@@ -126,14 +126,14 @@ class ViaductBuilder {
 
     /**
      * Configures a factory that creates [CheckerExecutorFactory] instances from a fully-built
-     * [ViaductSchema]. This allows access checks to be wired after schema construction.
+     * [EngineSchema]. This allows access checks to be wired after schema construction.
      *
      * @deprecated A replacement API using the public Viaduct API (rather than internal engine
      *             types) will be provided in a future release.
      */
     @Deprecated("Will be replaced with a public-API-based checker configuration")
     @VisibleForTest
-    fun withCheckerExecutorFactoryCreator(factoryCreator: (ViaductSchema) -> CheckerExecutorFactory) =
+    fun withCheckerExecutorFactoryCreator(factoryCreator: (EngineSchema) -> CheckerExecutorFactory) =
         apply {
             builder.withCheckerExecutorFactoryCreator(factoryCreator)
         }

@@ -20,9 +20,9 @@ interface EngineExecutionContext {
      * Complete internal schema used for planning and execution. This includes fields that may
      * be hidden from client-visible schemas, such as @tenantLocal fields.
      */
-    val fullSchema: ViaductSchema
-    val scopedSchema: ViaductSchema
-    val activeSchema: ViaductSchema
+    val fullSchema: EngineSchema
+    val scopedSchema: EngineSchema
+    val activeSchema: EngineSchema
     val engineSelectionSetFactory: EngineSelectionSet.Factory
 
     /**

@@ -1,7 +1,7 @@
 package viaduct.engine.runtime.tenantloading
 
 import graphql.schema.GraphQLObjectType
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.validation.Validator
 
@@ -10,7 +10,7 @@ import viaduct.engine.runtime.validation.Validator
  * has a corresponding dispatcher registered in the [DispatcherRegistry].
  */
 class MissingResolverValidator(
-    private val schema: ViaductSchema,
+    private val schema: EngineSchema,
 ) : Validator<MissingResolverValidationCtx> {
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE", "LABEL_NAME_CLASH")
     override fun validate(ctx: MissingResolverValidationCtx) {

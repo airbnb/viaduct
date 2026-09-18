@@ -5,7 +5,7 @@ package viaduct.tenant.codegen.bytecode.exercise
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.slf4j.LoggerFactory
-import viaduct.engine.api.ViaductSchema as ViaductGraphQLSchema
+import viaduct.engine.api.EngineSchema as ViaductGraphQLSchema
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.invariants.FailureCollector
 

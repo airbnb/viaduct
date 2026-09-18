@@ -6,7 +6,7 @@ import java.lang.reflect.Method
 import kotlin.reflect.KClass
 import kotlin.reflect.full.memberProperties
 import viaduct.api.internal.ReflectionLoader
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.schema.graphqljava.readTypesFromURLs
 import viaduct.invariants.FailureCollector
 import viaduct.schema.base.ValueBase
@@ -113,7 +113,7 @@ internal inline fun <reified T> FailureCollector.withProperty(
 
 internal fun ValueBase.toMap(): Map<String, Any?> = allFieldNames.associateWith(::getField).toMap()
 
-fun loadGraphQLSchemaAsGraphQLSchema(schemaResourcePath: String? = null): ViaductSchema {
+fun loadGraphQLSchemaAsGraphQLSchema(schemaResourcePath: String? = null): EngineSchema {
     val paths = if (schemaResourcePath != null) {
         // Load from specific resource path
         listOf(Resources.getResource(schemaResourcePath))
@@ -123,7 +123,7 @@ fun loadGraphQLSchemaAsGraphQLSchema(schemaResourcePath: String? = null): Viaduc
     }
     if (paths.isEmpty()) throw IllegalStateException("Could not find any graphqls files in the classpath")
 
-    return ViaductSchema(UnExecutableSchemaGenerator.makeUnExecutableSchema(readTypesFromURLs(paths)))
+    return EngineSchema(UnExecutableSchemaGenerator.makeUnExecutableSchema(readTypesFromURLs(paths)))
 }
 
 fun reflectionLoaderForClassResolver(classResolver: ClassResolver): ReflectionLoader =

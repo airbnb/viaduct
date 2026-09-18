@@ -31,8 +31,8 @@ interface EngineSelectionSet {
     /** the type condition of this selection set */
     val type: String
 
-    /** the [ViaductSchema] that this EngineSelectionSet describes */
-    val schema: ViaductSchema
+    /** the [EngineSchema] that this EngineSelectionSet describes */
+    val schema: EngineSchema
 
     val document: String
         get() = toFragment().document

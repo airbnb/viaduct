@@ -11,7 +11,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import viaduct.codegen.utils.JavaName
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.schema.ViaductSchema as ViaductGraphQLSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.graphql.schema.graphqljava.readTypes
@@ -129,7 +129,7 @@ class ParameterizedSchemaDrivenTests {
             val sdl = userSdl + "\n" + defaultSdl
 
             val schema = ViaductGraphQLSchema.fromTypeDefinitionRegistry(SchemaParser().parse(sdl))
-            val graphqlSchema = ViaductSchema(UnExecutableSchemaGenerator.makeUnExecutableSchema(readTypes(sdl)))
+            val graphqlSchema = EngineSchema(UnExecutableSchemaGenerator.makeUnExecutableSchema(readTypes(sdl)))
 
             val args = CodeGenArgs(
                 moduleName = null,

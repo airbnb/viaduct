@@ -10,7 +10,7 @@ import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.executionContext
 import viaduct.codegen.km.getterName
 import viaduct.engine.api.EngineObject
-import viaduct.engine.api.ViaductSchema as ViaductGraphQLSchema
+import viaduct.engine.api.EngineSchema as ViaductGraphQLSchema
 import viaduct.errors.TenantUsageException
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault

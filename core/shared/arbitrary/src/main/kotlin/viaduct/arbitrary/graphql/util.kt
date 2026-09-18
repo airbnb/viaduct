@@ -56,7 +56,7 @@ import viaduct.arbitrary.common.ConfigKey
 import viaduct.arbitrary.common.WeightValidator
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.Coordinate
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.gj
 import viaduct.graphql.utils.DefaultSchemaFactory.DefaultDirective
 import viaduct.graphql.utils.allChildren
@@ -305,7 +305,7 @@ fun RandomSource.count(weight: CompoundingWeight): Int {
 }
 
 /** convert this [graphql.language.Type] representation into its [graphql.schema.GraphQLType] counterpart */
-fun Type<*>.asSchemaType(schema: ViaductSchema): GraphQLType = asSchemaType(schema.schema)
+fun Type<*>.asSchemaType(schema: EngineSchema): GraphQLType = asSchemaType(schema.schema)
 
 /** convert this [graphql.language.Type] representation into its [graphql.schema.GraphQLType] counterpart */
 fun Type<*>.asSchemaType(schema: GraphQLSchema): GraphQLType =
@@ -329,8 +329,8 @@ fun GraphQLType.asAstType(): Type<*> =
             throw UnsupportedOperationException("unsupported schema Type: $this")
     }
 
-/** Return a mocked [ViaductSchema] described by this String value */
-val String.asViaductSchema: ViaductSchema
+/** Return a mocked [EngineSchema] described by this String value */
+val String.asViaductSchema: EngineSchema
     get() = SchemaFactory().fromSdl(this)
 
 /** Return a mocked [GraphQLSchema] described by this String value */
@@ -381,7 +381,7 @@ internal fun maybeThrowResolverException(
 }
 
 /** return all object types in the current schema */
-internal val ViaductSchema.objects: List<GraphQLObjectType>
+internal val EngineSchema.objects: List<GraphQLObjectType>
     get() =
         this.schema.typeMap.mapNotNull { (name, type) ->
             if (type is GraphQLObjectType && !Introspection.isIntrospectionTypes(name)) {
@@ -392,11 +392,11 @@ internal val ViaductSchema.objects: List<GraphQLObjectType>
         }
 
 /** return all object coordinates in the current schema */
-internal val ViaductSchema.objectCoordinates: Set<Coordinate>
+internal val EngineSchema.objectCoordinates: Set<Coordinate>
     get() = objects.flatMap { it.objectCoordinates }.toSet()
 
 /** return all composite type names in the current schema */
-internal val ViaductSchema.compositeTypeNames: Set<TypeOrFieldCoordinate>
+internal val EngineSchema.compositeTypeNames: Set<TypeOrFieldCoordinate>
     get() =
         buildSet {
             schema.allTypesAsList.forEach {
@@ -407,7 +407,7 @@ internal val ViaductSchema.compositeTypeNames: Set<TypeOrFieldCoordinate>
         }
 
 /** return all coordinates for the given type in the current schema */
-internal fun ViaductSchema.objectCoordinates(type: GraphQLCompositeType): Set<Coordinate> =
+internal fun EngineSchema.objectCoordinates(type: GraphQLCompositeType): Set<Coordinate> =
     rels.possibleObjectTypes(type)
         .flatMap(GraphQLObjectType::objectCoordinates)
         .toSet()
@@ -415,7 +415,7 @@ internal fun ViaductSchema.objectCoordinates(type: GraphQLCompositeType): Set<Co
 internal val GraphQLObjectType.objectCoordinates: Set<Coordinate>
     get() = fields.map { f -> name to f.name }.toSet()
 
-internal val ViaductSchema.nodeImpls: Set<String>
+internal val EngineSchema.nodeImpls: Set<String>
     get() {
         val nodeType = schema.getType("Node")
             ?.let { it as? GraphQLInterfaceType }
@@ -426,7 +426,7 @@ internal val ViaductSchema.nodeImpls: Set<String>
             .toSet()
     }
 
-internal fun Coordinate.supportsSubselections(schema: ViaductSchema): Boolean = GraphQLTypeUtil.unwrapAll(schema.schema.getFieldDefinition(this.gj).type) is GraphQLCompositeType
+internal fun Coordinate.supportsSubselections(schema: EngineSchema): Boolean = GraphQLTypeUtil.unwrapAll(schema.schema.getFieldDefinition(this.gj).type) is GraphQLCompositeType
 
 class ResolverException(val key: ConfigKey<*>) : Exception() {
     override val message: String =

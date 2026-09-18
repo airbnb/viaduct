@@ -9,7 +9,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.engine.api.Coordinate
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 
 class ResolverConfigTest : KotestPropertyBase() {
     @Test
@@ -497,7 +497,7 @@ class ResolverConfigTest : KotestPropertyBase() {
 
     @Test
     fun `factory -- declared resolver directives own selectivity`() {
-        val schema = ViaductSchema(
+        val schema = EngineSchema(
             """
             directive @resolver(isSelective: Boolean! = false) on FIELD_DEFINITION | OBJECT
             interface Node { id: ID! }
@@ -530,7 +530,7 @@ class ResolverConfigTest : KotestPropertyBase() {
 
     @Test
     fun `factory -- declared resolver directives own batching`() {
-        val schema = ViaductSchema(
+        val schema = EngineSchema(
             """
             directive @resolver(isSelective: Boolean! = false, isBatching: Boolean! = false) on FIELD_DEFINITION | OBJECT
             interface Node { id: ID! }

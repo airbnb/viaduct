@@ -293,7 +293,7 @@ fun ViaductSchema.TypeDef.pathFromQueryRoot(
  * Detection walks from the mutation root rather than checking the `@namespaceType` directive
  * locally, because query namespaces carry the same directive — only reachability from the mutation
  * root distinguishes a mutation namespace. Mirrors the engine's
- * `viaduct.engine.api.ViaductSchema.isMutationNamespaceType` walk, but over the schema abstraction
+ * `viaduct.engine.api.EngineSchema.isMutationNamespaceType` walk, but over the schema abstraction
  * rather than graphql-java.
  */
 fun ViaductSchema.mutationNamespaceTypeNames(): Set<String> {

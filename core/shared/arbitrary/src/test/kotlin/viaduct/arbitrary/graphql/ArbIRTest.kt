@@ -33,7 +33,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.asSequence
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.mapping.graphql.IR
 
 class ArbIRTest : KotestPropertyBase() {
@@ -177,7 +177,7 @@ class ArbIRTest : KotestPropertyBase() {
     @Test
     fun `does not generate unsupported scalar values`(): Unit =
         runBlocking {
-            val schema = ViaductSchema(
+            val schema = EngineSchema(
                 """
                     scalar UnsupportedScalar
                     type Query { x: UnsupportedScalar }

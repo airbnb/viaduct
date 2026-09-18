@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.Engine
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.FieldSelectivityProvider
@@ -109,7 +109,7 @@ class EngineExecutionContextImplTest {
 
     private fun engineExecutionContext(
         flagManager: FlagManager,
-        fullSchema: ViaductSchema = this.fullSchema,
+        fullSchema: EngineSchema = this.fullSchema,
         globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
         dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
     ): EngineExecutionContextImpl {

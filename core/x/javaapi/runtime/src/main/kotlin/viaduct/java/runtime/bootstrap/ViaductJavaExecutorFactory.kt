@@ -7,7 +7,7 @@ import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.NodeEntryConfig
 import viaduct.bootstrap.SelectionsBlockConfig
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -67,7 +67,7 @@ class ViaductJavaExecutorFactory(
 
     override fun createFieldResolverExecutor(
         configData: FieldEntryConfig,
-        schema: ViaductSchema,
+        schema: EngineSchema,
     ): FieldResolverExecutor {
         val apiData = configData.tenantAPIData.toFieldAPIData()
         val resolverClass = loadClass(
@@ -178,7 +178,7 @@ class ViaductJavaExecutorFactory(
 
     override fun createNodeResolverExecutor(
         configData: NodeEntryConfig,
-        schema: ViaductSchema,
+        schema: EngineSchema,
     ): NodeResolverExecutor {
         val resolverClass = loadClass(
             configData.tenantAPIData.toNodeAPIData().resolverClass,

@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.graphql.asSchema
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 
 class CollectCacheTest {
     private val emptyVars = CoercedVariables.emptyVariables()
@@ -17,7 +17,7 @@ class CollectCacheTest {
     @Test
     fun `collect returns cached result for same parentType and selectionSet`() {
         val schema = "type Query { x: Int, y: String }".asSchema
-        val plan = buildPlan("{ x y }", ViaductSchema(schema))
+        val plan = buildPlan("{ x y }", EngineSchema(schema))
 
         val cache = CollectCache()
 
@@ -34,8 +34,8 @@ class CollectCacheTest {
             type Query { x: Int }
             type Mutation { y: Int }
         """.trimIndent().asSchema
-        val queryPlan = buildPlan("{ x }", ViaductSchema(schema))
-        val mutationPlan = buildPlan("mutation { y }", ViaductSchema(schema))
+        val queryPlan = buildPlan("{ x }", EngineSchema(schema))
+        val mutationPlan = buildPlan("mutation { y }", EngineSchema(schema))
 
         val cache = CollectCache()
 
@@ -51,7 +51,7 @@ class CollectCacheTest {
     @Test
     fun `collect uses identity-based cache key`() {
         val schema = "type Query { x: Int }".asSchema
-        val plan = buildPlan("{ x }", ViaductSchema(schema))
+        val plan = buildPlan("{ x }", EngineSchema(schema))
 
         val cache = CollectCache()
 
@@ -69,7 +69,7 @@ class CollectCacheTest {
             type Query { foo: Foo }
             type Foo { bar: String, baz: Int }
         """.trimIndent().asSchema
-        val plan = buildPlan("{ foo { bar baz } }", ViaductSchema(schema))
+        val plan = buildPlan("{ foo { bar baz } }", EngineSchema(schema))
         val fooType = schema.getObjectType("Foo")
         val fooField = plan.selectionSet.selections[0] as QueryPlan.Field
         val fooSelectionSet = fooField.selectionSet!!
@@ -101,7 +101,7 @@ class CollectCacheTest {
                     }
                 }
             """.trimIndent(),
-            ViaductSchema(schema)
+            EngineSchema(schema)
         )
         val userField = plan.selectionSet.selections.single() as QueryPlan.Field
         val userSelectionSet = userField.selectionSet!!
@@ -124,7 +124,7 @@ class CollectCacheTest {
     @Test
     fun `collect keys on directive variables but ignores argument-only variables`() {
         val schema = "type Query { x(id: ID): Int, y: Int }".asSchema
-        val plan = buildPlan("{ x(id: ${'$'}id) @include(if: ${'$'}directive), y @skip(if: ${'$'}directive) }", ViaductSchema(schema))
+        val plan = buildPlan("{ x(id: ${'$'}id) @include(if: ${'$'}directive), y @skip(if: ${'$'}directive) }", EngineSchema(schema))
         val cache = CollectCache()
 
         val firstResult =
@@ -154,7 +154,7 @@ class CollectCacheTest {
                     x @include(if: ${'$'}field)
                 }
             """.trimIndent(),
-            ViaductSchema(schema)
+            EngineSchema(schema)
         )
         val cache = CollectCache()
 
@@ -193,7 +193,7 @@ class CollectCacheTest {
                     name @include(if: ${'$'}includeName)
                 }
             """.trimIndent(),
-            ViaductSchema(schema)
+            EngineSchema(schema)
         )
         val nodeField = plan.selectionSet.selections.single() as QueryPlan.Field
         val nodeSelectionSet = nodeField.selectionSet!!

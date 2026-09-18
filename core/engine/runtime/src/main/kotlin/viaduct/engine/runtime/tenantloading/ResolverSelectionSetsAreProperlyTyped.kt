@@ -1,6 +1,6 @@
 package viaduct.engine.runtime.tenantloading
 
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.validation.Validator
 
 /**
@@ -9,7 +9,7 @@ import viaduct.engine.runtime.validation.Validator
  * field-coordinate's type and querySelections on the query type.
  */
 class ResolverSelectionSetsAreProperlyTyped(
-    private val schema: ViaductSchema,
+    private val schema: EngineSchema,
 ) : Validator<FieldResolverExecutorValidationCtx> {
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
     override fun validate(ctx: FieldResolverExecutorValidationCtx) =

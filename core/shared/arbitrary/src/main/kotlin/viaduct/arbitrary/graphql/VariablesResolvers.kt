@@ -12,9 +12,9 @@ import viaduct.api.internal.EngineValueConv
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.graphql.VariablesResolver.Instrumented
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver as EngineVariablesResolver
-import viaduct.engine.api.ViaductSchema
 
 /**
  * Generates [EngineVariablesResolver] instances for a single variable usage within a resolver.
@@ -62,7 +62,7 @@ object VariablesResolver {
             val def: VariableDefinition,
             val requiredSelectionSet: RequiredSelectionSet?,
             val exerciseRequiredSelections: Boolean,
-            val schema: ViaductSchema,
+            val schema: EngineSchema,
             val cfg: Config,
             val rs: RandomSource
         )

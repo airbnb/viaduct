@@ -16,8 +16,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetTime
 import viaduct.apiannotations.InternalApi
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ViaductSchema
 import viaduct.mapping.graphql.Conv
 import viaduct.mapping.graphql.ConvMemo
 import viaduct.mapping.graphql.IR
@@ -61,7 +61,7 @@ object JsonConv {
      * Any aliases used in [selectionSet] will be used as object keys in both the JSON and IR Values
      */
     operator fun invoke(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         type: GraphQLType,
         selectionSet: EngineSelectionSet? = null,
         addJsonTypenameField: AddJsonTypenameField = AddJsonTypenameField.Always
@@ -272,7 +272,7 @@ object JsonConv {
         )
 
     /** A builder that can recursively build a single conv */
-    private class Builder(val schema: ViaductSchema, val addJsonTypenameField: AddJsonTypenameField) {
+    private class Builder(val schema: EngineSchema, val addJsonTypenameField: AddJsonTypenameField) {
         private val convMemo = ConvMemo()
 
         fun build(

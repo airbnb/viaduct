@@ -1,7 +1,7 @@
 package viaduct.engine.runtime.tenantloading
 
 import viaduct.engine.api.Coordinate
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -18,7 +18,7 @@ class ExecutorValidator(
     private val checkerExecutorValidator: Validator<CheckerExecutorValidationCtx>,
 ) : Validator<ExecutorValidatorContext> {
     // defaults from schema
-    constructor(schema: ViaductSchema) : this(
+    constructor(schema: EngineSchema) : this(
         nodeResolverValidator = Validator.Unvalidated,
         fieldResolverExecutorValidator = listOf(
             ResolverSelectionSetsAreProperlyTyped(schema),

@@ -16,8 +16,8 @@ import viaduct.arbitrary.common.CompoundingWeight.Companion.Never
 import viaduct.arbitrary.common.CompoundingWeight.Companion.Once
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.engine.runtime.select.allCoords
@@ -215,7 +215,7 @@ class RequiredSelectionSetGenTest : KotestPropertyBase() {
         )
     }
 
-    private fun RequiredSelectionSet.dependencies(schema: ViaductSchema): Set<TypeOrFieldCoordinate> {
+    private fun RequiredSelectionSet.dependencies(schema: EngineSchema): Set<TypeOrFieldCoordinate> {
         val factory = EngineSelectionSetFactoryImpl(schema)
         return buildSet {
             val selectionSet = factory.engineSelectionSet(selections, emptyMap())

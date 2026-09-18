@@ -5,7 +5,7 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import graphql.schema.GraphQLInputObjectType;
-import viaduct.engine.api.ViaductSchema;
+import viaduct.engine.api.EngineSchema;
 import viaduct.java.api.annotations.ResolverFor;
 import viaduct.java.api.context.ConnectionFieldExecutionContext;
 import viaduct.java.api.context.FieldExecutionContext;
@@ -152,7 +152,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public ViaductSchema getSchema() {
+                public EngineSchema getSchema() {
                     return InternalContext.from(inner).getSchema();
                 }
 
@@ -310,7 +310,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public ViaductSchema getSchema() {
+                public EngineSchema getSchema() {
                     return InternalContext.from(inner).getSchema();
                 }
 
@@ -463,7 +463,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public ViaductSchema getSchema() {
+                public EngineSchema getSchema() {
                     return InternalContext.from(inner).getSchema();
                 }
 
@@ -650,7 +650,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public ViaductSchema getSchema() {
+                public EngineSchema getSchema() {
                     return InternalContext.from(inner).getSchema();
                 }
 
@@ -832,7 +832,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public ViaductSchema getSchema() {
+                public EngineSchema getSchema() {
                     return InternalContext.from(inner).getSchema();
                 }
 
@@ -985,7 +985,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public ViaductSchema getSchema() {
+                public EngineSchema getSchema() {
                     return InternalContext.from(inner).getSchema();
                 }
 
@@ -1138,7 +1138,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public ViaductSchema getSchema() {
+                public EngineSchema getSchema() {
                     return InternalContext.from(inner).getSchema();
                 }
 
@@ -1291,7 +1291,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
-                public ViaductSchema getSchema() {
+                public EngineSchema getSchema() {
                     return InternalContext.from(inner).getSchema();
                 }
 

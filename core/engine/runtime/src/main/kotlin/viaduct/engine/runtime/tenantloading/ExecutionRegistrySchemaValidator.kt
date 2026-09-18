@@ -4,13 +4,13 @@ import graphql.schema.GraphQLObjectType
 import org.slf4j.LoggerFactory
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.NodeEntryConfig
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 
 private val log = LoggerFactory.getLogger("viaduct.engine.runtime.tenantloading.ExecutionRegistrySchemaValidator")
 
 internal fun filterFieldsBySchema(
     fields: List<FieldEntryConfig>,
-    schema: ViaductSchema
+    schema: EngineSchema
 ): List<FieldEntryConfig> =
     fields.filter { entry ->
         val rawType = schema.schema.getType(entry.typeName)
@@ -33,7 +33,7 @@ internal fun filterFieldsBySchema(
 
 internal fun filterNodesBySchema(
     nodes: List<NodeEntryConfig>,
-    schema: ViaductSchema
+    schema: EngineSchema
 ): List<NodeEntryConfig> =
     nodes.filter { entry ->
         val rawType = schema.schema.getType(entry.typeName)

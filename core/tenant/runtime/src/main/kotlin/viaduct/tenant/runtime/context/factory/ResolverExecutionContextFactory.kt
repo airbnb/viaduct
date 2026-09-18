@@ -29,9 +29,9 @@ import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolverType
-import viaduct.engine.api.ViaductSchema
 import viaduct.tenant.runtime.context.ConnectionFieldExecutionContextImpl
 import viaduct.tenant.runtime.context.EngineExecutionContextWrapperImpl
 import viaduct.tenant.runtime.context.FieldExecutionContextImpl
@@ -256,7 +256,7 @@ class FieldExecutionContextFactory internal constructor(
         fun of(
             resolverClass: Class<out ResolverBase<*>>,
             reflectionLoader: ReflectionLoader,
-            schema: ViaductSchema,
+            schema: EngineSchema,
             typeName: String,
             fieldName: String,
             grtConvFactory: GRTConvFactory,

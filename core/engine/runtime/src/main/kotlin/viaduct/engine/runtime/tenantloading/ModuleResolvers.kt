@@ -2,7 +2,7 @@ package viaduct.engine.runtime.tenantloading
 
 import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.engine.api.Coordinate
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -18,7 +18,7 @@ class ModuleResolvers(
     private val registry: ExecutionRegistryConfigFile,
     private val executorFactory: ExecutorFactory,
 ) {
-    fun fieldResolverExecutors(schema: ViaductSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> {
+    fun fieldResolverExecutors(schema: EngineSchema): Iterable<Pair<Coordinate, FieldResolverExecutor>> {
         val filtered = filterFieldsBySchema(registry.fields, schema)
         validateFields(filtered)
         return filtered.map { entry ->
@@ -26,7 +26,7 @@ class ModuleResolvers(
         }
     }
 
-    fun nodeResolverExecutors(schema: ViaductSchema): Iterable<Pair<String, NodeResolverExecutor>> {
+    fun nodeResolverExecutors(schema: EngineSchema): Iterable<Pair<String, NodeResolverExecutor>> {
         val filtered = filterNodesBySchema(registry.nodes, schema)
         validateNodes(filtered)
         return filtered.map { entry ->

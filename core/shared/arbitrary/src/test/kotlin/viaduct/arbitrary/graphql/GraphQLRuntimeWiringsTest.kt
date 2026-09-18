@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.utils.allChildrenOfType
 
 class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
@@ -39,7 +39,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
             """.trimIndent()
             Arb.long().forAll(1_000) { seed ->
                 val gql = mkGraphQL(sdl, arbRuntimeWiring(sdl, seed))
-                val inp = Arb.graphQLExecutionInput(ViaductSchema(gql.graphQLSchema)).bind()
+                val inp = Arb.graphQLExecutionInput(EngineSchema(gql.graphQLSchema)).bind()
                 val results = (1..10).map { gql.execute(inp).toSpecification() }
                 results.distinct().size == 1
             }
@@ -69,7 +69,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
                             .take(100, rs)
                             .toList()
                             .map { seed ->
-                                val input = Arb.graphQLExecutionInput(ViaductSchema(schema), doc, cfg).bind()
+                                val input = Arb.graphQLExecutionInput(EngineSchema(schema), doc, cfg).bind()
                                 val gql = mkGraphQL(sdl, arbRuntimeWiring(sdl, seed, cfg))
                                 val result = gql.execute(input)
                                 result.toSpecification()
@@ -88,7 +88,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
 
             Arb.long().forAll(100) { seed ->
                 val gql = mkGraphQL(sdl, arbRuntimeWiring(sdl, seed))
-                val inp = Arb.graphQLExecutionInput(ViaductSchema(gql.graphQLSchema), doc).bind()
+                val inp = Arb.graphQLExecutionInput(EngineSchema(gql.graphQLSchema), doc).bind()
                 val results = Arb
                     .constant(inp)
                     .map(gql::execute)
@@ -119,7 +119,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
 
             Arb.long().forAll(100) { seed ->
                 val gql = mkGraphQL(sdl, arbRuntimeWiring(sdl, seed))
-                val inp = Arb.graphQLExecutionInput(ViaductSchema(gql.graphQLSchema), doc).bind()
+                val inp = Arb.graphQLExecutionInput(EngineSchema(gql.graphQLSchema), doc).bind()
                 val results = Arb
                     .constant(inp)
                     .map(gql::execute)
@@ -152,7 +152,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
 
             Arb.long().forAll(100) { seed ->
                 val gql = mkGraphQL(sdl, arbRuntimeWiring(sdl, seed))
-                val inp = Arb.graphQLExecutionInput(ViaductSchema(gql.graphQLSchema), doc).bind()
+                val inp = Arb.graphQLExecutionInput(EngineSchema(gql.graphQLSchema), doc).bind()
                 val results = Arb
                     .constant(inp)
                     .map(gql::execute)
@@ -196,7 +196,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
                     }
 
                 val gql = mkGraphQL(sdl, wiring)
-                val inp = Arb.graphQLExecutionInput(ViaductSchema(gql.graphQLSchema), doc).bind()
+                val inp = Arb.graphQLExecutionInput(EngineSchema(gql.graphQLSchema), doc).bind()
                 val results = Arb
                     .constant(inp)
                     .map(gql::execute)
@@ -217,7 +217,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
                 .long()
                 .map { seed -> mkGraphQL(sdl, arbRuntimeWiring(sdl, seed, cfg)) }
                 .flatMap { gql ->
-                    val input = Arb.graphQLExecutionInput(ViaductSchema(gql.graphQLSchema), doc, cfg)
+                    val input = Arb.graphQLExecutionInput(EngineSchema(gql.graphQLSchema), doc, cfg)
                     input.map(gql::execute)
                 }.forAll {
                     val data = it.getData<Map<String, List<Any>>>()
@@ -237,7 +237,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
                     .long()
                     .map { seed -> mkGraphQL(sdl, arbRuntimeWiring(sdl, seed, cfg)) }
                     .flatMap { gql ->
-                        val input = Arb.graphQLExecutionInput(ViaductSchema(gql.graphQLSchema), doc, cfg)
+                        val input = Arb.graphQLExecutionInput(EngineSchema(gql.graphQLSchema), doc, cfg)
                         input.map(gql::execute)
                     }.forAll {
                         it.errors.isEmpty()
@@ -250,7 +250,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
                     .long()
                     .map { seed -> mkGraphQL(sdl, arbRuntimeWiring(sdl, seed, cfg)) }
                     .flatMap { gql ->
-                        val input = Arb.graphQLExecutionInput(ViaductSchema(gql.graphQLSchema), doc, cfg)
+                        val input = Arb.graphQLExecutionInput(EngineSchema(gql.graphQLSchema), doc, cfg)
                         input.map(gql::execute)
                     }.forAll {
                         it.errors.any { it is NonNullableFieldWasNullError }
@@ -271,7 +271,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
                     .long()
                     .map { seed -> mkGraphQL(sdl, arbRuntimeWiring(sdl, seed, cfg)) }
                     .flatMap { gql ->
-                        val input = Arb.graphQLExecutionInput(ViaductSchema(gql.graphQLSchema), doc, cfg)
+                        val input = Arb.graphQLExecutionInput(EngineSchema(gql.graphQLSchema), doc, cfg)
                         input.map(gql::execute)
                     }.forAll {
                         val data = it.toSpecification()["data"] as Map<String, Any?>
@@ -285,7 +285,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
                     .long()
                     .map { seed -> mkGraphQL(sdl, arbRuntimeWiring(sdl, seed, cfg)) }
                     .flatMap { gql ->
-                        val input = Arb.graphQLExecutionInput(ViaductSchema(gql.graphQLSchema), doc, cfg)
+                        val input = Arb.graphQLExecutionInput(EngineSchema(gql.graphQLSchema), doc, cfg)
                         input.map(gql::execute)
                     }.forAll {
                         val data = it.toSpecification()["data"] as Map<String, Any?>
@@ -309,7 +309,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
                     .bind()
                 val cfg = Config.default + (ListValueSize to listSize) + (ExplicitNullValueWeight to 0.0)
                 val gql = mkGraphQL(sdl, arbRuntimeWiring(sdl, seed, cfg))
-                val input = Arb.graphQLExecutionInput(ViaductSchema(gql.graphQLSchema), doc, cfg).bind()
+                val input = Arb.graphQLExecutionInput(EngineSchema(gql.graphQLSchema), doc, cfg).bind()
                 listSize to gql.execute(input)
             }.forAll { (listSize, result) ->
                 val data = result.toSpecification()["data"] as Map<String, Any?>
@@ -330,7 +330,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
                     .long()
                     .map { seed -> mkGraphQL(sdl, arbRuntimeWiring(sdl, seed, cfg)) }
                     .flatMap { gql ->
-                        val input = Arb.graphQLExecutionInput(ViaductSchema(gql.graphQLSchema), doc, cfg)
+                        val input = Arb.graphQLExecutionInput(EngineSchema(gql.graphQLSchema), doc, cfg)
                         input.map(gql::execute)
                     }.forAll {
                         it.errors.isEmpty()
@@ -343,7 +343,7 @@ class GraphQLRuntimeWiringsTest : KotestPropertyBase() {
                     .long()
                     .map { seed -> mkGraphQL(sdl, arbRuntimeWiring(sdl, seed, cfg)) }
                     .flatMap { gql ->
-                        val input = Arb.graphQLExecutionInput(ViaductSchema(gql.graphQLSchema), doc, cfg)
+                        val input = Arb.graphQLExecutionInput(EngineSchema(gql.graphQLSchema), doc, cfg)
                         input.map(gql::execute)
                     }.forAll {
                         val err = (it.errors.firstOrNull() as? ExceptionWhileDataFetching)?.exception

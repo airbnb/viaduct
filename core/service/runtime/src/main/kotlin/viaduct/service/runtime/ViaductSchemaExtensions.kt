@@ -2,7 +2,7 @@ package viaduct.service.runtime
 
 import graphql.schema.GraphQLDirectiveContainer
 import java.util.SortedSet
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.scopes.SchemaScopingMode
 
 /**
@@ -11,7 +11,7 @@ import viaduct.graphql.scopes.SchemaScopingMode
  *
  * @return a sorted set of all scopes defined in the schema
  */
-fun ViaductSchema.scopes(): SortedSet<String> {
+fun EngineSchema.scopes(): SortedSet<String> {
     val result = sortedSetOf<String>()
 
     this.schema.typeMap.values.forEach { type ->
@@ -34,7 +34,7 @@ fun ViaductSchema.scopes(): SortedSet<String> {
 }
 
 /** Returns the semantic scoping mode implied by the schema's concrete scope IDs. */
-fun ViaductSchema.schemaScopingMode(): SchemaScopingMode =
+fun EngineSchema.schemaScopingMode(): SchemaScopingMode =
     scopes().let { validScopes ->
         if (validScopes.isEmpty()) {
             SchemaScopingMode.Unscoped

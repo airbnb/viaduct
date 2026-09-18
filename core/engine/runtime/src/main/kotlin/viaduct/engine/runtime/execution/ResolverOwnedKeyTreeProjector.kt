@@ -4,15 +4,15 @@ import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ResolverType
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.result.ObjectEngineResult
 
 /** Projects an execution-backed selection set to the fields owned by one resolver. */
 internal fun QueryPlan.projectResolverOwnedSelections(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     context: QueryPlanFilterCtx,
     source: QueryPlan.SelectionSet,
     projectionType: GraphQLObjectType?,
@@ -44,7 +44,7 @@ internal fun QueryPlan.projectResolverOwnedSelections(
  * resolvers, while a node resolver owns that root and excludes only its top-level `id`.
  */
 internal fun KeyTree.resolverOwnedShape(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     dispatcherRegistry: DispatcherRegistry,
     resolverType: ResolverType,
 ): KeyTree =
@@ -55,7 +55,7 @@ internal fun KeyTree.resolverOwnedShape(
     ).project(this, topLevel = true)
 
 private class ResolverOwnedKeyTreeProjector(
-    private val schema: ViaductSchema,
+    private val schema: EngineSchema,
     private val dispatcherRegistry: DispatcherRegistry,
     private val resolverType: ResolverType,
 ) {

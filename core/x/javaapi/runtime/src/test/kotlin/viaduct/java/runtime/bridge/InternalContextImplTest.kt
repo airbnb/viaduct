@@ -7,14 +7,14 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.errors.TenantUsageException
 import viaduct.java.api.globalid.GlobalID
 import viaduct.java.api.types.NodeObject
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 class InternalContextImplTest {
-    private val schema = mockk<ViaductSchema>()
+    private val schema = mockk<EngineSchema>()
 
     private fun newContext() =
         InternalContextImpl(

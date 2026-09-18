@@ -13,8 +13,8 @@ import org.junit.jupiter.api.Test
 import viaduct.arbitrary.graphql.asViaductSchema
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ResolvedEngineObjectData
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.runtime.result.ObjectEngineResult
 
 class LedgerReaderTest {
@@ -330,7 +330,7 @@ class LedgerReaderTest {
             }
     }
 
-    private fun ViaductSchema.objectType(name: String): GraphQLObjectType = schema.getObjectType(name)!!
+    private fun EngineSchema.objectType(name: String): GraphQLObjectType = schema.getObjectType(name)!!
 
     private class MockLedger(
         private val sourceFor: (MatPath, ObjectEngineResult.Key) -> EngineObjectData? = { _, _ -> null },

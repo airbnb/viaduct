@@ -31,11 +31,11 @@ import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.ViaductTenantNameContext
 import viaduct.engine.api.mocks.FieldUnbatchedResolverFn
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
@@ -85,7 +85,7 @@ class ResolverDataFetcherTest {
         val tenantNameResolver: TenantNameResolver = TenantNameResolver(),
         val resolverFn: FieldUnbatchedResolverFn? = null,
     ) {
-        val schema: ViaductSchema = createSchema(
+        val schema: EngineSchema = createSchema(
             """
             type Query { placeholder(arg:Int): Int }
             type $testType {

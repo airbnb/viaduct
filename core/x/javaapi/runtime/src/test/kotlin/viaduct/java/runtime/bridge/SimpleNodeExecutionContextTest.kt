@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.NodeReference
-import viaduct.engine.api.ViaductSchema
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
 import viaduct.java.api.globalid.GlobalID
@@ -139,7 +139,7 @@ class SimpleNodeExecutionContextTest {
 
     @Test
     fun `ref throws FrameworkException when GraphQL type not found in schema`() {
-        val viaductSchema = mockk<ViaductSchema> {
+        val viaductSchema = mockk<EngineSchema> {
             every { schema } returns mockk<GraphQLSchema> {
                 every { getObjectType(any()) } returns null
             }
@@ -161,7 +161,7 @@ class SimpleNodeExecutionContextTest {
     fun `ref constructs the typed Java GRT instance from the GlobalID`() {
         val nodeRef = mockk<NodeReference>()
         val gqlType = mockk<GraphQLObjectType>()
-        val viaductSchema = mockk<ViaductSchema> {
+        val viaductSchema = mockk<EngineSchema> {
             every { schema } returns mockk<GraphQLSchema> {
                 every { getObjectType("TestNodeObject") } returns gqlType
             }
@@ -211,7 +211,7 @@ class SimpleNodeExecutionContextTest {
 
     @Test
     fun `getSchema returns schema from engineExecutionContext`() {
-        val schema = mockk<ViaductSchema>()
+        val schema = mockk<EngineSchema>()
         val engineCtx = mockk<EngineExecutionContext> {
             every { requestContext } returns null
             every { globalIDCodec } returns GlobalIDCodecDefault

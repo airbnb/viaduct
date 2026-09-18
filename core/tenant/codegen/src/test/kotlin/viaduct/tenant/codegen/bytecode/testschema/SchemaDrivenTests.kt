@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import viaduct.codegen.utils.JavaName
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.schema.ViaductSchema as ViaductGraphQLSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.graphql.schema.graphqljava.readTypes
@@ -56,7 +56,7 @@ class SchemaDrivenTests {
             )
 
             val schema = ViaductGraphQLSchema.fromTypeDefinitionRegistry(SchemaParser().parse(sdl))
-            val graphqlSchema = ViaductSchema(UnExecutableSchemaGenerator.makeUnExecutableSchema(readTypes(sdl)))
+            val graphqlSchema = EngineSchema(UnExecutableSchemaGenerator.makeUnExecutableSchema(readTypes(sdl)))
 
             val args = prepareCodeGenArgs(schema, "viaduct.api.grts")
             val builder = GRTClassFilesBuilder(args)
@@ -103,7 +103,7 @@ class SchemaDrivenTests {
      * 1. [GRTClassFilesBuilder.isGenerated] must return `false` for scalars so that
      *    [GRTClassFilesBuilderBase.addSchemaGRTReference] doesn't return early and skip registering
      *    a Javassist ClassPool placeholder for the scalar.
-     * 2. [ViaductBaseTypeMapper.addSchemaGRTReference] must handle [ViaductSchema.Scalar] so that
+     * 2. [ViaductBaseTypeMapper.addSchemaGRTReference] must handle [EngineSchema.Scalar] so that
      *    the placeholder is actually registered — previously the `when` had no `Scalar` branch and
      *    silently did nothing.
      *

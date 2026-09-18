@@ -7,7 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory.getLogger
 import viaduct.engine.api.Coordinate
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.spi.CheckerExecutor
@@ -32,7 +32,7 @@ import viaduct.service.api.spi.TenantModuleInjectorFactory
 /** Builds a validated [DispatcherRegistry] from tenant module contributions. */
 interface DispatcherRegistryFactory {
     /** Creates and returns a validated [DispatcherRegistry]. */
-    fun create(schema: ViaductSchema): DispatcherRegistry
+    fun create(schema: EngineSchema): DispatcherRegistry
 }
 
 /** Shared implementation of the [DispatcherRegistry] assembly algorithm. */
@@ -50,7 +50,7 @@ abstract class AbstractDispatcherRegistryFactory(
     /** Runs on [Dispatchers.Default] inside a `runBlocking` scope during [create]. */
     protected abstract suspend fun moduleResolvers(): List<ModuleResolvers>
 
-    final override fun create(schema: ViaductSchema): DispatcherRegistry {
+    final override fun create(schema: EngineSchema): DispatcherRegistry {
         val fieldResolverDispatchers = mutableMapOf<Coordinate, FieldResolverDispatcher>()
         val nodeResolverDispatchers = mutableMapOf<String, NodeResolverDispatcher>()
         val fieldCheckerDispatchers = mutableMapOf<Coordinate, CheckerDispatcher>()

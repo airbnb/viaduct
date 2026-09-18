@@ -18,6 +18,7 @@ import viaduct.engine.api.CompleteSelectionSetOptions
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ExecutionInput
@@ -25,7 +26,6 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolveRootFieldReferenceOptions
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.SubqueryExecutionException
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
@@ -67,9 +67,9 @@ interface EngineGraphQLJavaCompat {
 class EngineImpl(
     private val config: EngineConfiguration,
     dispatcherRegistry: DispatcherRegistry,
-    override val schema: ViaductSchema,
+    override val schema: EngineSchema,
     documentProvider: PreparsedDocumentProvider,
-    private val fullSchema: ViaductSchema,
+    private val fullSchema: EngineSchema,
     private val queryPlanFactory: QueryPlanFactory,
 ) : Engine, EngineGraphQLJavaCompat, SubqueryInstrumentationEngine, SelectionSetCompletionEngine {
     private val coroutineInterop: CoroutineInterop = config.coroutineInterop

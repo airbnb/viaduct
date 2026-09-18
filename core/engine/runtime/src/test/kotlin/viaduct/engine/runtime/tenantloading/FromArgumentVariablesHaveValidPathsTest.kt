@@ -7,10 +7,10 @@ import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.api.Coordinate
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.FromArgument
 import viaduct.engine.api.Validated
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 
 class FromArgumentVariablesHaveValidPathsTest {
@@ -560,7 +560,7 @@ class FromArgumentVariablesHaveValidPathsTest {
         sdl: String,
         fn: Fixture.() -> Unit = {}
     ) {
-        val schema = ViaductSchema(sdl.asSchema)
+        val schema = EngineSchema(sdl.asSchema)
         val validator = FromArgumentVariablesHaveValidPaths(schema)
 
         init {

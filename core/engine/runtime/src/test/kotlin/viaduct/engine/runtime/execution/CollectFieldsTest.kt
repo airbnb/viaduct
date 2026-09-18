@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.graphql.asSchema
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
 import viaduct.engine.runtime.execution.QueryPlan.Field
 import viaduct.engine.runtime.execution.QueryPlan.InlineFragment
@@ -23,7 +23,7 @@ class CollectFieldsTest {
     @Test
     fun `shallowStrictCollect - single field`() {
         val schema = "type Query { x:Int }".asSchema
-        val plan = buildPlan("{x}", ViaductSchema(schema))
+        val plan = buildPlan("{x}", EngineSchema(schema))
         val xField = plan.selectionSet.selections.first() as Field
 
         val collected = CollectFields.shallowStrictCollect(
@@ -46,7 +46,7 @@ class CollectFieldsTest {
     @Test
     fun `shallowStrictCollect -- single skipped field`() {
         val schema = "type Query { x:Int }".asSchema
-        val plan = buildPlan("{x @skip(if:\$var) }", ViaductSchema(schema))
+        val plan = buildPlan("{x @skip(if:\$var) }", EngineSchema(schema))
 
         val collected = CollectFields.shallowStrictCollect(
             schema,
@@ -66,7 +66,7 @@ class CollectFieldsTest {
     @Test
     fun `shallowStrictCollect -- mergeable fields`() {
         val schema = "type Query { x:Int }".asSchema
-        val plan = buildPlan("{x x}", ViaductSchema(schema))
+        val plan = buildPlan("{x x}", EngineSchema(schema))
         val x0 = plan.selectionSet.selections[0] as Field
         val x1 = plan.selectionSet.selections[1] as Field
 
@@ -92,7 +92,7 @@ class CollectFieldsTest {
     @Test
     fun `shallowStrictCollect --  inline fragment`() {
         val schema = "type Query { x:Int }".asSchema
-        val plan = buildPlan("{ ... {x}}", ViaductSchema(schema))
+        val plan = buildPlan("{ ... {x}}", EngineSchema(schema))
         val xField = (plan.selectionSet.selections.first() as InlineFragment)
             .selectionSet.selections.first() as Field
 
@@ -121,7 +121,7 @@ class CollectFieldsTest {
                 { ...F, ...F }
                 fragment F on Query { x }
             """.trimIndent(),
-            ViaductSchema(schema)
+            EngineSchema(schema)
         )
         val xField = plan.fragments["F"]!!.selectionSet.selections.first() as Field
 
@@ -176,7 +176,7 @@ class CollectFieldsTest {
             .fieldResolverEntryForType("Query", "AdminUser" to "restricted", "__typename")
             .build()
 
-        val plan = buildPlan("{entity {restricted}}", ViaductSchema(schema), reg)
+        val plan = buildPlan("{entity {restricted}}", EngineSchema(schema), reg)
         val entityField = plan.selectionSet.selections[0] as Field
 
         val collected = CollectFields.shallowStrictCollect(
@@ -208,7 +208,7 @@ class CollectFieldsTest {
      */
     private data class OriginCoordinateFixture(
         val rawSchema: graphql.schema.GraphQLSchema,
-        val schema: ViaductSchema,
+        val schema: EngineSchema,
         val nodeField: Field,
         val nodeSelectionSet: SelectionSet,
         val fragments: QueryPlan.Fragments,
@@ -231,7 +231,7 @@ class CollectFieldsTest {
                 id: ID!
             }
         """.asSchema
-        val schema = ViaductSchema(rawSchema)
+        val schema = EngineSchema(rawSchema)
 
         val reg = MockRequiredSelectionSetRegistry.builder()
             // OtherNode.id checker RSS is rooted on Query — matches the prod-observed leaker.
@@ -326,7 +326,7 @@ class CollectFieldsTest {
         val rawSchema = """
             type Query { x: Int z: Int }
         """.asSchema
-        val schema = ViaductSchema(rawSchema)
+        val schema = EngineSchema(rawSchema)
 
         val reg = MockRequiredSelectionSetRegistry.builder()
             // Field-checker for Query.x with an RSS rooted on Query.
@@ -370,7 +370,7 @@ class CollectFieldsTest {
                 prefillValues: String
             }
         """.asSchema
-        val schema = ViaductSchema(rawSchema)
+        val schema = EngineSchema(rawSchema)
         val mediationSections = rawSchema.getObjectType("MediationSections")
 
         val plan = buildPlan(

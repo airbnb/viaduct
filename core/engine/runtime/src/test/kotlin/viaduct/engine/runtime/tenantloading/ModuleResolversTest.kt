@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test
 import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.NodeEntryConfig
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -33,12 +33,12 @@ class ModuleResolversTest {
     private val factory: ExecutorFactory = object : ExecutorFactory {
         override fun createFieldResolverExecutor(
             configData: FieldEntryConfig,
-            schema: ViaductSchema
+            schema: EngineSchema
         ) = mockFieldExecutor
 
         override fun createNodeResolverExecutor(
             configData: NodeEntryConfig,
-            schema: ViaductSchema
+            schema: EngineSchema
         ) = mockNodeExecutor
     }
 

@@ -13,8 +13,8 @@ import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.CheckerExecutor as EngineCheckerExecutor
 
 /**
@@ -34,7 +34,7 @@ import viaduct.engine.api.spi.CheckerExecutor as EngineCheckerExecutor
  * - [CheckerExceptionWeight]
  */
 fun Arb.Companion.checkerExecutor(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     tfc: TypeOrFieldCoordinate,
     cfg: Config = Config.default
 ): Arb<EngineCheckerExecutor> =

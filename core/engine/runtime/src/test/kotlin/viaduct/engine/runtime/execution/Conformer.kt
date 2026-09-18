@@ -34,7 +34,7 @@ import viaduct.arbitrary.common.failProperty
 import viaduct.arbitrary.common.withCheck
 import viaduct.arbitrary.graphql.ExecutionInputComparator
 import viaduct.arbitrary.graphql.arbRuntimeWiring
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createExecutionInput
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createGJGraphQL
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createRuntimeWiring
@@ -68,7 +68,7 @@ import viaduct.engine.runtime.execution.RecordingInstrumentation.RecordingInstru
  */
 @ExperimentalCoroutinesApi
 internal class Conformer private constructor(
-    val schema: ViaductSchema,
+    val schema: EngineSchema,
     val random: RandomSource,
     private val fn: suspend Conformer.() -> Unit = {}
 ) {

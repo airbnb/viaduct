@@ -4,12 +4,12 @@ import graphql.schema.GraphQLEnumType
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLTypeUtil
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.FromFieldVariablesResolver
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.Validated
 import viaduct.engine.api.VariablesResolver
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.engine.runtime.select.coord
@@ -20,7 +20,7 @@ import viaduct.graphql.utils.VariableUsageInfo
 import viaduct.graphql.utils.collectAllVariableUsages
 
 class FromFieldVariablesHaveValidPaths(
-    private val schema: ViaductSchema
+    private val schema: EngineSchema
 ) : Validator<RequiredSelectionsValidationCtx> {
     private val engineSelectionSetFactory = EngineSelectionSetFactoryImpl(schema)
 

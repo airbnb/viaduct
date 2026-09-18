@@ -13,7 +13,7 @@ import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ObjectBase
 import viaduct.codegen.utils.JavaName
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.schema.ViaductSchema as ViaductGraphQLSchema
 import viaduct.graphql.schema.test.createGraphQLSchema
 import viaduct.graphql.schema.test.createSchema
@@ -87,7 +87,7 @@ class CreateValueTests {
             type ObjectC { c: [[ObjectA]]! }
         """.trimIndent()
         private val schemaForV2 = createSchema(sdlForV2)
-        private val graphqlSchemaForV2 = ViaductSchema(createGraphQLSchema(sdlForV2))
+        private val graphqlSchemaForV2 = EngineSchema(createGraphQLSchema(sdlForV2))
         private val defForObjectB = schemaForV2.types["ObjectB"]!! as ViaductGraphQLSchema.Object
         private val defForObjectC = schemaForV2.types["ObjectC"]!! as ViaductGraphQLSchema.Object
         private val classResolverForV2 = ClassResolver.fromSystemClassLoader(

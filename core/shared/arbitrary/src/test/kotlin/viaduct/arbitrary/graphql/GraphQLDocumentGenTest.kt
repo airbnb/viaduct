@@ -38,7 +38,7 @@ import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.asSequence
 import viaduct.arbitrary.common.withCheck
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.utils.GraphQLTypeRelations
 import viaduct.graphql.utils.allChildren
 import viaduct.graphql.utils.allChildrenOfType
@@ -635,7 +635,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase(
     ) = assertAllDocumentsValid(sdl.asSchema, cfg)
 
     private fun assertAllDocumentsValid(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         cfg: Config = Config.default,
         iter: Int = iterations
     ): Unit =

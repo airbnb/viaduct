@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionInput
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.FeatureTest
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
@@ -1903,7 +1903,7 @@ class RequiredSelectionsTest {
             }
         }
 
-        val privateSchema = ViaductSchema(
+        val privateSchema = EngineSchema(
             ScopedSchemaBuilder(
                 inputSchema = bootstrapper.fullSchema.schema,
                 additionalVisitorConstructors = emptyList(),

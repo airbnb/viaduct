@@ -13,7 +13,7 @@ import io.github.classgraph.ClassGraph
 import kotlin.jvm.optionals.getOrNull
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.graphql.Scalars
@@ -27,14 +27,14 @@ class SchemaFactory(
         private val log by logger()
     }
 
-    fun fromSdl(sdl: String): ViaductSchema {
+    fun fromSdl(sdl: String): EngineSchema {
         return schemaFromSdl(sdl, coroutineInterop)
     }
 
     /**
      * Builds a schema from a registry that already contains Viaduct's default schema components.
      */
-    fun fromPrebuiltTypeDefinitionRegistry(typeRegistry: TypeDefinitionRegistry): ViaductSchema {
+    fun fromPrebuiltTypeDefinitionRegistry(typeRegistry: TypeDefinitionRegistry): EngineSchema {
         return schemaFromTypeDefinitionRegistry(
             typeRegistry,
             coroutineInterop,
@@ -47,7 +47,7 @@ class SchemaFactory(
     fun fromResources(
         grtPackagePrefix: String? = null,
         filesIncluded: Regex? = null,
-    ): ViaductSchema {
+    ): EngineSchema {
         return schemaFromRuntimeSchemaFiles(grtPackagePrefix, filesIncluded ?: Regex(".*graphqls"))
     }
 
@@ -58,7 +58,7 @@ class SchemaFactory(
     private fun schemaFromRuntimeSchemaFiles(
         grtPackagePrefix: String?,
         filesIncluded: Regex = Regex(".*graphqls"),
-    ): ViaductSchema {
+    ): EngineSchema {
         val resourceContents = mutableMapOf<String, String>()
 
         val (resources, elapsedTime) = measureTimedValue {
@@ -134,7 +134,7 @@ class SchemaFactory(
         coroutineInterop: CoroutineInterop,
         customScalars: List<GraphQLScalarType>? = null,
         sourceFiles: List<String>? = null,
-    ): ViaductSchema {
+    ): EngineSchema {
         if (sdl.trim().isEmpty()) {
             val sourceInfo = if (sourceFiles?.isNotEmpty() == true) {
                 " Source files: ${sourceFiles.joinToString(", ")}"
@@ -176,7 +176,7 @@ class SchemaFactory(
         customScalars: List<GraphQLScalarType>?,
         addDefaultSchemaComponents: Boolean,
         useAppliedDirectivesOnly: Boolean,
-    ): ViaductSchema {
+    ): EngineSchema {
         if (addDefaultSchemaComponents) {
             try {
                 DefaultSchemaFactory.addDefaults(typeRegistry)
@@ -207,7 +207,7 @@ class SchemaFactory(
             } else {
                 FastSchemaGenerator().makeExecutableSchema(options, typeRegistry, wiring)
             }
-        return ViaductSchema(schema)
+        return EngineSchema(schema)
     }
 
     private fun hasSchemaLevelMetadata(typeRegistry: graphql.schema.idl.TypeDefinitionRegistry): Boolean {

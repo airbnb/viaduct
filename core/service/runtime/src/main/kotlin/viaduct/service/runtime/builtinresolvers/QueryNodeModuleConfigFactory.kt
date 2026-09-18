@@ -1,6 +1,6 @@
 package viaduct.service.runtime.builtinresolvers
 
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigFactory
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 
@@ -14,7 +14,7 @@ import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
  * Returns `null` when the schema declares neither field (nothing to contribute).
  */
 class QueryNodeModuleConfigFactory(
-    private val fullSchema: ViaductSchema,
+    private val fullSchema: EngineSchema,
 ) : ModuleConfigFactory {
     override fun moduleConfigSource(): ModuleConfigSource? {
         val queryType = fullSchema.schema.queryType

@@ -16,7 +16,7 @@ import io.kotest.property.arbitrary.of
 import viaduct.api.internal.EngineValueConv
 import viaduct.apiannotations.InternalApi
 import viaduct.arbitrary.common.Config
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 
 /**
  * Generate an arbitrary GraphQL [ExecutionInput] for the provided schema and config.
@@ -25,7 +25,7 @@ import viaduct.engine.api.ViaductSchema
  *   https://spec.graphql.org/draft/#sec-Documents
  */
 fun Arb.Companion.graphQLExecutionInput(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     cfg: Config = Config.default
 ): Arb<ExecutionInput> =
     Arb.graphQLDocument(schema, cfg).flatMap { doc ->
@@ -39,7 +39,7 @@ fun Arb.Companion.graphQLExecutionInput(
  *   https://spec.graphql.org/draft/#sec-Documents
  */
 fun Arb.Companion.graphQLExecutionInput(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     doc: Document,
     cfg: Config = Config.default
 ): Arb<ExecutionInput> =
@@ -48,7 +48,7 @@ fun Arb.Companion.graphQLExecutionInput(
     }
 
 private class GraphQLExecutionInputGen(
-    val schema: ViaductSchema,
+    val schema: EngineSchema,
     val cfg: Config,
     val rs: RandomSource
 ) {

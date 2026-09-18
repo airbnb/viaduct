@@ -4,9 +4,9 @@ import graphql.introspection.Introspection
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLTypeUtil
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ViaductSchema
 
 /**
  * Returns true when this selection set contains every field selected by [other].
@@ -27,7 +27,7 @@ fun EngineSelectionSet.covers(
 }
 
 private class Covers(
-    private val schema: ViaductSchema,
+    private val schema: EngineSchema,
     private val implicitlyCoveredFields: Set<String>,
     private val implicitlyCoveredTopLevelFields: Set<String>,
 ) {

@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 
 class NodeResolversTest : KotestPropertyBase() {
     private val schema = """
@@ -68,7 +68,7 @@ class NodeResolversTest : KotestPropertyBase() {
         runBlocking {
             Exhaustive.of(
                 "type Foo implements Node @resolver { id:ID! x:Int }".asViaductSchema to false,
-                ViaductSchema(
+                EngineSchema(
                     """
                     directive @resolver(isSelective: Boolean! = false) on FIELD_DEFINITION | OBJECT
                     type Query { placeholder: Int }

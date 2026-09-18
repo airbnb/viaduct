@@ -1,8 +1,8 @@
 package viaduct.engine.runtime
 
 import graphql.schema.GraphQLSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 
@@ -13,7 +13,7 @@ fun createEngineSelectionSet(
     variables: Map<String, Any?> = emptyMap(),
     schema: GraphQLSchema
 ): EngineSelectionSet {
-    return createEngineSelectionSet(type, selections, variables, ViaductSchema(schema))
+    return createEngineSelectionSet(type, selections, variables, EngineSchema(schema))
 }
 
 /** Creates a [EngineSelectionSet] from a type name, selections string, variables and schema. */
@@ -21,7 +21,7 @@ fun createEngineSelectionSet(
     type: String,
     selections: String,
     variables: Map<String, Any?> = emptyMap(),
-    schema: ViaductSchema
+    schema: EngineSchema
 ): EngineSelectionSet {
     val factory = EngineSelectionSetFactoryImpl(schema)
     return factory.engineSelectionSet(

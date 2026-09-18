@@ -5,8 +5,8 @@ import graphql.schema.DataFetchingEnvironment
 import java.util.function.Supplier
 import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionAttribution
-import viaduct.engine.api.ViaductSchema
 import viaduct.service.api.spi.ErrorReporter
 
 /**
@@ -74,7 +74,7 @@ object EngineExecutionContextExtensions {
      * [EngineExecutionContext.executionHandle].
      */
     internal fun EngineExecutionContext.copy(
-        activeSchema: ViaductSchema = this.activeSchema,
+        activeSchema: EngineSchema = this.activeSchema,
         fieldScopeSupplier: Supplier<out EngineExecutionContext.FieldExecutionScope> = asImpl().fieldScopeSupplier,
         dataFetchingEnvironment: DataFetchingEnvironment? = asImpl().dataFetchingEnvironment,
         matBatchDepth: Int? = null,

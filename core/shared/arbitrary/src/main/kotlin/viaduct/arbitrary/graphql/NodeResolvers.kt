@@ -8,8 +8,8 @@ import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.graphql.NodeResolver.Instrumented
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ResolverMetadata
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.spi.NodeResolverExecutor
 
 /**
@@ -21,7 +21,7 @@ import viaduct.engine.api.spi.NodeResolverExecutor
  * [UndeclaredNodeResolverWeight] is configured.
  */
 fun Arb.Companion.nodeResolverExecutor(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     cfg: Config = Config.default
 ): Arb<NodeResolverExecutor> =
     arbitrary { rs ->
@@ -36,7 +36,7 @@ fun Arb.Companion.nodeResolverExecutor(
  * Resolvers produced by this generator will always resolve their own output selection set.
  */
 fun Arb.Companion.nodeResolverExecutor(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     typeName: String,
     cfg: Config = Config.default
 ): Arb<NodeResolverExecutor> {
@@ -135,7 +135,7 @@ fun interface NodeResolver {
 
     interface Factory {
         data class Params(
-            val schema: ViaductSchema,
+            val schema: EngineSchema,
             val nodeResolverValueGen: NodeResolverValueGen,
             val resolverConfig: ResolverConfig,
             val coordinateIndex: CoordinateIndex,

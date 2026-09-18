@@ -33,7 +33,7 @@ class InternalContextTest {
     }
 
     @Override
-    public viaduct.engine.api.ViaductSchema getSchema() {
+    public viaduct.engine.api.EngineSchema getSchema() {
       throw new UnsupportedOperationException();
     }
 

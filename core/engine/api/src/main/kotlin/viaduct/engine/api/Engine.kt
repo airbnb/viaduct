@@ -7,7 +7,7 @@ import graphql.ExecutionResult
  * against a compiled Viaduct schema.
  */
 interface Engine {
-    val schema: ViaductSchema
+    val schema: EngineSchema
 
     /**
      * Executes a GraphQL operation.

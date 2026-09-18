@@ -10,7 +10,7 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import java.util.Locale
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
 import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
@@ -118,7 +118,7 @@ internal fun QueryPlan.keyTree(
 
 /** Converts executable selections to a [KeyTree] */
 internal fun QueryPlan.keyTree(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     context: QueryPlanFilterCtx,
     selectionSet: QueryPlan.SelectionSet,
     projectionType: GraphQLObjectType? = null,
@@ -143,7 +143,7 @@ internal fun QueryPlan.keyTree(
 }
 
 private fun QueryPlan.hasConditionallyExcludedSelectionForType(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     context: QueryPlanFilterCtx,
     selectionSet: QueryPlan.SelectionSet,
     type: GraphQLObjectType,
@@ -163,7 +163,7 @@ private fun QueryPlan.hasConditionallyExcludedSelectionForType(
     ).conditionallyExcludedResultKeys().isNotEmpty()
 
 private fun QueryPlan.keyTreeForType(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     context: QueryPlanFilterCtx,
     selectionSet: QueryPlan.SelectionSet,
     type: GraphQLObjectType,

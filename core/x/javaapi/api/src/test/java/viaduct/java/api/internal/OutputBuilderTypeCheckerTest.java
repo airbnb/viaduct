@@ -21,7 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-import viaduct.engine.api.ViaductSchema;
+import viaduct.engine.api.EngineSchema;
 import viaduct.errors.TenantUsageException;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.reflect.Type;
@@ -443,8 +443,8 @@ class OutputBuilderTypeCheckerTest {
 
   private static final class FakeContext implements InternalContext {
     @Override
-    public ViaductSchema getSchema() {
-      return new ViaductSchema(GRAPHQL_SCHEMA);
+    public EngineSchema getSchema() {
+      return new EngineSchema(GRAPHQL_SCHEMA);
     }
 
     @Override

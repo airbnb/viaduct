@@ -37,9 +37,9 @@ import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.NodeReference
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.graphql.utils.SelectionsParserUtils
 import viaduct.service.api.spi.GlobalIDCodec
@@ -130,13 +130,13 @@ val InternalContext.resolverExecutionContext: ResolverExecutionContext<Query>
 /**
  * Test-only [InternalContext] backed by explicit dependencies.
  *
- * Allows tests to supply a [ViaductSchema], an optional [GlobalIDCodec], an optional
+ * Allows tests to supply a [EngineSchema], an optional [GlobalIDCodec], an optional
  * [ReflectionLoader], and an optional [GRTConvFactory] without requiring a full Viaduct
  * service stack. Use [Companion.create] to construct one from a schema and a GRT package name.
  */
 @OptIn(InternalApi::class)
 class MockInternalContext(
-    override val schema: ViaductSchema,
+    override val schema: EngineSchema,
     override val globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
     override val reflectionLoader: ReflectionLoader = mockReflectionLoader("viaduct.api.grts"),
     override val grtConvFactory: GRTConvFactory = DefaultGRTConvFactory,
@@ -150,7 +150,7 @@ class MockInternalContext(
 
     companion object {
         fun create(
-            schema: ViaductSchema,
+            schema: EngineSchema,
             grtPackage: String = "viaduct.api.grts",
             classLoader: ClassLoader = ClassLoader.getSystemClassLoader()
         ): MockInternalContext = MockInternalContext(schema, GlobalIDCodecDefault, mockReflectionLoader(grtPackage, classLoader))
@@ -162,7 +162,7 @@ class MockInternalContext(
  *
  * Provides a concrete [ExecutionContext] for tests that need to call resolver code without a
  * running engine. [globalIDFor] returns a plain [GlobalID] with no encoding. Use
- * [Companion.create] to build an instance from an optional [ViaductSchema].
+ * [Companion.create] to build an instance from an optional [EngineSchema].
  */
 @OptIn(InternalApi::class)
 open class MockExecutionContext(
@@ -178,7 +178,7 @@ open class MockExecutionContext(
 
     companion object {
         fun create(
-            schema: ViaductSchema = MockSchema.minimal,
+            schema: EngineSchema = MockSchema.minimal,
             classLoader: ClassLoader = ClassLoader.getSystemClassLoader()
         ): MockResolverExecutionContext<Query> = MockResolverExecutionContext(MockInternalContext.create(schema, classLoader = classLoader))
     }
@@ -260,7 +260,7 @@ open class MockResolverExecutionContext<Q : Query>(
 
     companion object {
         fun create(
-            schema: ViaductSchema = MockSchema.minimal,
+            schema: EngineSchema = MockSchema.minimal,
             classLoader: ClassLoader = ClassLoader.getSystemClassLoader()
         ): MockResolverExecutionContext<Query> = MockResolverExecutionContext(MockInternalContext.create(schema, classLoader = classLoader))
     }

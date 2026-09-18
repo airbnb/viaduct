@@ -49,7 +49,7 @@ import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.CompoundingWeight.Companion.Never
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.gj
 import viaduct.graphql.schema.binary.extensions.toBinaryFile
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
@@ -481,7 +481,7 @@ class GraphQLSchemasTest : KotestPropertyBase() {
             }
 
             arb.forAll { schema ->
-                CycleGroups.mandatoryInputCycles(ViaductSchema(schema)).isEmpty()
+                CycleGroups.mandatoryInputCycles(EngineSchema(schema)).isEmpty()
             }
         }
 
@@ -620,7 +620,7 @@ class GraphQLSchemasTest : KotestPropertyBase() {
                 (DirectiveIsRepeatable to 0.0) +
                 (DefaultValueWeight to 0.0)
     ): GraphQLSchema {
-        val vschema = ViaductSchema(this)
+        val vschema = EngineSchema(this)
         val rs = RandomSource.seeded(seed)
         return SchemaTransformer.transformSchema(
             this,

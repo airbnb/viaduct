@@ -3,7 +3,7 @@ package viaduct.engine.runtime
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.graphql.scopes.SchemaScopingMode
@@ -55,7 +55,7 @@ class OperationValidationTest {
 
     @Test
     fun `invalid scoped schema query`() {
-        val publicSchema = ViaductSchema(
+        val publicSchema = EngineSchema(
             ScopedSchemaBuilder(
                 inputSchema = bootstrapper.fullSchema.schema,
                 additionalVisitorConstructors = emptyList(),
@@ -72,7 +72,7 @@ class OperationValidationTest {
 
     @Test
     fun `scoped schema rejects internal bypassPolicyCheck directive`() {
-        val publicSchema = ViaductSchema(
+        val publicSchema = EngineSchema(
             ScopedSchemaBuilder(
                 inputSchema = bootstrapper.fullSchema.schema,
                 additionalVisitorConstructors = emptyList(),
@@ -89,7 +89,7 @@ class OperationValidationTest {
 
     @Test
     fun `internal scoped schema accepts bypassPolicyCheck directive`() {
-        val internalSchema = ViaductSchema(
+        val internalSchema = EngineSchema(
             ScopedSchemaBuilder(
                 inputSchema = bootstrapper.fullSchema.schema,
                 additionalVisitorConstructors = emptyList(),

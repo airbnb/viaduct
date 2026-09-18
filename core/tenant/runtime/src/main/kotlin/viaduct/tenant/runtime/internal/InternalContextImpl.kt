@@ -8,12 +8,12 @@ import viaduct.api.internal.ReflectionLoader
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeCompositeOutput
 import viaduct.api.types.NodeObject
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.errors.TenantUsageException
 import viaduct.service.api.spi.GlobalIDCodec as ServiceGlobalIDCodec
 
 class InternalContextImpl(
-    override val schema: ViaductSchema,
+    override val schema: EngineSchema,
     override val globalIDCodec: ServiceGlobalIDCodec,
     override val reflectionLoader: ReflectionLoader,
     override val grtConvFactory: GRTConvFactory,

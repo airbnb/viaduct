@@ -41,10 +41,10 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolveSelectionSetOptions
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.spi.CheckerExecutor
@@ -136,14 +136,14 @@ object ExecutionTestHelpers {
         sdl: String,
         resolvers: Map<String, Map<String, DataFetcher<*>>>,
         typeResolvers: Map<String, TypeResolver> = emptyMap()
-    ): ViaductSchema = createSchema(sdl, createRuntimeWiring(resolvers, typeResolvers))
+    ): EngineSchema = createSchema(sdl, createRuntimeWiring(resolvers, typeResolvers))
 
     fun createSchema(
         sdl: String,
         runtimeWiring: RuntimeWiring
-    ): ViaductSchema {
+    ): EngineSchema {
         val typeDefinitionRegistry = SchemaParser().parse(sdl)
-        return ViaductSchema(SchemaGenerator().makeExecutableSchema(typeDefinitionRegistry, runtimeWiring))
+        return EngineSchema(SchemaGenerator().makeExecutableSchema(typeDefinitionRegistry, runtimeWiring))
     }
 
     val supportedScalars = listOf(
@@ -177,7 +177,7 @@ object ExecutionTestHelpers {
     }
 
     fun createViaductGraphQL(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         preparsedDocumentProvider: PreparsedDocumentProvider = DocumentCache(),
         instrumentations: List<Instrumentation> = emptyList(),
         coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
@@ -225,7 +225,7 @@ object ExecutionTestHelpers {
         }
 
     fun createGJGraphQL(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         preparsedDocumentProvider: PreparsedDocumentProvider = DocumentCache(),
         instrumentations: List<Instrumentation> = emptyList()
     ): GraphQL {
@@ -239,7 +239,7 @@ object ExecutionTestHelpers {
     }
 
     suspend fun executeQuery(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         graphQL: GraphQL,
         query: String,
         variables: Map<String, Any?>,
@@ -250,7 +250,7 @@ object ExecutionTestHelpers {
     }
 
     fun createExecutionInput(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         query: String,
         variables: Map<String, Any?> = emptyMap(),
         operationName: String? = null,
@@ -276,7 +276,7 @@ object ExecutionTestHelpers {
             .build()
 
     fun createLocalContext(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
         flagManager: FlagManager = FlagManager.Default,
     ): CompositeLocalContext =
@@ -323,11 +323,11 @@ object DataFetchers {
 
 /** generate an [Arb] of [ExecutionInput] that is configured for running on viaduct */
 fun Arb.Companion.viaductExecutionInput(
-    schema: ViaductSchema,
+    schema: EngineSchema,
     cfg: Config = Config.default,
 ): Arb<ExecutionInput> = Arb.graphQLExecutionInput(schema, cfg).asViaductExecutionInput(schema)
 
-fun Arb<ExecutionInput>.asViaductExecutionInput(schema: ViaductSchema): Arb<ExecutionInput> =
+fun Arb<ExecutionInput>.asViaductExecutionInput(schema: EngineSchema): Arb<ExecutionInput> =
     map { input ->
         input.transform {
             it.localContext(ExecutionTestHelpers.createLocalContext(schema))

@@ -42,7 +42,7 @@ import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.SchemaFactory
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
@@ -94,7 +94,7 @@ abstract class ResolverTestBase {
      * Subclasses must provide the schema instance. This allows different implementations
      * to load the schema in their preferred way (e.g., from resources, test data, etc.)
      */
-    private fun getSchema(): ViaductSchema = SchemaFactory(DefaultCoroutineInterop).fromResources()
+    private fun getSchema(): EngineSchema = SchemaFactory(DefaultCoroutineInterop).fromResources()
 
     private val selectionSetFactory: SelectionSetFactory by lazy { mkSelectionSetFactory() }
 

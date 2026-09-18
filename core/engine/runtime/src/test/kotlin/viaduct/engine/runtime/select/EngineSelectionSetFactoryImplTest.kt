@@ -17,14 +17,14 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.runtime.dfe.ViaductDataFetchingEnvironment
 import viaduct.engine.runtime.select.loader.SelectTestSchemaFixture
 
 class EngineSelectionSetFactoryImplTest {
     private val factory = EngineSelectionSetFactoryImpl(
-        ViaductSchema(SelectTestSchemaFixture.schema)
+        EngineSchema(SelectTestSchemaFixture.schema)
     )
 
     @Test

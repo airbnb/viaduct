@@ -13,6 +13,7 @@ import viaduct.engine.api.CompleteSelectionSetOptions
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
@@ -22,7 +23,6 @@ import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.SubqueryExecutionException
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldSelectivityProvider
@@ -48,7 +48,7 @@ interface SelectionSetCompletionEngine {
  * Basically holds version-scoped state.
  */
 class EngineExecutionContextFactory(
-    private val fullSchema: ViaductSchema,
+    private val fullSchema: EngineSchema,
     private val dispatcherRegistry: DispatcherRegistry,
     private val resolverInstrumentation: Instrumentation,
     private val flagManager: FlagManager,
@@ -66,7 +66,7 @@ class EngineExecutionContextFactory(
     private val ownedSelectionProjector = ResolverSelectionProjector(fullSchema, dispatcherRegistry)
 
     fun create(
-        scopedSchema: ViaductSchema,
+        scopedSchema: EngineSchema,
         requestContext: Any?
     ): EngineExecutionContext {
         val isResolverSelective = fieldSelectivity
@@ -117,8 +117,8 @@ class EngineExecutionContextFactory(
  * @see EngineExecutionContextExtensions for extension functions
  */
 class EngineExecutionContextImpl internal constructor(
-    override val fullSchema: ViaductSchema,
-    override val scopedSchema: ViaductSchema,
+    override val fullSchema: EngineSchema,
+    override val scopedSchema: EngineSchema,
     override val requestContext: Any?,
     override val engineSelectionSetFactory: EngineSelectionSet.Factory,
     val dispatcherRegistry: DispatcherRegistry,
@@ -136,7 +136,7 @@ class EngineExecutionContextImpl internal constructor(
     val isResolverSelective: IsResolverSelective,
     private val ownedSelectionProjector: ResolverSelectionProjector,
     var dataFetchingEnvironment: DataFetchingEnvironment? = null,
-    override val activeSchema: ViaductSchema = fullSchema,
+    override val activeSchema: EngineSchema = fullSchema,
     internal val fieldScopeSupplier: Supplier<out EngineExecutionContext.FieldExecutionScope> = FpKit.intraThreadMemoize { FieldExecutionScopeImpl() },
     executionHandle: EngineExecutionContext.ExecutionHandle? = null,
     internal val matBatchDepth: Int = 0,
@@ -344,7 +344,7 @@ class EngineExecutionContextImpl internal constructor(
      * This method is internal only because the extension needs access; it should be treated as private.
      */
     internal fun copy(
-        activeSchema: ViaductSchema = this.activeSchema,
+        activeSchema: EngineSchema = this.activeSchema,
         fieldScopeSupplier: Supplier<out EngineExecutionContext.FieldExecutionScope> = this.fieldScopeSupplier,
         dataFetchingEnvironment: DataFetchingEnvironment? = this.dataFetchingEnvironment,
         fieldRssOriginFilteringKillSwitchEnabled: Boolean = this.fieldRssOriginFilteringKillSwitchEnabled,

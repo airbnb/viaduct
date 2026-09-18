@@ -3,9 +3,9 @@ package viaduct.remote
 import com.google.protobuf.ByteString
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolveSelectionSetOptions
-import viaduct.engine.api.ViaductSchema
 import viaduct.remote.grpc.SerializedSelectionSet
 
 /**
@@ -20,7 +20,7 @@ import viaduct.remote.grpc.SerializedSelectionSet
 internal class RemoteResolverStreamExecutionContext(
     private val dispatcher: CallbackDispatcher,
     private val resolverId: String,
-    localSchema: ViaductSchema
+    localSchema: EngineSchema
 ) : RemoteEngineExecutionContext(delegate = null, localSchema = localSchema) {
     // The re-entrant ctx.query()/ctx.mutation() path: serialize the selection set's content (not a
     // handle) and dispatch it as a CallbackRequest on the stream this context is bound to.

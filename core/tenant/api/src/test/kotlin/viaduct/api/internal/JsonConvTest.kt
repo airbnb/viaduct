@@ -33,8 +33,8 @@ import viaduct.arbitrary.graphql.TypenameValueWeight
 import viaduct.arbitrary.graphql.ir
 import viaduct.arbitrary.graphql.objectIR
 import viaduct.arbitrary.graphql.viaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.createEngineSelectionSet
 import viaduct.engine.api.mocks.createSchema
 import viaduct.engine.api.select.SelectionsParser
@@ -683,12 +683,12 @@ class JsonConvTest : KotestPropertyBase() {
         }
 
     private fun checkAll(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         typeName: String
     ): Unit = checkAll(schema, schema.schema.getType(typeName)!!)
 
     private fun checkAll(
-        schema: ViaductSchema,
+        schema: EngineSchema,
         type: GraphQLType
     ): Unit =
         runBlocking {

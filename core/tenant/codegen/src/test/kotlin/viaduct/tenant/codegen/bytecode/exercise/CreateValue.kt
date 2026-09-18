@@ -10,7 +10,7 @@ import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
 import viaduct.codegen.km.setterName
 import viaduct.engine.api.EngineObjectDataBuilder
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.graphql.schema.ViaductSchema as ViaductGraphQLSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 import viaduct.loaders.core.edges.EdgesQueryResponse
@@ -36,7 +36,7 @@ import viaduct.types.UGCText
  */
 fun ViaductGraphQLSchema.HasDefaultValue.createValueV2(
     classResolver: ClassResolver,
-    schema: ViaductSchema,
+    schema: EngineSchema,
     value2: Boolean = false,
     baseTypeMapper: BaseTypeMapper = ViaductBaseTypeMapper(ViaductGraphQLSchema.fromGraphQLSchema(schema.schema)),
     classLoader: ClassLoader = ClassLoader.getSystemClassLoader(),
@@ -216,7 +216,7 @@ internal fun ViaductGraphQLSchema.HasDefaultValue.valueFromGenericValue(
  */
 internal fun ViaductGraphQLSchema.HasDefaultValue.valueV2FromGenericValue(
     classResolver: ClassResolver,
-    schema: ViaductSchema,
+    schema: EngineSchema,
     genericValue: Any?,
     asEngineObjectData: Boolean = false,
     classLoader: ClassLoader = ClassLoader.getSystemClassLoader(),
@@ -284,7 +284,7 @@ internal fun ViaductGraphQLSchema.HasDefaultValue.valueV2FromGenericValue(
 /** Materialize a GRT value for the provided [recordValue] */
 internal fun genericValueToEngineObjectData(
     classResolver: ClassResolver,
-    schema: ViaductSchema,
+    schema: EngineSchema,
     recordValue: RecordValue
 ): Any {
     val concreteTypeDef = recordValue.concreteTypeDef

@@ -55,7 +55,7 @@ public final class JavaNodeResolverGenerator {
           import java.util.Map;
           import java.util.concurrent.CompletableFuture;
           import graphql.schema.GraphQLInputObjectType;
-          import viaduct.engine.api.ViaductSchema;
+          import viaduct.engine.api.EngineSchema;
           import viaduct.java.api.annotations.NodeResolverFor;
           import viaduct.java.api.context.NodeExecutionContext;
           import viaduct.java.api.context.RootFieldCall;
@@ -160,7 +160,7 @@ public final class JavaNodeResolverGenerator {
                       \\}
 
                       @Override
-                      public ViaductSchema getSchema() {
+                      public EngineSchema getSchema() {
                           return InternalContext.from(inner).getSchema();
                       \\}
 

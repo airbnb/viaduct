@@ -12,8 +12,8 @@ import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLTypeUtil
 import graphql.schema.GraphQLUnionType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.gj
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
@@ -48,7 +48,7 @@ object ObjectEngineResultTestHelper {
         data: Map<String, Any?>,
         errors: MutableList<Pair<String, Throwable>>,
         currentPath: List<String> = emptyList(),
-        schema: ViaductSchema,
+        schema: EngineSchema,
         selectionSet: EngineSelectionSet,
     ): ObjectEngineResultImpl =
         newFromMap(
@@ -66,7 +66,7 @@ object ObjectEngineResultTestHelper {
         data: Map<ObjectEngineResult.Key, Any?>,
         errors: MutableList<Pair<ObjectEngineResult.Key, Throwable>>,
         currentPath: List<String> = emptyList(),
-        schema: ViaductSchema,
+        schema: EngineSchema,
         selectionSet: EngineSelectionSet
     ): ObjectEngineResultImpl {
         val result = newForType(type)
@@ -122,7 +122,7 @@ object ObjectEngineResultTestHelper {
         value: Any?,
         errors: MutableList<Pair<ObjectEngineResult.Key, Throwable>>,
         currentPath: List<String>,
-        schema: ViaductSchema,
+        schema: EngineSchema,
         selectionSet: EngineSelectionSet
     ): Any? {
         if (value == null) return null

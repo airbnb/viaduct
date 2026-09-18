@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.ViaductSchema
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.parse.DocumentParser
 import viaduct.graphql.Scalars
 import viaduct.graphql.utils.collectVariableReferences
@@ -313,7 +313,7 @@ class VariableInlinerTest {
     ): VariableInliner {
         val graphQLSchema = mkSchema(schemaSDL)
         return VariableInliner(
-            schema = ViaductSchema(graphQLSchema),
+            schema = EngineSchema(graphQLSchema),
             variables = CoercedVariables.of(variables),
             ctx = GraphQLContext.getDefault(),
             locale = Locale.getDefault(),
@@ -379,7 +379,7 @@ class VariableInlinerTest {
         private val context = GraphQLContext.getDefault()
         private val locale = Locale.getDefault()
         private val fieldDefinition = schema.queryType.getFieldDefinition("f")
-        private val inlinerSchema = ViaductSchema(schema)
+        private val inlinerSchema = EngineSchema(schema)
         private val codeRegistry = schema.codeRegistry
 
         fun inline(variables: CoercedVariables): Field =

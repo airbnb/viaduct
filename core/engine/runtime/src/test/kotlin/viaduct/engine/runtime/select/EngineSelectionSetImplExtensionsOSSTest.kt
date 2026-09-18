@@ -17,8 +17,8 @@ import java.util.Locale
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelection
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.fragment.Fragment
 import viaduct.engine.api.fragment.FragmentSource
 import viaduct.engine.api.fragment.FragmentVariables
@@ -66,7 +66,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
         EngineSelectionSetImpl.create(
             SelectionsParser.parse(type, selections),
             vars,
-            ViaductSchema(schema),
+            EngineSchema(schema),
         )
 
     @Test
@@ -394,7 +394,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
         val context = EngineSelectionSetContext(
             variables = vars,
             fragmentDefinitions = emptyMap(),
-            schema = ViaductSchema(schema),
+            schema = EngineSchema(schema),
             GraphQLContext.getDefault(),
             Locale.getDefault()
         )
@@ -434,7 +434,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
     fun `allCoords -- leaf fields on object type`() {
         assertEquals(
             setOf("Foo" to "id", "Foo" to "int"),
-            mk("Foo", "id int").allCoords(ViaductSchema(schema))
+            mk("Foo", "id int").allCoords(EngineSchema(schema))
         )
     }
 
@@ -444,7 +444,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
         // and must not throw when looking up its field definition.
         assertEquals(
             setOf("Foo" to "__typename"),
-            mk("Foo", "__typename").allCoords(ViaductSchema(schema))
+            mk("Foo", "__typename").allCoords(EngineSchema(schema))
         )
     }
 
@@ -452,7 +452,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
     fun `allCoords -- interface type condition expands to all concrete types`() {
         assertEquals(
             setOf("Foo" to "id", "Bar" to "id"),
-            mk("Node", "id").allCoords(ViaductSchema(schema))
+            mk("Node", "id").allCoords(EngineSchema(schema))
         )
     }
 
@@ -464,7 +464,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
                 "Foo" to "id",
                 "Bar" to "id",
             ),
-            mk("Foo", "node { id }").allCoords(ViaductSchema(schema))
+            mk("Foo", "node { id }").allCoords(EngineSchema(schema))
         )
     }
 
@@ -473,7 +473,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
         // All selections skipped via directive → no coords
         assertEquals(
             emptySet<Pair<String, String>>(),
-            mk("Foo", "__typename @skip(if: true)").allCoords(ViaductSchema(schema))
+            mk("Foo", "__typename @skip(if: true)").allCoords(EngineSchema(schema))
         )
     }
 
@@ -505,7 +505,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
                 }
                 """.trimIndent(),
                 schema = polymorphicSchema,
-            ).allCoords(ViaductSchema(polymorphicSchema))
+            ).allCoords(EngineSchema(polymorphicSchema))
         )
     }
 
@@ -526,7 +526,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
                 "Foo",
                 "... on HasChild { child { __typename } }",
                 schema = schema,
-            ).allCoords(ViaductSchema(schema))
+            ).allCoords(EngineSchema(schema))
         )
     }
 
@@ -534,7 +534,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
     fun `reachableObjects -- leaf fields return empty set`() {
         assertEquals(
             emptySet<String>(),
-            mk("Foo", "id int").reachableObjects(ViaductSchema(schema))
+            mk("Foo", "id int").reachableObjects(EngineSchema(schema))
         )
     }
 
@@ -542,7 +542,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
     fun `reachableObjects -- traversable field includes nested concrete types`() {
         assertEquals(
             setOf("Foo", "Bar"),
-            mk("Foo", "node { id }").reachableObjects(ViaductSchema(schema))
+            mk("Foo", "node { id }").reachableObjects(EngineSchema(schema))
         )
     }
 
@@ -550,7 +550,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
     fun `reachableObjects -- empty selection returns empty set`() {
         assertEquals(
             emptySet<String>(),
-            mk("Foo", "__typename @skip(if: true)").reachableObjects(ViaductSchema(schema))
+            mk("Foo", "__typename @skip(if: true)").reachableObjects(EngineSchema(schema))
         )
     }
 
@@ -577,7 +577,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
                 }
                 """.trimIndent(),
                 schema = polymorphicSchema,
-            ).reachableObjects(ViaductSchema(polymorphicSchema))
+            ).reachableObjects(EngineSchema(polymorphicSchema))
         )
     }
 
@@ -598,7 +598,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
                 "Foo",
                 "... on HasChild { child { __typename } }",
                 schema = schema,
-            ).reachableObjects(ViaductSchema(schema))
+            ).reachableObjects(EngineSchema(schema))
         )
     }
 
@@ -656,7 +656,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
     fun `relation -- same type returns Same`() {
         val ess = mk("Foo", "id")
         val sel = EngineSelection(typeCondition = "Foo", fieldName = "id", selectionName = "id")
-        assertEquals(GraphQLTypeRelation.Same, ess.relation(ViaductSchema(schema), sel))
+        assertEquals(GraphQLTypeRelation.Same, ess.relation(EngineSchema(schema), sel))
     }
 
     @Test
@@ -665,7 +665,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
         // relation(Foo, Node): Foo is narrower than Node → NarrowerThan.
         val ess = mk("Foo", "id")
         val sel = EngineSelection(typeCondition = "Node", fieldName = "id", selectionName = "id")
-        assertEquals(GraphQLTypeRelation.NarrowerThan, ess.relation(ViaductSchema(schema), sel))
+        assertEquals(GraphQLTypeRelation.NarrowerThan, ess.relation(EngineSchema(schema), sel))
     }
 
     @Test
@@ -674,7 +674,7 @@ class EngineSelectionSetImplExtensionsOSSTest : Assertions() {
         // relation(Node, Foo): Node is wider than Foo → WiderThan.
         val ess = mk("Node", "id")
         val sel = EngineSelection(typeCondition = "Foo", fieldName = "id", selectionName = "id")
-        assertEquals(GraphQLTypeRelation.WiderThan, ess.relation(ViaductSchema(schema), sel))
+        assertEquals(GraphQLTypeRelation.WiderThan, ess.relation(EngineSchema(schema), sel))
     }
 
     fun mkSchema(sdl: String): GraphQLSchema {

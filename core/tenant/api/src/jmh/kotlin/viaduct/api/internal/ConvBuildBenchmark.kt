@@ -21,8 +21,8 @@ import viaduct.api.mocks.MockType
 import viaduct.api.reflect.Type
 import viaduct.api.types.NodeObject
 import viaduct.apiannotations.InternalApi
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ViaductSchema
 import viaduct.engine.api.mocks.createEngineSelectionSet
 import viaduct.engine.api.mocks.createSchema
 import viaduct.engine.api.select.SelectionsParser
@@ -45,7 +45,7 @@ import viaduct.engine.api.select.SelectionsParser
 @Warmup(iterations = 1)
 @Measurement(iterations = 3)
 open class ConvBuildBenchmark {
-    private lateinit var schema: ViaductSchema
+    private lateinit var schema: EngineSchema
     private lateinit var internalCtx: InternalContext
     private lateinit var rootType: GraphQLObjectType
     private lateinit var interiorType: GraphQLObjectType
