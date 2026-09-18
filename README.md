@@ -1,5 +1,5 @@
 [![Build and Test (Gradle)](https://github.com/airbnb/viaduct/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/airbnb/viaduct/actions/workflows/build-and-test.yml)
-[![Maven Central Version](https://img.shields.io/maven-central/v/com.airbnb.viaduct/bom)](https://central.sonatype.com/namespace/com.airbnb.viaduct)
+[![Maven Central Version](https://img.shields.io/maven-central/v/com.airbnb.viaduct/runtime)](https://central.sonatype.com/namespace/com.airbnb.viaduct)
 [![Gradle Plugin Portal Version](https://img.shields.io/gradle-plugin-portal/v/com.airbnb.viaduct.application-gradle-plugin)](https://plugins.gradle.org/u/viaduct-maintainers)
 
 <p align="center">
