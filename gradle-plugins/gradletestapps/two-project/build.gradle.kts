@@ -9,6 +9,7 @@ dependencies {
 }
 
 tasks.withType<Test>().configureEach {
+    dependsOn("validateViaductSchemaExtensions")
     systemProperty("projectBuildDir", layout.buildDirectory.asFile.get().absolutePath)
     systemProperty(
         "resolverBuildDir",

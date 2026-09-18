@@ -4,3 +4,11 @@ public abstract interface class viaduct/gradle/ViaductMetamoduleExtension {
 	public abstract fun getLayout ()Lviaduct/gradle/ViaductModulePackageLayout;
 }
 
+public abstract interface class viaduct/gradle/ViaductSchemaContributions {
+	public abstract fun register (Ljava/lang/String;Lorg/gradle/api/file/FileCollection;)V
+}
+
+public final class viaduct/gradle/ViaductSchemaContributionsKt {
+	public static final fun getViaductSchemaContributions (Lorg/gradle/api/Project;)Lviaduct/gradle/ViaductSchemaContributions;
+}
+

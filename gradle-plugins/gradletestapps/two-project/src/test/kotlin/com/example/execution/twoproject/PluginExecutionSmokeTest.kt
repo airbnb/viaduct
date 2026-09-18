@@ -2,6 +2,7 @@ package com.example.execution.twoproject
 
 import java.nio.file.Path
 import kotlin.io.path.exists
+import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.readText
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -26,6 +27,19 @@ class PluginExecutionSmokeTest {
         assertTrue(partitionSchema.exists(), "Expected the module partition in the application central schema")
         assertTrue(partitionSchema.readText().contains("greeting: String @resolver"))
         assertTrue(resolverBases.exists(), "Expected resolver bases generated from the application central schema")
+    }
+
+    @Test
+    fun moduleExtensionContributionIsTransportedToTheApplicationSchema() {
+        val applicationBuildDir = Path.of(System.getProperty("projectBuildDir"))
+        val contributions = applicationBuildDir.resolve("viaduct/centralSchema/schemabase/contributions")
+
+        assertTrue(
+            contributions.listDirectoryEntries("*.graphqls").any {
+                it.readText().contains("directive @fromModuleExtension")
+            },
+            "Expected the module-extension contribution in the application central schema",
+        )
     }
 
     @Test

@@ -17,6 +17,7 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.slf4j.LoggerFactory
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.gradle.SchemaContributionReconciler
 import viaduct.gradle.ViaductApplicationPlugin
 import viaduct.gradle.ViaductApplicationPlugin.Companion.BUILTIN_SCHEMA_FILE
 import viaduct.gradle.ViaductSchemaValidator
@@ -56,6 +57,10 @@ abstract class AssembleCentralSchemaTask
         @get:PathSensitive(PathSensitivity.RELATIVE)
         abstract val baseSchemaFiles: ConfigurableFileCollection
 
+        @get:InputFiles
+        @get:PathSensitive(PathSensitivity.RELATIVE)
+        abstract val schemaContributionFiles: ConfigurableFileCollection
+
         /**
          * Common Schema files from src/viaduct/schema directory.
          * These contain global schema declarations including extensions to Query, Mutation,
@@ -84,6 +89,11 @@ abstract class AssembleCentralSchemaTask
 
         @TaskAction
         fun taskAction() {
+            val reconciledBaseSchema = SchemaContributionReconciler.reconcile(
+                baseSchemaFiles.filter { it.exists() }.files,
+                schemaContributionFiles.filter { it.exists() }.files,
+                temporaryDir.resolve("reconciled-schemabase"),
+            )
             fileSystemOperations.sync {
                 from(schemaPartitions) {
                     into("partition")
@@ -93,6 +103,10 @@ abstract class AssembleCentralSchemaTask
                 from(baseSchemaFiles) {
                     into("schemabase")
                     include("**/*.graphqls")
+                }
+
+                from(reconciledBaseSchema) {
+                    into("schemabase/contributions")
                 }
 
                 from(commonSchemaFiles) {

@@ -26,6 +26,7 @@ object ViaductPluginCommon {
 
     object Kind {
         const val SCHEMA_PARTITION = "schema-partition"
+        const val SCHEMA_BASE_CONTRIBUTION = "schemabase-contribution"
         const val CENTRAL_SCHEMA = "central-schema"
         const val KOTLIN_GRT_CLASSES = "kotlin-grt-classes"
         const val JAVA_GRT_CLASSES = "java-grt-classes"
@@ -41,6 +42,8 @@ object ViaductPluginCommon {
         /** Root/app: resolvable configuration that modules add their schema partitions to. */
         const val ALL_SCHEMA_PARTITIONS_INCOMING = "viaductAllSchemaPartitionsIn"
 
+        const val ALL_SCHEMA_CONTRIBUTIONS_INCOMING = "viaductAllSchemaContributionsIn"
+
         /** Root/app: consumable configuration for the central schema file. */
         const val CENTRAL_SCHEMA_OUTGOING = "viaductCentralSchema"
 
@@ -52,6 +55,8 @@ object ViaductPluginCommon {
 
         /** Module: consumable configuration for a modules schema partition. */
         const val SCHEMA_PARTITION_OUTGOING = "viaductSchemaPartition"
+
+        const val SCHEMA_CONTRIBUTIONS_OUTGOING = "viaductSchemaContributions"
 
         /** Module: dependency bucket for the Viaduct application project that owns this module. */
         const val VIADUCT_APPLICATION = "viaductApplication"

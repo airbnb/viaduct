@@ -14,6 +14,7 @@ import org.gradle.api.attributes.Usage
 import org.gradle.api.file.RegularFile
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
@@ -46,8 +47,9 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             )
 
             val viaductModules = setupViaductModulesConfiguration()
-            val assembleCentralSchemaTask = setupAssembleCentralSchemaTask(viaductModules, appExt)
-            setupValidateSchemaExtensionsTask()
+            val schemaContributions = setupSchemaContributionsConfiguration(viaductModules)
+            val assembleCentralSchemaTask = setupAssembleCentralSchemaTask(viaductModules, schemaContributions, appExt)
+            setupValidateSchemaExtensionsTask(schemaContributions)
             setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
             setupIncomingDependenciesFromTopology(topology, viaductModules)
 
@@ -123,6 +125,10 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
                                 .flatMap { it.outputDirectory },
                         ),
                     )
+                    dependencies.add(
+                        ViaductPluginCommon.Configs.ALL_SCHEMA_CONTRIBUTIONS_INCOMING,
+                        files(tasks.named("assembleViaductSchemaContributions", Sync::class.java)),
+                    )
                 }
             }
         }
@@ -144,7 +150,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         return viaductModules
     }
 
-    private fun Project.setupValidateSchemaExtensionsTask() {
+    private fun Project.setupValidateSchemaExtensionsTask(schemaContributions: Configuration) {
         tasks.register<ValidateSchemaExtensionsTask>("validateViaductSchemaExtensions") {
             baseSchemaFiles.setFrom(
                 project.fileTree("src/main/viaduct/schemabase") {
@@ -156,12 +162,28 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
                     include("**/*.graphqls")
                 }
             )
+            schemaContributionFiles.setFrom(schemaContributions.incoming.artifactView {}.files)
         }
     }
+
+    private fun Project.setupSchemaContributionsConfiguration(viaductModules: Configuration): Configuration =
+        configurations.create(ViaductPluginCommon.Configs.ALL_SCHEMA_CONTRIBUTIONS_INCOMING).apply {
+            description = "Schema definitions contributed by Viaduct module-extension plugins."
+            isCanBeConsumed = false
+            isCanBeResolved = true
+            extendsFrom(viaductModules)
+            attributes {
+                attribute(
+                    ViaductPluginCommon.VIADUCT_KIND,
+                    ViaductPluginCommon.Kind.SCHEMA_BASE_CONTRIBUTION,
+                )
+            }
+        }
 
     @OptIn(ExperimentalApi::class, InternalApi::class)
     private fun Project.setupAssembleCentralSchemaTask(
         viaductModules: Configuration,
+        schemaContributions: Configuration,
         appExt: ViaductApplicationExtension,
     ): TaskProvider<AssembleCentralSchemaTask> {
         val allPartitions = configurations.create(ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING).apply {
@@ -174,6 +196,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
 
         val assembleCentralSchemaTask = tasks.register<AssembleCentralSchemaTask>("assembleViaductCentralSchema") {
             schemaPartitions.setFrom(allPartitions.incoming.artifactView {}.files)
+            schemaContributionFiles.setFrom(schemaContributions.incoming.artifactView {}.files)
 
             baseSchemaFiles.setFrom(
                 project.fileTree("src/main/viaduct/schemabase") {

@@ -2,6 +2,8 @@ package viaduct.gradle
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.tasks.Sync
+import org.gradle.kotlin.dsl.register
 import viaduct.apiannotations.InternalApi
 import viaduct.gradle.ViaductPluginCommon.validateModuleProjectPlacement
 
@@ -34,6 +36,23 @@ class ViaductMetamodulePlugin : Plugin<Project> {
                 centralSchemaConfiguration,
             )
 
+            val assembleSchemaContributions = tasks.register<Sync>("assembleViaductSchemaContributions") {
+                into(project.layout.buildDirectory.dir("viaduct/schemaContributions"))
+            }
+            val schemaContributions = DefaultViaductSchemaContributions(assembleSchemaContributions)
+            extensions.add(SCHEMA_CONTRIBUTIONS_EXTENSION_NAME, schemaContributions)
+            configurations.create(ViaductPluginCommon.Configs.SCHEMA_CONTRIBUTIONS_OUTGOING).apply {
+                isCanBeConsumed = true
+                isCanBeResolved = false
+                attributes {
+                    attribute(
+                        ViaductPluginCommon.VIADUCT_KIND,
+                        ViaductPluginCommon.Kind.SCHEMA_BASE_CONTRIBUTION,
+                    )
+                }
+                outgoing.artifact(assembleSchemaContributions)
+            }
+
             extensions.add(
                 EXTENSION_NAME,
                 DefaultViaductMetamoduleExtension(
@@ -47,5 +66,6 @@ class ViaductMetamodulePlugin : Plugin<Project> {
     companion object {
         const val ID = "com.airbnb.viaduct.metamodule-gradle-plugin"
         const val EXTENSION_NAME = "viaductMetamodule"
+        const val SCHEMA_CONTRIBUTIONS_EXTENSION_NAME = "viaductSchemaContributions"
     }
 }

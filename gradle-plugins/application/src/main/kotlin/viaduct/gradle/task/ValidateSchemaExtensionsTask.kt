@@ -8,6 +8,7 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.slf4j.LoggerFactory
+import viaduct.gradle.SchemaContributionReconciler
 import viaduct.gradle.ViaductApplicationPlugin
 import viaduct.gradle.ViaductSchemaValidator
 import viaduct.graphql.utils.DefaultSchemaFactory
@@ -26,11 +27,24 @@ abstract class ValidateSchemaExtensionsTask : DefaultTask() {
 
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val schemaContributionFiles: ConfigurableFileCollection
+
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val commonSchemaFiles: ConfigurableFileCollection
 
     @TaskAction
     fun taskAction() {
-        val userFiles = (baseSchemaFiles + commonSchemaFiles).filter { it.exists() }.files.toList()
+        val reconciledBaseSchema = SchemaContributionReconciler.reconcile(
+            baseSchemaFiles.filter { it.exists() }.files,
+            schemaContributionFiles.filter { it.exists() }.files,
+            temporaryDir.resolve("reconciled-schemabase"),
+        )
+        val userFiles = (
+            baseSchemaFiles.filter { it.exists() }.files +
+                reconciledBaseSchema +
+                commonSchemaFiles.filter { it.exists() }.files
+        ).toList()
 
         val sdl = DefaultSchemaFactory.getDefaultSDL(existingSDLFiles = userFiles)
         val builtinFile = temporaryDir.resolve(ViaductApplicationPlugin.BUILTIN_SCHEMA_FILE)
