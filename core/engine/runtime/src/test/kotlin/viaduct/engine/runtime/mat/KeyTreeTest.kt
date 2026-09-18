@@ -11,6 +11,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.graphql.asViaductSchema
 import viaduct.engine.runtime.mat.KeyTreeFilter as FilterPredicate
+import viaduct.engine.runtime.mat.KeyTreeFilter.Result.DROP
+import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_AND_RECURSE
+import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_WITHOUT_CHILDREN
 import viaduct.engine.runtime.result.ObjectEngineResult
 
 class KeyTreeTest {
@@ -717,7 +720,7 @@ class KeyTreeTest {
 
     @Nested
     inner class Filter {
-        private val dropA: FilterPredicate = FilterPredicate { _, key, _ -> key.name != "a" }
+        private val dropA: FilterPredicate = FilterPredicate { _, key, _ -> if (key.name == "a") DROP else KEEP_AND_RECURSE }
 
         @Test
         fun empty() {
@@ -806,6 +809,61 @@ class KeyTreeTest {
                     }
                 },
                 a.filter(dropA)
+            )
+        }
+
+        @Test
+        fun `stopping traversal keeps the field and leaves sibling subtrees intact`() {
+            val tree = KeyTree.build(schema) {
+                field("Foo", key("b")) {
+                    field("Bar", key("a"))
+                }
+                field("Foo", key("c")) {
+                    field("Bar", key("a"))
+                }
+            }
+
+            val filtered = tree.filter { _, key, topLevel ->
+                if (topLevel && key.name == "b") KEEP_WITHOUT_CHILDREN else KEEP_AND_RECURSE
+            }
+
+            assertEquals(
+                KeyTree.build(schema) {
+                    field("Foo", key("b"))
+                    field("Foo", key("c")) {
+                        field("Bar", key("a"))
+                    }
+                },
+                filtered,
+            )
+        }
+
+        @Test
+        fun `field filtering still applies when traversal is limited`() {
+            val tree = KeyTree.build(schema) {
+                field("Foo", key("a"))
+                field("Foo", key("b")) {
+                    field("Bar", key("a"))
+                }
+                field("Foo", key("c")) {
+                    field("Bar", key("a"))
+                    field("Bar", key("b"))
+                }
+            }
+
+            val stopAtB = FilterPredicate { _, key, topLevel ->
+                if (topLevel && key.name == "b") KEEP_WITHOUT_CHILDREN else KEEP_AND_RECURSE
+            }
+            val filtered = tree.filter(dropA and stopAtB)
+
+            assertEquals(
+                KeyTree.build(schema) {
+                    field("Foo", key("b"))
+                    field("Foo", key("c")) {
+                        field("Bar", key("b"))
+                    }
+                },
+                filtered,
             )
         }
     }
@@ -904,27 +962,49 @@ class KeyTreeTest {
         @Test
         fun and() {
             val tree = KeyTree.build(schema) {
+                field("Foo", key("a")) {
+                    field("Bar", key("b"))
+                }
+            }
+            val rootsOnly = KeyTree.build(schema) {
                 field("Foo", key("a"))
             }
+            val keepWithoutChildren = FilterPredicate { _, _, _ -> KEEP_WITHOUT_CHILDREN }
             val emptyFooBranch = KeyTree(mapOf(fooType to emptyMap()))
 
             assertEquals(tree, tree.filter(FilterPredicate.KeepAll and FilterPredicate.KeepAll))
             assertEquals(emptyFooBranch, tree.filter(FilterPredicate.KeepAll and FilterPredicate.DropAll))
             assertEquals(emptyFooBranch, tree.filter(FilterPredicate.DropAll and FilterPredicate.KeepAll))
             assertEquals(emptyFooBranch, tree.filter(FilterPredicate.DropAll and FilterPredicate.DropAll))
+            assertEquals(emptyFooBranch, tree.filter(FilterPredicate.DropAll and keepWithoutChildren))
+            assertEquals(emptyFooBranch, tree.filter(keepWithoutChildren and FilterPredicate.DropAll))
+            assertEquals(rootsOnly, tree.filter(keepWithoutChildren and keepWithoutChildren))
+            assertEquals(rootsOnly, tree.filter(keepWithoutChildren and FilterPredicate.KeepAll))
+            assertEquals(rootsOnly, tree.filter(FilterPredicate.KeepAll and keepWithoutChildren))
         }
 
         @Test
         fun or() {
             val tree = KeyTree.build(schema) {
+                field("Foo", key("a")) {
+                    field("Bar", key("b"))
+                }
+            }
+            val rootsOnly = KeyTree.build(schema) {
                 field("Foo", key("a"))
             }
+            val keepWithoutChildren = FilterPredicate { _, _, _ -> KEEP_WITHOUT_CHILDREN }
             val emptyFooBranch = KeyTree(mapOf(fooType to emptyMap()))
 
             assertEquals(tree, tree.filter(FilterPredicate.KeepAll or FilterPredicate.KeepAll))
             assertEquals(tree, tree.filter(FilterPredicate.KeepAll or FilterPredicate.DropAll))
             assertEquals(tree, tree.filter(FilterPredicate.DropAll or FilterPredicate.KeepAll))
             assertEquals(emptyFooBranch, tree.filter(FilterPredicate.DropAll or FilterPredicate.DropAll))
+            assertEquals(rootsOnly, tree.filter(FilterPredicate.DropAll or keepWithoutChildren))
+            assertEquals(rootsOnly, tree.filter(keepWithoutChildren or FilterPredicate.DropAll))
+            assertEquals(rootsOnly, tree.filter(keepWithoutChildren or keepWithoutChildren))
+            assertEquals(tree, tree.filter(keepWithoutChildren or FilterPredicate.KeepAll))
+            assertEquals(tree, tree.filter(FilterPredicate.KeepAll or keepWithoutChildren))
         }
     }
 

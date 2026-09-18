@@ -11,6 +11,8 @@ import viaduct.engine.runtime.MatSource
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.KeyTreeFilter
+import viaduct.engine.runtime.mat.KeyTreeFilter.Result.DROP
+import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_AND_RECURSE
 import viaduct.engine.runtime.mat.Mat
 import viaduct.engine.runtime.mat.MatLedger
 import viaduct.engine.runtime.mat.MatPath
@@ -50,7 +52,7 @@ class MatParametersTest {
                 field("Query", key("x"))
                 field("Query", key("y"))
             },
-            matFilter = { _, key, _ -> key.name == "x" },
+            matFilter = { _, key, _ -> if (key.name == "x") KEEP_AND_RECURSE else DROP },
         )
 
         assertEquals(

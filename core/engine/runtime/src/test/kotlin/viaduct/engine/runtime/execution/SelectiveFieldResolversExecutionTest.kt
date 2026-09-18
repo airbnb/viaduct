@@ -6,10 +6,13 @@ import graphql.execution.DataFetcherResult
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.random.Random
 import kotlinx.coroutines.CompletableDeferred
+import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -43,6 +46,9 @@ import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.ParentManagedValue
+import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.engine.api.StandardResolutionValue
 import viaduct.engine.api.mocks.FeatureTest
 import viaduct.engine.api.mocks.MockFieldBatchResolverExecutor
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
@@ -807,6 +813,159 @@ class SelectiveFieldResolversExecutionTest {
                 runQueryWithTimeout("{ b }")
                     .assertJson("{data: {b: 60}}")
             }
+        }
+    }
+
+    @Nested
+    inner class ParentManagedValueTests {
+        @Test
+        fun `missing descendant of a parent-managed selective result refetches the parent`() {
+            assertParentManagedRefetch()
+        }
+
+        @Test
+        fun `parent-managed refetch crosses a field with a suppressed resolver`() {
+            assertParentManagedRefetch(nestedResolverSelective = false)
+        }
+
+        @Test
+        fun `parent-managed refetch crosses a field with a suppressed selective resolver`() {
+            assertParentManagedRefetch(nestedResolverSelective = true)
+        }
+
+        private fun assertParentManagedRefetch(nestedResolverSelective: Boolean? = null) {
+            val parentSelections = ConcurrentLinkedQueue<Set<String>>()
+            val descendantResolverCalls = AtomicInteger()
+            val checkerValue = AtomicReference<String?>()
+
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { foo: Foo }
+                    type Foo { bar: Bar }
+                    type Bar { visible: String, missing: String }
+                """.trimIndent()
+            ) {
+                field("Query" to "foo") {
+                    resolverExecutor {
+                        MockFieldUnbatchedResolverExecutor(
+                            isSelective = true,
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { _, _, _, sels, _ ->
+                                val selections = sels!!.selectionSetForField("Foo", "bar")
+                                val fields = setOf("visible", "missing").filterTo(mutableSetOf()) {
+                                    selections.containsField("Bar", it)
+                                }
+                                parentSelections += fields
+                                ParentManagedValue(
+                                    createEngineObjectData(
+                                        "Foo",
+                                        mapOf(
+                                            "bar" to createEngineObjectData(
+                                                "Bar",
+                                                fields.associateWith { "parent-$it" },
+                                            )
+                                        ),
+                                    )
+                                )
+                            }
+                        )
+                    }
+                }
+
+                if (nestedResolverSelective != null) {
+                    field("Foo" to "bar") {
+                        resolverExecutor {
+                            MockFieldUnbatchedResolverExecutor(
+                                isSelective = nestedResolverSelective,
+                                resolverId = resolverId,
+                                unbatchedResolveFn = { _, _, _, _, _ ->
+                                    descendantResolverCalls.incrementAndGet()
+                                    error("Foo.bar must be provided by Query.foo")
+                                },
+                            )
+                        }
+                    }
+                }
+
+                field("Bar" to "visible") {
+                    checker {
+                        objectSelections("required", "missing")
+                        fn { _, objects ->
+                            checkerValue.set(objects.getValue("required").fetchAs<String?>("missing"))
+                        }
+                    }
+                }
+
+                field("Bar" to "missing") {
+                    resolver {
+                        fn { _, _, _, _, _ ->
+                            descendantResolverCalls.incrementAndGet()
+                            "child-value"
+                        }
+                    }
+                }
+            }.runFeatureTest {
+                val result = runQueryWithTimeout("{ foo { bar { visible } } }")
+                assertAll(
+                    { result.assertJson("""{data: {foo: {bar: {visible: "parent-visible"}}}}""") },
+                    { assertEquals(listOf(setOf("visible"), setOf("missing")), parentSelections.toList()) },
+                    { assertEquals(0, descendantResolverCalls.get()) },
+                    { assertEquals("parent-missing", checkerValue.get()) },
+                )
+            }
+        }
+
+        @Test
+        fun `missing selections beyond a standard boundary do not refetch the parent`() {
+            val parentCalls = AtomicInteger()
+            val checkerValue = AtomicReference<String?>()
+
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { foo: Foo }
+                    type Foo { visible: String, bar: Bar }
+                    type Bar { initial: String, missing: String }
+                """.trimIndent()
+            ) {
+                field("Query" to "foo") {
+                    resolverExecutor {
+                        MockFieldUnbatchedResolverExecutor(
+                            isSelective = true,
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { _, _, _, _, _ ->
+                                parentCalls.incrementAndGet()
+                                ParentManagedValue(
+                                    ResolvedEngineObjectData(
+                                        createEngineObjectData("Foo", emptyMap()).type,
+                                        mapOf(
+                                            "visible" to "parent-visible",
+                                            "bar" to StandardResolutionValue(createEngineObjectData("Bar", emptyMap())),
+                                        ),
+                                    )
+                                )
+                            },
+                        )
+                    }
+                }
+                field("Foo" to "visible") {
+                    checker {
+                        objectSelections("required", "bar { missing }")
+                        fn { _, objects ->
+                            checkerValue.set(
+                                objects.getValue("required").fetchAs<EngineObjectData>("bar").fetchAs<String>("missing")
+                            )
+                        }
+                    }
+                }
+                field("Bar" to "initial") { resolver { fn { _, _, _, _, _ -> "child-initial" } } }
+                field("Bar" to "missing") { resolver { fn { _, _, _, _, _ -> "child-missing" } } }
+            }.runFeatureTest {
+                runQueryWithTimeout("{ foo { visible bar { initial } } }")
+                    .assertJson("""{data: {foo: {visible: "parent-visible", bar: {initial: "child-initial"}}}}""")
+            }
+
+            assertEquals(1, parentCalls.get())
+            assertEquals("child-missing", checkerValue.get())
         }
     }
 

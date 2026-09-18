@@ -13,6 +13,9 @@ import viaduct.engine.runtime.NodeEngineObjectDataImpl
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.KeyTreeBuilder
 import viaduct.engine.runtime.mat.KeyTreeFilter
+import viaduct.engine.runtime.mat.KeyTreeFilter.Result.DROP
+import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_AND_RECURSE
+import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_WITHOUT_CHILDREN
 import viaduct.engine.runtime.mat.build
 
 class EngineObjectDataToKeyTreeTest {
@@ -45,8 +48,80 @@ class EngineObjectDataToKeyTreeTest {
                     expected,
                     null,
                     selections,
-                    { _, _, topLevel -> topLevel },
+                    { _, _, topLevel -> if (topLevel) KEEP_AND_RECURSE else DROP },
                 )
+            }
+        }
+    }
+
+    @Nested
+    inner class FilterTraversal {
+        @Test
+        fun `keeping a composite field without children does not read its value`() {
+            Fixture("type Foo { bar:Bar } type Bar { x:Int }") {
+                val selections = tree {
+                    field("Foo", key("bar")) {
+                        field("Bar", key("x"))
+                    }
+                }
+                val expected = tree {
+                    field("Foo", key("bar"))
+                }
+
+                assertTree(
+                    expected,
+                    dataWithoutReadableValues(foo, "bar"),
+                    selections,
+                    { _, _, _ -> KEEP_WITHOUT_CHILDREN },
+                )
+            }
+        }
+
+        @Test
+        fun `null data honors keeping a field without children`() {
+            Fixture("type Foo { bar:Bar } type Bar { x:Int }") {
+                val selections = tree {
+                    field("Foo", key("bar")) {
+                        field("Bar", key("x"))
+                    }
+                }
+                val expected = tree {
+                    field("Foo", key("bar"))
+                }
+
+                assertTree(expected, null, selections, { _, _, _ -> KEEP_WITHOUT_CHILDREN })
+            }
+        }
+
+        @Test
+        fun `aliases of the same field can drop stop or recurse independently`() {
+            Fixture("type Foo { bar:Bar } type Bar { x:Int }") {
+                val selections = tree {
+                    field("Foo", key("bar", alias = "dropped")) {
+                        field("Bar", key("x"))
+                    }
+                    field("Foo", key("bar", alias = "stopped")) {
+                        field("Bar", key("x"))
+                    }
+                    field("Foo", key("bar", alias = "recursive")) {
+                        field("Bar", key("x"))
+                    }
+                }
+                val expected = tree {
+                    field("Foo", key("bar", alias = "stopped"))
+                    field("Foo", key("bar", alias = "recursive")) {
+                        field("Bar", key("x"))
+                    }
+                }
+                val filter = KeyTreeFilter { _, key, _ ->
+                    when (key.alias) {
+                        "dropped" -> DROP
+                        "stopped" -> KEEP_WITHOUT_CHILDREN
+                        else -> KEEP_AND_RECURSE
+                    }
+                }
+
+                assertTree(expected, data(foo, "bar" to data(bar, "x" to 1)), selections, filter)
             }
         }
     }
@@ -299,7 +374,7 @@ class EngineObjectDataToKeyTreeTest {
                     expected,
                     source,
                     selections,
-                    { _, key, _ -> key.alias != "b" },
+                    { _, key, _ -> if (key.alias == "b") DROP else KEEP_AND_RECURSE },
                 )
             }
         }
@@ -317,7 +392,7 @@ class EngineObjectDataToKeyTreeTest {
                     "bar" to data(bar, "x" to 1),
                 )
                 val filter = KeyTreeFilter { _, key, topLevel ->
-                    if (topLevel) key.name == "bar" else key.name == "x"
+                    if ((topLevel && key.name == "bar") || (!topLevel && key.name == "x")) KEEP_AND_RECURSE else DROP
                 }
 
                 assertTree(selections, source, selections, filter)
@@ -549,7 +624,7 @@ class EngineObjectDataToKeyTreeTest {
             Fixture("type Foo { bars:[Bar] } type Bar { x:Int }") {
                 val selections = barListSelections()
                 val filter = KeyTreeFilter { _, key, topLevel ->
-                    if (topLevel) key.name == "bars" else key.name == "x"
+                    if ((topLevel && key.name == "bars") || (!topLevel && key.name == "x")) KEEP_AND_RECURSE else DROP
                 }
 
                 assertTree(
@@ -634,7 +709,7 @@ class EngineObjectDataToKeyTreeTest {
                     field("Foo", key("id"))
                 }
                 val filter = KeyTreeFilter { _, key, topLevel ->
-                    !(topLevel && key.name == "id")
+                    if (topLevel && key.name == "id") DROP else KEEP_AND_RECURSE
                 }
 
                 assertTree(KeyTree.empty, node(foo), selections, filter)
@@ -660,7 +735,7 @@ class EngineObjectDataToKeyTreeTest {
                     "bar" to node(bar),
                 )
                 val filter = KeyTreeFilter { _, key, topLevel ->
-                    !(topLevel && key.name == "id")
+                    if (topLevel && key.name == "id") DROP else KEEP_AND_RECURSE
                 }
 
                 assertTree(expected, source, selections, filter)

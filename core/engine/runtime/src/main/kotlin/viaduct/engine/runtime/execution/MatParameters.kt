@@ -1,9 +1,10 @@
 package viaduct.engine.runtime.execution
 
+import viaduct.engine.api.ResolutionPolicy
+import viaduct.engine.runtime.HasResolver
 import viaduct.engine.runtime.MatSource
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.mat.KeyTree
-import viaduct.engine.runtime.mat.KeyTreeFilter
 import viaduct.engine.runtime.mat.MatLedger
 import viaduct.engine.runtime.mat.MatPath
 import viaduct.engine.runtime.mat.MatPath.Segment
@@ -38,12 +39,22 @@ internal data class MatParameters(
                 when (val source = current.matSource) {
                     is MatSource.Ledger -> {
                         val path = MatPath(current.type, reversedSegments.asReversed().toList())
+                        val readShape =
+                            if (checkNotNull(objectResult.matSource).fieldResolutionPolicy == ResolutionPolicy.PARENT_MANAGED) {
+                                terminalShape.filter(
+                                    FieldOutputSelectionSetFilter(HasResolver.Never) and
+                                        ParentManagedReadTraversalFilter(source.ledger.subtreeAt(path)),
+                                )
+                            } else {
+                                terminalShape.filter { type, key, topLevel ->
+                                    source.matFilter(type, key, topLevel && path.segments.isEmpty())
+                                }
+                            }
                         createFromLedger(
                             ledger = source.ledger,
                             path = path,
-                            terminalShape = terminalShape,
+                            terminalShape = readShape.withoutEmptyTypeBranches(),
                             terminalParameters = terminalParameters,
-                            matFilter = source.matFilter,
                             rootNodeId = source.rootNodeId,
                         )
                     }
@@ -63,22 +74,19 @@ internal data class MatParameters(
             path: MatPath,
             terminalShape: KeyTree,
             terminalParameters: ExecutionParameters,
-            matFilter: KeyTreeFilter,
             rootNodeId: String?,
         ): MatParameters {
+            var shape = terminalShape
             if (path.segments.isEmpty()) {
                 return MatParameters(
                     ledger = ledger,
                     path = path,
-                    requestedShape = terminalShape
-                        .filter(matFilter)
-                        .withoutEmptyTypeBranches(),
+                    requestedShape = shape,
                     parameters = terminalParameters,
                     rootNodeId = rootNodeId,
                 )
             }
 
-            var shape = terminalShape
             var parameters = terminalParameters
             var selectionSet = parameters.selectionSet
 
@@ -108,9 +116,7 @@ internal data class MatParameters(
             return MatParameters(
                 ledger = ledger,
                 path = path,
-                requestedShape = shape
-                    .filter(matFilter)
-                    .withoutEmptyTypeBranches(),
+                requestedShape = shape.withoutEmptyTypeBranches(),
                 parameters = parameters,
                 rootNodeId = rootNodeId,
             )
