@@ -156,7 +156,7 @@ Release artifacts are published to the Gradle Plugin Portal and Maven Central.
 
 ### Maven Central
 
-Runtime libraries are published to Maven Central. Artifacts are grouped under the [`com.airbnb.viaduct`](https://central.sonatype.com/namespace/com.airbnb.viaduct) group ID. The [Viaduct BOM](https://search.maven.org/artifact/com.airbnb.viaduct/bom) is the recommended way to manage versions of Viaduct dependencies.
+Runtime libraries are published to Maven Central. Artifacts are grouped under the [`com.airbnb.viaduct`](https://central.sonatype.com/namespace/com.airbnb.viaduct) group ID.
 
 ### Gradle Plugin Portal
 

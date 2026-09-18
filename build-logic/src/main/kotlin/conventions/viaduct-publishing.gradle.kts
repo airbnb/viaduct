@@ -113,7 +113,6 @@ mavenPublishing {
         signAllPublications()
     }
     when {
-        plugins.hasPlugin("java-platform") -> configure(JavaPlatform())
         plugins.hasPlugin("com.gradle.plugin-publish") -> configure(GradlePublishPlugin())
         else -> configure(KotlinJvm(
             javadocJar = if (publishMinimal) JavadocJar.Empty() else JavadocJar.Dokka("dokkaGeneratePublicationJavadoc"),
