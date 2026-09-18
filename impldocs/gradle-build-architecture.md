@@ -30,7 +30,8 @@ viaduct/                         ← root project (orchestration only)
 │   ├── api                      (single-dependency entry point for tenant developers)
 │   ├── buildtime                (compile-only dependencies)
 │   ├── runtime                  (runtime-only dependencies)
-│   └── test-fixtures            (test utilities)
+│   ├── test-fixtures            (test utilities)
+│   └── javaapi-*                (api, buildtime, runtime facades for Java tenants)
 ├── gradle-plugins/              ← included build: Gradle plugins for application developers
 │   ├── application              (ViaductApplicationPlugin)
 │   ├── module                   (ViaductModulePlugin)
@@ -63,7 +64,7 @@ Demoapps are not part of this composite build. `check` runs them by shelling out
 
 The build uses a two-tier Maven group structure:
 
-- **`com.airbnb.viaduct`** (base group) — the public-facing artifacts that external consumers should depend on. These are the shadow jars produced by the `publications/` build: `api`, `buildtime`, `runtime`, `test-fixtures`, and the Gradle plugins. These are the only coordinates that appear in a consumer's `build.gradle.kts`.
+- **`com.airbnb.viaduct`** (base group) — the public-facing artifacts that external consumers should depend on. These are the shadow jars produced by the `publications/` build: `api`, `buildtime`, `runtime`, `test-fixtures`, the `javaapi-*` Java tenant facades, and the Gradle plugins. These are the only coordinates that appear in a consumer's `build.gradle.kts`.
 
 - **`com.airbnb.viaduct.<subgroup>`** (e.g., `com.airbnb.viaduct.tenant`, `com.airbnb.viaduct.engine`, `com.airbnb.viaduct.service`, `com.airbnb.viaduct.shared`) — the fine-grained module coordinates from `core/`. These are internal to the build. External consumers never reference them directly; they are pulled in transitively through the publication facade artifacts.
 
@@ -71,7 +72,7 @@ This separation means `core` modules can freely split, merge, or reorganize with
 
 ## The `publications` Build
 
-The `publications` build produces the public-facing `com.airbnb.viaduct` artifacts — `api`, `buildtime`, `runtime`, and `test-fixtures`. These are facade modules whose primary job is to re-export the right set of `core` dependencies as shadow jars under stable, documented coordinates. External consumers depend on these and only these.
+The `publications` build produces the public-facing `com.airbnb.viaduct` artifacts — `api`, `buildtime`, `runtime`, `test-fixtures`, and the `javaapi-*` Java tenant facades. These are facade modules whose primary job is to re-export the right set of `core` dependencies as shadow jars under stable, documented coordinates. External consumers depend on these and only these.
 
 As an included build, `publications` participates in Gradle's automatic dependency substitution. When any other build in the composite declares a dependency on `com.airbnb.viaduct:api`, Gradle substitutes the local `publications/api` project. This eliminates manually maintained substitution rules.
 

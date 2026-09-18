@@ -53,8 +53,7 @@ val securityScanning = extensions.create<SecurityScanningExtension>("securitySca
 // Gradle's configuration cache. With the cache on (the repo default) the task doesn't
 // fail loudly — it silently resolves nothing and writes an EMPTY SBOM (no `components`).
 // Declaring it incompatible makes Gradle run it without the config cache, so the
-// dependency graph is actually resolved. Marked outside the `java` guard below because the
-// plugin is applied to every project this convention touches.
+// dependency graph is actually resolved.
 // Upstream: https://github.com/CycloneDX/cyclonedx-gradle-plugin
 tasks.withType(CycloneDxTask::class.java).configureEach {
     notCompatibleWithConfigurationCache(
