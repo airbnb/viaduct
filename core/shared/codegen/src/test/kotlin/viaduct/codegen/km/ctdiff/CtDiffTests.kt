@@ -3,6 +3,7 @@ package viaduct.codegen.km.ctdiff
 import actualspkg.AgreementTests
 import actualspkg.DisagreementTests as DisagreementActual
 import expectedspkg.DisagreementTests as DisagreementExpected
+import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
 import kotlin.reflect.KClass
@@ -114,6 +115,19 @@ class CtDiffTests {
             DisagreementExpected.DifferentMethods5::class,
             DisagreementActual.DifferentMethods5::class
         )
+    }
+
+    @Test
+    fun bridgeFlagOnlyOnActualMethodIsRejected() {
+        val delegate = JavassistClassFinder()
+        val classFinder = object : ClassFinder by delegate {
+            override fun getMethodSignatures(cls: Class<*>): List<MethodInfo> = listOf(MethodInfo("method ()V", if (cls.name.startsWith(ACT_PKG)) 0x0040 else 0, emptyList()))
+        }
+        val cmp = ClassDiff(EXP_PKG, ACT_PKG, classFinder = classFinder)
+
+        cmp.compare(expectedspkg.AgreementTests::class.java, AgreementTests::class.java)
+
+        cmp.diffs.map { it.label } shouldContain "METHOD_MODIFIERS_AGREE"
     }
 
     @Test

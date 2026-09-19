@@ -245,7 +245,7 @@ data class Args(
  * The v0.9 reference GRTs use the compiler's default JVM layout. Generated GRTs must also
  * expose native defaults and interface default-argument dispatchers. Describe those additions
  * on the expected side only: ClassDiff still checks the complete actual bytecode, including
- * the original DefaultImpls methods, annotations, and every unrelated member.
+ * the original DefaultImpls methods and every unrelated member.
  */
 private class GRTInterfaceDefaultExpectations(
     private val expectedPackage: String,
@@ -253,11 +253,29 @@ private class GRTInterfaceDefaultExpectations(
 ) : ClassFinder by delegate {
     override fun getMethodSignatures(cls: Class<*>): List<MethodInfo> {
         val declared = delegate.getMethodSignatures(cls)
-        if (!cls.isInterface || !cls.name.startsWith(expectedPackage)) return declared
+        if (!cls.name.startsWith(expectedPackage)) return declared
+        if (cls.simpleName == "DefaultImpls") {
+            val iface = cls.enclosingClass ?: return declared
+            val receiver = "L${iface.name.replace('.', '/')};"
+            val interfaceMethods = delegate.getMethodSignatures(iface)
+            return declared.map { method ->
+                val interfaceSignature = method.signature.replaceFirst("($receiver", "(")
+                val interfaceMethod = interfaceMethods.singleOrNull { it.signature == interfaceSignature }
+                if (interfaceMethod?.annotations?.none { it == "RuntimeVisibleAnnotations:@java.lang.Deprecated" } == true) {
+                    method.copy(annotations = method.annotations.filterNot { it == "RuntimeVisibleAnnotations:@java.lang.Deprecated" })
+                } else {
+                    method
+                }
+            }
+        }
+        if (!cls.isInterface) return declared
+        val expectedMethods = declared.filterNot {
+            it.signature.substringBefore(' ').let { name -> name.startsWith("access\$") && name.endsWith("\$jd") }
+        }
         val defaultImpls = cls.declaredClasses.singleOrNull { it.simpleName == "DefaultImpls" } ?: return declared
         val helpers = delegate.getMethodSignatures(defaultImpls)
         val receiver = "L${cls.name.replace('.', '/')};"
-        val nativeMethods = declared.map { method ->
+        val nativeMethods = expectedMethods.map { method ->
             val helperSignature = method.signature.replaceFirst("(", "($receiver")
             if (Modifier.isAbstract(method.modifiers) && helpers.any { it.signature == helperSignature && Modifier.isStatic(it.modifiers) }) {
                 method.copy(modifiers = method.modifiers and Modifier.ABSTRACT.inv())
@@ -269,7 +287,7 @@ private class GRTInterfaceDefaultExpectations(
             it.signature.substringBefore(' ').endsWith("\$default") &&
                 it.signature.substringAfter(' ').startsWith("($receiver") &&
                 Modifier.isStatic(it.modifiers) &&
-                declared.none { method -> method.signature == it.signature }
+                expectedMethods.none { method -> method.signature == it.signature }
         }
         return nativeMethods + dispatchers
     }

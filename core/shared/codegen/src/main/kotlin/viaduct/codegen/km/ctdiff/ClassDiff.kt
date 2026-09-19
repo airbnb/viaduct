@@ -6,6 +6,9 @@ import java.lang.reflect.Type
 import javassist.ClassPool
 import viaduct.invariants.FailureCollector
 
+// JVM ACC_BRIDGE method flag; java.lang.reflect.Modifier has no public constant for it.
+private const val ACC_BRIDGE = 0x0040
+
 /**
  * Compares two classes, checking that they have the same structure.
  * Uses ClassFinder abstraction for class inspection, enabling support for
@@ -255,7 +258,7 @@ class ClassDiff(
         for ((expInfo, actInfo) in expFiltered.zip(actFiltered)) {
             diffs.withContext(expInfo.signature.packageNormalized) {
                 elementsTested++
-                diffs.modifiersAreSame(expInfo.modifiers, actInfo.modifiers, "${elName}_MODIFIERS_AGREE")
+                diffs.modifiersAreSame(expInfo.modifiers.withoutCompilerBridgeFlag(actInfo.modifiers), actInfo.modifiers, "${elName}_MODIFIERS_AGREE")
                 diffs.containsExactlyElementsIn(
                     expInfo.annotations.map { it.packageNormalized },
                     actInfo.annotations.map { it.packageNormalized },
@@ -264,6 +267,13 @@ class ClassDiff(
             }
         }
     }
+
+    /**
+     * kotlinc >= 2.2 marks the DefaultImpls delegation stubs it emits in implementing classes as
+     * ACC_BRIDGE. Viaduct's codegen intentionally emits plain methods, so we tolerate the reference
+     * (expected) carrying the flag while the generated (actual) method lacks it, but not the reverse.
+     */
+    private fun Int.withoutCompilerBridgeFlag(actualModifiers: Int): Int = if (actualModifiers and ACC_BRIDGE == 0) this and ACC_BRIDGE.inv() else this
 
     /**
      * Compare constructor signatures from ClassFinder.
