@@ -484,6 +484,22 @@ class EngineResultTest {
     }
 
     @Test
+    fun `claimed field checker result can complete exceptionally`() {
+        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
+        val cell =
+            ObjectEngineResult
+                .of(schema.requireQueryTypeDef(), mutable = true)
+                .reserveCell(schema.key("Query", "first"))
+        cell.createFieldCheckerResultPromise()
+        cell.setActivated(true)
+        val failure = IllegalStateException("checker failed")
+
+        assertTrue(cell.failFieldCheckerResult(failure))
+        assertSame(failure, assertFailsWith<IllegalStateException> { cell.getFieldCheckerResult().get() })
+        assertFalse(cell.failFieldCheckerResult(IllegalStateException("second failure")))
+    }
+
+    @Test
     fun `unpublished checker slots differ from completed no-checker results`() {
         val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val key = schema.key("Query", "first")

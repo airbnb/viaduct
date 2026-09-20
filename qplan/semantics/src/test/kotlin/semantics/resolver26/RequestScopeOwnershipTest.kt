@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 
 class RequestScopeOwnershipTest {
     @Test
-    fun `only orchestration and field task roots can launch on the Resolver26 request scope`() {
+    fun `only orchestration field value and field checker task roots can launch on the request scope`() {
         val sourceDirectory = Path.of("src/main/kotlin/semantics/resolver26")
         assertTrue(Files.isDirectory(sourceDirectory), "Resolver26 source directory is missing")
         val sources =
@@ -44,6 +44,14 @@ class RequestScopeOwnershipTest {
             listOf("FieldResolverTask.kt"),
             sources.filter { source -> fieldRootLaunch.containsMatchIn(source.readText()) }
                 .map(Path::name)
+                .sorted(),
+        )
+
+        val fieldCheckerRootLaunch = Regex("""(?:\.\s*|::)dispatchFieldChecker(?:\s*\(|\b)""")
+        assertEquals(
+            listOf("resolvers/resolver21/CoroutineOrchestrationTask.kt"),
+            allSources.filter { source -> fieldCheckerRootLaunch.containsMatchIn(source.readText()) }
+                .map { semanticsDirectory.relativize(it).toString() }
                 .sorted(),
         )
     }

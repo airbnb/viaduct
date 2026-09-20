@@ -18,14 +18,14 @@ internal abstract class CoroutineFieldResolverTask<P : SharedFieldPublicationOcc
     /** Publishes ordinary failures while preserving actual cancellation and JVM Errors. */
     suspend fun run() {
         try {
-            resolveAndPublish()
+            executeAndPublish()
         } catch (cause: Exception) {
             currentCoroutineContext().ensureActive()
-            publishFieldError(cause)
+            publishFailure(cause)
         }
     }
 
-    protected abstract suspend fun resolveAndPublish()
+    protected abstract suspend fun executeAndPublish()
 
-    protected abstract fun publishFieldError(cause: Exception)
+    protected abstract fun publishFailure(cause: Exception)
 }

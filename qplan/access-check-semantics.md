@@ -31,6 +31,12 @@ A field checker belongs to a field occurrence, not to a field resolver invocatio
 
 Selecting a passive checked field must still create enough demand to run its checker. Conversely, a checker required selection can create value demand: if the checker selects an active field, that field's value resolver must run so the checker can receive its raw value.
 
+### Resolver-Family Boundary
+
+Access checks are implemented only by the coroutine resolver families. Resolver01–08 could execute the restricted case of a checker with no object- or Query-rooted required selections, but that capability would not extend to the intended semantics. Checker-required selections introduce raw value-demand edges, while any value resolver reached through such an edge evaluates its own dependencies as ordinary checked demand. Those edges can cross object occurrences and fresh checker Query roots and need not fit the fixed local dependency order used by the recursive and queued depth-first families.
+
+Supporting that general readiness graph in Resolver01–08 would require occurrence-aware suspension, promise readiness, or graph re-entry—the machinery that distinguishes the coroutine families. Qplan therefore leaves Resolver01–08 value-only rather than exposing a dead-end no-RSS access-check subset. Resolver21–23 stage the access-check design, and Resolver26 is its end-state implementation target. This is an intentional architecture boundary, not a claim that every restricted checker program is impossible to execute depth-first.
+
 ## Type Checks And Base Cells
 
 A type checker applies to each object-valued base cell of the checked type. List wrappers are significant because they can contain multiple such base cells.

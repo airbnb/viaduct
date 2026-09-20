@@ -3,13 +3,18 @@ package semantics.resolvers.resolver22
 import kotlinx.coroutines.CoroutineScope
 import model.ObjectEngineResult
 import model.SelectionForest
+import semantics.contract.FragmentFreeFieldCheckerPublicationContract
 import semantics.contract.CoroutineResolverContract
+import semantics.contract.CoroutineResolverTestSubject
 import semantics.resolvers.resolver21.startCoroutineResolution
 import semantics.resolvers.successorBoundaryDemand
 import semantics.shared.CycleCheckState
 import semantics.shared.SharedOperationContext
 
-class CoroutineResolveTest : CoroutineResolverContract {
+class CoroutineResolveTest :
+    CoroutineResolverTestSubject(),
+    CoroutineResolverContract,
+    FragmentFreeFieldCheckerPublicationContract {
     override val selectiveResolvers = false
     override val usesSingularQueryOER = true
 

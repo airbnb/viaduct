@@ -27,10 +27,11 @@ internal class CoroutineFieldResolverTask private constructor(
 
     companion object {
         /** Installs all local promises before dispatching any producer, including source references. */
-        fun launchAll(orchestrationTask: CoroutineOrchestrationTask) {
+        fun prepareAll(
+            orchestrationTask: CoroutineOrchestrationTask,
+        ): List<GroundedFieldPublicationOccurrence<CoroutineOperationContext>> {
             val operation = orchestrationTask.operation
-            val publications =
-                listOf(orchestrationTask.objectOER, orchestrationTask.queryOER).flatMap { oer ->
+            return listOf(orchestrationTask.objectOER, orchestrationTask.queryOER).flatMap { oer ->
                     val occurrence = oer.occurrence
                     oer.closedDemand.byGroundKey().filterKeys { !occurrence.target.isCellSet(it) }.map { (key, selection) ->
                         val reference = if (oer.source.isPresent(key.field.name)) {
@@ -44,7 +45,6 @@ internal class CoroutineFieldResolverTask private constructor(
                         )
                     }
                 }
-            publications.forEach(operation.dispatcher::dispatchFieldResolver)
         }
 
         /** List references use the same publication protocol at their exact list-element path. */
@@ -66,11 +66,11 @@ internal class CoroutineFieldResolverTask private constructor(
         }
     }
 
-    override suspend fun resolveAndPublish() {
+    override suspend fun executeAndPublish() {
         resolutionLogic.publishResult()
     }
 
-    override fun publishFieldError(cause: Exception) {
+    override fun publishFailure(cause: Exception) {
         resolutionLogic.publishFieldError(cause)
     }
 

@@ -5,11 +5,14 @@ import model.ObjectEngineResult
 import model.SelectionForest
 import model.schemaType
 import semantics.contract.CoroutineResolverContract
+import semantics.contract.CoroutineResolverTestSubject
 import semantics.shared.CycleCheckState
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
 
-class CoroutineResolveTest : CoroutineResolverContract {
+class CoroutineResolveTest :
+    CoroutineResolverTestSubject(),
+    CoroutineResolverContract {
     override val usesSingularQueryOER = true
 
     override fun startResolution(

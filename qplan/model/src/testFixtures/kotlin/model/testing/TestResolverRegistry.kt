@@ -31,6 +31,7 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.schemaType
+import model.registry.FieldChecker
 import model.registry.FieldResolver
 import model.registry.ResolutionExecutionContext
 import model.registry.MissingResolverException
@@ -125,6 +126,7 @@ internal fun resolverRegistryOf(
     schema: GJSchema,
     nodeResolvers: Map<ViaductSchema.Object, NodeResolverFunction>,
     fieldResolvers: Map<ViaductSchema.Field, FieldResolverDefinition>,
+    fieldCheckers: Map<ViaductSchema.ObjectField, FieldChecker> = emptyMap(),
     variableProviders: Map<Arguments.Variable, VariableDeclaration>,
 ): ResolverRegistry {
     val lowering = NodeResolverLowering(schema, nodeResolvers, fieldResolvers)
@@ -174,6 +176,7 @@ internal fun resolverRegistryOf(
     return TestResolverRegistry(
         schema = schema,
         fieldResolverDefinitions = registryResolvers,
+        fieldCheckers = fieldCheckers,
         variableDeclarations = registryVariableProviders,
     )
 }
@@ -450,6 +453,7 @@ private sealed interface DependencyVertex {
 private class TestResolverRegistry(
     private val schema: ViaductSchema,
     fieldResolverDefinitions: Map<ViaductSchema.Field, FieldResolverDefinition>,
+    private val fieldCheckers: Map<ViaductSchema.ObjectField, FieldChecker>,
     variableDeclarations: Map<Arguments.Variable, VariableDeclaration>,
 ) : ResolverRegistry {
     private val sourceFieldResolvers = fieldResolverDefinitions
@@ -479,6 +483,13 @@ private class TestResolverRegistry(
     private val outgoing: Map<DependencyVertex, Set<DependencyVertex>>
 
     init {
+        fieldCheckers.forEach { (field, checker) ->
+            validateCanonicalField(field, "field-checker field")
+            require(checker.field == field) {
+                "Field checker ${checker.field.containingDef.name}/${checker.field.name} does not belong to " +
+                    "${field.containingDef.name}/${field.name}"
+            }
+        }
         fieldResolverDefinitions.forEach { (field, resolver) ->
             validateCanonicalField(field, "field-resolver field")
             val typeName = field.containingDef.name
@@ -674,6 +685,11 @@ private class TestResolverRegistry(
         validateCanonicalField(field)
         return fieldResolvers[field]
             ?: throw MissingResolverException(field.containingDef.name, field.name)
+    }
+
+    override fun fieldChecker(field: ViaductSchema.ObjectField): FieldChecker? {
+        validateCanonicalField(field)
+        return fieldCheckers[field]
     }
 
     override fun mayDemandFrom(field: ViaductSchema.ObjectField): Set<ViaductSchema.ObjectField> {

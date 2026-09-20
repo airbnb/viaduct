@@ -44,6 +44,16 @@ annotation class NodeResolvers
 )
 annotation class FieldResolvers
 
+/** Canonical field checkers supplied to the test resolver registry. */
+@Qualifier
+@MustBeDocumented
+@Retention(AnnotationRetention.RUNTIME)
+@Target(
+    AnnotationTarget.FUNCTION,
+    AnnotationTarget.VALUE_PARAMETER,
+)
+annotation class FieldCheckers
+
 /** Alias-preserving variable-provider declarations supplied before registry assembly. */
 @Qualifier
 @MustBeDocumented

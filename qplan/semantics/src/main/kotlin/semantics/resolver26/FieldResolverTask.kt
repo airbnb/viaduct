@@ -45,7 +45,7 @@ internal class FieldPublicationOccurrence(
     val queryOER: SharedOERContext,
     /** Variable-provider reads rooted in the publication's object or associated Query OER. */
     val variableProviderReads: List<VariableProviderReadOccurrence>,
-) : SharedFieldPublicationOccurrence<OperationContext, CoroutineTaskDispatcher<OrchestrationTask, FieldPublicationOccurrence>>,
+) : SharedFieldPublicationOccurrence<OperationContext, CoroutineTaskDispatcher<OrchestrationTask, FieldPublicationOccurrence, Nothing>>,
     OperationContext by operation
 
 /** Owns setup and resolution for one field publication. */
@@ -240,13 +240,13 @@ internal class FieldResolverTask private constructor(
         }
     }
 
-    override suspend fun resolveAndPublish() {
+    override suspend fun executeAndPublish() {
         launchTaskSetupCoroutines()
         resolutionLogic.validate()
         resolutionLogic.publishResult()
     }
 
-    override fun publishFieldError(cause: Exception) {
+    override fun publishFailure(cause: Exception) {
         resolutionLogic.publishFieldError(cause)
     }
 

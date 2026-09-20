@@ -73,7 +73,11 @@ internal class CoroutineOrchestrationTask private constructor(
         get() = listOf(objectOER, queryOER).any { oer ->
             oer.closedDemand.groundKeys().any { key ->
                 key !is ObjectEngineResult.ParentKey &&
-                    (!oer.source.isPresent(key.field.name) || oer.source.outputValue(key.field.name) is RootFieldReferenceData)
+                    (
+                        !oer.source.isPresent(key.field.name) ||
+                            oer.source.outputValue(key.field.name) is RootFieldReferenceData ||
+                        operation.world.resolverRegistry.fieldChecker(key.field) != null
+                    )
             }
         }
 
@@ -81,7 +85,15 @@ internal class CoroutineOrchestrationTask private constructor(
         IllegalStateException("Object orchestrated twice: ${objectOER.occurrence.path}")
 
     override fun installFieldTasks() {
-        CoroutineFieldResolverTask.launchAll(this)
+        val fieldPublications = CoroutineFieldResolverTask.prepareAll(this)
+        val checkerPublications = CoroutineFieldCheckerTask.prepareAll(this)
+        checkerPublications.filter { it.checker == null }.forEach { publication ->
+            check(publication.publicationCell.getFieldCheckerResult().complete(null)) {
+                "Field-checker result was completed twice"
+            }
+        }
+        fieldPublications.forEach(operation.dispatcher::dispatchFieldResolver)
+        checkerPublications.filter { it.checker != null }.forEach(operation.dispatcher::dispatchFieldChecker)
     }
 
     private fun observeQueryOER() {

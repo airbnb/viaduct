@@ -4,15 +4,31 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
+import model.EngineResultCell
 import semantics.shared.SharedFieldPublicationOccurrence
 import semantics.shared.SharedTaskDispatcher
 
-/** Owns the two permitted request-root coroutine kinds for Resolver21-23 and Resolver26. */
-internal class CoroutineTaskDispatcher<O : CoroutineOrchestrationTask<*>, F : SharedFieldPublicationOccurrence<*, *>>(
+/** Coroutine-family publication capability needed for checker cancellation before task entry. */
+internal interface CoroutineFieldCheckerPublicationOccurrence {
+    val publicationCell: EngineResultCell
+}
+
+/** Owns the permitted request-root coroutine kinds for Resolver21-23 and Resolver26. */
+internal class CoroutineTaskDispatcher<
+    O : CoroutineOrchestrationTask<*>,
+    F : SharedFieldPublicationOccurrence<*, *>,
+    C : CoroutineFieldCheckerPublicationOccurrence,
+>(
     private val requestScope: CoroutineScope,
     private val runFieldResolver: suspend (F, CoroutineScope) -> Unit,
     private val cancelFieldResolver: (F, CancellationException) -> Unit = { publication, cause ->
         publication.publicationCell.cancelValue(cause)
+    },
+    private val runFieldChecker: suspend (C) -> Unit = {
+        throw UnsupportedOperationException("This coroutine dispatcher does not support field checkers")
+    },
+    private val cancelFieldChecker: (C, CancellationException) -> Unit = { publication, cause ->
+        publication.publicationCell.cancelFieldCheckerResult(cause)
     },
 ) : SharedTaskDispatcher<O, F> {
     override fun dispatchOrchestrator(task: O) {
@@ -31,6 +47,14 @@ internal class CoroutineTaskDispatcher<O : CoroutineOrchestrationTask<*>, F : Sh
         }.invokeOnCompletion { cause ->
             // Also terminates owned promises when cancellation prevents task entry.
             if (cause is CancellationException) cancelFieldResolver(publication, cause)
+        }
+    }
+
+    fun dispatchFieldChecker(publication: C) {
+        requestScope.launch {
+            runFieldChecker(publication)
+        }.invokeOnCompletion { cause ->
+            if (cause is CancellationException) cancelFieldChecker(publication, cause)
         }
     }
 }

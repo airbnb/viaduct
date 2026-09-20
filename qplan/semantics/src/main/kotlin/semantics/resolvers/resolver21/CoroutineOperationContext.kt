@@ -13,14 +13,25 @@ internal class CoroutineOperationContext(
     requestScope: CoroutineScope,
     val complete: (SelectionForest) -> SelectionForest,
     val cycleChecker: CycleCheckState,
-) : SharedOperationContext<CoroutineTaskDispatcher<CoroutineOrchestrationTask, GroundedFieldPublicationOccurrence<CoroutineOperationContext>>> by
+) : SharedOperationContext<
+    CoroutineTaskDispatcher<
+        CoroutineOrchestrationTask,
+        GroundedFieldPublicationOccurrence<CoroutineOperationContext>,
+        GroundedFieldCheckerPublicationOccurrence,
+    >,
+> by
     SharedOperationContext.create(
         world = base.world,
         variableBindings = base.variableBindings,
         resolverObserver = base.resolverObserver,
-        dispatcher = CoroutineTaskDispatcher<CoroutineOrchestrationTask, GroundedFieldPublicationOccurrence<CoroutineOperationContext>>(
+        dispatcher = CoroutineTaskDispatcher<
+            CoroutineOrchestrationTask,
+            GroundedFieldPublicationOccurrence<CoroutineOperationContext>,
+            GroundedFieldCheckerPublicationOccurrence,
+        >(
             requestScope = requestScope,
             runFieldResolver = CoroutineFieldResolverTask::execute,
+            runFieldChecker = CoroutineFieldCheckerTask::execute,
         ),
     ) {
     val passiveValues = CoroutinePassiveValueResolutionLogic(this)

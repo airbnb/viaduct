@@ -52,20 +52,38 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import viaduct.engine.api.EngineObjectData
 
-/** Common promise lifecycle and failure protocol for Resolver21-23 and Resolver26. */
-interface CoroutineResolverContract {
-    val selectiveResolvers: Boolean
+/** Shared subject adapter and request helpers for coroutine resolver contracts. Contains no tests. */
+abstract class CoroutineResolverTestSubject {
+    open val selectiveResolvers: Boolean
         get() = true
-    val usesSingularQueryOER: Boolean
+    open val usesSingularQueryOER: Boolean
         get() = false
 
+    val coroutineResolverSubject: CoroutineResolverTestSubject
+        get() = this
+
     /** Starts a request under [requestScope] and exposes its live root for lifecycle assertions. */
-    fun startResolution(
+    abstract fun startResolution(
         operation: SharedOperationContext<*>,
         requestScope: CoroutineScope,
         selections: SelectionForest,
         cycleChecker: CycleCheckState,
     ): ObjectEngineResult
+
+    fun resolve(
+        operation: SharedOperationContext<*>,
+        selections: SelectionForest,
+        cycleChecker: CycleCheckState = CycleCheckState.create(),
+    ): ObjectEngineResult = runBlocking {
+        withTimeout(5_000) {
+            coroutineScope { startResolution(operation, this, selections, cycleChecker) }
+        }
+    }
+}
+
+/** Common promise lifecycle and failure protocol for Resolver21-23 and Resolver26. */
+interface CoroutineResolverContract {
+    val coroutineResolverSubject: CoroutineResolverTestSubject
 
     @Test
     fun `installs every local promise before any local producer starts`() {
@@ -700,11 +718,21 @@ private fun CoroutineResolverContract.resolve(
     operation: SharedOperationContext<*>,
     selections: SelectionForest,
     cycleChecker: CycleCheckState = CycleCheckState.create(),
-): ObjectEngineResult = runBlocking {
-    withTimeout(5_000) {
-        coroutineScope { startResolution(operation, this, selections, cycleChecker) }
-    }
-}
+): ObjectEngineResult = coroutineResolverSubject.resolve(operation, selections, cycleChecker)
+
+private val CoroutineResolverContract.selectiveResolvers: Boolean
+    get() = coroutineResolverSubject.selectiveResolvers
+
+private val CoroutineResolverContract.usesSingularQueryOER: Boolean
+    get() = coroutineResolverSubject.usesSingularQueryOER
+
+private fun CoroutineResolverContract.startResolution(
+    operation: SharedOperationContext<*>,
+    requestScope: CoroutineScope,
+    selections: SelectionForest,
+    cycleChecker: CycleCheckState,
+): ObjectEngineResult =
+    coroutineResolverSubject.startResolution(operation, requestScope, selections, cycleChecker)
 
 private fun fieldFailureWorld(selective: Boolean, failure: Throwable): TestWorld = TestWorld.fromSDL(
     selectiveResolvers = selective,

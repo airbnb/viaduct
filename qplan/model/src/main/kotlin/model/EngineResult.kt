@@ -103,6 +103,9 @@ sealed interface EngineResultCell {
 
     fun createFieldCheckerResultPromise(): Promise<CheckerResult?>
 
+    /** Atomically completes the claimed field-checker result exceptionally. */
+    fun failFieldCheckerResult(cause: Exception): Boolean
+
     /** Positively activates and atomically cancels the field-checker result. */
     fun cancelFieldCheckerResult(cause: CancellationException): Boolean
 
@@ -851,6 +854,13 @@ private class CellImpl(
     override fun createFieldCheckerResultPromise(): Promise<CheckerResult?> {
         checkMutable()
         return fieldCheckerResultStore.create(Unit, this)
+    }
+
+    override fun failFieldCheckerResult(cause: Exception): Boolean {
+        checkMutable()
+        return checkNotNull(fieldCheckerResultStore.readOrNull(Unit)) {
+            "Cell has no field-checker-result writer"
+        }.completeExceptionally(cause)
     }
 
     override fun cancelFieldCheckerResult(cause: CancellationException): Boolean =

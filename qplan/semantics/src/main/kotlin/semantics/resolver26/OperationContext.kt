@@ -8,7 +8,7 @@ import semantics.shared.SharedOperationContext
  * One Resolver26 execution scope: scheduling, observation, cycle checking, and binding readiness.
  * Child execution scopes share the logical operation's configuration and mutable state references.
  */
-internal interface OperationContext : SharedOperationContext<CoroutineTaskDispatcher<OrchestrationTask, FieldPublicationOccurrence>> {
+internal interface OperationContext : SharedOperationContext<CoroutineTaskDispatcher<OrchestrationTask, FieldPublicationOccurrence, Nothing>> {
     val cycleChecker: CycleCheckState
     val bindingsState: BindingDeclarationsState
 
@@ -27,14 +27,14 @@ internal interface OperationContext : SharedOperationContext<CoroutineTaskDispat
                 world = base.world,
                 variableBindings = base.variableBindings,
                 resolverObserver = base.resolverObserver,
-                dispatcher = CoroutineTaskDispatcher<OrchestrationTask, FieldPublicationOccurrence>(
+                dispatcher = CoroutineTaskDispatcher<OrchestrationTask, FieldPublicationOccurrence, Nothing>(
                     requestScope = requestScope,
                     runFieldResolver = FieldResolverTask::execute,
                     cancelFieldResolver = FieldResolverTask::cancel,
                 ),
             )
             return object : OperationContext,
-                SharedOperationContext<CoroutineTaskDispatcher<OrchestrationTask, FieldPublicationOccurrence>> by operationDelegate {
+                SharedOperationContext<CoroutineTaskDispatcher<OrchestrationTask, FieldPublicationOccurrence, Nothing>> by operationDelegate {
                 override val cycleChecker = cycleChecker
                 override val bindingsState = bindingsState
             }
