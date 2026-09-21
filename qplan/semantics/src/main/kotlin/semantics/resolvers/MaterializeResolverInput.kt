@@ -2,8 +2,8 @@ package semantics.resolvers
 
 import model.MaterializeSelectionForest
 import model.ObjectEngineResult
-import model.PathComponent
 import semantics.shared.CycleCheckState
+import semantics.shared.CycleTask
 import semantics.shared.SharedOperationContext
 import semantics.shared.materializeResult
 import viaduct.engine.api.EngineObjectData
@@ -24,6 +24,6 @@ internal suspend fun ObjectEngineResult.materializeResolverInput(
     operation: SharedOperationContext<*>,
     cycleChecker: CycleCheckState,
     selections: MaterializeSelectionForest,
-    reader: List<PathComponent>,
+    reader: CycleTask,
 ): EngineObjectData.Sync =
     materializeResult(operation, selections, reader, cycleChecker)

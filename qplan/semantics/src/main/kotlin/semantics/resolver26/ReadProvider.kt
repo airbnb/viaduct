@@ -15,6 +15,8 @@ import model.Selection
 import model.VariableBinding
 import semantics.shared.fetchGroundedArguments
 import semantics.shared.fetchIncluded
+import semantics.shared.CycleTask
+import semantics.shared.valueCycleSlot
 import model.objectKey
 import model.outputType
 import model.registry.InstantiatedFieldPathDefinition
@@ -27,7 +29,7 @@ import viaduct.graphql.schema.ViaductSchema
 internal suspend fun ObjectEngineResult.readProvider(
     operation: OperationContext,
     definition: InstantiatedFieldPathDefinition,
-    reader: List<PathComponent>,
+    reader: CycleTask,
 ): VariableBinding = readProvider(operation, definition.path, reader)
 
 // Reads and completes provider bindings; the owning field-task root handles cancellation cleanup.
@@ -44,7 +46,7 @@ internal suspend fun completeProviderBindings(
                         providerRead.providerResult.readProvider(
                             operation = operation,
                             definition = providerRead.definition,
-                            reader = providerRead.readerPath,
+                            reader = providerRead.reader,
                         )
                     } catch (exception: Exception) {
                         currentCoroutineContext().ensureActive()
@@ -59,7 +61,7 @@ internal suspend fun completeProviderBindings(
 private suspend fun ObjectEngineResult.readProvider(
     operation: OperationContext,
     path: List<InstantiatedFieldPathElement>,
-    reader: List<PathComponent>,
+    reader: CycleTask,
 ): VariableBinding {
     var current = this
     path.forEachIndexed { index, element ->
@@ -75,7 +77,7 @@ private suspend fun ObjectEngineResult.readProvider(
         val objectKey = specializedKey
         objectKey.fetchGroundedArguments(operation)
         val cell = current.reserveCell(objectKey)
-        operation.cycleChecker.cycleCheck(reader, cell)
+        operation.cycleChecker.cycleCheck(reader, cell.valueCycleSlot)
         val value = cell.reserveValue().await()
         if (index == path.lastIndex) {
             return value.toProviderBinding(objectKey.field.outputType)

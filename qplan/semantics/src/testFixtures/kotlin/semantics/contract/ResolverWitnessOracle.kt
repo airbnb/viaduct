@@ -23,6 +23,7 @@ import semantics.correctresolution.ownedRootFieldReferenceInvocations
 import semantics.shared.materializeResult
 import semantics.shared.groundedArguments
 import semantics.shared.SharedOperationContext
+import semantics.shared.fieldResolverCycleTask
 import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.shared.RootFieldReferenceInvocationObservation
 
@@ -62,7 +63,7 @@ fun EngineResult?.registeredResolverApplicationIdentityCounts(operation: SharedO
                                     resolver.instantiateObjectMaterializationSelections(
                                         fragment.resolverOccurrenceId,
                                     ),
-                                reader = cell.occurrencePath,
+                                reader = root.fieldResolverCycleTask(cell.occurrencePath),
                             ).resolutionFingerprint()
                     },
             )
@@ -138,7 +139,7 @@ private fun EngineResult?.reconstructResolverOccurrenceApplicationIdentityCounts
                                             resolver.instantiateObjectMaterializationSelections(
                                                 fragment.resolverOccurrenceId,
                                             ),
-                                        reader = cell.occurrencePath,
+                                        reader = root.fieldResolverCycleTask(cell.occurrencePath),
                                     ).resolutionFingerprint()
                             },
                     ),

@@ -12,6 +12,8 @@ import model.RootFieldReferenceData
 import model.SelectionForest
 import model.merge
 import semantics.shared.OEROccurrence
+import semantics.shared.fieldResolverCycleTask
+import semantics.shared.valueCycleSlot
 import semantics.shared.SharedPassiveValueResolutionLogic
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
@@ -53,7 +55,10 @@ private class PassiveValueResolutionLogic(
         parent: OEROccurrence,
     ) {
         cell.createValuePromise()
-        operation.cycleChecker.registerWriter(cell, path)
+        operation.cycleChecker.registerWriter(
+            slot = cell.valueCycleSlot,
+            writer = parent.root.fieldResolverCycleTask(path),
+        )
         FieldResolverTask.launchForListElement(
             operation = operation,
             oerOccurrence = parent,

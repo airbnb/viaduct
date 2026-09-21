@@ -22,6 +22,8 @@ import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import semantics.contract.get
 import semantics.shared.CycleCheckState
+import semantics.shared.fieldResolverCycleTask
+import semantics.shared.valueCycleSlot
 import semantics.shared.ResolverObserver
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.ResolverReadCycleException
@@ -85,6 +87,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
     fun `successful nested query retains its caller dependency in the operation checker`(): Unit =
         runBlocking {
             lateinit var observedChecker: CycleCheckState
+            lateinit var innerRoot: ObjectEngineResult
             val testWorld =
                 TestWorld.fromSDL(
                     schemaSDL = "type Query { outer: Int!, inner: Int! }",
@@ -105,7 +108,14 @@ class ResolverStartTest : Resolver26DispatcherResource {
                                         .get("inner")
                                 },
                             inner to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _, executionContext ->
+                                    innerRoot =
+                                        assertIs<FieldResolverTask>(executionContext)
+                                            .publication
+                                            .oerOccurrence
+                                            .root
+                                    7
+                                },
                         )
                     },
                 )
@@ -128,12 +138,15 @@ class ResolverStartTest : Resolver26DispatcherResource {
             assertEquals(7, outerCell.getValue().await())
 
             assertFailsWith<ResolverReadCycleException> {
-                observedChecker.cycleCheck(reader = listOf(innerKey), cell = outerCell)
+                observedChecker.cycleCheck(
+                    reader = innerRoot.fieldResolverCycleTask(listOf(innerKey)),
+                    slot = outerCell.valueCycleSlot,
+                )
             }
         }
 
     @Test
-    fun `recursive nested query retains runtime read cycle rejection`(): Unit =
+    fun `equal resolver paths in distinct nested Query roots do not form a cycle`(): Unit =
         runBlocking {
             val invocations = AtomicInteger()
             val testWorld =
@@ -169,8 +182,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
                 )
 
             assertEquals(2, invocations.get())
-            val error = assertIs<ErrorEngineResult>(result.getCell(key).getValue().await())
-            assertIs<ResolverReadCycleException>(error.errorData.cause)
+            assertEquals(7, result.getCell(key).getValue().await())
         }
 
     @Test

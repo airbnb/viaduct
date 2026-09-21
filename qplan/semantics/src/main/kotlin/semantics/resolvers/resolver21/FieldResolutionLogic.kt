@@ -19,6 +19,8 @@ import semantics.resolvers.emptyObjectInput
 import semantics.resolvers.prepareInvocation
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.RootFieldReferenceInvocationObservation
+import semantics.shared.CycleTask
+import semantics.shared.fieldResolverCycleTask
 import semantics.resolvers.materializeResolverInput
 import semantics.shared.withAuthoritativeNodeId
 import viaduct.engine.api.EngineObjectData
@@ -76,10 +78,12 @@ internal class FieldResolutionLogic(
         val publication = fieldResolverTask.publication
         val resolver = publication.operation.world.resolverRegistry.resolver(publication.selection.key.field)
         val fragments = resolver.instantiateFragmentsAt(publication.oerOccurrence.root, publication.publicationPath)
+        val reader = publication.oerOccurrence.root.fieldResolverCycleTask(publication.publicationPath)
         val queryValue =
             materializeQueryFragment(
                 resolver,
                 fragments.queryFragment,
+                reader,
             )
         val objectMaterializationSelections =
             resolver.instantiateObjectMaterializationSelections(
@@ -89,7 +93,7 @@ internal class FieldResolutionLogic(
             operation = publication.operation,
             cycleChecker = publication.operation.cycleChecker,
             selections = objectMaterializationSelections,
-            reader = publication.publicationPath,
+            reader = reader,
         )
         publication.operation.resolverObserver.onResolverInvocation(
             ResolverInvocationObservation(
@@ -115,6 +119,7 @@ internal class FieldResolutionLogic(
     private suspend fun materializeQueryFragment(
         resolver: FieldResolver,
         queryFragment: ResolverFragment,
+        reader: CycleTask,
     ): EngineObjectData.Sync {
         val publication = fieldResolverTask.publication
         check(queryFragment.constructionSelections.isEmpty() || publication.queryOER.isDemanded()) {
@@ -128,7 +133,7 @@ internal class FieldResolutionLogic(
             operation = publication.operation,
             cycleChecker = publication.operation.cycleChecker,
             selections = materializationSelections,
-            reader = publication.publicationPath,
+            reader = reader,
         )
     }
 
@@ -142,7 +147,7 @@ internal class FieldResolutionLogic(
             fieldResolverTask.launchQueryFragmentProducer(
                 invocation.resolver,
                 invocation.fragments.queryFragment,
-                invocation.path,
+                invocation.root.fieldResolverCycleTask(invocation.path),
             )
         val queryValue = when (val value = queryProducer.await()) {
             is EngineObjectOrErrorData.Success -> value.value

@@ -25,6 +25,8 @@ import semantics.resolvers.emptyObjectInput
 import semantics.resolvers.prepareInvocation
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.CycleCheckState
+import semantics.shared.CycleTask
+import semantics.shared.fieldResolverCycleTask
 import semantics.shared.SharedFieldResolverTask
 import semantics.shared.RootFieldReferenceInvocationObservation
 import semantics.resolvers.materializeResolverInput
@@ -87,7 +89,7 @@ internal class DepthFirstFieldResolverTask private constructor(
                 val queryValue =
                     queryOER.occurrence.target.materializeInput(
                         queryMaterializationSelections,
-                        publicationPath,
+                        oerOccurrence.root.fieldResolverCycleTask(publicationPath),
                     )
 
                 val objectMaterializationSelections =
@@ -97,7 +99,7 @@ internal class DepthFirstFieldResolverTask private constructor(
                 val input = // Sibling dependency order and depth-first dispatch make this input ready.
                     oerOccurrence.target.materializeInput(
                         objectMaterializationSelections,
-                        publicationPath,
+                        oerOccurrence.root.fieldResolverCycleTask(publicationPath),
                     )
 
                 runBlocking {
@@ -217,14 +219,14 @@ internal class DepthFirstFieldResolverTask private constructor(
             resolver.instantiateQueryMaterializationSelections(
                 queryFragment.resolverOccurrenceId,
             ),
-            coordinate,
+            publication.oerOccurrence.root.fieldResolverCycleTask(coordinate),
         )
     }
 
     /** Materializes one already-prepared depth-first input through the shared suspend API. */
     private fun ObjectEngineResult.materializeInput(
         selections: MaterializeSelectionForest,
-        reader: List<PathComponent>,
+        reader: CycleTask,
     ): EngineObjectData.Sync = runBlocking {
         materializeResolverInput(
             operation = publication.operation,

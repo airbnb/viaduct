@@ -29,6 +29,9 @@ import semantics.shared.argumentsContainErrorValue
 import semantics.shared.SharedFieldPublicationOccurrence
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOERContext
+import semantics.shared.CycleTask
+import semantics.shared.fieldResolverCycleTask
+import semantics.shared.valueCycleSlot
 import semantics.shared.materializeResult
 import viaduct.engine.api.EngineObjectData
 
@@ -160,8 +163,8 @@ internal class FieldResolverTask private constructor(
             val publicationCell = oerOccurrence.target.reserveCell(objectKey)
             publicationCell.createValuePromise()
             operation.cycleChecker.registerWriter(
-                cell = publicationCell,
-                writer = oerOccurrence.coordinate(objectKey),
+                slot = publicationCell.valueCycleSlot,
+                writer = oerOccurrence.fieldResolverCycleTask(objectKey),
             )
             return FieldPublicationOccurrence(
                 operation, oerOccurrence, sourceOccurrence,
@@ -264,7 +267,9 @@ internal class FieldResolverTask private constructor(
         return result.materializeResult(
             operation = childOperation,
             selections = selections,
-            reader = publication.sourceOccurrence.publicationPath,
+            reader =
+                publication.oerOccurrence.root
+                    .fieldResolverCycleTask(publication.sourceOccurrence.publicationPath),
             cycleChecker = childOperation.cycleChecker,
         )
     }
@@ -307,7 +312,9 @@ internal class FieldResolverTask private constructor(
                             fieldResolverOccurrence.resolver.resolveQueryFragment(
                                 queryFragment = fieldResolverOccurrence.fragments.queryFragment,
                                 operation = publication.operation,
-                                coordinate = fieldResolverOccurrence.invocationPath,
+                                reader =
+                                    fieldResolverOccurrence.invocationRoot
+                                        .fieldResolverCycleTask(fieldResolverOccurrence.invocationPath),
                                 inclusionCondition =
                                     fieldResolverOccurrence.selection.inclusionCondition,
                             )
@@ -336,7 +343,7 @@ internal class FieldResolverTask private constructor(
 private suspend fun FieldResolver.resolveQueryFragment(
     queryFragment: ResolverFragment,
     operation: OperationContext,
-    coordinate: List<PathComponent>,
+    reader: CycleTask,
     inclusionCondition: InclusionCondition,
 ): EngineObjectData.Sync {
     if (queryFragment.constructionSelections.isEmpty()) {
@@ -375,7 +382,8 @@ private suspend fun FieldResolver.resolveQueryFragment(
                 VariableProviderReadOccurrence(
                     providerResult = queryResult,
                     definition = definition,
-                    readerPath = coordinate,
+                    reader = reader,
+                    inclusionCondition = inclusionCondition,
                 )
             },
     )
@@ -386,7 +394,7 @@ private suspend fun FieldResolver.resolveQueryFragment(
         operation = operation,
         cycleChecker = operation.cycleChecker,
         selections = materializeSelections,
-        reader = coordinate,
+        reader = reader,
         resultPath = emptyList(),
     )
 }

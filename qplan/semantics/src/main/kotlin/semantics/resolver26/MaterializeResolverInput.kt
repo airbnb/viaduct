@@ -19,6 +19,8 @@ import model.PathComponent
 import model.materializedEngineObjectDataOf
 import model.toEngineOutputData
 import semantics.shared.CycleCheckState
+import semantics.shared.CycleTask
+import semantics.shared.valueCycleSlot
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.EngineObjectData
 
@@ -39,7 +41,7 @@ internal suspend fun ObjectEngineResult.materializeResolverInput(
     operation: SharedOperationContext<*>,
     cycleChecker: CycleCheckState,
     selections: MaterializeSelectionForest,
-    reader: List<PathComponent>,
+    reader: CycleTask,
     resultPath: List<PathComponent>,
 ): EngineObjectData.Sync =
     ResolverInputMaterializationLogic(operation, cycleChecker).materialize(this, selections, reader, resultPath)
@@ -52,7 +54,7 @@ private class ResolverInputMaterializationLogic(
     suspend fun materialize(
         result: ObjectEngineResult,
         selections: MaterializeSelectionForest,
-        reader: List<PathComponent>,
+        reader: CycleTask,
         resultPath: List<PathComponent>,
     ): EngineObjectData.Sync =
         result.materializeSelectedObject(
@@ -64,7 +66,7 @@ private class ResolverInputMaterializationLogic(
     // Materializes selected OER values at their exact stored paths.
     private suspend fun ObjectEngineResult.materializeSelectedObject(
         selections: MaterializeSelectionForest,
-        reader: List<PathComponent>,
+        reader: CycleTask,
         resultPath: List<PathComponent>,
     ): EngineObjectData.Sync {
         val selectedValues =
@@ -72,7 +74,7 @@ private class ResolverInputMaterializationLogic(
         selections.fetchIncluded().collect(type).byResponseKey().forEach { (responseKey, selection) ->
             val storedKey = selection.materializedObjectKey()
             val cell = reserveCell(storedKey)
-            cycleChecker.cycleCheck(reader, cell)
+            cycleChecker.cycleCheck(reader, cell.valueCycleSlot)
             val selectedValue: EngineOutputData? =
                 cell
                     .reserveValue()
@@ -117,7 +119,7 @@ private class ResolverInputMaterializationLogic(
     private suspend fun EngineResult?.materializeSelectedValue(
         expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
         selections: MaterializeSelectionForest,
-        reader: List<PathComponent>,
+        reader: CycleTask,
         resultPath: List<PathComponent>,
     ): EngineOutputData? {
         return when (this) {
@@ -134,7 +136,9 @@ private class ResolverInputMaterializationLogic(
                 require(expectedType.isList)
                 val values: EngineOutputListData =
                     indices.map { index ->
-                        get(index).getValue().await().materializeSelectedValue(
+                        val cell = get(index)
+                        cycleChecker.cycleCheck(reader, cell.valueCycleSlot)
+                        cell.getValue().await().materializeSelectedValue(
                             expectedType = typeExpr,
                             selections = selections,
                             reader = reader,

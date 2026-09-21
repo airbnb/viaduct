@@ -17,6 +17,9 @@ import model.registry.ResolverFragment
 import model.requireQueryTypeDef
 import semantics.resolvers.GroundedFieldPublicationOccurrence
 import semantics.resolvers.materializeResolverInput
+import semantics.shared.CycleTask
+import semantics.shared.fieldResolverCycleTask
+import semantics.shared.valueCycleSlot
 
 /** Owns field-local helper coroutines and delegates invocation and publication to resolution logic. */
 internal class CoroutineFieldResolverTask private constructor(
@@ -58,7 +61,10 @@ internal class CoroutineFieldResolverTask private constructor(
             if (publicationPath.last() is ObjectEngineResult.ObjectKey) {
                 check(publicationCell.setActivated(true)) { "Cell activation was decided twice" }
             }
-            operation.cycleChecker.registerWriter(publicationCell, publicationPath)
+            operation.cycleChecker.registerWriter(
+                slot = publicationCell.valueCycleSlot,
+                writer = oerOccurrence.root.fieldResolverCycleTask(publicationPath),
+            )
         }
 
         internal suspend fun execute(publication: GroundedFieldPublicationOccurrence<CoroutineOperationContext>, scope: CoroutineScope) {
@@ -82,7 +88,7 @@ internal class CoroutineFieldResolverTask private constructor(
     fun launchQueryFragmentProducer(
         resolver: FieldResolver,
         queryFragment: ResolverFragment,
-        coordinate: List<PathComponent>,
+        reader: CycleTask,
     ): Deferred<EngineObjectOrErrorData> = fieldTaskScope.async {
         try {
             val queryValue = if (queryFragment.constructionSelections.isEmpty()) {
@@ -99,7 +105,7 @@ internal class CoroutineFieldResolverTask private constructor(
                         resolver.instantiateQueryMaterializationSelections(
                             queryFragment.resolverOccurrenceId,
                         ),
-                    reader = coordinate,
+                    reader = reader,
                 )
             }
             EngineObjectOrErrorData.of(queryValue)

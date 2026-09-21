@@ -24,6 +24,8 @@ import semantics.shared.argumentsContainErrorValue
 import semantics.shared.ResolverInputConstructionDemand
 import viaduct.engine.api.EngineObjectData
 import semantics.shared.OEROccurrence
+import semantics.shared.CycleTask
+import semantics.shared.fieldResolverCycleTask
 import viaduct.graphql.schema.ViaductSchema
 
 /**
@@ -49,13 +51,14 @@ internal class ClosedOERConstructionDemandContext(
 /**
  * One planned provider-path read that produces an instantiated variable binding.
  * The definition identifies the provider path and destination variable; the condition controls
- * execution, and the reader path identifies the consumer for cycle checking. The containing
+ * execution, and [reader] identifies the consumer for cycle checking. The containing
  * object or Query result supplies the root from which the provider path is read.
  */
 internal class VariableProviderReadOccurrence(
     val providerResult: ObjectEngineResult,
     val definition: InstantiatedFieldPathDefinition,
-    val readerPath: List<PathComponent>,
+    val reader: CycleTask,
+    val inclusionCondition: InclusionCondition,
 )
 
 /**
@@ -268,13 +271,23 @@ private fun closeOERConstructionDemand(
                             VariableProviderReadOccurrence(
                                 providerResult = objectProviderResult,
                                 definition = definition,
-                                readerPath = occurrence.coordinate(objectKey),
+                                reader = occurrence.fieldResolverCycleTask(objectKey),
+                                inclusionCondition =
+                                    closedDemand
+                                        .byKey()
+                                        .getValue(objectKey)
+                                        .inclusionCondition,
                             )
                         } + resolverContext.fragments.queryFragment.pathVariableDefinitions.map { definition ->
                             VariableProviderReadOccurrence(
                                 providerResult = queryProviderResult,
                                 definition = definition,
-                                readerPath = occurrence.coordinate(objectKey),
+                                reader = occurrence.fieldResolverCycleTask(objectKey),
+                                inclusionCondition =
+                                    closedDemand
+                                        .byKey()
+                                        .getValue(objectKey)
+                                        .inclusionCondition,
                             )
                         }
                     }

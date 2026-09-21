@@ -23,6 +23,8 @@ import viaduct.graphql.schema.graphqljava.gjDef
 import model.materializeSelectionForestOf
 import model.testing.TestWorld
 import semantics.shared.CycleCheckState
+import semantics.shared.fieldResolverCycleTask
+import semantics.shared.valueCycleSlot
 import semantics.shared.ResolverReadCycleException
 import semantics.shared.materializeResult
 import semantics.shared.SharedOperationContext
@@ -68,7 +70,7 @@ class MaterializeTest {
                     result.materializeResult(
                         operation = SharedOperationContext.create(world),
                         selections = selections,
-                        reader = emptyList(),
+                        reader = result.fieldResolverCycleTask(emptyList()),
                     )
                 }
 
@@ -102,7 +104,7 @@ class MaterializeTest {
                 result.materializeResult(
                     operation = SharedOperationContext.create(world),
                     selections = selections,
-                    reader = emptyList(),
+                    reader = result.fieldResolverCycleTask(emptyList()),
                 )
             }
         }
@@ -143,9 +145,10 @@ class MaterializeTest {
                 .fragmentFrom("fragment ignored on Query { child { value } }")
                 .materializeSelections
         val cycleChecker = CycleCheckState.create()
+        val readerIdentity = result.fieldResolverCycleTask(reader)
         cycleChecker.registerWriter(
-            cell = valueCell,
-            writer = reader,
+            slot = valueCell.valueCycleSlot,
+            writer = readerIdentity,
         )
 
         val failure =
@@ -155,12 +158,12 @@ class MaterializeTest {
                         operation = SharedOperationContext.create(world),
                         cycleChecker = cycleChecker,
                         selections = selections,
-                        reader = reader,
+                        reader = readerIdentity,
                     )
                 }
             }
 
-        assertEquals(listOf(reader, reader), failure.cycle)
+        assertEquals(listOf(readerIdentity, readerIdentity), failure.cycle)
     }
 
     @Test
@@ -237,7 +240,11 @@ class MaterializeTest {
                     .materializeSelections
 
             val materialized =
-                parentResult.materializeResult(SharedOperationContext.create(world), selections, emptyList())
+                parentResult.materializeResult(
+                    SharedOperationContext.create(world),
+                    selections,
+                    parentResult.fieldResolverCycleTask(emptyList()),
+                )
 
             assertSame(parent.gjDef, materialized.type)
             assertNotNull(materialized.type.getFieldDefinition("user"))
@@ -296,7 +303,11 @@ class MaterializeTest {
                 )
 
             val materialized =
-                result.materializeResult(SharedOperationContext.create(world), selections, emptyList())
+                result.materializeResult(
+                    SharedOperationContext.create(world),
+                    selections,
+                    result.fieldResolverCycleTask(emptyList()),
+                )
 
             assertEquals(setOf("first", "second"), materialized.selectionValues().keys)
             assertEquals("same", materialized.selectionValues().getValue("first"))

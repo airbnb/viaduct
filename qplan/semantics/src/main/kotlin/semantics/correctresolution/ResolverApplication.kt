@@ -27,6 +27,7 @@ import semantics.shared.isContextuallyGrounded
 import model.selectionForestOf
 import semantics.shared.materializeResult
 import semantics.shared.SharedOperationContext
+import semantics.shared.fieldResolverCycleTask
 import semantics.shared.RootFieldReferenceInvocationObservation
 import viaduct.engine.api.EngineObjectData
 import java.util.IdentityHashMap
@@ -323,7 +324,7 @@ private class ResolverReplayLogic(
                             resolver.instantiateObjectMaterializationSelections(
                                 objectFragment.resolverOccurrenceId,
                             ),
-                        reader = coordinate,
+                        reader = resolverApplicationCache.root.fieldResolverCycleTask(coordinate),
                     )
                 }
             val resolverArguments =
@@ -361,7 +362,7 @@ private class ResolverReplayLogic(
                                 resolver.instantiateQueryMaterializationSelections(
                                     queryFragment.resolverOccurrenceId,
                                 ),
-                            reader = coordinate,
+                            reader = resolverApplicationCache.root.fieldResolverCycleTask(coordinate),
                         )
                     }
                 }
@@ -509,7 +510,7 @@ private class ResolverReplayLogic(
                             resolver.instantiateQueryMaterializationSelections(
                                 queryFragment.resolverOccurrenceId,
                             ),
-                        reader = publicationPath,
+                        reader = invocationRoot.fieldResolverCycleTask(invocationPath),
                     )
                 }
             }

@@ -34,14 +34,14 @@ import viaduct.engine.api.EngineObjectData
  * existing results to re-evaluate deterministic resolver relations; those results can retain
  * symbolic key identities even after their bindings are resolved.
  *
- * [reader] is the exact root-relative coordinate of the resolver consuming the materialized value.
+ * [reader] is the exact identity of the resolver consuming the materialized value.
  * [cycleChecker] defaults to no-op for nested `ctx.query` results and correctness replay. Runtime
  * resolver-input materialization supplies its checker explicitly, independently of [operation].
  */
 internal suspend fun ObjectEngineResult.materializeResult(
     operation: SharedOperationContext<*>,
     selections: MaterializeSelectionForest,
-    reader: List<PathComponent>,
+    reader: CycleTask,
     cycleChecker: CycleCheckState = CycleCheckState.createNOP(),
 ): EngineObjectData.Sync =
     MaterializationLogic(operation, cycleChecker).materialize(this, selections, reader)
@@ -54,18 +54,18 @@ private class MaterializationLogic(
     suspend fun materialize(
         result: ObjectEngineResult,
         selections: MaterializeSelectionForest,
-        reader: List<PathComponent>,
+        reader: CycleTask,
     ): EngineObjectData.Sync =
         result.materializeSelectedObjectValue(
             selections = selections,
             reader = reader,
-            resultPath = reader.dropLast(1),
+            resultPath = reader.path.dropLast(1),
         )
 
     // Materializes a selection forest rooted at one exact OER path.
     private suspend fun ObjectEngineResult.materializeSelectedObjectValue(
         selections: MaterializeSelectionForest,
-        reader: List<PathComponent>,
+        reader: CycleTask,
         resultPath: List<PathComponent>,
     ): EngineObjectData.Sync {
         val selectedValues =
@@ -75,7 +75,7 @@ private class MaterializationLogic(
             val storedKey = findStoredKey(operation, candidateKey) ?: candidateKey
             val cell = getCell(storedKey)
             val promise = cell.getValue()
-            cycleChecker.cycleCheck(reader, cell)
+            cycleChecker.cycleCheck(reader, cell.valueCycleSlot)
             val selectedValue =
                 promise
                     .await()
@@ -118,7 +118,7 @@ private class MaterializationLogic(
     private suspend fun EngineResult?.materializeEngineResultValue(
         expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
         selections: MaterializeSelectionForest,
-        reader: List<PathComponent>,
+        reader: CycleTask,
         resultPath: List<PathComponent>,
     ): EngineOutputData? =
         when (this) {
@@ -144,13 +144,15 @@ private class MaterializationLogic(
     // Materializes each list element at a path containing its concrete list index.
     private suspend fun ListEngineResult.materializeValues(
         selections: MaterializeSelectionForest,
-        reader: List<PathComponent>,
+        reader: CycleTask,
         resultPath: List<PathComponent>,
     ): EngineOutputListData {
         val materialized = mutableListOf<EngineOutputData?>()
         indices.forEach { index ->
+            val cell = get(index)
+            cycleChecker.cycleCheck(reader, cell.valueCycleSlot)
             materialized +=
-                get(index).getValue().await().materializeEngineResultValue(
+                cell.getValue().await().materializeEngineResultValue(
                     expectedType = typeExpr,
                     selections = selections,
                     reader = reader,

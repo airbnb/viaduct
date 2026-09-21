@@ -29,6 +29,8 @@ import model.requireQueryTypeDef
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import semantics.shared.CycleCheckState
+import semantics.shared.CycleSlot
+import semantics.shared.CycleTask
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.ResolverObserver
 import semantics.shared.SharedOperationContext
@@ -79,15 +81,15 @@ interface FragmentFreeFieldCheckerPublicationContract {
         val cycleChecker =
             object : CycleCheckState {
                 override fun registerWriter(
-                    cell: EngineResultCell,
-                    writer: List<PathComponent>,
+                    slot: CycleSlot,
+                    writer: CycleTask,
                 ) {
-                    cells[(writer.last() as ObjectEngineResult.ObjectKey).field.name] = cell
+                    cells[(writer.path.last() as ObjectEngineResult.ObjectKey).field.name] = slot.cell
                 }
 
                 override fun cycleCheck(
-                    reader: List<PathComponent>,
-                    cell: EngineResultCell,
+                    reader: CycleTask,
+                    slot: CycleSlot,
                 ) {}
             }
 

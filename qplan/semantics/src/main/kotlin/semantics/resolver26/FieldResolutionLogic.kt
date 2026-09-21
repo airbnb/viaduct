@@ -34,6 +34,7 @@ import model.selectionForestOf
 import model.satisfiableAlternatives
 import semantics.shared.argumentsContainErrorValue
 import semantics.shared.ResolverInvocationObservation
+import semantics.shared.fieldResolverCycleTask
 import semantics.shared.RootFieldReferenceInvocationObservation
 import semantics.shared.fetchGroundedArguments
 import semantics.shared.withAuthoritativeNodeId
@@ -315,7 +316,9 @@ internal class FieldResolutionLogic(
                 operation = publication.operation,
                 cycleChecker = publication.operation.cycleChecker,
                 selections = objectMaterializationSelections,
-                reader = fieldResolverOccurrence.publicationPath,
+                reader =
+                    fieldResolverOccurrence.invocationRoot
+                        .fieldResolverCycleTask(fieldResolverOccurrence.invocationPath),
                 resultPath = publication.oerOccurrence.path,
             )
         val queryValue = materializeQueryFragment(fieldResolverOccurrence)
@@ -358,7 +361,9 @@ internal class FieldResolutionLogic(
             operation = publication.operation,
             cycleChecker = publication.operation.cycleChecker,
             selections = materializationSelections,
-            reader = fieldResolverOccurrence.publicationPath,
+            reader =
+                fieldResolverOccurrence.invocationRoot
+                    .fieldResolverCycleTask(fieldResolverOccurrence.invocationPath),
             resultPath = emptyList(),
         )
     }

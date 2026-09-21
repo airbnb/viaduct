@@ -19,6 +19,8 @@ import model.SelectionForest
 import model.operationSelectionsFrom
 import model.requireQueryTypeDef
 import semantics.shared.ResolverObserver
+import semantics.shared.CycleSlot
+import semantics.shared.CycleTask
 import kotlin.test.assertSame
 import model.Assumptions
 import model.EngineResult
@@ -121,15 +123,15 @@ interface CoroutineResolverContract {
         val cycleChecker =
             object : CycleCheckState {
                 override fun registerWriter(
-                    cell: EngineResultCell,
-                    writer: List<PathComponent>,
+                    slot: CycleSlot,
+                    writer: CycleTask,
                 ) {
-                    registeredKeys += writer.last() as ObjectEngineResult.GroundKey
+                    registeredKeys += writer.path.last() as ObjectEngineResult.GroundKey
                 }
 
                 override fun cycleCheck(
-                    reader: List<PathComponent>,
-                    cell: EngineResultCell,
+                    reader: CycleTask,
+                    slot: CycleSlot,
                 ) {}
             }
         val selections =
@@ -181,22 +183,22 @@ interface CoroutineResolverContract {
         val cycleChecker =
             object : CycleCheckState {
                 override fun registerWriter(
-                    cell: EngineResultCell,
-                    writer: List<PathComponent>,
+                    slot: CycleSlot,
+                    writer: CycleTask,
                 ) {
-                    if (writer.size == 1) {
-                        rootCell = cell
+                    if (writer.path.size == 1) {
+                        rootCell = slot.cell
                     } else {
                         assertFailsWith<UncompletedPromiseException> {
                             assertNotNull(rootCell).getValue().get()
                         }
-                        childRegistrations += writer.last() as ObjectEngineResult.GroundKey
+                        childRegistrations += writer.path.last() as ObjectEngineResult.GroundKey
                     }
                 }
 
                 override fun cycleCheck(
-                    reader: List<PathComponent>,
-                    cell: EngineResultCell,
+                    reader: CycleTask,
+                    slot: CycleSlot,
                 ) {}
             }
         val selections =
@@ -275,7 +277,7 @@ interface CoroutineResolverContract {
         val failure = assertIs<ResolverReadCycleException>(error.errorData.cause)
 
         assertEquals(failure.cycle.first(), failure.cycle.last())
-        assertTrue(failure.cycle.flatten().contains(second.groundKey()))
+        assertTrue(failure.cycle.flatMap { it.path }.contains(second.groundKey()))
     }
 
     @Test
@@ -337,11 +339,11 @@ interface CoroutineResolverContract {
             var consumerInvoked = false
             val world = queryFailureWorld(selectiveResolvers) { consumerInvoked = true }.assumptions
             val cycleChecker = object : CycleCheckState {
-                override fun registerWriter(cell: EngineResultCell, writer: List<PathComponent>) {
-                    if ((writer.last() as ObjectEngineResult.ObjectKey).field.name == failedField) throw failure
+                override fun registerWriter(slot: CycleSlot, writer: CycleTask) {
+                    if ((writer.path.last() as ObjectEngineResult.ObjectKey).field.name == failedField) throw failure
                 }
 
-                override fun cycleCheck(reader: List<PathComponent>, cell: EngineResultCell) {}
+                override fun cycleCheck(reader: CycleTask, slot: CycleSlot) {}
             }
             val observed = CompletableDeferred<Throwable>()
             val requestJob = Job()

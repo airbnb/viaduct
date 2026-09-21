@@ -6,9 +6,12 @@ import model.Arguments
 import model.EngineResultCell
 import model.ObjectEngineResult
 import model.ObjectSelection
+import model.PathComponent
 import model.registry.FieldChecker
 import model.registry.ResolutionExecutionContext
 import semantics.resolver26.CoroutineFieldCheckerPublicationOccurrence
+import semantics.shared.fieldCheckerCycleSlot
+import semantics.shared.fieldCheckerCycleTask
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOERContext
 
@@ -20,6 +23,7 @@ internal class GroundedFieldCheckerPublicationOccurrence(
     override val publicationCell: EngineResultCell,
     val checker: FieldChecker?,
     val arguments: Arguments.Resolved?,
+    val publicationPath: List<PathComponent>,
 ) : CoroutineFieldCheckerPublicationOccurrence
 
 /**
@@ -57,14 +61,22 @@ internal class CoroutineFieldCheckerTask private constructor(
                         .fieldChecker(key.field)
                         ?.also(::requireNoRequiredSelections)
                 }
-            return GroundedFieldCheckerPublicationOccurrence(
+            val publication = GroundedFieldCheckerPublicationOccurrence(
                 operation = orchestrationTask.operation,
                 oerOccurrence = oer.occurrence,
                 selection = selection,
                 publicationCell = cell,
                 checker = checker,
                 arguments = key.arguments as? Arguments.Resolved,
+                publicationPath = oer.occurrence.coordinate(key),
             )
+            if (checker != null) {
+                publication.operation.cycleChecker.registerWriter(
+                    slot = cell.fieldCheckerCycleSlot,
+                    writer = publication.oerOccurrence.fieldCheckerCycleTask(key),
+                )
+            }
+            return publication
         }
 
         internal suspend fun execute(publication: GroundedFieldCheckerPublicationOccurrence) {

@@ -28,6 +28,7 @@ import semantics.contract.registeredResolverOccurrenceApplicationIdentityCounts
 import semantics.resolvers.resolver01.DepthFirstResolve
 import semantics.resolvers.resolver02.resolve
 import semantics.shared.OEROccurrence
+import semantics.shared.fieldResolverCycleTask
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.SharedOERContext
 import semantics.shared.SharedOperationContext
@@ -98,7 +99,7 @@ class IndependentRoleAdversarialReviewTest {
                 val queryValue = queryResult.materializeResult(
                     operation,
                     resolver.instantiateQueryMaterializationSelections(owner),
-                    path,
+                    result.fieldResolverCycleTask(path),
                 )
                 val input = engineObjectDataOf(queryType)
                 val arguments = key.arguments as Arguments.Resolved
