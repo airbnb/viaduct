@@ -1,6 +1,7 @@
 package viaduct.arbitrary.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.file
@@ -15,6 +16,9 @@ import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.next
 import java.io.File
+import java.nio.ByteBuffer
+import java.security.MessageDigest
+import java.util.Arrays
 import kotlin.random.Random
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
@@ -93,7 +97,17 @@ class GenerateSchema : CliktCommand(name = "generate-schema") {
 
     private val seed: Long? by option(
         "--seed",
-        help = "Seed for reproducible generation. If omitted, a random seed is chosen and printed."
+        help = "Exact seed to use. Mutually exclusive with --seed-input and --seed-variant."
+    ).long()
+
+    private val seedInputs: List<File> by option(
+        "--seed-input",
+        help = "File whose contents are hashed into the seed. Repeatable."
+    ).file(mustExist = true, canBeDir = false).multiple()
+
+    private val seedVariant: Long? by option(
+        "--seed-variant",
+        help = "Variant hashed with the input contents to choose another reproducible schema. Defaults to 0."
     ).long()
 
     /**
@@ -155,7 +169,8 @@ class GenerateSchema : CliktCommand(name = "generate-schema") {
         (ConnectionCount to 1..3)
 
     override fun run() {
-        val usedSeed = seed ?: Random.nextLong()
+        val usedSeed = resolveSeed()
+        echo("[GenerateSchema] generating $output (seed=$usedSeed)")
         val rs = RandomSource.seeded(usedSeed)
 
         val cfg = extensiveSchemaFragmentConfig + (IncludeTypes to viaductNodeTypes())
@@ -187,5 +202,35 @@ class GenerateSchema : CliktCommand(name = "generate-schema") {
         )
 
         echo("[GenerateSchema] wrote $output (seed=$usedSeed)")
+    }
+
+    private fun resolveSeed(): Long {
+        val derived = seedInputs.isNotEmpty() || seedVariant != null
+        require(seed == null || !derived) { "--seed cannot be combined with --seed-input or --seed-variant" }
+        return when {
+            seed != null -> seed!!
+            derived -> deriveSeed()
+            else -> Random.nextLong()
+        }
+    }
+
+    private fun deriveSeed(): Long {
+        val inputHashes = seedInputs.map { file ->
+            val digest = MessageDigest.getInstance("SHA-256")
+            file.inputStream().use { input ->
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    digest.update(buffer, 0, count)
+                }
+            }
+            digest.digest()
+        }.sortedWith { left, right -> Arrays.compareUnsigned(left, right) }
+
+        val digest = MessageDigest.getInstance("SHA-256")
+        digest.update(ByteBuffer.allocate(Long.SIZE_BYTES).putLong(seedVariant ?: 0L).array())
+        inputHashes.forEach { digest.update(it) }
+        return ByteBuffer.wrap(digest.digest()).long
     }
 }

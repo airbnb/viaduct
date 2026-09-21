@@ -13,7 +13,12 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.parallel.Execution
+import org.junit.jupiter.api.parallel.ExecutionMode
+import org.junit.jupiter.api.parallel.Isolated
 
+@Isolated
+@Execution(ExecutionMode.SAME_THREAD)
 class KotestPropertyBaseTest : KotestPropertyBase() {
     @Test
     fun `checkInvariants throws AssertionError on failure`() {
@@ -45,6 +50,25 @@ class KotestPropertyBaseTest : KotestPropertyBase() {
     fun `configures a random seed by default`() {
         val base = object : KotestPropertyBase() {}
         assertEquals(base.seed, base.randomSource.seed)
+    }
+
+    @Test
+    fun `system property provides the default seed and explicit seeds take precedence`() {
+        val previous = System.getProperty(SEED_PROPERTY)
+        try {
+            System.setProperty(SEED_PROPERTY, "-123")
+            val configured = object : KotestPropertyBase() {}
+            val explicit = object : KotestPropertyBase(42L) {}
+
+            assertEquals(-123L, configured.seed)
+            assertEquals(-123L, configured.randomSource.seed)
+            assertEquals(42L, explicit.seed)
+
+            System.setProperty(SEED_PROPERTY, "invalid")
+            assertThrows<NumberFormatException> { object : KotestPropertyBase() {} }
+        } finally {
+            if (previous == null) System.clearProperty(SEED_PROPERTY) else System.setProperty(SEED_PROPERTY, previous)
+        }
     }
 
     @Test

@@ -46,13 +46,14 @@ import viaduct.invariants.FailureCollector
  *
  * @param seed override the testing seed. This is useful for debugging property test failures.
  * To preserve the randomness of property testing, subclasses should not permanently override
- * the seed value.
+ * the seed value. Defaults to the `viaduct.arbitrary.seed` system property when set, so a build
+ * can pin the seed (e.g. via `jvm_flags`) without code changes, and to a random seed otherwise.
  * @param iterations a default number of iterations to apply to [forAll], [checkAll],
  * [forNone], etc
  */
 @Execution(ExecutionMode.CONCURRENT)
 abstract class KotestPropertyBase(
-    val seed: Long = Random.nextLong(),
+    val seed: Long = defaultSeed(),
     val iterations: Int = PropertyTesting.defaultIterationCount
 ) {
     /** A [RandomSource] seeded with this instance's [seed], for use in explicit generator calls. */
@@ -107,4 +108,10 @@ abstract class KotestPropertyBase(
 
     /** Convert an arb to an infinite [kotlin.sequences.Sequence] */
     fun <T> Gen<T>.asSequence(): Sequence<T> = generate(randomSource).map { it.value }
+
+    companion object {
+        const val SEED_PROPERTY = "viaduct.arbitrary.seed"
+
+        fun defaultSeed(): Long = System.getProperty(SEED_PROPERTY)?.toLong() ?: Random.nextLong()
+    }
 }

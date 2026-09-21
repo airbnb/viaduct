@@ -9,8 +9,8 @@ viaductClassDiff {
     schemaDiff("schema") {
         actualPackage.set("actuals.api.generated")
         expectedPackage.set("viaduct.api.grts")
-        // Generated at build time from shared/arbitrary with seed 0, so classdiff exercises a large,
-        // varied set of schema constructs while keeping builds reproducible and cacheable.
+        // Generated at build time from shared/arbitrary, seeded from this project's sources, so
+        // classdiff exercises a large, varied set of schema constructs while staying reproducible.
         generatedSchemaResource("graphql/schema.graphqls")
     }
 }

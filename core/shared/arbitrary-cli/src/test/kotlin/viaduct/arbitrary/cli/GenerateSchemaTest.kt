@@ -3,8 +3,11 @@ package viaduct.arbitrary.cli
 import graphql.schema.idl.SchemaParser
 import java.nio.file.Path
 import kotlin.io.path.readText
+import kotlin.io.path.writeText
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -21,6 +24,89 @@ class GenerateSchemaTest {
         tempDir.resolve("schema-$seed.graphqls").also {
             GenerateSchema().main(arrayOf("--output", it.toString(), "--seed", seed.toString()))
         }
+
+    private fun generateDerived(
+        name: String,
+        inputs: List<Path>,
+        variant: Long = 0
+    ): String {
+        val out = tempDir.resolve("$name.graphqls")
+        val args = listOf("--output", out.toString(), "--seed-variant", variant.toString()) +
+            inputs.flatMap { listOf("--seed-input", it.toString()) }
+        GenerateSchema().main(args.toTypedArray())
+        return out.readText()
+    }
+
+    private fun input(
+        name: String,
+        content: String
+    ): Path = tempDir.resolve(name).also { it.writeText(content) }
+
+    @Test
+    fun `derived schema depends on contents instead of file paths or input order`() {
+        val a = input("a.txt", "codegen v1")
+        val sameAsA = input("a-copy.txt", "codegen v1")
+        val b = input("b.txt", "codegen v2")
+        val schema = generateDerived("original", listOf(a, b))
+
+        assertEquals(schema, generateDerived("repeated", listOf(a, b)))
+        assertEquals(schema, generateDerived("relocated", listOf(b, sameAsA)))
+
+        b.writeText("codegen v3")
+        assertNotEquals(schema.substringAfter("\n\n"), generateDerived("changed", listOf(a, b)).substringAfter("\n\n"))
+    }
+
+    @Test
+    fun `changing the variant generates a different reproducible schema`() {
+        val source = input("codegen.txt", "codegen")
+        val original = generateDerived("original", listOf(source))
+        val variant = generateDerived("variant", listOf(source), variant = 1)
+
+        assertNotEquals(original.substringAfter("\n\n"), variant.substringAfter("\n\n"))
+        assertEquals(variant, generateDerived("repeated", listOf(source), variant = 1))
+    }
+
+    @Test
+    fun `file boundaries affect the derived schema`() {
+        val split = generateDerived("split", listOf(input("a.txt", "a"), input("bc.txt", "bc")))
+        val otherSplit = generateDerived("other-split", listOf(input("ab.txt", "ab"), input("c.txt", "c")))
+
+        assertNotEquals(split.substringAfter("\n\n"), otherSplit.substringAfter("\n\n"))
+    }
+
+    @Test
+    fun `explicit seed reproduces the derived schema`() {
+        val schema = generateDerived("derived", listOf(input("codegen.txt", "codegen")), variant = Long.MIN_VALUE)
+        val seed = schema.lineSequence().first { it.startsWith("# seed=") }.removePrefix("# seed=")
+        val out = tempDir.resolve("reproduced.graphqls")
+
+        GenerateSchema().main(arrayOf("--output", out.toString(), "--seed", seed))
+
+        assertEquals(schema, out.readText())
+    }
+
+    @Test
+    fun `inputs alone use variant zero and variant alone is deterministic`() {
+        val source = input("codegen.txt", "codegen")
+        val out = tempDir.resolve("inputs-only.graphqls")
+
+        GenerateSchema().main(arrayOf("--output", out.toString(), "--seed-input", source.toString()))
+
+        assertEquals(generateDerived("explicit-zero", listOf(source)), out.readText())
+        assertEquals(generateDerived("variant-only", emptyList(), variant = 1), generateDerived("repeated", emptyList(), variant = 1))
+    }
+
+    @Test
+    fun `explicit seed cannot be combined with derived seed options`() {
+        val out = tempDir.resolve("conflict.graphqls").toString()
+        assertThrows(IllegalArgumentException::class.java) {
+            GenerateSchema().main(arrayOf("--output", out, "--seed", "1", "--seed-variant", "1"))
+        }
+        val source = input("codegen.txt", "codegen")
+        assertThrows(IllegalArgumentException::class.java) {
+            GenerateSchema().main(arrayOf("--output", out, "--seed", "1", "--seed-input", source.toString()))
+        }
+    }
 
     @Test
     fun `generated schema fragment is valid SDL and covers every type kind it guarantees`() {

@@ -20,6 +20,7 @@ abstract class ClassDiffPlugin : Plugin<Project> {
     companion object {
         private const val PLUGIN_GROUP = "viaduct-classdiff"
         private const val GENERATED_SOURCES_PATH = "generated-sources/classdiff"
+        private const val SEED_VARIANT_PROPERTY = "viaduct.schemaSeedVariant"
     }
 
     override fun apply(project: Project) {
@@ -79,6 +80,9 @@ abstract class ClassDiffPlugin : Plugin<Project> {
             group = PLUGIN_GROUP
             description = "Generates a seeded, extensive GraphQL schema fragment for schema diff '${schemaDiff.name}'"
             this.codegenClasspath.from(codegenClasspath)
+            // Seed from this project's main sources: the schema exercises this project's codegen.
+            seedInputs.from(project.extensions.getByType(JavaPluginExtension::class.java).sourceSets.named("main").map { it.allSource })
+            seedVariant.set(project.providers.gradleProperty(SEED_VARIANT_PROPERTY).map(String::toLong).orElse(0L))
             outputFile.set(resourcePath.flatMap { resourcesDir.map { dir -> dir.file(it) } })
             onlyIf { resourcePath.isPresent }
         }
