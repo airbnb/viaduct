@@ -262,7 +262,7 @@ class EngineImpl(
             target = ChildQueryPlanTarget.ExplicitObjectResult(namespaceParentResult),
         )
         val leafFieldPlan = FieldExecutionHelpers.collectFields(namespaceParentResult.type, leafRootParams)
-            .single()
+            .collectedFieldsMap.values.single()
         val leafParams = leafRootParams.forField(namespaceParentResult.type, leafFieldPlan)
         // Keep this shallow so the caller can resolve nested fields from the resolver's original object.
         val result = fieldResolver.resolveShallowFieldResult(

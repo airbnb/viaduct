@@ -155,7 +155,7 @@ class FieldCompleter(
     @Suppress("UNCHECKED_CAST")
     private fun objectFieldMap(parameters: ExecutionParameters): Value<Map<String, Any?>> {
         val currentOER = parameters.currentObjectEngineResult
-        val fields = collectFields(currentOER.type, parameters)
+        val fields = collectFields(currentOER.type, parameters).collectedFieldsMap.values
         val fieldValues = fields.map { field ->
             val newParams = parameters.forField(currentOER.type, field)
             val fieldKey = buildOERKeyForField(newParams, field)

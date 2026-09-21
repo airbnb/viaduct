@@ -156,7 +156,7 @@ private class QueryPlanFilter(
         )
         val selections = mutableListOf<QueryPlan.Selection>()
 
-        for (field in collected) {
+        for (field in collected.collectedFieldsMap.values) {
             val resolvedField = field.resolveField(
                 schema = context.schema,
                 parentType = concreteType,

@@ -22,6 +22,9 @@ import viaduct.utils.collections.MaskedSet
 /** A planned field occurrence and its enclosing defer context. */
 data class FieldDetails(val field: Field, val deferUsage: DeferUsage?)
 
+/** Fields keyed by response name in encounter order. */
+typealias CollectedFieldsMap = Map<String, CollectedField>
+
 /** Unmerged occurrences of one response key, with shared derived views for execution. */
 class CollectedField(
     val occurrences: List<FieldDetails>,
@@ -59,6 +62,11 @@ class CollectedField(
 }
 
 object CollectFields {
+    data class Result(
+        val collectedFieldsMap: CollectedFieldsMap,
+        val newDeferUsages: List<DeferUsage>,
+    )
+
     /**
      * Apply the CollectFields algorithm to the given selection set
      * This method is "shallow", in that while it will traverse inline fragments and fragment spreads,
@@ -73,11 +81,11 @@ object CollectFields {
         parentType: GraphQLObjectType,
         fragments: Fragments,
         fieldRssOriginFilteringKillSwitchEnabled: Boolean,
-    ): List<CollectedField> {
+    ): Result {
         val result = collect(
             State(
                 schema = schema,
-                acc = emptyList(),
+                acc = emptyMap(),
                 pending = selectionSet.selections,
                 spreadFragments = emptySet(),
                 fragments = fragments,
@@ -86,13 +94,13 @@ object CollectFields {
             ),
             fieldRssOriginFilteringKillSwitchEnabled = fieldRssOriginFilteringKillSwitchEnabled,
         )
-        return result.acc
+        return Result(result.acc, emptyList())
     }
 
     /** models the state while collecting fields within a single SelectionSet */
     private data class State(
         val schema: GraphQLSchema,
-        val acc: List<CollectedField>,
+        val acc: CollectedFieldsMap,
         val pending: List<Selection>,
         val spreadFragments: Set<String>,
         val fragments: Fragments,
@@ -116,10 +124,7 @@ object CollectFields {
         fieldRssOriginFilteringKillSwitchEnabled: Boolean,
     ): State {
         val visitedFragments = state.spreadFragments.toMutableSet()
-        val acc = ArrayList<CollectedField>(state.pending.size)
-
-        // map of resultKey to index of collected field in acc
-        val collectedFieldIndices = mutableMapOf<String, Int>()
+        val acc = linkedMapOf<String, MutableList<FieldDetails>>()
 
         // the inner loop will both push and pop from the front of the queue
         // For example, we might handle an inline fragment by popping off the inline fragment
@@ -167,22 +172,9 @@ object CollectFields {
                                 planParentApplies && originApplies
                             },
                         )
-                    val collectedField = CollectedField(listOf(FieldDetails(field, null)), state.schema)
-                    when (val extantIndex = collectedFieldIndices[sel.resultKey]) {
-                        null -> {
-                            // no existing field with this responseKey
-                            // Nothing to merge with, and we can always add this selection to the accumulator
-                            collectedFieldIndices[sel.resultKey] = acc.size
-                            acc += collectedField
-                        }
-
-                        else -> {
-                            // we've already collected a field with this responseKey.
-                            // Look it up by its index and merge
-                            val extant = acc[extantIndex]
-                            acc[extantIndex] = merge(extant, collectedField)
-                        }
-                    }
+                    acc
+                        .getOrPut(field.resultKey) { mutableListOf() }
+                        .add(FieldDetails(field, null))
                 }
 
                 sel is InlineFragment ->
@@ -202,7 +194,7 @@ object CollectFields {
         }
 
         return state.copy(
-            acc = acc.toList(),
+            acc = acc.mapValues { (_, fields) -> CollectedField(fields, state.schema) },
             pending = emptyList(),
             spreadFragments = visitedFragments
         )
@@ -212,9 +204,4 @@ object CollectFields {
         this == schema.queryType ||
             this == schema.mutationType ||
             this == schema.subscriptionType
-
-    private fun merge(
-        host: CollectedField,
-        donor: CollectedField
-    ): CollectedField = host.withOccurrences(host.occurrences + donor.occurrences)
 }

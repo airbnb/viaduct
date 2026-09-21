@@ -567,7 +567,7 @@ object FieldExecutionHelpers {
     fun collectFields(
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters
-    ): List<CollectedField> =
+    ): CollectFields.Result =
         parameters.constants.collectCache.collect(
             parameters.graphQLSchema,
             parameters.selectionSet,

@@ -292,7 +292,7 @@ class QueryPlanFilterTest {
                 fieldRssOriginFilteringKillSwitchEnabled = true,
             )
 
-            collected.map { it.responseKey }.shouldContainExactly("foo")
+            collected.collectedFieldsMap.keys.shouldContainExactly("foo")
         }
     }
 
@@ -333,7 +333,7 @@ class QueryPlanFilterTest {
                 fieldRssOriginFilteringKillSwitchEnabled = true,
             )
 
-            collected.map { it.responseKey }.shouldContainExactly("foo")
+            collected.collectedFieldsMap.keys.shouldContainExactly("foo")
         }
     }
 
@@ -382,8 +382,8 @@ class QueryPlanFilterTest {
                 fieldRssOriginFilteringKillSwitchEnabled = true,
             )
 
-            included.map { it.responseKey }.shouldContainExactly("foo")
-            excluded.map { it.responseKey }.shouldBeEmpty()
+            included.collectedFieldsMap.keys.shouldContainExactly("foo")
+            excluded.collectedFieldsMap.keys.shouldBeEmpty()
         }
     }
 
@@ -429,7 +429,7 @@ class QueryPlanFilterTest {
                 fieldRssOriginFilteringKillSwitchEnabled = true,
             )
 
-            collected.map { it.responseKey }.shouldContainExactly("x")
+            collected.collectedFieldsMap.keys.shouldContainExactly("x")
         }
     }
 
@@ -765,7 +765,7 @@ class QueryPlanFilterTest {
                         field("Foo", key("x"))
                     }
                 },
-                source = QueryPlan.SelectionSet(query, collected.flatMap { it.toQueryPlanFields() }),
+                source = QueryPlan.SelectionSet(query, collected.collectedFieldsMap.values.flatMap { it.toQueryPlanFields() }),
             )
 
             val filteredFoo = filtered.selectionSet.selections.single() as QueryPlan.Field

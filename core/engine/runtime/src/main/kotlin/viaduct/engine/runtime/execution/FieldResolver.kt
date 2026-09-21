@@ -186,7 +186,7 @@ class FieldResolver(
         )
         resolveObjectCtx.onDispatched()
         try {
-            val fields = collectFields(objectType, parameters)
+            val fields = collectFields(objectType, parameters).collectedFieldsMap.values
             val dispatch = if (serialDispatch) {
                 dispatchFieldsSerially(objectType, parameters, fields, ledgerReader)
             } else {
@@ -219,7 +219,7 @@ class FieldResolver(
     private fun dispatchFieldsInParallel(
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters,
-        fields: List<CollectedField>,
+        fields: Collection<CollectedField>,
         ledgerReader: LedgerReader?,
     ): Dispatch<Unit> {
         val results = fields.map { field ->
@@ -236,7 +236,7 @@ class FieldResolver(
     private fun dispatchFieldsSerially(
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters,
-        fields: List<CollectedField>,
+        fields: Collection<CollectedField>,
         ledgerReader: LedgerReader?,
     ): Dispatch<Unit> {
         val initial: Value<Unit> = Value.fromValue(Unit)

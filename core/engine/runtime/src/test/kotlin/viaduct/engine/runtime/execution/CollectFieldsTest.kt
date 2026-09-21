@@ -8,6 +8,7 @@ import io.kotest.matchers.collections.shouldNotContain
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.api.EngineSchema
@@ -19,6 +20,74 @@ import viaduct.engine.runtime.execution.QueryPlan.SelectionSet
 class CollectFieldsTest {
     private val emptyVars = CoercedVariables.emptyVariables()
     private val trueVars = CoercedVariables.of(mapOf("var" to true))
+
+    @Test
+    fun `shallowStrictCollect preserves response key and occurrence order across fragments`() {
+        val schema = "type Query { x: Int, y: Int }".asSchema
+        val plan = buildPlan(
+            """
+                { z: x ...F y a: x z: x }
+                fragment F on Query { a: x z: x }
+            """.trimIndent(),
+            EngineSchema(schema)
+        )
+        val rootFields = plan.selectionSet.selections.filterIsInstance<Field>()
+        val fragmentFields = plan.fragments.getValue("F").selectionSet.selections.filterIsInstance<Field>()
+
+        val result = CollectFields.shallowStrictCollect(
+            schema,
+            plan.selectionSet,
+            emptyVars,
+            schema.queryType,
+            plan.fragments,
+            fieldRssOriginFilteringKillSwitchEnabled = false,
+        )
+
+        val fields = result.collectedFieldsMap
+        assertEquals(listOf("z", "a", "y"), fields.keys.toList())
+        assertEquals(listOf("z", "a", "y"), fields.values.map { it.responseKey })
+        assertEquals(
+            listOf(rootFields[0].field, fragmentFields[1].field, rootFields[3].field),
+            fields.getValue("z").occurrences.map { it.field.field }
+        )
+        assertEquals(
+            listOf(fragmentFields[0].field, rootFields[2].field),
+            fields.getValue("a").occurrences.map { it.field.field }
+        )
+        assertEquals(listOf(rootFields[1].field), fields.getValue("y").occurrences.map { it.field.field })
+        assertTrue(result.newDeferUsages.isEmpty())
+    }
+
+    @Test
+    fun `shallowStrictCollect leaves defer usages empty and visits deferred fragments once`() {
+        val schema = "type Query { x: Int, y: Int }".asSchema
+        val plan = buildPlan(
+            """
+                {
+                    ... @defer(label: "inline") { x }
+                    ...F @defer(label: "first")
+                    ...F @defer(label: "second")
+                }
+                fragment F on Query { y }
+            """.trimIndent(),
+            EngineSchema(schema)
+        )
+
+        val result = CollectFields.shallowStrictCollect(
+            schema,
+            plan.selectionSet,
+            emptyVars,
+            schema.queryType,
+            plan.fragments,
+            fieldRssOriginFilteringKillSwitchEnabled = false,
+        )
+
+        assertEquals(listOf("x", "y"), result.collectedFieldsMap.keys.toList())
+        assertTrue(result.newDeferUsages.isEmpty())
+        result.collectedFieldsMap.values.forEach { field ->
+            assertNull(field.occurrences.single().deferUsage)
+        }
+    }
 
     @Test
     fun `shallowStrictCollect - single field`() {
@@ -36,7 +105,7 @@ class CollectFieldsTest {
         )
 
         checkEquals(
-            collected,
+            collected.collectedFieldsMap.values,
             listOf(
                 CollectedField(listOf(FieldDetails(xField, null)), schema)
             )
@@ -58,9 +127,10 @@ class CollectFieldsTest {
         )
 
         checkEquals(
-            collected,
+            collected.collectedFieldsMap.values,
             emptyList()
         )
+        assertTrue(collected.newDeferUsages.isEmpty())
     }
 
     @Test
@@ -79,10 +149,10 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
-        assertEquals(listOf(x0.field, x1.field), collected.single().occurrences.map { it.field.field })
-        assertEquals(listOf(null, null), collected.single().occurrences.map { it.deferUsage })
+        assertEquals(listOf(x0.field, x1.field), collected.collectedFieldsMap.values.single().occurrences.map { it.field.field })
+        assertEquals(listOf(null, null), collected.collectedFieldsMap.values.single().occurrences.map { it.deferUsage })
         checkEquals(
-            collected,
+            collected.collectedFieldsMap.values,
             listOf(
                 CollectedField(listOf(FieldDetails(x0, null), FieldDetails(x1, null)), schema)
             )
@@ -106,7 +176,7 @@ class CollectFieldsTest {
         )
 
         checkEquals(
-            collected,
+            collected.collectedFieldsMap.values,
             listOf(
                 CollectedField(listOf(FieldDetails(xField, null)), schema)
             )
@@ -135,7 +205,7 @@ class CollectFieldsTest {
         )
 
         checkEquals(
-            collected,
+            collected.collectedFieldsMap.values,
             listOf(
                 CollectedField(listOf(FieldDetails(xField, null)), schema)
             )
@@ -188,7 +258,7 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
-        val collectedRestricted = collected[0]
+        val collectedRestricted = collected.collectedFieldsMap.getValue("restricted")
         val collectedRestrictedParentTypes =
             collectedRestricted.childPlans.map { it.queryPlanParentType }
 
@@ -269,7 +339,7 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
-        val collectedId = collected.single { it.fieldName == "id" }
+        val collectedId = collected.collectedFieldsMap.values.single { it.fieldName == "id" }
         // Only the HiveTable.id RSS should survive.
         collectedId.childPlans.shouldHaveSize(1)
         assertEquals("HiveTable" to "id", collectedId.childPlans.single().originCoordinate)
@@ -290,7 +360,7 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = true,
         )
 
-        val collectedId = collected.single { it.fieldName == "id" }
+        val collectedId = collected.collectedFieldsMap.values.single { it.fieldName == "id" }
         // Both RSS entries are kept under legacy filter — HiveTable's matches by parentType,
         // OtherNode's slips through via the root-type permissive clause.
         collectedId.childPlans.shouldHaveSize(2)
@@ -313,7 +383,7 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
-        val collectedId = collected.single { it.fieldName == "id" }
+        val collectedId = collected.collectedFieldsMap.values.single { it.fieldName == "id" }
         collectedId.childPlans.shouldHaveSize(1)
         assertEquals("OtherNode" to "id", collectedId.childPlans.single().originCoordinate)
     }
@@ -343,7 +413,7 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
-        val collectedX = collected.single { it.fieldName == "x" }
+        val collectedX = collected.collectedFieldsMap.values.single { it.fieldName == "x" }
         collectedX.childPlans.shouldHaveSize(1)
         assertEquals("Query" to "x", collectedX.childPlans.single().originCoordinate)
     }
@@ -395,7 +465,7 @@ class CollectFieldsTest {
             fieldRssOriginFilteringKillSwitchEnabled = false,
         )
 
-        val collectedMetadata = collected.single { it.responseKey == "sectionMetadata" }
+        val collectedMetadata = collected.collectedFieldsMap.values.single { it.responseKey == "sectionMetadata" }
         val mergedSelectionSet = requireNotNull(collectedMetadata.selectionSet)
         assertEquals(rawSchema.getObjectType("MediationMetadata"), mergedSelectionSet.parentType)
 
@@ -406,8 +476,8 @@ class CollectFieldsTest {
 }
 
 private fun checkEquals(
-    exp: List<CollectedField>,
-    act: List<CollectedField>,
+    exp: Collection<CollectedField>,
+    act: Collection<CollectedField>,
 ) {
     act.shouldHaveSize(exp.size)
     exp.zip(act).forEach { (exp, act) ->

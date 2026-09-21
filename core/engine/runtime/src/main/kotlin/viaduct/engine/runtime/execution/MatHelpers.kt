@@ -181,7 +181,7 @@ private fun QueryPlan.keyTreeForType(
         fieldRssOriginFilteringKillSwitchEnabled = context.fieldRssOriginFilteringKillSwitchEnabled,
     )
     val fields = mutableMapOf<ObjectEngineResult.Key, KeyTree>()
-    for (field in collected) {
+    for (field in collected.collectedFieldsMap.values) {
         val resolvedField = field.resolveField(
             schema = context.schema,
             parentType = type,
