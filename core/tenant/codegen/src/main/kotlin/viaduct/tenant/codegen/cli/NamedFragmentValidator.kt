@@ -2,6 +2,7 @@ package viaduct.tenant.codegen.cli
 
 import graphql.language.Document
 import graphql.language.FragmentDefinition
+import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLSchema
 import graphql.validation.QueryComplexityLimits
 import graphql.validation.ValidationErrorType
@@ -18,12 +19,15 @@ import viaduct.tenant.codegen.ksp.NamedFragmentDescriptor
  *    `on <Type>` condition — this catches declaring a fragment `on User` while typing the object as
  *    `FragmentFromAnnotation<Query>`, which is otherwise unguarded until runtime;
  * 2. the fragment, with reachable sibling @GraphQLFragments appended, is valid against the schema —
- *    this catches undefined fields and bad type conditions on fragments nothing happens to spread.
+ *    this catches undefined fields and bad type conditions on fragments nothing happens to spread;
+ * 3. no selected field carries one of [forbiddenSelectionDirectives].
  */
 internal class NamedFragmentValidator(
     private val schema: GraphQLSchema,
+    forbiddenSelectionDirectives: Set<String> = emptySet(),
 ) {
     private val validator = Validator()
+    private val forbiddenDirectiveChecker = ForbiddenSelectionDirectiveChecker(schema, forbiddenSelectionDirectives)
 
     fun validate(
         fragment: NamedFragmentDescriptor,
@@ -44,7 +48,11 @@ internal class NamedFragmentValidator(
         }
 
         validateGrtMatchesTypeCondition(fragment, definition, errors)
-        validateAgainstSchema(definition, fragmentsByName, errors)
+        val document = Document.newDocument().definition(definition).build()
+        val expanded = FragmentSpreadCollector.appendReachableExternalFragments(document, fragmentsByName)
+        if (validateAgainstSchema(definition, expanded, errors)) {
+            validateSelectedFields(definition, expanded, errors)
+        }
     }
 
     /**
@@ -69,17 +77,28 @@ internal class NamedFragmentValidator(
 
     private fun validateAgainstSchema(
         definition: FragmentDefinition,
-        fragmentsByName: Map<String, String>,
+        expanded: Document,
+        errors: MutableList<String>,
+    ): Boolean {
+        val schemaErrors = validator.validateDocument(schema, expanded, { true }, Locale.ENGLISH, QueryComplexityLimits.NONE)
+            .filterNot { it.validationErrorType in FILTERED_ERRORS }
+        schemaErrors.forEach { error ->
+            errors.add("@GraphQLFragment validation failed for '${definition.name}': ${error.message}")
+        }
+        return schemaErrors.isEmpty()
+    }
+
+    private fun validateSelectedFields(
+        definition: FragmentDefinition,
+        expanded: Document,
         errors: MutableList<String>,
     ) {
-        val document = Document.newDocument().definition(definition).build()
-        val expanded = FragmentSpreadCollector.appendReachableExternalFragments(document, fragmentsByName)
-
-        validator.validateDocument(schema, expanded, { true }, Locale.ENGLISH, QueryComplexityLimits.NONE)
-            .filterNot { it.validationErrorType in FILTERED_ERRORS }
-            .forEach { error ->
-                errors.add("@GraphQLFragment validation failed for '${definition.name}': ${error.message}")
-            }
+        if (!forbiddenDirectiveChecker.isEnabled) return
+        val rootType = schema.getType(definition.typeCondition.name) as? GraphQLCompositeType ?: return
+        val fragmentsByName = expanded.getDefinitionsOfType(FragmentDefinition::class.java).associateBy { it.name }
+        forbiddenDirectiveChecker.violations(definition, rootType, fragmentsByName).forEach { violation ->
+            errors.add("@GraphQLFragment '${definition.name}' ${violation.message()}")
+        }
     }
 
     companion object {

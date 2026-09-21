@@ -1,6 +1,8 @@
 package viaduct.tenant.codegen.cli
 
+import graphql.language.FragmentDefinition
 import graphql.language.OperationDefinition
+import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import graphql.validation.QueryComplexityLimits
 import graphql.validation.ValidationErrorType
@@ -14,12 +16,15 @@ import viaduct.tenant.codegen.ksp.OperationKind
  * Validates @GraphQLOperation documents against the schema at assembly time. Per operation:
  * 1. exactly one operation in the document;
  * 2. operation type matches the declared base class (subscription rejected);
- * 3. the document, with reachable external @GraphQLFragments appended, is valid against the schema.
+ * 3. the document, with reachable external @GraphQLFragments appended, is valid against the schema;
+ * 4. no selected field carries one of [forbiddenSelectionDirectives].
  */
 internal class GraphQLOperationValidator(
     private val schema: GraphQLSchema,
+    forbiddenSelectionDirectives: Set<String> = emptySet(),
 ) {
     private val validator = Validator()
+    private val forbiddenDirectiveChecker = ForbiddenSelectionDirectiveChecker(schema, forbiddenSelectionDirectives)
 
     fun validate(
         operation: OperationDescriptor,
@@ -43,7 +48,10 @@ internal class GraphQLOperationValidator(
             return
         }
 
-        validateAgainstSchema(operation, document, fragmentsByName, errors)
+        val expanded = FragmentSpreadCollector.appendReachableExternalFragments(document, fragmentsByName)
+        if (validateAgainstSchema(operation, expanded, errors)) {
+            validateSelectedFields(operation, operations.single(), expanded, errors)
+        }
     }
 
     private fun operationTypeMatches(
@@ -69,16 +77,32 @@ internal class GraphQLOperationValidator(
 
     private fun validateAgainstSchema(
         operation: OperationDescriptor,
-        document: graphql.language.Document,
-        fragmentsByName: Map<String, String>,
+        expanded: graphql.language.Document,
+        errors: MutableList<String>,
+    ): Boolean {
+        val schemaErrors = validator.validateDocument(schema, expanded, { true }, Locale.ENGLISH, QueryComplexityLimits.NONE)
+            .filterNot { it.validationErrorType in FILTERED_ERRORS }
+        schemaErrors.forEach { error ->
+            errors.add("@GraphQLOperation validation failed for ${operation.implFqn}: ${error.message}")
+        }
+        return schemaErrors.isEmpty()
+    }
+
+    private fun validateSelectedFields(
+        operation: OperationDescriptor,
+        op: OperationDefinition,
+        expanded: graphql.language.Document,
         errors: MutableList<String>,
     ) {
-        val expanded = FragmentSpreadCollector.appendReachableExternalFragments(document, fragmentsByName)
-        validator.validateDocument(schema, expanded, { true }, Locale.ENGLISH, QueryComplexityLimits.NONE)
-            .filterNot { it.validationErrorType in FILTERED_ERRORS }
-            .forEach { error ->
-                errors.add("@GraphQLOperation validation failed for ${operation.implFqn}: ${error.message}")
-            }
+        if (!forbiddenDirectiveChecker.isEnabled) return
+        val rootType: GraphQLObjectType = when (op.operation ?: OperationDefinition.Operation.QUERY) {
+            OperationDefinition.Operation.MUTATION -> schema.mutationType
+            else -> schema.queryType
+        } ?: return
+        val fragmentsByName = expanded.getDefinitionsOfType(FragmentDefinition::class.java).associateBy { it.name }
+        forbiddenDirectiveChecker.violations(op, rootType, fragmentsByName).forEach { violation ->
+            errors.add("@GraphQLOperation on ${operation.implFqn} ${violation.message()}")
+        }
     }
 
     private fun OperationKind.baseClassName(): String =

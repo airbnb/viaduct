@@ -20,6 +20,7 @@ class RequiredSelectionSetValidatorTest {
         private val FEATURE_SCHEMA_SDL = """
             directive @namespaceType on OBJECT
             directive @tenantLocal on FIELD_DEFINITION
+            directive @tombstoned on FIELD_DEFINITION | OBJECT
             directive @parent on FIELD_DEFINITION
             scalar Long
 
@@ -40,6 +41,7 @@ class RequiredSelectionSetValidatorTest {
             type User {
                 id: ID!
                 name: String
+                tombstonedName: String @tombstoned @deprecated(reason: "Use name instead")
                 tenantLocalName: String @tenantLocal
                 friend: User
                 hasActiveHomeReservationWith(otherUserId: Long!): Boolean
@@ -99,9 +101,11 @@ class RequiredSelectionSetValidatorTest {
         isQuery: Boolean = false,
         expandedSelections: String = selections,
         field: ResolverParams.Field = field(),
+        forbiddenSelectionDirectives: Set<String> = emptySet(),
+        currentTenantModule: String? = "feature",
     ): List<String> =
         mutableListOf<String>().also { errors ->
-            validator().validate(
+            validator(forbiddenSelectionDirectives, currentTenantModule).validate(
                 normalizedSelections = selections,
                 expandedSelections = expandedSelections,
                 typeName = typeName,
@@ -111,7 +115,10 @@ class RequiredSelectionSetValidatorTest {
             )
         }
 
-    private fun validator(): RequiredSelectionSetValidator {
+    private fun validator(
+        forbiddenSelectionDirectives: Set<String> = emptySet(),
+        currentTenantModule: String? = "feature",
+    ): RequiredSelectionSetValidator {
         val schemaFiles = listOf(
             schemaFile("build/viaduct/centralSchema/partition/feature/graphql/schema.graphqls", FEATURE_SCHEMA_SDL),
             schemaFile("build/viaduct/centralSchema/partition/other/graphql/schema.graphqls", OTHER_SCHEMA_SDL),
@@ -119,8 +126,9 @@ class RequiredSelectionSetValidatorTest {
         val typeDefinitionRegistry = schemaRegistry(schemaFiles)
         return RequiredSelectionSetValidator(
             tenantCompilationSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(typeDefinitionRegistry),
-            currentTenantModule = "feature",
-            tenantCompilationViaductSchema = ViaductSchema.fromTypeDefinitionRegistry(schemaFiles),
+            currentTenantModule = currentTenantModule,
+            tenantCompilationViaductSchema = currentTenantModule?.let { ViaductSchema.fromTypeDefinitionRegistry(schemaFiles) },
+            forbiddenSelectionDirectives = forbiddenSelectionDirectives,
         )
     }
 
@@ -162,6 +170,57 @@ class RequiredSelectionSetValidatorTest {
         assertTrue(errors.any { it.contains("User.tenantLocalFromOther") }, errors.toString())
         assertTrue(errors.any { it.contains("owned by other") }, errors.toString())
         assertTrue(errors.any { it.contains("from tenant module feature") }, errors.toString())
+    }
+
+    @Test
+    fun `selection of a field carrying a forbidden directive fails`() {
+        val errors = validate(
+            "fragment Main on User { tombstonedName }",
+            typeName = "User",
+            forbiddenSelectionDirectives = setOf("tombstoned"),
+        )
+        assertEquals(
+            listOf(
+                "Required selection set for com.example.TestResolver (User.name) " +
+                    "selects User.tombstonedName, which carries @tombstoned. " +
+                    "Fields with this directive must not be selected.",
+            ),
+            errors,
+        )
+    }
+
+    @Test
+    fun `selection of a field carrying a forbidden directive fails without tenant-local ownership validation`() {
+        val errors = validate(
+            "fragment Main on User { tombstonedName }",
+            typeName = "User",
+            forbiddenSelectionDirectives = setOf("tombstoned"),
+            currentTenantModule = null,
+        )
+        assertEquals(
+            listOf(
+                "Required selection set for com.example.TestResolver (User.name) " +
+                    "selects User.tombstonedName, which carries @tombstoned. " +
+                    "Fields with this directive must not be selected.",
+            ),
+            errors,
+        )
+    }
+
+    @Test
+    fun `typename selection is ignored by the forbidden directive check`() {
+        val errors = validate(
+            "fragment Main on User { __typename friend { __typename id } }",
+            typeName = "User",
+            forbiddenSelectionDirectives = setOf("tombstoned"),
+        )
+        assertTrue(errors.isEmpty(), errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `selection of a field carrying a forbidden directive passes when none are configured`() {
+        val errors = validate("fragment Main on User { tombstonedName }", typeName = "User")
+        assertTrue(errors.isEmpty(), errors.joinToString("\n"))
     }
 
     @Test

@@ -47,8 +47,10 @@ internal class RequiredSelectionSetValidator(
     private val tenantCompilationSchema: GraphQLSchema,
     private val currentTenantModule: String? = null,
     tenantCompilationViaductSchema: ViaductSchema? = null,
+    forbiddenSelectionDirectives: Set<String> = emptySet(),
 ) {
     private val validator = Validator()
+    private val forbiddenDirectiveChecker = ForbiddenSelectionDirectiveChecker(tenantCompilationSchema, forbiddenSelectionDirectives)
     private val fieldOwnershipIndex = if (currentTenantModule == null) {
         FieldOwnershipIndex.empty()
     } else {
@@ -80,7 +82,7 @@ internal class RequiredSelectionSetValidator(
 
         val expandedDocument = DocumentParser.parse(expandedSelections)
         if (validateAgainstSchema(expandedDocument, field, errors)) {
-            validateTenantLocalFieldOwnership(expandedDocument, typeName, field, errors)
+            validateSelectedFields(expandedDocument, typeName, field, errors)
         }
     }
 
@@ -168,13 +170,14 @@ internal class RequiredSelectionSetValidator(
         return schemaErrors.isEmpty()
     }
 
-    private fun validateTenantLocalFieldOwnership(
+    private fun validateSelectedFields(
         expandedDocument: Document,
         typeName: String,
         field: ResolverParams.Field,
         errors: MutableList<String>,
     ) {
-        val tenantModule = currentTenantModule ?: return
+        val tenantModule = currentTenantModule
+        if (tenantModule == null && !forbiddenDirectiveChecker.isEnabled) return
         val rootParentType = tenantCompilationSchema.getType(typeName) as? GraphQLCompositeType ?: return
         val fragments = expandedDocument.getDefinitionsOfType(FragmentDefinition::class.java)
         val entryFragment = try {
@@ -183,7 +186,7 @@ internal class RequiredSelectionSetValidator(
             return
         }
         val fragmentsByName = fragments.associateBy { it.name }
-        val violations = linkedSetOf<TenantLocalFieldAccessViolation>()
+        val tenantLocalViolations = linkedSetOf<TenantLocalFieldAccessViolation>()
 
         ViaductQueryTraverser
             .newQueryTraverser()
@@ -197,23 +200,26 @@ internal class RequiredSelectionSetValidator(
                 object : QueryVisitorStub() {
                     override fun visitField(env: QueryVisitorFieldEnvironment) {
                         val selectedField = env.fieldDefinition
-                        if (!selectedField.isTenantLocalField()) return
+                        if (tenantModule == null || !selectedField.isTenantLocalField()) return
 
                         val fieldCoordinate = "${env.fieldsContainer.name}.${env.field.name}"
                         val owner = fieldOwnershipIndex.ownerOf(env.fieldsContainer.name, env.field.name)
                         if (owner == tenantModule) return
 
-                        violations.add(TenantLocalFieldAccessViolation(fieldCoordinate, owner))
+                        tenantLocalViolations.add(TenantLocalFieldAccessViolation(fieldCoordinate, owner))
                     }
                 },
             )
 
-        violations.forEach { violation ->
+        tenantLocalViolations.forEach { violation ->
             errors.add(
                 "Required selection set for ${field.implFqn} (${field.typeName}.${field.fieldName}) " +
                     "references tenant-local field ${violation.fieldCoordinate} owned by ${violation.owner ?: "unknown tenant module"} " +
                     "from tenant module $tenantModule. Tenant-local fields may only be selected by resolvers in the owning tenant module.",
             )
+        }
+        forbiddenDirectiveChecker.violations(entryFragment, rootParentType, fragmentsByName).forEach { violation ->
+            errors.add("Required selection set for ${field.implFqn} (${field.typeName}.${field.fieldName}) ${violation.message()}")
         }
     }
 

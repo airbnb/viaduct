@@ -44,6 +44,7 @@ internal object TenantModuleConfigAssembler {
         outputDir: File,
         schemaBinary: File? = null,
         schemaFiles: List<File> = emptyList(),
+        forbiddenSelectionDirectives: Set<String> = emptySet(),
     ) {
         writeRegistryFromDescriptors(
             descriptors = descriptorJsons.map(codec::decode),
@@ -54,6 +55,7 @@ internal object TenantModuleConfigAssembler {
             outputDir = outputDir,
             schemaBinary = schemaBinary,
             schemaFiles = schemaFiles,
+            forbiddenSelectionDirectives = forbiddenSelectionDirectives,
         )
     }
 
@@ -66,6 +68,7 @@ internal object TenantModuleConfigAssembler {
         outputDir: File,
         schemaBinary: File? = null,
         schemaFiles: List<File> = emptyList(),
+        forbiddenSelectionDirectives: Set<String> = emptySet(),
     ) {
         require(apiName.isJavaIdentifier()) {
             "apiName must be a valid Java identifier, but was '$apiName': it is half of the " +
@@ -94,7 +97,7 @@ internal object TenantModuleConfigAssembler {
             val schema = UnExecutableSchemaGenerator.makeUnExecutableSchema(typeDefinitionRegistry)
             val viaductSchema = schemaBinary?.let(ViaductSchema::fromBinaryFile)
                 ?: ViaductSchema.fromTypeDefinitionRegistry(typeDefinitionRegistry)
-            validateAgainstSchema(descriptors, fragmentsByName, schema, viaductSchema, tenantModuleName)
+            validateAgainstSchema(descriptors, fragmentsByName, schema, viaductSchema, tenantModuleName, forbiddenSelectionDirectives)
         }
 
         val outputFile = outputDir.resolve(REGISTRY_RESOURCE_PATH).resolve("$tenantPackage.json")
@@ -128,10 +131,11 @@ internal object TenantModuleConfigAssembler {
         schema: graphql.schema.GraphQLSchema,
         viaductSchema: ViaductSchema,
         tenantModuleName: String,
+        forbiddenSelectionDirectives: Set<String>,
     ) {
-        validateAssembledNamedFragments(descriptors, fragmentsByName, schema)
-        validateAssembledRss(descriptors, fragmentsByName, schema, viaductSchema, tenantModuleName)
-        validateAssembledOperations(descriptors, fragmentsByName, schema)
+        validateAssembledNamedFragments(descriptors, fragmentsByName, schema, forbiddenSelectionDirectives)
+        validateAssembledRss(descriptors, fragmentsByName, schema, viaductSchema, tenantModuleName, forbiddenSelectionDirectives)
+        validateAssembledOperations(descriptors, fragmentsByName, schema, forbiddenSelectionDirectives)
     }
 
     /**
@@ -188,11 +192,12 @@ internal object TenantModuleConfigAssembler {
         descriptors: List<PerSourceDescriptorFile>,
         fragmentsByName: Map<String, String>,
         schema: graphql.schema.GraphQLSchema,
+        forbiddenSelectionDirectives: Set<String>,
     ) {
         val fragments = descriptors.flatMap { it.namedFragments }
         if (fragments.isEmpty()) return
 
-        val validator = NamedFragmentValidator(schema)
+        val validator = NamedFragmentValidator(schema, forbiddenSelectionDirectives)
         val errors = mutableListOf<String>()
         fragments.forEach { validator.validate(it, fragmentsByName, errors) }
 
@@ -211,11 +216,13 @@ internal object TenantModuleConfigAssembler {
         schema: graphql.schema.GraphQLSchema,
         viaductSchema: ViaductSchema,
         tenantModuleName: String,
+        forbiddenSelectionDirectives: Set<String>,
     ) {
         val rssValidator = RequiredSelectionSetValidator(
             tenantCompilationSchema = schema,
             currentTenantModule = tenantModuleName,
             tenantCompilationViaductSchema = viaductSchema,
+            forbiddenSelectionDirectives = forbiddenSelectionDirectives,
         )
         val errors = mutableListOf<String>()
 
@@ -242,11 +249,12 @@ internal object TenantModuleConfigAssembler {
         descriptors: List<PerSourceDescriptorFile>,
         fragmentsByName: Map<String, String>,
         schema: graphql.schema.GraphQLSchema,
+        forbiddenSelectionDirectives: Set<String>,
     ) {
         val operations = descriptors.flatMap { it.namedOperations }
         if (operations.isEmpty()) return
 
-        val validator = GraphQLOperationValidator(schema)
+        val validator = GraphQLOperationValidator(schema, forbiddenSelectionDirectives)
         val errors = mutableListOf<String>()
         operations.forEach { validator.validate(it, fragmentsByName, errors) }
 

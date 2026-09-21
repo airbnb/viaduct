@@ -11,6 +11,8 @@ import viaduct.tenant.codegen.ksp.OperationKind
 class GraphQLOperationValidatorTest {
     companion object {
         private val TEST_SCHEMA_SDL = """
+            directive @tombstoned on FIELD_DEFINITION | OBJECT
+
             type Query {
                 user(id: ID!): User
                 viewer: User
@@ -23,20 +25,20 @@ class GraphQLOperationValidatorTest {
             type User {
                 id: ID!
                 name: String
+                tombstonedName: String @tombstoned @deprecated(reason: "Use name instead")
             }
         """.trimIndent()
 
-        private val validator = GraphQLOperationValidator(
-            UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(TEST_SCHEMA_SDL)),
-        )
+        private val schema = UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(TEST_SCHEMA_SDL))
 
         private fun validate(
             text: String,
             kind: OperationKind = OperationKind.QUERY,
             fragmentsByName: Map<String, String> = emptyMap(),
+            forbiddenSelectionDirectives: Set<String> = emptySet(),
         ): List<String> =
             mutableListOf<String>().also { errors ->
-                validator.validate(
+                GraphQLOperationValidator(schema, forbiddenSelectionDirectives).validate(
                     OperationDescriptor(text = text, kind = kind, implFqn = "com.example.TestOperation"),
                     fragmentsByName,
                     errors,
@@ -121,5 +123,49 @@ class GraphQLOperationValidatorTest {
             mapOf("UserFields" to "fragment UserFields on User { doesNotExist }"),
         )
         assertTrue(errors.any { it.contains("doesNotExist") }, errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `selection of a field carrying a forbidden directive fails`() {
+        val errors = validate("{ viewer { tombstonedName } }", forbiddenSelectionDirectives = setOf("tombstoned"))
+        assertEquals(
+            listOf(
+                "@GraphQLOperation on com.example.TestOperation selects User.tombstonedName, which carries @tombstoned. " +
+                    "Fields with this directive must not be selected.",
+            ),
+            errors,
+        )
+    }
+
+    @Test
+    fun `selection of a field carrying a forbidden directive inside an external fragment fails`() {
+        val errors = validate(
+            "{ viewer { ...UserFields } }",
+            fragmentsByName = mapOf("UserFields" to "fragment UserFields on User { tombstonedName }"),
+            forbiddenSelectionDirectives = setOf("tombstoned"),
+        )
+        assertTrue(errors.any { it.contains("User.tombstonedName") && it.contains("@tombstoned") }, errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `selection of a field carrying a forbidden directive in a mutation fails`() {
+        val errors = validate(
+            "mutation { createUser(name: \"a\") { tombstonedName } }",
+            OperationKind.MUTATION,
+            forbiddenSelectionDirectives = setOf("tombstoned"),
+        )
+        assertTrue(errors.any { it.contains("User.tombstonedName") }, errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `typename selection is ignored by the forbidden directive check`() {
+        val errors = validate("{ __typename viewer { __typename id } }", forbiddenSelectionDirectives = setOf("tombstoned"))
+        assertTrue(errors.isEmpty(), errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `selection of a field carrying a forbidden directive passes when none are configured`() {
+        val errors = validate("{ viewer { tombstonedName } }")
+        assertTrue(errors.isEmpty(), errors.joinToString("\n"))
     }
 }

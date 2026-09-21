@@ -27,6 +27,7 @@ class AssembleTenantModuleConfigFileTest {
         out: File = outputDir(),
         schemaBinary: File? = null,
         schemaFiles: List<File> = emptyList(),
+        forbiddenSelectionDirectives: List<String> = emptyList(),
     ) {
         val args = mutableListOf(
             "--descriptor-dir",
@@ -49,6 +50,7 @@ class AssembleTenantModuleConfigFileTest {
         if (schemaFiles.isNotEmpty()) {
             args += listOf("--schema-files", schemaFiles.joinToString(",") { it.absolutePath })
         }
+        forbiddenSelectionDirectives.forEach { args += listOf("--forbidden-selection-directive", it) }
         AssembleTenantModuleConfigFile().main(args)
     }
 
@@ -984,6 +986,70 @@ class AssembleTenantModuleConfigFileTest {
         val schema = schemaFile("type Query { viewer: User } type User { id: ID name: String }")
         // Should not throw.
         runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
+    }
+
+    @Test
+    fun `forbidden-selection-directive rejects a named operation selecting a field carrying the directive`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Operations.json").writeText(
+            """
+            {"nodes":[],"fields":[],"namedOperations":[
+              {"text":"{ viewer { tombstonedName } }","kind":"QUERY","implFqn":"com.example.feature.StaleQuery"}
+            ]}
+            """.trimIndent(),
+        )
+        val schema = schemaFile(
+            """
+            directive @tombstoned on FIELD_DEFINITION | OBJECT
+            type Query { viewer: User }
+            type User { id: ID tombstonedName: String @tombstoned }
+            """.trimIndent(),
+        )
+        val exception = assertThrows<IllegalStateException> {
+            runCli(descriptors = descriptors, out = outputDir(), schemaFiles = listOf(schema), forbiddenSelectionDirectives = listOf("tombstoned"))
+        }
+        assertTrue(exception.message!!.contains("@GraphQLOperation validation failed"), exception.message)
+        assertTrue(exception.message!!.contains("User.tombstonedName"), exception.message)
+    }
+
+    @Test
+    fun `forbidden-selection-directive rejects a named fragment selecting a field carrying the directive`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "FragmentDefs.json").writeText(
+            """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment StaleFields on User { __typename tombstonedName }"}]}""",
+        )
+        val schema = schemaFile(
+            """
+            directive @tombstoned on FIELD_DEFINITION | OBJECT
+            type Query { viewer: User }
+            type User { id: ID tombstonedName: String @tombstoned }
+            """.trimIndent(),
+        )
+        val exception = assertThrows<IllegalStateException> {
+            runCli(descriptors = descriptors, out = outputDir(), schemaFiles = listOf(schema), forbiddenSelectionDirectives = listOf("tombstoned"))
+        }
+        assertTrue(exception.message!!.contains("@GraphQLFragment validation failed"), exception.message)
+        assertTrue(exception.message!!.contains("User.tombstonedName"), exception.message)
+    }
+
+    @Test
+    fun `named operation and fragment selecting a field carrying the directive pass when none are forbidden`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Operations.json").writeText(
+            """
+            {"nodes":[],"fields":[],"namedOperations":[
+              {"text":"{ viewer { ...StaleFields } }","kind":"QUERY","implFqn":"com.example.feature.StaleQuery"}
+            ],"namedFragments":[{"text":"fragment StaleFields on User { tombstonedName }"}]}
+            """.trimIndent(),
+        )
+        val schema = schemaFile(
+            """
+            directive @tombstoned on FIELD_DEFINITION | OBJECT
+            type Query { viewer: User }
+            type User { id: ID tombstonedName: String @tombstoned }
+            """.trimIndent(),
+        )
+        runCli(descriptors = descriptors, out = outputDir(), schemaFiles = listOf(schema))
     }
 
     @Test

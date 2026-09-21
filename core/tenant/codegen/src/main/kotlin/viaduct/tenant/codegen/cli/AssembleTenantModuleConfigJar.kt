@@ -3,6 +3,7 @@ package viaduct.tenant.codegen.cli
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.split
@@ -62,6 +63,14 @@ class AssembleTenantModuleConfigJar : CliktCommand(
     )
         .flag(default = false)
 
+    private val forbiddenSelectionDirectives: List<String> by option(
+        "--forbidden-selection-directive",
+        help = "Directive names (no @ prefix) that must not appear on any field selected by a " +
+            "required selection set, @GraphQLOperation, or @GraphQLFragment. Repeatable; validation " +
+            "runs only when schema files are provided."
+    )
+        .multiple()
+
     private val outputJar: File by option("--output-jar")
         .file(mustExist = false, canBeDir = false)
         .required()
@@ -89,6 +98,7 @@ class AssembleTenantModuleConfigJar : CliktCommand(
                 schemaBinary = schemaBinary,
                 schemaFiles = schemaFiles,
                 outputDir = outputDir,
+                forbiddenSelectionDirectives = forbiddenSelectionDirectives.toSet(),
             )
 
             requireNotNull(outputJar.parentFile) {
