@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.CheckedArb
@@ -819,16 +820,19 @@ class SelectiveFieldResolversExecutionTest {
     @Nested
     inner class ParentManagedValueTests {
         @Test
+        @Disabled("Parent-managed selective refetch was reverted")
         fun `missing descendant of a parent-managed selective result refetches the parent`() {
             assertParentManagedRefetch()
         }
 
         @Test
+        @Disabled("Parent-managed selective refetch was reverted")
         fun `parent-managed refetch crosses a field with a suppressed resolver`() {
             assertParentManagedRefetch(nestedResolverSelective = false)
         }
 
         @Test
+        @Disabled("Parent-managed selective refetch was reverted")
         fun `parent-managed refetch crosses a field with a suppressed selective resolver`() {
             assertParentManagedRefetch(nestedResolverSelective = true)
         }

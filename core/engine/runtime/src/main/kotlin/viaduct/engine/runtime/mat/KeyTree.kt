@@ -2,9 +2,6 @@ package viaduct.engine.runtime.mat
 
 import graphql.schema.GraphQLObjectType
 import java.util.Collections
-import viaduct.engine.runtime.mat.KeyTreeFilter.Result.DROP
-import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_AND_RECURSE
-import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_WITHOUT_CHILDREN
 import viaduct.engine.runtime.result.ObjectEngineResult
 
 /**
@@ -132,6 +129,7 @@ class KeyTree(
     /** Return a [KeyTree] that has been recursively filtered by [filter] */
     fun filter(filter: KeyTreeFilter): KeyTree =
         when (filter) {
+            // simple optimizations for known filters
             KeyTreeFilter.KeepAll -> this
             else -> filterInternal(filter, true)
         }
@@ -144,11 +142,8 @@ class KeyTree(
         for ((type, fields) in byType) {
             val kept = mutableMapOf<ObjectEngineResult.Key, KeyTree>()
             for ((key, sub) in fields) {
-                when (filter(type, key, topLevel)) {
-                    DROP -> continue
-                    KEEP_WITHOUT_CHILDREN -> kept[key] = empty
-                    KEEP_AND_RECURSE -> kept[key] = sub.filterInternal(filter, false)
-                }
+                if (!filter(type, key, topLevel)) continue
+                kept[key] = sub.filterInternal(filter, false)
             }
             result[type] = kept
         }
@@ -213,33 +208,33 @@ internal fun KeyTree.subtreeAt(path: MatPath): KeyTree {
     return subtree
 }
 
-/** Decides whether to keep a key and traverse its children in [KeyTree.filter]. */
+/**
+ * A predicate for filtering a [KeyTree].
+ *
+ * Returning true keeps a key; returning false filters out the key and its subtree.
+ *
+ * @see [KeyTree.filter]
+ */
 fun interface KeyTreeFilter {
-    enum class Result {
-        DROP,
-        KEEP_WITHOUT_CHILDREN,
-        KEEP_AND_RECURSE,
-    }
-
     operator fun invoke(
         type: GraphQLObjectType,
         key: ObjectEngineResult.Key,
         topLevel: Boolean
-    ): Result
+    ): Boolean
 
-    /** Combines filters using the more restrictive result. */
+    /** Returns a filter that is the logical AND of this and [other] */
     infix fun and(other: KeyTreeFilter): KeyTreeFilter = AndFilter(this, other)
 
-    /** Combines filters using the less restrictive result. */
+    /** Returns a filter that is the logical OR of this and [other] */
     infix fun or(other: KeyTreeFilter): KeyTreeFilter = OrFilter(this, other)
 
     @JvmInline
-    private value class Const(val value: Result) : KeyTreeFilter {
+    private value class Const(val value: Boolean) : KeyTreeFilter {
         override fun invoke(
             type: GraphQLObjectType,
             key: ObjectEngineResult.Key,
             topLevel: Boolean
-        ): Result = value
+        ): Boolean = value
     }
 
     private class AndFilter(val left: KeyTreeFilter, val right: KeyTreeFilter) : KeyTreeFilter {
@@ -247,13 +242,7 @@ fun interface KeyTreeFilter {
             type: GraphQLObjectType,
             key: ObjectEngineResult.Key,
             topLevel: Boolean
-        ): Result =
-            when (left(type, key, topLevel)) {
-                DROP -> DROP
-                KEEP_WITHOUT_CHILDREN ->
-                    if (right(type, key, topLevel) == DROP) DROP else KEEP_WITHOUT_CHILDREN
-                KEEP_AND_RECURSE -> right(type, key, topLevel)
-            }
+        ): Boolean = left(type, key, topLevel) && right(type, key, topLevel)
     }
 
     private class OrFilter(val left: KeyTreeFilter, val right: KeyTreeFilter) : KeyTreeFilter {
@@ -261,20 +250,14 @@ fun interface KeyTreeFilter {
             type: GraphQLObjectType,
             key: ObjectEngineResult.Key,
             topLevel: Boolean
-        ): Result =
-            when (left(type, key, topLevel)) {
-                DROP -> right(type, key, topLevel)
-                KEEP_WITHOUT_CHILDREN ->
-                    if (right(type, key, topLevel) == KEEP_AND_RECURSE) KEEP_AND_RECURSE else KEEP_WITHOUT_CHILDREN
-                KEEP_AND_RECURSE -> KEEP_AND_RECURSE
-            }
+        ): Boolean = left(type, key, topLevel) || right(type, key, topLevel)
     }
 
     companion object {
         /** A [KeyTreeFilter] that includes all keys */
-        val KeepAll: KeyTreeFilter = Const(KEEP_AND_RECURSE)
+        val KeepAll: KeyTreeFilter = Const(true)
 
         /** A [KeyTreeFilter] that drops all keys */
-        val DropAll: KeyTreeFilter = Const(DROP)
+        val DropAll: KeyTreeFilter = Const(false)
     }
 }

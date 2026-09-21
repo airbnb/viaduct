@@ -6,14 +6,12 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.graphql.asViaductSchema
 import viaduct.engine.runtime.mat.KeyTreeFilter as FilterPredicate
-import viaduct.engine.runtime.mat.KeyTreeFilter.Result.DROP
-import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_AND_RECURSE
-import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_WITHOUT_CHILDREN
 import viaduct.engine.runtime.result.ObjectEngineResult
 
 class KeyTreeTest {
@@ -720,7 +718,7 @@ class KeyTreeTest {
 
     @Nested
     inner class Filter {
-        private val dropA: FilterPredicate = FilterPredicate { _, key, _ -> if (key.name == "a") DROP else KEEP_AND_RECURSE }
+        private val dropA: FilterPredicate = FilterPredicate { _, key, _ -> key.name != "a" }
 
         @Test
         fun empty() {
@@ -813,7 +811,9 @@ class KeyTreeTest {
         }
 
         @Test
+        @Disabled("Requires reverted parent-managed selective materialization")
         fun `stopping traversal keeps the field and leaves sibling subtrees intact`() {
+            /* Requires the reverted three-state KeyTreeFilter API.
             val tree = KeyTree.build(schema) {
                 field("Foo", key("b")) {
                     field("Bar", key("a"))
@@ -836,10 +836,13 @@ class KeyTreeTest {
                 },
                 filtered,
             )
+             */
         }
 
         @Test
+        @Disabled("Requires reverted parent-managed selective materialization")
         fun `field filtering still applies when traversal is limited`() {
+            /* Requires the reverted three-state KeyTreeFilter API.
             val tree = KeyTree.build(schema) {
                 field("Foo", key("a"))
                 field("Foo", key("b")) {
@@ -865,6 +868,7 @@ class KeyTreeTest {
                 },
                 filtered,
             )
+             */
         }
     }
 
@@ -960,7 +964,9 @@ class KeyTreeTest {
     @Nested
     inner class KeyTreeFilter {
         @Test
+        @Disabled("Requires reverted parent-managed selective materialization")
         fun and() {
+            /* Requires the reverted three-state KeyTreeFilter API.
             val tree = KeyTree.build(schema) {
                 field("Foo", key("a")) {
                     field("Bar", key("b"))
@@ -981,10 +987,13 @@ class KeyTreeTest {
             assertEquals(rootsOnly, tree.filter(keepWithoutChildren and keepWithoutChildren))
             assertEquals(rootsOnly, tree.filter(keepWithoutChildren and FilterPredicate.KeepAll))
             assertEquals(rootsOnly, tree.filter(FilterPredicate.KeepAll and keepWithoutChildren))
+             */
         }
 
         @Test
+        @Disabled("Requires reverted parent-managed selective materialization")
         fun or() {
+            /* Requires the reverted three-state KeyTreeFilter API.
             val tree = KeyTree.build(schema) {
                 field("Foo", key("a")) {
                     field("Bar", key("b"))
@@ -1005,6 +1014,7 @@ class KeyTreeTest {
             assertEquals(rootsOnly, tree.filter(keepWithoutChildren or keepWithoutChildren))
             assertEquals(tree, tree.filter(keepWithoutChildren or FilterPredicate.KeepAll))
             assertEquals(tree, tree.filter(FilterPredicate.KeepAll or keepWithoutChildren))
+             */
         }
     }
 

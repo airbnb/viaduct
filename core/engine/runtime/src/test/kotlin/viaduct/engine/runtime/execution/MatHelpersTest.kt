@@ -7,8 +7,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.runtime.mat.KeyTree
-import viaduct.engine.runtime.mat.KeyTreeFilter.Result.DROP
-import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_AND_RECURSE
 import viaduct.engine.runtime.mat.Mat
 import viaduct.engine.runtime.mat.build
 import viaduct.engine.runtime.result.ObjectEngineResult
@@ -262,9 +260,9 @@ class MatHelpersTest {
         fun `field filter drops introspection and resolver-owned fields`() {
             val filter = FieldOutputSelectionSetFilter { _, fieldName -> fieldName == "resolved" }
 
-            assertEquals(DROP, filter(type, ObjectEngineResult.Key("__typename"), topLevel = true))
-            assertEquals(DROP, filter(type, ObjectEngineResult.Key("resolved"), topLevel = true))
-            assertEquals(KEEP_AND_RECURSE, filter(type, ObjectEngineResult.Key("plain"), topLevel = true))
+            assertEquals(false, filter(type, ObjectEngineResult.Key("__typename"), topLevel = true))
+            assertEquals(false, filter(type, ObjectEngineResult.Key("resolved"), topLevel = true))
+            assertEquals(true, filter(type, ObjectEngineResult.Key("plain"), topLevel = true))
         }
     }
 
@@ -278,19 +276,19 @@ class MatHelpersTest {
         fun `node filter drops introspection resolver-owned fields and top-level id`() {
             val filter = NodeOutputSelectionSetFilter { _, fieldName -> fieldName == "resolved" }
 
-            assertEquals(DROP, filter(type, ObjectEngineResult.Key("__typename"), topLevel = true))
-            assertEquals(DROP, filter(type, ObjectEngineResult.Key("id"), topLevel = true))
-            assertEquals(DROP, filter(type, ObjectEngineResult.Key("resolved"), topLevel = true))
-            assertEquals(KEEP_AND_RECURSE, filter(type, ObjectEngineResult.Key("id"), topLevel = false))
-            assertEquals(KEEP_AND_RECURSE, filter(type, ObjectEngineResult.Key("plain"), topLevel = true))
+            assertEquals(false, filter(type, ObjectEngineResult.Key("__typename"), topLevel = true))
+            assertEquals(false, filter(type, ObjectEngineResult.Key("id"), topLevel = true))
+            assertEquals(false, filter(type, ObjectEngineResult.Key("resolved"), topLevel = true))
+            assertEquals(true, filter(type, ObjectEngineResult.Key("id"), topLevel = false))
+            assertEquals(true, filter(type, ObjectEngineResult.Key("plain"), topLevel = true))
         }
 
         @Test
         fun `initial node filter preserves resolver-owned fields`() {
-            assertEquals(DROP, nodeInitialResolutionFilter(type, ObjectEngineResult.Key("__typename"), topLevel = true))
-            assertEquals(DROP, nodeInitialResolutionFilter(type, ObjectEngineResult.Key("id"), topLevel = true))
-            assertEquals(KEEP_AND_RECURSE, nodeInitialResolutionFilter(type, ObjectEngineResult.Key("id"), topLevel = false))
-            assertEquals(KEEP_AND_RECURSE, nodeInitialResolutionFilter(type, ObjectEngineResult.Key("plain"), topLevel = true))
+            assertEquals(false, nodeInitialResolutionFilter(type, ObjectEngineResult.Key("__typename"), topLevel = true))
+            assertEquals(false, nodeInitialResolutionFilter(type, ObjectEngineResult.Key("id"), topLevel = true))
+            assertEquals(true, nodeInitialResolutionFilter(type, ObjectEngineResult.Key("id"), topLevel = false))
+            assertEquals(true, nodeInitialResolutionFilter(type, ObjectEngineResult.Key("plain"), topLevel = true))
         }
     }
 

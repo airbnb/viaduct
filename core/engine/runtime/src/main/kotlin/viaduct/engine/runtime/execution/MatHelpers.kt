@@ -11,7 +11,6 @@ import graphql.schema.GraphQLSchema
 import java.util.Locale
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
-import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
 import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
@@ -20,9 +19,6 @@ import viaduct.engine.runtime.HasResolver
 import viaduct.engine.runtime.MatSource
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.KeyTreeFilter
-import viaduct.engine.runtime.mat.KeyTreeFilter.Result.DROP
-import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_AND_RECURSE
-import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_WITHOUT_CHILDREN
 import viaduct.engine.runtime.mat.Mat
 import viaduct.engine.runtime.mat.MatPath.Segment
 import viaduct.engine.runtime.mat.MatResult
@@ -203,36 +199,33 @@ private fun QueryPlan.keyTreeForType(
 }
 
 /**
- * Returns a [MatSource.Embedded] when Mat resolution is enabled, the current object has a Mat
- * source, and either the field has no dispatcher under standard resolution or both the parent and
- * child are [ResolutionPolicy.PARENT_MANAGED]. Returns `null` otherwise.
+ * Returns the [MatSource] for a resolver-less object nested beneath a Mat-backed object.
  */
 internal fun mkEmbeddedMatSource(
     parameters: ExecutionParameters,
     field: CollectedField,
     memberType: GraphQLObjectType,
     memberIndices: List<Int>,
-    resolutionPolicy: ResolutionPolicy,
 ): MatSource? {
     if (!parameters.engineExecutionContext.matResolutionEnabled) return null
-    val parentSource = parameters.currentObjectEngineResult.matSource ?: return null
-    val parentManaged = parentSource.fieldResolutionPolicy == ResolutionPolicy.PARENT_MANAGED
-    if (parentManaged && resolutionPolicy == ResolutionPolicy.STANDARD) return null
     val parentTypeName = parameters.executionStepInfo.objectType.name
     val dispatcher =
         parameters.engineExecutionContext.dispatcherRegistry
             .getFieldResolverDispatcher(parentTypeName, field.fieldName)
 
-    if (dispatcher != null && !parentManaged) return null
-    return MatSource.Embedded(
-        parameters.currentObjectEngineResult,
-        Segment(
-            type = memberType,
-            key = FieldExecutionHelpers.buildOERKeyForField(parameters, field),
-            indices = memberIndices,
-        ),
-        fieldResolutionPolicy = resolutionPolicy,
-    )
+    return when {
+        dispatcher != null -> null
+        parameters.currentObjectEngineResult.matSource != null ->
+            MatSource.Embedded(
+                parameters.currentObjectEngineResult,
+                Segment(
+                    type = memberType,
+                    key = FieldExecutionHelpers.buildOERKeyForField(parameters, field),
+                    indices = memberIndices,
+                ),
+            )
+        else -> null
+    }
 }
 
 internal fun isFieldMatBacked(
@@ -241,8 +234,6 @@ internal fun isFieldMatBacked(
     effectiveData: Any?,
 ): Boolean {
     if (!parameters.engineExecutionContext.matResolutionEnabled) return false
-    val parentPolicy = parameters.currentObjectEngineResult.matSource?.fieldResolutionPolicy ?: parameters.resolutionPolicy
-    if (parentPolicy == ResolutionPolicy.PARENT_MANAGED) return false
     if (effectiveData !is EngineObjectData) return false
 
     val parentTypeName = parameters.executionStepInfo.objectType.name
@@ -341,22 +332,12 @@ internal value class FieldOutputSelectionSetFilter(val hasResolver: HasResolver)
         type: GraphQLObjectType,
         key: ObjectEngineResult.Key,
         topLevel: Boolean
-    ): KeyTreeFilter.Result =
+    ): Boolean =
         when {
-            key.name.startsWith("__") -> DROP
-            hasResolver(type, key.name) -> DROP
-            else -> KEEP_AND_RECURSE
+            key.name.startsWith("__") -> false
+            hasResolver(type, key.name) -> false
+            else -> true
         }
-}
-
-/** Existing child objects handle descendant reads through their own resolution policy. */
-@JvmInline
-internal value class ParentManagedReadTraversalFilter(val covered: KeyTree) : KeyTreeFilter {
-    override fun invoke(
-        type: GraphQLObjectType,
-        key: ObjectEngineResult.Key,
-        topLevel: Boolean,
-    ): KeyTreeFilter.Result = if (topLevel && covered.containsKey(type, key)) KEEP_WITHOUT_CHILDREN else KEEP_AND_RECURSE
 }
 
 /** A [KeyTreeFilter] that clamps a node resolvers subtree to its output selection set*/
@@ -366,12 +347,12 @@ internal value class NodeOutputSelectionSetFilter(val hasResolver: HasResolver) 
         type: GraphQLObjectType,
         key: ObjectEngineResult.Key,
         topLevel: Boolean
-    ): KeyTreeFilter.Result =
+    ): Boolean =
         when {
-            key.name.startsWith("__") -> DROP
-            topLevel && key.name == "id" -> DROP
-            hasResolver(type, key.name) -> DROP
-            else -> KEEP_AND_RECURSE
+            key.name.startsWith("__") -> false
+            topLevel && key.name == "id" -> false
+            hasResolver(type, key.name) -> false
+            else -> true
         }
 }
 
@@ -380,5 +361,5 @@ internal value class NodeOutputSelectionSetFilter(val hasResolver: HasResolver) 
  * still require the initial node resolution lifecycle to settle the reference.
  */
 internal val nodeInitialResolutionFilter = KeyTreeFilter { _, key, topLevel ->
-    if (key.name.startsWith("__") || (topLevel && key.name == "id")) DROP else KEEP_AND_RECURSE
+    !key.name.startsWith("__") && !(topLevel && key.name == "id")
 }
