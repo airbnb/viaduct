@@ -8,6 +8,7 @@ import semantics.contract.selectionValues
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import model.EngineErrorData
 import model.EngineIDResult
 import model.ErrorEngineResult
@@ -37,6 +38,8 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.CheckerResultContext
 
 class MaterializeTest {
     @Test
@@ -314,4 +317,122 @@ class MaterializeTest {
             assertEquals("same", materialized.selectionValues().getValue("second"))
         }
 
+    @Test
+    fun `missing field checker slot defaults materialization open`() =
+        runBlocking {
+            val world =
+                TestWorld.fromSDL("type Query { value: String! }").assumptions
+            val key =
+                ObjectEngineResult.GroundKey.of(
+                    world.schema.requireObjectField("Query", "value"),
+                    emptyMap(),
+                )
+            val result =
+                ObjectEngineResult.of(
+                    type = world.schema.requireQueryTypeDef(),
+                    values = mapOf(key to "open"),
+                    fieldCheckerResults = emptyMap(),
+                )
+            val selections =
+                world
+                    .fragmentFrom("fragment ignored on Query { value }")
+                    .materializeSelections
+
+            val materialized =
+                result.materializeResult(
+                    operation = SharedOperationContext.create(world),
+                    selections = selections,
+                    reader = result.fieldResolverCycleTask(emptyList()),
+                )
+
+            assertFalse(result.getCell(key).isFieldCheckerResultSet())
+            assertEquals("open", materialized.get("value"))
+        }
+
+    @Test
+    fun `present field checker slot is enforced without a policy flag`() =
+        runBlocking {
+            val world =
+                TestWorld.fromSDL("type Query { value: String! }").assumptions
+            val key =
+                ObjectEngineResult.GroundKey.of(
+                    world.schema.requireObjectField("Query", "value"),
+                    emptyMap(),
+                )
+            val denial = MaterializationDenial()
+            val result =
+                ObjectEngineResult.of(
+                    type = world.schema.requireQueryTypeDef(),
+                    values = mapOf(key to "denied"),
+                    fieldCheckerResults = mapOf(key to denial),
+                )
+            val selections =
+                world
+                    .fragmentFrom("fragment ignored on Query { value }")
+                    .materializeSelections
+
+            val materialized =
+                result.materializeResult(
+                    operation = SharedOperationContext.create(world),
+                    selections = selections,
+                    reader = result.fieldResolverCycleTask(emptyList()),
+                )
+
+            assertSame(denial.error, assertIs<EngineErrorData>(materialized.outputValue("value")).cause)
+        }
+
+    @Test
+    fun `checker denial completes without awaiting the raw value`() =
+        runBlocking {
+            val world =
+                TestWorld
+                    .fromSDL(
+                        """
+                        type Query { value: String! }
+                        """.trimIndent(),
+                    ).assumptions
+            val key =
+                ObjectEngineResult.GroundKey.of(
+                    world.schema.requireObjectField("Query", "value"),
+                    emptyMap(),
+                )
+            val denial = MaterializationDenial()
+            val result = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
+            val cell = result.reserveCell(key)
+            cell.reserveValue()
+            val checkerPromise = cell.createFieldCheckerResultPromise()
+            cell.setActivated(true)
+            val selections =
+                world
+                    .fragmentFrom("fragment ignored on Query { value }")
+                    .materializeSelections
+
+            val materialized =
+                async(start = CoroutineStart.UNDISPATCHED) {
+                    result.materializeResult(
+                        operation = SharedOperationContext.create(world),
+                        selections = selections,
+                        reader = result.fieldResolverCycleTask(emptyList()),
+                    )
+                }
+            assertFalse(materialized.isCompleted)
+
+            checkerPromise.complete(denial)
+            val completed = withTimeout(1_000) { materialized.await() }
+
+            assertSame(
+                denial.error,
+                assertIs<EngineErrorData>(completed.outputValue("value")).cause,
+            )
+            assertFalse(cell.getValue().isCompleted)
+        }
+
+}
+
+private class MaterializationDenial : CheckerResult.Error {
+    override val error: Exception = IllegalStateException("denied")
+
+    override fun isErrorForResolver(ctx: CheckerResultContext): Boolean = true
+
+    override fun combine(fieldResult: CheckerResult.Error): CheckerResult.Error = this
 }

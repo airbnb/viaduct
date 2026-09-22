@@ -13,8 +13,9 @@ import viaduct.engine.api.EngineObjectData
  *
  * Delegates to [materializeResult]: selected cells and value promises must be installed, while
  * values and selection bindings may still be pending. The caller's [operation] and [cycleChecker]
- * are passed through unchanged. The checker is required here even though result projection
- * defaults to no-op checking.
+ * are passed through unchanged. Claimed field- and type-checker slots are awaited, combined, and
+ * enforced before the raw value is awaited; unclaimed slots default open, and an applicable denial
+ * short-circuits the raw read.
  *
  * Resolver26 uses its distinct runtime input materializer to reserve symbolic cells and value
  * promises before their producers install them. Correctness replay, including replay of

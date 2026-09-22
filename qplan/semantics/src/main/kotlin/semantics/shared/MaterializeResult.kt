@@ -6,6 +6,7 @@ import model.EngineOutputData
 import model.EngineOutputListData
 import model.EngineObjectDataEntry
 import model.EngineResult
+import model.EngineResultCell
 import model.ErrorEngineResult
 import model.ListEngineResult
 import model.MaterializeSelectionForest
@@ -15,8 +16,12 @@ import model.outputType
 import model.ObjectMaterializeSelection
 import model.PathComponent
 import model.materializedEngineObjectDataOf
+import model.materializeCheckedValue
+import model.EngineResultIsPending
 import model.toEngineOutputData
+import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.FieldDirectives
 
 /**
  * Projects the OER values selected by [selections] into response-keyed [EngineObjectData], preserving
@@ -37,6 +42,9 @@ import viaduct.engine.api.EngineObjectData
  * [reader] is the exact identity of the resolver consuming the materialized value.
  * [cycleChecker] defaults to no-op for nested `ctx.query` results and correctness replay. Runtime
  * resolver-input materialization supplies its checker explicitly, independently of [operation].
+ * Missing field- or type-checker slots mean that no checker executor claimed the occurrence and
+ * default open. Claimed slots are awaited, combined, and enforced before a selected value can be
+ * consumed.
  */
 internal suspend fun ObjectEngineResult.materializeResult(
     operation: SharedOperationContext<*>,
@@ -74,17 +82,25 @@ private class MaterializationLogic(
             val candidateKey = selection.materializedSymbolicKey()
             val storedKey = findStoredKey(operation, candidateKey) ?: candidateKey
             val cell = getCell(storedKey)
-            val promise = cell.getValue()
-            cycleChecker.cycleCheck(reader, cell.valueCycleSlot)
+            val checkedValue =
+                cell.materializeCheckedValueForResolver(
+                    fieldDirectives = selection.fieldDirectives,
+                    reader = reader,
+                    cycleChecker = cycleChecker,
+                )
             val selectedValue =
-                promise
-                    .await()
-                    .materializeEngineResultValue(
-                        expectedType = storedKey.field.outputType,
-                        selections = selection.subselections,
-                        reader = reader,
-                        resultPath = resultPath + storedKey,
-                    )
+                if (checkedValue is ErrorEngineResult) {
+                    checkedValue.errorData
+                } else {
+                    checkedValue
+                        .materializeEngineResultValue(
+                            expectedType = storedKey.field.outputType,
+                            selections = selection.subselections,
+                            reader = reader,
+                            resultPath = resultPath + storedKey,
+                            fieldDirectives = selection.fieldDirectives,
+                        )
+                }
             selectedValues[responseKey] = storedKey.field to selectedValue
         }
         return materializedEngineObjectDataOf(
@@ -120,6 +136,7 @@ private class MaterializationLogic(
         selections: MaterializeSelectionForest,
         reader: CycleTask,
         resultPath: List<PathComponent>,
+        fieldDirectives: FieldDirectives?,
     ): EngineOutputData? =
         when (this) {
             null -> null
@@ -136,6 +153,7 @@ private class MaterializationLogic(
                     selections = selections,
                     reader = reader,
                     resultPath = resultPath,
+                    fieldDirectives = fieldDirectives,
                 )
             }
             else -> toEngineOutputData(expectedType.baseTypeDef as ViaductSchema.SimpleTypeDef)
@@ -146,19 +164,61 @@ private class MaterializationLogic(
         selections: MaterializeSelectionForest,
         reader: CycleTask,
         resultPath: List<PathComponent>,
+        fieldDirectives: FieldDirectives?,
     ): EngineOutputListData {
         val materialized = mutableListOf<EngineOutputData?>()
         indices.forEach { index ->
             val cell = get(index)
-            cycleChecker.cycleCheck(reader, cell.valueCycleSlot)
-            materialized +=
-                cell.getValue().await().materializeEngineResultValue(
-                    expectedType = typeExpr,
-                    selections = selections,
+            val checkedValue =
+                cell.materializeCheckedValueForResolver(
+                    fieldDirectives = fieldDirectives,
                     reader = reader,
-                    resultPath = resultPath + ListEngineResult.Index.of(index),
+                    cycleChecker = cycleChecker,
                 )
+            materialized +=
+                if (checkedValue is ErrorEngineResult) {
+                    checkedValue.errorData
+                } else {
+                    checkedValue.materializeEngineResultValue(
+                        expectedType = typeExpr,
+                        selections = selections,
+                        reader = reader,
+                        resultPath = resultPath + ListEngineResult.Index.of(index),
+                        fieldDirectives = fieldDirectives,
+                    )
+                }
         }
         return materialized
     }
+}
+
+/** Awaits and materializes one checked resolver input while preserving cycle-read edges. */
+internal suspend fun EngineResultCell.materializeCheckedValueForResolver(
+    fieldDirectives: FieldDirectives?,
+    reader: CycleTask,
+    cycleChecker: CycleCheckState,
+): EngineResult? {
+    val hasFieldChecker = isFieldCheckerResultSet()
+    val hasTypeChecker = isTypeCheckerResultSet()
+    if (hasFieldChecker) cycleChecker.cycleCheck(reader, fieldCheckerCycleSlot)
+    if (hasTypeChecker) cycleChecker.cycleCheck(reader, typeCheckerCycleSlot)
+    if (hasFieldChecker) getFieldCheckerResult().await()
+    if (hasTypeChecker) getTypeCheckerResult().await()
+
+    cycleChecker.cycleCheck(reader, valueCycleSlot)
+    var attempt =
+        materializeCheckedValue { error ->
+            error.isErrorForResolver(CheckerResultContext(fieldDirectives))
+        }
+    if (attempt === EngineResultIsPending) {
+        getValue().await()
+        attempt =
+            materializeCheckedValue { error ->
+                error.isErrorForResolver(CheckerResultContext(fieldDirectives))
+            }
+    }
+    check(attempt !== EngineResultIsPending) {
+        "Completed resolver-input slots produced a pending materialization attempt"
+    }
+    return attempt
 }
