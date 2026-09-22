@@ -12,6 +12,8 @@ import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.remote.api.RemoteResolverContextException
 import viaduct.remote.api.spi.RemoteResolverContextApplier
+import viaduct.remote.api.spi.RemoteResolverExecutionInstrumentation
+import viaduct.remote.api.spi.RemoteResolverFunction
 import viaduct.remote.api.spi.RemoteResolverResponseContextCapturer
 import viaduct.remote.grpc.BatchResolveFieldRequest
 import viaduct.remote.grpc.BatchResolveFieldResponse
@@ -39,6 +41,8 @@ open class RemoteResolverServiceImpl(
     private val contextApplier: RemoteResolverContextApplier = RemoteResolverContextApplier.NO_OP,
     private val responseContextCapturer: RemoteResolverResponseContextCapturer =
         RemoteResolverResponseContextCapturer.NO_OP,
+    private val executionInstrumentation: RemoteResolverExecutionInstrumentation =
+        RemoteResolverExecutionInstrumentation.NO_OP,
 ) : RemoteResolverServiceGrpcKt.RemoteResolverServiceCoroutineImplBase() {
     private val log = LoggerFactory.getLogger(RemoteResolverServiceImpl::class.java)
 
@@ -59,7 +63,7 @@ open class RemoteResolverServiceImpl(
         // endpoint -- that shouldn't mask a NOT_FOUND for an executor that was never registered.
         if (NodeExecutorRegistry.get(request.executorId) == null) throw notFound("executor", request.executorId)
         val remoteContext = buildRemoteContext(request.contextHandle, request.callbackEndpoint)
-        val results = resolveNodeExecutorBatch(request.executorId, request.selectorsList, remoteContext)
+        val results = resolveNodeExecutorBatch(request.executorId, request.selectorsList, remoteContext, executionInstrumentation)
 
         log.debug("Returning {} result(s) for executor '{}'", results.size, request.executorId)
         return BatchResolveNodeResponse.newBuilder()
@@ -124,7 +128,10 @@ open class RemoteResolverServiceImpl(
 
         val bodyStartNanos = System.nanoTime()
         val results = try {
-            executor.batchResolve(keyedSelectors.map { it.second }, remoteContext)
+            executionInstrumentation.instrumentRemoteResolverExecution(
+                resolver = RemoteResolverFunction { executor.batchResolve(keyedSelectors.map { it.second }, remoteContext) },
+                parameters = RemoteResolverExecutionInstrumentation.RemoteResolverExecutionParameters(executor.metadata),
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

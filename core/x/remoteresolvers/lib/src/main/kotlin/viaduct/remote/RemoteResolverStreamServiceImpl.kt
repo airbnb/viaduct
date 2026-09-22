@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.produceIn
 import kotlinx.coroutines.launch
 import viaduct.remote.api.spi.RemoteResolverContextApplier
+import viaduct.remote.api.spi.RemoteResolverExecutionInstrumentation
 import viaduct.remote.api.spi.RemoteResolverResponseContextCapturer
 import viaduct.remote.grpc.BatchResolveFieldResponse
 import viaduct.remote.grpc.BatchResolveNodeResponse
@@ -35,6 +36,8 @@ open class RemoteResolverStreamServiceImpl(
     private val contextApplier: RemoteResolverContextApplier = RemoteResolverContextApplier.NO_OP,
     private val responseContextCapturer: RemoteResolverResponseContextCapturer =
         RemoteResolverResponseContextCapturer.NO_OP,
+    private val executionInstrumentation: RemoteResolverExecutionInstrumentation =
+        RemoteResolverExecutionInstrumentation.NO_OP,
 ) : RemoteResolverStreamServiceGrpcKt.RemoteResolverStreamServiceCoroutineImplBase() {
     override fun resolveNodeBatch(requests: Flow<ViaductServiceMessage>): Flow<RemoteResolverServiceMessage> =
         channelFlow {
@@ -46,7 +49,7 @@ open class RemoteResolverStreamServiceImpl(
             ) { request, dispatcher ->
                 runWithRemoteContext(contextApplier, request.hasRemoteContext(), request.remoteContext) {
                     val context = buildStreamContext(dispatcher, request.executorId)
-                    val results = resolveNodeExecutorBatch(request.executorId, request.selectorsList, context)
+                    val results = resolveNodeExecutorBatch(request.executorId, request.selectorsList, context, executionInstrumentation)
                     send(
                         RemoteResolverServiceMessage.newBuilder()
                             .setResolveResponse(

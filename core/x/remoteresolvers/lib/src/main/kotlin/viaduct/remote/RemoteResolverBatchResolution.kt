@@ -9,6 +9,8 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.errors.TenantResolverException
+import viaduct.remote.api.spi.RemoteResolverExecutionInstrumentation
+import viaduct.remote.api.spi.RemoteResolverFunction
 import viaduct.remote.grpc.ErrorInfo
 import viaduct.remote.grpc.ResolvedNode
 import viaduct.remote.grpc.Selector
@@ -29,7 +31,8 @@ private val log = LoggerFactory.getLogger("viaduct.remote.RemoteResolverBatchRes
 internal suspend fun resolveNodeExecutorBatch(
     executorId: String,
     protoSelectors: List<Selector>,
-    context: EngineExecutionContext
+    context: EngineExecutionContext,
+    executionInstrumentation: RemoteResolverExecutionInstrumentation = RemoteResolverExecutionInstrumentation.NO_OP,
 ): List<ResolvedNode> {
     val executor = NodeExecutorRegistry.get(executorId) ?: throw notFound("executor", executorId)
     val keyedSelectors = buildNodeSelectors(protoSelectors, executor)
@@ -37,7 +40,10 @@ internal suspend fun resolveNodeExecutorBatch(
     if (keyedSelectors.isEmpty()) return emptyList()
 
     val results = try {
-        executor.resolve(keyedSelectors.map { it.second }, context)
+        executionInstrumentation.instrumentRemoteResolverExecution(
+            resolver = RemoteResolverFunction { executor.resolve(keyedSelectors.map { it.second }, context) },
+            parameters = RemoteResolverExecutionInstrumentation.RemoteResolverExecutionParameters(executor.metadata),
+        )
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
