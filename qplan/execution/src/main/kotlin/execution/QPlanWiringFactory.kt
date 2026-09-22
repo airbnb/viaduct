@@ -27,8 +27,11 @@ import model.EngineErrorData
 import model.EngineIDResult
 import model.EngineResult
 import model.EngineResultCell
+import model.EngineResultIsPending
 import model.ErrorEngineResult
 import model.ListEngineResult
+import model.awaitCheckedValue
+import model.materializeCheckedValue
 import model.ObjectEngineResult
 import model.Promise
 import model.SourceSchemaAdapter
@@ -113,19 +116,18 @@ private fun EngineResultCell.toGraphQLJavaValue(
     environment: DataFetchingEnvironment,
     path: ResultPath = environment.executionStepInfo.path,
 ): Any? {
-    val promise = getValue()
-    if (promise.isCompleted) {
-        return promise.get().toGraphQLJavaValue(source, environment, path)
+    val attempt = materializeCheckedValue { true }
+    if (attempt !== EngineResultIsPending) {
+        return attempt.toGraphQLJavaValue(source, environment, path)
     }
     val requestScope =
         requireNotNull(source.requestScope) {
             "Pending qplan values require a request-owned coroutine scope"
         }
     return requestScope.asCompletableFuture(
-        preferredFailure = promise::terminalFailureOrNull,
+        preferredFailure = this::preferredTerminalFailureOrNull,
     ) {
-        promise
-            .awaitPreservingTerminalFailure()
+        awaitCheckedValue { true }
             .toGraphQLJavaValueAwaiting(source, environment, path)
     }
 }
@@ -142,10 +144,9 @@ private fun EngineResult?.toGraphQLJavaValue(
         is ListEngineResult -> {
             if (isGraphQLJavaValueReady()) {
                 mapIndexed { index, cell ->
-                    cell
-                        .getValue()
-                        .get()
-                        .toGraphQLJavaValue(source, environment, path.segment(index))
+                    val attempt = cell.materializeCheckedValue { true }
+                    check(attempt !== EngineResultIsPending)
+                    attempt.toGraphQLJavaValue(source, environment, path.segment(index))
                 }
             } else {
                 val requestScope =
@@ -177,13 +178,13 @@ private fun EngineResult?.isGraphQLJavaValueReady(): Boolean =
     when (this) {
         is ListEngineResult ->
             all { cell ->
-                val promise = cell.getValue()
-                promise.isCompleted &&
+                val attempt =
                     try {
-                        promise.get().isGraphQLJavaValueReady()
+                        cell.materializeCheckedValue { true }
                     } catch (_: Exception) {
-                        false
+                        return@all false
                     }
+                attempt !== EngineResultIsPending && attempt.isGraphQLJavaValueReady()
             }
         else -> true
     }
@@ -218,8 +219,7 @@ private suspend fun ListEngineResult.toGraphQLJavaListAwaiting(
             mapIndexed { index, cell ->
                 async(start = CoroutineStart.UNDISPATCHED) {
                     cell
-                        .getValue()
-                        .awaitPreservingTerminalFailure()
+                        .awaitCheckedValue { true }
                         .toGraphQLJavaValueAwaiting(source, environment, path.segment(index))
                 }
             }
@@ -229,20 +229,6 @@ private suspend fun ListEngineResult.toGraphQLJavaListAwaiting(
             preferredTerminalFailureOrNull()?.let { throw it }
             throw failure
         }
-    }
-
-private suspend fun <T> Promise<T>.awaitPreservingTerminalFailure(): T =
-    try {
-        await()
-    } catch (failure: Exception) {
-        if (isCompleted) {
-            try {
-                get()
-            } catch (terminalFailure: Exception) {
-                throw terminalFailure
-            }
-        }
-        throw failure
     }
 
 private fun Promise<*>.terminalFailureOrNull(): Exception? {
@@ -255,19 +241,49 @@ private fun Promise<*>.terminalFailureOrNull(): Exception? {
     }
 }
 
+private fun EngineResultCell.preferredTerminalFailureOrNull(): Exception? {
+    var cancellation: Exception? = null
+    var allCheckersCompleted = true
+    val checkerPromises =
+        buildList {
+            if (isFieldCheckerResultSet()) add(getFieldCheckerResult())
+            if (isTypeCheckerResultSet()) add(getTypeCheckerResult())
+        }
+    checkerPromises.forEach { promise ->
+        val failure = promise.terminalFailureOrNull()
+        if (failure != null) {
+            if (failure !is CancellationException) return failure
+            if (cancellation == null) cancellation = failure
+        }
+        if (!promise.isCompleted) allCheckersCompleted = false
+    }
+    if (cancellation != null) return cancellation
+    if (!allCheckersCompleted) return null
+    return try {
+        materializeCheckedValue { true }
+        null
+    } catch (failure: Exception) {
+        failure
+    }
+}
+
 private fun ListEngineResult.preferredTerminalFailureOrNull(): Exception? {
     var cancellation: Exception? = null
     forEach { cell ->
-        val promise = cell.getValue()
-        val failure = promise.terminalFailureOrNull()
+        val failure = cell.preferredTerminalFailureOrNull()
         if (failure != null) {
             if (failure !is CancellationException) return failure
             if (cancellation == null) cancellation = failure
             return@forEach
         }
-        if (promise.isCompleted) {
-            val nestedFailure =
-                (promise.get() as? ListEngineResult)?.preferredTerminalFailureOrNull()
+        val attempt =
+            try {
+                cell.materializeCheckedValue { true }
+            } catch (_: Exception) {
+                return@forEach
+            }
+        if (attempt is ListEngineResult) {
+            val nestedFailure = attempt.preferredTerminalFailureOrNull()
             if (nestedFailure != null) {
                 if (nestedFailure !is CancellationException) return nestedFailure
                 if (cancellation == null) cancellation = nestedFailure

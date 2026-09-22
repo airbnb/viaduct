@@ -127,7 +127,9 @@ The consumer of a value determines whether its checker results are enforced:
 | Ordinary value-resolver input materialization | Yes |
 | Checker input materialization | No; it reads raw values |
 
-For query fields, resolving a value and resolving its checker normally proceed concurrently. The checker does not gate whether the query field's value resolver starts; the value and checker results are combined when a checked consumer reads or completes the field. For top-level mutation and subscription fields, production instead runs the field checker first and does not start the value resolver when that field check denies access.
+For query fields, resolving a value and resolving its checker normally proceed concurrently. The checker does not gate whether the query field's value resolver starts. A checked consumer evaluates the combined checker results first: an applicable denial can complete the consumption without awaiting or consulting the raw value, while a successful or consumer-inapplicable result proceeds to that value. For top-level mutation and subscription fields, production instead runs the field checker first and does not start the value resolver when that field check denies access.
+
+For an ordinary value resolver, a denial in an object- or Query-rooted input is represented like any other error-valued input. The denial does not suppress the resolver invocation or force its result to fail merely because the field was declared in a required selection set. Reading the denied selection propagates its policy error; a resolver that does not read that selection can still produce a value. The denied raw value is never exposed.
 
 ### Checkers Read Raw Values
 
@@ -171,63 +173,11 @@ The `protected` checker creates checker-origin demand for `derived`. That demand
 
 Thus a checker can directly read an unchecked active field, but the active field's resolver still reads its own dependencies under normal access checks. “Checker inputs are unchecked” is not transitive.
 
-## `@bypassPolicyCheck`
+## Resolver-Specific Applicability
 
-The exact Airbnb directive spelling is `@bypassPolicyCheck`. It suppresses enforcement for the annotated selection occurrence. It does not establish a transitive unchecked context.
+`CheckerResult.Error.isErrorForResolver(CheckerResultContext)` owns the decision whether a checker error applies to an ordinary resolver consumer. `CheckerResultContext.fieldDirectives` is a generic optional bridge for an execution integration to expose directives from the consuming field selection; neither the OSS checker API nor qplan assigns built-in meaning to a particular directive name.
 
-If resolver B selects `c @bypassPolicyCheck`, B may consume C's raw value even when C's checker returned `CheckerResult.Error`. This does not disable C's checker globally, affect another occurrence that selects C without the directive, or cause fields selected by C's value resolver to run unchecked.
-
-For query execution, C's raw value resolver generally starts in parallel with C's checker whether or not the directive is present. The directive controls whether C's checker denial blocks this particular consumption of C; it does not primarily control whether C's resolver executes. A raw resolution failure still prevents consumption of C and takes precedence over a bypassed checker denial.
-
-Consider this complete world:
-
-```graphql
-directive @bypassPolicyCheck on FIELD
-
-type Query {
-  record: Record!
-}
-
-type Record {
-  allowedSeed: Int
-  deniedSeed: Int
-  cAllowed: Int
-  cBlocked: Int
-  bAllowed: Int
-  bBlocked: Int
-}
-```
-
-The registered `Query.record` resolver has no required selections and returns `Record { allowedSeed: 40, deniedSeed: 50 }`. The registered field resolvers are:
-
-- `Record.cAllowed` requires `allowedSeed` and returns `allowedSeed + 1`.
-- `Record.cBlocked` requires `deniedSeed` and returns `deniedSeed + 1`.
-- `Record.bAllowed` requires `cAllowed @bypassPolicyCheck` and returns `cAllowed + 1`.
-- `Record.bBlocked` requires `cBlocked @bypassPolicyCheck` and returns `cBlocked + 1`.
-
-The registered field checkers are:
-
-- The `Record.cAllowed` checker always denies access.
-- The `Record.cBlocked` checker always denies access.
-- The `Record.deniedSeed` checker always denies access.
-- No checker is registered for `Record.allowedSeed`, `Record.bAllowed`, or `Record.bBlocked`.
-
-The client asks for:
-
-```graphql
-query {
-  record {
-    bAllowed
-    bBlocked
-  }
-}
-```
-
-`cAllowed` resolves to `41`. Its checker denies access, but the directive on B's particular selection suppresses that denial, so `bAllowed` consumes `41` and resolves to `42`.
-
-The same directive does not rescue `bBlocked`. The `cBlocked` value resolver's own selection of `deniedSeed` has no bypass directive, so that resolver-origin read enforces the `deniedSeed` checker and `cBlocked` fails to produce a raw value. The directive on `bBlocked`'s selection suppresses only the `cBlocked` checker error; it neither suppresses the raw resolver failure nor propagates to `cBlocked`'s dependency. To bypass the dependency check as well, the `cBlocked` resolver's own selection would have to say `deniedSeed @bypassPolicyCheck` explicitly.
-
-The production completion layer also recognizes the directive on an annotated output selection in trusted Airbnb schemas. That behavior is likewise occurrence-local: it omits checker enforcement for that completion and does not propagate bypass state into descendant resolver execution.
+Qplan's materialization selections retain the generic `FieldDirectives` context from each source field occurrence and pass it to `isErrorForResolver`; qplan neither names nor interprets a policy directive. The test-fixture parser currently accepts no-argument custom directives declared only on `FIELD`, which is sufficient to model Airbnb's `@bypassPolicyCheck`: a service-defined checker error may recognize that spelling while an otherwise identical checker may ignore it. Co-applicable occurrences collected under one response key expose a directive only when every occurrence exposes it, preventing one annotated occurrence from weakening an unannotated occurrence. GraphQL response completion remains a distinct consumer and enforces combined checker errors directly.
 
 ## Demand Provenance Is Semantically Relevant
 

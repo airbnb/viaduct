@@ -1,10 +1,16 @@
 package execution
 
 import execution.testing.ExecutionTestFixture
+import model.ListEngineResult
+import model.ObjectEngineResult
 import model.engineResultOf
+import model.outputType
+import model.requireObjectField
+import model.requireQueryTypeDef
 import model.testing.TestWorld
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
@@ -22,7 +28,7 @@ class QPlanWiringFactoryTest {
             }
         val user =
             world.engineResultOf("User") {
-                "id".resolvesTo("user-1", fieldCheckerResult = TestCheckerError)
+                "id".resolvesTo("user-1", fieldCheckerResult = CheckerResult.Success)
                 "role" resolvesTo "ADMIN"
                 "tags" resolvesTo listOf("engineer", null)
                 "friends" resolvesTo listOf(friend)
@@ -31,7 +37,7 @@ class QPlanWiringFactoryTest {
             world.engineResultOf("Query") {
                 field("user", "id" to "user-1").resolvesTo(
                     value = user,
-                    fieldCheckerResult = TestCheckerError,
+                    fieldCheckerResult = CheckerResult.Success,
                 )
             }
         val fixture =
@@ -78,6 +84,84 @@ class QPlanWiringFactoryTest {
             ),
             result.getData(),
         )
+    }
+
+    @Test
+    fun `GraphQL completion enforces field and type checker errors`() {
+        val world = TestWorld.fromSDL(CHECKER_SCHEMA).assumptions
+        val completionOnlyDenial = TestCheckerError("field denied", resolverError = false)
+        val typeDenial = TestCheckerError("type denied")
+        val listDenial = TestCheckerError("list item denied")
+        val listField = world.schema.requireObjectField("Query", "listTypeDenied")
+        val list =
+            ListEngineResult.of(
+                typeExpr = listField.outputType.unwrapList()!!,
+                values = listOf("visible", "secret"),
+                typeCheckerResults = listOf(null, listDenial),
+            )
+        val root =
+            world.engineResultOf("Query") {
+                "fieldDenied".resolvesTo("secret", completionOnlyDenial)
+                "typeDenied".resolvesTo(
+                    value = "secret",
+                    fieldCheckerResult = null,
+                    typeCheckerResult = typeDenial,
+                )
+                "listTypeDenied" resolvesTo list
+            }
+        val fixture =
+            ExecutionTestFixture.fromResolvedRoot(
+                schemaSDL = CHECKER_SCHEMA,
+                schema = world.schema,
+                root = root,
+            )
+
+        val result = fixture.runQuery("{ fieldDenied typeDenied listTypeDenied }")
+
+        assertEquals(
+            mapOf(
+                "fieldDenied" to null,
+                "typeDenied" to null,
+                "listTypeDenied" to listOf("visible", null),
+            ),
+            result.getData(),
+        )
+        assertEquals(
+            setOf(
+                listOf("fieldDenied"),
+                listOf("typeDenied"),
+                listOf("listTypeDenied", 1),
+            ),
+            result.errors.map { error -> error.path }.toSet(),
+        )
+    }
+
+    @Test
+    fun `completion denial does not wait for the raw value`() {
+        val world = TestWorld.fromSDL("type Query { value: String }").assumptions
+        val key =
+            ObjectEngineResult.GroundKey.of(
+                world.schema.requireObjectField("Query", "value"),
+                emptyMap(),
+            )
+        val denial = TestCheckerError("completion denied")
+        val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
+        val cell = root.reserveCell(key)
+        cell.reserveValue()
+        cell.setFieldCheckerResult(denial)
+        val fixture =
+            ExecutionTestFixture.fromResolvedRoot(
+                schemaSDL = "type Query { value: String }",
+                schema = world.schema,
+                root = root,
+            )
+
+        val result = fixture.runQuery("{ value }")
+
+        assertEquals(mapOf("value" to null), result.getData())
+        assertEquals(listOf("value"), result.errors.single().path)
+        assertTrue(result.errors.single().message.contains("completion denied"))
+        assertFalse(cell.getValue().isCompleted)
     }
 
     @Test
@@ -161,13 +245,25 @@ class QPlanWiringFactoryTest {
               node(id: ID!): Node
             }
             """.trimIndent()
+
+        val CHECKER_SCHEMA =
+            """
+            type Query {
+              fieldDenied: String
+              typeDenied: String
+              listTypeDenied: [String]
+            }
+            """.trimIndent()
     }
 }
 
-private object TestCheckerError : CheckerResult.Error {
-    override val error: Exception = SecurityException("denied")
+private class TestCheckerError(
+    message: String,
+    private val resolverError: Boolean = true,
+) : CheckerResult.Error {
+    override val error: Exception = SecurityException(message)
 
-    override fun isErrorForResolver(ctx: CheckerResultContext): Boolean = true
+    override fun isErrorForResolver(ctx: CheckerResultContext): Boolean = resolverError
 
     override fun combine(fieldResult: CheckerResult.Error): CheckerResult.Error = this
 }
