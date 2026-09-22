@@ -90,6 +90,9 @@ class CycleSlot(
 
         fun fieldChecker(cell: EngineResultCell): CycleSlot =
             CycleSlot(CycleSlotKind.FIELD_CHECKER, cell)
+
+        fun typeChecker(cell: EngineResultCell): CycleSlot =
+            CycleSlot(CycleSlotKind.TYPE_CHECKER, cell)
     }
 }
 
@@ -98,6 +101,9 @@ internal val EngineResultCell.valueCycleSlot: CycleSlot
 
 internal val EngineResultCell.fieldCheckerCycleSlot: CycleSlot
     get() = CycleSlot.fieldChecker(this)
+
+internal val EngineResultCell.typeCheckerCycleSlot: CycleSlot
+    get() = CycleSlot.typeChecker(this)
 
 /** Tracks exact task-to-slot reads and rejects cycles in the resulting writer dependency graph. */
 interface CycleCheckState {

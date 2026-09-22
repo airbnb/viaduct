@@ -147,7 +147,7 @@ class CycleCheckStateTest {
     }
 
     @Test
-    fun `one cell has independent value and field-checker writers`() {
+    fun `one cell has independent value and checker writers`() {
         val fixture = Fixture()
 
         fixture.checker.registerWriter(
@@ -157,6 +157,10 @@ class CycleCheckStateTest {
         fixture.checker.registerWriter(
             slot = fixture.slot("first", CycleSlotKind.FIELD_CHECKER),
             writer = fixture.task("first", CycleTaskKind.FIELD_CHECKER),
+        )
+        fixture.checker.registerWriter(
+            slot = fixture.cell("first").typeCheckerCycleSlot,
+            writer = fixture.task("first", CycleTaskKind.TYPE_CHECKER),
         )
     }
 

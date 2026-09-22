@@ -64,6 +64,9 @@ internal fun List<PathComponent>?.toSelectionPath():
  * hashing because their activation or any slot may be completed after publication.
  */
 sealed interface EngineResultCell {
+    /** Whether activation, the value slot, and every claimed checker-result slot have completed. */
+    val isCompleted: Boolean
+
     /** Atomically completes this cell's activation decision and reports whether this call won. */
     fun setActivated(activated: Boolean): Boolean
 
@@ -111,6 +114,9 @@ sealed interface EngineResultCell {
 
     /** @throws IllegalStateException when this cell has no type-checker-result promise */
     fun getTypeCheckerResult(): Promise<CheckerResult?>
+
+    /** Returns whether this cell has a type-checker-result promise. */
+    fun isTypeCheckerResultSet(): Boolean
 
     fun setTypeCheckerResult(result: CheckerResult?)
 
@@ -792,6 +798,13 @@ private class CellImpl(
             cell = this,
         )
 
+    override val isCompleted: Boolean
+        get() =
+            activation.isCompleted &&
+                valueStore.readOrNull()?.isCompleted == true &&
+                fieldCheckerResultStore.snapshot().values.all(Promise<CheckerResult?>::isCompleted) &&
+                typeCheckerResultStore.snapshot().values.all(Promise<CheckerResult?>::isCompleted)
+
     override fun setActivated(activated: Boolean): Boolean {
         checkMutable()
         return synchronized(activationLock) {
@@ -870,6 +883,8 @@ private class CellImpl(
         checkNotNull(typeCheckerResultStore.readOrNull(Unit)) {
             "Cell has no type-checker result"
         }
+
+    override fun isTypeCheckerResultSet(): Boolean = typeCheckerResultStore.isSet(Unit)
 
     override fun setTypeCheckerResult(result: CheckerResult?) {
         checkMayWrite()

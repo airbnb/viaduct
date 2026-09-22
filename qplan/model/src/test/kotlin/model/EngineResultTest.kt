@@ -429,11 +429,15 @@ class EngineResultTest {
         assertFailsWith<IllegalStateException> { cell.getValue() }
         assertFailsWith<IllegalStateException> { cell.getFieldCheckerResult() }
         assertFailsWith<IllegalStateException> { cell.getTypeCheckerResult() }
+        assertFalse(cell.isFieldCheckerResultSet())
+        assertFalse(cell.isTypeCheckerResultSet())
 
         val value = cell.createValuePromise()
         val fieldCheckerResult = cell.createFieldCheckerResultPromise()
         val typeCheckerResult = cell.createTypeCheckerResultPromise()
         cell.setActivated(true)
+        assertTrue(cell.isFieldCheckerResultSet())
+        assertTrue(cell.isTypeCheckerResultSet())
 
         assertFailsWith<UncompletedPromiseException> { value.get() }
         assertFailsWith<UncompletedPromiseException> { fieldCheckerResult.get() }
