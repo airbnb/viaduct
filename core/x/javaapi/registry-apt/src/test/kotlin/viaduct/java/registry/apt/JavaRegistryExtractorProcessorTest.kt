@@ -31,6 +31,54 @@ class JavaRegistryExtractorProcessorTest {
     private val mapper = ObjectMapper()
 
     @Test
+    fun `rejects selective field bases including inherited bases`(
+        @TempDir tempDir: File
+    ) {
+        for (batching in listOf(false, true)) {
+            val bases = QUERY_RESOLVER_BASES.copy(
+                content = QUERY_RESOLVER_BASES.content.replace(
+                    "isSelective = false",
+                    "isSelective = true, isBatching = $batching",
+                ),
+            )
+            for (source in listOf(QUERY_RESOLVER_SOURCE, INDIRECT_FIELD_RESOLVER_SOURCE)) {
+                val outputDir = File(tempDir, "$batching/${source.fqn}")
+                val (success, diagnostics) = compile(outputDir, GRT_STUBS, bases, source)
+
+                success.shouldBeFalse()
+                assertTrue(diagnostics.any { it.contains("Selective resolvers are temporarily disabled in the Java tenant API: Query.greeting") }) {
+                    diagnostics.joinToString("\n")
+                }
+                File(outputDir, "classes/$DESCRIPTOR_ROOT/${source.fqn.replace('.', '/')}.json").exists().shouldBeFalse()
+            }
+        }
+    }
+
+    @Test
+    fun `rejects selective node bases including inherited bases`(
+        @TempDir tempDir: File
+    ) {
+        for (batching in listOf(false, true)) {
+            val bases = NODE_RESOLVER_BASES.copy(
+                content = NODE_RESOLVER_BASES.content.replace(
+                    "@NodeResolverFor(typeName = \"User\")",
+                    "@NodeResolverFor(typeName = \"User\", isSelective = true, isBatching = $batching)",
+                ),
+            )
+            for (source in listOf(NODE_RESOLVER_SOURCE, INDIRECT_NODE_RESOLVER_SOURCE)) {
+                val outputDir = File(tempDir, "$batching/${source.fqn}")
+                val (success, diagnostics) = compile(outputDir, GRT_STUBS, bases, source)
+
+                success.shouldBeFalse()
+                assertTrue(diagnostics.any { it.contains("Selective resolvers are temporarily disabled in the Java tenant API: User") }) {
+                    diagnostics.joinToString("\n")
+                }
+                File(outputDir, "classes/$DESCRIPTOR_ROOT/${source.fqn.replace('.', '/')}.json").exists().shouldBeFalse()
+            }
+        }
+    }
+
+    @Test
     fun `emits a field resolver descriptor with the expected shape`(
         @TempDir tempDir: File
     ) {
@@ -157,7 +205,7 @@ class JavaRegistryExtractorProcessorTest {
     }
 
     @Test
-    fun `marks isBatching and isSelective true when the field base declares them`(
+    fun `marks isBatching true for a non-selective field base`(
         @TempDir tempDir: File
     ) {
         val descriptors =
@@ -165,7 +213,7 @@ class JavaRegistryExtractorProcessorTest {
 
         val field = descriptors.getValue("com/example/tenant/BatchResolvers.json").path("fields")[0]
         field.path("isBatching").asBoolean().shouldBeTrue()
-        field.path("isSelective").asBoolean().shouldBeTrue()
+        field.path("isSelective").asBoolean().shouldBeFalse()
     }
 
     @Test
@@ -199,7 +247,7 @@ class JavaRegistryExtractorProcessorTest {
     }
 
     @Test
-    fun `marks isBatching and isSelective true when the node base declares them`(
+    fun `marks isBatching true for a non-selective node base`(
         @TempDir tempDir: File
     ) {
         val descriptors =
@@ -207,7 +255,7 @@ class JavaRegistryExtractorProcessorTest {
 
         val node = descriptors.getValue("com/example/tenant/BatchNodeResolvers.json").path("nodes")[0]
         node.path("isBatching").asBoolean().shouldBeTrue()
-        node.path("isSelective").asBoolean().shouldBeTrue()
+        node.path("isSelective").asBoolean().shouldBeFalse()
     }
 
     @Test
@@ -645,7 +693,7 @@ class JavaRegistryExtractorProcessorTest {
             """.trimIndent(),
         )
 
-        // A field resolver base with isBatching = true and isSelective = true on @ResolverFor.
+        // A field resolver base with isBatching = true and isSelective = false on @ResolverFor.
         val BATCHING_FIELD_BASES = SourceFile(
             "com.example.tenant.BatchResolverBases",
             """
@@ -659,7 +707,7 @@ class JavaRegistryExtractorProcessorTest {
             import com.example.grts.Grts;
 
             public final class BatchResolverBases {
-                @ResolverFor(typeName = "Query", fieldName = "batched", isSelective = true, isBatching = true)
+                @ResolverFor(typeName = "Query", fieldName = "batched", isSelective = false, isBatching = true)
                 public abstract static class Batched
                     implements FieldResolverBase<String, Grts.MyQuery, Grts.MyQuery, Arguments.NoArguments, CompositeOutput> {
                     public static final class Context {}
@@ -669,7 +717,6 @@ class JavaRegistryExtractorProcessorTest {
             """.trimIndent(),
         )
 
-        // A node resolver base with isBatching = true and isSelective = true on @NodeResolverFor.
         val BATCHING_NODE_BASES = SourceFile(
             "com.example.tenant.BatchNodeResolverBases",
             """
@@ -681,7 +728,7 @@ class JavaRegistryExtractorProcessorTest {
             import com.example.grts.Grts;
 
             public final class BatchNodeResolverBases {
-                @NodeResolverFor(typeName = "User", isBatching = true, isSelective = true)
+                @NodeResolverFor(typeName = "User", isBatching = true, isSelective = false)
                 public abstract static class UserNode implements NodeResolverBase<Grts.User> {
                     public static final class Context {}
                     public abstract CompletableFuture<Grts.User> resolve(Context ctx);

@@ -14,6 +14,11 @@ viaductFeatureAppContracts {
     }
 }
 
+tasks.named<Sync>("mergeJavaContractSchemas") {
+    // Java contract implementations return complete values when reusing Kotlin fixture schemas.
+    filter { line -> line.replace("isSelective: true", "isSelective: false") }
+}
+
 description = "Java Tenant API runtime implementation - bridges Java API to Kotlin engine"
 
 dependencies {

@@ -79,6 +79,17 @@ protocol. It is regenerated whenever its owning artifact is built, and Viaduct a
 and runtime consumer use compatible code. Backward compatibility with registry files produced by
 older Viaduct versions is not a supported invariant.
 
+### Java selective-resolver materialization
+
+The shared field and node entry models retain `isSelective = true` for Kotlin selective resolvers.
+Selective resolution is temporarily disabled in the Java Tenant API: `ViaductJavaExecutorFactory`
+rejects selective field and node entries with `TenantModuleException` before loading resolver
+classes or constructing executors. The error includes the field coordinate or node type. This
+runtime gate also rejects stale or externally produced metadata that bypasses Java schema-codegen
+and annotation-processor validation; it does not impose the Java restriction on Kotlin registries.
+See the [Java selective-resolver implementation document](../core/x/javaapi/impldocs/selective-resolvers.md)
+for the retained scaffolding and reenable sequence.
+
 ## Why `apiName` and not the executor factory
 
 There is today a de facto one-to-one mapping between API names and factory classes:

@@ -525,8 +525,7 @@ public class GraphQLSchemaParser {
         isCompositeOutput
             ? grtPackage + "." + field.getType().getBaseTypeDef().getName()
             : "CompositeOutput.None";
-    boolean isSelective =
-        isSelectiveResolver(field, typeName, mutationTypeName, mutationNamespaceNames);
+    boolean isSelective = isSelectiveResolver(field);
     boolean isBatching =
         isBatchingResolver(field, typeName, mutationTypeName, mutationNamespaceNames);
     // Fields returning a @connection type get the connection-specific resolver base + context, so
@@ -575,23 +574,16 @@ public class GraphQLSchemaParser {
     return isBatching;
   }
 
-  private boolean isSelectiveResolver(
-      ViaductSchema.Def def,
-      String typeName,
-      String mutationTypeName,
-      Set<String> mutationNamespaceNames) {
-    boolean isSelective = SchemaAnalysis.INSTANCE.isSelectiveResolver(def);
-    if (isMutationSideType(typeName, mutationTypeName, mutationNamespaceNames)) {
-      if (isSelective) {
-        throw new IllegalArgumentException(
-            "@resolver(isSelective: true) is not supported on mutation field "
-                + typeName
-                + "."
-                + def.getName());
-      }
-      return false;
+  private boolean isSelectiveResolver(ViaductSchema.Def def) {
+    if (SchemaAnalysis.INSTANCE.isSelectiveResolver(def)) {
+      String coordinate =
+          def instanceof ViaductSchema.Field field
+              ? field.getContainingDef().getName() + "." + field.getName()
+              : def.getName();
+      throw new IllegalArgumentException(
+          "Selective resolvers are temporarily disabled in the Java tenant API: " + coordinate);
     }
-    return isSelective;
+    return false;
   }
 
   /**
@@ -634,8 +626,7 @@ public class GraphQLSchemaParser {
       // Nodes are never a mutation type or namespace, so the mutation namespace set is empty.
       boolean isBatching =
           isBatchingResolver(objectDef, objectDef.getName(), null, Collections.emptySet());
-      boolean isSelective =
-          isSelectiveResolver(objectDef, objectDef.getName(), null, Collections.emptySet());
+      boolean isSelective = isSelectiveResolver(objectDef);
 
       nodeResolvers.add(
           new NodeResolverModel(

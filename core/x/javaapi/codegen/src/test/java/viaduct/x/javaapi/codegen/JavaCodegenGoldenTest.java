@@ -34,7 +34,7 @@ import viaduct.graphql.utils.TypeDefinitionRegistryExtensionsKt;
  * Node types and {@code Node.id}, connections/edges ({@code @connection}/{@code @edge}), {@code
  * @idOf}, {@code BackingData} fields, unions, interfaces (including an interface that extends
  * {@code Node}), enums (with and without descriptions), input types, and resolvers in every variant
- * (field, mutation, connection, batching, selective, and node).
+ * (field, mutation, connection, batching, and node).
  *
  * <h2>Regenerating the golden files</h2>
  *

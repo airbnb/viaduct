@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
+import viaduct.api.testing.TestSchema;
 import viaduct.java.api.annotations.Resolver;
 import viaduct.java.api.reflect.CompositeField;
 import viaduct.java.api.reflect.RootObjectField;
@@ -14,6 +15,32 @@ import viaduct.tenant.runtime.execution.reflection.resolverbases.CategoryResolve
 import viaduct.tenant.runtime.execution.reflection.resolverbases.QueryResolvers;
 import viaduct.tenant.runtime.execution.reflection.resolverbases.ShelfResolvers;
 
+@TestSchema(
+    """
+    #START_SCHEMA
+    union Product = Toy | Fruit
+    type Category {
+      id: Int!
+      products: [Product] @resolver
+    }
+    type Toy {
+      id: Int!
+      prodType: String
+    }
+    type Fruit {
+      id: Int!
+      prodType: String
+    }
+    type Shelf {
+      topProduct: Product @resolver
+      topProductDescription: String @resolver
+    }
+    extend type Query {
+      category(id: Int!): Category @resolver
+      shelf: Shelf @resolver
+    }
+    #END_SCHEMA
+    """)
 public class JavaReflectionContractTest extends ReflectionContractTest {
 
   @Test

@@ -4,7 +4,12 @@ description: Loading only the fields requested from selective resolvers
 ---
 
 
-Field and node resolvers may be declared as selective through an argument on the resolver directive: `@resolver(isSelective: true)`.
+Selective resolution is currently supported by the Kotlin Tenant API. It is temporarily disabled in
+the Java Tenant API: Java codegen rejects field and node declarations with
+`@resolver(isSelective: true)` or the legacy `@resolver(selective: true)`, including batched resolvers.
+The behavior described below applies to Kotlin resolvers.
+
+Kotlin field and node resolvers may be declared as selective through an argument on the resolver directive: `@resolver(isSelective: true)`.
 
 A selective resolver may invoke `ctx.selections()` from inside its resolve function. This method returns a `SelectionSet` describing the fields that the resolver must resolve. A resolver may use this to produce values for only the fields that are selected, improving resolver performance by skipping computationally expensive fields that were not selected.
 

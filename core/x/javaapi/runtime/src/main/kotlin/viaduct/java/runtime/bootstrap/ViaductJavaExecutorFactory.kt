@@ -69,6 +69,9 @@ class ViaductJavaExecutorFactory(
         configData: FieldEntryConfig,
         schema: EngineSchema,
     ): FieldResolverExecutor {
+        if (configData.isSelective) {
+            throw TenantModuleException("Selective resolvers are temporarily disabled in the Java tenant API: ${configData.typeName}.${configData.fieldName}")
+        }
         val apiData = configData.tenantAPIData.toFieldAPIData()
         val resolverClass = loadClass(
             apiData.resolverClass,
@@ -180,6 +183,9 @@ class ViaductJavaExecutorFactory(
         configData: NodeEntryConfig,
         schema: EngineSchema,
     ): NodeResolverExecutor {
+        if (configData.isSelective) {
+            throw TenantModuleException("Selective resolvers are temporarily disabled in the Java tenant API: ${configData.typeName}")
+        }
         val resolverClass = loadClass(
             configData.tenantAPIData.toNodeAPIData().resolverClass,
             "node ${configData.typeName}",

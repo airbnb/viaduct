@@ -191,7 +191,7 @@ public final class QueryResolvers {
             }
         }
 
-        @ResolverFor(typeName = "Query", fieldName = "topUser", isSelective = true, isBatching = false)
+        @ResolverFor(typeName = "Query", fieldName = "topUser", isSelective = false, isBatching = false)
         public abstract static class TopUser
             implements FieldResolverBase<com.example.grts.User, com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User>, BaseUnbatchedFieldResolver {
 
@@ -200,7 +200,7 @@ public final class QueryResolvers {
              * Provides type-safe access to object value, query value, arguments, and selections.
              */
             public static final class Context
-                implements FieldResolverBase.Context<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User>, SelectiveFieldExecutionContext<com.example.grts.User>, InternalContext {
+                implements FieldResolverBase.Context<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User>, InternalContext {
 
                 private final FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User> inner;
 
@@ -221,11 +221,6 @@ public final class QueryResolvers {
                 @Override
                 public Arguments.NoArguments getArguments() {
                     return inner.getArguments();
-                }
-
-                @Override
-                public Object getSelections() {
-                    return ((SelectiveFieldExecutionContext<com.example.grts.User>) inner).getSelections();
                 }
 
                 @Override
@@ -531,7 +526,7 @@ public final class QueryResolvers {
             }
         }
 
-        @ResolverFor(typeName = "Query", fieldName = "trendingUsers", isSelective = true, isBatching = true)
+        @ResolverFor(typeName = "Query", fieldName = "trendingUsers", isSelective = false, isBatching = true)
         public abstract static class TrendingUsers
             implements FieldResolverBase<List<com.example.grts.User>, com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User>, BaseBatchedFieldResolver {
 
@@ -540,7 +535,7 @@ public final class QueryResolvers {
              * Provides type-safe access to object value, query value, arguments, and selections.
              */
             public static final class Context
-                implements FieldResolverBase.Context<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User>, SelectiveFieldExecutionContext<com.example.grts.User>, InternalContext {
+                implements FieldResolverBase.Context<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User>, InternalContext {
 
                 private final FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User> inner;
 
@@ -561,11 +556,6 @@ public final class QueryResolvers {
                 @Override
                 public Arguments.NoArguments getArguments() {
                     return inner.getArguments();
-                }
-
-                @Override
-                public Object getSelections() {
-                    return ((SelectiveFieldExecutionContext<com.example.grts.User>) inner).getSelections();
                 }
 
                 @Override

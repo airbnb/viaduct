@@ -138,12 +138,12 @@ input OrderLookupInput @oneOf {
 extend type Query {
   # Plain (non-batching, non-selective) field resolver with arguments.
   order(id: ID!): Order @resolver
-  # Selective field resolver.
-  topUser: User @resolver(isSelective: true)
+  # Explicitly non-selective field resolver.
+  topUser: User @resolver(isSelective: false)
   # Batching field resolver.
   popularOrders: [Order!]! @resolver(isBatching: true)
-  # Selective + batching field resolver.
-  trendingUsers: [User!]! @resolver(isSelective: true, isBatching: true)
+  # Explicitly non-selective batching field resolver.
+  trendingUsers: [User!]! @resolver(isSelective: false, isBatching: true)
   # Connection field resolver.
   ordersConnection(first: Int!): OrderConnection @resolver
   # Field resolver taking a @oneOf input argument.

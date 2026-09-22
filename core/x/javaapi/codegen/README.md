@@ -91,6 +91,20 @@ resolver_generated_dir/
 
 Each resolver file contains abstract base classes for fields with the `@resolver` directive that tenant developers extend to implement resolvers.
 
+### Selective resolvers are temporarily disabled
+
+Java field and node declarations with `@resolver(isSelective: true)` or the legacy
+`@resolver(selective: true)` fail during resolver code generation, including batched resolvers.
+The error identifies the field coordinate or node type. Ordinary and batching resolvers with
+selectivity omitted or set to `false` remain supported.
+
+The lower-level resolver models, templates, annotations, and selective context interfaces remain
+as inactive scaffolding. Their positive generator tests preserve that scaffolding; they do not
+indicate that selective execution is supported. Java annotation processing and bootstrap also
+reject selective metadata when schema codegen is bypassed. See the
+[Java selective-resolver implementation document](../impldocs/selective-resolvers.md) for the
+cross-layer inventory and reenable checklist.
+
 ## Supported Types
 
 - **Enums** - Including extended enums (`extend enum`)

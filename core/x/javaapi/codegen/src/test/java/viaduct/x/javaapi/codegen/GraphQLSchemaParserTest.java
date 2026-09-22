@@ -714,7 +714,7 @@ class GraphQLSchemaParserTest {
     assertThat(profilePicture.queryType()).isEqualTo("com.example.types.Query");
     assertThat(profilePicture.argumentsType()).isEqualTo("Arguments.NoArguments");
     assertThat(profilePicture.hasArguments()).isFalse();
-    assertThat(profilePicture.isSelective()).isTrue();
+    assertThat(profilePicture.isSelective()).isFalse();
     assertThat(profilePicture.isBatching()).isFalse();
 
     // activeBookings resolver - list return type
@@ -737,28 +737,51 @@ class GraphQLSchemaParserTest {
   }
 
   @Test
-  void extractsSelectiveResolversWithLegacyDirectiveArg() throws IOException {
-    ViaductSchema schema =
-        parser.parse(
-            new StringReader(
-                """
-                directive @resolver(selective: Boolean! = false) on OBJECT | FIELD_DEFINITION
+  void rejectsSelectiveFieldResolvers() throws IOException {
+    for (String argument : List.of("isSelective", "selective")) {
+      for (boolean batching : new boolean[] {false, true}) {
+        ViaductSchema schema =
+            parser.parse(
+                new StringReader(
+                    """
+                    directive @resolver(%s: Boolean! = false, isBatching: Boolean! = false) on OBJECT | FIELD_DEFINITION
+                    type Query { user: User @resolver(%s: true, isBatching: %s) }
+                    type User { id: ID! }
+                    """
+                        .formatted(argument, argument, batching)));
 
-                type Query {
-                  user: User @resolver(selective: true)
-                }
+        assertThatThrownBy(() -> parser.extractResolvers(schema, "com.example.types"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage(
+                "Selective resolvers are temporarily disabled in the Java tenant API: Query.user");
+      }
+    }
+  }
 
-                type User {
-                  id: ID!
-                }
-                """));
+  @Test
+  void rejectsSelectiveNodeResolvers() throws IOException {
+    for (String argument : List.of("isSelective", "selective")) {
+      for (boolean batching : new boolean[] {false, true}) {
+        ViaductSchema schema =
+            parser.parse(
+                new StringReader(
+                    """
+                    directive @resolver(%s: Boolean! = false, isBatching: Boolean! = false) on OBJECT | FIELD_DEFINITION
+                    interface Node { id: ID! }
+                    type Query { user: User }
+                    type User implements Node @resolver(%s: true, isBatching: %s) { id: ID! }
+                    """
+                        .formatted(argument, argument, batching)));
 
-    Map<String, List<ResolverModel>> resolversByType =
-        parser.extractResolvers(schema, "com.example.types");
-
-    ResolverModel userResolver = resolversByType.get("Query").get(0);
-    assertThat(userResolver.gqlFieldName()).isEqualTo("user");
-    assertThat(userResolver.isSelective()).isTrue();
+        assertThatThrownBy(
+                () ->
+                    parser.extractNodeResolvers(
+                        schema, "com.example.tenant", "com.example.types", null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage(
+                "Selective resolvers are temporarily disabled in the Java tenant API: User");
+      }
+    }
   }
 
   @Test

@@ -98,6 +98,10 @@ internal class JavaResolverParamsExtractor(
         val typeName = nodeAnn.stringValue("typeName") ?: return null
         val isBatching = nodeAnn.booleanValue("isBatching") ?: false
         val isSelective = nodeAnn.booleanValue("isSelective") ?: false
+        if (isSelective) {
+            onError("Selective resolvers are temporarily disabled in the Java tenant API: $typeName", impl)
+            return null
+        }
 
         val params = ResolverParams.Node(
             implFqn = implFqn,
@@ -122,6 +126,10 @@ internal class JavaResolverParamsExtractor(
         val fieldName = fieldAnn.stringValue("fieldName") ?: return null
         val isBatching = fieldAnn.booleanValue("isBatching") ?: false
         val isSelective = fieldAnn.booleanValue("isSelective") ?: false
+        if (isSelective) {
+            onError("Selective resolvers are temporarily disabled in the Java tenant API: $typeName.$fieldName", impl)
+            return null
+        }
 
         val resolverAnn = resolverAnnotation(impl)
         val variablesTypeMap = variablesTypeMap(impl)

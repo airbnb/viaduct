@@ -2,6 +2,7 @@ package viaduct.x.javaapi.codegen;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import graphql.schema.idl.SchemaParser;
@@ -39,7 +40,7 @@ class JavaResolversCodegenTest {
         type User {
           id: ID!
           name: String!
-          profile: Profile @resolver(isSelective: true)
+          profile: Profile @resolver(isSelective: false)
         }
 
         type Profile {
@@ -89,9 +90,34 @@ class JavaResolversCodegenTest {
     assertTrue(userResolverContent.contains("public final class UserResolvers"));
     assertTrue(
         userResolverContent.contains(
-            "@ResolverFor(typeName = \"User\", fieldName = \"profile\", isSelective = true,"
+            "@ResolverFor(typeName = \"User\", fieldName = \"profile\", isSelective = false,"
                 + " isBatching = false)"));
-    assertTrue(userResolverContent.contains("public Object getSelections()"));
+    assertFalse(userResolverContent.contains("public Object getSelections()"));
+  }
+
+  @Test
+  void rejectsSelectiveDeclarationsDuringGeneration() throws IOException {
+    for (String schema :
+        List.of(
+            "type User { profile: String @resolver(isSelective: true) }",
+            "type User implements Node @resolver(isSelective: true) { id: ID! }")) {
+      Path selectiveSchema = writeSchemaWithDefaults("selective.graphqls", schema);
+
+      IllegalArgumentException error =
+          assertThrows(
+              IllegalArgumentException.class,
+              () ->
+                  codegen.generate(
+                      List.of(selectiveSchema.toFile()),
+                      tempDir.resolve("selective-output").toFile(),
+                      "com.example.grt",
+                      "com.example.tenant"));
+      assertTrue(
+          error
+              .getMessage()
+              .contains("Selective resolvers are temporarily disabled in the Java tenant API"));
+      assertTrue(error.getMessage().contains("User"));
+    }
   }
 
   @Test

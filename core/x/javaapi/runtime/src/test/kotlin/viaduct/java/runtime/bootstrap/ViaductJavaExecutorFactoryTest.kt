@@ -333,13 +333,43 @@ class ViaductJavaExecutorFactoryTest {
     }
 
     @Test
-    fun `createFieldResolverExecutor honors isSelective`() {
-        val executor = factory().createFieldResolverExecutor(
-            fieldEntry("Query", "selectiveField", TestFieldResolver::class.java, TestFieldResolverBase::class.java, isSelective = true),
-            schema,
-        )
+    fun `rejects selective field entries before loading resolver classes`() {
+        for (batching in listOf(false, true)) {
+            val entry = fieldEntry(
+                "Query",
+                "selectiveField",
+                TestFieldResolver::class.java,
+                TestFieldResolverBase::class.java,
+                isSelective = true,
+                isBatching = batching,
+            ).let { it.copy(tenantAPIData = it.tenantAPIData + ("resolverClass" to "missing.FieldResolver")) }
 
-        executor.isSelective.shouldBeTrue()
+            val error = assertThrows<TenantModuleException> {
+                factory().createFieldResolverExecutor(entry, schema)
+            }
+
+            error.message shouldBe "Selective resolvers are temporarily disabled in the Java tenant API: Query.selectiveField"
+        }
+    }
+
+    @Test
+    fun `rejects selective node entries before loading resolver classes`() {
+        for (batching in listOf(false, true)) {
+            val entry = nodeEntry(
+                "TestNodeType",
+                TestNodeResolver::class.java,
+                TestNodeResolverBase::class.java,
+                isBatching = batching,
+            ).let {
+                it.copy(isSelective = true, tenantAPIData = it.tenantAPIData + ("resolverClass" to "missing.NodeResolver"))
+            }
+
+            val error = assertThrows<TenantModuleException> {
+                factory().createNodeResolverExecutor(entry, schema)
+            }
+
+            error.message shouldBe "Selective resolvers are temporarily disabled in the Java tenant API: TestNodeType"
+        }
     }
 
     @Test

@@ -309,7 +309,7 @@ type SearchContainer {
 # User type extensions with resolver fields
 extend type User {
   "Resolver field: User's profile picture URL"
-  profilePicture: String @resolver(isSelective: true)
+  profilePicture: String @resolver(isSelective: false)
 
   "Resolver field: User's active bookings"
   activeBookings: [Booking!]! @resolver
