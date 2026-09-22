@@ -19,6 +19,7 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.testing.TestWorld
+import semantics.resolver26.materializeResolverInput as materializeResolver26Input
 import semantics.resolvers.materializeResolverInput as materializeResolver01To23Input
 import semantics.shared.CycleCheckState
 import semantics.shared.CycleTask
@@ -42,6 +43,19 @@ class MaterializeResolverInputTest {
             }
         }
 
+    @Test
+    fun `Resolver26 input materialization is driven by checker slot presence`() =
+        runBlocking {
+            assertSlotDrivenMaterialization { result, operation, selections, reader ->
+                result.materializeResolver26Input(
+                    operation = operation,
+                    cycleChecker = CycleCheckState.createNOP(),
+                    selections = selections,
+                    reader = reader,
+                    resultPath = emptyList(),
+                )
+            }
+        }
 }
 
 private suspend fun assertSlotDrivenMaterialization(

@@ -20,9 +20,10 @@ import model.materializedEngineObjectDataOf
 import model.toEngineOutputData
 import semantics.shared.CycleCheckState
 import semantics.shared.CycleTask
-import semantics.shared.valueCycleSlot
+import semantics.shared.materializeCheckedValueForResolver
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.FieldDirectives
 
 /**
  * Materializes a Resolver26 runtime object or declared Query-fragment input by response key,
@@ -31,7 +32,9 @@ import viaduct.engine.api.EngineObjectData
  * This implementation can reserve symbolic cells and value promises before their producers
  * install them, then await values and argument bindings without rekeying the cells. [reader]
  * identifies the consuming resolver; [resultPath] identifies the selected object's occurrence.
- * The caller independently supplies [cycleChecker] for the reads.
+ * The caller independently supplies [cycleChecker] for the reads. Claimed field- and type-checker
+ * slots are awaited, combined, and enforced before the raw value is awaited; unclaimed slots
+ * default open, and an applicable denial short-circuits the raw read.
  *
  * A nested `ctx.query` call is distinct from a resolver's declared Query fragment: its result
  * uses [semantics.shared.materializeResult]. Correctness replay also uses that shared API to
@@ -74,17 +77,25 @@ private class ResolverInputMaterializationLogic(
         selections.fetchIncluded().collect(type).byResponseKey().forEach { (responseKey, selection) ->
             val storedKey = selection.materializedObjectKey()
             val cell = reserveCell(storedKey)
-            cycleChecker.cycleCheck(reader, cell.valueCycleSlot)
+            cell.reserveValue()
+            val checkedValue =
+                cell.materializeCheckedValueForResolver(
+                    fieldDirectives = selection.fieldDirectives,
+                    reader = reader,
+                    cycleChecker = cycleChecker,
+                )
             val selectedValue: EngineOutputData? =
-                cell
-                    .reserveValue()
-                    .await()
-                    .materializeSelectedValue(
+                if (checkedValue is ErrorEngineResult) {
+                    checkedValue.errorData
+                } else {
+                    checkedValue.materializeSelectedValue(
                         expectedType = storedKey.field.outputType,
                         selections = selection.subselections,
                         reader = reader,
                         resultPath = resultPath + storedKey,
+                        fieldDirectives = selection.fieldDirectives,
                     )
+                }
             selectedValues[responseKey] = storedKey.field to selectedValue
         }
         return materializedEngineObjectDataOf(
@@ -121,6 +132,7 @@ private class ResolverInputMaterializationLogic(
         selections: MaterializeSelectionForest,
         reader: CycleTask,
         resultPath: List<PathComponent>,
+        fieldDirectives: FieldDirectives?,
     ): EngineOutputData? {
         return when (this) {
             null -> null
@@ -137,13 +149,23 @@ private class ResolverInputMaterializationLogic(
                 val values: EngineOutputListData =
                     indices.map { index ->
                         val cell = get(index)
-                        cycleChecker.cycleCheck(reader, cell.valueCycleSlot)
-                        cell.getValue().await().materializeSelectedValue(
-                            expectedType = typeExpr,
-                            selections = selections,
-                            reader = reader,
-                            resultPath = resultPath + ListEngineResult.Index.of(index),
-                        )
+                        val checkedValue =
+                            cell.materializeCheckedValueForResolver(
+                                fieldDirectives = fieldDirectives,
+                                reader = reader,
+                                cycleChecker = cycleChecker,
+                            )
+                        if (checkedValue is ErrorEngineResult) {
+                            checkedValue.errorData
+                        } else {
+                            checkedValue.materializeSelectedValue(
+                                expectedType = typeExpr,
+                                selections = selections,
+                                reader = reader,
+                                resultPath = resultPath + ListEngineResult.Index.of(index),
+                                fieldDirectives = fieldDirectives,
+                            )
+                        }
                     }
                 values
             }
