@@ -325,7 +325,7 @@ object FieldExecutionHelpers {
             queryPlan = queryPlan,
             fieldRssOriginFilteringKillSwitchEnabled =
                 parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled,
-            collectCache = parameters.constants.collectCache,
+            collectFields = parameters.constants.collectFields,
         )
 
     private fun engineSelectionSet(
@@ -568,8 +568,8 @@ object FieldExecutionHelpers {
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters
     ): CollectFields.Result =
-        parameters.constants.collectCache.collect(
-            parameters.graphQLSchema,
+        parameters.constants.collectFields(
+            parameters.engineExecutionContext.activeSchema,
             parameters.selectionSet,
             parameters.coercedVariables,
             objectType,

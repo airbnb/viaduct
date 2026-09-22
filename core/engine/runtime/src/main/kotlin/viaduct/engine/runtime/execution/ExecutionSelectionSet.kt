@@ -51,7 +51,7 @@ internal data class ExecutionSelectionSet(
         val locale: Locale = Locale.getDefault(),
         val queryPlan: QueryPlan? = null,
         val fieldRssOriginFilteringKillSwitchEnabled: Boolean = true,
-        val collectCache: CollectCache = CollectCache(),
+        val collectFields: CollectFields = CollectFields.cached(),
     ) {
         val coercedVariables: CoercedVariables = CoercedVariables.of(variables)
         val constraintsCtxWithoutTypes: Constraints.Ctx = Constraints.Ctx(coercedVariables, null)
@@ -61,13 +61,13 @@ internal data class ExecutionSelectionSet(
         val queryPlanFilterCtx: QueryPlanFilterCtx
             get() =
                 QueryPlanFilterCtx(
-                    schema = schema.schema,
+                    schema = schema,
                     variables = coercedVariables,
                     graphQLContext = graphQLContext,
                     locale = locale,
                     fieldRssOriginFilteringKillSwitchEnabled =
                     fieldRssOriginFilteringKillSwitchEnabled,
-                    collectCache = collectCache,
+                    collectFields = collectFields,
                 )
     }
 
@@ -552,7 +552,7 @@ internal data class ExecutionSelectionSet(
             locale: Locale = Locale.getDefault(),
             queryPlan: QueryPlan? = null,
             fieldRssOriginFilteringKillSwitchEnabled: Boolean = true,
-            collectCache: CollectCache = CollectCache(),
+            collectFields: CollectFields = CollectFields.cached(),
         ): EngineSelectionSet? {
             val compositeType = GraphQLTypeUtil.unwrapAll(fieldType) as? GraphQLCompositeType ?: return null
             return create(
@@ -566,7 +566,7 @@ internal data class ExecutionSelectionSet(
                 queryPlan = queryPlan,
                 fieldRssOriginFilteringKillSwitchEnabled =
                 fieldRssOriginFilteringKillSwitchEnabled,
-                collectCache = collectCache,
+                collectFields = collectFields,
             )
         }
 
@@ -580,7 +580,7 @@ internal data class ExecutionSelectionSet(
             locale: Locale = Locale.getDefault(),
             queryPlan: QueryPlan? = null,
             fieldRssOriginFilteringKillSwitchEnabled: Boolean = true,
-            collectCache: CollectCache = CollectCache(),
+            collectFields: CollectFields = CollectFields.cached(),
         ): EngineSelectionSet {
             val projectionType = schema.schema.getTypeAs<GraphQLCompositeType>(typeName)
             require(schema.rels.isSpreadable(selectionSet.parentType, projectionType)) {
@@ -596,7 +596,7 @@ internal data class ExecutionSelectionSet(
                     queryPlan = queryPlan,
                     fieldRssOriginFilteringKillSwitchEnabled =
                     fieldRssOriginFilteringKillSwitchEnabled,
-                    collectCache = collectCache,
+                    collectFields = collectFields,
                 ),
                 projectionType = projectionType,
                 source = selectionSet,

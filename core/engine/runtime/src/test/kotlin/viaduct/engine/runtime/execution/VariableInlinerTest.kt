@@ -4,6 +4,7 @@ import graphql.GraphQLContext
 import graphql.execution.CoercedVariables
 import graphql.execution.MergedField
 import graphql.language.ArrayValue
+import graphql.language.Directive
 import graphql.language.Field
 import graphql.language.IntValue
 import graphql.language.ObjectValue
@@ -231,8 +232,10 @@ class VariableInlinerTest {
         val fields = parseFields(
             "{ f(value: ${"$"}value) f(value: ${"$"}value) }"
         )
-        val parentUsage = DeferUsage(Defer("parent"), null)
-        val usages = listOf(null, DeferUsage(Defer("child"), parentUsage))
+        val parentDefer = Defer("parent", Directive.newDirective().name("defer").build())
+        val childDefer = Defer("child", Directive.newDirective().name("defer").build())
+        val parentUsage = DeferUsage(parentDefer, null)
+        val usages = listOf(null, DeferUsage(childDefer, parentUsage))
         val original = mkCollectedField(
             responseKey = "f",
             selectionSet = null,

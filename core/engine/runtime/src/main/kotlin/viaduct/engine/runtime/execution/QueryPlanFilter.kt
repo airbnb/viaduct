@@ -7,9 +7,9 @@ import graphql.language.InlineFragment as GJInlineFragment
 import graphql.language.TypeName as GJTypeName
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
-import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLTypeUtil
 import java.util.Locale
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
 import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.engine.runtime.mat.KeyTree
@@ -58,21 +58,21 @@ internal fun QueryPlan.filterTo(
 }
 
 internal data class QueryPlanFilterCtx(
-    val schema: GraphQLSchema,
+    val schema: EngineSchema,
     val variables: CoercedVariables = CoercedVariables.emptyVariables(),
     val graphQLContext: GraphQLContext = GraphQLContext.getDefault(),
     val locale: Locale = Locale.getDefault(),
     val fieldRssOriginFilteringKillSwitchEnabled: Boolean = true,
-    val collectCache: CollectCache = CollectCache(),
+    val collectFields: CollectFields = CollectFields.cached(),
 ) {
     constructor(parameters: ExecutionParameters) : this(
-        schema = parameters.graphQLSchema,
+        schema = parameters.engineExecutionContext.activeSchema,
         variables = parameters.coercedVariables,
         graphQLContext = parameters.executionContext.graphQLContext,
         locale = parameters.executionContext.locale,
         fieldRssOriginFilteringKillSwitchEnabled =
             parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled,
-        collectCache = parameters.constants.collectCache,
+        collectFields = parameters.constants.collectFields,
     )
 }
 
@@ -146,7 +146,7 @@ private class QueryPlanFilter(
         fields: Map<ObjectEngineResult.Key, KeyTree>,
     ): FilteredSelectionSet {
         val fieldSources = activeFieldSourcesByResponseKey(selectionSet, concreteType)
-        val collected = context.collectCache.collect(
+        val collected = context.collectFields(
             schema = context.schema,
             selectionSet = selectionSet,
             variables = context.variables,
@@ -158,7 +158,7 @@ private class QueryPlanFilter(
 
         for (field in collected.collectedFieldsMap.values) {
             val resolvedField = field.resolveField(
-                schema = context.schema,
+                schema = context.schema.schema,
                 parentType = concreteType,
                 variables = context.variables,
                 graphQLContext = context.graphQLContext,

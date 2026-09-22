@@ -283,8 +283,8 @@ class QueryPlanFilterTest {
             )
 
             filtered.variableDefinitions.map { it.name }.shouldBeEmpty()
-            val collected = CollectFields.shallowStrictCollect(
-                schema = schema,
+            val collected = CollectFields.default(
+                schema = viaductSchema,
                 selectionSet = filtered.selectionSet,
                 variables = CoercedVariables.emptyVariables(),
                 parentType = query,
@@ -324,8 +324,8 @@ class QueryPlanFilterTest {
             )
 
             filtered.variableDefinitions.map { it.name }.shouldBeEmpty()
-            val collected = CollectFields.shallowStrictCollect(
-                schema = schema,
+            val collected = CollectFields.default(
+                schema = viaductSchema,
                 selectionSet = filtered.selectionSet,
                 variables = CoercedVariables.emptyVariables(),
                 parentType = query,
@@ -365,16 +365,16 @@ class QueryPlanFilterTest {
             )
 
             filtered.variableDefinitions.map { it.name }.shouldContainExactly("includeField")
-            val included = CollectFields.shallowStrictCollect(
-                schema = schema,
+            val included = CollectFields.default(
+                schema = viaductSchema,
                 selectionSet = filtered.selectionSet,
                 variables = CoercedVariables.of(mapOf("includeField" to true)),
                 parentType = query,
                 fragments = filtered.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = true,
             )
-            val excluded = CollectFields.shallowStrictCollect(
-                schema = schema,
+            val excluded = CollectFields.default(
+                schema = viaductSchema,
                 selectionSet = filtered.selectionSet,
                 variables = CoercedVariables.of(mapOf("includeField" to false)),
                 parentType = query,
@@ -420,8 +420,8 @@ class QueryPlanFilterTest {
             )
 
             filtered.variableDefinitions.map { it.name }.shouldBeEmpty()
-            val collected = CollectFields.shallowStrictCollect(
-                schema = schema,
+            val collected = CollectFields.default(
+                schema = viaductSchema,
                 selectionSet = checkNotNull(filtered.selectionSet.fieldSelectionSet("value")),
                 variables = CoercedVariables.emptyVariables(),
                 parentType = impl1,
@@ -750,8 +750,8 @@ class QueryPlanFilterTest {
             """.trimIndent()
         ) {
             val plan = buildPlan("{ foo { x y } }")
-            val collected = CollectFields.shallowStrictCollect(
-                schema = schema,
+            val collected = CollectFields.default(
+                schema = viaductSchema,
                 selectionSet = plan.selectionSet,
                 variables = CoercedVariables.emptyVariables(),
                 parentType = query,
@@ -861,7 +861,7 @@ class QueryPlanFilterTest {
             variables: Map<String, Any?> = emptyMap(),
         ): QueryPlan {
             val context = QueryPlanFilterCtx(
-                schema = schema,
+                schema = viaductSchema,
                 variables = CoercedVariables.of(variables),
             )
             return filterTo(

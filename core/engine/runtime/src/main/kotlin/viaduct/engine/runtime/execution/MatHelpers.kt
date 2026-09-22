@@ -159,7 +159,7 @@ private fun QueryPlan.hasConditionallyExcludedSelectionForType(
         queryPlan = this,
         fieldRssOriginFilteringKillSwitchEnabled =
             context.fieldRssOriginFilteringKillSwitchEnabled,
-        collectCache = context.collectCache,
+        collectFields = context.collectFields,
     ).conditionallyExcludedResultKeys().isNotEmpty()
 
 private fun QueryPlan.keyTreeForType(
@@ -168,7 +168,7 @@ private fun QueryPlan.keyTreeForType(
     selectionSet: QueryPlan.SelectionSet,
     type: GraphQLObjectType,
 ): Map<ObjectEngineResult.Key, KeyTree> {
-    val collected = context.collectCache.collect(
+    val collected = context.collectFields(
         schema = context.schema,
         selectionSet = selectionSet,
         variables = context.variables,
@@ -179,7 +179,7 @@ private fun QueryPlan.keyTreeForType(
     val fields = mutableMapOf<ObjectEngineResult.Key, KeyTree>()
     for (field in collected.collectedFieldsMap.values) {
         val resolvedField = field.resolveField(
-            schema = context.schema,
+            schema = context.schema.schema,
             parentType = type,
             variables = context.variables,
             graphQLContext = context.graphQLContext,

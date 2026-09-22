@@ -912,7 +912,7 @@ data class ExecutionParameters(
      * @property rootEngineResult Root ObjectEngineResult for the entire request
      * @property supervisorScopeFactory Coroutine scope factory for the entire execution. Creates a CoroutineScope supervised by the execution.
      * @property rootCoroutineContext Root coroutine context for async operations
-     * @property collectCache Cache for collected fields during execution
+     * @property collectFields Field collection shared during execution
      */
     data class Constants(
         val executionContext: ExecutionContext,
@@ -920,7 +920,7 @@ data class ExecutionParameters(
         val supervisorScopeFactory: (CoroutineContext) -> CoroutineScope,
         val rootCoroutineContext: CoroutineContext,
     ) {
-        internal val collectCache: CollectCache = CollectCache()
+        internal val collectFields: CollectFields = CollectFields.cached()
 
         /**
          * Launches a coroutine on the root execution scope.

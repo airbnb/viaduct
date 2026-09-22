@@ -87,7 +87,7 @@ data class QueryPlan(
      * A variable reference found while building the query plan.
      *
      * Query planning records where each variable was referenced so runtime code can answer
-     * narrower questions without rewalking the graphql-java AST. For example, [CollectCache]
+     * narrower questions without rewalking the graphql-java AST. For example, [CollectFields]
      * only cares about variables used by conditional directives, while child-plan construction
      * also needs variables used in field arguments and other directives.
      */

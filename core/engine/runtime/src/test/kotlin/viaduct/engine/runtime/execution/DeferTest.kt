@@ -7,19 +7,54 @@ import org.junit.jupiter.api.Test
 
 class DeferTest {
     @Test
-    fun `defer usages distinguish AST occurrences and parent contexts`() {
+    fun `same directive and label`() {
         val directive = Directive.newDirective().name("defer").build()
-        val defer = Defer("same", directive)
-        val sameDirective = Defer("same", directive)
-        val otherDirective = Defer("same", Directive.newDirective().name("defer").build())
+        val first = Defer("same", directive)
+        val second = Defer("same", directive)
 
-        assertEquals(defer, sameDirective)
-        assertEquals(setOf(defer), setOf(defer, sameDirective))
-        assertNotEquals(defer, otherDirective)
-        assertNotEquals(Defer(null), Defer(null))
-        val parent = DeferUsage(Defer("parent"), null)
-        assertEquals(DeferUsage(defer, parent), DeferUsage(sameDirective, parent))
+        assertEquals(first, second)
+        assertEquals(1, setOf(first, second).size)
+    }
+
+    @Test
+    fun `distinct directives with the same label`() {
+        val first = Defer("same", Directive.newDirective().name("defer").build())
+        val second = Defer("same", Directive.newDirective().name("defer").build())
+
+        assertNotEquals(first, second)
+        assertEquals(2, setOf(first, second).size)
+    }
+
+    @Test
+    fun `distinct unlabeled directives`() {
+        val first = Defer(null, Directive.newDirective().name("defer").build())
+        val second = Defer(null, Directive.newDirective().name("defer").build())
+
+        assertNotEquals(first, second)
+    }
+
+    @Test
+    fun `different labels on the same directive`() {
+        val directive = Directive.newDirective().name("defer").build()
+
+        assertNotEquals(Defer("first", directive), Defer("second", directive))
+    }
+
+    @Test
+    fun `equal defer usages`() {
+        val directive = Directive.newDirective().name("defer").build()
+        val parentDirective = Directive.newDirective().name("defer").build()
+        val first = DeferUsage(Defer("child", directive), DeferUsage(Defer("parent", parentDirective), null))
+        val second = DeferUsage(Defer("child", directive), DeferUsage(Defer("parent", parentDirective), null))
+
+        assertEquals(first, second)
+    }
+
+    @Test
+    fun `defer usages distinguish parent contexts`() {
+        val defer = Defer("child", Directive.newDirective().name("defer").build())
+        val parent = DeferUsage(Defer("parent", Directive.newDirective().name("defer").build()), null)
+
         assertNotEquals(DeferUsage(defer, null), DeferUsage(defer, parent))
-        assertNotEquals(DeferUsage(defer, parent), DeferUsage(defer, DeferUsage(Defer("parent"), null)))
     }
 }
