@@ -115,6 +115,7 @@ private fun SpecSelection.Field.flattenField(
             ),
         possibleTypes = context.possibleTypes,
         inclusionCondition = context.inclusionCondition.and(inclusionCondition),
+        fieldDirectives = fieldDirectives,
         subselections = flattenedSubselections,
     )
 }

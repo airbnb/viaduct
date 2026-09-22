@@ -1,5 +1,6 @@
 package model.spec
 
+import viaduct.engine.api.FieldDirectives
 import viaduct.graphql.schema.ViaductSchema
 
 import model.Assumptions
@@ -54,6 +55,9 @@ sealed interface SpecSelection {
          */
         val arguments: Arguments
 
+        /** Generic directives applied to this source field occurrence, when available. */
+        val fieldDirectives: FieldDirectives?
+
         /**
          * The selection set on this field's result.
          *
@@ -79,6 +83,7 @@ sealed interface SpecSelection {
                 arguments: Map<String, Any?>,
                 subselections: List<SpecSelection>?,
                 inclusionCondition: InclusionCondition = InclusionCondition.Always,
+                fieldDirectives: FieldDirectives? = null,
             ): Field {
                 when (field.type.baseTypeDef) {
                     is ViaductSchema.SimpleTypeDef ->
@@ -99,6 +104,7 @@ sealed interface SpecSelection {
                     Arguments.of(field, arguments),
                     subselections,
                     inclusionCondition,
+                    fieldDirectives,
                 )
             }
         }
@@ -160,6 +166,7 @@ private class FieldImpl(
     override val arguments: Arguments,
     override val subselections: List<SpecSelection>?,
     override val inclusionCondition: InclusionCondition,
+    override val fieldDirectives: FieldDirectives?,
 ) : SpecSelection.Field
 
 private class InlineFragmentImpl(

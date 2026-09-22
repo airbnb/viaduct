@@ -76,4 +76,36 @@ class SelectionDocumentTest {
         assertEquals("value", fragment.subselections.single().key.field.name)
         assertEquals("renamed", fragment.materializeSelections.single().responseKey)
     }
+
+    @Test
+    fun `named fragment lowering preserves generic field directives`() {
+        val world =
+            TestWorld.fromSDL(
+                """
+                directive @consumerPolicy on FIELD
+
+                type Query {
+                  value: Int!
+                }
+                """.trimIndent(),
+            )
+
+        val fragment =
+            world.schema.fragmentFromDocument(
+                Parser.parse(
+                    """
+                    fragment Directed on Query {
+                      renamed: value @consumerPolicy
+                    }
+                    fragment Main on Query {
+                      ...Directed
+                    }
+                    """.trimIndent(),
+                ),
+            )
+
+        val selection = fragment.materializeSelections.single()
+        assertEquals("renamed", selection.responseKey)
+        assertTrue(checkNotNull(selection.fieldDirectives).hasDirective("consumerPolicy"))
+    }
 }

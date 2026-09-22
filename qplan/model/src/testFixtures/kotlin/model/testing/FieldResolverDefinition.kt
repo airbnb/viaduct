@@ -164,6 +164,7 @@ class FieldResolverDefinition private constructor(
                             key = selection.key.objectKey(expectedType),
                             possibleTypes = setOf(expectedType),
                             inclusionCondition = selection.inclusionCondition,
+                            fieldDirectives = selection.fieldDirectives,
                             subselections = selection.subselections,
                         ),
                     )

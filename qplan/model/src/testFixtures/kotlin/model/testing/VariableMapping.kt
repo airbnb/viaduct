@@ -71,6 +71,7 @@ private fun MaterializeSelectionForest.mapVariables(
                     ),
                 possibleTypes = selection.possibleTypes,
                 inclusionCondition = selection.inclusionCondition.mapVariables(transform),
+                fieldDirectives = selection.fieldDirectives,
                 subselections = selection.subselections.mapVariables(transform),
             ),
         )

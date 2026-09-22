@@ -1,5 +1,6 @@
 package model
 
+import viaduct.engine.api.FieldDirectives
 import viaduct.graphql.schema.ViaductSchema
 
 /**
@@ -28,6 +29,9 @@ sealed interface MaterializeSelection {
     /** The symbolic condition that must permit inclusion of this source occurrence. */
     val inclusionCondition: InclusionCondition
 
+    /** Generic directives applied to this source field occurrence, when available. */
+    val fieldDirectives: FieldDirectives?
+
     /** Response-key-preserving selections on this field's result. */
     val subselections: MaterializeSelectionForest
 
@@ -48,6 +52,7 @@ sealed interface MaterializeSelection {
             possibleTypes: Set<ViaductSchema.Object>,
             subselections: MaterializeSelectionForest,
             inclusionCondition: InclusionCondition = InclusionCondition.Always,
+            fieldDirectives: FieldDirectives? = null,
         ): MaterializeSelection {
             require(responseKey.isNotEmpty()) {
                 "A materialize selection requires a non-empty response key"
@@ -67,6 +72,7 @@ sealed interface MaterializeSelection {
                 key = key,
                 possibleTypes = possibleTypes,
                 inclusionCondition = inclusionCondition,
+                fieldDirectives = fieldDirectives,
                 subselections = subselections,
             )
         }
@@ -134,6 +140,7 @@ sealed interface MaterializeSelectionForest {
 sealed interface ObjectMaterializeSelection {
     val responseKey: String
     val key: ObjectEngineResult.ObjectKey
+    val fieldDirectives: FieldDirectives?
     val subselections: MaterializeSelectionForest
 
     val isLeaf: Boolean
@@ -207,6 +214,7 @@ fun MaterializeSelectionForest.guardedBy(
                     possibleTypes = selection.possibleTypes,
                     subselections = selection.subselections,
                     inclusionCondition = alternative.and(selection.inclusionCondition),
+                    fieldDirectives = selection.fieldDirectives,
                 ),
             )
         }
@@ -217,12 +225,14 @@ private class MaterializeSelectionImpl(
     override val key: ObjectEngineResult.Key,
     override val possibleTypes: Set<ViaductSchema.Object>,
     override val inclusionCondition: InclusionCondition,
+    override val fieldDirectives: FieldDirectives?,
     override val subselections: MaterializeSelectionForest,
 ) : MaterializeSelection
 
 private class ObjectMaterializeSelectionImpl(
     override val responseKey: String,
     override val key: ObjectEngineResult.ObjectKey,
+    override val fieldDirectives: FieldDirectives?,
     override val subselections: MaterializeSelectionForest,
 ) : ObjectMaterializeSelection
 
@@ -271,20 +281,26 @@ private class MaterializeSelectionForestImpl(
         val membersByResponseKey =
             linkedMapOf<
                 String,
-                MutableList<Pair<ObjectEngineResult.ObjectKey, MaterializeSelectionForest>>,
+                MutableList<Triple<ObjectEngineResult.ObjectKey, MaterializeSelectionForest, FieldDirectives?>>,
             >()
         selections.forEach { selection ->
             if (type in selection.possibleTypes) {
                 membersByResponseKey
                     .getOrPut(selection.responseKey, ::mutableListOf)
-                    .add(selection.key.objectKey(type) to selection.subselections)
+                    .add(
+                        Triple(
+                            selection.key.objectKey(type),
+                            selection.subselections,
+                            selection.fieldDirectives,
+                        ),
+                    )
             }
         }
         val groups =
             membersByResponseKey.mapValues { (responseKey, members) ->
                 val key = members.first().first
                 require(
-                    members.all { (memberKey, _) ->
+                    members.all { (memberKey, _, _) ->
                         memberKey.field == key.field &&
                             memberKey.arguments == key.arguments
                     },
@@ -295,9 +311,10 @@ private class MaterializeSelectionForestImpl(
                 ObjectMaterializeSelectionImpl(
                     responseKey = responseKey,
                     key = key,
+                    fieldDirectives = mergeFieldDirectives(members.map { it.third }),
                     subselections =
                         members
-                            .map(Pair<ObjectEngineResult.ObjectKey, MaterializeSelectionForest>::second)
+                            .map(Triple<ObjectEngineResult.ObjectKey, MaterializeSelectionForest, FieldDirectives?>::second)
                             .flatMapToMaterializeSelectionForest { it },
                 )
             }
@@ -327,3 +344,21 @@ private class ObjectMaterializeSelectionForestImpl(
 
 private fun MaterializeSelectionForest.occurrences(): List<MaterializeSelection> =
     (this as MaterializeSelectionForestImpl).occurrences()
+
+/**
+ * Conservatively exposes a directive only when every collected source occurrence exposes it.
+ * A missing directive context makes the collected context unavailable.
+ */
+private fun mergeFieldDirectives(
+    directives: List<FieldDirectives?>,
+): FieldDirectives? {
+    if (directives.any { it == null }) return null
+    val available = directives.filterNotNull()
+    if (available.size == 1) return available.single()
+    return object : FieldDirectives {
+        override fun hasDirective(
+            name: String,
+            args: ((Map<String, Any?>) -> Boolean)?,
+        ): Boolean = available.all { it.hasDirective(name, args) }
+    }
+}

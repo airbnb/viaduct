@@ -634,6 +634,7 @@ private fun MaterializeSelectionForest.instantiateVariables(
                     selection.inclusionCondition.mapVariables { variable ->
                         variable.instantiate(resolverOccurrenceId)
                     },
+                fieldDirectives = selection.fieldDirectives,
                 subselections =
                     selection.subselections.instantiateVariables(
                         resolverOccurrenceId,

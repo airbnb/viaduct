@@ -190,4 +190,66 @@ class ResolverVariableInstantiationTest {
         assertEquals(definition.variable, reconstructed.variable)
         assertEquals(definition.path.map { it.key }, reconstructed.path.map { it.key })
     }
+
+    @Test
+    fun `variable instantiation preserves generic field directives`() {
+        val testWorld =
+            TestWorld.fromSDL(
+                schemaSDL =
+                    """
+                    directive @consumerPolicy on FIELD
+
+                    type Query {
+                      result(seed: Int): Int!
+                      consume(value: Int): Int!
+                    }
+                    """.trimIndent(),
+                fieldResolvers = { schema ->
+                    val result = schema.requireObjectField("Query", "result")
+                    mapOf(
+                        result to
+                            fieldResolverOf(
+                                schema.fragmentFrom(
+                                    """
+                                    fragment Result on Query {
+                                      renamed: consume(value: ${'$'}seed) @consumerPolicy
+                                    }
+                                    """.trimIndent(),
+                                ),
+                            ) { _, _ -> 1 },
+                        schema.requireObjectField("Query", "consume") to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 },
+                    )
+                },
+                variableProviders = { schema ->
+                    val result = schema.requireObjectField("Query", "result")
+                    mapOf(
+                        Arguments.Variable.of(result, "seed") to
+                            schema.fromArgument(result, "seed"),
+                    )
+                },
+            )
+        val result = testWorld.schema.requireObjectField("Query", "result")
+        val path =
+            listOf(
+                ObjectEngineResult.GroundKey.of(result, mapOf("seed" to 3)),
+            )
+
+        val resolver = testWorld.resolverRegistry.resolver(result)
+        val fragment = resolver.instantiateFragmentsAt(testWorld.schema.testRoot(), path).objectFragment
+        val selection =
+            resolver
+                .instantiateObjectMaterializationSelections(fragment.resolverOccurrenceId)
+                .collect(testWorld.schema.requireQueryTypeDef())["renamed"]
+        val variables = selection.key.arguments.instantiatedVariables()
+
+        assertTrue(checkNotNull(selection.fieldDirectives).hasDirective("consumerPolicy"))
+        assertEquals(1, variables.size)
+        assertTrue(
+            variables.all { variable ->
+                variable.instanceId?.resolverOccurrenceId ==
+                    ResolverOccurrenceId.at(testWorld.schema.testRoot(), path)
+            },
+        )
+    }
 }

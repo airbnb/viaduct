@@ -274,7 +274,14 @@ internal class GJSchema private constructor(
         private val STANDARD_SCALAR_NAMES = setOf("Int", "Float", "String", "Boolean", "ID")
         private val SCALARS_REQUIRING_REGISTRATION = setOf("Int", "Float", "ID")
         private val STANDARD_DIRECTIVE_NAMES =
-            setOf("skip", "include", "deprecated", "specifiedBy", "oneOf", "parent")
+            setOf(
+                "skip",
+                "include",
+                "deprecated",
+                "specifiedBy",
+                "oneOf",
+                "parent",
+            )
 
         @JvmStatic
         fun fromSDL(schemaSDL: String): GJSchema {
@@ -316,11 +323,17 @@ internal class GJSchema private constructor(
                     nonStandardScalars.sorted().joinToString()
             }
 
-            val nonStandardDirectives =
-                registry.directiveDefinitions.keys - STANDARD_DIRECTIVE_NAMES
-            require(nonStandardDirectives.isEmpty()) {
-                "Non-standard directives are outside the model: " +
-                    nonStandardDirectives.sorted().joinToString()
+            val unsupportedDirectives =
+                registry.directiveDefinitions
+                    .filterKeys { it !in STANDARD_DIRECTIVE_NAMES }
+                    .filterValues { definition ->
+                        definition.directiveLocations.map { it.name }.toSet() != setOf("FIELD") ||
+                            definition.inputValueDefinitions.isNotEmpty()
+                    }
+                    .keys
+            require(unsupportedDirectives.isEmpty()) {
+                "Only no-argument non-standard FIELD directives are supported: " +
+                    unsupportedDirectives.sorted().joinToString()
             }
 
             return UnExecutableSchemaGenerator

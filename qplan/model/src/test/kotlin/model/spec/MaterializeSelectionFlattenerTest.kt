@@ -1,5 +1,6 @@
 package model.spec
 
+import viaduct.engine.api.FieldDirectives
 import viaduct.graphql.schema.ViaductSchema
 
 import model.requireQueryTypeDef
@@ -145,6 +146,32 @@ class MaterializeSelectionFlattenerTest {
             setOf("name", "code"),
             chosen.subselections.collect(fixture.item).responseKeys(),
         )
+    }
+
+    @Test
+    fun `collected response key exposes a directive only when every occurrence exposes it`() {
+        val fixture = SchemaFixture()
+        val directed = testFieldDirectives("consumerPolicy")
+        val undirected = testFieldDirectives()
+        val mixed =
+            fixture.flatten(
+                fixture.query,
+                listOf(
+                    fixture.field("Query", "version", alias = "result", fieldDirectives = directed),
+                    fixture.field("Query", "version", alias = "result", fieldDirectives = undirected),
+                ),
+            )
+        val unanimous =
+            fixture.flatten(
+                fixture.query,
+                listOf(
+                    fixture.field("Query", "version", alias = "result", fieldDirectives = directed),
+                    fixture.field("Query", "version", alias = "result", fieldDirectives = directed),
+                ),
+            )
+
+        assertFalse(checkNotNull(mixed.collect(fixture.query)["result"].fieldDirectives).hasDirective("consumerPolicy"))
+        assertTrue(checkNotNull(unanimous.collect(fixture.query)["result"].fieldDirectives).hasDirective("consumerPolicy"))
     }
 
     @Test
@@ -375,6 +402,7 @@ class MaterializeSelectionFlattenerTest {
             alias: String? = null,
             arguments: Map<String, Any?> = emptyMap(),
             subselections: List<SpecSelection>? = null,
+            fieldDirectives: FieldDirectives? = null,
         ): SpecSelection.Field {
             val field = schema.requireField(containingType, fieldName)
             return SpecSelection.Field.of(
@@ -382,6 +410,7 @@ class MaterializeSelectionFlattenerTest {
                 field = field,
                 arguments = arguments,
                 subselections = subselections,
+                fieldDirectives = fieldDirectives,
             )
         }
 
@@ -435,3 +464,11 @@ class MaterializeSelectionFlattenerTest {
             """.trimIndent()
     }
 }
+
+private fun testFieldDirectives(vararg names: String): FieldDirectives =
+    object : FieldDirectives {
+        override fun hasDirective(
+            name: String,
+            args: ((Map<String, Any?>) -> Boolean)?,
+        ): Boolean = name in names && (args == null || args(emptyMap()))
+    }

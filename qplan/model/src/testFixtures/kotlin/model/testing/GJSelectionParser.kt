@@ -36,6 +36,7 @@ import model.requireType
 import model.spec.SpecSelection
 import model.spec.flatten
 import model.spec.flattenForMaterialization
+import viaduct.engine.api.FieldDirectives
 
 /**
  * Parses and validates external GraphQL fragment text against the unaugmented source schema.
@@ -230,6 +231,7 @@ internal class GJSelectionParser(
             arguments = arguments,
             subselections = subselections,
             inclusionCondition = argumentDecoder.decodeCondition(field),
+            fieldDirectives = ParsedFieldDirectives(field.directives.map { it.name }.filterNot(EXECUTION_DIRECTIVES::contains)),
         )
     }
 
@@ -296,6 +298,7 @@ internal class GJSelectionParser(
         ): Map<String, Any?>
 
         fun decodeCondition(container: DirectivesContainer<*>): InclusionCondition
+
     }
 
     private enum class TranslationMode {
@@ -337,12 +340,9 @@ internal class GJSelectionParser(
         }
 
         override fun decodeCondition(container: DirectivesContainer<*>): InclusionCondition =
-            container.directives.fold(
+            container.directives.filter { it.name in CONDITIONAL_DIRECTIVES }.fold(
                 InclusionCondition.Always as InclusionCondition,
             ) { accumulated, directive ->
-                require(directive.name == "skip" || directive.name == "include") {
-                    "Unsupported applied directive @${directive.name}"
-                }
                 val value = directive.arguments.single { it.name == "if" }.value
                 val required = directive.name == "include"
                 val condition =
@@ -417,15 +417,6 @@ internal class GJSelectionParser(
         }
 
         override fun decodeCondition(container: DirectivesContainer<*>): InclusionCondition {
-            require(
-                container.directives.all { directive ->
-                    directive.name == "skip" ||
-                        directive.name == "include" ||
-                        directive.name == "defer"
-                },
-            ) {
-                "Unsupported applied directive"
-            }
             return if (
                 ConditionalNodes().shouldInclude(
                     container,
@@ -442,6 +433,9 @@ internal class GJSelectionParser(
     }
 
     private companion object {
+        val CONDITIONAL_DIRECTIVES = setOf("skip", "include")
+        val EXECUTION_DIRECTIVES = CONDITIONAL_DIRECTIVES + "defer"
+
         val STANDALONE_FRAGMENT_ERRORS =
             setOf(
                 ValidationErrorType.UnusedFragment,
@@ -454,3 +448,15 @@ internal data class ParsedSpecFragment(
     val nominalType: ViaductSchema.CompositeTypeDef,
     val selections: List<SpecSelection>,
 )
+
+/** Generic no-argument field directives retained by the qplan test-fixture parser. */
+private class ParsedFieldDirectives(
+    directiveNames: List<String>,
+) : FieldDirectives {
+    private val names = directiveNames.toSet()
+
+    override fun hasDirective(
+        name: String,
+        args: ((Map<String, Any?>) -> Boolean)?,
+    ): Boolean = name in names && (args == null || args(emptyMap()))
+}
