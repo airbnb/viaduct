@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import model.ObjectEngineResult
 import model.SelectionForest
 import semantics.contract.FragmentFreeFieldCheckerPublicationContract
+import semantics.contract.FragmentFreeFieldCheckerEnforcementContract
 import semantics.contract.CoroutineResolverContract
 import semantics.contract.CoroutineResolverTestSubject
 import semantics.resolvers.resolver21.startCoroutineResolution
@@ -14,7 +15,8 @@ import semantics.shared.SharedOperationContext
 class CoroutineResolveTest :
     CoroutineResolverTestSubject(),
     CoroutineResolverContract,
-    FragmentFreeFieldCheckerPublicationContract {
+    FragmentFreeFieldCheckerPublicationContract,
+    FragmentFreeFieldCheckerEnforcementContract {
     override val selectiveResolvers = false
     override val usesSingularQueryOER = true
 

@@ -18,7 +18,12 @@ internal class CoroutineResolve(
 ) {
     suspend fun resolve(source: EngineObjectData.Sync, selections: SelectionForest): ObjectEngineResult =
         coroutineScope {
-            CoroutineOperationContext(operation, this, complete, cycleChecker).startResolve(
+            CoroutineOperationContext(
+                operation,
+                this,
+                complete,
+                cycleChecker,
+            ).startResolve(
                 source = source,
                 selections = selections,
             )

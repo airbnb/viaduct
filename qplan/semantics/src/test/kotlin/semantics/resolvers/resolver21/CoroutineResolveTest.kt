@@ -31,7 +31,12 @@ internal fun startCoroutineResolution(
     cycleChecker: CycleCheckState,
     complete: (SelectionForest) -> SelectionForest = { it },
 ): ObjectEngineResult =
-    CoroutineOperationContext(operation, requestScope, complete, cycleChecker).startResolve(
+    CoroutineOperationContext(
+        operation,
+        requestScope,
+        complete,
+        cycleChecker,
+    ).startResolve(
         source = operation.world.resolverRegistry.createRootQueryInput(),
         selections = selections,
     )
