@@ -175,6 +175,7 @@ private fun QueryPlan.keyTreeForType(
         parentType = type,
         fragments = fragments,
         fieldRssOriginFilteringKillSwitchEnabled = context.fieldRssOriginFilteringKillSwitchEnabled,
+        incrementalExecutionEnabled = context.incrementalExecutionEnabled,
     )
     val fields = mutableMapOf<ObjectEngineResult.Key, KeyTree>()
     for (field in collected.collectedFieldsMap.values) {

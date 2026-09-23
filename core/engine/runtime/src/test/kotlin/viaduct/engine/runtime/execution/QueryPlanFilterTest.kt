@@ -290,6 +290,7 @@ class QueryPlanFilterTest {
                 parentType = query,
                 fragments = filtered.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = true,
+                incrementalExecutionEnabled = false,
             )
 
             collected.collectedFieldsMap.keys.shouldContainExactly("foo")
@@ -331,6 +332,7 @@ class QueryPlanFilterTest {
                 parentType = query,
                 fragments = filtered.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = true,
+                incrementalExecutionEnabled = false,
             )
 
             collected.collectedFieldsMap.keys.shouldContainExactly("foo")
@@ -372,6 +374,7 @@ class QueryPlanFilterTest {
                 parentType = query,
                 fragments = filtered.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = true,
+                incrementalExecutionEnabled = false,
             )
             val excluded = CollectFields.default(
                 schema = viaductSchema,
@@ -380,6 +383,7 @@ class QueryPlanFilterTest {
                 parentType = query,
                 fragments = filtered.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = true,
+                incrementalExecutionEnabled = false,
             )
 
             included.collectedFieldsMap.keys.shouldContainExactly("foo")
@@ -427,6 +431,7 @@ class QueryPlanFilterTest {
                 parentType = impl1,
                 fragments = filtered.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = true,
+                incrementalExecutionEnabled = false,
             )
 
             collected.collectedFieldsMap.keys.shouldContainExactly("x")
@@ -757,6 +762,7 @@ class QueryPlanFilterTest {
                 parentType = query,
                 fragments = plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = true,
+                incrementalExecutionEnabled = false,
             )
 
             val filtered = plan.filterTo(

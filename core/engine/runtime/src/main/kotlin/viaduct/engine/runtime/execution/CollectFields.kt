@@ -3,7 +3,10 @@ package viaduct.engine.runtime.execution
 import graphql.execution.CoercedVariables
 import graphql.execution.MergedField
 import graphql.language.AstPrinter
+import graphql.language.Directive
+import graphql.language.DirectivesContainer
 import graphql.language.SourceLocation
+import graphql.language.VariableReference
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
@@ -20,6 +23,7 @@ import viaduct.engine.runtime.execution.QueryPlan.SelectionSet
 import viaduct.engine.runtime.execution.QueryPlan.SelectionVariableReference
 import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.engine.runtime.execution.constraints.Constraints.Resolution
+import viaduct.graphql.utils.rawValue
 import viaduct.utils.collections.MaskedSet
 
 /** A planned field occurrence and its enclosing defer context. */
@@ -83,6 +87,7 @@ fun interface CollectFields {
         parentType: GraphQLObjectType,
         fragments: Fragments,
         fieldRssOriginFilteringKillSwitchEnabled: Boolean,
+        incrementalExecutionEnabled: Boolean,
     ): Result
 
     companion object {
@@ -102,20 +107,23 @@ private object DefaultCollectFields : CollectFields {
         parentType: GraphQLObjectType,
         fragments: Fragments,
         fieldRssOriginFilteringKillSwitchEnabled: Boolean,
+        incrementalExecutionEnabled: Boolean,
     ): CollectFields.Result {
         val result = collect(
             State(
                 schema = schema.schema,
                 acc = emptyMap(),
                 pending = selectionSet.selections,
-                spreadFragments = emptySet(),
+                spreadFragments = emptyMap(),
                 fragments = fragments,
                 constraintsCtx = Constraints.Ctx(variables, MaskedSet(listOf(parentType))),
                 parentType = parentType,
             ),
+            variables = variables,
             fieldRssOriginFilteringKillSwitchEnabled = fieldRssOriginFilteringKillSwitchEnabled,
+            incrementalExecutionEnabled = incrementalExecutionEnabled,
         )
-        return CollectFields.Result(result.acc, emptyList())
+        return CollectFields.Result(result.acc, result.newDeferUsages)
     }
 
     /** models the state while collecting fields within a single SelectionSet */
@@ -123,15 +131,18 @@ private object DefaultCollectFields : CollectFields {
         val schema: GraphQLSchema,
         val acc: CollectedFieldsMap,
         val pending: List<Selection>,
-        val spreadFragments: Set<String>,
+        val spreadFragments: Map<String, Set<Defer?>>,
         val fragments: Fragments,
         val constraintsCtx: Constraints.Ctx,
         val parentType: GraphQLObjectType,
+        val newDeferUsages: List<DeferUsage> = emptyList(),
     ) {
         fun fragmentDef(name: String): FragmentDefinition = requireNotNull(fragments[name]) { "Fragment `$name` is not defined" }
 
         fun constrainedTypes() = constraintsCtx.parentTypes?.toSet()
     }
+
+    private data class PendingSelection(val selection: Selection, val deferUsage: DeferUsage?)
 
     /**
      * Collect pending selections in State, according to the spec's definition for
@@ -142,20 +153,23 @@ private object DefaultCollectFields : CollectFields {
      */
     private fun collect(
         state: State,
+        variables: CoercedVariables,
         fieldRssOriginFilteringKillSwitchEnabled: Boolean,
+        incrementalExecutionEnabled: Boolean,
     ): State {
-        val visitedFragments = state.spreadFragments.toMutableSet()
+        val visitedFragments = state.spreadFragments.mapValues { (_, defers) -> defers.toMutableSet() }.toMutableMap()
         val acc = linkedMapOf<String, MutableList<FieldDetails>>()
+        val newDeferUsages = mutableListOf<DeferUsage>()
 
         // the inner loop will both push and pop from the front of the queue
         // For example, we might handle an inline fragment by popping off the inline fragment
         // selection, and then pushing on the field selections of that fragment.
         // An ArrayDeque is a good data structure for this job, as it has constant-time reads/writes
         // when working at the front, and is more memory-efficient than a LinkedList
-        val queue = ArrayDeque(state.pending)
+        val queue = ArrayDeque(state.pending.map { PendingSelection(it, null) })
 
         while (queue.isNotEmpty()) {
-            val sel = queue.removeFirst()
+            val (sel, deferUsage) = queue.removeFirst()
             val resolution = sel.constraints.solve(state.constraintsCtx)
 
             when {
@@ -195,19 +209,34 @@ private object DefaultCollectFields : CollectFields {
                         )
                     acc
                         .getOrPut(field.resultKey) { mutableListOf() }
-                        .add(FieldDetails(field, null))
+                        .add(FieldDetails(field, deferUsage))
                 }
 
-                sel is InlineFragment ->
-                    // push all fragment fields onto the stack
-                    queue.addAll(0, sel.selectionSet.selections)
+                sel is InlineFragment -> {
+                    val fragmentUsage = fragmentDeferUsage(
+                        sel,
+                        deferUsage,
+                        variables,
+                        incrementalExecutionEnabled,
+                    )
+                    if (fragmentUsage != null && fragmentUsage !== deferUsage) newDeferUsages += fragmentUsage
+                    queue.addAll(0, sel.selectionSet.selections.map { PendingSelection(it, fragmentUsage) })
+                }
 
-                sel is FragmentSpread && sel.name in visitedFragments -> continue
                 sel is FragmentSpread -> {
                     val def = state.fragmentDef(sel.name)
-                    // push all fragment definition fields onto the stack
-                    queue.addAll(0, def.selectionSet.selections)
-                    visitedFragments += sel.name
+                    val visitedDefers = visitedFragments.getOrPut(sel.name) { mutableSetOf() }
+                    if (null in visitedDefers) continue
+                    val fragmentUsage = fragmentDeferUsage(
+                        sel,
+                        deferUsage,
+                        variables,
+                        incrementalExecutionEnabled,
+                    )
+                    // A directive already visited for this fragment is skipped even under a different parent.
+                    if (!visitedDefers.add(fragmentUsage?.defer)) continue
+                    if (fragmentUsage != null && fragmentUsage !== deferUsage) newDeferUsages += fragmentUsage
+                    queue.addAll(0, def.selectionSet.selections.map { PendingSelection(it, fragmentUsage) })
                 }
 
                 else -> throw AssertionError("encountered unexpected state: $sel")
@@ -217,8 +246,23 @@ private object DefaultCollectFields : CollectFields {
         return state.copy(
             acc = acc.mapValues { (_, fields) -> CollectedField(fields, state.schema) },
             pending = emptyList(),
-            spreadFragments = visitedFragments
+            spreadFragments = visitedFragments,
+            newDeferUsages = newDeferUsages,
         )
+    }
+
+    private fun fragmentDeferUsage(
+        selection: Selection,
+        parentDeferUsage: DeferUsage?,
+        variables: CoercedVariables,
+        incrementalExecutionEnabled: Boolean,
+    ): DeferUsage? {
+        if (!incrementalExecutionEnabled) return null
+        val directive = selection.deferDirective ?: return parentDeferUsage
+        if (directive.argumentValue("if", variables) == false) return parentDeferUsage
+
+        val label = directive.argumentValue("label", variables) as String?
+        return DeferUsage(Defer(label, directive), parentDeferUsage)
     }
 
     private fun GraphQLCompositeType.isRootType(schema: GraphQLSchema) =
@@ -226,6 +270,21 @@ private object DefaultCollectFields : CollectFields {
             this == schema.mutationType ||
             this == schema.subscriptionType
 }
+
+private val Selection.deferDirective: Directive?
+    get() = when (this) {
+        is InlineFragment -> inlineFragment?.deferDirective
+        is FragmentSpread -> fragmentSpread?.deferDirective
+        is Field -> null
+    }
+
+private val DirectivesContainer<*>.deferDirective: Directive?
+    get() = getDirectives("defer")?.firstOrNull()
+
+private fun Directive.argumentValue(
+    name: String,
+    variables: CoercedVariables
+): Any? = getArgument(name)?.value?.rawValue(variables.toMap())
 
 /**
  * Caches the results of field collection to optimize performance during execution.
@@ -238,7 +297,7 @@ private object DefaultCollectFields : CollectFields {
  * 1. The [QueryPlan] (and its [QueryPlan.SelectionSet] nodes) is immutable and shared.
  * 2. Runtime variables that participate in field collection are included structurally because
  *    different child executions in the same request can run the same plan with different
- *    @skip/@include values.
+ *    @skip/@include/@defer values.
  *
  * By avoiding expensive structural equality checks and repeated collection logic,
  * this cache significantly reduces overhead in the hot path of execution.
@@ -247,20 +306,22 @@ private class CachedCollectFields(private val underlying: CollectFields) : Colle
     private class CollectKey(
         val parentType: GraphQLObjectType,
         val selectionSet: SelectionSet,
-        val variables: Map<String, Any?>
+        val variables: Map<String, Any?>,
+        val incrementalExecutionEnabled: Boolean,
     ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is CollectKey) return false
             return parentType === other.parentType &&
                 selectionSet === other.selectionSet &&
-                variables == other.variables
+                variables == other.variables &&
+                incrementalExecutionEnabled == other.incrementalExecutionEnabled
         }
 
         override fun hashCode(): Int {
             val a = System.identityHashCode(parentType)
             val b = System.identityHashCode(selectionSet)
-            return (31 * a + b) * 31 + variables.hashCode()
+            return ((31 * a + b) * 31 + variables.hashCode()) * 31 + incrementalExecutionEnabled.hashCode()
         }
     }
 
@@ -278,11 +339,13 @@ private class CachedCollectFields(private val underlying: CollectFields) : Colle
         parentType: GraphQLObjectType,
         fragments: Fragments,
         fieldRssOriginFilteringKillSwitchEnabled: Boolean,
+        incrementalExecutionEnabled: Boolean,
     ): CollectFields.Result {
         val key = CollectKey(
             parentType,
             selectionSet,
-            collectionVariableValues(selectionSet, variables, parentType, fragments)
+            collectionVariableValues(selectionSet, variables, parentType, fragments),
+            incrementalExecutionEnabled,
         )
         return map.computeIfAbsent(key) {
             underlying(
@@ -292,6 +355,7 @@ private class CachedCollectFields(private val underlying: CollectFields) : Colle
                 parentType,
                 fragments,
                 fieldRssOriginFilteringKillSwitchEnabled,
+                incrementalExecutionEnabled,
             )
         }
     }
@@ -331,7 +395,7 @@ private class CachedCollectFields(private val underlying: CollectFields) : Colle
      * Runtime variable names that can affect field collection for [selectionSet].
      *
      * Query plans record variable references on selections and fragment definitions, but field
-     * collection only reads variables through @skip/@include constraints. Field argument variables
+     * collection reads @skip/@include constraints and @defer arguments. Field argument variables
      * are resolved later by field execution and must not affect collection caching.
      */
     private fun SelectionSet.collectionVariableNames(
@@ -356,8 +420,12 @@ private class CachedCollectFields(private val underlying: CollectFields) : Colle
     ): Set<String> =
         buildSet {
             addCollectionVariableNames(enclosingVariableReferences)
-            forEachVariableReferencesVisibleToCollection(parentType, fragments) { references ->
+            forEachVariableReferencesVisibleToCollection(parentType, fragments) { references, deferDirective ->
                 addCollectionVariableNames(references)
+                for (name in listOf("if", "label")) {
+                    val value = deferDirective?.getArgument(name)?.value
+                    if (value is VariableReference) add(value.name)
+                }
             }
         }
 
@@ -372,7 +440,7 @@ private class CachedCollectFields(private val underlying: CollectFields) : Colle
     private fun SelectionSet.forEachVariableReferencesVisibleToCollection(
         parentType: GraphQLObjectType,
         fragments: Fragments,
-        visit: (List<SelectionVariableReference>) -> Unit
+        visit: (List<SelectionVariableReference>, Directive?) -> Unit
     ) {
         val ctx = Constraints.Ctx(variables = null, parentTypes = MaskedSet(listOf(parentType)))
         val visitedFragments = mutableSetOf<String>()
@@ -382,21 +450,21 @@ private class CachedCollectFields(private val underlying: CollectFields) : Colle
             when (val selection = queue.removeFirst()) {
                 is Field -> {
                     if (selection.isDroppedFor(ctx)) continue
-                    visit(selection.variableReferences)
+                    visit(selection.variableReferences, null)
                 }
 
                 is InlineFragment -> {
                     if (selection.isDroppedFor(ctx)) continue
-                    visit(selection.variableReferences)
+                    visit(selection.variableReferences, selection.deferDirective)
                     queue.addAll(0, selection.selectionSet.selections)
                 }
 
                 is FragmentSpread -> {
                     if (selection.isDroppedFor(ctx)) continue
-                    visit(selection.variableReferences)
+                    visit(selection.variableReferences, selection.deferDirective)
                     if (visitedFragments.add(selection.name)) {
                         val fragmentDefinition = requireNotNull(fragments[selection.name]) { "Fragment `${selection.name}` is not defined" }
-                        visit(fragmentDefinition.variableReferences)
+                        visit(fragmentDefinition.variableReferences, null)
                         queue.addAll(0, fragmentDefinition.selectionSet.selections)
                     }
                 }

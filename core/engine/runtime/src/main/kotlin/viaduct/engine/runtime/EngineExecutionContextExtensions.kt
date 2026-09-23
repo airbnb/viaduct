@@ -29,6 +29,9 @@ object EngineExecutionContextExtensions {
     val EngineExecutionContext.matResolutionEnabled: Boolean
         get() = asImpl().matResolutionEnabled
 
+    val EngineExecutionContext.incrementalExecutionEnabled: Boolean
+        get() = asImpl().incrementalExecutionEnabled
+
     val EngineExecutionContext.resolverOutputMissingFieldReporter: ErrorReporter
         get() = asImpl().resolverOutputMissingFieldReporter
 

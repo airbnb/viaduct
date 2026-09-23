@@ -52,6 +52,7 @@ import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContex
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
+import viaduct.engine.runtime.EngineExecutionContextExtensions.incrementalExecutionEnabled
 import viaduct.engine.runtime.EngineExecutionContextExtensions.matResolutionEnabled
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FetchedValueWithExtensions
@@ -576,6 +577,7 @@ object FieldExecutionHelpers {
             parameters.queryPlan.fragments,
             fieldRssOriginFilteringKillSwitchEnabled =
                 parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled,
+            incrementalExecutionEnabled = parameters.engineExecutionContext.incrementalExecutionEnabled,
         )
 
     /**

@@ -8,6 +8,7 @@ import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.collections.shouldNotContain
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertNull
@@ -47,6 +48,7 @@ class CollectFieldsTest {
                 schema.schema.queryType,
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
+                incrementalExecutionEnabled = false,
             )
 
             val fields = result.collectedFieldsMap
@@ -65,37 +67,6 @@ class CollectFieldsTest {
         }
 
         @Test
-        fun `leaves defer usages empty and visits deferred fragments once`() {
-            val schema = "type Query { x: Int, y: Int }".asEngineSchema
-            val plan = buildPlan(
-                """
-                    {
-                        ... @defer(label: "inline") { x }
-                        ...F @defer(label: "first")
-                        ...F @defer(label: "second")
-                    }
-                    fragment F on Query { y }
-                """.trimIndent(),
-                schema
-            )
-
-            val result = CollectFields.default(
-                schema,
-                plan.selectionSet,
-                emptyVars,
-                schema.schema.queryType,
-                plan.fragments,
-                fieldRssOriginFilteringKillSwitchEnabled = false,
-            )
-
-            assertEquals(listOf("x", "y"), result.collectedFieldsMap.keys.toList())
-            assertTrue(result.newDeferUsages.isEmpty())
-            result.collectedFieldsMap.values.forEach { field ->
-                assertNull(field.occurrences.single().deferUsage)
-            }
-        }
-
-        @Test
         fun `single field`() {
             val schema = "type Query { x:Int }".asEngineSchema
             val plan = buildPlan("{x}", schema)
@@ -108,6 +79,7 @@ class CollectFieldsTest {
                 schema.schema.queryType,
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
+                incrementalExecutionEnabled = false,
             )
 
             checkEquals(
@@ -130,6 +102,7 @@ class CollectFieldsTest {
                 schema.schema.queryType,
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
+                incrementalExecutionEnabled = false,
             )
 
             checkEquals(
@@ -153,6 +126,7 @@ class CollectFieldsTest {
                 schema.schema.queryType,
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
+                incrementalExecutionEnabled = false,
             )
 
             assertEquals(listOf(x0.field, x1.field), collected.collectedFieldsMap.values.single().occurrences.map { it.field.field })
@@ -179,6 +153,7 @@ class CollectFieldsTest {
                 schema.schema.queryType,
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
+                incrementalExecutionEnabled = false,
             )
 
             checkEquals(
@@ -208,6 +183,7 @@ class CollectFieldsTest {
                 schema.schema.queryType,
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
+                incrementalExecutionEnabled = false,
             )
 
             checkEquals(
@@ -262,6 +238,7 @@ class CollectFieldsTest {
                 userType,
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
+                incrementalExecutionEnabled = false,
             )
 
             val collectedRestricted = collected.collectedFieldsMap.getValue("restricted")
@@ -290,6 +267,7 @@ class CollectFieldsTest {
                 fx.hiveTable,
                 fx.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
+                incrementalExecutionEnabled = false,
             )
 
             val collectedId = collected.collectedFieldsMap.values.single { it.fieldName == "id" }
@@ -311,6 +289,7 @@ class CollectFieldsTest {
                 fx.hiveTable,
                 fx.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = true,
+                incrementalExecutionEnabled = false,
             )
 
             val collectedId = collected.collectedFieldsMap.values.single { it.fieldName == "id" }
@@ -334,6 +313,7 @@ class CollectFieldsTest {
                 fx.otherNode,
                 fx.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
+                incrementalExecutionEnabled = false,
             )
 
             val collectedId = collected.collectedFieldsMap.values.single { it.fieldName == "id" }
@@ -363,6 +343,7 @@ class CollectFieldsTest {
                 schema.schema.queryType,
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
+                incrementalExecutionEnabled = false,
             )
 
             val collectedX = collected.collectedFieldsMap.values.single { it.fieldName == "x" }
@@ -414,6 +395,7 @@ class CollectFieldsTest {
                 mediationSections,
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
+                incrementalExecutionEnabled = false,
             )
 
             val collectedMetadata = collected.collectedFieldsMap.values.single { it.responseKey == "sectionMetadata" }
@@ -434,9 +416,9 @@ class CollectFieldsTest {
             val plan = buildPlan("{ x y }", EngineSchema(schema))
 
             var collections = 0
-            val cache = CollectFields.cached { engineSchema, selectionSet, variables, parentType, fragments, killSwitchEnabled ->
+            val cache = CollectFields.cached { engineSchema, selectionSet, variables, parentType, fragments, killSwitchEnabled, incrementalExecutionEnabled ->
                 collections++
-                CollectFields.default(engineSchema, selectionSet, variables, parentType, fragments, killSwitchEnabled)
+                CollectFields.default(engineSchema, selectionSet, variables, parentType, fragments, killSwitchEnabled, incrementalExecutionEnabled)
             }
 
             val result1 = cache.collectForTest(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
@@ -447,6 +429,146 @@ class CollectFieldsTest {
             assertTrue(result1.newDeferUsages.isEmpty())
             assertSame(result1, result2)
             assertEquals(1, collections)
+        }
+
+        @Test
+        fun `collect separates cache entries by incremental execution flag`() {
+            val schema = "type Query { x: Int }".asSchema
+            val plan = buildPlan("{ ... @defer(label: \"later\") { x } }", EngineSchema(schema))
+            val collectedFlags = mutableListOf<Boolean>()
+            val cache = CollectFields.cached { engineSchema, selectionSet, variables, parentType, fragments, killSwitchEnabled, incrementalExecutionEnabled ->
+                collectedFlags += incrementalExecutionEnabled
+                CollectFields.default(engineSchema, selectionSet, variables, parentType, fragments, killSwitchEnabled, incrementalExecutionEnabled)
+            }
+
+            fun collect(enabled: Boolean) = cache.collectForTest(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments, enabled)
+
+            val disabledResult = collect(false)
+            val enabledResult = collect(true)
+
+            assertTrue(disabledResult.newDeferUsages.isEmpty())
+            assertNull(disabledResult.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+            assertEquals("later", enabledResult.newDeferUsages.single().defer.label)
+            assertSame(enabledResult.newDeferUsages.single(), enabledResult.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+            assertNotSame(disabledResult, enabledResult)
+            assertSame(disabledResult, collect(false))
+            assertSame(enabledResult, collect(true))
+            assertEquals(listOf(false, true), collectedFlags)
+        }
+
+        @Test
+        fun `collect keys on defer conditions in fragment spreads`() {
+            val schema = "type Query { x: Int }".asEngineSchema
+            val plan = buildPlan(
+                """
+                    { ...Wrapper }
+                    fragment Wrapper on Query { ...F @defer(if: ${'$'}enabled) }
+                    fragment F on Query { x }
+                """.trimIndent(),
+                schema,
+            )
+            val cache = CollectFields.cached()
+
+            fun collect(enabled: Boolean) =
+                cache.collectForTest(
+                    schema.schema,
+                    plan.selectionSet,
+                    CoercedVariables.of(mapOf("enabled" to enabled)),
+                    schema.schema.queryType,
+                    plan.fragments,
+                    incrementalExecutionEnabled = true,
+                )
+
+            val disabled = collect(false)
+            val enabled = collect(true)
+
+            assertTrue(disabled.newDeferUsages.isEmpty())
+            assertEquals(1, enabled.newDeferUsages.size)
+        }
+
+        @Test
+        fun `collect keys on defer conditions in inline fragments`() {
+            val schema = "type Query { x: Int }".asEngineSchema
+            val plan = buildPlan(
+                """
+                    { ...F }
+                    fragment F on Query { ... @defer(if: ${'$'}enabled) { x } }
+                """.trimIndent(),
+                schema,
+            )
+            val cache = CollectFields.cached()
+
+            fun collect(enabled: Boolean) =
+                cache.collectForTest(
+                    schema.schema,
+                    plan.selectionSet,
+                    CoercedVariables.of(mapOf("enabled" to enabled)),
+                    schema.schema.queryType,
+                    plan.fragments,
+                    incrementalExecutionEnabled = true,
+                )
+
+            val disabled = collect(false)
+            val enabled = collect(true)
+
+            assertTrue(disabled.newDeferUsages.isEmpty())
+            assertEquals(1, enabled.newDeferUsages.size)
+        }
+
+        @Test
+        fun `collect ignores field argument variables under defer`() {
+            val schema = "type Query { x(id: ID): Int }".asEngineSchema
+            val plan = buildPlan("{ ... @defer { x(id: ${'$'}id) } }", schema)
+            val cache = CollectFields.cached()
+
+            fun collect(id: String) =
+                cache.collectForTest(
+                    schema.schema,
+                    plan.selectionSet,
+                    CoercedVariables.of(mapOf("id" to id)),
+                    schema.schema.queryType,
+                    plan.fragments,
+                    incrementalExecutionEnabled = true,
+                )
+
+            val first = collect("1")
+            val second = collect("2")
+
+            assertSame(first, second)
+        }
+
+        @Test
+        fun `defer variables in child selections only affect the child collection cache`() {
+            val schema = EngineSchema("type Query { obj: Obj } type Obj { x: Int }".asSchema)
+            val plan = buildPlan("{ obj { ... @defer(if: ${'$'}enabled) { x } } }", schema)
+            val cache = CollectFields.cached()
+
+            fun collect(
+                selectionSet: QueryPlan.SelectionSet,
+                parentType: GraphQLObjectType,
+                enabled: Boolean,
+            ) = cache(
+                schema,
+                selectionSet,
+                CoercedVariables.of(mapOf("enabled" to enabled)),
+                parentType,
+                plan.fragments,
+                fieldRssOriginFilteringKillSwitchEnabled = false,
+                incrementalExecutionEnabled = true,
+            )
+
+            val root = collect(plan.selectionSet, schema.schema.queryType, true)
+            assertSame(root, collect(plan.selectionSet, schema.schema.queryType, false))
+            assertTrue(root.newDeferUsages.isEmpty())
+
+            val childSelectionSet = checkNotNull(root.collectedFieldsMap.getValue("obj").selectionSet)
+            val childType = schema.schema.getObjectType("Obj")
+            val deferredChild = collect(childSelectionSet, childType, true)
+            val immediateChild = collect(childSelectionSet, childType, false)
+
+            assertNotSame(deferredChild, immediateChild)
+            assertEquals(1, deferredChild.newDeferUsages.size)
+            assertTrue(immediateChild.newDeferUsages.isEmpty())
         }
 
         @Test
@@ -631,6 +753,452 @@ class CollectFieldsTest {
         }
     }
 
+    @Nested
+    inner class DeferTests {
+        @Test
+        fun `separate field collections have equal nested defer usages`() {
+            val schema = "type Query { obj: Obj } type Obj { id: ID, name: String }".asEngineSchema
+            val plan = buildPlan(
+                """
+                    { obj { ...F } obj { ...F } }
+                    fragment F on Obj {
+                        ... @defer(label: "outer") {
+                            id
+                            ... @defer { name }
+                        }
+                    }
+                """.trimIndent(),
+                schema,
+            )
+            val fields = plan.selectionSet.selections.filterIsInstance<Field>()
+
+            for (collector in listOf(CollectFields.default, CollectFields.cached())) {
+                val results = fields.map { field ->
+                    collector.collectForTest(
+                        schema.schema,
+                        checkNotNull(field.selectionSet),
+                        emptyVars,
+                        schema.schema.getObjectType("Obj"),
+                        plan.fragments,
+                        incrementalExecutionEnabled = true,
+                    )
+                }
+                val (first, second) = results.map { it.newDeferUsages }
+
+                assertEquals(2, first.size)
+                assertEquals(first, second)
+                assertSame(first[0], first[1].parent)
+                assertSame(second[0], second[1].parent)
+                assertEquals(1, results.flatMap { it.collectedFieldsMap.getValue("name").occurrences }.toSet().size)
+            }
+        }
+
+        @Test
+        fun `defer equality survives other collection variables while labels remain current`() {
+            val schema = "type Query { x: Int, y: Int }".asEngineSchema
+            val plan = buildPlan(
+                "{ ... @defer(label: ${'$'}label) { x y @include(if: ${'$'}includeY) } }",
+                schema,
+            )
+
+            for (collector in listOf(CollectFields.default, CollectFields.cached())) {
+                fun collect(
+                    label: String?,
+                    includeY: Boolean
+                ) = collector.collectForTest(
+                    schema.schema,
+                    plan.selectionSet,
+                    CoercedVariables.of(mapOf("label" to label, "includeY" to includeY)),
+                    schema.schema.queryType,
+                    plan.fragments,
+                    incrementalExecutionEnabled = true,
+                )
+
+                val first = collect("first", true)
+                val filtered = collect("first", false)
+                val relabeled = collect("second", true)
+                val unlabeled = collect(null, true)
+                val firstDefer = first.newDeferUsages.single().defer
+
+                assertEquals(listOf("x", "y"), first.collectedFieldsMap.keys.toList())
+                assertEquals(listOf("x"), filtered.collectedFieldsMap.keys.toList())
+                assertEquals(firstDefer, filtered.newDeferUsages.single().defer)
+                assertEquals("first", firstDefer.label)
+                assertEquals("second", relabeled.newDeferUsages.single().defer.label)
+                assertNotEquals(firstDefer, relabeled.newDeferUsages.single().defer)
+                assertNull(unlabeled.newDeferUsages.single().defer.label)
+                assertEquals(firstDefer, collect("first", true).newDeferUsages.single().defer)
+            }
+        }
+
+        @Test
+        fun `defer equality is independent of collector`() {
+            val schema = "type Query { x: Int }".asEngineSchema
+            val plan = buildPlan("{ ... @defer { x } }", schema)
+
+            for (collectors in listOf(listOf(CollectFields.default, CollectFields.default), listOf(CollectFields.cached(), CollectFields.cached()))) {
+                val usages = collectors.map { collector ->
+                    collector.collectForTest(
+                        schema.schema,
+                        plan.selectionSet,
+                        emptyVars,
+                        schema.schema.queryType,
+                        plan.fragments,
+                        incrementalExecutionEnabled = true,
+                    ).newDeferUsages.single()
+                }
+                assertEquals(usages[0], usages[1])
+            }
+        }
+
+        @Test
+        fun `deferred inline fragment`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @defer { x } }",
+            )
+
+            val usage = result.newDeferUsages.single()
+            assertNull(usage.parent)
+            assertSame(usage, result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+        }
+
+        @Test
+        fun `nested defer usages`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @defer { ... @defer { x } } }",
+            )
+
+            assertEquals(2, result.newDeferUsages.size)
+            val (outer, inner) = result.newDeferUsages
+            assertSame(outer, inner.parent)
+            assertSame(inner, result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+        }
+
+        @Test
+        fun `disabled nested defer inherits parent usage`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @defer { ... @defer(if: false) { x } } }",
+            )
+
+            assertSame(result.newDeferUsages.single(), result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+        }
+
+        @Test
+        fun `defer in field subselections`() {
+            val result = collectDefers(
+                sdl = "type Query { child: Child } type Child { x: Int }",
+                query = "{ child { ... @defer { x } } }",
+            )
+
+            assertTrue(result.newDeferUsages.isEmpty())
+        }
+
+        @Test
+        fun `deferred and immediate occurrences of the same field`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @defer { x } x }",
+            )
+
+            val occurrences = result.collectedFieldsMap.getValue("x").occurrences
+            occurrences.shouldHaveSize(2)
+            assertSame(result.newDeferUsages.single(), occurrences[0].deferUsage)
+            assertNull(occurrences[1].deferUsage)
+        }
+
+        @Test
+        fun `true defer condition`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @defer(if: true) { x } }",
+            )
+
+            assertEquals(1, result.newDeferUsages.size)
+        }
+
+        @Test
+        fun `false defer condition`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @defer(if: false) { x } }",
+            )
+
+            assertTrue(result.newDeferUsages.isEmpty())
+            assertNull(result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+        }
+
+        @Test
+        fun `null defer condition`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @defer(if: null) { x } }",
+            )
+
+            assertEquals(1, result.newDeferUsages.size)
+        }
+
+        @Test
+        fun `true variable defer condition`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @defer(if: ${'$'}enabled) { x } }",
+                variables = CoercedVariables.of(mapOf("enabled" to true)),
+            )
+
+            assertEquals(1, result.newDeferUsages.size)
+        }
+
+        @Test
+        fun `false variable defer condition`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @defer(if: ${'$'}enabled) { x } }",
+                variables = CoercedVariables.of(mapOf("enabled" to false)),
+            )
+
+            assertTrue(result.newDeferUsages.isEmpty())
+            assertNull(result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+        }
+
+        @Test
+        fun `null variable defer condition`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @defer(if: ${'$'}enabled) { x } }",
+                variables = CoercedVariables.of(mapOf("enabled" to null)),
+            )
+
+            assertEquals(1, result.newDeferUsages.size)
+        }
+
+        @Test
+        fun `absent variable defer condition`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @defer(if: ${'$'}enabled) { x } }",
+            )
+
+            assertEquals(1, result.newDeferUsages.size)
+        }
+
+        @Test
+        fun `literal defer label`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @defer(label: \"later\") { x } }",
+            )
+
+            assertEquals("later", result.newDeferUsages.single().defer.label)
+        }
+
+        @Test
+        fun `defer on skipped inline fragment`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @skip(if: ${'$'}skip) @defer { x } }",
+                variables = CoercedVariables.of(mapOf("skip" to true)),
+            )
+
+            assertTrue(result.newDeferUsages.isEmpty())
+            assertTrue(result.collectedFieldsMap.isEmpty())
+        }
+
+        @Test
+        fun `defer on excluded fragment spread`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ...F @include(if: false) @defer } fragment F on Query { x }",
+            )
+
+            assertTrue(result.newDeferUsages.isEmpty())
+            assertTrue(result.collectedFieldsMap.isEmpty())
+        }
+
+        @Test
+        fun `excluded deferred spread does not mark fragment visited`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ...F @include(if: false) @defer ...F } fragment F on Query { x }",
+            )
+
+            assertNull(result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+        }
+
+        @Test
+        fun `defer on inapplicable inline fragment`() {
+            val schema = """
+                type Query { node: Node }
+                interface Node { x: Int }
+                type A implements Node { x: Int }
+                type B implements Node { x: Int }
+            """.trimIndent().asEngineSchema
+            val plan = buildPlan("{ node { ... on A @defer { x } } }", schema)
+            val node = plan.selectionSet.selections.single() as Field
+
+            val result = CollectFields.default(
+                schema,
+                node.selectionSet!!,
+                emptyVars,
+                schema.schema.getObjectType("B"),
+                plan.fragments,
+                fieldRssOriginFilteringKillSwitchEnabled = false,
+                incrementalExecutionEnabled = true,
+            )
+
+            assertTrue(result.newDeferUsages.isEmpty())
+            assertTrue(result.collectedFieldsMap.isEmpty())
+        }
+
+        @Test
+        fun `defer on inapplicable fragment spread`() {
+            val schema = """
+                type Query { node: Node }
+                interface Node { x: Int }
+                type A implements Node { x: Int }
+                type B implements Node { x: Int }
+            """.trimIndent().asEngineSchema
+            val plan = buildPlan("{ node { ...F @defer } } fragment F on A { x }", schema)
+            val node = plan.selectionSet.selections.single() as Field
+
+            val result = CollectFields.default(
+                schema,
+                node.selectionSet!!,
+                emptyVars,
+                schema.schema.getObjectType("B"),
+                plan.fragments,
+                fieldRssOriginFilteringKillSwitchEnabled = false,
+                incrementalExecutionEnabled = true,
+            )
+
+            assertTrue(result.newDeferUsages.isEmpty())
+            assertTrue(result.collectedFieldsMap.isEmpty())
+        }
+
+        @Test
+        fun `repeated fragment spread in the same defer context`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @defer { ...F ...F } } fragment F on Query { x }",
+            )
+
+            assertSame(result.newDeferUsages.single(), result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+        }
+
+        @Test
+        fun `fragment spread in ancestor and nested defer contexts`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @defer { ...F ... @defer { ...F } } } fragment F on Query { x }",
+            )
+
+            assertEquals(2, result.newDeferUsages.size)
+            assertEquals(result.newDeferUsages, result.collectedFieldsMap.getValue("x").occurrences.map { it.deferUsage })
+        }
+
+        @Test
+        fun `fragment spread in sibling defer contexts`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @defer { ...F } ... @defer { ...F } } fragment F on Query { x }",
+            )
+
+            assertEquals(2, result.newDeferUsages.size)
+            assertEquals(listOf(null, null), result.newDeferUsages.map { it.parent })
+            assertEquals(result.newDeferUsages, result.collectedFieldsMap.getValue("x").occurrences.map { it.deferUsage })
+        }
+
+        @Test
+        fun `deferred spread after non-deferred visit`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ...F ...F @defer } fragment F on Query { x }",
+            )
+
+            assertTrue(result.newDeferUsages.isEmpty())
+            assertNull(result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+        }
+
+        @Test
+        fun `non-deferred spread after deferred visit`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ...F @defer ...F } fragment F on Query { x }",
+            )
+
+            assertEquals(listOf(result.newDeferUsages.single(), null), result.collectedFieldsMap.getValue("x").occurrences.map { it.deferUsage })
+        }
+
+        @Test
+        fun `deferred inline fragment with previously visited spread`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ...F ... @defer { ...F } } fragment F on Query { x }",
+            )
+
+            assertEquals(1, result.newDeferUsages.size)
+            assertNull(result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+        }
+
+        @Test
+        fun `distinct unlabeled defer directives`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ...F @defer ...F @defer } fragment F on Query { x }",
+            )
+
+            assertEquals(2, result.newDeferUsages.size)
+            val (first, second) = result.newDeferUsages
+            assertNull(first.defer.label)
+            assertNull(second.defer.label)
+            assertNotEquals(first.defer, second.defer)
+            assertEquals(listOf(first, second), result.collectedFieldsMap.getValue("x").occurrences.map { it.deferUsage })
+        }
+
+        @Test
+        fun `shared deferred spread across parent contexts`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = """
+                    { ... @defer(label: "A") { ...F } ... @defer(label: "B") { ...F } }
+                    fragment F on Query { ...G @defer(label: "shared") }
+                    fragment G on Query { x }
+                """.trimIndent(),
+            )
+
+            assertEquals(listOf("A", "shared", "B"), result.newDeferUsages.map { it.defer.label })
+            val (a, shared) = result.newDeferUsages
+            assertSame(a, shared.parent)
+            assertSame(shared, result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+        }
+
+        @Test
+        fun `inline defer with incremental execution disabled`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ... @defer { x } }",
+                incrementalExecutionEnabled = false,
+            )
+
+            assertTrue(result.newDeferUsages.isEmpty())
+            assertNull(result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+        }
+
+        @Test
+        fun `deferred fragment spreads with incremental execution disabled`() {
+            val result = collectDefers(
+                sdl = "type Query { x: Int }",
+                query = "{ ...F @defer ...F @defer } fragment F on Query { x }",
+                incrementalExecutionEnabled = false,
+            )
+
+            assertTrue(result.newDeferUsages.isEmpty())
+            assertNull(result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+        }
+    }
+
     /**
      * Schema and registry shared across the origin-coordinate regression tests.
      * Mirrors the prod-observed shape: an interface field selected via concrete-type spread,
@@ -682,6 +1250,25 @@ class CollectFieldsTest {
             otherNode = schema.schema.getObjectType("OtherNode"),
         )
     }
+
+    private fun collectDefers(
+        sdl: String,
+        query: String,
+        variables: CoercedVariables = emptyVars,
+        incrementalExecutionEnabled: Boolean = true,
+    ): CollectFields.Result {
+        val schema = sdl.asEngineSchema
+        val plan = buildPlan(query, schema)
+        return CollectFields.default(
+            schema,
+            plan.selectionSet,
+            variables,
+            schema.schema.queryType,
+            plan.fragments,
+            fieldRssOriginFilteringKillSwitchEnabled = false,
+            incrementalExecutionEnabled = incrementalExecutionEnabled,
+        )
+    }
 }
 
 private fun CollectFields.collectForTest(
@@ -690,6 +1277,7 @@ private fun CollectFields.collectForTest(
     variables: CoercedVariables,
     parentType: GraphQLObjectType,
     fragments: QueryPlan.Fragments,
+    incrementalExecutionEnabled: Boolean = false,
 ): CollectFields.Result =
     invoke(
         EngineSchema(schema),
@@ -698,6 +1286,7 @@ private fun CollectFields.collectForTest(
         parentType,
         fragments,
         fieldRssOriginFilteringKillSwitchEnabled = false,
+        incrementalExecutionEnabled = incrementalExecutionEnabled,
     )
 
 private val String.asEngineSchema: EngineSchema

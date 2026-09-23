@@ -11,6 +11,7 @@ import graphql.schema.GraphQLTypeUtil
 import java.util.Locale
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
+import viaduct.engine.runtime.EngineExecutionContextExtensions.incrementalExecutionEnabled
 import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.result.ObjectEngineResult
@@ -64,6 +65,7 @@ internal data class QueryPlanFilterCtx(
     val locale: Locale = Locale.getDefault(),
     val fieldRssOriginFilteringKillSwitchEnabled: Boolean = true,
     val collectFields: CollectFields = CollectFields.cached(),
+    val incrementalExecutionEnabled: Boolean = false,
 ) {
     constructor(parameters: ExecutionParameters) : this(
         schema = parameters.engineExecutionContext.activeSchema,
@@ -73,6 +75,7 @@ internal data class QueryPlanFilterCtx(
         fieldRssOriginFilteringKillSwitchEnabled =
             parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled,
         collectFields = parameters.constants.collectFields,
+        incrementalExecutionEnabled = parameters.engineExecutionContext.incrementalExecutionEnabled,
     )
 }
 
@@ -153,6 +156,7 @@ private class QueryPlanFilter(
             parentType = concreteType,
             fragments = sourcePlan.fragments,
             fieldRssOriginFilteringKillSwitchEnabled = context.fieldRssOriginFilteringKillSwitchEnabled,
+            incrementalExecutionEnabled = context.incrementalExecutionEnabled,
         )
         val selections = mutableListOf<QueryPlan.Selection>()
 

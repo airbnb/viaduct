@@ -90,6 +90,7 @@ class EngineExecutionContextFactory(
             meterRegistry,
             isResolverSelective,
             ownedSelectionProjector,
+            incrementalExecutionEnabled = flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION),
         )
     }
 }
@@ -141,6 +142,7 @@ class EngineExecutionContextImpl internal constructor(
     executionHandle: EngineExecutionContext.ExecutionHandle? = null,
     internal val matBatchDepth: Int = 0,
     internal val currentResolver: Caller? = null,
+    val incrementalExecutionEnabled: Boolean = false,
 ) : InternalEngineExecutionContext {
     public override val impl: EngineExecutionContextImpl get() = this
 
@@ -378,6 +380,7 @@ class EngineExecutionContextImpl internal constructor(
             executionHandle = executionHandle,
             matBatchDepth = matBatchDepth ?: this.matBatchDepth,
             currentResolver = currentResolver,
+            incrementalExecutionEnabled = this.incrementalExecutionEnabled,
         )
     }
 
@@ -410,6 +413,7 @@ class EngineExecutionContextImpl internal constructor(
             isResolverSelective = isResolverSelective,
             ownedSelectionProjector = ownedSelectionProjector,
             matBatchDepth = 0,
+            incrementalExecutionEnabled = incrementalExecutionEnabled,
         )
 }
 

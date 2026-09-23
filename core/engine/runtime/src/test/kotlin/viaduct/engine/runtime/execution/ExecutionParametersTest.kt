@@ -48,6 +48,7 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.EngineExecutionContextExtensions.incrementalExecutionEnabled
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.FieldResolutionResult
@@ -101,6 +102,37 @@ class ExecutionParametersTest {
     private val emptyVariables = CoercedVariables.of(emptyMap<String, Any?>())
     private val defaultRootValue = mapOf("viewerId" to "root")
     private val defaultLocalContext: CompositeLocalContext = createLocalContext(viaductSchema)
+
+    @Test
+    fun `field collection receives the incremental execution flag from the request`() {
+        val plan = buildPlan("{ ... @defer(label: \"later\") { foo { id } } }", viaductSchema)
+        val disabledParameters = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo().type(queryType).path(ResultPath.rootPath()).build(),
+            queryPlan = plan,
+        )
+        val enabledParameters = disabledParameters.copy(
+            _engineExecutionContext = ContextMocks(
+                myFullSchema = viaductSchema,
+                myFlagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION),
+            ).engineExecutionContext,
+        )
+
+        assertEquals(false, disabledParameters.engineExecutionContext.incrementalExecutionEnabled)
+        assertEquals(true, enabledParameters.engineExecutionContext.incrementalExecutionEnabled)
+        assertSame(viaductSchema, QueryPlanFilterCtx(enabledParameters).schema)
+        assertEquals(true, QueryPlanFilterCtx(enabledParameters).incrementalExecutionEnabled)
+        assertEquals(false, QueryPlanFilterCtx(disabledParameters).incrementalExecutionEnabled)
+        val disabledResult = FieldExecutionHelpers.collectFields(queryType, disabledParameters)
+        val enabledResult = FieldExecutionHelpers.collectFields(queryType, enabledParameters)
+        assertEquals(emptyList<DeferUsage>(), disabledResult.newDeferUsages)
+        assertNull(disabledResult.collectedFieldsMap.getValue("foo").occurrences.single().deferUsage)
+        assertEquals("later", enabledResult.newDeferUsages.single().defer.label)
+        assertSame(enabledResult.newDeferUsages.single(), enabledResult.collectedFieldsMap.getValue("foo").occurrences.single().deferUsage)
+        assertNotSame(disabledResult, enabledResult)
+        assertSame(enabledResult, FieldExecutionHelpers.collectFields(queryType, enabledParameters.copy()))
+        assertSame(disabledResult, FieldExecutionHelpers.collectFields(queryType, disabledParameters.copy()))
+    }
 
     @Test
     fun `forChildPlan derives CurrentQueryResult and uses active query engine result for query plans`() {

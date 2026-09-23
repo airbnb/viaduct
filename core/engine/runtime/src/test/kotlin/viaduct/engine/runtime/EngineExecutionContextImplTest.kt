@@ -107,6 +107,25 @@ class EngineExecutionContextImplTest {
         assertFalse(engineExecutionContext(flagManager).cacheKeyLookupPartitioningEnabled)
     }
 
+    @Test
+    fun `incremental execution flag is latched per request and preserved in copies and shadow executions`() {
+        var enabled = true
+        val flagManager = object : FlagManager {
+            override fun isEnabled(flag: FlagManager.Flag): Boolean = flag == FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION && enabled
+        }
+        val enabledContext = engineExecutionContext(flagManager)
+
+        enabled = false
+
+        assertTrue(enabledContext.incrementalExecutionEnabled)
+        assertTrue(enabledContext.copy().incrementalExecutionEnabled)
+        assertTrue(enabledContext.forkForShadowExecution().incrementalExecutionEnabled)
+        val disabledContext = engineExecutionContext(flagManager)
+        assertFalse(disabledContext.incrementalExecutionEnabled)
+        assertFalse(disabledContext.copy().incrementalExecutionEnabled)
+        assertFalse(disabledContext.forkForShadowExecution().incrementalExecutionEnabled)
+    }
+
     private fun engineExecutionContext(
         flagManager: FlagManager,
         fullSchema: EngineSchema = this.fullSchema,
