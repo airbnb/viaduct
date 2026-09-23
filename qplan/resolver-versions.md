@@ -53,7 +53,7 @@ Resolver21-23 use the same task roles and phase boundaries as Resolver26: a prep
 
 Resolver22/23 support `@parent`. Their structured suspension and exact promises allow demand to cross to an ancestor and return through an already-started descendant without forcing a depth-first re-entry protocol into local dependency ordering. Resolver21 retains its empty-fragment capability boundary and parent-free schema precondition.
 
-Access checking is likewise confined to Resolver21–23 and the eventual Resolver26 implementation. Resolver01–08 could run checkers with no required selections, but checker RSS creates raw value-demand edges whose reached value resolvers retain ordinary checked dependencies. Representing that general dependency graph would require suspension or re-entry machinery contrary to the depth-first families' purpose, so they remain value-only rather than exposing a restricted access-check subset. [`access-check-semantics.md`](./access-check-semantics.md#resolver-family-boundary) defines this boundary.
+Access checking is likewise confined to Resolver21–23 and the eventual Resolver26 implementation. Resolver01–08 could run checkers with no required selections, but checker RSS creates raw value-demand edges whose reached value resolvers retain ordinary checked dependencies. Representing that general dependency graph would require suspension or re-entry machinery contrary to the depth-first families' purpose, so they remain value-only and require a checker-free registry as an input precondition. [`access-check-semantics.md`](./access-check-semantics.md#resolver-family-boundary) defines this boundary.
 
 ## Advanced Resolvers
 

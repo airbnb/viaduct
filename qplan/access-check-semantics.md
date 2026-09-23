@@ -37,6 +37,8 @@ Access checks are implemented only by the coroutine resolver families. Resolver0
 
 Supporting that general readiness graph in Resolver01–08 would require occurrence-aware suspension, promise readiness, or graph re-entry—the machinery that distinguishes the coroutine families. Qplan therefore leaves Resolver01–08 value-only rather than exposing a dead-end no-RSS access-check subset. Resolver21–23 stage the access-check design, and Resolver26 is its end-state implementation target. This is an intentional architecture boundary, not a claim that every restricted checker program is impossible to execute depth-first.
 
+Resolver01–08 require a checker-free resolver registry as an input precondition: `fieldChecker(field)` returns null for every field in their reasoning world. Shared construction-demand closure may consult the registry directly; absent checker registrations contribute no checker demand, so no checker-capability flag or filtered registry view is needed. This defines the supported input domain; it does not require runtime validation of the precondition.
+
 ## Type Checks And Base Cells
 
 A type checker applies to each object-valued base cell of the checked type. List wrappers are significant because they can contain multiple such base cells.
