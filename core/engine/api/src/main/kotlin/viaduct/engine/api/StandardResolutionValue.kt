@@ -10,9 +10,8 @@ package viaduct.engine.api
  * (e.g., a Node reference), that type's own resolvers need to execute normally.
  *
  * ## Use Case
- * When [ParentManagedValueInstrumentation][com.airbnb.viaduct.graphql.instrumentation.ParentManagedValueInstrumentation]
- * detects a full resolver type result under [ResolutionPolicy.PARENT_MANAGED], it wraps
- * the result in [StandardResolutionValue] to signal the engine to reset the policy.
+ * A data fetcher can wrap a full resolver type result under [ResolutionPolicy.PARENT_MANAGED]
+ * in [StandardResolutionValue] to signal the engine to reset the policy.
  *
  * ## Behavior
  * When the engine encounters this wrapper:

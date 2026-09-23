@@ -44,6 +44,22 @@ open class ViaductInstrumentationBase : IViaductInstrumentation {
 
 fun List<ViaductInstrumentationBase>.asStandardInstrumentations(): List<ViaductModernGJInstrumentation> = this.map { it.asStandardInstrumentation() }
 
+fun transformDataFetcherResult(
+    result: Any?,
+    transform: (Any?) -> Any?
+): Any? {
+    if (result !is CompletionStage<*>) {
+        return transform(result)
+    }
+    return result.thenCompose {
+        @Suppress("UNCHECKED_CAST")
+        when (val transformed = transform(it)) {
+            is CompletionStage<*> -> transformed as CompletionStage<Any?>
+            else -> CompletableFuture.completedFuture(transformed)
+        }
+    }
+}
+
 interface IViaductInstrumentation {
     val default: Instrumentation
         get() = SimplePerformantInstrumentation.INSTANCE
@@ -164,19 +180,7 @@ interface IViaductInstrumentation {
             transform: DataFetchingEnvironment.(Any?) -> Any?
         ): DataFetcher<*> {
             return DataFetcher { env ->
-
-                val result = dataFetcher.get(env)
-                if (result !is CompletionStage<*>) {
-                    return@DataFetcher env.transform(result)
-                }
-
-                result.thenCompose {
-                    @Suppress("UNCHECKED_CAST")
-                    when (val transformed = env.transform(it)) {
-                        is CompletionStage<*> -> transformed as CompletionStage<Any?>
-                        else -> CompletableFuture.completedFuture(transformed)
-                    }
-                }
+                transformDataFetcherResult(dataFetcher.get(env)) { env.transform(it) }
             }
         }
     }
