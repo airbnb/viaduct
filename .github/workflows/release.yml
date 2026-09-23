@@ -26,6 +26,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: release-${{ inputs.release_version }}-${{ inputs.rc_ver || 'final' }}

@@ -10,10 +10,14 @@ on:
 permissions:
   contents: read
   actions: read
+  id-token: write
 
 concurrency:
   group: nightly-${{ github.ref }}
   cancel-in-progress: false
+
+env:
+  VIADUCT_DEPENDENCY_MIRROR_ROLE_ARN: ${{ vars.VIADUCT_DEPENDENCY_MIRROR_ROLE_ARN }}
 
 jobs:
   nightly:
