@@ -1,5 +1,6 @@
 package viaduct.engine.runtime
 
+import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.runtime.mat.KeyTreeFilter
 import viaduct.engine.runtime.mat.Mat
 import viaduct.engine.runtime.mat.MatLedger
@@ -15,16 +16,24 @@ import viaduct.engine.runtime.mat.MatPath.Segment
  */
 sealed interface MatSource {
     /**
+     * A [ResolutionPolicy] that describes how fields provided by this MatSource
+     * should be resolved.
+     */
+    val fieldResolutionPolicy: ResolutionPolicy
+
+    /**
      * A source backed by a [MatLedger].
      *
      * @param ledger is the ledger that can read missing fields for this object.
      * @param matFilter projects query-plan shapes to fields owned by the source's [Mat].
      * @param rootNodeId is the intrinsic id when the source is backed by a node reference.
+     * @param fieldResolutionPolicy determines whether supplied fields use standard or parent-managed resolution.
      */
     data class Ledger(
         val ledger: MatLedger,
         val matFilter: KeyTreeFilter = KeyTreeFilter.KeepAll,
         val rootNodeId: String? = null,
+        override val fieldResolutionPolicy: ResolutionPolicy = ResolutionPolicy.STANDARD,
     ) : MatSource
 
     /**
@@ -36,5 +45,9 @@ sealed interface MatSource {
      * @param parent is the parent object that owns the backing source.
      * @param segment is the field hop from [parent] to this embedded object.
      */
-    class Embedded(val parent: ObjectEngineResultImpl, val segment: Segment) : MatSource
+    class Embedded(
+        val parent: ObjectEngineResultImpl,
+        val segment: Segment,
+        override val fieldResolutionPolicy: ResolutionPolicy = checkNotNull(parent.matSource).fieldResolutionPolicy,
+    ) : MatSource
 }

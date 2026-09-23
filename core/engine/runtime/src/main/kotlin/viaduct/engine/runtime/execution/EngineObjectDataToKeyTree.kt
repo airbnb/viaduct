@@ -9,6 +9,9 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.KeyTreeFilter
+import viaduct.engine.runtime.mat.KeyTreeFilter.Result.DROP
+import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_AND_RECURSE
+import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_WITHOUT_CHILDREN
 import viaduct.engine.runtime.result.ObjectEngineResult
 
 /**
@@ -57,24 +60,27 @@ private class EngineObjectDataKeyTreeBuilder(
             val returnedSelections = selectionsForReturnedField(
                 fieldDefinition = fieldDefinition,
                 selections = selectionsForType,
-            ).filterKeys { key ->
+            )
+            val decisions = returnedSelections.mapValues { (key, _) ->
                 outputSelectionSetFilter(type, key, atOutputSelectionSetRoot)
             }
-            if (returnedSelections.isEmpty()) continue
-
-            val nestedSelections = returnedSelections.values.fold(KeyTree.empty, KeyTree::plus)
+            val recursiveSelections = returnedSelections.filterKeys { decisions[it] == KEEP_AND_RECURSE }
             val returnedSubtree =
-                if (GraphQLTypeUtil.unwrapAll(fieldDefinition.type) is GraphQLCompositeType) {
+                if (recursiveSelections.isNotEmpty() && GraphQLTypeUtil.unwrapAll(fieldDefinition.type) is GraphQLCompositeType) {
                     buildValue(
                         value = data.fetchOrNull(fieldName),
-                        selections = nestedSelections,
+                        selections = recursiveSelections.values.fold(KeyTree.empty, KeyTree::plus),
                     )
                 } else {
                     KeyTree.empty
                 }
 
-            for (key in returnedSelections.keys) {
-                returnedFields[key] = returnedSubtree
+            for ((key, decision) in decisions) {
+                when (decision) {
+                    DROP -> continue
+                    KEEP_WITHOUT_CHILDREN -> returnedFields[key] = KeyTree.empty
+                    KEEP_AND_RECURSE -> returnedFields[key] = returnedSubtree
+                }
             }
         }
 
@@ -162,7 +168,7 @@ private class EngineObjectDataKeyTreeBuilder(
             fieldDefinition = idDefinition,
             selections = selections.fieldsFor(type),
         ).filterKeys { key ->
-            outputSelectionSetFilter(type, key, atOutputSelectionSetRoot)
+            outputSelectionSetFilter(type, key, atOutputSelectionSetRoot) != DROP
         }
         return KeyTree(mapOf(type to returnedSelections.mapValues { KeyTree.empty }))
             .withoutEmptyTypeBranches()

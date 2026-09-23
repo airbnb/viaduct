@@ -3,7 +3,6 @@ package viaduct.engine.runtime.execution
 import graphql.schema.GraphQLObjectType
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.graphql.asViaductSchema
@@ -14,6 +13,9 @@ import viaduct.engine.runtime.NodeEngineObjectDataImpl
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.KeyTreeBuilder
 import viaduct.engine.runtime.mat.KeyTreeFilter
+import viaduct.engine.runtime.mat.KeyTreeFilter.Result.DROP
+import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_AND_RECURSE
+import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_WITHOUT_CHILDREN
 import viaduct.engine.runtime.mat.build
 
 class EngineObjectDataToKeyTreeTest {
@@ -46,7 +48,7 @@ class EngineObjectDataToKeyTreeTest {
                     expected,
                     null,
                     selections,
-                    { _, _, topLevel -> topLevel },
+                    { _, _, topLevel -> if (topLevel) KEEP_AND_RECURSE else DROP },
                 )
             }
         }
@@ -55,9 +57,7 @@ class EngineObjectDataToKeyTreeTest {
     @Nested
     inner class FilterTraversal {
         @Test
-        @Disabled("Requires reverted parent-managed selective materialization")
         fun `keeping a composite field without children does not read its value`() {
-            /* Requires the reverted three-state KeyTreeFilter API.
             Fixture("type Foo { bar:Bar } type Bar { x:Int }") {
                 val selections = tree {
                     field("Foo", key("bar")) {
@@ -75,13 +75,10 @@ class EngineObjectDataToKeyTreeTest {
                     { _, _, _ -> KEEP_WITHOUT_CHILDREN },
                 )
             }
-             */
         }
 
         @Test
-        @Disabled("Requires reverted parent-managed selective materialization")
         fun `null data honors keeping a field without children`() {
-            /* Requires the reverted three-state KeyTreeFilter API.
             Fixture("type Foo { bar:Bar } type Bar { x:Int }") {
                 val selections = tree {
                     field("Foo", key("bar")) {
@@ -94,13 +91,10 @@ class EngineObjectDataToKeyTreeTest {
 
                 assertTree(expected, null, selections, { _, _, _ -> KEEP_WITHOUT_CHILDREN })
             }
-             */
         }
 
         @Test
-        @Disabled("Requires reverted parent-managed selective materialization")
         fun `aliases of the same field can drop stop or recurse independently`() {
-            /* Requires the reverted three-state KeyTreeFilter API.
             Fixture("type Foo { bar:Bar } type Bar { x:Int }") {
                 val selections = tree {
                     field("Foo", key("bar", alias = "dropped")) {
@@ -129,7 +123,6 @@ class EngineObjectDataToKeyTreeTest {
 
                 assertTree(expected, data(foo, "bar" to data(bar, "x" to 1)), selections, filter)
             }
-             */
         }
     }
 
@@ -381,7 +374,7 @@ class EngineObjectDataToKeyTreeTest {
                     expected,
                     source,
                     selections,
-                    { _, key, _ -> key.alias != "b" },
+                    { _, key, _ -> if (key.alias == "b") DROP else KEEP_AND_RECURSE },
                 )
             }
         }
@@ -399,7 +392,7 @@ class EngineObjectDataToKeyTreeTest {
                     "bar" to data(bar, "x" to 1),
                 )
                 val filter = KeyTreeFilter { _, key, topLevel ->
-                    (topLevel && key.name == "bar") || (!topLevel && key.name == "x")
+                    if ((topLevel && key.name == "bar") || (!topLevel && key.name == "x")) KEEP_AND_RECURSE else DROP
                 }
 
                 assertTree(selections, source, selections, filter)
@@ -631,7 +624,7 @@ class EngineObjectDataToKeyTreeTest {
             Fixture("type Foo { bars:[Bar] } type Bar { x:Int }") {
                 val selections = barListSelections()
                 val filter = KeyTreeFilter { _, key, topLevel ->
-                    (topLevel && key.name == "bars") || (!topLevel && key.name == "x")
+                    if ((topLevel && key.name == "bars") || (!topLevel && key.name == "x")) KEEP_AND_RECURSE else DROP
                 }
 
                 assertTree(
@@ -716,7 +709,7 @@ class EngineObjectDataToKeyTreeTest {
                     field("Foo", key("id"))
                 }
                 val filter = KeyTreeFilter { _, key, topLevel ->
-                    !(topLevel && key.name == "id")
+                    if (topLevel && key.name == "id") DROP else KEEP_AND_RECURSE
                 }
 
                 assertTree(KeyTree.empty, node(foo), selections, filter)
@@ -742,7 +735,7 @@ class EngineObjectDataToKeyTreeTest {
                     "bar" to node(bar),
                 )
                 val filter = KeyTreeFilter { _, key, topLevel ->
-                    !(topLevel && key.name == "id")
+                    if (topLevel && key.name == "id") DROP else KEEP_AND_RECURSE
                 }
 
                 assertTree(expected, source, selections, filter)

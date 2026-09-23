@@ -919,10 +919,17 @@ class FieldResolver(
     private suspend fun mkFieldMatLedgerSource(
         parameters: ExecutionParameters,
         effectiveData: EngineObjectData,
+        resolutionPolicy: ResolutionPolicy,
         memberIndices: List<Int>,
     ): MatSource {
         val ossFilter = FieldOutputSelectionSetFilter(
-            HasResolver.fromRegistry(parameters.engineExecutionContext.dispatcherRegistry)
+            // parent managed values always own their entire subtree, meaning they have
+            // an unbounded output selection set
+            if (resolutionPolicy == ResolutionPolicy.PARENT_MANAGED) {
+                HasResolver.Never
+            } else {
+                HasResolver.fromRegistry(parameters.engineExecutionContext.dispatcherRegistry)
+            }
         )
         val mat = FieldMatImpl(
             parameters,
@@ -940,7 +947,7 @@ class FieldResolver(
         )
         val ledger = MatLedgerImpl(mat)
         ledger.initialize(mat.resultFromInitialFetch(effectiveData))
-        return MatSource.Ledger(ledger, ossFilter)
+        return MatSource.Ledger(ledger, ossFilter, fieldResolutionPolicy = resolutionPolicy)
     }
 
     private fun mkOER(
@@ -980,15 +987,15 @@ class FieldResolver(
                     parameters = parameters,
                     fieldType = fieldType,
                     effectiveData = effectiveData as EngineObjectData,
+                    resolutionPolicy = resolutionPolicy,
                     memberIndices = memberIndices,
                 )
 
-            // Resolver-less objects may inherit an embedded Mat from their parent.
             else ->
                 Value.fromValue(
                     ObjectEngineResultImpl.newForType(
                         fieldType,
-                        mkEmbeddedMatSource(parameters, field, fieldType, memberIndices),
+                        mkEmbeddedMatSource(parameters, field, fieldType, memberIndices, resolutionPolicy = resolutionPolicy),
                     )
                 )
         }
@@ -999,6 +1006,7 @@ class FieldResolver(
         parameters: ExecutionParameters,
         fieldType: GraphQLObjectType,
         effectiveData: EngineObjectData,
+        resolutionPolicy: ResolutionPolicy,
         memberIndices: List<Int>,
     ): Value<ObjectEngineResultImpl> {
         val deferred = CompletableDeferred<ObjectEngineResultImpl>()
@@ -1007,7 +1015,7 @@ class FieldResolver(
                 deferred.complete(
                     ObjectEngineResultImpl.newForType(
                         fieldType,
-                        mkFieldMatLedgerSource(parameters, effectiveData, memberIndices),
+                        mkFieldMatLedgerSource(parameters, effectiveData, resolutionPolicy = resolutionPolicy, memberIndices = memberIndices),
                     )
                 )
             } catch (e: CancellationException) {

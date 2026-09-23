@@ -763,7 +763,7 @@ data class ExecutionParameters(
             source = source,
             selectionSet = checkNotNull(field.selectionSet) { "Expected selection set to be non-null." },
             executionOrigin = ExecutionOrigin.ObjectTraversal(this),
-            resolutionPolicy = resolutionPolicy,
+            resolutionPolicy = engineResult.matSource?.fieldResolutionPolicy ?: resolutionPolicy,
         )
     }
 
