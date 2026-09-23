@@ -1,6 +1,7 @@
 package viaduct.tenant.codegen.cli
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -31,9 +32,26 @@ internal object TenantModuleConfigAssembler {
     // jacksonMapperBuilder()/JsonMapper.builder() (the non-deprecated path) isn't available in the
     // Jackson version on the build classpath, so we keep configure() and suppress the deprecation.
     @Suppress("DEPRECATION")
-    private val mapper: ObjectMapper = jacksonObjectMapper().configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true).setSerializationInclusion(JsonInclude.Include.NON_NULL)
+    private val mapper: ObjectMapper = jacksonObjectMapper().configure(
+        MapperFeature.SORT_PROPERTIES_ALPHABETICALLY,
+        true
+    ).enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY).setSerializationInclusion(JsonInclude.Include.NON_NULL)
 
     private val codec = ResolverParamsJsonCodec()
+
+    fun readTenantMetadata(file: File?): Map<String, String> {
+        if (file == null) return emptyMap()
+        val metadata = mapper.readTree(file)
+        require(metadata?.isObject == true) {
+            "Tenant metadata must be a JSON object"
+        }
+        return metadata.fields().asSequence().associate { (key, value) ->
+            require(value.isTextual) {
+                "Tenant metadata value for '$key' must be a string"
+            }
+            key to value.asText()
+        }
+    }
 
     fun writeRegistry(
         descriptorJsons: List<String>,
@@ -45,6 +63,7 @@ internal object TenantModuleConfigAssembler {
         schemaBinary: File? = null,
         schemaFiles: List<File> = emptyList(),
         forbiddenSelectionDirectives: Set<String> = emptySet(),
+        tenantMetadata: Map<String, String> = emptyMap(),
     ) {
         writeRegistryFromDescriptors(
             descriptors = descriptorJsons.map(codec::decode),
@@ -56,6 +75,7 @@ internal object TenantModuleConfigAssembler {
             schemaBinary = schemaBinary,
             schemaFiles = schemaFiles,
             forbiddenSelectionDirectives = forbiddenSelectionDirectives,
+            tenantMetadata = tenantMetadata,
         )
     }
 
@@ -69,6 +89,7 @@ internal object TenantModuleConfigAssembler {
         schemaBinary: File? = null,
         schemaFiles: List<File> = emptyList(),
         forbiddenSelectionDirectives: Set<String> = emptySet(),
+        tenantMetadata: Map<String, String> = emptyMap(),
     ) {
         require(apiName.isJavaIdentifier()) {
             "apiName must be a valid Java identifier, but was '$apiName': it is half of the " +
@@ -114,6 +135,7 @@ internal object TenantModuleConfigAssembler {
                 descriptors = descriptors,
                 fragmentsByName = fragmentsByName,
                 bootstrapClass = bootstrapClasses.singleOrNull(),
+                tenantMetadata = tenantMetadata,
             ),
         )
     }
@@ -286,7 +308,12 @@ internal object TenantModuleConfigAssembler {
         descriptors: List<PerSourceDescriptorFile>,
         fragmentsByName: Map<String, String>,
         bootstrapClass: String?,
+        tenantMetadata: Map<String, String>,
     ): ExecutionRegistryConfigFile {
+        require(tenantMetadata.isEmpty() || (tenantMetadata.keys == setOf("name") && tenantMetadata.getValue("name").isNotBlank())) {
+            "Tenant metadata must be empty or contain only a non-blank name"
+        }
+
         val nodes = descriptors.flatMap { it.nodes }.map { node ->
             NodeEntryConfig(
                 typeName = node.typeName,
@@ -296,6 +323,7 @@ internal object TenantModuleConfigAssembler {
                 tenantAPIData = mapOf(
                     "resolverClass" to node.implFqn,
                     "resolverBaseClass" to node.resolverBaseClass,
+                    "tenantMetadata" to tenantMetadata,
                 ),
             )
         }
@@ -315,6 +343,7 @@ internal object TenantModuleConfigAssembler {
                     "returnTypeName" to field.returnTypeName,
                     "hasArguments" to field.hasArguments,
                     "queryTypeName" to field.queryTypeName,
+                    "tenantMetadata" to tenantMetadata,
                 ),
             )
         }

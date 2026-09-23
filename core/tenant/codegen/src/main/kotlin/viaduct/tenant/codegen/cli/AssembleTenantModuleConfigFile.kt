@@ -33,6 +33,11 @@ class AssembleTenantModuleConfigFile : CliktCommand(
 
     private val tenantPackagePrefix: String? by option("--tenant-package-prefix")
 
+    private val tenantMetadataFile: File? by option(
+        "--tenant-metadata-file",
+        help = "JSON tenant metadata applied to every field and node: {\"name\":\"tenant\"}; absent or {} records unknown ownership.",
+    ).file(mustExist = true, canBeDir = false)
+
     private val executorFactory: String by option("--executor-factory")
         .default("")
 
@@ -85,6 +90,7 @@ class AssembleTenantModuleConfigFile : CliktCommand(
             apiName = apiName,
             tenantPackage = tenantPackage,
             tenantPackagePrefix = tenantPackagePrefix,
+            tenantMetadata = TenantModuleConfigAssembler.readTenantMetadata(tenantMetadataFile),
             schemaBinary = schemaBinary,
             schemaFiles = schemaFiles,
             outputDir = outputDir,

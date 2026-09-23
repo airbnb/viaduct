@@ -4,12 +4,14 @@ import java.io.File
 import java.util.jar.JarFile
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import viaduct.bootstrap.ExecutionRegistryConfigFile
 
 class AssembleTenantModuleConfigJarTest {
     @TempDir
@@ -45,6 +47,7 @@ class AssembleTenantModuleConfigJarTest {
         out: File = outputJar(),
         requireNonEmpty: Boolean = false,
         apiName: String = "kotlin",
+        tenantMetadata: String? = null,
     ) {
         val args = mutableListOf(
             "--descriptor-jars-list",
@@ -59,6 +62,10 @@ class AssembleTenantModuleConfigJarTest {
         if (tenantPackagePrefix != null) {
             args += listOf("--tenant-package-prefix", tenantPackagePrefix)
         }
+        if (tenantMetadata != null) {
+            val metadataFile = File(tempDir, "tenant-metadata.json").also { it.writeText(tenantMetadata) }
+            args += listOf("--tenant-metadata-file", metadataFile.absolutePath)
+        }
         if (requireNonEmpty) {
             args += "--require-non-empty"
         }
@@ -72,6 +79,82 @@ class AssembleTenantModuleConfigJarTest {
         return JarFile(jarFile).use { jar ->
             jar.getJarEntry(path)?.let { entry ->
                 jar.getInputStream(entry).bufferedReader().use { it.readText() }
+            }
+        }
+    }
+
+    private fun ownershipDescriptorJar(): File =
+        descriptorJar(
+            "ownership.jar",
+            mapOf(
+                "viaduct-registry/com/example/feature/Resolvers.json" to """
+                {
+                  "nodes": [
+                    {"implFqn":"com.example.feature.Node", "typeName":"Exact", "resolverBaseClass":"Base", "isBatching":false, "isSelective":false},
+                    {"implFqn":"com.example.feature.nested.Node", "typeName":"Nested", "resolverBaseClass":"Base", "isBatching":false, "isSelective":false},
+                    {"implFqn":"com.example.featureish.Node", "typeName":"Sibling", "resolverBaseClass":"Base", "isBatching":false, "isSelective":false}
+                  ],
+                  "fields": [
+                    {"implFqn":"com.example.imported.Child${'$'}Resolver", "typeName":"Query", "fieldName":"imported", "resolverBaseClass":"Base", "isBatching":false, "isSelective":false}
+                  ]
+                }
+                """.trimIndent(),
+            ),
+        )
+
+    private fun readRegistry(): ExecutionRegistryConfigFile =
+        requireNotNull(readJarEntry(outputJar(), "$REGISTRY_RESOURCE_PATH/com.example.feature.json"))
+            .byteInputStream().use(ExecutionRegistryConfigFile::parse)
+
+    @Test
+    fun `applies tenant metadata to every resolver regardless of implementation package`() {
+        runCli(
+            jars = listOf(ownershipDescriptorJar()),
+            tenantMetadata = """{"name":"tenant-project"}""",
+        )
+        val registry = readRegistry()
+        assertEquals("feature", registry.tenantName)
+        assertEquals("kotlin", registry.apiName)
+        assertEquals("viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory", registry.executorFactory)
+        assertEquals(
+            mapOf("Exact" to mapOf("name" to "tenant-project"), "Nested" to mapOf("name" to "tenant-project"), "Sibling" to mapOf("name" to "tenant-project")),
+            registry.nodes.associate { it.typeName to it.tenantAPIData["tenantMetadata"] },
+        )
+        assertEquals(mapOf("name" to "tenant-project"), registry.fields.single().tenantAPIData["tenantMetadata"])
+    }
+
+    @Test
+    fun `empty ownership map emits explicit unknown for every entry`() {
+        runCli(jars = listOf(ownershipDescriptorJar()), tenantMetadata = "{}")
+        val registry = readRegistry()
+        (registry.nodes.map { it.tenantAPIData } + registry.fields.map { it.tenantAPIData }).forEach {
+            assertTrue(it.containsKey("tenantMetadata"))
+            assertEquals(emptyMap<String, String>(), it["tenantMetadata"])
+        }
+    }
+
+    @Test
+    fun `omitting ownership emits explicit unknown for every entry`() {
+        runCli(jars = listOf(ownershipDescriptorJar()))
+        val registry = readRegistry()
+        (registry.nodes.map { it.tenantAPIData } + registry.fields.map { it.tenantAPIData }).forEach {
+            assertTrue(it.containsKey("tenantMetadata"))
+            assertEquals(emptyMap<String, String>(), it["tenantMetadata"])
+        }
+    }
+
+    @Test
+    fun `rejects invalid ownership declarations`() {
+        listOf(
+            """{"name":""}""",
+            """{"name":" "}""",
+            """{"name":42}""",
+            """{"name":null}""",
+            """{"com.example.Resolver":"owner"}""",
+            """{"name":"tenant", "other":"value"}""",
+        ).forEach { metadata ->
+            assertThrows(IllegalArgumentException::class.java) {
+                runCli(jars = listOf(ownershipDescriptorJar()), tenantMetadata = metadata)
             }
         }
     }

@@ -1,11 +1,14 @@
 package viaduct.tenant.codegen.cli
 
+import com.fasterxml.jackson.core.JsonProcessingException
 import java.io.File
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
+import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.binary.extensions.toBinaryFile
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
@@ -28,6 +31,7 @@ class AssembleTenantModuleConfigFileTest {
         schemaBinary: File? = null,
         schemaFiles: List<File> = emptyList(),
         forbiddenSelectionDirectives: List<String> = emptyList(),
+        tenantMetadata: String? = null,
     ) {
         val args = mutableListOf(
             "--descriptor-dir",
@@ -43,6 +47,10 @@ class AssembleTenantModuleConfigFileTest {
         )
         if (tenantPackagePrefix != null) {
             args += listOf("--tenant-package-prefix", tenantPackagePrefix)
+        }
+        if (tenantMetadata != null) {
+            val metadataFile = File(tempDir, "tenant-metadata.json").also { it.writeText(tenantMetadata) }
+            args += listOf("--tenant-metadata-file", metadataFile.absolutePath)
         }
         if (schemaBinary != null) {
             args += listOf("--schema-binary", schemaBinary.absolutePath)
@@ -133,6 +141,71 @@ class AssembleTenantModuleConfigFileTest {
             schemaFiles = listOf(schema),
             schemaBinary = schemaBinaryFile(schema),
         )
+    }
+
+    private fun ownershipDescriptors(): File =
+        descriptorDir().also { descriptors ->
+            File(descriptors, "Resolvers.json").writeText(
+                """
+                {
+                  "nodes": [
+                    {"implFqn":"com.example.feature.Node", "typeName":"User", "resolverBaseClass":"Base", "isBatching":false, "isSelective":false}
+                  ],
+                  "fields": [
+                    {"implFqn":"com.example.imported.Outer${'$'}Resolver", "typeName":"User", "fieldName":"name", "resolverBaseClass":"com.example.feature.Base", "isBatching":false, "isSelective":false}
+                  ]
+                }
+                """.trimIndent(),
+            )
+        }
+
+    private fun readRegistry(): ExecutionRegistryConfigFile =
+        outputDir().resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+            .inputStream().use(ExecutionRegistryConfigFile::parse)
+
+    @Test
+    fun `file assembly applies tenant metadata to every field and node`() {
+        runCli(
+            descriptors = ownershipDescriptors(),
+            tenantMetadata = """{"name":"tenant-project"}""",
+        )
+        val registry = readRegistry()
+        assertEquals("feature", registry.tenantName)
+        assertEquals("kotlin", registry.apiName)
+        assertEquals("com.example.feature.ExampleExecutorFactory", registry.executorFactory)
+        assertEquals(mapOf("name" to "tenant-project"), registry.nodes.single().tenantAPIData["tenantMetadata"])
+        assertEquals(mapOf("name" to "tenant-project"), registry.fields.single().tenantAPIData["tenantMetadata"])
+    }
+
+    @Test
+    fun `file assembly records unknown ownership with absent or empty metadata`() {
+        listOf(null, "{}").forEach { metadata ->
+            runCli(descriptors = ownershipDescriptors(), tenantMetadata = metadata)
+            val registry = readRegistry()
+            (registry.nodes.map { it.tenantAPIData } + registry.fields.map { it.tenantAPIData }).forEach {
+                assertTrue(it.containsKey("tenantMetadata"))
+                assertEquals(emptyMap<String, String>(), it["tenantMetadata"])
+            }
+        }
+    }
+
+    @Test
+    fun `file assembly rejects metadata that is not a map of strings`() {
+        listOf("[]", "null", """{"name":42}""", """{"name":null}""", """{"name":{}}""").forEach { metadata ->
+            val error = assertThrows<IllegalArgumentException> {
+                runCli(descriptors = ownershipDescriptors(), tenantMetadata = metadata)
+            }
+            assertTrue(error.message.orEmpty().contains("Tenant metadata"))
+        }
+    }
+
+    @Test
+    fun `file assembly rejects invalid JSON and duplicate names`() {
+        listOf("{", """{"name":"first", "name":"second"}""").forEach { metadata ->
+            assertThrows<JsonProcessingException> {
+                runCli(descriptors = ownershipDescriptors(), tenantMetadata = metadata)
+            }
+        }
     }
 
     @Test
