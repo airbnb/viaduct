@@ -68,8 +68,6 @@ private val interfaceSTGroup =
           fun <f.getterName>OrThrow(): <f.kotlinType>
           fun <f.getterName>(alias: String?): <f.kotlinTypeOrNull>
           fun <f.getterName>(): <f.kotlinTypeOrNull>
-          fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull>
-          fun <f.getterName>OrNull(): <f.kotlinTypeOrNull>
         }; separator="\n">
 
         <mdl.reflection>

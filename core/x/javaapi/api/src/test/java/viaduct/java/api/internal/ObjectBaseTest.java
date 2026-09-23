@@ -91,7 +91,7 @@ class ObjectBaseTest {
       return fetchScalar(field, alias);
     }
 
-    /** The body a generated {@code getXxxOrNull()} accessor emits. */
+    /** The body a generated {@code getXxx()} accessor emits. */
     @Nullable Object softScalar(String field) {
       return nullOnDataFailure(() -> fetchScalar(field, null));
     }

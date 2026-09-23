@@ -130,7 +130,7 @@ class SchemaDrivenTests {
     }
 
     @Test
-    fun `buildClassLoader succeeds for primitive override OrNull getters`() {
+    fun `buildClassLoader succeeds for a soft getter overriding a primitive interface field`() {
         val sdl = """
             interface Event {
                 seqNumber: Int!

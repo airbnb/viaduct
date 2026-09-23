@@ -7,12 +7,12 @@ import viaduct.graphql.test.assertEquals
 import viaduct.graphql.test.assertMatches
 
 /**
- * Contract test for the three generated GRT accessor forms, `getXxx`, `getXxxOrThrow` and
- * `getXxxOrNull`, plus their alias-taking overloads.
+ * Contract test for the two generated GRT accessor forms, `getXxx` and `getXxxOrThrow`, plus their
+ * alias-taking overloads.
  *
  * The forms differ only in how a failed read is reported, so each resolver below reads one field
- * through one or more forms and reports what it saw. Reading a field the resolver's fragment left
- * out is a tenant bug rather than a data failure, so every form raises it, including `getXxxOrNull`.
+ * through one or both forms and reports what it saw. Reading a field the resolver's fragment left
+ * out is a tenant bug rather than a data failure, so both forms raise it.
  *
  * Resolver doc-comments specify required implementations.
  */
@@ -31,21 +31,21 @@ import viaduct.graphql.test.assertMatches
       "Always fail"
       broken: String @resolver
 
-      "Use objectValueFragment(nickname); read nickname through all three forms and join them with \"|\", rendering null as \"null\""
+      "Use objectValueFragment(nickname); read nickname through both forms and join them with \"|\", rendering null as \"null\""
       nullReads: String @resolver
       "Use objectValueFragment(name); return getNicknameOrThrow(), reading a field the fragment omits"
       unselectedStrictRead: String @resolver
-      "Use objectValueFragment(name); return getNicknameOrNull(), reading a field the fragment omits"
+      "Use objectValueFragment(name); return getNickname(), reading a field the fragment omits"
       unselectedSoftRead: String @resolver
-      "Use objectValueFragment(alias: name); read the alias through all three forms and join them with \"|\""
+      "Use objectValueFragment(alias: name); read the alias through both forms and join them with \"|\""
       aliasedReads: String @resolver
       "Use objectValueFragment(alias: name); return getNameOrThrow(), reading the unaliased selection"
       unaliasedRead: String @resolver
-      "Build a Widget with only name set; return getNicknameOrNull() on it"
+      "Build a Widget with only name set; return getNickname() on it"
       builderUnsetRead: String @resolver
-      "Classify strict, default, and soft reads of resolver, stored-field, framework, and cancellation failures"
+      "Classify strict and soft reads of resolver, stored-field, framework, and cancellation failures"
       failureReads: String! @resolver
-      "Classify strict, default, and soft reads of invalid non-null, list, and object values"
+      "Classify strict and soft reads of invalid non-null, list, and object values"
       invalidValueReads: String! @resolver
 
       requiredName: String!
@@ -74,14 +74,14 @@ abstract class AccessorFormsContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `every form returns null for a selected field whose value is null`() {
         execute("{ widget { nullReads } }").assertEquals {
-            "data" to { "widget" to { "nullReads" to "null|null|null" } }
+            "data" to { "widget" to { "nullReads" to "null|null" } }
         }
     }
 
     @Test
     fun `every form reads an aliased selection`() {
         execute("{ widget { aliasedReads } }").assertEquals {
-            "data" to { "widget" to { "aliasedReads" to "widget|widget|widget" } }
+            "data" to { "widget" to { "aliasedReads" to "widget|widget" } }
         }
     }
 
@@ -138,17 +138,17 @@ abstract class AccessorFormsContractTest : KotlinFeatureAppTestContractBase() {
     }
 
     @Test
-    fun `the bare and soft forms return null only for data-side failures`() {
+    fun `the soft form returns null only for data-side failures`() {
         execute("{ widget { failureReads } }").assertEquals {
             "data" to {
                 "widget" to {
                     "failureReads" to
-                        "resolver=FieldFetchingException,null,null;" +
-                        "stored=ErroneousFieldException,null,null;" +
-                        "wrapped=FrameworkException,null,null;" +
-                        "framework=FrameworkException,FrameworkException,FrameworkException;" +
-                        "cancellation=CancellationException,CancellationException,CancellationException;" +
-                        "wrappedCancellation=CancellationException,CancellationException,CancellationException"
+                        "resolver=FieldFetchingException,null;" +
+                        "stored=ErroneousFieldException,null;" +
+                        "wrapped=FrameworkException,null;" +
+                        "framework=FrameworkException,FrameworkException;" +
+                        "cancellation=CancellationException,CancellationException;" +
+                        "wrappedCancellation=CancellationException,CancellationException"
                 }
             }
         }
@@ -160,13 +160,13 @@ abstract class AccessorFormsContractTest : KotlinFeatureAppTestContractBase() {
             "data" to {
                 "widget" to {
                     "invalidValueReads" to
-                        "nonNull=TenantUsageException,TenantUsageException,TenantUsageException;" +
-                        "listElement=TenantUsageException,TenantUsageException,TenantUsageException;" +
-                        "list=TenantUsageException,TenantUsageException,TenantUsageException;" +
-                        "object=TenantUsageException,TenantUsageException,TenantUsageException;" +
-                        "concreteType=FrameworkException,FrameworkException,FrameworkException;" +
-                        "interfaceType=FrameworkException,FrameworkException,FrameworkException;" +
-                        "objectListElement=FrameworkException,FrameworkException,FrameworkException"
+                        "nonNull=TenantUsageException,TenantUsageException;" +
+                        "listElement=TenantUsageException,TenantUsageException;" +
+                        "list=TenantUsageException,TenantUsageException;" +
+                        "object=TenantUsageException,TenantUsageException;" +
+                        "concreteType=FrameworkException,FrameworkException;" +
+                        "interfaceType=FrameworkException,FrameworkException;" +
+                        "objectListElement=FrameworkException,FrameworkException"
                 }
             }
         }

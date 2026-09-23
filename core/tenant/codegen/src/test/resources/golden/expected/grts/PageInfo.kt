@@ -17,29 +17,21 @@ class PageInfo(context: InternalContext, engineObject: EngineObject)
      fun getHasNextPageOrThrow(): kotlin.Boolean = TODO()
      fun getHasNextPage(alias: String?): kotlin.Boolean? = TODO()
      fun getHasNextPage(): kotlin.Boolean? = TODO()
-     fun getHasNextPageOrNull(alias: String?): kotlin.Boolean? = TODO()
-     fun getHasNextPageOrNull(): kotlin.Boolean? = TODO()
 
      fun getHasPreviousPageOrThrow(alias: String?): kotlin.Boolean = TODO()
      fun getHasPreviousPageOrThrow(): kotlin.Boolean = TODO()
      fun getHasPreviousPage(alias: String?): kotlin.Boolean? = TODO()
      fun getHasPreviousPage(): kotlin.Boolean? = TODO()
-     fun getHasPreviousPageOrNull(alias: String?): kotlin.Boolean? = TODO()
-     fun getHasPreviousPageOrNull(): kotlin.Boolean? = TODO()
 
      fun getStartCursorOrThrow(alias: String?): kotlin.String? = TODO()
      fun getStartCursorOrThrow(): kotlin.String? = TODO()
      fun getStartCursor(alias: String?): kotlin.String? = TODO()
      fun getStartCursor(): kotlin.String? = TODO()
-     fun getStartCursorOrNull(alias: String?): kotlin.String? = TODO()
-     fun getStartCursorOrNull(): kotlin.String? = TODO()
 
      fun getEndCursorOrThrow(alias: String?): kotlin.String? = TODO()
      fun getEndCursorOrThrow(): kotlin.String? = TODO()
      fun getEndCursor(alias: String?): kotlin.String? = TODO()
      fun getEndCursor(): kotlin.String? = TODO()
-     fun getEndCursorOrNull(alias: String?): kotlin.String? = TODO()
-     fun getEndCursorOrNull(): kotlin.String? = TODO()
 
 
     fun toBuilder(): Builder =

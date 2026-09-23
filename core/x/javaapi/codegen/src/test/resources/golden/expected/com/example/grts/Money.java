@@ -72,14 +72,6 @@ public class Money extends ObjectBase implements SearchHit {
             return nullOnDataFailure(() -> fetchScalar("amount", null));
         }
 
-        public Double getAmountOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchScalar("amount", alias));
-        }
-
-        public Double getAmountOrNull() {
-            return nullOnDataFailure(() -> fetchScalar("amount", null));
-        }
-
         public String getCurrencyOrThrow(String alias) {
             return fetchScalar("currency", alias);
         }
@@ -93,14 +85,6 @@ public class Money extends ObjectBase implements SearchHit {
         }
 
         public String getCurrency() {
-            return nullOnDataFailure(() -> fetchScalar("currency", null));
-        }
-
-        public String getCurrencyOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchScalar("currency", alias));
-        }
-
-        public String getCurrencyOrNull() {
             return nullOnDataFailure(() -> fetchScalar("currency", null));
         }
 

@@ -77,14 +77,6 @@ public class PageInfo extends ObjectBase {
             return nullOnDataFailure(() -> fetchScalar("hasNextPage", null));
         }
 
-        public Boolean getHasNextPageOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchScalar("hasNextPage", alias));
-        }
-
-        public Boolean getHasNextPageOrNull() {
-            return nullOnDataFailure(() -> fetchScalar("hasNextPage", null));
-        }
-
         public boolean getHasPreviousPageOrThrow(String alias) {
             return fetchScalar("hasPreviousPage", alias);
         }
@@ -98,14 +90,6 @@ public class PageInfo extends ObjectBase {
         }
 
         public Boolean getHasPreviousPage() {
-            return nullOnDataFailure(() -> fetchScalar("hasPreviousPage", null));
-        }
-
-        public Boolean getHasPreviousPageOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchScalar("hasPreviousPage", alias));
-        }
-
-        public Boolean getHasPreviousPageOrNull() {
             return nullOnDataFailure(() -> fetchScalar("hasPreviousPage", null));
         }
 
@@ -125,14 +109,6 @@ public class PageInfo extends ObjectBase {
             return nullOnDataFailure(() -> fetchScalar("startCursor", null));
         }
 
-        public String getStartCursorOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchScalar("startCursor", alias));
-        }
-
-        public String getStartCursorOrNull() {
-            return nullOnDataFailure(() -> fetchScalar("startCursor", null));
-        }
-
         public String getEndCursorOrThrow(String alias) {
             return fetchScalar("endCursor", alias);
         }
@@ -146,14 +122,6 @@ public class PageInfo extends ObjectBase {
         }
 
         public String getEndCursor() {
-            return nullOnDataFailure(() -> fetchScalar("endCursor", null));
-        }
-
-        public String getEndCursorOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchScalar("endCursor", alias));
-        }
-
-        public String getEndCursorOrNull() {
             return nullOnDataFailure(() -> fetchScalar("endCursor", null));
         }
 

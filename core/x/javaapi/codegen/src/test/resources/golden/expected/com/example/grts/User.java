@@ -95,14 +95,6 @@ public class User extends NodeObjectBase implements Node, SearchHit {
             return nullOnDataFailure(() -> fetchGlobalID("id", null));
         }
 
-        public GlobalID<User> getIdOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchGlobalID("id", alias));
-        }
-
-        public GlobalID<User> getIdOrNull() {
-            return nullOnDataFailure(() -> fetchGlobalID("id", null));
-        }
-
         public String getNameOrThrow(String alias) {
             return fetchScalar("name", alias);
         }
@@ -116,14 +108,6 @@ public class User extends NodeObjectBase implements Node, SearchHit {
         }
 
         public String getName() {
-            return nullOnDataFailure(() -> fetchScalar("name", null));
-        }
-
-        public String getNameOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchScalar("name", alias));
-        }
-
-        public String getNameOrNull() {
             return nullOnDataFailure(() -> fetchScalar("name", null));
         }
 
@@ -143,14 +127,6 @@ public class User extends NodeObjectBase implements Node, SearchHit {
             return nullOnDataFailure(() -> fetchScalar("nickname", null));
         }
 
-        public String getNicknameOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchScalar("nickname", alias));
-        }
-
-        public String getNicknameOrNull() {
-            return nullOnDataFailure(() -> fetchScalar("nickname", null));
-        }
-
         public Integer getAgeOrThrow(String alias) {
             return fetchScalar("age", alias);
         }
@@ -164,14 +140,6 @@ public class User extends NodeObjectBase implements Node, SearchHit {
         }
 
         public Integer getAge() {
-            return nullOnDataFailure(() -> fetchScalar("age", null));
-        }
-
-        public Integer getAgeOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchScalar("age", alias));
-        }
-
-        public Integer getAgeOrNull() {
             return nullOnDataFailure(() -> fetchScalar("age", null));
         }
 
@@ -191,14 +159,6 @@ public class User extends NodeObjectBase implements Node, SearchHit {
             return nullOnDataFailure(() -> fetchScalar("active", null));
         }
 
-        public Boolean getActiveOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchScalar("active", alias));
-        }
-
-        public Boolean getActiveOrNull() {
-            return nullOnDataFailure(() -> fetchScalar("active", null));
-        }
-
         public Color getFavoriteColorOrThrow(String alias) {
             return fetchEnum("favoriteColor", alias, Color.class);
         }
@@ -212,14 +172,6 @@ public class User extends NodeObjectBase implements Node, SearchHit {
         }
 
         public Color getFavoriteColor() {
-            return nullOnDataFailure(() -> fetchEnum("favoriteColor", null, Color.class));
-        }
-
-        public Color getFavoriteColorOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchEnum("favoriteColor", alias, Color.class));
-        }
-
-        public Color getFavoriteColorOrNull() {
             return nullOnDataFailure(() -> fetchEnum("favoriteColor", null, Color.class));
         }
 
@@ -239,14 +191,6 @@ public class User extends NodeObjectBase implements Node, SearchHit {
             return nullOnDataFailure(() -> fetchScalarList("scores", null));
         }
 
-        public List<Integer> getScoresOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchScalarList("scores", alias));
-        }
-
-        public List<Integer> getScoresOrNull() {
-            return nullOnDataFailure(() -> fetchScalarList("scores", null));
-        }
-
         public GlobalID<Order> getLastOrderOrThrow(String alias) {
             return fetchGlobalID("lastOrder", alias);
         }
@@ -260,14 +204,6 @@ public class User extends NodeObjectBase implements Node, SearchHit {
         }
 
         public GlobalID<Order> getLastOrder() {
-            return nullOnDataFailure(() -> fetchGlobalID("lastOrder", null));
-        }
-
-        public GlobalID<Order> getLastOrderOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchGlobalID("lastOrder", alias));
-        }
-
-        public GlobalID<Order> getLastOrderOrNull() {
             return nullOnDataFailure(() -> fetchGlobalID("lastOrder", null));
         }
 

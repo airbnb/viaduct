@@ -9,11 +9,8 @@ enum class AccessorForm(
     /** Throws on any failure. */
     STRICT("OrThrow", "getInternal", false),
 
-    /** Keeps codegen emitting the unsuffixed name that existing call sites use. */
-    LEGACY_SOFT("", "getOrNullInternal", true),
-
     /** Returns null for data-side failures. Tenant and framework bugs still propagate. */
-    SOFT("OrNull", "getOrNullInternal", true),
+    SOFT("", "getOrNullInternal", true),
     ;
 
     fun methodName(fieldAccessorName: String): String = fieldAccessorName + suffix

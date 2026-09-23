@@ -110,14 +110,15 @@ class AccessorNameCollisionTest {
     }
 
     @Test
-    fun `object field colliding with a soft accessor is rejected`() {
-        assertRejects(
-            """
-            type Query { collision: Collision }
-            type Collision { bar: String barOrNull: String }
-            """.trimIndent(),
-            "fields `bar` and `barOrNull` both generate `getBarOrNull`"
-        )
+    fun `object fields differing only by an OrNull suffix are generated`() {
+        assertDoesNotThrow {
+            generate(
+                """
+                type Query { collision: Collision }
+                type Collision { bar: String barOrNull: String }
+                """.trimIndent()
+            )
+        }
     }
 
     @Test

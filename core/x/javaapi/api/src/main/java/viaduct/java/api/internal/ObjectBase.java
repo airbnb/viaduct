@@ -51,9 +51,8 @@ import viaduct.java.api.types.NodeCompositeOutput;
  *
  * <p>Reads are strict on every path: a selection that was never set raises {@link
  * UnsetFieldException}, which is how a tenant reading outside its fragment finds out. The generated
- * soft accessors, {@code getXxxOrNull()} and the bare {@code getXxx()}, wrap the read in {@link
- * #nullOnDataFailure} instead, which turns data-side failures into null while leaving that tenant
- * bug alone.
+ * soft accessor, {@code getXxx()}, wraps the read in {@link #nullOnDataFailure} instead, which
+ * turns data-side failures into null while leaving that tenant bug alone.
  *
  * <p>Field access is cached using a {@link ConcurrentHashMap} with a {@code NULL_VALUE} sentinel to
  * represent null values (identical to Kotlin's {@code OBJECTBASE_GRT_NULL} pattern).
@@ -270,8 +269,7 @@ public abstract class ObjectBase implements GraphQLObject {
   /**
    * Runs {@code block}, returning null instead of propagating a data-side failure (an upstream
    * resolver error, or a field whose value is stored as an error). Tenant bugs, framework bugs, and
-   * cancellation still propagate. Generated {@code getXxxOrNull()} and bare {@code getXxx()}
-   * accessors call this.
+   * cancellation still propagate. Generated {@code getXxx()} accessors call this.
    */
   protected static <T> @Nullable T nullOnDataFailure(Callable<T> block) {
     return HandleErrors.dataFailureToNull(block);

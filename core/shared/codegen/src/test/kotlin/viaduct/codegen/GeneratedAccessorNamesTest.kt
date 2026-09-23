@@ -8,9 +8,8 @@ import org.junit.jupiter.api.assertThrows
 
 /** Tests for [GeneratedAccessorNames], the collision check both GRT generators run before emitting. */
 class GeneratedAccessorNamesTest {
-    // Same order as the production lists, so these tests observe the error text the generators produce.
-    private val kotlinSuffixes = listOf("OrThrow", "", "OrNull")
-    private val javaSuffixes = listOf("OrThrow", "")
+    // Same order as the production list, so these tests observe the error text the generators produce.
+    private val suffixes = listOf("OrThrow", "")
 
     @Test
     fun `strict suffix collision is rejected`() {
@@ -18,23 +17,23 @@ class GeneratedAccessorNamesTest {
             GeneratedAccessorNames.validateNoCollisions(
                 "Example",
                 mapOf("foo" to "getFoo", "fooOrThrow" to "getFooOrThrow"),
-                kotlinSuffixes,
+                suffixes,
             )
         }
         assertTrue(error.message!!.contains("type `Example`"), error.message)
         assertTrue(error.message!!.contains("fields `foo` and `fooOrThrow` both generate `getFooOrThrow`"), error.message)
     }
 
+    /** `barOrNull` is an ordinary field name: no suffix makes it collide with `bar`'s accessor. */
     @Test
-    fun `soft suffix collision is rejected`() {
-        val error = assertThrows<IllegalArgumentException> {
+    fun `a field whose name ends in OrNull is accepted`() {
+        assertDoesNotThrow {
             GeneratedAccessorNames.validateNoCollisions(
                 "Example",
                 mapOf("bar" to "getBar", "barOrNull" to "getBarOrNull"),
-                kotlinSuffixes,
+                suffixes,
             )
         }
-        assertTrue(error.message!!.contains("fields `bar` and `barOrNull` both generate `getBarOrNull`"), error.message)
     }
 
     /**
@@ -47,7 +46,7 @@ class GeneratedAccessorNamesTest {
             GeneratedAccessorNames.validateNoCollisions(
                 "Example",
                 mapOf("isReady" to "isReady", "isReadyOrThrow" to "isReadyOrThrow"),
-                kotlinSuffixes,
+                suffixes,
             )
         }
         assertTrue(error.message!!.contains("both generate `isReadyOrThrow`"), error.message)
@@ -60,7 +59,7 @@ class GeneratedAccessorNamesTest {
             GeneratedAccessorNames.validateNoCollisions(
                 "Example",
                 mapOf("foo" to "getFoo", "Foo" to "getFoo"),
-                kotlinSuffixes,
+                suffixes,
             )
         }
         assertTrue(error.message!!.contains("fields `foo` and `Foo` both generate"), error.message)
@@ -91,36 +90,24 @@ class GeneratedAccessorNamesTest {
                 mapOf(
                     "foo" to "getFoo",
                     "fooOrThrow" to "getFooOrThrow",
-                    "bar" to "getBar",
-                    "barOrNull" to "getBarOrNull",
+                    "isReady" to "isReady",
+                    "isReadyOrThrow" to "isReadyOrThrow",
                 ),
-                kotlinSuffixes,
+                suffixes,
             )
         }
         assertTrue(error.message!!.contains("both generate `getFooOrThrow`"), error.message)
-        assertTrue(error.message!!.contains("both generate `getBarOrNull`"), error.message)
+        assertTrue(error.message!!.contains("both generate `isReadyOrThrow`"), error.message)
     }
 
-    /** `fooOrThrow` alone generates `getFooOrThrow`, `getFooOrThrowOrThrow` and `getFooOrThrowOrNull`. */
+    /** `fooOrThrow` alone generates `getFooOrThrow` and `getFooOrThrowOrThrow`. */
     @Test
     fun `suffix-named field without a sibling is accepted`() {
         assertDoesNotThrow {
             GeneratedAccessorNames.validateNoCollisions(
                 "Example",
-                mapOf("fooOrThrow" to "getFooOrThrow", "barOrNull" to "getBarOrNull"),
-                kotlinSuffixes,
-            )
-        }
-    }
-
-    /** A `bar`/`barOrNull` pair collides for Kotlin but not for Java, which emits no `OrNull`. */
-    @Test
-    fun `soft suffix pair is accepted for a back-end that emits no soft accessors`() {
-        assertDoesNotThrow {
-            GeneratedAccessorNames.validateNoCollisions(
-                "Example",
-                mapOf("bar" to "getBar", "barOrNull" to "getBarOrNull"),
-                javaSuffixes,
+                mapOf("fooOrThrow" to "getFooOrThrow"),
+                suffixes,
             )
         }
     }
@@ -131,7 +118,7 @@ class GeneratedAccessorNamesTest {
             GeneratedAccessorNames.validateNoCollisions(
                 "Example",
                 mapOf("id" to "getId", "name" to "getName", "isReady" to "isReady"),
-                kotlinSuffixes,
+                suffixes,
             )
         }
     }

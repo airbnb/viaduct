@@ -30,7 +30,5 @@ public interface Node extends NodeCompositeOutput {
     GlobalID<? extends Node> getIdOrThrow();
     GlobalID<? extends Node> getId(String alias);
     GlobalID<? extends Node> getId();
-    GlobalID<? extends Node> getIdOrNull(String alias);
-    GlobalID<? extends Node> getIdOrNull();
 
 }

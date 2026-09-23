@@ -70,7 +70,7 @@ class KotlinAccessorFormsContractTest : AccessorFormsContractTest() {
     class Widget_NullReadsResolver : WidgetResolvers.NullReads() {
         override suspend fun resolve(ctx: Context): String {
             val widget = ctx.getObjectValue()
-            return joinReads(widget.getNicknameOrThrow(), widget.getNickname(), widget.getNicknameOrNull())
+            return joinReads(widget.getNicknameOrThrow(), widget.getNickname())
         }
     }
 
@@ -81,14 +81,14 @@ class KotlinAccessorFormsContractTest : AccessorFormsContractTest() {
 
     @Resolver("name")
     class Widget_UnselectedSoftReadResolver : WidgetResolvers.UnselectedSoftRead() {
-        override suspend fun resolve(ctx: Context) = ctx.getObjectValue().getNicknameOrNull()
+        override suspend fun resolve(ctx: Context) = ctx.getObjectValue().getNickname()
     }
 
     @Resolver("alias: name")
     class Widget_AliasedReadsResolver : WidgetResolvers.AliasedReads() {
         override suspend fun resolve(ctx: Context): String {
             val widget = ctx.getObjectValue()
-            return joinReads(widget.getNameOrThrow("alias"), widget.getName("alias"), widget.getNameOrNull("alias"))
+            return joinReads(widget.getNameOrThrow("alias"), widget.getName("alias"))
         }
     }
 
@@ -99,7 +99,7 @@ class KotlinAccessorFormsContractTest : AccessorFormsContractTest() {
 
     @Resolver
     class Widget_BuilderUnsetReadResolver : WidgetResolvers.BuilderUnsetRead() {
-        override suspend fun resolve(ctx: Context) = Widget.Builder(ctx).name("built").build().getNicknameOrNull()
+        override suspend fun resolve(ctx: Context) = Widget.Builder(ctx).name("built").build().getNickname()
     }
 
     @Resolver("broken")
@@ -121,22 +121,12 @@ class KotlinAccessorFormsContractTest : AccessorFormsContractTest() {
                 )
             )
             return listOf(
-                classify("resolver", resolver::getBrokenOrThrow, resolver::getBroken, resolver::getBrokenOrNull),
-                classify("stored", stored::getNameOrThrow, stored::getName, stored::getNameOrNull),
-                classify("wrapped", wrapped::getNameOrThrow, wrapped::getName, wrapped::getNameOrNull),
-                classify("framework", framework::getNameOrThrow, framework::getName, framework::getNameOrNull),
-                classify(
-                    "cancellation",
-                    cancellation::getNameOrThrow,
-                    cancellation::getName,
-                    cancellation::getNameOrNull,
-                ),
-                classify(
-                    "wrappedCancellation",
-                    wrappedCancellation::getNameOrThrow,
-                    wrappedCancellation::getName,
-                    wrappedCancellation::getNameOrNull,
-                ),
+                classify("resolver", resolver::getBrokenOrThrow, resolver::getBroken),
+                classify("stored", stored::getNameOrThrow, stored::getName),
+                classify("wrapped", wrapped::getNameOrThrow, wrapped::getName),
+                classify("framework", framework::getNameOrThrow, framework::getName),
+                classify("cancellation", cancellation::getNameOrThrow, cancellation::getName),
+                classify("wrappedCancellation", wrappedCancellation::getNameOrThrow, wrappedCancellation::getName),
             ).joinToString(";")
         }
     }
@@ -154,43 +144,13 @@ class KotlinAccessorFormsContractTest : AccessorFormsContractTest() {
             val interfaceType = rawWidget(ctx, "abstractChild", other)
             val objectListElement = rawWidget(ctx, "children", listOf(other))
             return listOf(
-                classify(
-                    "nonNull",
-                    nonNull::getRequiredNameOrThrow,
-                    nonNull::getRequiredName,
-                    nonNull::getRequiredNameOrNull,
-                ),
-                classify(
-                    "listElement",
-                    listElement::getStrictTagsOrThrow,
-                    listElement::getStrictTags,
-                    listElement::getStrictTagsOrNull,
-                ),
-                classify("list", list::getTagsOrThrow, list::getTags, list::getTagsOrNull),
-                classify(
-                    "object",
-                    objectValue::getChildOrThrow,
-                    objectValue::getChild,
-                    objectValue::getChildOrNull,
-                ),
-                classify(
-                    "concreteType",
-                    concreteType::getChildOrThrow,
-                    concreteType::getChild,
-                    concreteType::getChildOrNull,
-                ),
-                classify(
-                    "interfaceType",
-                    interfaceType::getAbstractChildOrThrow,
-                    interfaceType::getAbstractChild,
-                    interfaceType::getAbstractChildOrNull,
-                ),
-                classify(
-                    "objectListElement",
-                    objectListElement::getChildrenOrThrow,
-                    objectListElement::getChildren,
-                    objectListElement::getChildrenOrNull,
-                ),
+                classify("nonNull", nonNull::getRequiredNameOrThrow, nonNull::getRequiredName),
+                classify("listElement", listElement::getStrictTagsOrThrow, listElement::getStrictTags),
+                classify("list", list::getTagsOrThrow, list::getTags),
+                classify("object", objectValue::getChildOrThrow, objectValue::getChild),
+                classify("concreteType", concreteType::getChildOrThrow, concreteType::getChild),
+                classify("interfaceType", interfaceType::getAbstractChildOrThrow, interfaceType::getAbstractChild),
+                classify("objectListElement", objectListElement::getChildrenOrThrow, objectListElement::getChildren),
             ).joinToString(";")
         }
     }

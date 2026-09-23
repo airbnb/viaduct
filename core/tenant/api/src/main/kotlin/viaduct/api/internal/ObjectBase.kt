@@ -64,9 +64,8 @@ abstract class ObjectBase(
         }
 
     /**
-     * Codegen entry point for both soft-failing accessors, `getXxxOrNull()` and the bare `getXxx()`.
-     * Same as [getInternal], but data-side failures become `null`; tenant and framework bugs still
-     * propagate.
+     * Codegen entry point for the soft-failing accessor, `getXxx()`. Same as [getInternal], but
+     * data-side failures become `null`; tenant and framework bugs still propagate.
      */
     protected fun <T> getOrNullInternal(
         fieldName: String,

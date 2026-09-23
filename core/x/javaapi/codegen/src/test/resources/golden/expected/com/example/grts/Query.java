@@ -203,14 +203,6 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
             return nullOnDataFailure(() -> fetchObject("order", null, Order.class, Order::new));
         }
 
-        public Order getOrderOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchObject("order", alias, Order.class, Order::new));
-        }
-
-        public Order getOrderOrNull() {
-            return nullOnDataFailure(() -> fetchObject("order", null, Order.class, Order::new));
-        }
-
         public User getTopUserOrThrow(String alias) {
             return fetchObject("topUser", alias, User.class, User::new);
         }
@@ -224,14 +216,6 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
         }
 
         public User getTopUser() {
-            return nullOnDataFailure(() -> fetchObject("topUser", null, User.class, User::new));
-        }
-
-        public User getTopUserOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchObject("topUser", alias, User.class, User::new));
-        }
-
-        public User getTopUserOrNull() {
             return nullOnDataFailure(() -> fetchObject("topUser", null, User.class, User::new));
         }
 
@@ -251,14 +235,6 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
             return nullOnDataFailure(() -> fetchObjectList("popularOrders", null, Order.class, Order::new));
         }
 
-        public List<Order> getPopularOrdersOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchObjectList("popularOrders", alias, Order.class, Order::new));
-        }
-
-        public List<Order> getPopularOrdersOrNull() {
-            return nullOnDataFailure(() -> fetchObjectList("popularOrders", null, Order.class, Order::new));
-        }
-
         public List<User> getTrendingUsersOrThrow(String alias) {
             return fetchObjectList("trendingUsers", alias, User.class, User::new);
         }
@@ -272,14 +248,6 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
         }
 
         public List<User> getTrendingUsers() {
-            return nullOnDataFailure(() -> fetchObjectList("trendingUsers", null, User.class, User::new));
-        }
-
-        public List<User> getTrendingUsersOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchObjectList("trendingUsers", alias, User.class, User::new));
-        }
-
-        public List<User> getTrendingUsersOrNull() {
             return nullOnDataFailure(() -> fetchObjectList("trendingUsers", null, User.class, User::new));
         }
 
@@ -299,14 +267,6 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
             return nullOnDataFailure(() -> fetchObject("ordersConnection", null, OrderConnection.class, OrderConnection::new));
         }
 
-        public OrderConnection getOrdersConnectionOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchObject("ordersConnection", alias, OrderConnection.class, OrderConnection::new));
-        }
-
-        public OrderConnection getOrdersConnectionOrNull() {
-            return nullOnDataFailure(() -> fetchObject("ordersConnection", null, OrderConnection.class, OrderConnection::new));
-        }
-
         public Order getLookupOrderOrThrow(String alias) {
             return fetchObject("lookupOrder", alias, Order.class, Order::new);
         }
@@ -320,14 +280,6 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
         }
 
         public Order getLookupOrder() {
-            return nullOnDataFailure(() -> fetchObject("lookupOrder", null, Order.class, Order::new));
-        }
-
-        public Order getLookupOrderOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchObject("lookupOrder", alias, Order.class, Order::new));
-        }
-
-        public Order getLookupOrderOrNull() {
             return nullOnDataFailure(() -> fetchObject("lookupOrder", null, Order.class, Order::new));
         }
 
@@ -347,14 +299,6 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
             return nullOnDataFailure(() -> fetchAbstractObject("node", null, Node.class));
         }
 
-        public Node getNodeOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchAbstractObject("node", alias, Node.class));
-        }
-
-        public Node getNodeOrNull() {
-            return nullOnDataFailure(() -> fetchAbstractObject("node", null, Node.class));
-        }
-
         public List<Node> getNodesOrThrow(String alias) {
             return fetchAbstractObjectList("nodes", alias, Node.class);
         }
@@ -368,14 +312,6 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
         }
 
         public List<Node> getNodes() {
-            return nullOnDataFailure(() -> fetchAbstractObjectList("nodes", null, Node.class));
-        }
-
-        public List<Node> getNodesOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchAbstractObjectList("nodes", alias, Node.class));
-        }
-
-        public List<Node> getNodesOrNull() {
             return nullOnDataFailure(() -> fetchAbstractObjectList("nodes", null, Node.class));
         }
 

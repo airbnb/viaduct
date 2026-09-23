@@ -137,19 +137,16 @@ class AccessorNameCollisionTest {
   }
 
   @Test
-  void fieldCollidingWithSoftAccessorIsRejected() {
+  void fieldsDifferingOnlyByOrNullSuffixAreGenerated() {
     ObjectModel model =
         objectWith(
             List.of(
                 FieldModel.simple("bar", "String", true),
                 FieldModel.simple("barOrNull", "String", true)));
 
-    IllegalArgumentException error =
-        assertThrows(
-            IllegalArgumentException.class, () -> JavaGRTGenerator.ObjectGenerator.generate(model));
+    String generated = assertDoesNotThrow(() -> JavaGRTGenerator.ObjectGenerator.generate(model));
 
-    assertTrue(
-        error.getMessage().contains("fields `bar` and `barOrNull` both generate `getBarOrNull`"),
-        error.getMessage());
+    assertTrue(generated.contains("public String getBar()"), generated);
+    assertTrue(generated.contains("public String getBarOrNull()"), generated);
   }
 }

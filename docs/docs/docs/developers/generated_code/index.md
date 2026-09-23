@@ -30,17 +30,12 @@ class User private constructor(...): NodeObject {
   suspend fun getLastName(alias: String? = null): String?
   suspend fun getDisplayName(alias: String? = null): String?
 
-  // For each getter, Viaduct also generates `OrThrow` and `OrNull` variants — see
+  // For each getter, Viaduct also generates an `OrThrow` variant — see
   // "Strict and soft-failing accessors" below.
   suspend fun getIdOrThrow(alias: String? = null): GlobalID<User>
   suspend fun getFirstNameOrThrow(alias: String? = null): String?
   suspend fun getLastNameOrThrow(alias: String? = null): String?
   suspend fun getDisplayNameOrThrow(alias: String? = null): String?
-
-  suspend fun getIdOrNull(alias: String? = null): GlobalID<User>?
-  suspend fun getFirstNameOrNull(alias: String? = null): String?
-  suspend fun getLastNameOrNull(alias: String? = null): String?
-  suspend fun getDisplayNameOrNull(alias: String? = null): String?
 
   class Builder(ctx: ExecutionContext): DynamicValueOutputBuilder<User> {
     fun id(id: GlobalID<User>): Builder
@@ -58,27 +53,29 @@ The values from a fragment on `User` (for example) are accessed through the GRT 
 
 ### Strict and soft-failing accessors
 
-For every field, Viaduct generates three accessors: `getX()`, `getXOrThrow()`, and `getXOrNull()`. The distinction is about how *errors* are surfaced, not about whether the field is nullable in the schema.
+For every field, Viaduct generates two accessors: `getX()` and `getXOrThrow()`. The distinction is about how *errors* are surfaced, not about whether the field is nullable in the schema.
 
-`getXOrThrow()` is the strict accessor: it throws on any failure, and its return type is non-null when the schema field is non-null. `getX()` and `getXOrNull()` are the soft accessors: they return `null` for data-side failures (upstream resolver errors, field values stored as errors) so callers can degrade gracefully when a dependency fails, and their return type is always nullable. Tenant misuse (e.g. accessing a field that wasn't selected, throwing `UnsetFieldException`), framework bugs (`FrameworkException`), and `CancellationException` still propagate from **all three**, so real bugs and coroutine cancellation remain visible. In particular, the soft accessors do not return `null` for a field that was left out of the selection set — they throw, just as the strict accessor does.
+`getXOrThrow()` is the strict accessor: it throws on any failure, and its return type is non-null when the schema field is non-null. `getX()` is the soft accessor: it returns `null` for data-side failures (upstream resolver errors, field values stored as errors) so callers can degrade gracefully when a dependency fails, and its return type is always nullable. Tenant misuse (e.g. accessing a field that wasn't selected, throwing `UnsetFieldException`), framework bugs (`FrameworkException`), and `CancellationException` still propagate from **both**, so real bugs and coroutine cancellation remain visible. In particular, the soft accessor does not return `null` for a field that was left out of the selection set — it throws, just as the strict accessor does.
 
 ```kotlin
 // Strict: throws on any failure.
 val name: String? = user.getDisplayNameOrThrow()
 
 // Soft: returns null on data-side failures; tenant/framework bugs still throw.
-val nameOrNull: String? = user.getDisplayNameOrNull()
+val displayName: String? = user.getDisplayName()
 ```
 
-Because the soft accessors discard the underlying data-side error, a caller that needs to distinguish "field is genuinely null" from "field errored and was swallowed" should use `getXOrThrow()` and handle the exception explicitly.
+Because the soft accessor discards the underlying data-side error, a caller that needs to distinguish "field is genuinely null" from "field errored and was swallowed" should use `getXOrThrow()` and handle the exception explicitly.
 
-!!! warning "`getX()` changed behavior"
+!!! warning "`getX()` changed behavior and `getXOrNull()` was removed"
 
-    `getX()` used to be a second name for `getXOrThrow()`. It is now a second name for
-    `getXOrNull()`: it returns `null` on a data-side failure instead of throwing. This is a breaking
-    change to generated code — call sites that relied on the throwing behavior need `getXOrThrow()`.
+    `getX()` used to be a second name for `getXOrThrow()`. It is now the soft accessor: it returns
+    `null` on a data-side failure instead of throwing. `getXOrNull()`, which was a second name for
+    the soft accessor, has been removed — replace those call sites with `getX()`. Both are breaking
+    changes to generated code, and call sites that relied on the throwing behavior need
+    `getXOrThrow()`.
 
-    How the change surfaces depends on the field:
+    How the `getX()` change surfaces depends on the field:
 
     - **A non-null field whose type maps to a Kotlin primitive** — `Boolean!`, `Int!`, `Float!` —
       changes its JVM signature, because the primitive becomes its boxed form: `boolean` becomes

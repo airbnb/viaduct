@@ -92,14 +92,6 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
             return nullOnDataFailure(() -> fetchGlobalID("id", null));
         }
 
-        public GlobalID<Order> getIdOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchGlobalID("id", alias));
-        }
-
-        public GlobalID<Order> getIdOrNull() {
-            return nullOnDataFailure(() -> fetchGlobalID("id", null));
-        }
-
         public OrderStatus getStatusOrThrow(String alias) {
             return fetchEnum("status", alias, OrderStatus.class);
         }
@@ -113,14 +105,6 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
         }
 
         public OrderStatus getStatus() {
-            return nullOnDataFailure(() -> fetchEnum("status", null, OrderStatus.class));
-        }
-
-        public OrderStatus getStatusOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchEnum("status", alias, OrderStatus.class));
-        }
-
-        public OrderStatus getStatusOrNull() {
             return nullOnDataFailure(() -> fetchEnum("status", null, OrderStatus.class));
         }
 
@@ -140,14 +124,6 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
             return nullOnDataFailure(() -> fetchObject("total", null, Money.class, Money::new));
         }
 
-        public Money getTotalOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchObject("total", alias, Money.class, Money::new));
-        }
-
-        public Money getTotalOrNull() {
-            return nullOnDataFailure(() -> fetchObject("total", null, Money.class, Money::new));
-        }
-
         public String getCreatedAtOrThrow(String alias) {
             return fetchScalar("createdAt", alias);
         }
@@ -161,14 +137,6 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
         }
 
         public String getCreatedAt() {
-            return nullOnDataFailure(() -> fetchScalar("createdAt", null));
-        }
-
-        public String getCreatedAtOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchScalar("createdAt", alias));
-        }
-
-        public String getCreatedAtOrNull() {
             return nullOnDataFailure(() -> fetchScalar("createdAt", null));
         }
 
@@ -188,14 +156,6 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
             return nullOnDataFailure(() -> fetchScalar("updatedAt", null));
         }
 
-        public String getUpdatedAtOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchScalar("updatedAt", alias));
-        }
-
-        public String getUpdatedAtOrNull() {
-            return nullOnDataFailure(() -> fetchScalar("updatedAt", null));
-        }
-
         public List<String> getAuditTrailOrThrow(String alias) {
             return fetchScalarList("auditTrail", alias);
         }
@@ -212,14 +172,6 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
             return nullOnDataFailure(() -> fetchScalarList("auditTrail", null));
         }
 
-        public List<String> getAuditTrailOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchScalarList("auditTrail", alias));
-        }
-
-        public List<String> getAuditTrailOrNull() {
-            return nullOnDataFailure(() -> fetchScalarList("auditTrail", null));
-        }
-
         public User getBuyerOrThrow(String alias) {
             return fetchObject("buyer", alias, User.class, User::new);
         }
@@ -233,14 +185,6 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
         }
 
         public User getBuyer() {
-            return nullOnDataFailure(() -> fetchObject("buyer", null, User.class, User::new));
-        }
-
-        public User getBuyerOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchObject("buyer", alias, User.class, User::new));
-        }
-
-        public User getBuyerOrNull() {
             return nullOnDataFailure(() -> fetchObject("buyer", null, User.class, User::new));
         }
 

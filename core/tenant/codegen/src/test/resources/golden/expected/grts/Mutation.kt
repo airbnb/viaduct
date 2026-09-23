@@ -17,8 +17,6 @@ class Mutation(context: InternalContext, engineObject: EngineObject)
      fun getCreateOrderOrThrow(): viaduct.api.grts.Order? = TODO()
      fun getCreateOrder(alias: String?): viaduct.api.grts.Order? = TODO()
      fun getCreateOrder(): viaduct.api.grts.Order? = TODO()
-     fun getCreateOrderOrNull(alias: String?): viaduct.api.grts.Order? = TODO()
-     fun getCreateOrderOrNull(): viaduct.api.grts.Order? = TODO()
 
 
     fun toBuilder(): Builder =

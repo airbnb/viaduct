@@ -7,8 +7,6 @@ interface Node : viaduct.api.types.Interface, viaduct.api.types.NodeCompositeOut
           fun getIdOrThrow(): viaduct.api.globalid.GlobalID<viaduct.api.grts.Node>
           fun getId(alias: String?): viaduct.api.globalid.GlobalID<viaduct.api.grts.Node>?
           fun getId(): viaduct.api.globalid.GlobalID<viaduct.api.grts.Node>?
-          fun getIdOrNull(alias: String?): viaduct.api.globalid.GlobalID<viaduct.api.grts.Node>?
-          fun getIdOrNull(): viaduct.api.globalid.GlobalID<viaduct.api.grts.Node>?
 
 
     @OptIn(viaduct.apiannotations.InternalApi::class)

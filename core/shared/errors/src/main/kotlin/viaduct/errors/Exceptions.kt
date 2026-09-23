@@ -159,7 +159,7 @@ suspend fun <T> handleFrameworkErrorsSuspend(
  * Runs [block] and turns data-side failures (upstream resolver errors, stored field errors) into
  * `null`. Tenant bugs, framework bugs, and coroutine cancellation propagate.
  *
- * This is the behavior of the soft-failing `getXxxOrNull()` GRT accessors, shared by the Kotlin
+ * This is the behavior of the soft-failing `getXxx()` GRT accessors, shared by the Kotlin
  * and Java tenant APIs so the two cannot drift.
  */
 @InternalApi

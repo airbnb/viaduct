@@ -233,8 +233,6 @@ private val objectSTGroup = stTemplate(
           <f.overrideKeywords> fun <f.getterName>OrThrow(): <f.kotlinType> = TODO()
           <f.overrideKeywords> fun <f.getterName>(alias: String?): <f.kotlinTypeOrNull> = TODO()
           <f.overrideKeywords> fun <f.getterName>(): <f.kotlinTypeOrNull> = TODO()
-          <f.overrideKeywords> fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull> = TODO()
-          <f.overrideKeywords> fun <f.getterName>OrNull(): <f.kotlinTypeOrNull> = TODO()
         }; separator="\n">
 
         fun toBuilder(): Builder =
@@ -299,8 +297,6 @@ private val connectionObjectSTGroup = stTemplate(
           <f.overrideKeywords> fun <f.getterName>OrThrow(): <f.kotlinType> = TODO()
           <f.overrideKeywords> fun <f.getterName>(alias: String?): <f.kotlinTypeOrNull> = TODO()
           <f.overrideKeywords> fun <f.getterName>(): <f.kotlinTypeOrNull> = TODO()
-          <f.overrideKeywords> fun <f.getterName>OrNull(alias: String?): <f.kotlinTypeOrNull> = TODO()
-          <f.overrideKeywords> fun <f.getterName>OrNull(): <f.kotlinTypeOrNull> = TODO()
         }; separator="\n">
 
         fun toBuilder(): Builder =

@@ -17,15 +17,11 @@ class OrderEdge(context: InternalContext, engineObject: EngineObject)
      fun getCursorOrThrow(): kotlin.String = TODO()
      fun getCursor(alias: String?): kotlin.String? = TODO()
      fun getCursor(): kotlin.String? = TODO()
-     fun getCursorOrNull(alias: String?): kotlin.String? = TODO()
-     fun getCursorOrNull(): kotlin.String? = TODO()
 
      fun getNodeOrThrow(alias: String?): viaduct.api.grts.Order? = TODO()
      fun getNodeOrThrow(): viaduct.api.grts.Order? = TODO()
      fun getNode(alias: String?): viaduct.api.grts.Order? = TODO()
      fun getNode(): viaduct.api.grts.Order? = TODO()
-     fun getNodeOrNull(alias: String?): viaduct.api.grts.Order? = TODO()
-     fun getNodeOrNull(): viaduct.api.grts.Order? = TODO()
 
 
     fun toBuilder(): Builder =

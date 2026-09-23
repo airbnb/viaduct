@@ -8,7 +8,7 @@ object GeneratedAccessorNames {
      * @param typeName the composite type being generated, used in the error message.
      * @param baseAccessorNames field name to the base accessor name generated for it, in schema
      *   order. Pass the names this generator computes, not raw field names: the back-ends disagree
-     *   on them, and on which suffixes they emit.
+     *   on them.
      * @param suffixes the suffixes this generator appends to each base accessor name.
      */
     @JvmStatic

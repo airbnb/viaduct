@@ -19,15 +19,11 @@ class OrderConnection(context: InternalContext, engineObject: EngineObject)
      fun getEdgesOrThrow(): kotlin.collections.List<viaduct.api.grts.OrderEdge> = TODO()
      fun getEdges(alias: String?): kotlin.collections.List<viaduct.api.grts.OrderEdge>? = TODO()
      fun getEdges(): kotlin.collections.List<viaduct.api.grts.OrderEdge>? = TODO()
-     fun getEdgesOrNull(alias: String?): kotlin.collections.List<viaduct.api.grts.OrderEdge>? = TODO()
-     fun getEdgesOrNull(): kotlin.collections.List<viaduct.api.grts.OrderEdge>? = TODO()
 
      fun getPageInfoOrThrow(alias: String?): viaduct.api.grts.PageInfo? = TODO()
      fun getPageInfoOrThrow(): viaduct.api.grts.PageInfo? = TODO()
      fun getPageInfo(alias: String?): viaduct.api.grts.PageInfo? = TODO()
      fun getPageInfo(): viaduct.api.grts.PageInfo? = TODO()
-     fun getPageInfoOrNull(alias: String?): viaduct.api.grts.PageInfo? = TODO()
-     fun getPageInfoOrNull(): viaduct.api.grts.PageInfo? = TODO()
 
 
     fun toBuilder(): Builder =

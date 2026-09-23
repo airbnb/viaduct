@@ -7,8 +7,6 @@ interface Auditable : viaduct.api.types.Interface, viaduct.api.types.NodeComposi
           fun getAuditTrailOrThrow(): kotlin.collections.List<kotlin.String>?
           fun getAuditTrail(alias: String?): kotlin.collections.List<kotlin.String>?
           fun getAuditTrail(): kotlin.collections.List<kotlin.String>?
-          fun getAuditTrailOrNull(alias: String?): kotlin.collections.List<kotlin.String>?
-          fun getAuditTrailOrNull(): kotlin.collections.List<kotlin.String>?
 
 
     @OptIn(viaduct.apiannotations.InternalApi::class)

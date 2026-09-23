@@ -694,11 +694,11 @@ class ObjectBaseTest {
     ) : ObjectBase(context, engineObject), viaduct.api.types.Object {
         suspend fun getIntFieldOrThrow(): Int = getInternal("intField", Int::class, null)
 
-        suspend fun getIntFieldOrNull(): Int? = getOrNullInternal("intField", Int::class, null)
+        suspend fun getIntField(): Int? = getOrNullInternal("intField", Int::class, null)
 
         suspend fun getArgumentedFieldOrThrow(): String? = getInternal("argumentedField", String::class, null)
 
-        suspend fun getArgumentedFieldOrNull(): String? = getOrNullInternal("argumentedField", String::class, null)
+        suspend fun getArgumentedField(): String? = getOrNullInternal("argumentedField", String::class, null)
 
         // toBuilder implementation that would normally be provided by codegen
         fun toBuilder(): Builder =
@@ -818,8 +818,8 @@ class ObjectBaseTest {
                     .argumentedField("hello")
                     .build()
 
-                assertEquals(42, o.getIntFieldOrNull())
-                assertEquals("hello", o.getArgumentedFieldOrNull())
+                assertEquals(42, o.getIntField())
+                assertEquals("hello", o.getArgumentedField())
             }
 
         @Test
@@ -829,7 +829,7 @@ class ObjectBaseTest {
                 val o = TestObject.Builder(executionContext).build()
 
                 assertThrows<UnsetFieldException> { runBlocking { o.getIntFieldOrThrow() } }
-                assertThrows<UnsetFieldException> { runBlocking { o.getIntFieldOrNull() } }
+                assertThrows<UnsetFieldException> { runBlocking { o.getIntField() } }
             }
 
         @Test
@@ -842,7 +842,7 @@ class ObjectBaseTest {
                 val o = TestObject(internalContext, nodeRef)
 
                 // fetch() on a NodeReference for a non-id field throws UnsetFieldException
-                assertThrows<UnsetFieldException> { runBlocking { o.getIntFieldOrNull() } }
+                assertThrows<UnsetFieldException> { runBlocking { o.getIntField() } }
             }
 
         @Test

@@ -151,7 +151,7 @@ public class JavaAccessorFormsContractTest extends AccessorFormsContractTest {
     public CompletableFuture<String> resolve(WidgetResolvers.NullReads.Context ctx) {
       Widget widget = ctx.getObjectValue();
       return CompletableFuture.completedFuture(
-          joinReads(widget.getNicknameOrThrow(), widget.getNickname(), widget.getNicknameOrNull()));
+          joinReads(widget.getNicknameOrThrow(), widget.getNickname()));
     }
   }
 
@@ -167,7 +167,7 @@ public class JavaAccessorFormsContractTest extends AccessorFormsContractTest {
   public static class UnselectedSoftReadResolver extends WidgetResolvers.UnselectedSoftRead {
     @Override
     public CompletableFuture<String> resolve(WidgetResolvers.UnselectedSoftRead.Context ctx) {
-      return CompletableFuture.completedFuture(ctx.getObjectValue().getNicknameOrNull());
+      return CompletableFuture.completedFuture(ctx.getObjectValue().getNickname());
     }
   }
 
@@ -177,10 +177,7 @@ public class JavaAccessorFormsContractTest extends AccessorFormsContractTest {
     public CompletableFuture<String> resolve(WidgetResolvers.AliasedReads.Context ctx) {
       Widget widget = ctx.getObjectValue();
       return CompletableFuture.completedFuture(
-          joinReads(
-              widget.getNameOrThrow("alias"),
-              widget.getName("alias"),
-              widget.getNameOrNull("alias")));
+          joinReads(widget.getNameOrThrow("alias"), widget.getName("alias")));
     }
   }
 
@@ -197,7 +194,7 @@ public class JavaAccessorFormsContractTest extends AccessorFormsContractTest {
     @Override
     public CompletableFuture<String> resolve(WidgetResolvers.BuilderUnsetRead.Context ctx) {
       Widget built = Widget.builder(ctx).name("built").build();
-      return CompletableFuture.completedFuture(built.getNicknameOrNull());
+      return CompletableFuture.completedFuture(built.getNickname());
     }
   }
 
@@ -230,29 +227,15 @@ public class JavaAccessorFormsContractTest extends AccessorFormsContractTest {
       return CompletableFuture.completedFuture(
           String.join(
               ";",
-              classify(
-                  "resolver",
-                  resolver::getBrokenOrThrow,
-                  resolver::getBroken,
-                  resolver::getBrokenOrNull),
-              classify("stored", stored::getNameOrThrow, stored::getName, stored::getNameOrNull),
-              classify(
-                  "wrapped", wrapped::getNameOrThrow, wrapped::getName, wrapped::getNameOrNull),
-              classify(
-                  "framework",
-                  framework::getNameOrThrow,
-                  framework::getName,
-                  framework::getNameOrNull),
-              classify(
-                  "cancellation",
-                  cancellation::getNameOrThrow,
-                  cancellation::getName,
-                  cancellation::getNameOrNull),
+              classify("resolver", resolver::getBrokenOrThrow, resolver::getBroken),
+              classify("stored", stored::getNameOrThrow, stored::getName),
+              classify("wrapped", wrapped::getNameOrThrow, wrapped::getName),
+              classify("framework", framework::getNameOrThrow, framework::getName),
+              classify("cancellation", cancellation::getNameOrThrow, cancellation::getName),
               classify(
                   "wrappedCancellation",
                   wrappedCancellation::getNameOrThrow,
-                  wrappedCancellation::getName,
-                  wrappedCancellation::getNameOrNull)));
+                  wrappedCancellation::getName)));
     }
   }
 
@@ -273,37 +256,20 @@ public class JavaAccessorFormsContractTest extends AccessorFormsContractTest {
       return CompletableFuture.completedFuture(
           String.join(
               ";",
+              classify("nonNull", nonNull::getRequiredNameOrThrow, nonNull::getRequiredName),
               classify(
-                  "nonNull",
-                  nonNull::getRequiredNameOrThrow,
-                  nonNull::getRequiredName,
-                  nonNull::getRequiredNameOrNull),
-              classify(
-                  "listElement",
-                  listElement::getStrictTagsOrThrow,
-                  listElement::getStrictTags,
-                  listElement::getStrictTagsOrNull),
-              classify("list", list::getTagsOrThrow, list::getTags, list::getTagsOrNull),
-              classify(
-                  "object",
-                  objectValue::getChildOrThrow,
-                  objectValue::getChild,
-                  objectValue::getChildOrNull),
-              classify(
-                  "concreteType",
-                  concreteType::getChildOrThrow,
-                  concreteType::getChild,
-                  concreteType::getChildOrNull),
+                  "listElement", listElement::getStrictTagsOrThrow, listElement::getStrictTags),
+              classify("list", list::getTagsOrThrow, list::getTags),
+              classify("object", objectValue::getChildOrThrow, objectValue::getChild),
+              classify("concreteType", concreteType::getChildOrThrow, concreteType::getChild),
               classify(
                   "interfaceType",
                   interfaceType::getAbstractChildOrThrow,
-                  interfaceType::getAbstractChild,
-                  interfaceType::getAbstractChildOrNull),
+                  interfaceType::getAbstractChild),
               classify(
                   "objectListElement",
                   objectListElement::getChildrenOrThrow,
-                  objectListElement::getChildren,
-                  objectListElement::getChildrenOrNull)));
+                  objectListElement::getChildren)));
     }
   }
 }

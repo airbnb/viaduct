@@ -72,14 +72,6 @@ public class OrderEdge extends ObjectBase implements viaduct.java.api.types.Edge
             return nullOnDataFailure(() -> fetchScalar("cursor", null));
         }
 
-        public String getCursorOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchScalar("cursor", alias));
-        }
-
-        public String getCursorOrNull() {
-            return nullOnDataFailure(() -> fetchScalar("cursor", null));
-        }
-
         public Order getNodeOrThrow(String alias) {
             return fetchObject("node", alias, Order.class, Order::new);
         }
@@ -93,14 +85,6 @@ public class OrderEdge extends ObjectBase implements viaduct.java.api.types.Edge
         }
 
         public Order getNode() {
-            return nullOnDataFailure(() -> fetchObject("node", null, Order.class, Order::new));
-        }
-
-        public Order getNodeOrNull(String alias) {
-            return nullOnDataFailure(() -> fetchObject("node", alias, Order.class, Order::new));
-        }
-
-        public Order getNodeOrNull() {
             return nullOnDataFailure(() -> fetchObject("node", null, Order.class, Order::new));
         }
 

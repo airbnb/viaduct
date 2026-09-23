@@ -17,15 +17,11 @@ class Money(context: InternalContext, engineObject: EngineObject)
      fun getAmountOrThrow(): kotlin.Double = TODO()
      fun getAmount(alias: String?): kotlin.Double? = TODO()
      fun getAmount(): kotlin.Double? = TODO()
-     fun getAmountOrNull(alias: String?): kotlin.Double? = TODO()
-     fun getAmountOrNull(): kotlin.Double? = TODO()
 
      fun getCurrencyOrThrow(alias: String?): kotlin.String = TODO()
      fun getCurrencyOrThrow(): kotlin.String = TODO()
      fun getCurrency(alias: String?): kotlin.String? = TODO()
      fun getCurrency(): kotlin.String? = TODO()
-     fun getCurrencyOrNull(alias: String?): kotlin.String? = TODO()
-     fun getCurrencyOrNull(): kotlin.String? = TODO()
 
 
     fun toBuilder(): Builder =
