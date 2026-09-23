@@ -143,8 +143,8 @@ class FieldResolver(
      *
      * This method:
      * 1. Runs CollectFields on the current uncollected selection set
-     * 2. Fires off field fetches for each merged object selection, in parallel when [serialDispatch] is
-     *   false. When [serialDispatch] is true, a fetch is only initiated when the previous selection has
+     * 2. Fires off field fetches for each merged object selection, in parallel when [executionMode] is
+     *   [ExecutionMode.Normal]. With [ExecutionMode.Serial], a fetch is only initiated when the previous selection has
      *   completed fetching (either successfully or exceptionally)
      *
      * Note on return value: This method returns `Value<Unit>` instead of `Value<Map<String, FieldResolutionResult>>`
@@ -157,16 +157,16 @@ class FieldResolver(
      * method should check for exceptional completion and handle it appropriately.
      *
      * @param parameters ExecutionParameters containing the execution context and selection set
-     * @param serialDispatch Whether the selected fields must be resolved one at a time, in selection order
+     * @param executionMode Whether fields may be resolved in parallel or must be resolved one at a time, in selection order
      * @throws Exception Only if there's a fatal error in the supervisorScope itself
      */
     fun fetchObject(
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters,
-        serialDispatch: Boolean = false,
+        executionMode: ExecutionMode = ExecutionMode.Normal,
     ): Value<Unit> =
         prepareLedgerReader(parameters).flatMap { ledgerReader ->
-            fetchObjectInternal(objectType, parameters, ledgerReader, serialDispatch)
+            fetchObjectInternal(objectType, parameters, ledgerReader, executionMode)
         }
 
     @Suppress("UNUSED_EXPRESSION") // onCompleted calls are side-effects inside map/recover
@@ -174,7 +174,7 @@ class FieldResolver(
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters,
         ledgerReader: LedgerReader?,
-        serialDispatch: Boolean,
+        executionMode: ExecutionMode,
     ): Value<Unit> {
         val instrumentationParameters =
             InstrumentationExecutionStrategyParameters(parameters.executionContextWithLocalContext, parameters.gjParameters)
@@ -187,10 +187,9 @@ class FieldResolver(
         resolveObjectCtx.onDispatched()
         try {
             val fields = collectFields(objectType, parameters).collectedFieldsMap.values
-            val dispatch = if (serialDispatch) {
-                dispatchFieldsSerially(objectType, parameters, fields, ledgerReader)
-            } else {
-                dispatchFieldsInParallel(objectType, parameters, fields, ledgerReader)
+            val dispatch = when (executionMode) {
+                ExecutionMode.Serial -> dispatchFieldsSerially(objectType, parameters, fields, ledgerReader)
+                ExecutionMode.Normal -> dispatchFieldsInParallel(objectType, parameters, fields, ledgerReader)
             }
 
             val currentOER = parameters.currentObjectEngineResult
@@ -426,7 +425,8 @@ class FieldResolver(
             )
             val planParameters = parameters.forChildPlan(plan, variables, target)
             val objectType = planParameters.currentObjectEngineResult.type
-            fetchObject(objectType, planParameters, serialDispatch = isMutationNamespace(planParameters, objectType))
+            val executionMode = if (isMutationNamespace(planParameters, objectType)) ExecutionMode.Serial else ExecutionMode.Normal
+            fetchObject(objectType, planParameters, executionMode = executionMode)
         }
     }
 
@@ -1312,7 +1312,8 @@ class FieldResolver(
                     } else {
                         parameters.forObjectTraversal(field, oer, fieldResolutionResult.localContext, fieldResolutionResult.originalSource, fieldResolutionResult.resolutionPolicy)
                     }
-                fetchObject(oer.type, traversalParameters, serialDispatch = isMutationNamespace(parameters, oer.type))
+                val executionMode = if (isMutationNamespace(parameters, oer.type)) ExecutionMode.Serial else ExecutionMode.Normal
+                fetchObject(oer.type, traversalParameters, executionMode = executionMode)
             }
         }
     }

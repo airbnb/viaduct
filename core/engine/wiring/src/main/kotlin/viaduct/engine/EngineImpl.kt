@@ -40,6 +40,7 @@ import viaduct.engine.runtime.SyncEngineObjectDataFactory
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.execution.AccessCheckRunner
 import viaduct.engine.runtime.execution.ChildQueryPlanTarget
+import viaduct.engine.runtime.execution.ExecutionMode
 import viaduct.engine.runtime.execution.ExecutionParameters
 import viaduct.engine.runtime.execution.FieldCompleter
 import viaduct.engine.runtime.execution.FieldExecutionHelpers
@@ -383,8 +384,11 @@ class EngineImpl(
         )
 
         try {
-            val serialDispatch = options.operationType == Engine.OperationType.MUTATION
-            fieldResolver.fetchObject(rootType, selectionParams, serialDispatch = serialDispatch).await()
+            val executionMode = when (options.operationType) {
+                Engine.OperationType.MUTATION -> ExecutionMode.Serial
+                else -> ExecutionMode.Normal
+            }
+            fieldResolver.fetchObject(rootType, selectionParams, executionMode = executionMode).await()
         } catch (e: Exception) {
             throw SubqueryExecutionException.fieldResolutionFailed(e)
         }

@@ -215,7 +215,8 @@ class ViaductExecutionStrategy internal constructor(
                 launch {
                     supervisorScope {
                         val (_, duration) = measureTimedValue {
-                            fieldResolver.fetchObject(objType, parameters, serialDispatch = isSerial).await()
+                            val executionMode = if (isSerial) ExecutionMode.Serial else ExecutionMode.Normal
+                            fieldResolver.fetchObject(objType, parameters, executionMode = executionMode).await()
                         }
                         // ensure we bubble any fatal errors and thus cause this job to fail
                         log.ifDebug {
