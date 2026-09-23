@@ -26,13 +26,7 @@ import viaduct.engine.runtime.select.covers
  */
 class NodeDataLoader(
     private val resolver: NodeResolverExecutor,
-    private val cacheKeyLookupPartitioningEnabled: Boolean,
 ) : DataLoader<NodeResolverExecutor.Selector, Result<EngineObjectData>, NodeResolverExecutor.Selector>() {
-    constructor(resolver: NodeResolverExecutor) : this(
-        resolver,
-        cacheKeyLookupPartitioningEnabled = false,
-    )
-
     suspend fun loadByKey(
         key: NodeResolverExecutor.Selector,
         context: EngineExecutionContext
@@ -64,7 +58,7 @@ class NodeDataLoader(
         }
 
     override val cacheKeyMatchCandidateFn: CacheKeyMatchCandidateFn<NodeResolverExecutor.Selector>? get() =
-        if (resolver.isSelective && cacheKeyLookupPartitioningEnabled) {
+        if (resolver.isSelective) {
             { selector -> selector.id }
         } else {
             null

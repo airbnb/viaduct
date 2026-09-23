@@ -53,11 +53,8 @@ interface FlagManager {
         /** Adds field errors for requested fields absent from resolver-produced EngineObjectData. */
         ENABLE_RESOLVER_OUTPUT_MISSING_FIELD_ERRORS("enable_resolver_output_missing_field_errors"),
 
-        /**
-         * Temporary rollout flag for partitioned lookup of data-loader cache keys that use custom
-         * matching. After rollout, this flag will be deprecated and the behavior will default to
-         * enabled.
-         */
+        /** Retained for compatibility; cache-key lookup partitioning is always enabled. */
+        @Deprecated("Cache-key lookup partitioning is always enabled.")
         ENABLE_CACHE_KEY_LOOKUP_PARTITIONING("dataloader.cache_key_lookup_partitioning"),
 
         /** Killswitch for non-blocking enqueue flush in the coroutine dispatcher. */

@@ -305,27 +305,7 @@ class NodeDataLoaderTest {
     }
 
     @Test
-    fun `loadByKey reuses cached result with cache partitioning enabled`() =
-        runTest {
-            var resolveCount = 0
-            val resolver = MockNodeUnbatchedResolverExecutor(
-                typeName = "Test",
-                isSelective = true,
-            ) { _, _, _ ->
-                resolveCount++
-                createEngineObjectData(schema.schema.getObjectType("Test"), emptyMap())
-            }
-            val loader = NodeDataLoader(resolver, cacheKeyLookupPartitioningEnabled = true)
-            val context = mockk<EngineExecutionContext>()
-
-            loader.loadByKey(selector("foo { a b }"), context)
-            loader.loadByKey(selector("foo { a }"), context)
-
-            assertEquals(1, resolveCount)
-        }
-
-    @Test
-    fun `one-argument constructor retains legacy cache behavior`() =
+    fun `loadByKey reuses cached result`() =
         runTest {
             var resolveCount = 0
             val resolver = MockNodeUnbatchedResolverExecutor(
@@ -355,7 +335,7 @@ class NodeDataLoaderTest {
                 resolveCount++
                 createEngineObjectData(schema.schema.getObjectType("Test"), emptyMap())
             }
-            val loader = NodeDataLoader(resolver, cacheKeyLookupPartitioningEnabled = true)
+            val loader = NodeDataLoader(resolver)
             val context = mockk<EngineExecutionContext>()
 
             loader.loadByKey(selector("foo { a }"), context).getOrThrow()
@@ -376,7 +356,7 @@ class NodeDataLoaderTest {
                 resolvedIds += id
                 createEngineObjectData(schema.schema.getObjectType("Test"), mapOf("id" to id))
             }
-            val loader = NodeDataLoader(resolver, cacheKeyLookupPartitioningEnabled = true)
+            val loader = NodeDataLoader(resolver)
             val context = mockk<EngineExecutionContext>()
 
             val first = loader.loadByKey(selector("foo { a b }", id1), context).getOrThrow()

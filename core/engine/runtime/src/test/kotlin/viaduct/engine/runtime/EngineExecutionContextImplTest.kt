@@ -93,21 +93,6 @@ class EngineExecutionContextImplTest {
     }
 
     @Test
-    fun `cache key lookup partitioning flag is latched per request`() {
-        var enabled = true
-        val flagManager = object : FlagManager {
-            override fun isEnabled(flag: FlagManager.Flag): Boolean = flag == FlagManager.Flags.ENABLE_CACHE_KEY_LOOKUP_PARTITIONING && enabled
-        }
-        val enabledContext = engineExecutionContext(flagManager)
-
-        enabled = false
-
-        assertTrue(enabledContext.cacheKeyLookupPartitioningEnabled)
-        assertTrue(enabledContext.copy().cacheKeyLookupPartitioningEnabled)
-        assertFalse(engineExecutionContext(flagManager).cacheKeyLookupPartitioningEnabled)
-    }
-
-    @Test
     fun `incremental execution flag is latched per request and preserved in copies and shadow executions`() {
         var enabled = true
         val flagManager = object : FlagManager {

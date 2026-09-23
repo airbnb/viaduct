@@ -80,7 +80,6 @@ class EngineExecutionContextFactory(
             resolverInstrumentation,
             ConcurrentHashMap<FieldDataLoaderKey, FieldDataLoader>(),
             ConcurrentHashMap<String, NodeDataLoader>(),
-            flagManager.isEnabled(FlagManager.Flags.ENABLE_CACHE_KEY_LOOKUP_PARTITIONING),
             flagManager.isEnabled(FlagManager.Flags.KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING),
             flagManager.isEnabled(FlagManager.Flags.ENABLE_MAT_RESOLUTION),
             resolverErrorReporter,
@@ -126,7 +125,6 @@ class EngineExecutionContextImpl internal constructor(
     val resolverInstrumentation: Instrumentation,
     internal val fieldDataLoaders: ConcurrentHashMap<FieldDataLoaderKey, FieldDataLoader>,
     internal val nodeDataLoaders: ConcurrentHashMap<String, NodeDataLoader>,
-    internal val cacheKeyLookupPartitioningEnabled: Boolean,
     val fieldRssOriginFilteringKillSwitchEnabled: Boolean,
     val matResolutionEnabled: Boolean,
     val resolverOutputMissingFieldReporter: ErrorReporter,
@@ -325,7 +323,7 @@ class EngineExecutionContextImpl internal constructor(
      */
     internal fun nodeDataLoader(resolver: NodeResolverExecutor): NodeDataLoader =
         nodeDataLoaders.computeIfAbsent(resolver.typeName) {
-            NodeDataLoader(resolver, cacheKeyLookupPartitioningEnabled)
+            NodeDataLoader(resolver)
         }
 
     /**
@@ -365,7 +363,6 @@ class EngineExecutionContextImpl internal constructor(
             resolverInstrumentation = this.resolverInstrumentation,
             fieldDataLoaders = this.fieldDataLoaders,
             nodeDataLoaders = this.nodeDataLoaders,
-            cacheKeyLookupPartitioningEnabled = this.cacheKeyLookupPartitioningEnabled,
             fieldRssOriginFilteringKillSwitchEnabled = fieldRssOriginFilteringKillSwitchEnabled,
             matResolutionEnabled = matResolutionEnabled,
             resolverOutputMissingFieldReporter = this.resolverOutputMissingFieldReporter,
@@ -402,7 +399,6 @@ class EngineExecutionContextImpl internal constructor(
             resolverInstrumentation = resolverInstrumentation,
             fieldDataLoaders = ConcurrentHashMap(),
             nodeDataLoaders = ConcurrentHashMap(),
-            cacheKeyLookupPartitioningEnabled = cacheKeyLookupPartitioningEnabled,
             fieldRssOriginFilteringKillSwitchEnabled = fieldRssOriginFilteringKillSwitchEnabled,
             matResolutionEnabled = matResolutionEnabled,
             resolverOutputMissingFieldReporter = resolverOutputMissingFieldReporter,
