@@ -30,7 +30,6 @@ import viaduct.bootstrap.NodeEntryConfig
 import viaduct.bootstrap.ProviderVariablesAPIData
 import viaduct.bootstrap.SelectionsBlockConfig
 import viaduct.bootstrap.VariableProviderEntryConfig
-import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -121,7 +120,7 @@ class ViaductModernExecutorFactoryTest {
 
     private val pkg = ViaductModernExecutorFactoryTest::class.java.name
 
-    private fun factory(tenantPackageFinder: TenantPackageFinder = TenantPackageFinder { emptySet() }) =
+    private fun factory(tenantPackageFinder: TenantPackageFinder = TenantPackageFinder { error("Generated ownership must not invoke discovery") }) =
         ViaductModernExecutorFactory(
             codeInjector = CodeInjector.Naive,
             grtPackagePrefix = "viaduct.api.bootstrap.test.grts",
@@ -139,6 +138,7 @@ class ViaductModernExecutorFactoryTest {
         queryTypeName: String = "Query",
         objectSelections: SelectionsBlockConfig? = null,
         querySelections: SelectionsBlockConfig? = null,
+        tenantMetadata: Map<String, Any?> = emptyMap(),
     ) = FieldEntryConfig(
         typeName = typeName,
         fieldName = fieldName,
@@ -148,6 +148,7 @@ class ViaductModernExecutorFactoryTest {
         objectSelections = objectSelections,
         querySelections = querySelections,
         tenantAPIData = mapOf(
+            "tenantMetadata" to tenantMetadata,
             "resolverClass" to "$pkg\$$resolverSimpleName",
             "resolverBaseClass" to "$pkg\$$resolverBaseSimpleName",
             "hasArguments" to hasArguments,
@@ -160,12 +161,14 @@ class ViaductModernExecutorFactoryTest {
         resolverSimpleName: String,
         resolverBaseSimpleName: String,
         isBatching: Boolean = false,
+        tenantMetadata: Map<String, Any?> = emptyMap(),
     ) = NodeEntryConfig(
         typeName = typeName,
         isBatching = isBatching,
         isSelective = false,
         attribution = typeName,
         tenantAPIData = mapOf(
+            "tenantMetadata" to tenantMetadata,
             "resolverClass" to "$pkg\$$resolverSimpleName",
             "resolverBaseClass" to "$pkg\$$resolverBaseSimpleName",
         ),
@@ -271,41 +274,50 @@ class ViaductModernExecutorFactoryTest {
     }
 
     @Test
-    fun `createFieldResolverExecutor - resolver metadata carries tenant metadata for the resolver's package`() {
-        val tenantPackageFinder = TenantPackageFinder {
-            setOf(TenantPackageInfo(packageName = ViaductModernExecutorFactoryTest::class.java.packageName, metadata = TenantModuleMetadata(name = "viaduct-data-test")))
-        }
-        val executor = factory(tenantPackageFinder).createFieldResolverExecutor(
-            fieldEntry(resolverSimpleName = "TestFieldResolver", resolverBaseSimpleName = "TestFieldResolverBase"),
+    fun `generated field ownership is used without tenant discovery`() {
+        val executor = factory().createFieldResolverExecutor(
+            fieldEntry(
+                resolverSimpleName = "TestFieldResolver",
+                resolverBaseSimpleName = "TestFieldResolverBase",
+                tenantMetadata = mapOf("name" to "viaduct-data-test"),
+            ),
             schema,
         )
         assertEquals("viaduct-data-test", executor.metadata.tenantMetadata?.name)
     }
 
     @Test
-    fun `createFieldResolverExecutor - resolver metadata uses the most specific of multiple matching tenant packages`() {
-        val resolverPackage = ViaductModernExecutorFactoryTest::class.java.packageName
-        val outerPackage = resolverPackage.substringBeforeLast(".")
-        val tenantPackageFinder = TenantPackageFinder {
-            setOf(
-                TenantPackageInfo(packageName = outerPackage, metadata = TenantModuleMetadata(name = "viaduct-data-outer")),
-                TenantPackageInfo(packageName = resolverPackage, metadata = TenantModuleMetadata(name = "viaduct-data-inner")),
-            )
-        }
-        val executor = factory(tenantPackageFinder).createFieldResolverExecutor(
-            fieldEntry(resolverSimpleName = "TestFieldResolver", resolverBaseSimpleName = "TestFieldResolverBase"),
-            schema,
-        )
-        assertEquals("viaduct-data-inner", executor.metadata.tenantMetadata?.name)
-    }
-
-    @Test
-    fun `createFieldResolverExecutor - no matching tenant package leaves tenant metadata null`() {
+    fun `explicit unknown ownership remains null without tenant discovery`() {
         val executor = factory().createFieldResolverExecutor(
             fieldEntry(resolverSimpleName = "TestFieldResolver", resolverBaseSimpleName = "TestFieldResolverBase"),
             schema,
         )
         assertEquals(null, executor.metadata.tenantMetadata)
+    }
+
+    @Test
+    fun `missing generated ownership fails instead of discovering tenants`() {
+        val entry = fieldEntry(resolverSimpleName = "TestFieldResolver", resolverBaseSimpleName = "TestFieldResolverBase")
+        val error = assertThrows<IllegalArgumentException> {
+            factory().createFieldResolverExecutor(entry.copy(tenantAPIData = entry.tenantAPIData - "tenantMetadata"), schema)
+        }
+        assertEquals(
+            "Missing or invalid generated tenantMetadata for ${TestFieldResolver::class.java.name}; regenerate the tenant module config",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `malformed generated ownership fails instead of discovering tenants`() {
+        val entry = fieldEntry(resolverSimpleName = "TestFieldResolver", resolverBaseSimpleName = "TestFieldResolverBase")
+        assertThrows<IllegalArgumentException> {
+            factory().createFieldResolverExecutor(entry.copy(tenantAPIData = entry.tenantAPIData + ("tenantMetadata" to "owner")), schema)
+        }
+        listOf(mapOf("name" to ""), mapOf("name" to 12), mapOf("owner" to "incorrect-key")).forEach { metadata ->
+            assertThrows<IllegalArgumentException> {
+                factory().createFieldResolverExecutor(entry.copy(tenantAPIData = entry.tenantAPIData + ("tenantMetadata" to metadata)), schema)
+            }
+        }
     }
 
     // ── Node resolver ─────────────────────────────────────────────────────────
@@ -321,15 +333,20 @@ class ViaductModernExecutorFactoryTest {
     }
 
     @Test
-    fun `createNodeResolverExecutor - resolver metadata carries tenant metadata for the resolver's package`() {
-        val tenantPackageFinder = TenantPackageFinder {
-            setOf(TenantPackageInfo(packageName = ViaductModernExecutorFactoryTest::class.java.packageName, metadata = TenantModuleMetadata(name = "viaduct-data-test")))
-        }
-        val executor = factory(tenantPackageFinder).createNodeResolverExecutor(
-            nodeEntry("TestNode", "TestNodeResolver", "TestNodeResolverBase"),
+    fun `generated node ownership is used without tenant discovery`() {
+        val executor = factory().createNodeResolverExecutor(
+            nodeEntry("TestNode", "TestNodeResolver", "TestNodeResolverBase", tenantMetadata = mapOf("name" to "viaduct-data-test")),
             schema,
         )
         assertEquals("viaduct-data-test", executor.metadata.tenantMetadata?.name)
+    }
+
+    @Test
+    fun `missing generated node ownership fails instead of discovering tenants`() {
+        val entry = nodeEntry("TestNode", "TestNodeResolver", "TestNodeResolverBase")
+        assertThrows<IllegalArgumentException> {
+            factory().createNodeResolverExecutor(entry.copy(tenantAPIData = entry.tenantAPIData - "tenantMetadata"), schema)
+        }
     }
 
     @Test

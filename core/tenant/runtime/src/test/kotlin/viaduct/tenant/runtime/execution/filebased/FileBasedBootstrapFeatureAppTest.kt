@@ -5,18 +5,50 @@ package viaduct.tenant.runtime.execution.filebased
 import com.google.inject.AbstractModule
 import com.google.inject.Module
 import javax.inject.Singleton
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Test
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.resolver.Resolver
 import viaduct.api.resolver.Variable
 import viaduct.api.resolver.Variables
 import viaduct.api.resolver.VariablesProvider
 import viaduct.api.types.Arguments
+import viaduct.bootstrap.ExecutionRegistryConfigFile
+import viaduct.engine.api.mocks.MockSchema
+import viaduct.service.api.spi.CodeInjector
+import viaduct.tenant.runtime.bootstrap.TenantPackageFinder
+import viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory
 import viaduct.tenant.runtime.execution.filebased.resolverbases.ItemResolvers
 import viaduct.tenant.runtime.execution.filebased.resolverbases.NodeResolvers
 import viaduct.tenant.runtime.execution.filebased.resolverbases.QueryResolvers
 
 class FileBasedBootstrapFeatureAppTest : FileBasedBootstrapContractTest() {
     override val validateResolverCompleteness = false
+
+    @Test
+    fun `Bazel generated resource supplies executor ownership without discovery`() {
+        val pkg = "viaduct.tenant.runtime.execution.filebased"
+        val registry = requireNotNull(javaClass.classLoader.getResourceAsStream("META-INF/viaduct/modules/$pkg.json"))
+            .use(ExecutionRegistryConfigFile::parse)
+        assertFalse(registry.fields.isEmpty())
+        assertFalse(registry.nodes.isEmpty())
+        val factory = ViaductModernExecutorFactory(
+            CodeInjector.Naive,
+            pkg,
+            registry,
+            TenantPackageFinder { error("Generated config must not discover tenant modules") },
+        )
+        val schema = MockSchema.mk("extend type Query { unused: String }")
+        registry.fields.forEach { entry ->
+            val metadata = entry.tenantAPIData.getValue("tenantMetadata") as Map<*, *>
+            assertEquals(metadata["name"], factory.createFieldResolverExecutor(entry, schema).metadata.tenantMetadata?.name)
+        }
+        registry.nodes.forEach { entry ->
+            val metadata = entry.tenantAPIData.getValue("tenantMetadata") as Map<*, *>
+            assertEquals(metadata["name"], factory.createNodeResolverExecutor(entry, schema).metadata.tenantMetadata?.name)
+        }
+    }
 
     @Resolver
     class ItemNodeResolver : NodeResolvers.Item() {

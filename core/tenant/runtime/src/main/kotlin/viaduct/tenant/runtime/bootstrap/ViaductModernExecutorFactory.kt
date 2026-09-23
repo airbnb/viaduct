@@ -76,6 +76,20 @@ class ViaductModernExecutorFactory(
         }?.metadata
     }
 
+    private fun generatedTenantMetadataFor(
+        resolverClass: Class<*>,
+        tenantAPIData: Map<String, Any?>,
+    ): TenantModuleMetadata? {
+        val metadata = tenantAPIData["tenantMetadata"]
+        require(metadata is Map<*, *>) {
+            "Missing or invalid generated tenantMetadata for ${resolverClass.name}; regenerate the tenant module config"
+        }
+        if (metadata.isEmpty()) return null
+        val name = metadata["name"]
+        require(name is String && name.isNotBlank()) { "Invalid generated tenantMetadata name for ${resolverClass.name}" }
+        return TenantModuleMetadata(name = name)
+    }
+
     private val namedFragments: Map<String, FragmentDefinition> by lazy {
         registry.namedFragments
             .flatMap { CachedDocumentParser.parseDocument(it).getDefinitionsOfType(FragmentDefinition::class.java) }
@@ -116,7 +130,7 @@ class ViaductModernExecutorFactory(
         )
         val argumentVariables = buildArgumentVariables(configData.objectSelections, configData.querySelections)
         val resolverId = "${configData.typeName}.${configData.fieldName}"
-        val tenantMetadata = tenantMetadataFor(resolverClass)
+        val tenantMetadata = generatedTenantMetadataFor(resolverClass, configData.tenantAPIData)
 
         return if (configData.isBatching) {
             requireBaseResolver(resolverClass, BaseBatchedFieldResolver::class.java, "Batch field resolver")
@@ -167,7 +181,7 @@ class ViaductModernExecutorFactory(
             knownFragments = namedFragments,
         )
 
-        val tenantMetadata = tenantMetadataFor(resolverClass)
+        val tenantMetadata = generatedTenantMetadataFor(resolverClass, configData.tenantAPIData)
 
         return if (configData.isBatching) {
             requireBaseResolver(resolverClass, BaseBatchedNodeResolver::class.java, "Batch node resolver")

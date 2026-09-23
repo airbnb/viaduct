@@ -49,6 +49,7 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                     isSelective = false,
                     attribution = "NodeObj",
                     tenantAPIData = mapOf(
+                        "tenantMetadata" to emptyMap<String, String>(),
                         "resolverClass" to "$base\$NodeObjResolver",
                         "resolverBaseClass" to "$resolverBases.NodeResolvers\$NodeObj",
                     ),
@@ -62,6 +63,7 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                     isSelective = false,
                     attribution = "Query.nodeObj",
                     tenantAPIData = mapOf(
+                        "tenantMetadata" to emptyMap<String, String>(),
                         "resolverClass" to "$base\$QueryNodeObjResolver",
                         "resolverBaseClass" to "$resolverBases.QueryResolvers\$NodeObj",
                         "queryTypeName" to "Query",
@@ -76,6 +78,7 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                     isSelective = false,
                     attribution = "Query.nodeReference",
                     tenantAPIData = mapOf(
+                        "tenantMetadata" to emptyMap<String, String>(),
                         "resolverClass" to "$base\$NodeReferenceResolver",
                         "resolverBaseClass" to "$resolverBases.QueryResolvers\$NodeReference",
                         "queryTypeName" to "Query",
@@ -90,6 +93,7 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                     isSelective = false,
                     attribution = "Query.objectWithNodeField",
                     tenantAPIData = mapOf(
+                        "tenantMetadata" to emptyMap<String, String>(),
                         "resolverClass" to "$base\$ObjectWithNodeFieldResolver",
                         "resolverBaseClass" to "$resolverBases.QueryResolvers\$ObjectWithNodeField",
                         "queryTypeName" to "Query",
@@ -103,6 +107,7 @@ class FileBasedNodeResolverContractTest : NodeResolverContractTest() {
                     isSelective = false,
                     attribution = "Query.nodeRefWithIllegalAccess",
                     tenantAPIData = mapOf(
+                        "tenantMetadata" to emptyMap<String, String>(),
                         "resolverClass" to "$base\$NodeRefWithIllegalAccessResolver",
                         "resolverBaseClass" to "$resolverBases.QueryResolvers\$NodeRefWithIllegalAccess",
                         "queryTypeName" to "Query",
