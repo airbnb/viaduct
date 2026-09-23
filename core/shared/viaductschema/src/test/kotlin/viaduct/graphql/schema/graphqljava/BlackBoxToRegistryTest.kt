@@ -1,13 +1,18 @@
 package viaduct.graphql.schema.graphqljava
 
+import graphql.GraphQL
 import graphql.schema.idl.SchemaParser
+import graphql.schema.idl.TypeDefinitionRegistry
+import graphql.schema.idl.UnExecutableSchemaGenerator
 import org.junit.jupiter.api.Assertions.assertAll
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.function.Executable
 import viaduct.graphql.schema.checkViaductSchemaInvariants
 import viaduct.graphql.schema.graphqljava.extensions.TypeDefinitionRegistryOptions
 import viaduct.graphql.schema.graphqljava.extensions.toRegistry
+import viaduct.graphql.schema.graphqljava.extensions.toRegistryWithoutExtensionTypeDefinitions
 import viaduct.graphql.schema.test.SchemaDiff
 import viaduct.graphql.schema.test.TestSchemas
 import viaduct.invariants.FailureCollector
@@ -44,6 +49,61 @@ class BlackBoxToRegistryTest {
         checkViaductSchemaInvariants(roundTrippedSchema, checker)
         SchemaDiff(originalSchema, roundTrippedSchema, checker).diff()
         checker.assertEmpty("\n")
+    }
+
+    @Test
+    fun `registry conversions preserve descriptions in introspection`() {
+        val original = SchemaParser().parse(
+            """
+            "Directive description"
+            directive @custom("Directive argument" value: String) on FIELD_DEFINITION
+            "Scalar description"
+            scalar CustomScalar
+            "Object description"
+            type Query {
+                "Field description"
+                item("Field argument" input: Input): Item
+                undocumented: String
+            }
+            extend type Query { "Extended field" extra: String }
+            "Interface description"
+            interface Item { "Interface field" name: String }
+            extend interface Item { "Extended interface field" extra: String }
+            type ConcreteItem implements Item { name: String extra: String }
+            "Input description"
+            input Input { "Input field" value: String }
+            extend input Input { "Extended input field" extra: String }
+            "Enum description"
+            enum Status { "Enum value" ACTIVE }
+            extend enum Status { "Extended enum value" INACTIVE }
+            "Union description"
+            union Result = ConcreteItem
+            """.trimIndent()
+        )
+        val schema = gjSchemaRawFromRegistry(original)
+        val expected = introspectDescriptions(original)
+
+        assertEquals(expected, introspectDescriptions(schema.toRegistry(TypeDefinitionRegistryOptions.NO_STUBS)))
+        assertEquals(expected, introspectDescriptions(schema.toRegistryWithoutExtensionTypeDefinitions(TypeDefinitionRegistryOptions.NO_STUBS)))
+    }
+
+    private fun introspectDescriptions(registry: TypeDefinitionRegistry): Map<String, Any?> {
+        val queries = listOf("Query", "Item", "Input", "Status", "Result", "CustomScalar").associateWith { name ->
+            """
+            { __type(name: "$name") {
+                description
+                fields { name description args { name description } }
+                inputFields { name description }
+                enumValues { name description }
+            } }
+            """.trimIndent()
+        } + ("directives" to "{ __schema { directives { name description args { name description } } } }")
+        val graphQL = GraphQL.newGraphQL(UnExecutableSchemaGenerator.makeUnExecutableSchema(registry)).build()
+        return queries.mapValues { (_, query) ->
+            val result = graphQL.execute(query)
+            assertEquals(emptyList<Any>(), result.errors)
+            result.getData<Map<String, Any?>>()
+        }
     }
 
     @Test

@@ -3,6 +3,7 @@
 package viaduct.graphql.schema.graphqljava.extensions
 
 import graphql.language.Argument
+import graphql.language.Description
 import graphql.language.Directive
 import graphql.language.DirectiveDefinition
 import graphql.language.DirectiveLocation
@@ -121,6 +122,7 @@ fun ViaductSchema.Directive.toDirectiveDefinition() =
     DirectiveDefinition
         .newDirectiveDefinition()
         .name(name)
+        .description(toDescription())
         .inputValueDefinitions(args.map { it.inputValueDefinition() })
         .repeatable(isRepeatable)
         .directiveLocations(allowedLocations.map { DirectiveLocation(it.name) })
@@ -130,6 +132,7 @@ fun ViaductSchema.Scalar.scalarTypeDefinition() =
     ScalarTypeDefinition
         .newScalarTypeDefinition()
         .name(this.name)
+        .description(toDescription())
         .directives(appliedDirectives.map { it.toDirectiveForTypeDefinition() })
         .build()
 
@@ -148,6 +151,7 @@ fun ViaductSchema.Object.toMergedObjectTypeDefinition(options: TypeDefinitionReg
     return ObjectTypeDefinition
         .newObjectTypeDefinition()
         .name(extensions.first().def.name)
+        .description(toDescription())
         .fieldDefinitions(allFieldDefs)
         .directives(extensions.map { it.appliedDirectives }.flatten().map { it.toDirectiveForTypeDefinition() })
         .implementz(extensions.flatMap { it.supers }.map { TypeName(it.name) })
@@ -176,12 +180,15 @@ private fun getViaductIgnoreSymbolAsObjectTypeDefinition(): ObjectTypeDefinition
         .fieldDefinitions(getViaductIgnoreSymbolAsFieldDefinitionList())
         .build()
 
+private fun ViaductSchema.Def.toDescription(): Description? = description?.let { Description(it, null, true) }
+
 private fun ViaductSchema.SourceLocation.toSourceLocationDefinition() = graphql.language.SourceLocation(-1, -1, this.sourceName)
 
 fun ViaductSchema.Object.toObjectTypeDefinition(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT) =
     ObjectTypeDefinition
         .newObjectTypeDefinition()
         .name(extensions.first().def.name)
+        .description(toDescription())
         .fieldDefinitions(
             extensions.first().members.map { it.toFieldDefinition() } +
                 if (options.addStubsOnEmptyTypes) getViaductIgnoreSymbolAsFieldDefinitionList() else emptyList()
@@ -209,6 +216,7 @@ fun ViaductSchema.Field.toFieldDefinition(): FieldDefinition =
     FieldDefinition
         .newFieldDefinition()
         .name(name)
+        .description(toDescription())
         .type(type.toTypeForTypeDefinition())
         .inputValueDefinitions(args.map { it.inputValueDefinition() })
         .directives(appliedDirectives.map { it.toDirectiveForTypeDefinition() })
@@ -219,6 +227,7 @@ fun ViaductSchema.Input.toMergedInputTypeDefinition(): InputObjectTypeDefinition
     return InputObjectTypeDefinition
         .newInputObjectDefinition()
         .name(allFields.first().containingDef.name)
+        .description(toDescription())
         .inputValueDefinitions(allFields.map { it.inputValueDefinition() })
         .directives(extensions.map { it.appliedDirectives }.flatten().map { it.toDirectiveForTypeDefinition() })
         .sourceLocation(sourceLocation?.toSourceLocationDefinition())
@@ -229,6 +238,7 @@ fun ViaductSchema.Input.toInputObjectTypeDefinition() =
     InputObjectTypeDefinition
         .newInputObjectDefinition()
         .name(extensions.first().def.name)
+        .description(toDescription())
         .inputValueDefinitions(extensions.first().members.map { it.inputValueDefinition() })
         .directives(extensions.first().appliedDirectives.map { it.toDirectiveForTypeDefinition() })
         .sourceLocation(sourceLocation?.toSourceLocationDefinition())
@@ -259,6 +269,7 @@ fun ViaductSchema.Interface.toMergedInterfaceTypeDefinition(options: TypeDefinit
     return InterfaceTypeDefinition
         .newInterfaceTypeDefinition()
         .name(extensions.first().def.name)
+        .description(toDescription())
         .definitions(allFieldDefs)
         .directives(extensions.map { it.appliedDirectives }.flatten().map { it.toDirectiveForTypeDefinition() })
         .sourceLocation(sourceLocation?.toSourceLocationDefinition())
@@ -270,6 +281,7 @@ fun ViaductSchema.Interface.toInterfaceTypeDefinition(options: TypeDefinitionReg
     InterfaceTypeDefinition
         .newInterfaceTypeDefinition()
         .name(extensions.first().def.name)
+        .description(toDescription())
         .definitions(
             extensions.first().members.map { it.toFieldDefinition() } +
                 if (options.addStubsOnEmptyTypes) getViaductIgnoreSymbolAsFieldDefinitionList() else emptyList()
@@ -297,6 +309,7 @@ fun ViaductSchema.HasDefaultValue.inputValueDefinition() =
     InputValueDefinition
         .newInputValueDefinition()
         .name(name)
+        .description(toDescription())
         .type(type.toTypeForTypeDefinition())
         .defaultValue(if (hasDefault) effectiveDefaultValue.toGraphQLJavaValue() else null)
         .directives(appliedDirectives.map { it.toDirectiveForTypeDefinition() })
@@ -338,6 +351,7 @@ fun ViaductSchema.Union.toMergedUnionTypeDefinition(options: TypeDefinitionRegis
     return UnionTypeDefinition
         .newUnionTypeDefinition()
         .name(extensions.first().def.name)
+        .description(toDescription())
         .memberTypes(allMemberDefs)
         .sourceLocation(sourceLocation?.toSourceLocationDefinition())
         .directives(extensions.map { it.appliedDirectives }.flatten().map { it.toDirectiveForTypeDefinition() })
@@ -348,6 +362,7 @@ fun ViaductSchema.Union.unionTypeDefinition(options: TypeDefinitionRegistryOptio
     UnionTypeDefinition
         .newUnionTypeDefinition()
         .name(extensions.first().def.name)
+        .description(toDescription())
         .memberTypes(
             extensions.first().members.map { TypeName(it.name) } +
                 if (options.addStubsOnEmptyTypes) listOf(TypeName(ViaductSchema.VIADUCT_IGNORE_SYMBOL)) else emptyList()
@@ -376,11 +391,13 @@ fun ViaductSchema.Enum.toMergedEnumTypeDefinition(): EnumTypeDefinition {
     return EnumTypeDefinition
         .newEnumTypeDefinition()
         .name(extensions.first().def.name)
+        .description(toDescription())
         .enumValueDefinitions(
             allMembers.map {
                 EnumValueDefinition
                     .newEnumValueDefinition()
                     .name(it.name)
+                    .description(it.toDescription())
                     .directives(it.appliedDirectives.map { d -> d.toDirectiveForTypeDefinition() })
                     .build()
             }
@@ -393,11 +410,13 @@ fun ViaductSchema.Enum.enumTypeDefinition() =
     EnumTypeDefinition
         .newEnumTypeDefinition()
         .name(extensions.first().def.name)
+        .description(toDescription())
         .enumValueDefinitions(
             extensions.first().members.map {
                 EnumValueDefinition
                     .newEnumValueDefinition()
                     .name(it.name)
+                    .description(it.toDescription())
                     .directives(it.appliedDirectives.map { d -> d.toDirectiveForTypeDefinition() })
                     .build()
             }
@@ -415,6 +434,7 @@ fun ViaductSchema.Enum.enumTypeDefinitionExtensions() =
                     EnumValueDefinition
                         .newEnumValueDefinition()
                         .name(it.name)
+                        .description(it.toDescription())
                         .directives(it.appliedDirectives.map { d -> d.toDirectiveForTypeDefinition() })
                         .build()
                 }
