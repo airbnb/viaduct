@@ -2,8 +2,11 @@
 
 package viaduct.engine.runtime.execution
 
+import graphql.analysis.QueryTraverser
 import graphql.execution.DataFetcherResult
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
+import graphql.language.SelectionSet
+import graphql.schema.GraphQLCompositeType
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -60,6 +63,7 @@ import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest as runEngineFeatureTest
 import viaduct.engine.api.spi.FieldSelectivityProvider
+import viaduct.engine.runtime.dfe.engineExecutionContext
 import viaduct.graphql.test.assertMatches
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.Viaduct
@@ -1863,6 +1867,89 @@ class SelectiveFieldResolversExecutionTest {
 
     @Nested
     inner class VariablesTests {
+        @Test
+        fun `field AST arguments resolve with Mat enabled`() {
+            assertFieldAstArguments(matEnabled = true)
+        }
+
+        @Test
+        fun `field AST arguments resolve with Mat disabled`() {
+            assertFieldAstArguments(matEnabled = false)
+        }
+
+        /**
+         * Mat changes the variables available during a rerun. The original field arguments must still
+         * resolve to the same values when a consumer, such as delegation, reads the GraphQL AST.
+         */
+        private fun assertFieldAstArguments(matEnabled: Boolean) {
+            val instrumentation = RecordingInstrumentation()
+            val expectedId = "listing-1"
+
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { foo(id: ID!): Foo }
+                    type Foo { x: String, label(locale: String): String }
+                """.trimIndent()
+            ) {
+                field("Query" to "foo") {
+                    resolverExecutor {
+                        MockFieldUnbatchedResolverExecutor(
+                            isSelective = true,
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { arguments, _, _, _, _ ->
+                                assertEquals(expectedId, arguments["id"])
+                                createEngineObjectData(
+                                    "Foo",
+                                    mapOf("label" to "Listing 1"),
+                                )
+                            },
+                        )
+                    }
+                }
+                field("Foo" to "x") {
+                    resolver {
+                        // Argument-specific coverage requires a Mat rerun even when label is populated.
+                        objectSelections("label(locale: \"en\")")
+                        fn { _, obj, _, _, _ -> obj.fetchAs<String>("label") }
+                    }
+                }
+            }.runEngineFeatureTest(
+                engineConfig = EngineConfiguration.featureTestDefault.copy(
+                    additionalInstrumentation = instrumentation,
+                    flagManager = if (matEnabled) {
+                        MockFlagManager.create(FlagManager.Flags.ENABLE_MAT_RESOLUTION)
+                    } else {
+                        MockFlagManager.create()
+                    },
+                ),
+            ) {
+                runQueryWithTimeout(
+                    "query(\$id: ID!) { foo(id: \$id) { x } }",
+                    variables = mapOf("id" to "listing-1"),
+                ).assertJson("{data: {foo: {x: \"Listing 1\"}}}")
+            }
+
+            val environments = instrumentation.dataFetchingEnvironments.filter {
+                it.executionStepInfo.path.toString() == "/foo"
+            }
+            assertEquals(if (matEnabled) 2 else 1, environments.size)
+            environments.forEach { env ->
+                val context = env.engineExecutionContext
+                val arguments = QueryTraverser.newQueryTraverser()
+                    .schema(context.fullSchema.schema)
+                    .root(SelectionSet(env.mergedField.fields))
+                    .rootParentType(env.parentType as GraphQLCompositeType)
+                    .fragmentsByName(context.fieldScope.fragments)
+                    .variables(context.fieldScope.variables)
+                    .build()
+                    .reducePreOrder<Map<String, Any?>>(
+                        { field, acc -> if (field.field.name == "foo") field.arguments else acc },
+                        emptyMap(),
+                    )
+                assertEquals(expectedId, arguments["id"])
+            }
+        }
+
         @Test
         fun `materialization preserves client directive variables`() {
             MockTenantModuleBootstrapper(
