@@ -35,6 +35,7 @@ import viaduct.engine.api.spi.ShadowFieldExecutionResults
 import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
+import viaduct.engine.runtime.EngineExecutionContextExtensions.materializedFieldValueReader
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FetchedValueWithExtensions
 import viaduct.engine.runtime.FieldResolutionResult
@@ -902,7 +903,8 @@ class FieldResolver(
                         matParameters.ledger,
                         matParameters.path,
                         matParameters.requestedShape,
-                        matParameters.rootNodeId,
+                        fieldValueReader = parameters.engineExecutionContext.materializedFieldValueReader,
+                        rootNodeId = matParameters.rootNodeId,
                     )
                 )
             } catch (e: CancellationException) {

@@ -26,6 +26,7 @@ import viaduct.engine.api.SubqueryExecutionException
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldSelectivityProvider
+import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.result.ObjectEngineResult
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
@@ -57,6 +58,7 @@ class EngineExecutionContextFactory(
     private val meterRegistry: MeterRegistry?,
     fieldSelectivityProvider: FieldSelectivityProvider = FieldSelectivityProvider.Never,
     private val resolverErrorReporter: ErrorReporter = ErrorReporter.NOOP,
+    private val materializedFieldValueReader: MaterializedFieldValueReader,
 ) {
     // Constructing this is expensive, so do it just once per schema-version
     private val engineSelectionSetFactory: EngineSelectionSet.Factory = EngineSelectionSetFactoryImpl(fullSchema)
@@ -89,6 +91,7 @@ class EngineExecutionContextFactory(
             meterRegistry,
             isResolverSelective,
             ownedSelectionProjector,
+            materializedFieldValueReader,
             incrementalExecutionEnabled = flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION),
         )
     }
@@ -134,6 +137,7 @@ class EngineExecutionContextImpl internal constructor(
     private val meterRegistry: MeterRegistry?,
     val isResolverSelective: IsResolverSelective,
     private val ownedSelectionProjector: ResolverSelectionProjector,
+    internal val materializedFieldValueReader: MaterializedFieldValueReader,
     var dataFetchingEnvironment: DataFetchingEnvironment? = null,
     override val activeSchema: EngineSchema = fullSchema,
     internal val fieldScopeSupplier: Supplier<out EngineExecutionContext.FieldExecutionScope> = FpKit.intraThreadMemoize { FieldExecutionScopeImpl() },
@@ -372,6 +376,7 @@ class EngineExecutionContextImpl internal constructor(
             meterRegistry = this.meterRegistry,
             isResolverSelective = this.isResolverSelective,
             ownedSelectionProjector = this.ownedSelectionProjector,
+            materializedFieldValueReader = this.materializedFieldValueReader,
             dataFetchingEnvironment = dataFetchingEnvironment,
             fieldScopeSupplier = fieldScopeSupplier,
             executionHandle = executionHandle,
@@ -408,6 +413,7 @@ class EngineExecutionContextImpl internal constructor(
             meterRegistry = meterRegistry,
             isResolverSelective = isResolverSelective,
             ownedSelectionProjector = ownedSelectionProjector,
+            materializedFieldValueReader = materializedFieldValueReader,
             matBatchDepth = 0,
             incrementalExecutionEnabled = incrementalExecutionEnabled,
         )

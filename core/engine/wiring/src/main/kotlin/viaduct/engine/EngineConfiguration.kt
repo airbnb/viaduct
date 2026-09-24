@@ -9,6 +9,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.FieldSelectivityProvider
+import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
@@ -46,7 +47,8 @@ data class EngineConfiguration(
     val resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
     val fieldSelectivityProvider: FieldSelectivityProvider = FieldSelectivityProvider.Never,
     val globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
-    val tenantNameResolver: TenantNameResolver = TenantNameResolver()
+    val tenantNameResolver: TenantNameResolver = TenantNameResolver(),
+    val materializedFieldValueReader: MaterializedFieldValueReader = MaterializedFieldValueReader.Default,
 ) {
     companion object {
         val default = EngineConfiguration()

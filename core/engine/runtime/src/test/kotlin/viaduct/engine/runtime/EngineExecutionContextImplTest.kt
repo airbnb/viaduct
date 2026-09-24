@@ -13,6 +13,7 @@ import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.FieldSelectivityProvider
+import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.engine.runtime.mocks.createDispatcherRegistry
@@ -111,11 +112,22 @@ class EngineExecutionContextImplTest {
         assertFalse(disabledContext.forkForShadowExecution().incrementalExecutionEnabled)
     }
 
+    @Test
+    fun `custom materialized reader is preserved in copies and shadow executions`() {
+        val reader = MaterializedFieldValueReader { _, _, _ -> error("Unexpected field read") }
+        val context = engineExecutionContext(MockFlagManager.Disabled, fieldValueReader = reader)
+
+        assertSame(reader, context.materializedFieldValueReader)
+        assertSame(reader, context.copy().materializedFieldValueReader)
+        assertSame(reader, context.forkForShadowExecution().materializedFieldValueReader)
+    }
+
     private fun engineExecutionContext(
         flagManager: FlagManager,
         fullSchema: EngineSchema = this.fullSchema,
         globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
         dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
+        fieldValueReader: MaterializedFieldValueReader = MaterializedFieldValueReader.Default,
     ): EngineExecutionContextImpl {
         val factory =
             EngineExecutionContextFactory(
@@ -126,6 +138,7 @@ class EngineExecutionContextImplTest {
                 mockk<Engine>(),
                 globalIDCodec,
                 meterRegistry = null,
+                materializedFieldValueReader = fieldValueReader,
                 fieldSelectivityProvider = FieldSelectivityProvider { coordinate ->
                     coordinate == providerSelectiveCoordinate
                 },

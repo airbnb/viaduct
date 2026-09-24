@@ -7,6 +7,7 @@ import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionAttribution
+import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.service.api.spi.ErrorReporter
 
 /**
@@ -28,6 +29,9 @@ object EngineExecutionContextExtensions {
 
     val EngineExecutionContext.matResolutionEnabled: Boolean
         get() = asImpl().matResolutionEnabled
+
+    internal val EngineExecutionContext.materializedFieldValueReader: MaterializedFieldValueReader
+        get() = asImpl().materializedFieldValueReader
 
     val EngineExecutionContext.incrementalExecutionEnabled: Boolean
         get() = asImpl().incrementalExecutionEnabled

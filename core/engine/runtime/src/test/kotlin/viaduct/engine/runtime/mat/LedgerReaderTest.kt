@@ -15,6 +15,8 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.engine.api.spi.MaterializedFieldValueReader
+import viaduct.engine.api.spi.MaterializedFieldValueReader.ReadResult
 import viaduct.engine.runtime.result.ObjectEngineResult
 
 class LedgerReaderTest {
@@ -42,6 +44,7 @@ class LedgerReaderTest {
                 KeyTree.build(schema) {
                     field(rootType.name, selectedKey)
                 },
+                fieldValueReader = MaterializedFieldValueReader.Default,
             )
 
             assertTrue(reader.canFetch(selectedKey))
@@ -67,6 +70,7 @@ class LedgerReaderTest {
                         field(childType.name, nameKey)
                     }
                 },
+                fieldValueReader = MaterializedFieldValueReader.Default,
             )
 
             assertTrue(reader.canFetch(nameKey))
@@ -95,13 +99,61 @@ class LedgerReaderTest {
                     KeyTree.build(schema) {
                         field(rootType.name, key)
                     },
+                    fieldValueReader = MaterializedFieldValueReader.Default,
                 )
 
                 assertEquals(
-                    LedgerReader.ReadResult(value = "Ada", fieldIsMissing = false),
+                    ReadResult(value = "Ada", fieldIsMissing = false),
                     reader.read(key),
                 )
                 assertEquals(listOf(MockLedger.Request(path, key)), ledger.resolveSourceRequests)
+            }
+
+        @Test
+        fun `custom reader selects the response key from the matching materialization`() =
+            runTest {
+                val schema = "type Root { value(x: Int!): String }".asViaductSchema
+                val rootType = schema.objectType("Root")
+                val key = ObjectEngineResult.Key("value", alias = "selected", arguments = mapOf("x" to 2))
+                val source = ResolvedEngineObjectData(rootType, mapOf("value" to "requested"))
+                val ledger = MockLedger { _, requestedKey ->
+                    assertEquals(key, requestedKey)
+                    source
+                }
+                val reader = LedgerReader(
+                    ledger,
+                    MatPath(rootType),
+                    KeyTree.build(schema) { field(rootType.name, key) },
+                    fieldValueReader = MaterializedFieldValueReader { data, fieldName, responseKey ->
+                        assertSame(source, data)
+                        assertEquals("value", fieldName)
+                        ReadResult("${data.fetch(fieldName)}:$responseKey", fieldIsMissing = false)
+                    },
+                )
+
+                assertEquals(ReadResult("requested:selected", fieldIsMissing = false), reader.read(key))
+            }
+
+        @Test
+        fun `default reader distinguishes a null field from a missing field`() =
+            runTest {
+                val schema = "type Root { present: String, missing: String }".asViaductSchema
+                val rootType = schema.objectType("Root")
+                val present = ObjectEngineResult.Key("present", alias = "renamed")
+                val missing = ObjectEngineResult.Key("missing")
+                val source = ResolvedEngineObjectData(rootType, mapOf("present" to null))
+                val reader = LedgerReader(
+                    MockLedger { _, _ -> source },
+                    MatPath(rootType),
+                    KeyTree.build(schema) {
+                        field(rootType.name, present)
+                        field(rootType.name, missing)
+                    },
+                    fieldValueReader = MaterializedFieldValueReader.Default,
+                )
+
+                assertEquals(ReadResult(null, fieldIsMissing = false), reader.read(present))
+                assertEquals(ReadResult(null, fieldIsMissing = true), reader.read(missing))
             }
 
         @Test
@@ -131,6 +183,7 @@ class LedgerReaderTest {
                     KeyTree.build(schema) {
                         field(rootType.name, schemaFieldKey)
                     },
+                    fieldValueReader = MaterializedFieldValueReader.Default,
                 )
 
                 assertEquals("Root:1", reader.fetchOrNull(schemaFieldKey))
@@ -164,6 +217,7 @@ class LedgerReaderTest {
                     KeyTree.build(schema) {
                         field(rootType.name, key)
                     },
+                    fieldValueReader = MaterializedFieldValueReader.Default,
                 )
 
                 assertEquals(2, reader.fetchOrNull(key))
@@ -196,6 +250,7 @@ class LedgerReaderTest {
                             field(childType.name, nameKey)
                         }
                     },
+                    fieldValueReader = MaterializedFieldValueReader.Default,
                 )
 
                 assertEquals("Ada", reader.fetchOrNull(nameKey))
@@ -216,6 +271,7 @@ class LedgerReaderTest {
                     KeyTree.build(schema) {
                         field(rootType.name, key)
                     },
+                    fieldValueReader = MaterializedFieldValueReader.Default,
                 )
 
                 assertEquals(null, reader.fetchOrNull(key))
@@ -260,6 +316,7 @@ class LedgerReaderTest {
                     MatPath(rootType),
                     KeyTree.empty,
                     rootNodeId = "Root:1",
+                    fieldValueReader = MaterializedFieldValueReader.Default,
                 )
 
                 assertTrue(reader.canFetch(key))
@@ -287,10 +344,11 @@ class LedgerReaderTest {
                         field(rootType.name, key)
                     },
                     rootNodeId = "Root:1",
+                    fieldValueReader = MaterializedFieldValueReader.Default,
                 )
 
                 assertEquals(
-                    LedgerReader.ReadResult(value = "display name", fieldIsMissing = false),
+                    ReadResult(value = "display name", fieldIsMissing = false),
                     reader.read(key),
                 )
                 assertEquals(listOf(MockLedger.Request(path, key)), ledger.resolveSourceRequests)
@@ -323,6 +381,7 @@ class LedgerReaderTest {
                         }
                     },
                     rootNodeId = "Root:1",
+                    fieldValueReader = MaterializedFieldValueReader.Default,
                 )
 
                 assertEquals("Child:1", reader.fetchOrNull(idKey))

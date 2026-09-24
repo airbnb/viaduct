@@ -1,15 +1,11 @@
 package viaduct.engine.runtime.mat
 
-import kotlinx.coroutines.CancellationException
+import viaduct.engine.api.spi.MaterializedFieldValueReader
+import viaduct.engine.api.spi.MaterializedFieldValueReader.ReadResult
 import viaduct.engine.runtime.result.ObjectEngineResult
 
 /** Reads exact field keys prepared for one Mat-backed object traversal. */
 internal sealed interface LedgerReader {
-    data class ReadResult(
-        val value: Any?,
-        val fieldIsMissing: Boolean,
-    )
-
     fun canFetch(key: ObjectEngineResult.Key): Boolean
 
     suspend fun read(key: ObjectEngineResult.Key): ReadResult
@@ -26,7 +22,8 @@ internal sealed interface LedgerReader {
         private val ledger: MatLedger,
         private val path: MatPath,
         requestedShape: KeyTree,
-        private val rootNodeId: String? = null,
+        private val rootNodeId: String?,
+        private val fieldValueReader: MaterializedFieldValueReader,
     ) : LedgerReader {
         private val fetchableKeys =
             requestedShape
@@ -41,19 +38,7 @@ internal sealed interface LedgerReader {
             intrinsicRootNodeId(key)?.let { return ReadResult(it, fieldIsMissing = false) }
             val source = ledger.resolveSource(path, key)
                 ?: return ReadResult(value = null, fieldIsMissing = false)
-            val value = source.fetchOrNull(key.name)
-            if (value != null) {
-                return ReadResult(value, fieldIsMissing = false)
-            }
-            val fieldIsMissing =
-                try {
-                    source.fetchSelections().none { it == key.name }
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (_: Exception) {
-                    false
-                }
-            return ReadResult(value = null, fieldIsMissing = fieldIsMissing)
+            return fieldValueReader.read(source, key.name, key.responseKey)
         }
 
         private fun intrinsicRootNodeId(key: ObjectEngineResult.Key): String? =
@@ -80,8 +65,9 @@ internal sealed interface LedgerReader {
             ledger: MatLedger,
             path: MatPath,
             requestedShape: KeyTree,
+            fieldValueReader: MaterializedFieldValueReader,
             rootNodeId: String? = null,
-        ): LedgerReader = Impl(ledger, path, requestedShape, rootNodeId)
+        ): LedgerReader = Impl(ledger, path, requestedShape, rootNodeId, fieldValueReader)
 
         /** Creates a reader that reports [error] from every attempted field read. */
         fun failed(error: Throwable): LedgerReader = Failed(error)

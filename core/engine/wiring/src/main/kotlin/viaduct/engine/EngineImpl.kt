@@ -161,7 +161,8 @@ class EngineImpl(
         config.globalIDCodec,
         meterRegistry,
         config.fieldSelectivityProvider,
-        config.resolverErrorReporter,
+        resolverErrorReporter = config.resolverErrorReporter,
+        materializedFieldValueReader = config.materializedFieldValueReader,
     )
 
     @Deprecated("Airbnb use only")

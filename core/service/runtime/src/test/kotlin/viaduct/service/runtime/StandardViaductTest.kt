@@ -11,6 +11,7 @@ import graphql.schema.idl.UnExecutableSchemaGenerator
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
@@ -21,6 +22,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.NodeEntryConfig
@@ -30,8 +33,10 @@ import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockExecutorCodeInjector
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.graphql.utils.DefaultSchemaFactory
@@ -383,6 +388,73 @@ class StandardViaductTest {
 
         assertEquals(emptyList<GraphQLError>(), result.errors)
         assertEquals(mapOf("generatedRegistryTestField" to "caller-supplied"), result.getData())
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `configured materialized reader reaches nested field execution`(customReader: Boolean) {
+        val sdl = """
+            extend type Query { outer: Outer @resolver }
+            type Outer { inner: Inner inners: [Inner] }
+            type Inner { name: String nullableName: String }
+        """.trimIndent()
+        val resolverCalls = AtomicInteger()
+        val suppliedModule = EngineTestModule(sdl) {
+            field("Query" to "outer") {
+                resolverExecutor {
+                    MockFieldUnbatchedResolverExecutor(
+                        isSelective = true,
+                        resolverId = resolverId,
+                    ) { _, _, _, _, context ->
+                        resolverCalls.incrementAndGet()
+                        val inner = createEngineObjectData(context.fullSchema.schema.getObjectType("Inner"), mapOf("name" to "value", "nullableName" to null))
+                        createEngineObjectData(context.fullSchema.schema.getObjectType("Outer"), mapOf("inner" to inner, "inners" to listOf(inner)))
+                    }
+                }
+            }
+        }
+        val builder = StandardViaduct.Builder()
+            .withTenantModuleInjectorFactory(MockExecutorCodeInjector(suppliedModule.mockExecutorRegistry))
+            .withExecutorRegistryConfigSources(listOf(suppliedModule.toModuleConfigSource()))
+            .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
+            .withFlagManager(object : FlagManager {
+                override fun isEnabled(flag: FlagManager.Flag): Boolean = flag == FlagManager.Flags.ENABLE_MAT_RESOLUTION
+            })
+        if (customReader) {
+            builder.withMaterializedFieldValueReader(
+                MaterializedFieldValueReader { source, fieldName, responseKey ->
+                    val read = MaterializedFieldValueReader.Default.read(source, fieldName, responseKey)
+                    if (source.type.name == "Inner" && fieldName == "name") {
+                        read.copy(value = "${read.value}:$responseKey")
+                    } else {
+                        read
+                    }
+                }
+            )
+        }
+        val viaduct = builder.build()
+
+        val result = runBlocking {
+            viaduct.execute(
+                ExecutionInput.create(
+                    operationText = "{ outer { inner { selected: name nullableName } inners { other: name } } }",
+                    requestContext = Any(),
+                ),
+                SchemaId.Base,
+            )
+        }
+
+        assertEquals(emptyList<GraphQLError>(), result.errors)
+        assertEquals(
+            mapOf(
+                "outer" to mapOf(
+                    "inner" to mapOf("selected" to if (customReader) "value:selected" else "value", "nullableName" to null),
+                    "inners" to listOf(mapOf("other" to if (customReader) "value:other" else "value")),
+                ),
+            ),
+            result.getData(),
+        )
+        assertEquals(1, resolverCalls.get())
     }
 
     @Test

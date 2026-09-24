@@ -16,6 +16,7 @@ import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionInput
 import viaduct.engine.api.ResolveRootFieldReferenceOptions
 import viaduct.engine.api.ResolveSelectionSetOptions
+import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextFactory
 import viaduct.engine.runtime.EngineExecutionContextImpl
@@ -75,6 +76,7 @@ class ContextMocks(
             engine,
             globalIDCodec,
             meterRegistry = null,
+            materializedFieldValueReader = MaterializedFieldValueReader.Default,
         )
 
     val localContext: CompositeLocalContext by lazy {

@@ -29,6 +29,7 @@ import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentatio
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.FieldSelectivityProvider
+import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
@@ -129,6 +130,7 @@ class StandardViaduct
             private var meterRegistry: MeterRegistry? = null
             private var resolverInstrumentation: ViaductResolverInstrumentation? = null
             private var fieldSelectivityProvider: FieldSelectivityProvider? = null
+            private var materializedFieldValueReader: MaterializedFieldValueReader? = null
             private var allowSubscriptions: Boolean = false
             private var globalIDCodec: GlobalIDCodec? = null
             private var proxyResolverFactory: ProxyResolverFactory? = null
@@ -248,6 +250,11 @@ class StandardViaduct
                     this.fieldSelectivityProvider = fieldSelectivityProvider
                 }
 
+            fun withMaterializedFieldValueReader(materializedFieldValueReader: MaterializedFieldValueReader): Builder =
+                apply {
+                    this.materializedFieldValueReader = materializedFieldValueReader
+                }
+
             /**
              * Configures the GlobalIDCodec for serializing and deserializing GlobalIDs.
              * All tenant-API implementations within this Viaduct instance will share this codec
@@ -324,6 +331,8 @@ class StandardViaduct
                         chainInstrumentationWithDefaults = builder.chainInstrumentationWithDefaults,
                         resolverInstrumentation = builder.resolverInstrumentation ?: resolverInstrumentation,
                         fieldSelectivityProvider = builder.fieldSelectivityProvider ?: fieldSelectivityProvider,
+                        materializedFieldValueReader =
+                            builder.materializedFieldValueReader ?: materializedFieldValueReader,
                         globalIDCodec = finalGlobalIDCodec,
                     )
                 }
