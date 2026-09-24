@@ -146,7 +146,7 @@ The emit step runs early so that `run_id` is available to the calling orchestrat
 
 - **Manual runs never notify.** When a human triggers `workflow_dispatch`, they are watching. The listener therefore alerts only for `push` and `schedule` runs, and only on `main`.
 
-- **Transient failures are retried before they alert.** CI Check and Periodic Green Check are re-run once on their first failure and alert only if the retry also fails. Nightly Build is not retried: its failures have been real defects, and it is the only Windows signal, so delaying that alert by a full run buys nothing.
+- **Transient failures are retried before they alert.** CI Check, Nightly Build and Periodic Green Check are re-run once on their first failure and alert only if the retry also fails.
 
 - **A retry that succeeds is still reported.** A run that ends `success` past its first attempt gets an informational notice naming what failed on attempt 1. Silence would hide the flake rate, which is the number that decides whether a flake is worth chasing. Re-running an already-green run reports nothing, since attempt 1 has no failed job to name.
 
