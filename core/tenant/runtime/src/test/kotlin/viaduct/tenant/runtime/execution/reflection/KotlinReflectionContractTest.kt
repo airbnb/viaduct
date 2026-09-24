@@ -2,13 +2,12 @@
 
 package viaduct.tenant.runtime.execution.reflection
 
-import io.kotest.matchers.string.shouldContain
-import io.kotest.matchers.string.shouldNotContain
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.resolver.Resolver
+import viaduct.api.select.FieldCoordinate
 import viaduct.api.select.SelectionSet
 import viaduct.graphql.test.assertEquals
 import viaduct.service.api.spi.FlagManager
@@ -208,23 +207,14 @@ class KotlinReflectionContractTest : ReflectionContractTest() {
 
         assertTrue(capture.field.contains(OwnedSelectionPayload.Fields.local))
         assertFalse(capture.field.contains(OwnedSelectionPayload.Fields.delegated))
-        val fieldFragment = capture.field.toFragment()
-        assertEquals("Main", fieldFragment.name)
-        fieldFragment.document shouldContain "fragment Main on OwnedSelectionPayload"
-        fieldFragment.document shouldContain "renamedLocal"
-        fieldFragment.document shouldContain "child"
-        fieldFragment.document shouldContain "kept"
-        fieldFragment.document shouldContain "contact"
-        fieldFragment.document shouldContain "__typename"
-        fieldFragment.document shouldContain "${'$'}limit"
-        fieldFragment.document shouldNotContain "delegated"
         assertEquals(
-            mapOf(
-                "limit" to 2,
-                "skipLabel" to true,
-            ),
-            fieldFragment.variables,
+            setOf("local", "child", "contact").mapTo(mutableSetOf()) {
+                FieldCoordinate("OwnedSelectionPayload", it)
+            },
+            capture.field.selectedFieldCoordinates(),
         )
+        val contact = capture.field.selectionSetFor(OwnedSelectionPayload.Fields.contact)
+        assertFalse(contact.contains(OwnedSelectionContact.Fields.label))
 
         val child = capture.field.selectionSetFor(OwnedSelectionPayload.Fields.child)
         assertTrue(child.contains(OwnedSelectionChild.Fields.kept))
@@ -233,10 +223,7 @@ class KotlinReflectionContractTest : ReflectionContractTest() {
         assertFalse(capture.node.contains(OwnedSelectionNode.Fields.id))
         assertTrue(capture.node.contains(OwnedSelectionNode.Fields.local))
         assertFalse(capture.node.contains(OwnedSelectionNode.Fields.delegated))
-        val nodeFragment = capture.node.toFragment()
-        nodeFragment.document shouldContain "fragment Main on OwnedSelectionNode"
-        nodeFragment.document shouldContain "local"
-        nodeFragment.document shouldNotContain "delegated"
+        assertEquals(setOf(FieldCoordinate("OwnedSelectionNode", "local")), capture.node.selectedFieldCoordinates())
         assertTrue(capture.scalarSelectionsAreEmpty)
     }
 }

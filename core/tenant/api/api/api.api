@@ -188,15 +188,10 @@ public abstract interface class viaduct/api/select/SelectionSet {
 	public abstract fun requestsType (Lviaduct/api/reflect/Type;)Z
 	public abstract fun selectionSetFor (Lviaduct/api/reflect/CompositeField;)Lviaduct/api/select/SelectionSet;
 	public abstract fun selectionSetFor (Lviaduct/api/reflect/Type;)Lviaduct/api/select/SelectionSet;
-	public abstract fun toFragment ()Lviaduct/api/select/OutputSelectionFragment;
 }
 
 public final class viaduct/api/select/SelectionSet$Companion {
 	public final fun empty (Lviaduct/api/reflect/Type;)Lviaduct/api/select/SelectionSet;
-}
-
-public final class viaduct/api/select/SelectionSet$DefaultImpls {
-	public static fun toFragment (Lviaduct/api/select/SelectionSet;)Lviaduct/api/select/OutputSelectionFragment;
 }
 
 public final class viaduct/api/select/SelectionSet$NoSelections : viaduct/api/select/SelectionSet {
@@ -208,7 +203,6 @@ public final class viaduct/api/select/SelectionSet$NoSelections : viaduct/api/se
 	public fun selectedFieldCoordinates ()Ljava/util/Set;
 	public fun selectionSetFor (Lviaduct/api/reflect/CompositeField;)Lviaduct/api/select/SelectionSet;
 	public fun selectionSetFor (Lviaduct/api/reflect/Type;)Lviaduct/api/select/SelectionSet;
-	public fun toFragment ()Lviaduct/api/select/OutputSelectionFragment;
 }
 
 public abstract interface class viaduct/api/types/Arguments : viaduct/api/types/InputLike {
