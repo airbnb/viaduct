@@ -220,7 +220,7 @@ triage:
       if: "!cancelled() && steps.retry.outputs.retried != 'true'"
       run: |
         # query attempt 1 when the run ended in success, else the current attempt
-        # list failed job ids and names, pipe each job's log through extract_failed_tasks.py
+        # list failed and cancelled job ids and names, pipe each job's log through extract_failed_tasks.py
         # emit outcome=retry_success|failure, and an empty jobs_json when there is nothing to say
     - name: Format alert
       id: fmt
@@ -341,8 +341,7 @@ demoapps-nightly-check.yml  [orchestrator]
 [once the run completes with conclusion=failure]
   |
   v
-ci-retry-then-alert.yml  [listener]
-  '--- post-alerts.yml [helper] --> Slack + Discord   (no retry; alerts on the first failure)
+ci-retry-then-alert.yml  [listener]   (retried once, like CI Check)
 ```
 
 The listener watches `nightly-build.yml`, so the Windows jobs are covered without any alerting inside the run. That is what they previously lacked: alerting used to live in `demoapps-nightly-check.yml` and was gated on its own four jobs, so a nightly that failed only on Windows was silent.

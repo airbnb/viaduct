@@ -73,7 +73,7 @@ jobs:
           # --paginate: gh api returns an arbitrary subset without it.
           failed=$(gh api --paginate \
             "repos/${REPOSITORY}/actions/runs/${RUN_ID}/attempts/${attempt}/jobs?per_page=100" \
-            --jq '.jobs[] | select(.conclusion == "failure") | [.id, .name] | @tsv') || {
+            --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | [.id, .name] | @tsv') || {
             echo "::warning::Could not list the failed jobs of ${RUN_ID}"
             failed=""
           }
