@@ -17,7 +17,6 @@ import viaduct.api.types.Arguments
 import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.service.api.spi.CodeInjector
-import viaduct.tenant.runtime.bootstrap.TenantPackageFinder
 import viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory
 import viaduct.tenant.runtime.execution.filebased.resolverbases.ItemResolvers
 import viaduct.tenant.runtime.execution.filebased.resolverbases.NodeResolvers
@@ -37,7 +36,6 @@ class FileBasedBootstrapFeatureAppTest : FileBasedBootstrapContractTest() {
             CodeInjector.Naive,
             pkg,
             registry,
-            TenantPackageFinder { error("Generated config must not discover tenant modules") },
         )
         val schema = MockSchema.mk("extend type Query { unused: String }")
         registry.fields.forEach { entry ->

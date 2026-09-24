@@ -120,12 +120,11 @@ class ViaductModernExecutorFactoryTest {
 
     private val pkg = ViaductModernExecutorFactoryTest::class.java.name
 
-    private fun factory(tenantPackageFinder: TenantPackageFinder = TenantPackageFinder { error("Generated ownership must not invoke discovery") }) =
+    private fun factory() =
         ViaductModernExecutorFactory(
             codeInjector = CodeInjector.Naive,
             grtPackagePrefix = "viaduct.api.bootstrap.test.grts",
             registry = ExecutionRegistryConfigFile(version = "1", executorFactory = ViaductModernExecutorFactory::class.java.name),
-            tenantPackageFinder = tenantPackageFinder,
         )
 
     private fun fieldEntry(

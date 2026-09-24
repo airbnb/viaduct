@@ -222,7 +222,7 @@ Embeds entire files or specific line ranges:
 Embeds files from GitHub with links:
 
 ```markdown
-{{ github("core/tenant/api/TenantModule.kt#L10-L20") }}
+{{ github("core/tenant/api/src/main/kotlin/viaduct/api/ResolverBase.kt") }}
 ```
 
 ### Publishing to Both Internal and External Sites

@@ -2,7 +2,6 @@ package viaduct.api.bootstrap.test
 
 import viaduct.api.NodeResolverBase
 import viaduct.api.ResolverBase
-import viaduct.api.TenantModule
 import viaduct.api.bootstrap.test.grts.Query
 import viaduct.api.bootstrap.test.grts.TestBatchNode
 import viaduct.api.bootstrap.test.grts.TestNode
@@ -20,13 +19,6 @@ import viaduct.api.resolver.VariablesProvider
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.apiannotations.InternalApi
-
-@OptIn(InternalApi::class)
-class TestTenantModule : TenantModule {
-    override val metadata = mapOf(
-        "name" to "TestModule",
-    )
-}
 
 @OptIn(InternalApi::class)
 object TestTypeModernResolvers {

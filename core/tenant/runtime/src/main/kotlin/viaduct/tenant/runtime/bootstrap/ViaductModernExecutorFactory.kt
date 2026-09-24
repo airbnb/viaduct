@@ -42,19 +42,9 @@ class ViaductModernExecutorFactory(
     private val codeInjector: CodeInjector,
     private val grtPackagePrefix: String,
     private val registry: ExecutionRegistryConfigFile,
-    private val tenantPackageFinder: TenantPackageFinder,
 ) : ExecutorFactory {
-    /**
-     * Reflection constructor used by [viaduct.engine.runtime.tenantloading.ModuleConfigBootstrapper]
-     * when the GRT package prefix is overridden. Declared explicitly (no default parameters) so its
-     * JVM signature matches exactly what that bootstrapper looks up via reflection.
-     */
-    constructor(codeInjector: CodeInjector, grtPackagePrefix: String, registry: ExecutionRegistryConfigFile) :
-        this(codeInjector, grtPackagePrefix, registry, ViaductTenantPackageFinder())
-
-    /** Production constructor — GRT package sourced from the compile-time constant. */
     constructor(codeInjector: CodeInjector, registry: ExecutionRegistryConfigFile) :
-        this(codeInjector, GRT_PACKAGE_PREFIX, registry, ViaductTenantPackageFinder())
+        this(codeInjector, GRT_PACKAGE_PREFIX, registry)
 
     private val grtConvFactory = DefaultGRTConvFactory
     private val reflectionLoader = ReflectionLoaderImpl { name ->
@@ -64,19 +54,7 @@ class ViaductModernExecutorFactory(
 
     private val requiredSelectionSetFactory = RequiredSelectionSetFactory
 
-    // Sorted longest-package-first so a resolver's package resolves to its most specific tenant module.
-    private val tenantPackagesByLength: List<TenantPackageInfo> by lazy {
-        tenantPackageFinder.tenantPackages().sortedByDescending { it.packageName.length }
-    }
-
-    private fun tenantMetadataFor(resolverClass: Class<*>): TenantModuleMetadata? {
-        val resolverPackage = resolverClass.packageName
-        return tenantPackagesByLength.firstOrNull {
-            resolverPackage == it.packageName || resolverPackage.startsWith("${it.packageName}.")
-        }?.metadata
-    }
-
-    private fun generatedTenantMetadataFor(
+    private fun tenantMetadataFor(
         resolverClass: Class<*>,
         tenantAPIData: Map<String, Any?>,
     ): TenantModuleMetadata? {
@@ -130,7 +108,7 @@ class ViaductModernExecutorFactory(
         )
         val argumentVariables = buildArgumentVariables(configData.objectSelections, configData.querySelections)
         val resolverId = "${configData.typeName}.${configData.fieldName}"
-        val tenantMetadata = generatedTenantMetadataFor(resolverClass, configData.tenantAPIData)
+        val tenantMetadata = tenantMetadataFor(resolverClass, configData.tenantAPIData)
 
         return if (configData.isBatching) {
             requireBaseResolver(resolverClass, BaseBatchedFieldResolver::class.java, "Batch field resolver")
@@ -181,7 +159,7 @@ class ViaductModernExecutorFactory(
             knownFragments = namedFragments,
         )
 
-        val tenantMetadata = generatedTenantMetadataFor(resolverClass, configData.tenantAPIData)
+        val tenantMetadata = tenantMetadataFor(resolverClass, configData.tenantAPIData)
 
         return if (configData.isBatching) {
             requireBaseResolver(resolverClass, BaseBatchedNodeResolver::class.java, "Batch node resolver")
