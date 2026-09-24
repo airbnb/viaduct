@@ -146,7 +146,7 @@ The emit step runs early so that `run_id` is available to the calling orchestrat
 
 - **Manual runs never notify.** When a human triggers `workflow_dispatch`, they are watching. The listener therefore alerts only for `push` and `schedule` runs, and only on `main`.
 
-- **Transient failures are retried before they alert.** CI Check and Periodic Green Check are re-run once on their first failure and alert only if the retry also fails. Nightly Build is not retried: its failures have been real defects, and it is the only Windows signal, so delaying that alert by a full run buys nothing.
+- **Transient failures are retried before they alert.** CI Check, Nightly Build and Periodic Green Check are re-run once on their first failure and alert only if the retry also fails.
 
 - **A retry that succeeds is still reported.** A run that ends `success` past its first attempt gets an informational notice naming what failed on attempt 1. Silence would hide the flake rate, which is the number that decides whether a flake is worth chasing. Re-running an already-green run reports nothing, since attempt 1 has no failed job to name.
 
@@ -220,7 +220,7 @@ triage:
       if: "!cancelled() && steps.retry.outputs.retried != 'true'"
       run: |
         # query attempt 1 when the run ended in success, else the current attempt
-        # list failed job ids and names, pipe each job's log through extract_failed_tasks.py
+        # list failed and cancelled job ids and names, pipe each job's log through extract_failed_tasks.py
         # emit outcome=retry_success|failure, and an empty jobs_json when there is nothing to say
     - name: Format alert
       id: fmt
@@ -341,8 +341,7 @@ demoapps-nightly-check.yml  [orchestrator]
 [once the run completes with conclusion=failure]
   |
   v
-ci-retry-then-alert.yml  [listener]
-  '--- post-alerts.yml [helper] --> Slack + Discord   (no retry; alerts on the first failure)
+ci-retry-then-alert.yml  [listener]   (retried once, like CI Check)
 ```
 
 The listener watches `nightly-build.yml`, so the Windows jobs are covered without any alerting inside the run. That is what they previously lacked: alerting used to live in `demoapps-nightly-check.yml` and was gated on its own four jobs, so a nightly that failed only on Windows was silent.
