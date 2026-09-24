@@ -130,6 +130,86 @@ class ModuleConfigSourceTest {
         }
     }
 
+    @Test
+    fun `config contents remain stable until a new source snapshot is loaded`() {
+        var contents = config("data/todo", "kotlin", "example.OldFactory")
+        val stream = InputStreamSource { contents.openStream() }
+        val original = ModuleConfigSource.from(stream)
+
+        contents = config("data/other", "kotlin", "example.NewFactory")
+        val replacement = ModuleConfigSource.from(stream)
+
+        assertEquals("data/todo", original.config.tenantName)
+        assertEquals("example.OldFactory", original.config.executorFactory)
+        assertEquals("data/other", replacement.config.tenantName)
+        assertEquals("example.NewFactory", replacement.config.executorFactory)
+    }
+
+    @Test
+    fun `shared config snapshots reject mutations of nested collections`() {
+        val snapshot = ModuleConfigSource.from(
+            InputStreamSource.fromString(
+                """
+            {
+              "version": "1",
+              "tenantName": "data/todo",
+              "apiName": "kotlin",
+              "executorFactory": "example.Factory",
+              "namedFragments": ["fragment Foo on Query { __typename }"],
+              "nodes": [{
+                "typeName": "Todo", "isBatching": false, "isSelective": false,
+                "attribution": "test", "tenantAPIData": {"nested": [{"value": "original"}]}
+              }],
+              "fields": [{
+                "typeName": "Todo", "fieldName": "title", "isBatching": false, "isSelective": false,
+                "attribution": "test", "tenantAPIData": {"resolver": "example.Resolver"},
+                "objectSelections": {
+                  "selections": "fragment _ on Todo { id }",
+                  "variablesProviders": [{
+                    "providedVariables": {"id": "ID"},
+                    "providerVariablesAPIData": {"type": "fromObjectField", "path": "id"}
+                  }]
+                },
+                "querySelections": {"selections": "fragment _ on Query { __typename }"}
+              }]
+            }
+                """.trimIndent(),
+                name = "nested-config",
+            )
+        ).config
+        val node = snapshot.nodes.single()
+        val field = snapshot.fields.single()
+        val nested = node.tenantAPIData.getValue("nested") as List<*>
+        val nestedMap = nested.single() as Map<*, *>
+        val variables = requireNotNull(field.objectSelections).variablesProviders
+
+        assertEquals("original", nestedMap["value"])
+        assertThrows<UnsupportedOperationException> { (snapshot.nodes as MutableList<*>).clear() }
+        assertThrows<UnsupportedOperationException> { (snapshot.fields as MutableList<*>).clear() }
+        assertThrows<UnsupportedOperationException> { (snapshot.namedFragments as MutableList<*>).clear() }
+        assertThrows<UnsupportedOperationException> { (node.tenantAPIData as MutableMap<*, *>).clear() }
+        assertThrows<UnsupportedOperationException> { (field.tenantAPIData as MutableMap<*, *>).clear() }
+        assertThrows<UnsupportedOperationException> { (nested as MutableList<*>).clear() }
+        assertThrows<UnsupportedOperationException> { (nestedMap as MutableMap<*, *>).clear() }
+        assertThrows<UnsupportedOperationException> { (variables as MutableList<*>).clear() }
+        assertThrows<UnsupportedOperationException> { (variables.single().providedVariables as MutableMap<*, *>).clear() }
+        assertThrows<UnsupportedOperationException> {
+            (requireNotNull(field.querySelections).variablesProviders as MutableList<*>).clear()
+        }
+    }
+
+    @Test
+    fun `validated config collection is independent of the caller list`() {
+        val original = ModuleConfigSource.from(config("data/todo", "kotlin"))
+        val inputs = mutableListOf(original)
+        val snapshot = ModuleConfigSource.requireUniqueKeys(inputs)
+
+        inputs.clear()
+
+        assertEquals(listOf(original), snapshot)
+        assertThrows<UnsupportedOperationException> { (snapshot as MutableList<*>).clear() }
+    }
+
     private fun config(
         tenantName: String,
         apiName: String,

@@ -93,6 +93,24 @@ class RemoteResolverSelectionTest {
         assertThat(selection.fieldCoordinates).containsExactly("User.name")
     }
 
+    @Test
+    fun `selects remote resolvers without reopening their config sources`() {
+        val original = registrySource("data/user", "User", "User.name")
+        var opened = false
+        val snapshot = ModuleConfigSource.from(
+            InputStreamSource {
+                check(!opened) { "Config source was reopened" }
+                opened = true
+                original.source.openStream()
+            }
+        )
+
+        val selection = RemoteResolverSelection.fromModuleConfigSources(setOf("data/user"), listOf(snapshot))
+
+        assertThat(selection.nodeTypes).containsExactly("User")
+        assertThat(selection.fieldCoordinates).containsExactly("User.name")
+    }
+
     private fun registrySource(
         tenantName: String,
         nodeType: String,

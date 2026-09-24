@@ -1,38 +1,17 @@
 package viaduct.engine.api.bootstrap.executionregistry
 
+import java.util.Collections
 import viaduct.bootstrap.ConfigKey
 import viaduct.bootstrap.ExecutionRegistryConfigFile
-import viaduct.bootstrap.KOTLIN_API_NAME
+import viaduct.bootstrap.SelectionsBlockConfig
 import viaduct.service.api.spi.InputStreamSource
 
-/**
- * Internal representation of a single tenant module's configuration input, prior to parsing.
- *
- * This is the unit of input for engine-owned, file-based bootstrapping. Each source is exactly one
- * source of one [ExecutionRegistryConfigFile] for one `<tenantName, apiName>` pair, paired with a
- * lazily-openable stream that yields that config's JSON. The service layer (e.g. `StandardViaduct`)
- * is responsible for discovering resource-backed sources and for generating built-in sources via
- * [ModuleConfigFactory]; the engine consumes the resulting `List<ModuleConfigSource>` and parses
- * each [source] into an [ExecutionRegistryConfigFile].
- *
- * Identified by [key]; see [ConfigKey] and
- * `projects/viaduct/oss/impldocs/execution-registry-bootstrap.md` for the identity model.
- *
- * The word "source" is load-bearing: a classpath URL and a hotswap filesystem file may be different
- * source objects for the same logical [key]. Object identity, path, and content are not the key.
- *
- * The primary constructor is private so that both key fields can only ever come from the [source]
- * itself: instances are created via [from], which reads them out of the config JSON. This makes it
- * impossible to pair a [source] with a key that disagrees with the JSON it contains.
- *
- * @property tenantName Slash-separated tenant module name; the tenant-module half of the key.
- * @property apiName Stable tenant-API name (e.g. [KOTLIN_API_NAME]); the tenant-API half of the key.
- * @property source Lazily-openable stream yielding this config's registry JSON.
- */
+/** A parsed registry snapshot with its original source retained for diagnostics. */
 data class ModuleConfigSource private constructor(
     val tenantName: String,
     val apiName: String,
     val source: InputStreamSource,
+    val config: ExecutionRegistryConfigFile,
 ) {
     /**
      * This source's configuration key.
@@ -46,18 +25,7 @@ data class ModuleConfigSource private constructor(
     val key: ConfigKey get() = ConfigKey(tenantName, apiName)
 
     companion object {
-        /**
-         * Parses [source] just enough to extract its [ExecutionRegistryConfigFile.tenantName] and
-         * [ExecutionRegistryConfigFile.apiName], pairing them into a [ModuleConfigSource]. This is
-         * the single place that enforces the "a config source must identify its key" invariant for
-         * discovered sources.
-         *
-         * Both fields are nullable on [ExecutionRegistryConfigFile] for wire compatibility, but a
-         * source that omits or blanks either one cannot be keyed and is rejected here.
-         *
-         * @throws IllegalArgumentException if the config JSON has no `tenantName`, or no non-blank
-         *   `apiName`.
-         */
+        /** Reads and validates the source once; consumers share the immutable parsed config. */
         fun from(source: InputStreamSource): ModuleConfigSource {
             val config = source.openStream().use { ExecutionRegistryConfigFile.parse(it) }
             val tenantName = config.tenantName
@@ -73,12 +41,13 @@ data class ModuleConfigSource private constructor(
                 tenantName = tenantName,
                 apiName = apiName,
                 source = source,
+                config = config.immutableSnapshot(),
             )
         }
 
         /**
-         * Requires that [sources] contains at most one source per [ConfigKey], returning them
-         * unchanged.
+         * Requires that [sources] contains at most one source per [ConfigKey], returning an
+         * immutable copy of the list.
          *
          * Duplicate keys are malformed build inputs: two sources claiming one configuration slot
          * cannot both be materialized, and resolving the collision by list order would make which
@@ -95,7 +64,40 @@ data class ModuleConfigSource private constructor(
                 }
                 "Duplicate execution registry config sources for the same <tenantName, apiName>: $detail"
             }
-            return sources
+            return Collections.unmodifiableList(sources.toList())
         }
+
+        private fun ExecutionRegistryConfigFile.immutableSnapshot(): ExecutionRegistryConfigFile =
+            copy(
+                nodes = Collections.unmodifiableList(nodes.map { it.copy(tenantAPIData = it.tenantAPIData.immutableJsonMap()) }),
+                fields = Collections.unmodifiableList(
+                    fields.map {
+                        it.copy(
+                            tenantAPIData = it.tenantAPIData.immutableJsonMap(),
+                            objectSelections = it.objectSelections?.immutableSnapshot(),
+                            querySelections = it.querySelections?.immutableSnapshot(),
+                        )
+                    },
+                ),
+                namedFragments = Collections.unmodifiableList(namedFragments),
+            )
+
+        private fun SelectionsBlockConfig.immutableSnapshot(): SelectionsBlockConfig =
+            copy(
+                variablesProviders = Collections.unmodifiableList(
+                    variablesProviders.map {
+                        it.copy(providedVariables = Collections.unmodifiableMap(it.providedVariables))
+                    },
+                ),
+            )
+
+        private fun Map<String, Any?>.immutableJsonMap(): Map<String, Any?> = Collections.unmodifiableMap(mapValues { immutableJsonValue(it.value) })
+
+        private fun immutableJsonValue(value: Any?): Any? =
+            when (value) {
+                is Map<*, *> -> Collections.unmodifiableMap(value.mapValues { immutableJsonValue(it.value) })
+                is List<*> -> Collections.unmodifiableList(value.map(::immutableJsonValue))
+                else -> value
+            }
     }
 }

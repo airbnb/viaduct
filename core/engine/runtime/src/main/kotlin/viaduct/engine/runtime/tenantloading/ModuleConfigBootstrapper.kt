@@ -15,7 +15,7 @@ import viaduct.service.api.spi.TenantModuleInjectorFactory
  *
  * Resource discovery and tenant-name resolution happen upstream (in
  * [ExecutionRegistryConfigSourceCollector]); this class is concerned only with bootstrap
- * orchestration. For each source, it deserializes the [ExecutionRegistryConfigFile], instantiates
+ * orchestration. For each source, it reuses the parsed [ExecutionRegistryConfigFile], instantiates
  * the [ExecutorFactory] FQN via the 2-arg constructor (CodeInjector, ExecutionRegistryConfigFile),
  * and creates executors for each entry in the registry.
  *
@@ -23,7 +23,7 @@ import viaduct.service.api.spi.TenantModuleInjectorFactory
  * from the [ModuleConfigSource]) and the bootstrap class from the registry (or null) to obtain a
  * per-tenant [CodeInjector]. Once all tenants have been bootstrapped, the framework calls
  * [TenantModuleInjectorFactory.onBootstrapComplete] before constructing executor factories so
- * stateful implementations can complete cross-tenant setup. Registry reads and executor factory
+ * stateful implementations can complete cross-tenant setup. Bootstrap class loading and executor factory
  * construction are concurrent; bootstrapping is intentionally sequential to keep the
  * [TenantModuleInjectorFactory] contract simple.
  *
@@ -49,7 +49,7 @@ class ModuleConfigBootstrapper(
         val parsedRegistries = coroutineScope {
             moduleConfigSources.map { moduleConfigSource ->
                 async {
-                    val registry = moduleConfigSource.source.openStream().use { ExecutionRegistryConfigFile.parse(it) }
+                    val registry = moduleConfigSource.config
                     ParsedRegistry(
                         source = moduleConfigSource,
                         registry = registry,

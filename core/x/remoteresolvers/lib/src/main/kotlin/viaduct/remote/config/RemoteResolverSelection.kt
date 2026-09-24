@@ -1,8 +1,5 @@
 package viaduct.remote.config
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
-import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.KOTLIN_API_NAME
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 
@@ -41,9 +38,7 @@ data class RemoteResolverSelection(
                             "Expected one '$PROXYABLE_API_NAME' execution registry config for selected " +
                                 "tenant '$tenantName', found ${sources.size}",
                         )
-                    source.source.openStream().use {
-                        objectMapper.readValue<ExecutionRegistryConfigFile>(it)
-                    }
+                    source.config
                 }
 
             // Selective resolvers are not supported by remote execution.
@@ -70,7 +65,5 @@ data class RemoteResolverSelection(
          * corresponding config resource first.
          */
         private const val PROXYABLE_API_NAME = KOTLIN_API_NAME
-
-        private val objectMapper = jacksonObjectMapper()
     }
 }

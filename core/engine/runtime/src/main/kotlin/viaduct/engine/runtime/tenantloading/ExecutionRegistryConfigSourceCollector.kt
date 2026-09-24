@@ -1,7 +1,6 @@
 package viaduct.engine.runtime.tenantloading
 
 import io.github.classgraph.ClassGraph
-import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.service.api.spi.InputStreamSource
 
@@ -12,11 +11,9 @@ object ExecutionRegistryConfigSourceCollector {
      * Discovers tenant module registry JSON resources under [REGISTRY_RESOURCE_PATH] on the current
      * classpath and returns one [ModuleConfigSource] per matching resource.
      *
-     * Each resource is parsed just enough to extract its [ExecutionRegistryConfigFile.tenantName]
-     * and [ExecutionRegistryConfigFile.apiName], which together form the source's configuration key.
-     * Discovery deliberately does not retain the fully-parsed config; the bootstrapper re-opens
-     * [ModuleConfigSource.source] to read the rest. This keeps resource discovery separate from
-     * bootstrap orchestration.
+     * Discovery opens and parses each resource once into an immutable config snapshot. Bootstrap
+     * orchestration consumes that snapshot without reopening the source; a reload discovers and
+     * snapshots new sources rather than mutating existing ones.
      *
      * Results are required to be uniquely keyed by `<tenantName, apiName>`: this is the earliest
      * practical boundary for the one-config-per-key build invariant. Two classpath resources

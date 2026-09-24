@@ -43,6 +43,29 @@ class ModuleConfigBootstrapperTest {
         )
 
     @Test
+    fun `rebuilding registries reuses the captured config without reopening its source`() =
+        runTest {
+            val original = source("alpha", "single-read", bootstrapClass = TestBootstrapClass::class.java)
+            var opened = false
+            val snapshot = ModuleConfigSource.from(
+                InputStreamSource {
+                    check(!opened) { "Config source was reopened" }
+                    opened = true
+                    original.source.openStream()
+                }
+            )
+            val recording = RecordingTenantModuleInjectorFactory()
+            val bootstrapper = ModuleConfigBootstrapper(recording)
+
+            assertEquals(1, bootstrapper.bootstrap(listOf(snapshot)).size)
+            assertEquals(1, bootstrapper.bootstrap(listOf(snapshot)).size)
+            assertEquals(
+                listOf("alpha" to TestBootstrapClass::class.java, "alpha" to TestBootstrapClass::class.java),
+                recording.calls,
+            )
+        }
+
+    @Test
     fun `a tenant with multiple sources is bootstrapped exactly once`() =
         runTest {
             val recording = RecordingTenantModuleInjectorFactory()
