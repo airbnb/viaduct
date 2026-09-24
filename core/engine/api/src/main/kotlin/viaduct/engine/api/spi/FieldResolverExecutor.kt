@@ -66,12 +66,8 @@ interface FieldResolverExecutor {
                 selections == other.selections
         }
 
-        override fun hashCode(): Int {
-            var result = System.identityHashCode(syncObjectValueGetter)
-            result = 31 * result + arguments.hashCode()
-            result = 31 * result + (selections?.hashCode() ?: 0)
-            return result
-        }
+        // Omit selections to avoid recursively hashing its query plan; equals still resolves collisions.
+        override fun hashCode(): Int = 31 * System.identityHashCode(syncObjectValueGetter) + arguments.hashCode()
     }
 
     /**
