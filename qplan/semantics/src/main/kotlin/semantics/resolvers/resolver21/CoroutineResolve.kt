@@ -28,7 +28,7 @@ internal class CoroutineResolve(
                 supportsCheckerFragments,
             ).startResolve(
                 source = source,
-                selections = selections,
+                demand = Demand.checked(selections),
             )
         }
 }
@@ -36,7 +36,7 @@ internal class CoroutineResolve(
 /** Prepares and dispatches a fresh Query root; its fields remain owned by the request scope. */
 internal fun CoroutineOperationContext.startResolve(
     source: EngineObjectData.Sync,
-    selections: SelectionForest,
+    demand: Demand<SelectionForest>,
     queryFragmentOwner: ResolverOccurrenceId? = null,
 ): ObjectEngineResult {
     val result = ObjectEngineResult.of(source.schemaType, mutable = true)
@@ -45,7 +45,7 @@ internal fun CoroutineOperationContext.startResolve(
             this@startResolve,
             OEROccurrence(result, emptyList(), result),
             source,
-            Demand.checked(selections),
+            demand,
         )
     queryFragmentOwner?.let {
         resolverObserver.onIndependentQueryFragmentPrepared(it, result)

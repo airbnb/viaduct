@@ -40,5 +40,5 @@ internal fun startCoroutineResolution(
         supportsCheckerFragments,
     ).startResolve(
         source = operation.world.resolverRegistry.createRootQueryInput(),
-        selections = selections,
+        demand = semantics.shared.Demand.checked(selections),
     )

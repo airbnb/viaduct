@@ -3,10 +3,8 @@ package semantics.contract
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 import model.Arguments
 import model.Assumptions
 import model.EngineErrorData
@@ -479,47 +477,6 @@ interface FragmentFreeFieldCheckerEnforcementContract {
 
         assertEquals(42, result.value(world, "consumer", "Query"))
         assertEquals(1, consumerCalls.get())
-    }
-
-    @Test
-    fun `nonempty checker required selections remain rejected`() {
-        val world =
-            TestWorld.fromDSL(
-                schemaSDL =
-                    """
-                    extend type Query {
-                      checked: Int! @resolver(result: 1)
-                    }
-                    """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
-                fieldCheckers = { schema ->
-                    val query = schema.requireQueryTypeDef()
-                    val checked = schema.requireObjectField("Query", "checked")
-                    val fragment =
-                        ResolverFragmentTemplates(
-                            objectFragmentTemplate = materializeSelectionForestOf(),
-                            queryFragmentTemplate =
-                                schema
-                                    .fragmentFrom("fragment Input on Query { checked }")
-                                    .materializeSelections,
-                        )
-                    mapOf(
-                        checked to
-                            FieldChecker.of(
-                                checked,
-                                query,
-                                fragmentTemplates = mapOf("input" to fragment),
-                            ) { _, _, _ -> CheckerResult.Success },
-                    )
-                },
-            ).assumptions
-
-        val failure =
-            assertFailsWith<IllegalArgumentException> {
-                resolveF2(world, "{ checked }")
-            }
-
-        assertTrue(failure.message.orEmpty().contains("cannot declare"))
     }
 
     private fun resolveF2(

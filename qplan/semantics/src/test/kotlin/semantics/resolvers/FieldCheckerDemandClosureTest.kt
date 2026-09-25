@@ -156,7 +156,7 @@ class FieldCheckerDemandClosureTest {
     }
 
     @Test
-    fun `checker Query inputs stay out of containing-object closure and start raw at a fresh root`() {
+    fun `checker Query inputs join the associated Query closure as raw demand`() {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
@@ -198,16 +198,36 @@ class FieldCheckerDemandClosureTest {
                 )
             },
         ).assumptions
-        assertDemand(close(world, checked = "a"), checked = setOf("a"), unchecked = emptySet())
         val checker = requireNotNull(world.resolverRegistry.fieldChecker(world.schema.requireObjectField("Box", "a")))
         assertEquals(setOf("empty", "viewer", "emptyQuery"), checker.fragmentTemplates.keys)
-        val query = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), emptyMap())
-        val closed = world.schema.objectOf("Query").closeConstructionDemand(
-            SharedOperationContext.create(world),
-            OEROccurrence(query, emptyList(), query),
-            initialDemand = Demand.unchecked(checker.queryFragment),
+        val operationRoot = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), emptyMap())
+        val queryRoot = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), emptyMap())
+        val objectTarget = ObjectEngineResult.of(world.schema.requireObjectField("Box", "a").containingDef, emptyMap())
+        val closed =
+            world.schema.objectOf("Box") { "a" setTo 1 }.closeOrchestratorConstructionDemand(
+                operation = SharedOperationContext.create(world),
+                objectOccurrence =
+                    OEROccurrence(
+                        operationRoot,
+                        listOf(key(world, "Query", "boxes"), ListEngineResult.Index.of(0)),
+                        objectTarget,
+                    ),
+                queryOccurrence = OEROccurrence(queryRoot, emptyList(), queryRoot),
+                initialDemand =
+                    OrchestratorConstructionDemand(
+                        objectRooted = Demand.checked(selections(world, "Box", "a")),
+                        queryRooted = Demand.EMPTY,
+                    ),
+            )
+        assertDemand(closed.objectRooted, checked = setOf("a"), unchecked = emptySet())
+        assertDemand(
+            closed.queryRooted,
+            checked = setOf("dependency"),
+            unchecked = setOf("viewer"),
         )
-        assertDemand(closed, checked = setOf("dependency"), unchecked = setOf("viewer"))
+        assertTrue(objectTarget.keys.isEmpty(), "Closure must not allocate result cells")
+        assertTrue(operationRoot.keys.isEmpty(), "Closure must not allocate result cells")
+        assertTrue(queryRoot.keys.isEmpty(), "Closure must not allocate result cells")
     }
 
     @Test

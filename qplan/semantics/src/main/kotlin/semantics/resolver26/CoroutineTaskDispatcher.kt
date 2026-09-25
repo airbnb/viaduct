@@ -24,7 +24,7 @@ internal class CoroutineTaskDispatcher<
     private val cancelFieldResolver: (F, CancellationException) -> Unit = { publication, cause ->
         publication.publicationCell.cancelValue(cause)
     },
-    private val runFieldChecker: suspend (C) -> Unit = {
+    private val runFieldChecker: suspend (C, CoroutineScope) -> Unit = { _, _ ->
         throw UnsupportedOperationException("This coroutine dispatcher does not support field checkers")
     },
     private val cancelFieldChecker: (C, CancellationException) -> Unit = { publication, cause ->
@@ -52,7 +52,7 @@ internal class CoroutineTaskDispatcher<
 
     fun dispatchFieldChecker(publication: C) {
         requestScope.launch {
-            runFieldChecker(publication)
+            runFieldChecker(publication, this)
         }.invokeOnCompletion { cause ->
             if (cause is CancellationException) cancelFieldChecker(publication, cause)
         }

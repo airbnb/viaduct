@@ -1,5 +1,6 @@
 package semantics.resolvers.resolver21
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import model.Arguments
@@ -11,8 +12,6 @@ import model.registry.FieldChecker
 import model.registry.CheckerInput
 import model.registry.ResolutionExecutionContext
 import model.registry.ResolverFragments
-import model.engineObjectDataOf
-import model.requireQueryTypeDef
 import semantics.resolver26.CoroutineFieldCheckerPublicationOccurrence
 import semantics.shared.fieldCheckerCycleSlot
 import semantics.shared.fieldCheckerCycleTask
@@ -30,6 +29,7 @@ internal class GroundedFieldCheckerPublicationOccurrence(
     val checkerFragments: ResolverFragments?,
     val arguments: Arguments.Resolved?,
     val publicationPath: List<PathComponent>,
+    val queryOER: SharedOERContext,
 ) : CoroutineFieldCheckerPublicationOccurrence
 
 /**
@@ -86,6 +86,7 @@ internal class CoroutineFieldCheckerTask private constructor(
                     ),
                 arguments = key.arguments as? Arguments.Resolved,
                 publicationPath = publicationPath,
+                queryOER = orchestrationTask.queryOER,
             )
             if (checker != null) {
                 publication.operation.cycleChecker.registerWriter(
@@ -96,7 +97,10 @@ internal class CoroutineFieldCheckerTask private constructor(
             return publication
         }
 
-        internal suspend fun execute(publication: GroundedFieldCheckerPublicationOccurrence) {
+        internal suspend fun execute(
+            publication: GroundedFieldCheckerPublicationOccurrence,
+            @Suppress("UNUSED_PARAMETER") scope: CoroutineScope,
+        ) {
             CoroutineFieldCheckerTask(publication).run()
         }
 
@@ -108,8 +112,8 @@ internal class CoroutineFieldCheckerTask private constructor(
                 "Resolver21 field checker ${checker.field.containingDef.name}/${checker.field.name} " +
                     "cannot declare object required selections"
             }
-            require(checker.queryFragment.isEmpty()) {
-                "Field checker ${checker.field.containingDef.name}/${checker.field.name} " +
+            require(operation.supportsCheckerFragments || checker.queryFragment.isEmpty()) {
+                "Resolver21 field checker ${checker.field.containingDef.name}/${checker.field.name} " +
                     "cannot declare Query required selections"
             }
         }
@@ -130,25 +134,45 @@ internal class CoroutineFieldCheckerTask private constructor(
         val fragments = checkNotNull(publication.checkerFragments)
         val reader =
             publication.oerOccurrence.root.fieldCheckerCycleTask(publication.publicationPath)
-        val emptyQuery =
-            engineObjectDataOf(publication.operation.world.schema.requireQueryTypeDef())
-        val inputs =
+        check(
+            fragments.queryFragment.constructionSelections.isEmpty() ||
+                publication.queryOER.isDemanded(),
+        ) {
+            "Nonempty checker Query fragment has no demanded shared Query OER"
+        }
+        val objectInputs =
             checker
                 .instantiateObjectMaterializationSelections(
                     fragments.objectFragment.resolverOccurrenceId,
                 ).mapValues { (_, selections) ->
-                    CheckerInput(
-                        objectValue =
-                            publication.oerOccurrence.target.materializeResult(
-                                operation = publication.operation,
-                                selections = selections,
-                                reader = reader,
-                                cycleChecker = publication.operation.cycleChecker,
-                                checked = false,
-                            ),
-                        queryValue = emptyQuery,
+                    publication.oerOccurrence.target.materializeResult(
+                        operation = publication.operation,
+                        selections = selections,
+                        reader = reader,
+                        cycleChecker = publication.operation.cycleChecker,
+                        checked = false,
                     )
                 }
+        val queryValues =
+            checker
+                .instantiateQueryMaterializationSelections(
+                    fragments.queryFragment.resolverOccurrenceId,
+                ).mapValues { (_, selections) ->
+                    publication.queryOER.occurrence.target.materializeResult(
+                        operation = publication.operation,
+                        selections = selections,
+                        reader = reader,
+                        cycleChecker = publication.operation.cycleChecker,
+                        checked = false,
+                    )
+                }
+        val inputs =
+            checker.fragmentTemplates.keys.associateWith { name ->
+                CheckerInput(
+                    objectValue = objectInputs.getValue(name),
+                    queryValue = queryValues.getValue(name),
+                )
+            }
         val result =
             checker(
                 checkNotNull(publication.arguments),
@@ -165,4 +189,5 @@ internal class CoroutineFieldCheckerTask private constructor(
             "Field-checker failure was published twice"
         }
     }
+
 }

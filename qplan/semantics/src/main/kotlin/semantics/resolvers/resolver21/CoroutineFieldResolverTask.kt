@@ -114,7 +114,8 @@ internal class CoroutineFieldResolverTask private constructor(
                 engineObjectDataOf(publication.operation.world.schema.requireQueryTypeDef())
             } else {
                 val queryResult = publication.operation.startResolve(
-                    publication.operation.world.resolverRegistry.createRootQueryInput(), queryFragment.constructionSelections,
+                    source = publication.operation.world.resolverRegistry.createRootQueryInput(),
+                    demand = Demand.checked(queryFragment.constructionSelections),
                     queryFragmentOwner = queryFragment.resolverOccurrenceId,
                 )
                 queryResult.materializeResolverInput(

@@ -132,13 +132,13 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
                     queryResolverInputs.objectFragment +
                     queryResolverInputs.queryFragment
             val objectCheckerInputs =
-                newObjectCheckerKeyInclusions.checkerObjectInputDemand(
+                newObjectCheckerKeyInclusions.checkerInputDemand(
                     operation,
                     objectOccurrence,
                     boundObjectCheckerKeys,
                 )
             val queryCheckerInputs =
-                newQueryCheckerKeyInclusions.checkerObjectInputDemand(
+                newQueryCheckerKeyInclusions.checkerInputDemand(
                     operation,
                     queryOccurrence,
                     boundQueryCheckerKeys,
@@ -149,12 +149,15 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
                         objectRooted =
                             Demand(
                                 checked = objectResolverInputs.objectFragment,
-                                unchecked = objectCheckerInputs,
+                                unchecked = objectCheckerInputs.objectFragment,
                             ),
                         queryRooted =
                             Demand(
                                 checked = queryInputSelections,
-                                unchecked = queryCheckerInputs,
+                                unchecked =
+                                    objectCheckerInputs.queryFragment +
+                                        queryCheckerInputs.objectFragment +
+                                        queryCheckerInputs.queryFragment,
                             ),
                     )
             expandedObjectResolverKeys += newObjectResolverKeys
@@ -220,12 +223,14 @@ private fun Demand<ObjectSelectionForest>.newCheckerKeyInclusions(
         }
     }
 
-private fun List<Pair<ObjectEngineResult.GroundKey, InclusionCondition>>.checkerObjectInputDemand(
+private fun List<Pair<ObjectEngineResult.GroundKey, InclusionCondition>>.checkerInputDemand(
     operation: SharedOperationContext<*>,
     occurrence: OEROccurrence,
     boundKeys: MutableSet<ObjectEngineResult.GroundKey>,
-): SelectionForest =
-    flatMapToSelectionForest { (key, inclusion) ->
+): ResolverInputConstructionDemand {
+    var objectFragment: SelectionForest = selectionForestOf()
+    var queryFragment: SelectionForest = selectionForestOf()
+    forEach { (key, inclusion) ->
         val fragments =
             requireNotNull(operation.world.resolverRegistry.fieldChecker(key.field))
                 .instantiateFragmentsAt(occurrence.root, occurrence.coordinate(key))
@@ -235,8 +240,11 @@ private fun List<Pair<ObjectEngineResult.GroundKey, InclusionCondition>>.checker
                 key.arguments as Arguments.Resolved,
             )
         }
-        fragments.objectFragment.constructionSelections.guardedBy(inclusion)
+        objectFragment += fragments.objectFragment.constructionSelections.guardedBy(inclusion)
+        queryFragment += fragments.queryFragment.constructionSelections.guardedBy(inclusion)
     }
+    return ResolverInputConstructionDemand(objectFragment, queryFragment)
+}
 
 private fun Set<ObjectEngineResult.GroundKey>.resolverInputDemand(
     operation: SharedOperationContext<*>,
