@@ -19,6 +19,7 @@ on:
 permissions:
   contents: read
   pull-requests: write   # required to post/update the sticky comment
+  id-token: write
 
 concurrency:
   group: security-scan-${{ github.ref }}
@@ -26,6 +27,7 @@ concurrency:
 
 env:
   GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
+  VIADUCT_DEPENDENCY_MIRROR_ROLE_ARN: ${{ vars.VIADUCT_DEPENDENCY_MIRROR_ROLE_ARN }}
 
 jobs:
   cve-parity:
