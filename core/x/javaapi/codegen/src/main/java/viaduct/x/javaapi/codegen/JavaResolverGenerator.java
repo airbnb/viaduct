@@ -43,6 +43,7 @@ public final class JavaResolverGenerator {
           import viaduct.java.api.internal.InternalContext;
           <if(mdl.hasBatchingResolvers)>
           import viaduct.java.api.internal.BaseBatchedFieldResolver;
+          import viaduct.java.api.resolvers.FieldValue;
           <endif>
           <if(mdl.hasUnbatchedResolvers)>
           import viaduct.java.api.internal.BaseUnbatchedFieldResolver;
@@ -239,42 +240,35 @@ public final class JavaResolverGenerator {
                    * @param contexts the list of execution contexts (one per parent object)
                    * @return a future that completes with a map from Context to resolved value
                    */
-                  public abstract <r.batchResolveFutureType> batchResolve(<r.batchResolveContextListType> contexts);
+                  public <r.batchResolveFutureType> batchResolve(<r.batchResolveContextListType> contexts) {
+                      throw new UnsupportedOperationException("Override batchResolve or batchResolveWithErrors");
+                  \\}
+
+                  /** Override for per-item errors; defaults to wrapping batchResolve values in FieldValue. */
+                  public <r.batchResolveWithErrorsFutureType> batchResolveWithErrors(<r.batchResolveContextListType> contexts) {
+                      return batchResolve(contexts).thenApply(BaseBatchedFieldResolver::wrapValues);
+                  \\}
 
                   @Override
                   @SuppressWarnings("unchecked")
                   public final <r.batchInvokerFutureType> invokeFieldBatchResolver(
                       <r.batchInvokerContextListType> contexts) {
-                      <r.batchInvokerWrappedToOriginalMapType> wrappedToOriginal =
-                          new IdentityHashMap\\<>();
-                      List\\<Context> wrappedContexts =
-                          contexts.stream()
-                              .map(
-                                  context -> {
-                                      Context wrapped =
-                                          new Context((<r.fieldExecutionContextType>) context);
-                                      wrappedToOriginal.put(wrapped, context);
-                                      return wrapped;
-                                  \\})
-                              .toList();
+                      return BaseBatchedFieldResolver.invokeBatch(
+                              contexts,
+                              context -> new Context((<r.fieldExecutionContextType>) context),
+                              this::batchResolve)
+                          .thenApply(IdentityHashMap::new);
+                  \\}
 
-                      return batchResolve(wrappedContexts)
-                          .thenCompose(
-                              results -> {
-                                  <r.batchInvokerResultMapType> translatedResults =
-                                      new IdentityHashMap\\<>();
-                                  for (var result : results.entrySet()) {
-                                      Context wrappedContext = result.getKey();
-                                      <r.batchInvokerContextType> originalContext =
-                                          wrappedToOriginal.get(wrappedContext);
-                                      if (originalContext == null) {
-                                          return BaseBatchedFieldResolver.failedForUnknownContext(
-                                              wrappedContext);
-                                      \\}
-                                      translatedResults.put(originalContext, result.getValue());
-                                  \\}
-                                  return CompletableFuture.completedFuture(translatedResults);
-                              \\});
+                  @Override
+                  @SuppressWarnings("unchecked")
+                  public final <r.batchInvokerWithErrorsFutureType> invokeFieldBatchResolverWithErrors(
+                      <r.batchInvokerContextListType> contexts) {
+                      return BaseBatchedFieldResolver.invokeBatch(
+                              contexts,
+                              context -> new Context((<r.fieldExecutionContextType>) context),
+                              this::batchResolveWithErrors)
+                          .thenApply(IdentityHashMap::new);
                   \\}
                   <endif>
               \\}

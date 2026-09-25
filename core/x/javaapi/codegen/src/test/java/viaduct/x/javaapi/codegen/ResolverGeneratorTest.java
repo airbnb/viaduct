@@ -85,7 +85,7 @@ class ResolverGeneratorTest {
                 + " isBatching = true)"));
     assertTrue(
         generated.contains(
-            "public abstract CompletableFuture<Map<Context, Profile>> batchResolve(List<Context>"
+            "public CompletableFuture<Map<Context, Profile>> batchResolve(List<Context>"
                 + " contexts)"));
     assertTrue(generated.contains("implements FieldResolverBase<"));
     assertTrue(generated.contains(", BaseBatchedFieldResolver"));
@@ -94,8 +94,10 @@ class ResolverGeneratorTest {
             "public final CompletableFuture<Map<FieldExecutionContext<?, ?, ?, ?>, Object>>"
                 + " invokeFieldBatchResolver("));
     assertTrue(generated.contains("new Context((FieldExecutionContext<"));
-    assertTrue(generated.contains("wrappedToOriginal.get(wrappedContext)"));
-    assertTrue(generated.contains("BaseBatchedFieldResolver.failedForUnknownContext("));
+    assertTrue(generated.contains("BaseBatchedFieldResolver.invokeBatch("));
+    assertTrue(
+        generated.contains(
+            "CompletableFuture<Map<Context, FieldValue<Profile>>> batchResolveWithErrors("));
     assertTrue(!generated.contains("CompletableFuture<Profile> resolve(Context ctx)"));
   }
 

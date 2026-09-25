@@ -13,6 +13,9 @@ import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.VariableFromArgumentDefinitions
+import viaduct.errors.ErroneousFieldException
+import viaduct.errors.PassthroughException
+import viaduct.errors.TenantResolverException
 import viaduct.errors.TenantUsageException
 import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.handleFrameworkErrorsSuspend
@@ -21,6 +24,7 @@ import viaduct.errors.resultOfSuspend
 import viaduct.java.api.context.FieldExecutionContext
 import viaduct.java.api.internal.BaseBatchedFieldResolver
 import viaduct.java.api.internal.InternalContext
+import viaduct.java.api.resolvers.FieldValue
 import viaduct.java.api.types.Arguments
 
 /**
@@ -28,7 +32,7 @@ import viaduct.java.api.types.Arguments
  *
  * Called when [FieldResolverExecutor.isBatching] is true. Receives all selectors for a field
  * in a single call, creates per-selector contexts, invokes the tenant's
- * `batchResolve(List<Context>): CompletableFuture<Map<Context, T>>`, and maps the results back
+ * `batchResolveWithErrors(List<Context>): CompletableFuture<Map<Context, FieldValue<T>>>`, and maps the results back
  * to the engine's selector-keyed format.
  */
 class FieldBatchResolverExecutorImpl(
@@ -81,37 +85,43 @@ class FieldBatchResolverExecutorImpl(
             )
         }
 
-        // The generated adapter remaps Context keys to their inner FieldExecutionContext so lookup
-        // remains deterministic regardless of the Map type returned by the tenant.
-        val rawResult: Map<FieldExecutionContext<*, *, *, *>, *> = handleTenantErrorsSuspend(resolverId) {
-            resolver.get().invokeFieldBatchResolver(javaContexts).await()
+        val results: Map<FieldExecutionContext<*, *, *, *>, *> = handleTenantErrorsSuspend(resolverId) {
+            val results = resolver.get().invokeFieldBatchResolverWithErrors(javaContexts).await()
+                ?: throw TenantUsageException("batchResolve for $resolverId returned a null map")
+            if (results.size != selectors.size) {
+                throw TenantUsageException(
+                    "batchResolve for $resolverId was given ${selectors.size} contexts but returned ${results.size} entries"
+                )
+            }
+            if (javaContexts.any { !results.containsKey(it) }) {
+                throw TenantUsageException("batchResolve for $resolverId returned a context that was not in the input context list")
+            }
+            results
         }
 
-        if (rawResult.size != selectors.size) {
-            throw TenantUsageException(
-                "batchResolve for $resolverId was given ${selectors.size} contexts but returned ${rawResult.size} entries"
-            )
+        return selectors.zip(javaContexts).associate { (selector, javaContext) ->
+            selector to unwrap(results[javaContext])
         }
+    }
 
-        // javaContexts[i] is keyed in rawResult; look up each context to get its value,
-        // wrapping each conversion in resultOfSuspend so a per-item failure becomes
-        // Result.failure for that selector rather than aborting the entire batch.
-        val out = mutableMapOf<FieldResolverExecutor.Selector, Result<Any?>>()
-        selectors.zip(javaContexts).forEach { (selector, javaCtx) ->
-            out[selector] = resultOfSuspend {
-                if (!rawResult.containsKey(javaCtx)) {
-                    throw TenantUsageException(
-                        "batchResolve for $resolverId did not return a result for context at index ${javaContexts.indexOf(javaCtx)}"
-                    )
-                }
-                val value = rawResult[javaCtx]
-                handleFrameworkErrors("$resolverId: convertResult") {
-                    convertResult(value, graphqlSchema)
+    private suspend fun unwrap(fieldValue: Any?): Result<Any?> =
+        resultOfSuspend(
+            mapException = { error ->
+                if (error is PassthroughException || error is ErroneousFieldException) {
+                    error
+                } else {
+                    TenantResolverException(error, resolverId)
                 }
             }
+        ) {
+            if (fieldValue !is FieldValue<*>) {
+                throw TenantUsageException("batchResolve for $resolverId returned an invalid FieldValue: $fieldValue; use FieldValue.ofValue(null) for null")
+            }
+            val value = fieldValue.get()
+            handleFrameworkErrors("$resolverId: convertResult") {
+                convertResult(value, graphqlSchema)
+            }
         }
-        return out
-    }
 
     private fun createArguments(
         argumentMap: Map<String, Any?>,

@@ -17,9 +17,13 @@ import viaduct.java.api.types.Query;
  * <ul>
  *   <li>{@code resolve(Context)} for single-item resolution
  *   <li>{@code batchResolve(List)} for batch resolution (more efficient)
+ *   <li>{@code batchResolveWithErrors(List)} for batch resolution with per-item {@link FieldValue}
+ *       results
  * </ul>
  *
- * <p>Implementing both methods is not allowed - choose one based on your use case.
+ * <p>For batched fields, override either batch method. The runtime calls {@code
+ * batchResolveWithErrors}, which defaults to wrapping each {@code batchResolve} value in {@code
+ * FieldValue.ofValue}.
  *
  * <h2>Single Resolution</h2>
  *

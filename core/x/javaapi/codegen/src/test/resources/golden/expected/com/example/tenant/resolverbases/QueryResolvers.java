@@ -16,6 +16,7 @@ import viaduct.java.api.documents.QueryFromAnnotation;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.internal.BaseBatchedFieldResolver;
+import viaduct.java.api.resolvers.FieldValue;
 import viaduct.java.api.internal.BaseUnbatchedFieldResolver;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.resolvers.ConnectionResolverBase;
@@ -487,42 +488,35 @@ public final class QueryResolvers {
              * @param contexts the list of execution contexts (one per parent object)
              * @return a future that completes with a map from Context to resolved value
              */
-            public abstract CompletableFuture<Map<Context, List<com.example.grts.Order>>> batchResolve(List<Context> contexts);
+            public CompletableFuture<Map<Context, List<com.example.grts.Order>>> batchResolve(List<Context> contexts) {
+                throw new UnsupportedOperationException("Override batchResolve or batchResolveWithErrors");
+            }
+
+            /** Override for per-item errors; defaults to wrapping batchResolve values in FieldValue. */
+            public CompletableFuture<Map<Context, FieldValue<List<com.example.grts.Order>>>> batchResolveWithErrors(List<Context> contexts) {
+                return batchResolve(contexts).thenApply(BaseBatchedFieldResolver::wrapValues);
+            }
 
             @Override
             @SuppressWarnings("unchecked")
             public final CompletableFuture<Map<FieldExecutionContext<?, ?, ?, ?>, Object>> invokeFieldBatchResolver(
                 List<FieldExecutionContext<?, ?, ?, ?>> contexts) {
-                IdentityHashMap<Context, FieldExecutionContext<?, ?, ?, ?>> wrappedToOriginal =
-                    new IdentityHashMap<>();
-                List<Context> wrappedContexts =
-                    contexts.stream()
-                        .map(
-                            context -> {
-                                Context wrapped =
-                                    new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.Order>) context);
-                                wrappedToOriginal.put(wrapped, context);
-                                return wrapped;
-                            })
-                        .toList();
+                return BaseBatchedFieldResolver.invokeBatch(
+                        contexts,
+                        context -> new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.Order>) context),
+                        this::batchResolve)
+                    .thenApply(IdentityHashMap::new);
+            }
 
-                return batchResolve(wrappedContexts)
-                    .thenCompose(
-                        results -> {
-                            IdentityHashMap<FieldExecutionContext<?, ?, ?, ?>, Object> translatedResults =
-                                new IdentityHashMap<>();
-                            for (var result : results.entrySet()) {
-                                Context wrappedContext = result.getKey();
-                                FieldExecutionContext<?, ?, ?, ?> originalContext =
-                                    wrappedToOriginal.get(wrappedContext);
-                                if (originalContext == null) {
-                                    return BaseBatchedFieldResolver.failedForUnknownContext(
-                                        wrappedContext);
-                                }
-                                translatedResults.put(originalContext, result.getValue());
-                            }
-                            return CompletableFuture.completedFuture(translatedResults);
-                        });
+            @Override
+            @SuppressWarnings("unchecked")
+            public final CompletableFuture<Map<FieldExecutionContext<?, ?, ?, ?>, FieldValue<?>>> invokeFieldBatchResolverWithErrors(
+                List<FieldExecutionContext<?, ?, ?, ?>> contexts) {
+                return BaseBatchedFieldResolver.invokeBatch(
+                        contexts,
+                        context -> new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.Order>) context),
+                        this::batchResolveWithErrors)
+                    .thenApply(IdentityHashMap::new);
             }
         }
 
@@ -669,42 +663,35 @@ public final class QueryResolvers {
              * @param contexts the list of execution contexts (one per parent object)
              * @return a future that completes with a map from Context to resolved value
              */
-            public abstract CompletableFuture<Map<Context, List<com.example.grts.User>>> batchResolve(List<Context> contexts);
+            public CompletableFuture<Map<Context, List<com.example.grts.User>>> batchResolve(List<Context> contexts) {
+                throw new UnsupportedOperationException("Override batchResolve or batchResolveWithErrors");
+            }
+
+            /** Override for per-item errors; defaults to wrapping batchResolve values in FieldValue. */
+            public CompletableFuture<Map<Context, FieldValue<List<com.example.grts.User>>>> batchResolveWithErrors(List<Context> contexts) {
+                return batchResolve(contexts).thenApply(BaseBatchedFieldResolver::wrapValues);
+            }
 
             @Override
             @SuppressWarnings("unchecked")
             public final CompletableFuture<Map<FieldExecutionContext<?, ?, ?, ?>, Object>> invokeFieldBatchResolver(
                 List<FieldExecutionContext<?, ?, ?, ?>> contexts) {
-                IdentityHashMap<Context, FieldExecutionContext<?, ?, ?, ?>> wrappedToOriginal =
-                    new IdentityHashMap<>();
-                List<Context> wrappedContexts =
-                    contexts.stream()
-                        .map(
-                            context -> {
-                                Context wrapped =
-                                    new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User>) context);
-                                wrappedToOriginal.put(wrapped, context);
-                                return wrapped;
-                            })
-                        .toList();
+                return BaseBatchedFieldResolver.invokeBatch(
+                        contexts,
+                        context -> new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User>) context),
+                        this::batchResolve)
+                    .thenApply(IdentityHashMap::new);
+            }
 
-                return batchResolve(wrappedContexts)
-                    .thenCompose(
-                        results -> {
-                            IdentityHashMap<FieldExecutionContext<?, ?, ?, ?>, Object> translatedResults =
-                                new IdentityHashMap<>();
-                            for (var result : results.entrySet()) {
-                                Context wrappedContext = result.getKey();
-                                FieldExecutionContext<?, ?, ?, ?> originalContext =
-                                    wrappedToOriginal.get(wrappedContext);
-                                if (originalContext == null) {
-                                    return BaseBatchedFieldResolver.failedForUnknownContext(
-                                        wrappedContext);
-                                }
-                                translatedResults.put(originalContext, result.getValue());
-                            }
-                            return CompletableFuture.completedFuture(translatedResults);
-                        });
+            @Override
+            @SuppressWarnings("unchecked")
+            public final CompletableFuture<Map<FieldExecutionContext<?, ?, ?, ?>, FieldValue<?>>> invokeFieldBatchResolverWithErrors(
+                List<FieldExecutionContext<?, ?, ?, ?>> contexts) {
+                return BaseBatchedFieldResolver.invokeBatch(
+                        contexts,
+                        context -> new Context((FieldExecutionContext<com.example.grts.Query, com.example.grts.Query, Arguments.NoArguments, com.example.grts.User>) context),
+                        this::batchResolveWithErrors)
+                    .thenApply(IdentityHashMap::new);
             }
         }
 

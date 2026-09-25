@@ -8,6 +8,20 @@ import viaduct.tenant.runtime.execution.fieldbatch.resolverbases.ItemResolvers
 import viaduct.tenant.runtime.execution.fieldbatch.resolverbases.QueryResolvers
 
 class KotlinFieldBatchResolverContractTest : FieldBatchResolverContractTest() {
+    @Resolver(objectValueFragment = "fragment _ on Item { id }")
+    class Item_OutcomeFieldResolver : ItemResolvers.OutcomeField() {
+        override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<String?>> {
+            if (contexts.any { it.arguments.failBatch == true }) throw IllegalStateException("batch failed")
+            return contexts.map { ctx ->
+                when (ctx.getObjectValue().getIdOrThrow()) {
+                    "item-1" -> FieldValue.ofValue("success")
+                    "item-2" -> FieldValue.ofValue(null)
+                    else -> FieldValue.ofError(IllegalArgumentException("item failed"))
+                }
+            }
+        }
+    }
+
     @Resolver
     class Query_ItemsResolver : QueryResolvers.Items() {
         override suspend fun resolve(ctx: Context): List<Item> {

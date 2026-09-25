@@ -1,5 +1,7 @@
 package viaduct.tenant.runtime.execution.fieldbatch
 
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
 import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
@@ -27,12 +29,50 @@ import viaduct.graphql.test.assertEquals
       id: String!
       "Batch resolver: return \"batched-<item.id>-size-<batch_size>\" where batch_size is the total items in the batch"
       batchedField: String @resolver(isBatching: true)
+      outcomeField(failBatch: Boolean = false): String @resolver(isBatching: true)
       "Batch resolver returning list: return 2 Items per parent with ids \"<parent.id>-list-1-size-<batch_size>\", \"<parent.id>-list-2-size-<batch_size>\""
       listField: [Item]  @resolver(isBatching: true)
     }
 """
 )
 abstract class FieldBatchResolverContractTest : KotlinFeatureAppTestContractBase() {
+    @Test
+    fun `batch item errors preserve successful and null siblings`() {
+        val result = execute(query = "{ items(count: 3) { id outcomeField } }")
+
+        assertEquals(
+            mapOf(
+                "items" to listOf(
+                    mapOf("id" to "item-1", "outcomeField" to "success"),
+                    mapOf("id" to "item-2", "outcomeField" to null),
+                    mapOf("id" to "item-3", "outcomeField" to null),
+                )
+            ),
+            result.getData(),
+        )
+        assertEquals(1, result.errors.size)
+        assertEquals(listOf("items", 2, "outcomeField"), result.errors.single().path)
+        assertTrue(result.errors.single().message.contains("item failed"))
+    }
+
+    @Test
+    fun `batch invocation failure reports every affected field`() {
+        val result = execute(query = "{ items(count: 2) { id outcomeField(failBatch: true) } }")
+
+        assertEquals(
+            mapOf(
+                "items" to listOf(
+                    mapOf("id" to "item-1", "outcomeField" to null),
+                    mapOf("id" to "item-2", "outcomeField" to null),
+                )
+            ),
+            result.getData(),
+        )
+        assertEquals(2, result.errors.size)
+        assertEquals(setOf(listOf("items", 0, "outcomeField"), listOf("items", 1, "outcomeField")), result.errors.map { it.path }.toSet())
+        assertTrue(result.errors.all { it.message.contains("batch failed") })
+    }
+
     @Test
     fun `field batch resolver batches multiple field requests`() {
         execute(

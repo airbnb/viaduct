@@ -356,19 +356,15 @@ public record ResolverModel(
     return "CompletableFuture<Map<FieldExecutionContext<?, ?, ?, ?>, Object>>";
   }
 
+  public String getBatchResolveWithErrorsFutureType() {
+    return "CompletableFuture<Map<Context, FieldValue<" + returnType + ">>>";
+  }
+
+  public String getBatchInvokerWithErrorsFutureType() {
+    return "CompletableFuture<Map<FieldExecutionContext<?, ?, ?, ?>, FieldValue<?>>>";
+  }
+
   public String getBatchInvokerContextListType() {
     return "List<FieldExecutionContext<?, ?, ?, ?>>";
-  }
-
-  public String getBatchInvokerWrappedToOriginalMapType() {
-    return "IdentityHashMap<Context, FieldExecutionContext<?, ?, ?, ?>>";
-  }
-
-  public String getBatchInvokerResultMapType() {
-    return "IdentityHashMap<FieldExecutionContext<?, ?, ?, ?>, Object>";
-  }
-
-  public String getBatchInvokerContextType() {
-    return "FieldExecutionContext<?, ?, ?, ?>";
   }
 }

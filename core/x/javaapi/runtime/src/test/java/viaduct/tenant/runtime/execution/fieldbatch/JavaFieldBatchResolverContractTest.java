@@ -6,10 +6,35 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
 import viaduct.java.api.annotations.Resolver;
+import viaduct.java.api.resolvers.FieldValue;
 import viaduct.tenant.runtime.execution.fieldbatch.resolverbases.ItemResolvers;
 import viaduct.tenant.runtime.execution.fieldbatch.resolverbases.QueryResolvers;
 
 public class JavaFieldBatchResolverContractTest extends FieldBatchResolverContractTest {
+
+  @Resolver(objectValueFragment = "fragment _ on Item { id }")
+  public static class OutcomeFieldResolver extends ItemResolvers.OutcomeField {
+    @Override
+    public CompletableFuture<Map<Context, FieldValue<String>>> batchResolveWithErrors(
+        List<Context> contexts) {
+      if (contexts.stream()
+          .anyMatch(ctx -> Boolean.TRUE.equals(ctx.getArguments().getFailBatch()))) {
+        return CompletableFuture.failedFuture(new IllegalStateException("batch failed"));
+      }
+      Map<Context, FieldValue<String>> results = new LinkedHashMap<>();
+      for (int i = contexts.size() - 1; i >= 0; i--) {
+        Context ctx = contexts.get(i);
+        FieldValue<String> value =
+            switch (ctx.getObjectValue().getIdOrThrow()) {
+              case "item-1" -> FieldValue.ofValue("success");
+              case "item-2" -> FieldValue.ofValue(null);
+              default -> FieldValue.ofError(new IllegalArgumentException("item failed"));
+            };
+        results.put(ctx, value);
+      }
+      return CompletableFuture.completedFuture(results);
+    }
+  }
 
   // --- Resolvers ---
 
