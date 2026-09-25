@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.engine.runtime
 
 import graphql.execution.instrumentation.SimplePerformantInstrumentation

@@ -4,6 +4,7 @@ import kotlinx.coroutines.CancellationException
 import viaduct.engine.api.EngineObjectData
 
 /** Reads field values from materialized object data. */
+@Deprecated("For Airbnb use only", level = DeprecationLevel.WARNING)
 fun interface MaterializedFieldValueReader {
     /**
      * Returns the value of one field of [source].
@@ -27,6 +28,7 @@ fun interface MaterializedFieldValueReader {
     data class ReadResult(val value: Any?, val fieldIsMissing: Boolean)
 
     companion object {
+        @Suppress("DEPRECATION")
         val Default = MaterializedFieldValueReader { source, fieldName, _ ->
             val value = source.fetchOrNull(fieldName)
             val fieldIsMissing = value == null && try {

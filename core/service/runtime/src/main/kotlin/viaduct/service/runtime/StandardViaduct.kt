@@ -250,6 +250,7 @@ class StandardViaduct
                     this.fieldSelectivityProvider = fieldSelectivityProvider
                 }
 
+            @Deprecated("For Airbnb use only", level = DeprecationLevel.WARNING)
             fun withMaterializedFieldValueReader(materializedFieldValueReader: MaterializedFieldValueReader): Builder =
                 apply {
                     this.materializedFieldValueReader = materializedFieldValueReader

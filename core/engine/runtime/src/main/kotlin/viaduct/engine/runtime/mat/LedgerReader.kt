@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.engine.runtime.mat
 
 import viaduct.engine.api.spi.MaterializedFieldValueReader
