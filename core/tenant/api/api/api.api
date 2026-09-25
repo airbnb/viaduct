@@ -187,7 +187,6 @@ public abstract interface class viaduct/api/select/SelectionSet {
 	public abstract fun isEmpty ()Z
 	public abstract fun requestsType (Lviaduct/api/reflect/Type;)Z
 	public abstract fun selectionSetFor (Lviaduct/api/reflect/CompositeField;)Lviaduct/api/select/SelectionSet;
-	public abstract fun selectionSetFor (Lviaduct/api/reflect/Type;)Lviaduct/api/select/SelectionSet;
 }
 
 public final class viaduct/api/select/SelectionSet$Companion {
@@ -202,7 +201,6 @@ public final class viaduct/api/select/SelectionSet$NoSelections : viaduct/api/se
 	public fun requestsType (Lviaduct/api/reflect/Type;)Z
 	public fun selectedFieldCoordinates ()Ljava/util/Set;
 	public fun selectionSetFor (Lviaduct/api/reflect/CompositeField;)Lviaduct/api/select/SelectionSet;
-	public fun selectionSetFor (Lviaduct/api/reflect/Type;)Lviaduct/api/select/SelectionSet;
 }
 
 public abstract interface class viaduct/api/types/Arguments : viaduct/api/types/InputLike {

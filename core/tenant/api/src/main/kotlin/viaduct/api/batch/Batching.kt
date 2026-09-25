@@ -149,7 +149,5 @@ private class AnySelections<T : CompositeOutput>(
 
     override fun <U : T, R : CompositeOutput> selectionSetFor(field: viaduct.api.reflect.CompositeField<U, R>): SelectionSet<R> = AnySelections(members.map { it.selectionSetFor(field) })
 
-    override fun <U : T> selectionSetFor(type: Type<U>): SelectionSet<U> = AnySelections(members.map { it.selectionSetFor(type) })
-
     override fun isEmpty(): Boolean = members.all { it.isEmpty() }
 }

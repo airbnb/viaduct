@@ -39,12 +39,6 @@ class SelectionSetImpl<T : CompositeOutput>(
             engineSelectionSet.selectionSetForField(field.containingType.name, field.name)
         )
 
-    override fun <U : T> selectionSetFor(type: Type<U>): SelectionSet<U> =
-        SelectionSetImpl(
-            type,
-            engineSelectionSet.selectionSetForType(type.name)
-        )
-
     override fun isEmpty(): Boolean = engineSelectionSet.isTransitivelyEmpty()
 
     override fun equals(other: Any?): Boolean =

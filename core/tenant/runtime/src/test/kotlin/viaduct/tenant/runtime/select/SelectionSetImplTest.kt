@@ -295,6 +295,19 @@ class SelectionSetImplTest {
     }
 
     @Test
+    fun `selectionSetFor field -- merges repeated aliased subtype fields`() {
+        val ss = mk(
+            Node.Reflection,
+            "... on Foo { first: fooSelf { id } } ... on Foo { second: fooSelf { __typename } }",
+        )
+
+        val child = ss.selectionSetFor(Foo.Fields.fooSelf)
+
+        assertEquals(setOf(FieldCoordinate("Foo", "id"), FieldCoordinate("Foo", "__typename")), child.selectedFieldCoordinates())
+        assertTrue(child.selectionSetFor(Foo.Fields.fooSelf).selectionSetFor(Foo.Fields.fooSelf).isEmpty())
+    }
+
+    @Test
     fun `selectionSetFor field -- union`() {
         // empty
         var ss: SelectionSetImpl<FooOrBar> = mk(FooOrBar.Reflection, "__typename @skip(if:true)")
@@ -307,47 +320,6 @@ class SelectionSetImplTest {
         // non-empty fragment
         ss = mk(FooOrBar.Reflection, "... on Foo { fooSelf { id } }")
         assertTrue(ss.selectionSetFor(Foo.Fields.fooSelf).contains(Foo.Fields.id))
-    }
-
-    @Test
-    fun `selectionSetFor type -- object`() {
-        // self projections return same selection set
-        val ss: SelectionSetImpl<Foo> = mk(Foo.Reflection, "__typename @skip(if:true)")
-        assertEquals(ss, ss.selectionSetFor(Foo.Reflection))
-    }
-
-    @Test
-    fun `selectionSetFor type -- interface`() {
-        // self projections return same selection set
-        var ss: SelectionSetImpl<Node> = mk(Node.Reflection, "__typename @skip(if:true)")
-        assertEquals(ss, ss.selectionSetFor(Node.Reflection))
-
-        // an implementation can be projected even without type conditions
-        ss = mk(Node.Reflection, "id")
-        assertTrue(ss.selectionSetFor(Foo.Reflection).contains(Foo.Fields.id))
-
-        // projecting an implementing type merges selections of impl and interface
-        ss = mk(Node.Reflection, "id ... on Foo { fooSelf { id } }")
-        ss.selectionSetFor(Foo.Reflection).let {
-            assertTrue(it.contains(Foo.Fields.id))
-            assertTrue(it.contains(Foo.Fields.fooSelf))
-        }
-    }
-
-    @Test
-    fun `selectionSetFor type -- union`() {
-        // self projections return same selection set
-        var ss: SelectionSetImpl<FooOrBar> = mk(FooOrBar.Reflection, "__typename @skip(if:true)")
-        assertEquals(ss, ss.selectionSetFor(FooOrBar.Reflection))
-
-        // a member type can be projected even without type conditions
-        // and will inherit __typename selection
-        ss = mk(FooOrBar.Reflection, "__typename")
-        assertFalse(ss.selectionSetFor(Foo.Reflection).isEmpty())
-
-        // a member can be projected with type conditions
-        ss = mk(FooOrBar.Reflection, "... on Foo { id }")
-        assertTrue(ss.selectionSetFor(Foo.Reflection).contains(Foo.Fields.id))
     }
 
     @Test
@@ -397,12 +369,8 @@ class SelectionSetImplTest {
     fun type() {
         mk(Node.Reflection, "__typename").also { it ->
             assertEquals(Node.Reflection, it.type)
-            it.selectionSetFor(Foo.Reflection).also {
-                assertEquals(Foo.Reflection, it.type)
-
-                assertEquals(Node.Reflection, it.selectionSetFor(Foo.Fields.nodeSelf).type)
-                assertEquals(Foo.Reflection, it.selectionSetFor(Foo.Fields.fooSelf).type)
-            }
+            assertEquals(Node.Reflection, it.selectionSetFor(Foo.Fields.nodeSelf).type)
+            assertEquals(Foo.Reflection, it.selectionSetFor(Foo.Fields.fooSelf).type)
         }
     }
 }

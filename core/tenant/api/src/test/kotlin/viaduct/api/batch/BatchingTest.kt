@@ -31,7 +31,6 @@ class BatchingTest {
     private val detailsField = TestCompositeField("details", nodeType, detailsType)
     private val summaryField = TestField("summary", detailsType)
     private val ratingField = TestField("rating", detailsType)
-    private val specializedField = TestField("specialized", specializedNodeType)
 
     @Test
     fun `same-selection batching preserves group order, context keys, and omissions`() =
@@ -159,9 +158,8 @@ class BatchingTest {
         }
 
     @Test
-    fun `batch selection view uses any-member semantics through field and type navigation`() {
+    fun `batch selection view uses any-member semantics through field navigation`() {
         val detailsSelection = TestSelectionSet(detailsType, setOf(summaryField))
-        val specializedSelection = TestSelectionSet(specializedNodeType, setOf(specializedField))
         val first = TestContext(
             "first",
             TestSelectionSet(
@@ -169,7 +167,6 @@ class BatchingTest {
                 fields = setOf(nameField, detailsField),
                 requestedTypes = setOf(nodeType.name, specializedNodeType.name),
                 fieldSelections = mapOf(detailsField to detailsSelection),
-                typeSelections = mapOf(specializedNodeType.name to specializedSelection),
             ),
         )
         val second = TestContext(
@@ -186,11 +183,6 @@ class BatchingTest {
         assertTrue(selections.selectedFieldCoordinates().contains(detailsField.coordinate()))
         assertTrue(selections.requestsType(specializedNodeType))
         assertTrue(selections.selectionSetFor(detailsField).contains(summaryField))
-        assertTrue(
-            selections
-                .selectionSetFor(specializedNodeType)
-                .contains(specializedField)
-        )
     }
 
     @Test
@@ -237,7 +229,6 @@ class BatchingTest {
         private val fields: Set<Field<out T>> = emptySet(),
         private val requestedTypes: Set<String> = setOf(type.name),
         private val fieldSelections: Map<Field<*>, SelectionSet<*>> = emptyMap(),
-        private val typeSelections: Map<String, SelectionSet<*>> = emptyMap(),
     ) : SelectionSet<T> {
         override fun selectedFieldCoordinates(): Set<FieldCoordinate> = fields.mapTo(linkedSetOf()) { FieldCoordinate(it.containingType.name, it.name) }
 
@@ -247,13 +238,6 @@ class BatchingTest {
 
         @Suppress("UNCHECKED_CAST")
         override fun <U : T, R : CompositeOutput> selectionSetFor(field: CompositeField<U, R>): SelectionSet<R> = fieldSelections[field] as? SelectionSet<R> ?: SelectionSet.empty(field.type)
-
-        @Suppress("UNCHECKED_CAST")
-        override fun <U : T> selectionSetFor(type: Type<U>): SelectionSet<U> =
-            when {
-                type == this.type -> this as SelectionSet<U>
-                else -> typeSelections[type.name] as? SelectionSet<U> ?: SelectionSet.empty(type)
-            }
 
         override fun isEmpty(): Boolean = fields.isEmpty()
     }

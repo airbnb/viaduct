@@ -112,11 +112,6 @@ class MockSelectionSetFactory(
             return MockSelectionSet(field.type, selectionsString)
         }
 
-        override fun <U : T> selectionSetFor(type: Type<U>): SelectionSet<U> {
-            // Return a projected selection set for the given type.
-            return MockSelectionSet(type, selectionsString)
-        }
-
         override fun isEmpty(): Boolean = selectionsString.isBlank()
 
         override fun toString(): String = selectionsString
