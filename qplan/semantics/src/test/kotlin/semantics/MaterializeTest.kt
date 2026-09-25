@@ -24,6 +24,7 @@ import viaduct.graphql.schema.graphqljava.gjDef
 import model.materializeSelectionForestOf
 import model.testing.TestWorld
 import semantics.shared.CycleCheckState
+import semantics.shared.fieldCheckerCycleTask
 import semantics.shared.fieldResolverCycleTask
 import semantics.shared.valueCycleSlot
 import semantics.shared.ResolverReadCycleException
@@ -425,6 +426,132 @@ class MaterializeTest {
                 assertIs<EngineErrorData>(completed.outputValue("value")).cause,
             )
             assertFalse(cell.getValue().isCompleted)
+        }
+
+    @Test
+    fun `raw materialization skips unfinished checker slots`() =
+        runBlocking {
+            val world =
+                TestWorld.fromSDL("type Query { value: String! }").assumptions
+            val key =
+                ObjectEngineResult.GroundKey.of(
+                    world.schema.requireObjectField("Query", "value"),
+                    emptyMap(),
+                )
+            val result = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
+            val cell = result.reserveCell(key)
+            cell.setValue("raw")
+            val fieldChecker = cell.createFieldCheckerResultPromise()
+            val typeChecker = cell.createTypeCheckerResultPromise()
+            val selections =
+                world
+                    .fragmentFrom("fragment ignored on Query { value }")
+                    .materializeSelections
+
+            val materialized =
+                withTimeout(1_000) {
+                    result.materializeResult(
+                        operation = SharedOperationContext.create(world),
+                        selections = selections,
+                        reader = result.fieldCheckerCycleTask(listOf(key)),
+                        checked = false,
+                    )
+                }
+
+            assertEquals("raw", materialized.get("value"))
+            assertFalse(fieldChecker.isCompleted)
+            assertFalse(typeChecker.isCompleted)
+        }
+
+    @Test
+    fun `raw materialization cycle-checks the value slot`() {
+        val world = TestWorld.fromSDL("type Query { value: String! }").assumptions
+        val key =
+            ObjectEngineResult.GroundKey.of(
+                world.schema.requireObjectField("Query", "value"),
+                emptyMap(),
+            )
+        val result = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
+        val cell = result.reserveCell(key)
+        cell.reserveValue()
+        val checker = cell.createFieldCheckerResultPromise()
+        val reader = result.fieldCheckerCycleTask(listOf(key))
+        val cycleChecker = CycleCheckState.create()
+        cycleChecker.registerWriter(cell.valueCycleSlot, reader)
+        val selections =
+            world
+                .fragmentFrom("fragment ignored on Query { value }")
+                .materializeSelections
+
+        assertFailsWith<ResolverReadCycleException> {
+            runBlocking {
+                result.materializeResult(
+                    operation = SharedOperationContext.create(world),
+                    selections = selections,
+                    reader = reader,
+                    cycleChecker = cycleChecker,
+                    checked = false,
+                )
+            }
+        }
+        assertFalse(checker.isCompleted)
+    }
+
+    @Test
+    fun `raw materialization remains raw through nested objects and lists`() =
+        runBlocking {
+            val world =
+                TestWorld
+                    .fromSDL(
+                        """
+                        type Query { values: [Value!]! }
+                        type Value { text: String! }
+                        """.trimIndent(),
+                    ).assumptions
+            val valueType = world.schema.requireType("Value") as ViaductSchema.Object
+            val textKey =
+                ObjectEngineResult.GroundKey.of(
+                    world.schema.requireObjectField("Value", "text"),
+                    emptyMap(),
+                )
+            val deniedText =
+                ObjectEngineResult.of(
+                    type = valueType,
+                    values = mapOf(textKey to "raw nested"),
+                    fieldCheckerResults = mapOf(textKey to MaterializationDenial()),
+                )
+            val valuesKey =
+                ObjectEngineResult.GroundKey.of(
+                    world.schema.requireObjectField("Query", "values"),
+                    emptyMap(),
+                )
+            val values =
+                ListEngineResult.of(
+                    typeExpr = valuesKey.field.outputType.unwrapList()!!,
+                    values = listOf(deniedText),
+                    typeCheckerResults = listOf(MaterializationDenial()),
+                )
+            val result =
+                ObjectEngineResult.of(
+                    type = world.schema.requireQueryTypeDef(),
+                    values = mapOf(valuesKey to values),
+                )
+            val selections =
+                world
+                    .fragmentFrom("fragment ignored on Query { values { text } }")
+                    .materializeSelections
+
+            val materialized =
+                result.materializeResult(
+                    operation = SharedOperationContext.create(world),
+                    selections = selections,
+                    reader = result.fieldCheckerCycleTask(listOf(valuesKey)),
+                    checked = false,
+                )
+
+            val listedValues = assertIs<List<*>>(materialized.outputValue("values"))
+            val nested = assertIs<EngineObjectData.Sync>(listedValues.single())
+            assertEquals("raw nested", nested.get("text"))
         }
 
 }

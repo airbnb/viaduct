@@ -39,25 +39,30 @@ import viaduct.engine.api.FieldDirectives
  * existing results to re-evaluate deterministic resolver relations; those results can retain
  * symbolic key identities even after their bindings are resolved.
  *
- * [reader] is the exact identity of the resolver consuming the materialized value.
+ * [reader] is the exact identity of the resolver or checker consuming the materialized value.
  * [cycleChecker] defaults to no-op for nested `ctx.query` results and correctness replay. Runtime
  * resolver-input materialization supplies its checker explicitly, independently of [operation].
- * Missing field- or type-checker slots mean that no checker executor claimed the occurrence and
- * default open. Claimed slots are awaited, combined, and enforced before a selected value can be
- * consumed.
+ * When [checked] is true, missing field- or type-checker slots mean that no checker executor claimed
+ * the occurrence and default open; claimed slots are awaited, combined, and enforced before a
+ * selected value can be consumed. A false [checked] value is the narrow raw projection used for
+ * checker inputs. It skips checker slots but still cycle-checks and awaits each selected value slot.
+ * Rawness is confined to this projection; an active resolver that produces a selected value applies
+ * ordinary checked semantics to its own inputs.
  */
 internal suspend fun ObjectEngineResult.materializeResult(
     operation: SharedOperationContext<*>,
     selections: MaterializeSelectionForest,
     reader: CycleTask,
     cycleChecker: CycleCheckState = CycleCheckState.createNOP(),
+    checked: Boolean = true,
 ): EngineObjectData.Sync =
-    MaterializationLogic(operation, cycleChecker).materialize(this, selections, reader)
+    MaterializationLogic(operation, cycleChecker, checked).materialize(this, selections, reader)
 
 /** Materializes existing result cells for one call using its operation and independently selected cycle checker. */
 private class MaterializationLogic(
     private val operation: SharedOperationContext<*>,
     private val cycleChecker: CycleCheckState,
+    private val checked: Boolean,
 ) {
     suspend fun materialize(
         result: ObjectEngineResult,
@@ -82,17 +87,16 @@ private class MaterializationLogic(
             val candidateKey = selection.materializedSymbolicKey()
             val storedKey = findStoredKey(operation, candidateKey) ?: candidateKey
             val cell = getCell(storedKey)
-            val checkedValue =
-                cell.materializeCheckedValueForResolver(
+            val value =
+                cell.materializeValueForConsumer(
                     fieldDirectives = selection.fieldDirectives,
                     reader = reader,
-                    cycleChecker = cycleChecker,
                 )
             val selectedValue =
-                if (checkedValue is ErrorEngineResult) {
-                    checkedValue.errorData
+                if (value is ErrorEngineResult) {
+                    value.errorData
                 } else {
-                    checkedValue
+                    value
                         .materializeEngineResultValue(
                             expectedType = storedKey.field.outputType,
                             selections = selection.subselections,
@@ -169,17 +173,16 @@ private class MaterializationLogic(
         val materialized = mutableListOf<EngineOutputData?>()
         indices.forEach { index ->
             val cell = get(index)
-            val checkedValue =
-                cell.materializeCheckedValueForResolver(
+            val value =
+                cell.materializeValueForConsumer(
                     fieldDirectives = fieldDirectives,
                     reader = reader,
-                    cycleChecker = cycleChecker,
                 )
             materialized +=
-                if (checkedValue is ErrorEngineResult) {
-                    checkedValue.errorData
+                if (value is ErrorEngineResult) {
+                    value.errorData
                 } else {
-                    checkedValue.materializeEngineResultValue(
+                    value.materializeEngineResultValue(
                         expectedType = typeExpr,
                         selections = selections,
                         reader = reader,
@@ -190,6 +193,21 @@ private class MaterializationLogic(
         }
         return materialized
     }
+
+    private suspend fun EngineResultCell.materializeValueForConsumer(
+        fieldDirectives: FieldDirectives?,
+        reader: CycleTask,
+    ): EngineResult? =
+        if (checked) {
+            materializeCheckedValueForResolver(
+                fieldDirectives = fieldDirectives,
+                reader = reader,
+                cycleChecker = cycleChecker,
+            )
+        } else {
+            cycleChecker.cycleCheck(reader, valueCycleSlot)
+            getValue().await()
+        }
 }
 
 /** Awaits and materializes one checked resolver input while preserving cycle-read edges. */
