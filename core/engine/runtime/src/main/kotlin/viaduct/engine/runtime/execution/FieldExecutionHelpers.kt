@@ -287,7 +287,7 @@ object FieldExecutionHelpers {
             }
             val item = toFetchedValueOrThrow(parameters, values[index])
             parameters.errorAccumulator.addAll(item.errors)
-            current = item.fetchedValue
+            current = unwrapResolutionValue(item.fetchedValue, ResolutionPolicy.STANDARD).value
         }
         return current
     }

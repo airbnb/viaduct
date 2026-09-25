@@ -6,6 +6,9 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.ParentManagedValue
+import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.engine.api.StandardResolutionValue
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.KeyTreeFilter.Result.DROP
 import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_AND_RECURSE
@@ -16,6 +19,27 @@ import viaduct.errors.TenantResolverException
 import viaduct.errors.TenantUsageException
 
 class MatHelpersTest {
+    @Test
+    fun `materialization unwraps nested list members`() {
+        val parameters = mkExecutionParameters(
+            "extend type Query { foos: [[Foo]] } type Foo { value: String }",
+            "Query" to "foos",
+            "{ foos { value } }",
+        )
+        val expected = ResolvedEngineObjectData(
+            parameters.engineExecutionContext.activeSchema.schema.getObjectType("Foo"),
+            mapOf("value" to "selected"),
+        )
+        val result = ParentManagedValue(
+            listOf(null, StandardResolutionValue(listOf(null, ParentManagedValue(expected))))
+        )
+
+        assertSame(
+            expected,
+            FieldExecutionHelpers.toMaterializedObjectData(parameters, result, listOf(1, 1)),
+        )
+    }
+
     @Nested
     inner class QueryPlan_KeyTree {
         @Test
