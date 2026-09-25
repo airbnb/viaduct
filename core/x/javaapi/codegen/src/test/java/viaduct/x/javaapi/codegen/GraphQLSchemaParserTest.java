@@ -994,6 +994,53 @@ class GraphQLSchemaParserTest {
     assertThat(resolversByType).isEmpty();
   }
 
+  @Test
+  void mutationCapabilityFollowsSchemaRootsAndNamespaceReachability() throws IOException {
+    var schema =
+        parseWithDefaults(
+            """
+            schema { query: ReadRoot mutation: WriteRoot }
+            type ReadRoot {
+              read: String @resolver
+              queryNamespace: QueryNamespace
+            }
+            type WriteRoot {
+              write: String @resolver
+              operations: Operations
+              payload: Payload
+            }
+            type Operations @namespaceType {
+              nested: NestedOperations
+            }
+            type NestedOperations @namespaceType {
+              write: String @resolver
+            }
+            type QueryNamespace @namespaceType {
+              read: String @resolver
+            }
+            type Payload {
+              read: String @resolver
+            }
+            type Mutation {
+              ordinaryField: String @resolver
+            }
+            """);
+    var resolvers = parser.extractResolvers(schema, "com.example.types");
+
+    for (String type : List.of("WriteRoot", "NestedOperations")) {
+      assertThat(resolvers.get(type))
+          .allSatisfy(
+              resolver -> {
+                assertThat(resolver.getIsMutation()).isTrue();
+                assertThat(resolver.getMutationType()).isEqualTo("com.example.types.WriteRoot");
+              });
+    }
+    for (String type : List.of("ReadRoot", "QueryNamespace", "Payload", "Mutation")) {
+      assertThat(resolvers.get(type))
+          .allSatisfy(resolver -> assertThat(resolver.getIsMutation()).isFalse());
+    }
+  }
+
   private Reader getTestSchemaReader() {
     InputStream inputStream =
         Objects.requireNonNull(

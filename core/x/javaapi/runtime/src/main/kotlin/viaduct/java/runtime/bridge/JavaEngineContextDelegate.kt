@@ -51,6 +51,7 @@ internal class JavaEngineContextDelegate(
     private val grtPackagePrefix: String? = null,
     private val coroutineScope: CoroutineScope? = null,
     private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
+    private val canExecuteMutations: Boolean = false,
 ) {
     private fun requireEngineContext(operation: String): EngineExecutionContext =
         engineExecutionContext
@@ -214,6 +215,9 @@ internal class JavaEngineContextDelegate(
         isOperation: Boolean = false,
         rootTypeName: (EngineExecutionContext) -> String,
     ): CompletableFuture<T> {
+        if (options == ResolveSelectionSetOptions.MUTATION && !canExecuteMutations) {
+            throw TenantUsageException("ctx.mutation() is only available in mutation field resolvers.")
+        }
         val engineCtx = engineExecutionContext
             ?: throw FrameworkException(
                 "$requireContextLabel requires engineExecutionContext. Ensure the resolver is running within a live execution context."

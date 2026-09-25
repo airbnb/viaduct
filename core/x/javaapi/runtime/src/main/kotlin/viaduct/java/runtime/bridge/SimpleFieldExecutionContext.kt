@@ -47,7 +47,7 @@ object AnySelections : CompositeOutput
  * @param coroutineScope The coroutine scope for launching subquery coroutines, required for ctx.query() and ctx.mutation()
  * @param grtPackagePrefix package containing generated GRT classes
  */
-@Suppress("UNCHECKED_CAST", "TooManyFunctions")
+@Suppress("UNCHECKED_CAST", "TooManyFunctions", "OVERRIDE_DEPRECATION")
 class SimpleFieldExecutionContext(
     private val requestContext: Any?,
     private val arguments: Arguments? = null,
@@ -57,11 +57,12 @@ class SimpleFieldExecutionContext(
     private val coroutineScope: CoroutineScope? = null,
     private val grtPackagePrefix: String? = null,
     private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
+    canExecuteMutations: Boolean = false,
 ) : FieldExecutionContext<GraphQLObject, Query, Arguments, AnySelections>,
     SelectiveFieldExecutionContext<AnySelections>,
     FieldResolverBase.Context<GraphQLObject, Query, Arguments, AnySelections>,
     InternalContext {
-    private val delegate = JavaEngineContextDelegate(engineExecutionContext, grtPackagePrefix, coroutineScope, knownFragments)
+    private val delegate = JavaEngineContextDelegate(engineExecutionContext, grtPackagePrefix, coroutineScope, knownFragments, canExecuteMutations)
 
     override fun getObjectValue(): GraphQLObject =
         handleFrameworkErrors("getObjectValue") {

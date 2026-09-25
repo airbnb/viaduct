@@ -65,7 +65,57 @@ public record ResolverModel(
     boolean isCompositeOutput,
     boolean isSelective,
     boolean isBatching,
-    boolean isConnection) {
+    boolean isConnection,
+    boolean isMutation) {
+
+  public ResolverModel(
+      String gqlTypeName,
+      String gqlFieldName,
+      String resolverClassName,
+      String returnType,
+      String objectType,
+      String queryType,
+      String mutationType,
+      String argumentsType,
+      String selectionsType,
+      boolean hasArguments,
+      boolean isCompositeOutput,
+      boolean isSelective,
+      boolean isBatching,
+      boolean isConnection) {
+    this(
+        gqlTypeName,
+        gqlFieldName,
+        resolverClassName,
+        returnType,
+        objectType,
+        queryType,
+        mutationType,
+        argumentsType,
+        selectionsType,
+        hasArguments,
+        isCompositeOutput,
+        isSelective,
+        isBatching,
+        isConnection,
+        objectType.equals(mutationType));
+  }
+
+  public boolean getIsMutation() {
+    return isMutation;
+  }
+
+  public String getMutationContextType() {
+    return "MutationFieldExecutionContext<"
+        + objectType
+        + ", "
+        + queryType
+        + ", "
+        + argumentsType
+        + ", "
+        + selectionsType
+        + ">";
+  }
 
   /** Legacy constructor for non-connection resolver fields (used by generator unit tests). */
   public ResolverModel(

@@ -40,7 +40,7 @@ import viaduct.service.api.spi.GlobalIDCodec
  * @param coroutineScope the coroutine scope for launching subquery coroutines
  * @param grtPackagePrefix package containing generated GRT classes
  */
-@Suppress("UNCHECKED_CAST")
+@Suppress("UNCHECKED_CAST", "OVERRIDE_DEPRECATION")
 class SimpleNodeExecutionContext(
     private val serializedId: String,
     private val typeName: String,

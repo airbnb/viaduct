@@ -99,11 +99,14 @@ public interface ResolverExecutionContext extends ExecutionContext {
    * @param targetClass the Java GRT class to populate with the resolved data
    * @param <T> the Java GRT type for the Mutation root
    * @return a future that completes with the populated Mutation GRT instance
+   * @deprecated Use MutationFieldExecutionContext; other resolver kinds cannot execute mutations.
    */
+  @Deprecated
   <T> CompletableFuture<T> mutation(
       String selections, Map<String, Object> variables, Class<T> targetClass);
 
   /** Executes a sub-mutation against the Mutation root type with no variables. */
+  @Deprecated
   default <T> CompletableFuture<T> mutation(String selections, Class<T> targetClass) {
     return mutation(selections, Map.of(), targetClass);
   }
@@ -114,12 +117,14 @@ public interface ResolverExecutionContext extends ExecutionContext {
    * <p>Generated resolver contexts provide overloads that infer {@code targetClass} from the
    * tenant's Mutation GRT.
    */
+  @Deprecated
   default <T> CompletableFuture<T> mutation(
       MutationFromAnnotation operation, Map<String, Object> variables, Class<T> targetClass) {
     return mutation(operation.getOperationText(), variables, targetClass);
   }
 
   /** Executes an annotated mutation with no variables. */
+  @Deprecated
   default <T> CompletableFuture<T> mutation(
       MutationFromAnnotation operation, Class<T> targetClass) {
     return mutation(operation, Map.of(), targetClass);

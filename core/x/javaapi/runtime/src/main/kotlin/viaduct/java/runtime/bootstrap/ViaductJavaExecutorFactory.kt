@@ -157,6 +157,8 @@ class ViaductJavaExecutorFactory(
                 grtPackagePrefix = grtPackagePrefix,
                 knownFragments = namedFragments,
                 argumentVariables = argumentVariables,
+                canExecuteMutations = configData.typeName == schema.schema.mutationType?.name ||
+                    schema.isMutationNamespaceType(configData.typeName),
             )
         }
     }

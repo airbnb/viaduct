@@ -35,6 +35,7 @@ public final class JavaResolverGenerator {
           import viaduct.java.api.annotations.ResolverFor;
           import viaduct.java.api.context.ConnectionFieldExecutionContext;
           import viaduct.java.api.context.FieldExecutionContext;
+          import viaduct.java.api.context.MutationFieldExecutionContext;
           import viaduct.java.api.context.RootFieldCall;
           import viaduct.java.api.context.SelectiveFieldExecutionContext;
           import viaduct.java.api.documents.MutationFromAnnotation;
@@ -79,7 +80,7 @@ public final class JavaResolverGenerator {
                    * Provides type-safe access to object value, query value, arguments, and selections.
                    */
                   public static final class Context
-                      implements <r.contextBaseType><if(r.isSelective)>, <r.selectiveContextType><endif>, InternalContext {
+                      implements <r.contextBaseType><if(r.isMutation)>, <r.mutationContextType><endif><if(r.isSelective)>, <r.selectiveContextType><endif>, InternalContext {
 
                       private final <r.fieldExecutionContextType> inner;
 
@@ -145,6 +146,9 @@ public final class JavaResolverGenerator {
                       \\}
 
                       @Override
+                      <if(!r.isMutation)>
+                      @Deprecated
+                      <endif>
                       public \\<T> CompletableFuture\\<T> mutation(String selections, Map\\<String, Object> variables, Class\\<T> targetClass) {
                           return inner.mutation(selections, variables, targetClass);
                       \\}
@@ -155,6 +159,9 @@ public final class JavaResolverGenerator {
                       \\}
 
                       @Override
+                      <if(!r.isMutation)>
+                      @Deprecated
+                      <endif>
                       public \\<T> CompletableFuture\\<T> mutation(MutationFromAnnotation operation, Map\\<String, Object> variables, Class\\<T> targetClass) {
                           return inner.mutation(operation, variables, targetClass);
                       \\}
@@ -175,18 +182,30 @@ public final class JavaResolverGenerator {
                           return inner.query(operation, variables, <r.queryType>.class);
                       \\}
                       <if(r.hasMutationType)>
+                      <if(!r.isMutation)>
+                      @Deprecated
+                      <endif>
                       public CompletableFuture\\<<r.mutationType>\\> mutation(String selections) {
                           return inner.mutation(selections, java.util.Map.of(), <r.mutationType>.class);
                       \\}
 
+                      <if(!r.isMutation)>
+                      @Deprecated
+                      <endif>
                       public CompletableFuture\\<<r.mutationType>\\> mutation(String selections, Map\\<String, Object> variables) {
                           return inner.mutation(selections, variables, <r.mutationType>.class);
                       \\}
 
+                      <if(!r.isMutation)>
+                      @Deprecated
+                      <endif>
                       public CompletableFuture\\<<r.mutationType>\\> mutation(MutationFromAnnotation operation) {
                           return inner.mutation(operation, java.util.Map.of(), <r.mutationType>.class);
                       \\}
 
+                      <if(!r.isMutation)>
+                      @Deprecated
+                      <endif>
                       public CompletableFuture\\<<r.mutationType>\\> mutation(MutationFromAnnotation operation, Map\\<String, Object> variables) {
                           return inner.mutation(operation, variables, <r.mutationType>.class);
                       \\}

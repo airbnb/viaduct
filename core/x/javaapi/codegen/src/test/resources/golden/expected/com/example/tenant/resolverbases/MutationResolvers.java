@@ -8,6 +8,7 @@ import viaduct.engine.api.EngineSchema;
 import viaduct.java.api.annotations.ResolverFor;
 import viaduct.java.api.context.ConnectionFieldExecutionContext;
 import viaduct.java.api.context.FieldExecutionContext;
+import viaduct.java.api.context.MutationFieldExecutionContext;
 import viaduct.java.api.context.RootFieldCall;
 import viaduct.java.api.context.SelectiveFieldExecutionContext;
 import viaduct.java.api.documents.MutationFromAnnotation;
@@ -45,7 +46,7 @@ public final class MutationResolvers {
              * Provides type-safe access to object value, query value, arguments, and selections.
              */
             public static final class Context
-                implements FieldResolverBase.Context<com.example.grts.Mutation, com.example.grts.Query, com.example.grts.Mutation_CreateOrder_Arguments, com.example.grts.Order>, InternalContext {
+                implements FieldResolverBase.Context<com.example.grts.Mutation, com.example.grts.Query, com.example.grts.Mutation_CreateOrder_Arguments, com.example.grts.Order>, MutationFieldExecutionContext<com.example.grts.Mutation, com.example.grts.Query, com.example.grts.Mutation_CreateOrder_Arguments, com.example.grts.Order>, InternalContext {
 
                 private final FieldExecutionContext<com.example.grts.Mutation, com.example.grts.Query, com.example.grts.Mutation_CreateOrder_Arguments, com.example.grts.Order> inner;
 

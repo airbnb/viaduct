@@ -59,6 +59,7 @@ class JavaFieldResolverExecutorImpl(
     private val grtPackagePrefix: String? = null,
     private val knownFragments: Map<String, FragmentDefinition> = emptyMap(),
     override val argumentVariables: VariableFromArgumentDefinitions = VariableFromArgumentDefinitions.EMPTY,
+    private val canExecuteMutations: Boolean = false,
 ) : FieldResolverExecutor {
     override val metadata: ResolverMetadata = ResolverMetadata.forModern(resolverName, ResolverType.FIELD)
     override val isBatching: Boolean = false
@@ -107,6 +108,7 @@ class JavaFieldResolverExecutorImpl(
             coroutineScope = scope,
             grtPackagePrefix = grtPackagePrefix,
             knownFragments = knownFragments,
+            canExecuteMutations = canExecuteMutations,
         )
 
         // ── Tenant→Framework boundary: resolver call ──

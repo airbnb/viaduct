@@ -88,6 +88,7 @@ public final class NodeResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(String selections, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(selections, variables, targetClass);
                 }
@@ -98,6 +99,7 @@ public final class NodeResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(MutationFromAnnotation operation, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(operation, variables, targetClass);
                 }

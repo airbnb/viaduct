@@ -1,11 +1,18 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.java.runtime.bridge
 
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.mockk.Called
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.future.await
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -16,6 +23,7 @@ import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.RootFieldReference
 import viaduct.errors.FrameworkException
+import viaduct.errors.TenantUsageException
 import viaduct.java.api.internal.InputBase
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ObjectBase
@@ -170,7 +178,7 @@ class JavaEngineContextDelegateTest {
         val engineCtx = mockk<EngineExecutionContext> {
             every { globalIDCodec } returns GlobalIDCodecDefault
         }
-        val delegate = JavaEngineContextDelegate(engineCtx, grtPackagePrefix = null, coroutineScope = null)
+        val delegate = JavaEngineContextDelegate(engineCtx, grtPackagePrefix = null, coroutineScope = null, canExecuteMutations = true)
 
         val ex = assertThrows<FrameworkException> {
             delegate.mutation("{ id }", emptyMap(), Any::class.java)
@@ -199,4 +207,39 @@ class JavaEngineContextDelegateTest {
 
         assertEquals(GlobalIDCodecDefault.serialize("NodeObj", "abc"), serialized)
     }
+
+    @Test
+    fun `mutation authorization precedes schema availability and parsing`() {
+        val engineCtx = mockk<EngineExecutionContext>()
+        val delegate = JavaEngineContextDelegate(engineCtx)
+
+        val stringError = assertThrows<TenantUsageException> {
+            delegate.mutation("not valid graphql", emptyMap(), Any::class.java)
+        }
+        val operationError = assertThrows<TenantUsageException> {
+            delegate.mutationOperation("not valid graphql", emptyMap(), Any::class.java)
+        }
+
+        assertEquals("ctx.mutation() is only available in mutation field resolvers.", stringError.message)
+        assertEquals(stringError.message, operationError.message)
+        verify { engineCtx wasNot Called }
+    }
+
+    @Test
+    fun `authorized mutation distinguishes a missing schema root`() =
+        runBlocking {
+            val engineCtx = mockk<EngineExecutionContext> {
+                every { activeSchema.schema.mutationType } returns null
+            }
+            val job = SupervisorJob()
+            try {
+                val delegate = JavaEngineContextDelegate(engineCtx, coroutineScope = CoroutineScope(job), canExecuteMutations = true)
+                val error = assertThrows<FrameworkException> {
+                    delegate.mutation("increment", emptyMap(), Any::class.java).await()
+                }
+                assertTrue(error.message!!.contains("the schema has no Mutation type"))
+            } finally {
+                job.cancel()
+            }
+        }
 }

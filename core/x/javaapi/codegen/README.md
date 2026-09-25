@@ -91,6 +91,20 @@ resolver_generated_dir/
 
 Each resolver file contains abstract base classes for fields with the `@resolver` directive that tenant developers extend to implement resolvers.
 
+### Mutation capability
+
+Generated contexts for fields on the schema's mutation root or reachable `@namespaceType`
+objects implement `MutationFieldExecutionContext`. These resolvers can execute nested mutations;
+query, node, and ordinary object-field resolvers cannot, even while handling a mutation request.
+The runtime rejects unauthorized calls with `TenantUsageException` before starting execution.
+
+Common context mutation overloads and generated forwarding methods remain as deprecated
+compatibility signatures until the next breaking API release. Existing mutation resolvers keep
+working; regenerate their bases to expose the supported capability without deprecation warnings.
+Move mutation calls from query or node resolvers into mutation fields, and type shared mutation
+helpers as `MutationFieldExecutionContext`. Deprecation preserves signatures, not query-side
+mutation behavior. A schema with a mutation root does not itself authorize every resolver.
+
 ### Selective resolvers are temporarily disabled
 
 Java field and node declarations with `@resolver(isSelective: true)` or the legacy

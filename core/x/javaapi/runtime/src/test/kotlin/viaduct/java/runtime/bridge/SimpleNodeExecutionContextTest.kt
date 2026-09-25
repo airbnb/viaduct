@@ -194,9 +194,9 @@ class SimpleNodeExecutionContextTest {
     }
 
     @Test
-    fun `mutation throws FrameworkException when engineExecutionContext is missing`() {
+    fun `mutation rejects node callers before checking engine availability`() {
         val ctx = newContext(engineCtx = null)
-        assertThrows<FrameworkException> { ctx.mutation("{ id }", emptyMap(), Any::class.java) }
+        assertThrows<TenantUsageException> { ctx.mutation("{ id }", emptyMap(), Any::class.java) }
     }
 
     @Test

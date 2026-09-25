@@ -9,6 +9,7 @@ import viaduct.engine.api.EngineSchema;
 import viaduct.java.api.annotations.ResolverFor;
 import viaduct.java.api.context.ConnectionFieldExecutionContext;
 import viaduct.java.api.context.FieldExecutionContext;
+import viaduct.java.api.context.MutationFieldExecutionContext;
 import viaduct.java.api.context.RootFieldCall;
 import viaduct.java.api.context.SelectiveFieldExecutionContext;
 import viaduct.java.api.documents.MutationFromAnnotation;
@@ -107,6 +108,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(String selections, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(selections, variables, targetClass);
                 }
@@ -117,6 +119,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(MutationFromAnnotation operation, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(operation, variables, targetClass);
                 }
@@ -136,18 +139,22 @@ public final class QueryResolvers {
                 public CompletableFuture<com.example.grts.Query> query(QueryFromAnnotation operation, Map<String, Object> variables) {
                     return inner.query(operation, variables, com.example.grts.Query.class);
                 }
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(String selections) {
                     return inner.mutation(selections, java.util.Map.of(), com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(String selections, Map<String, Object> variables) {
                     return inner.mutation(selections, variables, com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(MutationFromAnnotation operation) {
                     return inner.mutation(operation, java.util.Map.of(), com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(MutationFromAnnotation operation, Map<String, Object> variables) {
                     return inner.mutation(operation, variables, com.example.grts.Mutation.class);
                 }
@@ -260,6 +267,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(String selections, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(selections, variables, targetClass);
                 }
@@ -270,6 +278,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(MutationFromAnnotation operation, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(operation, variables, targetClass);
                 }
@@ -289,18 +298,22 @@ public final class QueryResolvers {
                 public CompletableFuture<com.example.grts.Query> query(QueryFromAnnotation operation, Map<String, Object> variables) {
                     return inner.query(operation, variables, com.example.grts.Query.class);
                 }
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(String selections) {
                     return inner.mutation(selections, java.util.Map.of(), com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(String selections, Map<String, Object> variables) {
                     return inner.mutation(selections, variables, com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(MutationFromAnnotation operation) {
                     return inner.mutation(operation, java.util.Map.of(), com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(MutationFromAnnotation operation, Map<String, Object> variables) {
                     return inner.mutation(operation, variables, com.example.grts.Mutation.class);
                 }
@@ -413,6 +426,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(String selections, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(selections, variables, targetClass);
                 }
@@ -423,6 +437,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(MutationFromAnnotation operation, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(operation, variables, targetClass);
                 }
@@ -442,18 +457,22 @@ public final class QueryResolvers {
                 public CompletableFuture<com.example.grts.Query> query(QueryFromAnnotation operation, Map<String, Object> variables) {
                     return inner.query(operation, variables, com.example.grts.Query.class);
                 }
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(String selections) {
                     return inner.mutation(selections, java.util.Map.of(), com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(String selections, Map<String, Object> variables) {
                     return inner.mutation(selections, variables, com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(MutationFromAnnotation operation) {
                     return inner.mutation(operation, java.util.Map.of(), com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(MutationFromAnnotation operation, Map<String, Object> variables) {
                     return inner.mutation(operation, variables, com.example.grts.Mutation.class);
                 }
@@ -588,6 +607,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(String selections, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(selections, variables, targetClass);
                 }
@@ -598,6 +618,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(MutationFromAnnotation operation, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(operation, variables, targetClass);
                 }
@@ -617,18 +638,22 @@ public final class QueryResolvers {
                 public CompletableFuture<com.example.grts.Query> query(QueryFromAnnotation operation, Map<String, Object> variables) {
                     return inner.query(operation, variables, com.example.grts.Query.class);
                 }
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(String selections) {
                     return inner.mutation(selections, java.util.Map.of(), com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(String selections, Map<String, Object> variables) {
                     return inner.mutation(selections, variables, com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(MutationFromAnnotation operation) {
                     return inner.mutation(operation, java.util.Map.of(), com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(MutationFromAnnotation operation, Map<String, Object> variables) {
                     return inner.mutation(operation, variables, com.example.grts.Mutation.class);
                 }
@@ -763,6 +788,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(String selections, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(selections, variables, targetClass);
                 }
@@ -773,6 +799,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(MutationFromAnnotation operation, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(operation, variables, targetClass);
                 }
@@ -792,18 +819,22 @@ public final class QueryResolvers {
                 public CompletableFuture<com.example.grts.Query> query(QueryFromAnnotation operation, Map<String, Object> variables) {
                     return inner.query(operation, variables, com.example.grts.Query.class);
                 }
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(String selections) {
                     return inner.mutation(selections, java.util.Map.of(), com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(String selections, Map<String, Object> variables) {
                     return inner.mutation(selections, variables, com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(MutationFromAnnotation operation) {
                     return inner.mutation(operation, java.util.Map.of(), com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(MutationFromAnnotation operation, Map<String, Object> variables) {
                     return inner.mutation(operation, variables, com.example.grts.Mutation.class);
                 }
@@ -916,6 +947,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(String selections, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(selections, variables, targetClass);
                 }
@@ -926,6 +958,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(MutationFromAnnotation operation, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(operation, variables, targetClass);
                 }
@@ -945,18 +978,22 @@ public final class QueryResolvers {
                 public CompletableFuture<com.example.grts.Query> query(QueryFromAnnotation operation, Map<String, Object> variables) {
                     return inner.query(operation, variables, com.example.grts.Query.class);
                 }
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(String selections) {
                     return inner.mutation(selections, java.util.Map.of(), com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(String selections, Map<String, Object> variables) {
                     return inner.mutation(selections, variables, com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(MutationFromAnnotation operation) {
                     return inner.mutation(operation, java.util.Map.of(), com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(MutationFromAnnotation operation, Map<String, Object> variables) {
                     return inner.mutation(operation, variables, com.example.grts.Mutation.class);
                 }
@@ -1069,6 +1106,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(String selections, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(selections, variables, targetClass);
                 }
@@ -1079,6 +1117,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(MutationFromAnnotation operation, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(operation, variables, targetClass);
                 }
@@ -1098,18 +1137,22 @@ public final class QueryResolvers {
                 public CompletableFuture<com.example.grts.Query> query(QueryFromAnnotation operation, Map<String, Object> variables) {
                     return inner.query(operation, variables, com.example.grts.Query.class);
                 }
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(String selections) {
                     return inner.mutation(selections, java.util.Map.of(), com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(String selections, Map<String, Object> variables) {
                     return inner.mutation(selections, variables, com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(MutationFromAnnotation operation) {
                     return inner.mutation(operation, java.util.Map.of(), com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(MutationFromAnnotation operation, Map<String, Object> variables) {
                     return inner.mutation(operation, variables, com.example.grts.Mutation.class);
                 }
@@ -1222,6 +1265,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(String selections, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(selections, variables, targetClass);
                 }
@@ -1232,6 +1276,7 @@ public final class QueryResolvers {
                 }
 
                 @Override
+                @Deprecated
                 public <T> CompletableFuture<T> mutation(MutationFromAnnotation operation, Map<String, Object> variables, Class<T> targetClass) {
                     return inner.mutation(operation, variables, targetClass);
                 }
@@ -1251,18 +1296,22 @@ public final class QueryResolvers {
                 public CompletableFuture<com.example.grts.Query> query(QueryFromAnnotation operation, Map<String, Object> variables) {
                     return inner.query(operation, variables, com.example.grts.Query.class);
                 }
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(String selections) {
                     return inner.mutation(selections, java.util.Map.of(), com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(String selections, Map<String, Object> variables) {
                     return inner.mutation(selections, variables, com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(MutationFromAnnotation operation) {
                     return inner.mutation(operation, java.util.Map.of(), com.example.grts.Mutation.class);
                 }
 
+                @Deprecated
                 public CompletableFuture<com.example.grts.Mutation> mutation(MutationFromAnnotation operation, Map<String, Object> variables) {
                     return inner.mutation(operation, variables, com.example.grts.Mutation.class);
                 }

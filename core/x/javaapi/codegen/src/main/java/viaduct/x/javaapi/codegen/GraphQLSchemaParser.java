@@ -552,7 +552,8 @@ public class GraphQLSchemaParser {
         isCompositeOutput,
         isSelective,
         isBatching,
-        isConnection);
+        isConnection,
+        isMutationSideType(typeName, mutationTypeName, mutationNamespaceNames));
   }
 
   private boolean isBatchingResolver(
