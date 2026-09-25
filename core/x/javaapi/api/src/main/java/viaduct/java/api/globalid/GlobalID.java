@@ -7,7 +7,9 @@ import viaduct.java.api.types.NodeCompositeOutput;
  * GlobalIDs are objects in Viaduct that contain 'type' and 'internalID' properties. They are used
  * to uniquely identify node objects in the graph.
  *
- * <p>GlobalID values support structural equality, as opposed to referential equality.
+ * <p>Framework-created GlobalID values compare structurally by type and internal ID. Type identity
+ * includes the GraphQL name and Java Class, so a serialized ID round trip requires the same GRT
+ * class.
  *
  * <p>A GlobalID&lt;T&gt; will be generated for fields with the @idOf(type:"T") directive.
  *

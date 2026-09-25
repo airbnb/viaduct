@@ -60,6 +60,14 @@ internal fun <T : NodeCompositeOutput> typeFromName(
             return clazz as Class<out T>
         }
 
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Type<*>) return false
+            return name == other.name && getJavaClass() == other.getJavaClass()
+        }
+
+        override fun hashCode(): Int = 31 * name.hashCode() + getJavaClass().hashCode()
+
         override fun toString(): String = "Type($name)"
     }
 

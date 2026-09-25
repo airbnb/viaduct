@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import viaduct.java.api.types.Arguments;
@@ -65,6 +66,43 @@ class TypeTest {
 
     //noinspection AssertBetweenInconvertibleTypes
     assertNotEquals(type1, type2);
+  }
+
+  static class OtherNamespace {
+    static class TestGRT implements GRT {}
+  }
+
+  @Test
+  void equals_distinguishesClassesWithTheSameSimpleName() {
+    var first = Type.ofClass(TestGRT.class);
+    var second = Type.ofClass(OtherNamespace.TestGRT.class);
+
+    assertEquals(first.getName(), second.getName());
+    assertNotEquals(first, second);
+    assertNotEquals(second, first);
+  }
+
+  @Test
+  void equals_distinguishesTheSameClassNameInDifferentClassLoaders() throws IOException {
+    String className = GraphQLObject.class.getName();
+    byte[] bytecode;
+    try (var stream =
+        GraphQLObject.class.getResourceAsStream("/" + className.replace('.', '/') + ".class")) {
+      assertNotNull(stream);
+      bytecode = stream.readAllBytes();
+    }
+    var loader =
+        new ClassLoader(GraphQLObject.class.getClassLoader()) {
+          Class<? extends GRT> loadCopy() {
+            return defineClass(className, bytecode, 0, bytecode.length).asSubclass(GRT.class);
+          }
+        };
+    var original = Type.ofClass(GraphQLObject.class);
+    var copy = Type.ofClass(loader.loadCopy());
+
+    assertEquals(original.getJavaClass().getName(), copy.getJavaClass().getName());
+    assertNotEquals(original, copy);
+    assertNotEquals(copy, original);
   }
 
   @Test

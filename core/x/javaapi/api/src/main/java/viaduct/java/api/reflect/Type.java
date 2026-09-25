@@ -5,6 +5,8 @@ import viaduct.java.api.types.GRT;
 /**
  * A Type describes static properties of a GraphQL type.
  *
+ * <p>Framework-created types compare by GraphQL name and Java Class, including its class loader.
+ *
  * @param <T> The GRT (GraphQL Runtime Type) that this Type represents
  */
 public interface Type<T extends GRT> {
