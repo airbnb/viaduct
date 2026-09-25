@@ -18,7 +18,6 @@ class SelectionSetTest {
 
         val ss = SelectionSet.empty(fooType)
         assertEquals(fooType, ss.type)
-        assertTrue(ss.isEmpty())
         assertTrue(ss.selectedFieldCoordinates().isEmpty())
         assertFalse(ss.requestsType(fooType))
     }
@@ -26,7 +25,6 @@ class SelectionSetTest {
     @Test
     fun noSelections() {
         val ss = SelectionSet.NoSelections
-        assertTrue(ss.isEmpty())
         assertTrue(ss.selectedFieldCoordinates().isEmpty())
         assertFalse(ss.requestsType(ss.type))
         assertTrue(ss.type.name.startsWith("__"))

@@ -112,8 +112,6 @@ class MockSelectionSetFactory(
             return MockSelectionSet(field.type, selectionsString)
         }
 
-        override fun isEmpty(): Boolean = selectionsString.isBlank()
-
         override fun toString(): String = selectionsString
 
         override fun equals(other: Any?): Boolean {

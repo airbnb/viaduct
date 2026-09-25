@@ -39,8 +39,6 @@ class SelectionSetImpl<T : CompositeOutput>(
             engineSelectionSet.selectionSetForField(field.containingType.name, field.name)
         )
 
-    override fun isEmpty(): Boolean = engineSelectionSet.isTransitivelyEmpty()
-
     override fun equals(other: Any?): Boolean =
         this === other ||
             other is SelectionSetImpl<*> &&

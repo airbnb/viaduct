@@ -26,7 +26,7 @@ class SelectionSetFactoryImplTest : Assertions() {
         )
 
         val ss = factory.selectionsOn(Foo.Reflection, "id", emptyMap())
-        assertTrue(ss.isEmpty())
+        assertSame(emptyEngineSelectionSet, (ss as SelectionSetImpl<*>).engineSelectionSet)
     }
 
     @Test

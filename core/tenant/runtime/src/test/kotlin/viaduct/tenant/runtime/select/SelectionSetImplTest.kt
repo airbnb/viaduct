@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.reflect.Type
 import viaduct.api.select.FieldCoordinate
+import viaduct.api.select.SelectionSet
 import viaduct.api.types.CompositeOutput
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.api.EngineSelectionSet
@@ -260,7 +261,7 @@ class SelectionSetImplTest {
     fun `selectionSetFor field -- object`() {
         // subselecting an unselected field returns empty
         var ss: SelectionSetImpl<Foo> = mk(Foo.Reflection, "__typename @skip(if:true)")
-        assertTrue(ss.selectionSetFor(Foo.Fields.fooSelf).isEmpty())
+        assertTrue(ss.selectionSetFor(Foo.Fields.fooSelf).engineSelections().isTransitivelyEmpty())
 
         // subselecting a populated selection set contains selected fields
         ss = mk(Foo.Reflection, "fooSelf { id }")
@@ -271,7 +272,7 @@ class SelectionSetImplTest {
     fun `selectionSetFor field -- interface`() {
         // subselecting an unselected field returns empty
         var ss: SelectionSetImpl<Node> = mk(Node.Reflection, "__typename @skip(if:true)")
-        assertTrue(ss.selectionSetFor(Node.Fields.nodeSelf).isEmpty())
+        assertTrue(ss.selectionSetFor(Node.Fields.nodeSelf).engineSelections().isTransitivelyEmpty())
 
         // subselecting an interface field contains selected fields
         ss = mk(Node.Reflection, "nodeSelf { id }")
@@ -280,7 +281,7 @@ class SelectionSetImplTest {
         // subselecting an impl field traverses type conditions
         ss = mk(Node.Reflection, "... on Foo { nodeSelf { id } }")
         assertTrue(ss.selectionSetFor(Foo.Fields.nodeSelf).contains(Node.Fields.id))
-        assertTrue(ss.selectionSetFor(Node.Fields.nodeSelf).isEmpty())
+        assertTrue(ss.selectionSetFor(Node.Fields.nodeSelf).engineSelections().isTransitivelyEmpty())
 
         // subselecting an impl field will merge interface and impl selections
         ss = mk(Node.Reflection, "nodeSelf { nodeSelf { id } } ... on Foo { nodeSelf { id } }")
@@ -304,18 +305,18 @@ class SelectionSetImplTest {
         val child = ss.selectionSetFor(Foo.Fields.fooSelf)
 
         assertEquals(setOf(FieldCoordinate("Foo", "id"), FieldCoordinate("Foo", "__typename")), child.selectedFieldCoordinates())
-        assertTrue(child.selectionSetFor(Foo.Fields.fooSelf).selectionSetFor(Foo.Fields.fooSelf).isEmpty())
+        assertTrue(child.selectionSetFor(Foo.Fields.fooSelf).selectionSetFor(Foo.Fields.fooSelf).engineSelections().isTransitivelyEmpty())
     }
 
     @Test
     fun `selectionSetFor field -- union`() {
         // empty
         var ss: SelectionSetImpl<FooOrBar> = mk(FooOrBar.Reflection, "__typename @skip(if:true)")
-        assertTrue(ss.selectionSetFor(Foo.Fields.fooSelf).isEmpty())
+        assertTrue(ss.selectionSetFor(Foo.Fields.fooSelf).engineSelections().isTransitivelyEmpty())
 
         // empty fragment
         ss = mk(FooOrBar.Reflection, "... on Foo { fooSelf { id @skip(if:true) } }")
-        assertTrue(ss.selectionSetFor(Foo.Fields.fooSelf).isEmpty())
+        assertTrue(ss.selectionSetFor(Foo.Fields.fooSelf).engineSelections().isTransitivelyEmpty())
 
         // non-empty fragment
         ss = mk(FooOrBar.Reflection, "... on Foo { fooSelf { id } }")
@@ -323,15 +324,15 @@ class SelectionSetImplTest {
     }
 
     @Test
-    fun isEmpty() {
+    fun `engine selections retain transitive emptiness semantics`() {
         // all fields are skipped
-        assertTrue(mk(Node.Reflection, "__typename @skip(if:true)").isEmpty())
+        assertTrue(mk(Node.Reflection, "__typename @skip(if:true)").engineSelections().isTransitivelyEmpty())
 
         // skipped conditionless inline fragment
-        assertTrue(mk(Node.Reflection, "... @skip(if:true) { id }").isEmpty())
+        assertTrue(mk(Node.Reflection, "... @skip(if:true) { id }").engineSelections().isTransitivelyEmpty())
 
         // empty inline fragment
-        assertTrue(mk(Node.Reflection, "... { id @skip(if:true) }").isEmpty())
+        assertTrue(mk(Node.Reflection, "... { id @skip(if:true) }").engineSelections().isTransitivelyEmpty())
 
         // empty fragment spread
         assertTrue(
@@ -341,17 +342,17 @@ class SelectionSetImplTest {
                     fragment Frag on Node { id @skip(if:true) }
                     fragment Main on Node { ... Frag }
                 """
-            ).isEmpty()
+            ).engineSelections().isTransitivelyEmpty()
         )
 
         // non-empty field selections
-        assertFalse(mk(Node.Reflection, "__typename").isEmpty())
+        assertFalse(mk(Node.Reflection, "__typename").engineSelections().isTransitivelyEmpty())
 
         // non-empty inline fragments
-        assertFalse(mk(Node.Reflection, "... { id }").isEmpty())
+        assertFalse(mk(Node.Reflection, "... { id }").engineSelections().isTransitivelyEmpty())
 
         // non-empty inline fragments
-        assertFalse(mk(Node.Reflection, "... { id }").isEmpty())
+        assertFalse(mk(Node.Reflection, "... { id }").engineSelections().isTransitivelyEmpty())
 
         // non-empty fragment spreads
         assertFalse(
@@ -361,9 +362,11 @@ class SelectionSetImplTest {
                     fragment Frag on Node { id }
                     fragment Main on Node { ... Frag }
                 """
-            ).isEmpty()
+            ).engineSelections().isTransitivelyEmpty()
         )
     }
+
+    private fun SelectionSet<*>.engineSelections() = (this as SelectionSetImpl<*>).engineSelectionSet
 
     @Test
     fun type() {

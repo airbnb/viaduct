@@ -24,7 +24,7 @@ class KotlinReflectionContractTest : ReflectionContractTest() {
     private class OwnedSelectionsCapture {
         lateinit var field: SelectionSet<OwnedSelectionPayload>
         lateinit var node: SelectionSet<OwnedSelectionNode>
-        var scalarSelectionsAreEmpty: Boolean = false
+        var scalarUsesNoSelections: Boolean = false
     }
 
     @Resolver
@@ -119,8 +119,8 @@ class KotlinReflectionContractTest : ReflectionContractTest() {
     @Resolver
     class Query_OwnedSelectionScalarResolver : QueryResolvers.OwnedSelectionScalar() {
         override suspend fun resolve(ctx: Context): String {
-            (ctx.requestContext as OwnedSelectionsCapture).scalarSelectionsAreEmpty =
-                ctx.selections().isEmpty()
+            (ctx.requestContext as OwnedSelectionsCapture).scalarUsesNoSelections =
+                ctx.selections() === SelectionSet.NoSelections
             return "scalar"
         }
     }
@@ -224,6 +224,6 @@ class KotlinReflectionContractTest : ReflectionContractTest() {
         assertTrue(capture.node.contains(OwnedSelectionNode.Fields.local))
         assertFalse(capture.node.contains(OwnedSelectionNode.Fields.delegated))
         assertEquals(setOf(FieldCoordinate("OwnedSelectionNode", "local")), capture.node.selectedFieldCoordinates())
-        assertTrue(capture.scalarSelectionsAreEmpty)
+        assertTrue(capture.scalarUsesNoSelections)
     }
 }

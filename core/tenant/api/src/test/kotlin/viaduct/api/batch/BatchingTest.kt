@@ -177,7 +177,6 @@ class BatchingTest {
         val selections = listOf(first, second).selections()
 
         assertSame(nodeType, selections.type)
-        assertFalse(selections.isEmpty())
         assertTrue(selections.contains(nameField))
         assertTrue(selections.contains(priceField))
         assertTrue(selections.selectedFieldCoordinates().contains(detailsField.coordinate()))
@@ -238,8 +237,6 @@ class BatchingTest {
 
         @Suppress("UNCHECKED_CAST")
         override fun <U : T, R : CompositeOutput> selectionSetFor(field: CompositeField<U, R>): SelectionSet<R> = fieldSelections[field] as? SelectionSet<R> ?: SelectionSet.empty(field.type)
-
-        override fun isEmpty(): Boolean = fields.isEmpty()
     }
 
     private class TestContext(

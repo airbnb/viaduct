@@ -144,12 +144,6 @@ interface SelectionSet<T : CompositeOutput> {
      */
     fun <U : T, R : CompositeOutput> selectionSetFor(field: CompositeField<U, R>): SelectionSet<R>
 
-    /**
-     * Returns true if this SelectionSet contains no fields for any valid type
-     * projection.
-     */
-    fun isEmpty(): Boolean
-
     /** the type condition of this SelectionSet */
     val type: Type<T>
 
@@ -165,8 +159,6 @@ interface SelectionSet<T : CompositeOutput> {
                 override fun <U : T> requestsType(type: Type<U>): Boolean = false
 
                 override fun <U : T, R : CompositeOutput> selectionSetFor(field: CompositeField<U, R>): SelectionSet<R> = empty(field.type)
-
-                override fun isEmpty(): Boolean = true
 
                 override val type: Type<T> = type
             }
@@ -186,8 +178,6 @@ interface SelectionSet<T : CompositeOutput> {
 
         override fun <U : CompositeOutput.NotComposite, R : CompositeOutput> selectionSetFor(field: CompositeField<U, R>): SelectionSet<R> =
             throw UnsupportedOperationException("NoSelections does not support extracting subselections for a field")
-
-        override fun isEmpty(): Boolean = true
 
         override val type = object : Type<CompositeOutput.NotComposite> {
             override val name: String = "__NotComposite"

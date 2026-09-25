@@ -158,14 +158,14 @@ class FieldExecutionContextImplTest : ContextTestBase() {
     }
 
     @Test
-    fun `selectionsFor - no selection set on provided type throws a null pointer exception when isEmpty is triggered`() {
+    fun `selectionsFor - skipped fields preserve engine emptiness`() {
         val ctx = mk()
         val selectionSet = ctx.selectionsFor(
             Foo.Reflection,
             "__typename @skip(if:true)".trimIndent(),
             emptyMap()
         )
-        val result = selectionSet.isEmpty()
+        val result = (selectionSet as SelectionSetImpl<*>).engineSelectionSet.isTransitivelyEmpty()
         assertTrue(result)
     }
 
