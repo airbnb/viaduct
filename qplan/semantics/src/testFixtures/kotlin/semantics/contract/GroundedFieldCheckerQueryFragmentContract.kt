@@ -50,6 +50,87 @@ interface GroundedFieldCheckerQueryFragmentContract {
     val coroutineResolverSubject: CoroutineResolverTestSubject
 
     @Test
+    fun `named object and Query inputs honor fromArgument inclusion conditions`() {
+        val checkerCalls = AtomicInteger()
+        val world =
+            TestWorld.fromDSL(
+                schemaSDL =
+                    """
+                    extend type Query {
+                      item: Item! @resolver(result: {})
+                      queryDependency: Int! @resolver(result: 3)
+                    }
+
+                    type Item {
+                      checked(enabled: Boolean!): Int! @resolver(result: 1)
+                      objectDependency: Int! @resolver(result: 2)
+                    }
+                    """.trimIndent(),
+                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
+                fieldCheckers = { schema ->
+                    val checked = schema.requireObjectField("Item", "checked")
+                    val enabled = Arguments.Variable.of(checked, "enabled")
+                    mapOf(
+                        checked to
+                            FieldChecker.of(
+                                field = checked,
+                                queryType = schema.requireQueryTypeDef(),
+                                fragmentTemplates =
+                                    mapOf(
+                                        "input" to
+                                            ResolverFragmentTemplates(
+                                                objectFragmentTemplate =
+                                                    schema
+                                                        .fragmentFrom(
+                                                            "fragment Input on Item { objectDependency @include(if: ${'$'}enabled) }",
+                                                            variableField = checked,
+                                                        ).materializeSelections,
+                                                queryFragmentTemplate =
+                                                    schema
+                                                        .fragmentFrom(
+                                                            "fragment Input on Query { queryDependency @include(if: ${'$'}enabled) }",
+                                                            variableField = checked,
+                                                        ).materializeSelections,
+                                                variables =
+                                                    mapOf<Arguments.Variable, VariableDefinition>(
+                                                        enabled to
+                                                            VariableDefinition.FromArgument.of(
+                                                                checkNotNull(checked.arg("enabled")),
+                                                            ),
+                                                    ),
+                                            ),
+                                    ),
+                            ) { arguments, inputs, _ ->
+                                checkerCalls.incrementAndGet()
+                                val included = arguments.fieldValues.getValue("enabled") as Boolean
+                                val input = inputs.getValue("input")
+                                val expectedObjectKeys =
+                                    if (included) setOf("objectDependency") else emptySet()
+                                val expectedQueryKeys =
+                                    if (included) setOf("queryDependency") else emptySet()
+                                assertEquals(expectedObjectKeys, input.objectValue.getSelections())
+                                assertEquals(expectedQueryKeys, input.queryValue.getSelections())
+                                if (included) {
+                                    assertEquals(2, input.objectValue.get("objectDependency"))
+                                    assertEquals(3, input.queryValue.get("queryDependency"))
+                                }
+                                CheckerResult.Success
+                            },
+                    )
+                },
+            ).assumptions
+
+        coroutineResolverSubject.resolve(
+            SharedOperationContext.create(world),
+            world.operationSelectionsFrom(
+                "{ item { excluded: checked(enabled: false) included: checked(enabled: true) } }",
+            ),
+        )
+
+        assertEquals(2, checkerCalls.get())
+    }
+
+    @Test
     fun `shares one Query OER while preserving owner-local checker projections`() {
         val checkerInputs =
             Collections.synchronizedList(mutableListOf<Map<String, CheckerInput>>())

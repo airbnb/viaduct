@@ -36,7 +36,9 @@ import semantics.shared.SharedOperationContext
  * resolvers receive the containing object materialized according to their object fragment.
  *
  * This predicate assumes [isClosedUnderResolverDemand] has established that every resolver input
- * value is present. It observes cell values but never access-acceptance results.
+ * value is present. Correctness replay materializes checked object and Query inputs from the OERs;
+ * when runtime invocation evidence is available, those reconstructed values must equal the values
+ * actually passed to the resolver, including access errors at exact response-key and list positions.
  */
 fun ObjectEngineResult.conformsToResolvers(operation: SharedOperationContext<*>): Boolean =
     operation.resolverApplicationCache(this).let { resolverApplicationCache ->

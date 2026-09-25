@@ -2,6 +2,7 @@ package semantics.correctresolution
 
 import kotlinx.coroutines.runBlocking
 import model.Arguments
+import model.EngineErrorData
 import model.ResolverOutputData
 import model.EngineResult
 import model.ListEngineResult
@@ -46,6 +47,11 @@ internal class ResolverApplicationCache(
             ObjectEngineResult,
             MutableMap<ObjectEngineResult.ObjectKey, CachedResolverApplication>,
         >()
+    private val checkerApplications =
+        IdentityHashMap<
+            ObjectEngineResult,
+            MutableMap<ObjectEngineResult.ObjectKey, CachedCheckerApplication>,
+        >()
     private val rootFieldReferenceApplications =
         mutableMapOf<List<PathComponent>, CachedRootFieldReferenceApplication>()
 
@@ -75,6 +81,17 @@ internal class ResolverApplicationCache(
         }
     }
 
+    fun getOrPutChecker(
+        result: ObjectEngineResult,
+        key: ObjectEngineResult.ObjectKey,
+        compute: () -> ReappliedChecker?,
+    ): ReappliedChecker? {
+        val byKey = checkerApplications.getOrPut(result, ::linkedMapOf)
+        return byKey.getOrPut(key) {
+            CachedCheckerApplication(compute())
+        }.application
+    }
+
     fun rootFieldReferenceCandidates(
         publicationPath: List<PathComponent>,
     ): List<IndexedRootFieldReferenceObservation>? =
@@ -90,16 +107,25 @@ internal class ResolverApplicationCache(
         operation: SharedOperationContext<*>,
         result: ObjectEngineResult,
         ownerSelections: ObjectSelectionForest,
+        selectionsAreChecked: Boolean = true,
     ): Boolean =
         if (result === root) {
-            queryOERValidation.isValidating(result) &&
-                result.conformsToSelections(operation, ownerSelections)
+            queryOERValidation.isValidOrValidating(result) &&
+                result.conformsToSelections(operation, ownerSelections) &&
+                (!selectionsAreChecked ||
+                    result.conformsToCheckedSelectionsAt(
+                        operation = operation,
+                        selections = ownerSelections,
+                        path = emptyList(),
+                        resolverApplicationCache = this,
+                    ))
         } else {
             queryOERValidation.validate(
                 operation = operation,
                 result = result,
                 ownerSelections = ownerSelections,
                 rootFieldReferenceWitness = rootFieldReferenceWitness,
+                selectionsAreChecked = selectionsAreChecked,
             )
         }
 }
@@ -108,40 +134,59 @@ internal class ResolverApplicationCache(
 internal class QueryOERValidationState {
     private val results = IdentityHashMap<ObjectEngineResult, Boolean?>()
 
-    fun isValidating(result: ObjectEngineResult): Boolean =
-        results.containsKey(result) && results[result] == null
+    fun isValidOrValidating(result: ObjectEngineResult): Boolean =
+        results.containsKey(result) && results[result] != false
 
     fun validate(
         operation: SharedOperationContext<*>,
         result: ObjectEngineResult,
         ownerSelections: ObjectSelectionForest,
         rootFieldReferenceWitness: RootFieldReferenceWitness,
+        selectionsAreChecked: Boolean = true,
     ): Boolean {
         if (!result.conformsToSelections(operation, ownerSelections)) return false
-        if (results.containsKey(result)) return results[result] ?: false
-        results[result] = null
-        val queryOER =
-            (operation.resolverObserver as? CorrectnessResolverObserver)
-                ?.queryOER(result)
-        val selections = queryOER?.closedDemand ?: ownerSelections
-        val hasExactOERKeys =
-            queryOER == null ||
-                result.keys.toSet() == queryOER.closedDemand.byKey().keys
-        val valid =
-            hasExactOERKeys &&
-                result.correctResolution(
-                    operation,
-                    selections,
-                    rootFieldReferenceWitness,
-                    this,
-                )
-        results[result] = valid
-        return valid
+        if (!results.containsKey(result)) {
+            results[result] = null
+            val queryOER =
+                (operation.resolverObserver as? CorrectnessResolverObserver)
+                    ?.queryOER(result)
+            val selections = queryOER?.closedDemand ?: ownerSelections
+            val hasExactOERKeys =
+                queryOER == null ||
+                    result.keys.toSet() == queryOER.closedDemand.byKey().keys
+            val valid =
+                hasExactOERKeys &&
+                    result.correctResolution(
+                        operation,
+                        selections,
+                        rootFieldReferenceWitness,
+                        this,
+                        selectionsAreChecked = false,
+                    )
+            results[result] = valid
+        }
+        if (results[result] != true) return false
+        return !selectionsAreChecked ||
+            result.conformsToCheckedSelectionsAt(
+                operation = operation,
+                selections = ownerSelections,
+                path = emptyList(),
+                resolverApplicationCache =
+                    resolverApplicationCache(
+                        result,
+                        rootFieldReferenceWitness,
+                        this,
+                    ),
+            )
     }
 }
 
 private class CachedResolverApplication(
     val application: ReappliedResolver?,
+)
+
+private class CachedCheckerApplication(
+    val application: ReappliedChecker?,
 )
 
 private class CachedRootFieldReferenceApplication(
@@ -222,6 +267,11 @@ internal fun SharedOperationContext<*>.rootFieldReferenceWitness(
         allowedPublicationRoots =
             listOf(primaryRoot) +
                 observations
+                    ?.allQueryFragmentResults()
+                    ?.values
+                    ?.flatten()
+                    .orEmpty() +
+                (checkerObserver as? CorrectnessCheckerObserver)
                     ?.allQueryFragmentResults()
                     ?.values
                     ?.flatten()
@@ -316,6 +366,16 @@ private class ResolverReplayLogic(
                     path = coordinate,
                 ) ?: return@getOrPut null
             val objectFragment = fragments.objectFragment
+            if (
+                !conformsToCheckedSelectionsAt(
+                    operation = operation,
+                    selections = objectFragment.constructionSelections,
+                    path = path,
+                    resolverApplicationCache = resolverApplicationCache,
+                )
+            ) {
+                return@getOrPut null
+            }
             val input: EngineObjectData.Sync =
                 runBlocking {
                     materializeResult(
@@ -366,6 +426,15 @@ private class ResolverReplayLogic(
                         )
                     }
                 }
+            if (
+                !operation.observedResolverInputsConform(
+                    resolverOccurrenceId = resolverOccurrenceId,
+                    expectedObjectValue = input,
+                    expectedQueryValue = queryValue,
+                )
+            ) {
+                return@getOrPut null
+            }
             ReappliedResolver(
                 runBlocking {
                     resolver.evaluateRelation(
@@ -514,6 +583,15 @@ private class ResolverReplayLogic(
                     )
                 }
             }
+        if (
+            !operation.observedResolverInputsConform(
+                resolverOccurrenceId = resolverOccurrenceId,
+                expectedObjectValue = input,
+                expectedQueryValue = queryValue,
+            )
+        ) {
+            return null
+        }
         return ReappliedResolver(
             runBlocking {
                 resolver.evaluateRelation(
@@ -528,6 +606,51 @@ private class ResolverReplayLogic(
         )
     }
 }
+
+/**
+ * Validates the access-filtered values actually supplied at runtime against correctness replay.
+ * Hand-constructed extensional judgments without invocation evidence retain their historical
+ * value-only behavior.
+ */
+private fun SharedOperationContext<*>.observedResolverInputsConform(
+    resolverOccurrenceId: ResolverOccurrenceId,
+    expectedObjectValue: EngineObjectData.Sync,
+    expectedQueryValue: EngineObjectData.Sync,
+): Boolean {
+    val observations = resolverObserver as? CorrectnessResolverObserver ?: return true
+    if (!observations.hasResolverInvocations()) return true
+    val invocations = observations.resolverInvocations(resolverOccurrenceId)
+    return invocations.isNotEmpty() &&
+        invocations.all { invocation ->
+            invocation.input.sameMaterializedValueAs(expectedObjectValue) &&
+                invocation.queryValue.sameMaterializedValueAs(expectedQueryValue)
+        }
+}
+
+private fun EngineObjectData.Sync.sameMaterializedValueAs(
+    other: EngineObjectData.Sync,
+): Boolean {
+    if (schemaType != other.schemaType) return false
+    val selections = getSelections().toSet()
+    if (selections != other.getSelections().toSet()) return false
+    return selections.all { selection ->
+        outputValue(selection).sameMaterializedValueAs(other.outputValue(selection))
+    }
+}
+
+private fun ResolverOutputData?.sameMaterializedValueAs(other: ResolverOutputData?): Boolean =
+    when {
+        this is EngineErrorData && other is EngineErrorData ->
+            cause === other.cause || cause == null && other.cause == null
+        this is EngineObjectData.Sync && other is EngineObjectData.Sync ->
+            sameMaterializedValueAs(other)
+        this is List<*> && other is List<*> ->
+            size == other.size &&
+                indices.all { index ->
+                    this[index].sameMaterializedValueAs(other[index])
+                }
+        else -> this == other
+    }
 
 /**
  * Reconstructs one canonical demand from the completed output occurrence under judgment.

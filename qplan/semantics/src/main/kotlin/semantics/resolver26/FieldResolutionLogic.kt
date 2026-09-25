@@ -23,6 +23,7 @@ import model.Selection
 import model.SelectionForest
 import model.VariableBinding
 import model.engineObjectDataOf
+import model.guardedBy
 import model.invariants.conformsToResolverOutputSchemaType
 import model.materializeSelectionForestOf
 import model.merge
@@ -322,12 +323,19 @@ internal class FieldResolutionLogic(
                 resultPath = publication.oerOccurrence.path,
             )
         val queryValue = materializeQueryFragment(fieldResolverOccurrence)
+        val queryMaterializationSelections =
+            fieldResolverOccurrence.resolver
+                .instantiateQueryMaterializationSelections(
+                    fieldResolverOccurrence.resolverOccurrenceId,
+                ).guardedBy(fieldResolverOccurrence.selection.inclusionCondition)
         publication.operation.resolverObserver.onResolverInvocation(
             ResolverInvocationObservation(
                 occurrencePath = fieldResolverOccurrence.publicationPath,
                 field = selection.key.field,
                 input = input,
                 inputSelections = objectMaterializationSelections,
+                queryValue = queryValue,
+                queryInputSelections = queryMaterializationSelections,
                 arguments = resolverArguments,
                 suppliedDemand = invocationDemand,
                 resolverOccurrenceId = fieldResolverOccurrence.resolverOccurrenceId,
@@ -459,12 +467,19 @@ internal class FieldResolutionLogic(
                 is EngineObjectOrErrorData.Success -> value.value
                 is EngineObjectOrErrorData.Error -> return value.error
             }
+        val queryMaterializationSelections =
+            fieldResolverOccurrence.resolver
+                .instantiateQueryMaterializationSelections(
+                    fieldResolverOccurrence.resolverOccurrenceId,
+                ).guardedBy(fieldResolverOccurrence.selection.inclusionCondition)
         publication.operation.resolverObserver.onResolverInvocation(
             ResolverInvocationObservation(
                 occurrencePath = fieldResolverOccurrence.invocationPath,
                 field = fieldResolverOccurrence.selection.key.field,
                 input = input,
                 inputSelections = materializeSelectionForestOf(),
+                queryValue = queryValue,
+                queryInputSelections = queryMaterializationSelections,
                 arguments = arguments,
                 suppliedDemand = invocationDemand,
                 resolverOccurrenceId = fieldResolverOccurrence.resolverOccurrenceId,

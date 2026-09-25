@@ -8,6 +8,8 @@ import viaduct.graphql.schema.ViaductSchema
 import model.SelectionForest
 import semantics.shared.SharedOperationContext
 import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.correctresolution.CorrectnessCheckerObserver
+import semantics.shared.CheckerObserver
 import semantics.shared.ResolverObserver
 
 /** Subject-specific evidence retained alongside one resolution result. */
@@ -44,17 +46,26 @@ interface ResolverContract {
         root: EngineObjectData.Sync,
         selections: SelectionForest,
         resolverObserver: ResolverObserver = CorrectnessResolverObserver(),
-    ): ResolverResolutionObservation =
-        SharedOperationContext.create(
+        checkerObserver: CheckerObserver = CorrectnessCheckerObserver(),
+    ): ResolverResolutionObservation {
+        val correctnessResolverObserver =
+            resolverObserver as? CorrectnessResolverObserver
+                ?: CorrectnessResolverObserver(resolverObserver)
+        val correctnessCheckerObserver =
+            checkerObserver as? CorrectnessCheckerObserver
+                ?: CorrectnessCheckerObserver(checkerObserver)
+        return SharedOperationContext.create(
             world = world,
-            resolverObserver = resolverObserver,
+            resolverObserver = correctnessResolverObserver,
+            checkerObserver = correctnessCheckerObserver,
         ).let { operation ->
             RecordedResolverResolutionObservation(
                 result = resolve(operation, root, selections),
                 operation = operation,
-                appliedResolverOccurrences = (resolverObserver as? CorrectnessResolverObserver)?.invokedResolverOccurrences(),
+                appliedResolverOccurrences = correctnessResolverObserver.invokedResolverOccurrences(),
             )
         }
+    }
 
     fun expectedPassiveResultFieldNames(vararg fieldNames: String): Set<String> =
         fieldNames.toSet()

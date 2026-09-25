@@ -85,6 +85,10 @@ internal class FieldResolutionLogic(
                 fragments.queryFragment,
                 reader,
             )
+        val queryMaterializationSelections =
+            resolver.instantiateQueryMaterializationSelections(
+                fragments.queryFragment.resolverOccurrenceId,
+            )
         val objectMaterializationSelections =
             resolver.instantiateObjectMaterializationSelections(
                 fragments.objectFragment.resolverOccurrenceId,
@@ -101,6 +105,8 @@ internal class FieldResolutionLogic(
                 field = publication.selection.key.field,
                 input = input,
                 inputSelections = objectMaterializationSelections,
+                queryValue = queryValue,
+                queryInputSelections = queryMaterializationSelections,
                 arguments = arguments,
                 suppliedDemand = invocationDemand.takeIf { publication.operation.world.selectiveResolvers },
                 resolverOccurrenceId = fragments.objectFragment.resolverOccurrenceId,
@@ -154,12 +160,18 @@ internal class FieldResolutionLogic(
             is EngineObjectOrErrorData.Error -> return value.error
         }
         val input = invocation.emptyObjectInput()
+        val queryMaterializationSelections =
+            invocation.resolver.instantiateQueryMaterializationSelections(
+                invocation.fragments.queryFragment.resolverOccurrenceId,
+            )
         publication.operation.resolverObserver.onResolverInvocation(
             ResolverInvocationObservation(
                 occurrencePath = invocation.path,
                 field = invocation.key.field,
                 input = input,
                 inputSelections = materializeSelectionForestOf(),
+                queryValue = queryValue,
+                queryInputSelections = queryMaterializationSelections,
                 arguments = reference.arguments,
                 suppliedDemand = invocationDemand.takeIf { publication.operation.world.selectiveResolvers },
                 resolverOccurrenceId = invocation.fragments.objectFragment.resolverOccurrenceId,

@@ -9,12 +9,15 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import model.Arguments
 import model.EngineErrorData
 import model.EngineIDResult
 import model.ErrorEngineResult
+import model.InclusionCondition
 import model.ListEngineResult
 import model.MaterializeSelection
 import model.ObjectEngineResult
+import model.ResolverOccurrenceId
 import model.outputType
 import model.outputValue
 import model.PathComponent
@@ -43,6 +46,103 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 
 class MaterializeTest {
+    @Test
+    fun `excluded selections do not read value or checker slots`() =
+        runBlocking {
+            listOf(false, true).forEach { checked ->
+                val world = TestWorld.fromSDL("type Query { value: String! }").assumptions
+                val type = world.schema.requireQueryTypeDef()
+                val field = world.schema.requireObjectField("Query", "value")
+                val key = ObjectEngineResult.GroundKey.of(field, emptyMap())
+                val result = ObjectEngineResult.of(type, mutable = true)
+                val variable =
+                    Arguments.Variable.of(field, "included").instantiate(
+                        ResolverOccurrenceId.at(result, listOf(key)),
+                    )
+                val selections =
+                    materializeSelectionForestOf(
+                        MaterializeSelection.of(
+                            responseKey = "value",
+                            key = key,
+                            possibleTypes = setOf(type),
+                            subselections = materializeSelectionForestOf(),
+                            inclusionCondition =
+                                InclusionCondition.requires(mapOf(variable to true)),
+                        ),
+                    )
+                val cell = result.reserveCell(key)
+                val value = cell.createValuePromise()
+                val checker = cell.createFieldCheckerResultPromise()
+                cell.setActivated(true)
+                val operation = SharedOperationContext.create(world)
+                operation.variableBindings.bindVariable(
+                    requireNotNull(variable.instanceId),
+                    false,
+                )
+
+                val materialized =
+                    withTimeout(1_000) {
+                        result.materializeResult(
+                            operation = operation,
+                            selections = selections,
+                            reader = result.fieldResolverCycleTask(listOf(key)),
+                            checked = checked,
+                        )
+                    }
+
+                assertEquals(emptySet(), materialized.getSelections(), "checked=$checked")
+                assertFalse(value.isCompleted, "checked=$checked")
+                assertFalse(checker.isCompleted, "checked=$checked")
+            }
+        }
+
+    @Test
+    fun `included selections materialize in checked and raw modes`() =
+        runBlocking {
+            listOf(false, true).forEach { checked ->
+                val world = TestWorld.fromSDL("type Query { value: String! }").assumptions
+                val type = world.schema.requireQueryTypeDef()
+                val field = world.schema.requireObjectField("Query", "value")
+                val key = ObjectEngineResult.GroundKey.of(field, emptyMap())
+                val result =
+                    ObjectEngineResult.of(
+                        type = type,
+                        values = mapOf(key to "included"),
+                        fieldCheckerResults = mapOf(key to CheckerResult.Success),
+                    )
+                val variable =
+                    Arguments.Variable.of(field, "included").instantiate(
+                        ResolverOccurrenceId.at(result, listOf(key)),
+                    )
+                val selections =
+                    materializeSelectionForestOf(
+                        MaterializeSelection.of(
+                            responseKey = "value",
+                            key = key,
+                            possibleTypes = setOf(type),
+                            subselections = materializeSelectionForestOf(),
+                            inclusionCondition =
+                                InclusionCondition.requires(mapOf(variable to true)),
+                        ),
+                    )
+                val operation = SharedOperationContext.create(world)
+                operation.variableBindings.bindVariable(
+                    requireNotNull(variable.instanceId),
+                    true,
+                )
+
+                val materialized =
+                    result.materializeResult(
+                        operation = operation,
+                        selections = selections,
+                        reader = result.fieldResolverCycleTask(listOf(key)),
+                        checked = checked,
+                    )
+
+                assertEquals("included", materialized.get("value"), "checked=$checked")
+            }
+        }
+
     @Test
     fun `materialization awaits a present deferred value`() =
         runBlocking {

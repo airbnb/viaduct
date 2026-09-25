@@ -27,7 +27,10 @@ import viaduct.graphql.schema.ViaductSchema
  * arguments contain an error. Resolver outputs are deterministically reapplied to classify
  * descendant occurrences.
  *
- * This predicate observes cell-value presence and content, but never access-acceptance results.
+ * A claimed field-checker slot additionally requires the checker's raw object fragment in the
+ * containing OER. Active value resolvers reached through those raw selections retain their
+ * ordinary checked input closure. This predicate does not interpret the checker-result value or
+ * count checker applications.
  */
 fun ObjectEngineResult.isClosedUnderResolverDemand(operation: SharedOperationContext<*>): Boolean =
     isClosedUnderResolverDemand(operation, operation.resolverApplicationCache(this))
@@ -116,8 +119,28 @@ private class ResolverDemandValidationLogic(
                                 }
                             }
                 }
+            val fieldCheckerDemandIsClosed =
+                when {
+                    key is ObjectEngineResult.ParentKey -> true
+                    !getCell(key).isFieldCheckerResultSet() -> true
+                    argumentsContainError -> true
+                    else ->
+                        registry.fieldChecker(key.field)?.let { checker ->
+                            val coordinate = path + key
+                            val fragments =
+                                checker.instantiateFragmentsAt(
+                                    resolverApplicationCache.root,
+                                    coordinate,
+                                )
+                            conformsToSelectionsAt(
+                                operation = operation,
+                                selections = fragments.objectFragment.constructionSelections,
+                                path = path,
+                            )
+                        } ?: true
+                }
 
-            fieldResolverDemandIsClosed &&
+            fieldResolverDemandIsClosed && fieldCheckerDemandIsClosed &&
                 when {
                     key is ObjectEngineResult.ParentKey -> true
                     argumentsContainError -> true

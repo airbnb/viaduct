@@ -101,7 +101,6 @@ internal class DepthFirstFieldResolverTask private constructor(
                         objectMaterializationSelections,
                         oerOccurrence.root.fieldResolverCycleTask(publicationPath),
                     )
-
                 runBlocking {
                     // Coroutine entry is interruptible; record only after crossing that boundary.
                     operation.resolverObserver.onResolverInvocation(
@@ -110,6 +109,8 @@ internal class DepthFirstFieldResolverTask private constructor(
                             field = key.field,
                             input = input,
                             inputSelections = objectMaterializationSelections,
+                            queryValue = queryValue,
+                            queryInputSelections = queryMaterializationSelections,
                             arguments = arguments,
                             suppliedDemand = invocationDemand.takeIf { operation.world.selectiveResolvers },
                             resolverOccurrenceId = fragments.objectFragment.resolverOccurrenceId,
@@ -165,6 +166,10 @@ internal class DepthFirstFieldResolverTask private constructor(
                 coordinate = invocation.path,
             )
         val input = invocation.emptyObjectInput()
+        val queryMaterializationSelections =
+            invocation.resolver.instantiateQueryMaterializationSelections(
+                invocation.fragments.queryFragment.resolverOccurrenceId,
+            )
         val output =
             runBlocking {
                 // Reference targets have the same interruptible coroutine-entry boundary.
@@ -174,6 +179,8 @@ internal class DepthFirstFieldResolverTask private constructor(
                         field = invocation.key.field,
                         input = input,
                         inputSelections = materializeSelectionForestOf(),
+                        queryValue = queryValue,
+                        queryInputSelections = queryMaterializationSelections,
                         arguments = reference.arguments,
                         suppliedDemand = invocationDemand.takeIf { operation.world.selectiveResolvers },
                         resolverOccurrenceId = invocation.fragments.objectFragment.resolverOccurrenceId,

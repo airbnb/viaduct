@@ -9,12 +9,14 @@ import model.ObjectEngineResult
 import model.SelectionForest
 import semantics.contract.CorrectResolutionPostTestPolicy
 import semantics.contract.FrozenObjectResolutionContract
+import semantics.contract.FieldCheckerCorrectResolutionContract
 import semantics.contract.EmptyObjectFragmentResolverContract
 import semantics.contract.NodeResolverContract
 import semantics.contract.ObjectFragmentFromArgumentResolverContract
 import semantics.contract.ObjectFragmentResolverContract
 import semantics.contract.ParentFieldResolverContract
 import semantics.contract.QueryFragmentResolverContract
+import semantics.contract.ResolverInputInclusionContract
 import semantics.contract.QueryFragmentRootFieldReferenceResolverContract
 import semantics.contract.RootFieldReferenceResolverContract
 import semantics.contract.ObjectFragmentRootFieldReferenceResolverContract
@@ -37,11 +39,13 @@ class ResolverContractTest :
     ParentFieldResolverContract,
     ObjectFragmentFromArgumentResolverContract,
     QueryFragmentResolverContract,
+    ResolverInputInclusionContract,
     SometimesPassiveResolverContract,
     SometimesPassiveObjectFragmentResolverContract,
     SometimesPassiveSelectiveResolverContract,
     SelectiveResolverOutputPolicyContract,
     SelectiveObjectFragmentOutputPolicyContract,
+    FieldCheckerCorrectResolutionContract,
     CorrectResolutionPostTestPolicy {
     override val usesSingularQueryOER: Boolean = true
     override val usesSingularQueryOERForParentDemand: Boolean = true

@@ -168,6 +168,12 @@ internal class CoroutineFieldCheckerTask private constructor(
                         checked = false,
                     )
                 }
+        if (!fragments.queryFragment.constructionSelections.isEmpty()) {
+            publication.operation.checkerObserver.onCheckerQueryFragmentPrepared(
+                fragments.queryFragment.resolverOccurrenceId,
+                publication.queryOER.occurrence.target,
+            )
+        }
         val inputs =
             checker.fragmentTemplates.keys.associateWith { name ->
                 CheckerInput(

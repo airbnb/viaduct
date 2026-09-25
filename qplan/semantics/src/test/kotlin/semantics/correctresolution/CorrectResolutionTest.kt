@@ -3,15 +3,21 @@ package semantics.correctresolution
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.runBlocking
 import model.Arguments
+import model.EngineErrorData
+import model.EngineObjectDataEntry
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
 import model.emptyFragmentOf
 import model.engineObjectDataOf
+import model.materializedEngineObjectDataOf
 import model.engineResultOf
 import model.fragmentFrom
+import model.materializeSelectionForestOf
 import model.merge
 import model.objectOf
 import model.registry.ResolutionExecutionContext
+import model.registry.FieldChecker
+import model.registry.ResolverFragmentTemplates
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
@@ -32,6 +38,8 @@ import semantics.shared.SharedOperationContext
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOERContext
+import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.CheckerResultContext
 
 class CorrectResolutionTest : Resolver26DispatcherResource {
     @Test
@@ -255,6 +263,314 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
             },
         )
         assertFalse(result.correctResolution(correctObservation, selections))
+    }
+
+    @Test
+    fun `checker object fragments participate in demand closure`() {
+        val world =
+            TestWorld.fromSDL(
+                schemaSDL = "type Query { checked: Int! objectSource: Int! }",
+                fieldResolvers = { schema ->
+                    mapOf(
+                        schema.requireObjectField("Query", "checked") to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 11 },
+                        schema.requireObjectField("Query", "objectSource") to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                    )
+                },
+                fieldCheckers = { schema ->
+                    val checked = schema.requireObjectField("Query", "checked")
+                    mapOf(
+                        checked to
+                            FieldChecker.of(
+                                field = checked,
+                                queryType = schema.requireQueryTypeDef(),
+                                fragmentTemplates =
+                                    mapOf(
+                                        "inputs" to
+                                            ResolverFragmentTemplates(
+                                                objectFragmentTemplate =
+                                                    schema
+                                                        .fragmentFrom(
+                                                            "fragment Input on Query { objectSource }",
+                                                        ).materializeSelections,
+                                                queryFragmentTemplate = materializeSelectionForestOf(),
+                                            ),
+                                    ),
+                            ) { _, _, _ -> CheckerResult.Success },
+                    )
+                },
+            ).assumptions
+        val checked = world.schema.requireObjectField("Query", "checked")
+        val checkedKey = ObjectEngineResult.GroundKey.of(checked, emptyMap())
+        val selections =
+            world
+                .fragmentFrom("fragment Query on Query { checked }")
+                .subselections
+                .merge(world.schema.requireQueryTypeDef())
+
+        fun result(
+            includeObjectSource: Boolean,
+            includeCheckerSlot: Boolean = true,
+        ): ObjectEngineResult =
+            ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true).apply {
+                reserveCell(checkedKey).apply {
+                    setValue(11)
+                    if (includeCheckerSlot) setFieldCheckerResult(CheckerResult.Success)
+                }
+                if (includeObjectSource) {
+                    setCellValue(
+                        ObjectEngineResult.GroundKey.of(
+                            world.schema.requireObjectField("Query", "objectSource"),
+                            emptyMap(),
+                        ),
+                        7,
+                    )
+                }
+                freeze()
+            }
+
+        assertFalse(
+            result(includeObjectSource = false).correctResolution(
+                SharedOperationContext.create(world),
+                selections,
+            ),
+        )
+
+        val missingSlotResult =
+            result(
+                includeObjectSource = true,
+                includeCheckerSlot = false,
+            )
+        assertFalse(
+            missingSlotResult.correctResolution(
+                SharedOperationContext.create(world),
+                selections,
+            ),
+        )
+
+        val closedObjectResult = result(includeObjectSource = true)
+        assertTrue(
+            closedObjectResult.correctResolution(
+                SharedOperationContext.create(world),
+                selections,
+            ),
+        )
+    }
+
+    @Test
+    fun `checker result must agree with its replayed relation`() {
+        var checkerCalls = 0
+        val world =
+            TestWorld
+                .fromSDL(
+                    schemaSDL = "type Query { checked: Int! }",
+                    fieldResolvers = { schema ->
+                        val checked = schema.requireObjectField("Query", "checked")
+                        mapOf(
+                            checked to
+                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 11 },
+                        )
+                    },
+                    fieldCheckers = { schema ->
+                        val checked = schema.requireObjectField("Query", "checked")
+                        mapOf(
+                            checked to
+                                FieldChecker.of(checked, schema.requireQueryTypeDef()) { _, _, _ ->
+                                    checkerCalls += 1
+                                    CheckerResult.Success
+                                },
+                        )
+                    },
+                ).assumptions
+        val checked = world.schema.requireObjectField("Query", "checked")
+        val checkedKey = ObjectEngineResult.GroundKey.of(checked, emptyMap())
+        val query = world.fragmentFrom("fragment Query on Query { checked }")
+
+        fun result(checkerResult: CheckerResult): ObjectEngineResult =
+            ObjectEngineResult.of(
+                type = world.schema.requireQueryTypeDef(),
+                values = mapOf(checkedKey to 11),
+                fieldCheckerResults = mapOf(checkedKey to checkerResult),
+            )
+
+        assertFalse(
+            result(CorrectnessDenial()).correctResolution(
+                SharedOperationContext.create(world),
+                query,
+            ),
+        )
+        assertTrue(
+            result(CheckerResult.Success).correctResolution(
+                SharedOperationContext.create(world),
+                query,
+            ),
+        )
+        assertEquals(2, checkerCalls)
+    }
+
+    @Test
+    fun `checker query fragment witness participates in replay`() {
+        val world =
+            TestWorld
+                .fromSDL(
+                    schemaSDL = "type Query { source: Int! checked: Int! }",
+                    fieldResolvers = { schema ->
+                        mapOf(
+                            schema.requireObjectField("Query", "source") to
+                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                            schema.requireObjectField("Query", "checked") to
+                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 11 },
+                        )
+                    },
+                    fieldCheckers = { schema ->
+                        val checked = schema.requireObjectField("Query", "checked")
+                        mapOf(
+                            checked to
+                                FieldChecker.of(
+                                    field = checked,
+                                    queryType = schema.requireQueryTypeDef(),
+                                    fragmentTemplates =
+                                        mapOf(
+                                            "input" to
+                                                ResolverFragmentTemplates(
+                                                    objectFragmentTemplate = materializeSelectionForestOf(),
+                                                    queryFragmentTemplate =
+                                                        schema
+                                                            .fragmentFrom(
+                                                                "fragment Input on Query { querySource: source }",
+                                                            ).materializeSelections,
+                                                ),
+                                        ),
+                                ) { _, inputs, _ ->
+                                    check(inputs.getValue("input").queryValue.get("querySource") == 7)
+                                    CheckerResult.Success
+                                },
+                        )
+                    },
+                ).assumptions
+        val checked = world.schema.requireObjectField("Query", "checked")
+        val checkedKey = ObjectEngineResult.GroundKey.of(checked, emptyMap())
+        val result =
+            ObjectEngineResult.of(
+                type = world.schema.requireQueryTypeDef(),
+                values = mapOf(checkedKey to 11),
+                fieldCheckerResults = mapOf(checkedKey to CheckerResult.Success),
+            )
+        val occurrenceId = ResolverOccurrenceId.at(result, listOf(checkedKey))
+        val query = world.fragmentFrom("fragment Query on Query { checked }")
+
+        fun operation(vararg queryValues: Int): SharedOperationContext<*> {
+            val observer = CorrectnessCheckerObserver()
+            queryValues.forEach { value ->
+                observer.onCheckerQueryFragmentPrepared(
+                    occurrenceId,
+                    world.engineResultOf("Query") {
+                        "source" resolvesTo value
+                    },
+                )
+            }
+            return SharedOperationContext.create(world, checkerObserver = observer)
+        }
+
+        assertFalse(result.correctResolution(operation(), query))
+        assertFalse(result.correctResolution(operation(8), query))
+        assertTrue(result.correctResolution(operation(7), query))
+        assertFalse(result.correctResolution(operation(7, 7), query))
+    }
+
+    @Test
+    fun `resolver input observations must contain access errors at the selected location`() {
+        val denial = CorrectnessDenial()
+        val testWorld =
+            TestWorld.fromSDL(
+                schemaSDL = "type Query { denied: Int! consumer: Int! }",
+                fieldResolvers = { schema ->
+                    mapOf(
+                        schema.requireObjectField("Query", "denied") to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 },
+                        schema.requireObjectField("Query", "consumer") to
+                            fieldResolverOf(
+                                schema.fragmentFrom(
+                                    "fragment Input on Query { failure: denied }",
+                                ),
+                            ) { _, _ -> 3 },
+                    )
+                },
+                fieldCheckers = { schema ->
+                    val denied = schema.requireObjectField("Query", "denied")
+                    mapOf(
+                        denied to
+                            FieldChecker.of(denied, schema.requireQueryTypeDef()) { _, _, _ ->
+                                denial
+                            },
+                    )
+                },
+            )
+        val world = testWorld.assumptions
+        val denied = world.schema.requireObjectField("Query", "denied")
+        val consumer = world.schema.requireObjectField("Query", "consumer")
+        val deniedKey = ObjectEngineResult.GroundKey.of(denied, emptyMap())
+        val consumerKey = ObjectEngineResult.GroundKey.of(consumer, emptyMap())
+        val result =
+            ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true).apply {
+                reserveCell(deniedKey).apply {
+                    setValue(1)
+                    setFieldCheckerResult(denial)
+                }
+                setCellValue(consumerKey, 3)
+                freeze()
+            }
+        val fragment = world.fragmentFrom("fragment Query on Query { consumer }")
+        val resolver = world.resolverRegistry.resolver(consumer)
+        val occurrenceId = ResolverOccurrenceId.at(result, listOf(consumerKey))
+        val inputSelections = resolver.instantiateObjectMaterializationSelections(occurrenceId)
+
+        fun operation(inputValue: Any): SharedOperationContext<*> {
+            val observer = CorrectnessResolverObserver()
+            val emptyInput = engineObjectDataOf(world.schema.requireQueryTypeDef())
+            val emptySelections = world.emptyFragmentOf("Query").materializeSelections
+            observer.onResolverInvocation(
+                ResolverInvocationObservation(
+                    occurrencePath = listOf(deniedKey),
+                    field = denied,
+                    input = emptyInput,
+                    inputSelections = emptySelections,
+                    queryValue = emptyInput,
+                    queryInputSelections = emptySelections,
+                    arguments = Arguments.Resolved.of(denied, emptyMap()),
+                    suppliedDemand = null,
+                    resolverOccurrenceId = ResolverOccurrenceId.at(result, listOf(deniedKey)),
+                ),
+            )
+            observer.onResolverInvocation(
+                ResolverInvocationObservation(
+                    occurrencePath = listOf(consumerKey),
+                    field = consumer,
+                    input =
+                        materializedEngineObjectDataOf(
+                            world.schema.requireQueryTypeDef(),
+                            listOf(EngineObjectDataEntry.of("failure", denied, inputValue)),
+                        ),
+                    inputSelections = inputSelections,
+                    queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
+                    queryInputSelections = world.emptyFragmentOf("Query").materializeSelections,
+                    arguments = Arguments.Resolved.of(consumer, emptyMap()),
+                    suppliedDemand = null,
+                    resolverOccurrenceId = occurrenceId,
+                ),
+            )
+            return SharedOperationContext.create(world, resolverObserver = observer)
+        }
+
+        assertFalse(result.correctResolution(operation(1), fragment))
+        assertTrue(
+            result.correctResolution(
+                operation(EngineErrorData.of(denial.error)),
+                fragment,
+            ),
+            "Expected matching access-error input evidence",
+        )
     }
 
     @Test
@@ -564,4 +880,12 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
             }
             """.trimIndent()
     }
+}
+
+private class CorrectnessDenial : CheckerResult.Error {
+    override val error = IllegalStateException("denied")
+
+    override fun isErrorForResolver(ctx: CheckerResultContext): Boolean = true
+
+    override fun combine(fieldResult: CheckerResult.Error): CheckerResult.Error = this
 }

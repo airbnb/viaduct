@@ -108,6 +108,9 @@ class IndependentRoleAdversarialReviewTest {
                     field = field,
                     input = input,
                     inputSelections = materializeSelectionForestOf(),
+                    queryValue = queryValue,
+                    queryInputSelections =
+                        resolver.instantiateQueryMaterializationSelections(owner),
                     arguments = arguments,
                     suppliedDemand = null,
                     resolverOccurrenceId = owner,

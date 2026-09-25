@@ -124,6 +124,17 @@ class FieldChecker private constructor(
         arguments: Arguments.Resolved,
         inputs: Map<String, CheckerInput>,
         executionContext: ResolutionExecutionContext,
+    ): CheckerResult = evaluateRelation(arguments, inputs, executionContext)
+
+    /**
+     * Evaluates the deterministic checker relation for a semantic judgment.
+     *
+     * This is not an observed checker application and establishes no execution-count property.
+     */
+    suspend fun evaluateRelation(
+        arguments: Arguments.Resolved,
+        inputs: Map<String, CheckerInput>,
+        executionContext: ResolutionExecutionContext,
     ): CheckerResult = function(arguments, inputs, executionContext)
 
     companion object {

@@ -3,6 +3,7 @@ package semantics.shared
 import model.Arguments
 import model.ObjectEngineResult
 import model.PathComponent
+import model.ResolverOccurrenceId
 import viaduct.graphql.schema.ViaductSchema
 
 /** The access-check result slot produced by one checker invocation. */
@@ -32,6 +33,12 @@ fun interface CheckerObserver {
      * with no suspension or dispatch boundary between this event and the checker function.
      */
     fun onCheckerInvocation(observation: CheckerInvocationObservation)
+
+    /** Associates one checker occurrence with its orchestration's shared Query OER. */
+    fun onCheckerQueryFragmentPrepared(
+        checkerOccurrenceId: ResolverOccurrenceId,
+        result: ObjectEngineResult,
+    ) = Unit
 
     /** Observer that discards every event. */
     object NOP : CheckerObserver {

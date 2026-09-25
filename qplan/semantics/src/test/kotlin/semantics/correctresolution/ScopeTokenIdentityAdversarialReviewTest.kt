@@ -171,6 +171,8 @@ class ScopeTokenIdentityAdversarialReviewTest {
                         field = key.field,
                         input = input,
                         inputSelections = materializeSelectionForestOf(),
+                        queryValue = input,
+                        queryInputSelections = materializeSelectionForestOf(),
                         arguments = arguments,
                         suppliedDemand = null,
                         resolverOccurrenceId = owner,

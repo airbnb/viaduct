@@ -14,25 +14,43 @@ import semantics.shared.SharedOERContext
 /**
  * Records invocation identities plus Query roots, their independent-input or shared-OER ownership
  * role, concrete shared-owner addresses, and reference hops. Query and reference records preserve
- * duplicates; invocation identities form a set. The two-argument Query callback is the generic
- * compatibility seam; role-specific callbacks delegate through it and retain the evidence needed
- * to validate ownership. Subclasses can retain full invocation events when counts, arguments, or
- * inputs are needed. Correctness consumers read snapshots directly from this recorder. Use a fresh
- * recorder for each semantic operation.
+ * duplicates; invocation identities form a set. Full invocation events retain the exact object and
+ * Query inputs supplied at runtime. The two-argument Query callback is the generic compatibility
+ * seam; role-specific callbacks delegate through it and retain the evidence needed to validate
+ * ownership. Correctness consumers read snapshots directly from this recorder. Use a fresh recorder
+ * for each semantic operation.
  *
  * A subclass that overrides a recording callback must call the corresponding `super` implementation
  * to preserve this recorder's correctness evidence before adding its own records. Consumers that need
  * only a subset of these records should implement [ResolverObserver] directly instead.
  */
-open class CorrectnessResolverObserver : ResolverObserver {
+open class CorrectnessResolverObserver(
+    private val delegate: ResolverObserver = ResolverObserver.NOP,
+) : ResolverObserver {
     private val invokedOccurrences = ConcurrentHashMap.newKeySet<ResolverOccurrenceId>()
+    private val invocations =
+        ConcurrentHashMap<ResolverOccurrenceId, ConcurrentLinkedQueue<ResolverInvocationObservation>>()
 
     override fun onResolverInvocation(observation: ResolverInvocationObservation) {
         invokedOccurrences += observation.resolverOccurrenceId
+        invocations
+            .computeIfAbsent(observation.resolverOccurrenceId) { ConcurrentLinkedQueue() }
+            .add(observation)
+        delegate.onResolverInvocation(observation)
     }
 
     /** Exact attempted invocations; count-sensitive consumers must retain their own event log. */
     fun invokedResolverOccurrences(): Set<ResolverOccurrenceId> = invokedOccurrences.toSet()
+
+    fun resolverInvocations(
+        resolverOccurrenceId: ResolverOccurrenceId,
+    ): List<ResolverInvocationObservation> =
+        invocations[resolverOccurrenceId]?.toList().orEmpty()
+
+    fun hasResolverInvocations(): Boolean = invocations.isNotEmpty()
+
+    fun allResolverInvocations(): List<ResolverInvocationObservation> =
+        invocations.values.flatMap { observations -> observations.toList() }
 
     private val queryResults =
         ConcurrentHashMap<ResolverOccurrenceId, ConcurrentLinkedQueue<ObjectEngineResult>>()
@@ -99,6 +117,7 @@ open class CorrectnessResolverObserver : ResolverObserver {
         queryResults
             .computeIfAbsent(resolverOccurrenceId) { ConcurrentLinkedQueue() }
             .add(result)
+        delegate.onQueryFragmentPrepared(resolverOccurrenceId, result)
     }
 
     override fun onQueryOERPrepared(
@@ -223,6 +242,7 @@ open class CorrectnessResolverObserver : ResolverObserver {
         observation: RootFieldReferenceInvocationObservation,
     ) {
         rootFieldReferenceInvocations.add(observation)
+        delegate.onRootFieldReferenceInvocation(observation)
     }
 
     fun rootFieldReferenceInvocations(): List<RootFieldReferenceInvocationObservation> =

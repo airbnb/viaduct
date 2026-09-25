@@ -26,6 +26,8 @@ class CorrectnessResolverObserverTest {
                 field = field,
                 input = engineObjectDataOf(world.schema.requireQueryTypeDef()),
                 inputSelections = world.emptyFragmentOf("Query").subselections.toCanonicalMaterializeSelectionForest(),
+                queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
+                queryInputSelections = world.emptyFragmentOf("Query").materializeSelections,
                 arguments = Arguments.Resolved.of(field, emptyMap()),
                 suppliedDemand = null,
                 resolverOccurrenceId = ResolverOccurrenceId.at(root, path),
