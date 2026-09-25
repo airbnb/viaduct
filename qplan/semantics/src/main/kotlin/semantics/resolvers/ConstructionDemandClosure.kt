@@ -1,11 +1,15 @@
 package semantics.resolvers
 
+import model.InclusionCondition
 import model.ObjectEngineResult
 import model.ObjectSelectionForest
 import model.SelectionForest
+import model.flatMapToSelectionForest
+import model.guardedBy
 import model.merge
 import model.requireQueryTypeDef
 import model.schemaType
+import model.satisfiableAlternatives
 import model.selectionForestOf
 import semantics.resolver26.liftParentConstructionDemand
 import semantics.shared.Demand
@@ -28,10 +32,10 @@ import viaduct.graphql.schema.ViaductSchema
  * unchecked demand activated its owner.
  *
  * Each step grounds selections under existing bindings, binds variables for newly discovered
- * standard resolvers, and adds their direct input-fragment demand as checked. Fields supplied by
- * the object source remain passive. The associated Query OER has no passive source; every demanded
- * Query field uses its registered resolver. Only demand and the expanded-key sets change between
- * steps.
+ * standard resolvers, and adds their direct input-fragment demand as checked. Active checker
+ * object fragments add unchecked demand on the same root side. Fields supplied by the object
+ * source remain passive. The associated Query OER has no passive source; every demanded Query
+ * field uses its registered resolver. Only demand and expansion bookkeeping change between steps.
  */
 internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
     operation: SharedOperationContext<*>,
@@ -60,6 +64,10 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
     // Unlike Resolver26, these resolvers ground each key before expanding its fixed input.
     val expandedObjectResolverKeys = linkedSetOf<ObjectEngineResult.GroundKey>()
     val expandedQueryResolverKeys = linkedSetOf<ObjectEngineResult.GroundKey>()
+    val expandedObjectCheckerKeyInclusions =
+        linkedSetOf<Pair<ObjectEngineResult.GroundKey, InclusionCondition>>()
+    val expandedQueryCheckerKeyInclusions =
+        linkedSetOf<Pair<ObjectEngineResult.GroundKey, InclusionCondition>>()
 
     var demandNotClosed: Boolean
     do {
@@ -83,8 +91,23 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
                 expandedKeys = expandedQueryResolverKeys,
                 requiresStandardResolution = { true },
             )
+        val newObjectCheckerKeyInclusions =
+            groundedDemand.objectRooted.newCheckerKeyInclusions(
+                operation,
+                expandedObjectCheckerKeyInclusions,
+            )
+        val newQueryCheckerKeyInclusions =
+            groundedDemand.queryRooted.newCheckerKeyInclusions(
+                operation,
+                expandedQueryCheckerKeyInclusions,
+            )
 
-        if (newObjectResolverKeys.isNotEmpty() || newQueryResolverKeys.isNotEmpty()) {
+        if (
+            newObjectResolverKeys.isNotEmpty() ||
+            newQueryResolverKeys.isNotEmpty() ||
+            newObjectCheckerKeyInclusions.isNotEmpty() ||
+            newQueryCheckerKeyInclusions.isNotEmpty()
+        ) {
             demandNotClosed = true
             newObjectResolverKeys.bindFromArguments(
                 operation,
@@ -105,11 +128,23 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
                 objectResolverInputs.queryFragment +
                     queryResolverInputs.objectFragment +
                     queryResolverInputs.queryFragment
+            val objectCheckerInputs =
+                newObjectCheckerKeyInclusions.checkerObjectInputDemand(operation)
+            val queryCheckerInputs =
+                newQueryCheckerKeyInclusions.checkerObjectInputDemand(operation)
             accumulatedDemand =
                 groundedDemand +
                     OrchestratorConstructionDemand(
-                        objectRooted = Demand.checked(objectResolverInputs.objectFragment),
-                        queryRooted = Demand.checked(queryInputSelections),
+                        objectRooted =
+                            Demand(
+                                checked = objectResolverInputs.objectFragment,
+                                unchecked = objectCheckerInputs,
+                            ),
+                        queryRooted =
+                            Demand(
+                                checked = queryInputSelections,
+                                unchecked = queryCheckerInputs,
+                            ),
                     )
             expandedObjectResolverKeys += newObjectResolverKeys
             expandedQueryResolverKeys += newQueryResolverKeys
@@ -154,6 +189,34 @@ private fun Demand<ObjectSelectionForest>.newResolverKeys(
                 key.field in operation.world.resolverRegistry &&
                 requiresStandardResolution(key)
         }
+
+private fun Demand<ObjectSelectionForest>.newCheckerKeyInclusions(
+    operation: SharedOperationContext<*>,
+    expanded: MutableSet<Pair<ObjectEngineResult.GroundKey, InclusionCondition>>,
+): List<Pair<ObjectEngineResult.GroundKey, InclusionCondition>> =
+    checked.byGroundKey().flatMap { (key, selection) ->
+        if (
+            key.arguments.argumentsContainErrorValue() ||
+            operation.world.resolverRegistry.fieldChecker(key.field) == null
+        ) {
+            emptyList()
+        } else {
+            selection.inclusionCondition
+                .satisfiableAlternatives()
+                .mapNotNull { inclusion ->
+                    (key to inclusion).takeIf(expanded::add)
+                }
+        }
+    }
+
+private fun List<Pair<ObjectEngineResult.GroundKey, InclusionCondition>>.checkerObjectInputDemand(
+    operation: SharedOperationContext<*>,
+): SelectionForest =
+    flatMapToSelectionForest { (key, inclusion) ->
+        requireNotNull(operation.world.resolverRegistry.fieldChecker(key.field))
+            .objectFragment
+            .guardedBy(inclusion)
+    }
 
 private fun Set<ObjectEngineResult.GroundKey>.resolverInputDemand(
     operation: SharedOperationContext<*>,

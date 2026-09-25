@@ -9,6 +9,7 @@ import model.SelectionForest
 import model.guardedBy
 import model.objectKey
 import model.selectionForestOf
+import model.registry.FieldChecker
 import semantics.shared.Demand
 import semantics.shared.guardedBy
 import semantics.shared.plus
@@ -16,8 +17,8 @@ import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Returns additional construction demand induced by parent selections in requested descendants
- * and in the fixed inputs of resolver boundaries reached from those descendants. The caller adds
- * this contribution to its original demand; the two may overlap.
+ * and in the fixed inputs of resolver and checker boundaries reached from those descendants. The
+ * caller adds this contribution to its original demand; the two may overlap.
  *
  * The worked examples in `ParentConstructionDemandTest` are the best introduction to this
  * operation, especially its recursive lifting through intermediate OERs and resolver inputs.
@@ -28,7 +29,7 @@ internal fun SelectionForest.liftParentConstructionDemand(world: Assumptions): S
     } else {
         findParentDemandInSelectionForest(
             world,
-            ParentDemandContext(),
+            ParentDemandContext { null },
             checked = true,
         ).localDemand.values
     }
@@ -40,7 +41,7 @@ internal fun Demand<SelectionForest>.liftParentConstructionDemand(
     if (world.parentFieldRelations.isEmpty()) {
         Demand.EMPTY
     } else {
-        val context = ParentDemandContext()
+        val context = ParentDemandContext(world.resolverRegistry::fieldChecker)
         (
             checked.findParentDemandInSelectionForest(world, context, checked = true) +
                 unchecked.findParentDemandInSelectionForest(world, context, checked = false)
@@ -48,10 +49,17 @@ internal fun Demand<SelectionForest>.liftParentConstructionDemand(
     }
 
 /** Memoization and cycle detection are local to one parent-demand computation. */
-private class ParentDemandContext {
-    val parentDemandByResolverField = mutableMapOf<ViaductSchema.ObjectField, ParentDemandAnalysis>()
-    val expandingResolverFields = mutableSetOf<ViaductSchema.ObjectField>()
+private class ParentDemandContext(
+    val fieldChecker: (ViaductSchema.ObjectField) -> FieldChecker?,
+) {
+    val parentDemandByObjectFragmentId = mutableMapOf<ObjectFragmentId, ParentDemandAnalysis>()
+    val expandingObjectFragmentIds = mutableSetOf<ObjectFragmentId>()
 }
+
+private data class ObjectFragmentId(
+    val field: ViaductSchema.ObjectField,
+    val checked: Boolean,
+)
 
 /**
  * Intermediate result of lifting parent-induced demand through a selection tree.
@@ -134,24 +142,23 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
             context,
             checked,
         )
-    fun carryNestedDemand(demand: SelectionForest): SelectionForest =
-        if (demand.isEmpty()) {
-            selectionForestOf()
+    var localDemand =
+        if (nested.localDemand.values.isEmpty()) {
+            Demand.EMPTY
         } else {
-            selectionForestOf(
-                Selection.of(
-                    key = key,
-                    possibleTypes = possibleTypes,
-                    subselections = demand,
-                    inclusionCondition = inclusionCondition,
+            // This selection transports newly discovered construction work to a descendant. The
+            // work itself recovers its checked provenance at the resolver or checker boundary.
+            Demand.unchecked(
+                selectionForestOf(
+                    Selection.of(
+                        key = key,
+                        possibleTypes = possibleTypes,
+                        subselections = nested.localDemand.values,
+                        inclusionCondition = inclusionCondition,
+                    ),
                 ),
             )
         }
-    var localDemand =
-        Demand(
-            checked = carryNestedDemand(nested.localDemand.checked),
-            unchecked = carryNestedDemand(nested.localDemand.unchecked),
-        )
     var reusable = nested.reusable
     val parentRequests = mutableListOf<ParentRequest>()
     nested.parentRequests.forEach { unguardedRequest ->
@@ -167,7 +174,14 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
             reusable = reusable && ancestor.reusable
         }
     }
-    val fixedInputs = key.field.findParentDemandInResolverObjectFragment(world, context)
+    val field = key.field
+    val fixedInputs =
+        field.findParentDemandInObjectFragment(world, context, checked = true) +
+            if (checked) {
+                field.findParentDemandInObjectFragment(world, context, checked = false)
+            } else {
+                ParentDemandAnalysis()
+            }
     val guardedFixedInputs = fixedInputs.guardedBy(inclusionCondition)
     localDemand += guardedFixedInputs.localDemand
     parentRequests += guardedFixedInputs.parentRequests
@@ -182,25 +196,34 @@ private fun Demand<SelectionForest>.findParentDemandInDemand(
     checked.findParentDemandInSelectionForest(world, context, checked = true) +
         unchecked.findParentDemandInSelectionForest(world, context, checked = false)
 
-private fun ViaductSchema.ObjectField.findParentDemandInResolverObjectFragment(
+private fun ViaductSchema.ObjectField.findParentDemandInObjectFragment(
     world: Assumptions,
     context: ParentDemandContext,
+    checked: Boolean,
 ): ParentDemandAnalysis {
-    if (this !in world.resolverRegistry) return ParentDemandAnalysis()
-    context.parentDemandByResolverField[this]?.let { return it }
-    if (!context.expandingResolverFields.add(this)) {
+    val objectFragmentId = ObjectFragmentId(this, checked)
+    context.parentDemandByObjectFragmentId[objectFragmentId]?.let { return it }
+    val selections =
+        if (checked) {
+            if (this in world.resolverRegistry) {
+                world.resolverRegistry.resolver(this).objectFragment
+            } else {
+                null
+            }
+        } else {
+            context.fieldChecker(this)?.objectFragment
+        } ?: return ParentDemandAnalysis()
+    if (!context.expandingObjectFragmentIds.add(objectFragmentId)) {
         return ParentDemandAnalysis(reusable = false)
     }
     val result = try {
-        world.resolverRegistry
-            .resolver(this)
-            .objectFragment
+        selections
             .withoutInclusionConditions()
-            .findParentDemandInSelectionForest(world, context, checked = true)
+            .findParentDemandInSelectionForest(world, context, checked)
     } finally {
-        context.expandingResolverFields.remove(this)
+        context.expandingObjectFragmentIds.remove(objectFragmentId)
     }
-    if (result.reusable) context.parentDemandByResolverField[this] = result
+    if (result.reusable) context.parentDemandByObjectFragmentId[objectFragmentId] = result
     return result
 }
 
