@@ -33,7 +33,7 @@ Selecting a passive checked field must still create enough demand to run its che
 
 ### Resolver-Family Boundary
 
-Access checks are implemented only by the coroutine resolver families. Resolver01–08 could execute the restricted case of a checker with no object- or Query-rooted required selections, but that capability would not extend to the intended semantics. Checker-required selections introduce raw value-demand edges, while any value resolver reached through such an edge evaluates its own dependencies as ordinary checked demand. Those edges can cross object occurrences and fresh checker Query roots and need not fit the fixed local dependency order used by the recursive and queued depth-first families.
+Access checks are implemented only by the coroutine resolver families. Resolver01–08 could execute the restricted case of a checker with no object- or Query-rooted required selections, but that capability would not extend to the intended semantics. Checker-required selections introduce raw value-demand edges, while any value resolver reached through such an edge evaluates its own dependencies as ordinary checked demand. Those edges can cross object occurrences and their associated Query OERs and need not fit the fixed local dependency order used by the recursive and queued depth-first families.
 
 Supporting that general readiness graph in Resolver01–08 would require occurrence-aware suspension, promise readiness, or graph re-entry—the machinery that distinguishes the coroutine families. Qplan therefore leaves Resolver01–08 value-only rather than exposing a dead-end no-RSS access-check subset. Resolver21–23 stage the access-check design, and Resolver26 is its end-state implementation target. This is an intentional architecture boundary, not a claim that every restricted checker program is impossible to execute depth-first.
 
@@ -84,11 +84,11 @@ This per-base-cell behavior is why type checks are first-class results rather th
 
 A field or type checker declares a named map of input-fragment pairs. Each named input contains one materialization template rooted at the checked field's containing object, one rooted at `Query`, and the variable definitions and optional variables provider shared by those two templates. Either template may be empty. The checker receives both materialized values for every name, matching the object/Query input pair supplied to a field resolver. Variables derived from either root are therefore available to selections in either member of the pair.
 
-Construction unions the selections independently within each root: the containing occurrence is extended with the union of every named pair's object-rooted selections, and one fresh Query OER is extended with the union of every named pair's nonempty Query-rooted selections. Materialization does not lose the named-pair boundaries. Each pair is materialized independently, and the checker receives a name-to-pair map containing its separate object and Query values. An empty Query template produces an empty Query-rooted value without requiring Query work.
+Construction unions the selections independently within each root: the containing occurrence is extended with the union of every named pair's object-rooted selections, and its orchestration's associated Query OER is extended with the union of every resolver and checker owner's nonempty Query-rooted selections. Materialization does not lose the owner or named-pair boundaries. Each pair is materialized independently, and the checker receives a name-to-pair map containing its separate object and Query projections. An empty Query template produces an empty Query-rooted value without demanding fields in the associated Query OER.
 
 This paired contract is intentionally different from the existing production `CheckerExecutor` SPI, whose named values are singular required selection sets. That SPI is a legacy integration boundary, not the qplan semantic model. Its Airbnb implementations currently nest a variable RSS at most once in practice, so an adapter can translate each singular outer RSS and its optional nested dependency into one pair, remember whether the object or Query member was the legacy outer RSS, and pass only that materialized member to the legacy checker. A replacement checker API will consume the pair directly. Qplan's registry, demand closure, scheduling, and materialization should use the paired model rather than preserve the legacy outer-RSS distinction.
 
-The fresh Query OER is a logical occurrence boundary. It does not require an implementation to forgo safe physical batching, but work from the primary operation's Query OER or another checker occurrence must not be substituted as though it had the same occurrence identity.
+The associated Query OER is a logical occurrence boundary owned by the containing orchestration. Resolver and checker occurrences in that scope share it, including exact-key value production, but materialize owner-local projections. It does not require an implementation to forgo safe physical batching across scopes, but work from the primary operation's Query OER or another containing occurrence's Query OER must not be substituted as though it had the same occurrence identity.
 
 Consider this complete world:
 
@@ -117,7 +117,7 @@ query {
 }
 ```
 
-This execution has one primary Query OER for the client operation and two additional Query OERs, one for each `Record.secret` checker occurrence. The two checker occurrences do not share the primary Query OER or each other's Query OER. Consequently, this semantic model contains three distinct `Query.viewerId` resolver occurrences even if a later execution layer can physically coalesce some underlying work.
+This execution has one primary Query OER for the client operation and two additional Query OERs, one associated with each passive `Record` occurrence's orchestration. Each `Record.secret` checker uses its containing record occurrence's associated Query OER; neither shares the primary Query OER or the other record occurrence's Query OER. Consequently, this semantic model contains three distinct `Query.viewerId` resolver occurrences even if a later execution layer can physically coalesce some underlying work. Multiple checker or resolver owners within either one record occurrence would instead share that occurrence's associated Query OER.
 
 ## Where Checks Are Enforced
 
@@ -190,3 +190,9 @@ The same selected coordinate can require different work depending on why it was 
 - If an active value resolver is launched by checker-origin demand, the resolver's own required selections introduce new resolver-origin demand and therefore use normal checked semantics.
 
 During demand closure, the implementation must distinguish raw-only checker demand from checked resolver or client demand. Once closure reaches a fixed point, it may discard the derivation history as long as its result separately records the required value and checker slots. Materialization independently preserves whether each consumer performs raw or checked reads.
+
+Selective successor-demand calculation retains the same provenance only while finding producer-facing values. A selected field contributes its checker inputs only when that occurrence is checked; any active value resolver reached from either checked or raw demand contributes its own inputs as checked demand. The final tenant-facing `SelectionForest` is the union of required values and contains no checker-slot concept. A structurally present or over-returned field is not thereby checked, and overlap between raw checker demand and independent checked demand produces one value and one applicable checker application for the occurrence.
+
+## Exact Checker Applications
+
+Value correctness and access-check execution exactness are separate judgments. `correctResolution` may tolerate some additional value structure and deliberately does not inspect checker-result slots or execution counts. Exact access evidence records each attempted checker call by checker kind, logical Query root, occurrence path, grounded arguments, and checked coordinate; comparison is duplicate-preserving so both omitted and repeated applications fail. Observation occurs after checker inputs are ready and immediately before checker invocation, and records no result or policy outcome.

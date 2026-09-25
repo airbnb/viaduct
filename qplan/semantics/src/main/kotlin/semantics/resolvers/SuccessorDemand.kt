@@ -11,7 +11,9 @@ import model.requireField
 import model.selectionForestOf
 import model.substituteTemplates
 import model.registry.FieldResolver
+import model.registry.FieldChecker
 import model.registry.VariableDefinition
+import semantics.shared.Demand
 import semantics.shared.liftParentSuccessorDemand
 import semantics.shared.instantiateBindings
 import semantics.shared.SharedOperationContext
@@ -20,6 +22,118 @@ import semantics.shared.SharedOperationContext
 fun SelectionForest.successorDemand(operation: SharedOperationContext<*>): SelectionForest {
     val demand = successorDemandWithoutParentLifting(operation)
     return demand + demand.liftParentSuccessorDemand(operation.world)
+}
+
+/**
+ * Computes producer-facing value demand while retaining checked/raw provenance long enough to
+ * expand the right fixed inputs. Resolver inputs are checked regardless of how their output field
+ * was reached. Checker inputs are raw and are introduced only by checked field demand.
+ */
+internal fun Demand<SelectionForest>.successorDemandFromConstructionDemand(
+    operation: SharedOperationContext<*>,
+): SelectionForest {
+    val context = SuccessorDemandContext(operation)
+    val checkedDemand = checked.successorDemandWithChecks(context, checked = true)
+    val uncheckedDemand = unchecked.successorDemandWithChecks(context, checked = false)
+    val demand = checkedDemand + uncheckedDemand
+    return demand + demand.liftParentSuccessorDemand(operation.world)
+}
+
+private class SuccessorDemandContext(
+    val operation: SharedOperationContext<*>,
+) {
+    val expandingBoundaries = mutableSetOf<SuccessorBoundary>()
+}
+
+private data class SuccessorBoundary(
+    val key: ObjectEngineResult.GroundKey,
+    val kind: SuccessorBoundaryKind,
+)
+
+private enum class SuccessorBoundaryKind {
+    RESOLVER,
+    CHECKER,
+}
+
+private fun SelectionForest.successorDemandWithChecks(
+    context: SuccessorDemandContext,
+    checked: Boolean,
+): SelectionForest =
+    flatMap { selection ->
+        val nestedDemand =
+            selection.subselections.successorDemandWithChecks(context, checked)
+        val rootedSelection =
+            Selection.of(
+                key = selection.key,
+                possibleTypes = selection.possibleTypes,
+                subselections = nestedDemand,
+                inclusionCondition = selection.inclusionCondition,
+            )
+        selectionForestOf(rootedSelection) +
+            selection.fixedSuccessorInputDemand(context, checked)
+    }
+
+private fun Selection.fixedSuccessorInputDemand(
+    context: SuccessorDemandContext,
+    checked: Boolean,
+): SelectionForest =
+    possibleTypes.flatMapToSelectionForest { possibleType ->
+        val specializedKey = objectKey(possibleType)
+        val key =
+            ObjectEngineResult.GroundKey.of(
+                field = specializedKey.field,
+                arguments =
+                    specializedKey.arguments.instantiateBindings(
+                        context.operation,
+                        specializedKey.field,
+                    ),
+            )
+        val arguments = key.arguments
+        if (arguments !is Arguments.Resolved) {
+            selectionForestOf()
+        } else {
+            key.fixedResolverInputDemand(context, arguments) +
+                if (checked) {
+                    key.fixedCheckerInputDemand(context, arguments)
+                } else {
+                    selectionForestOf()
+                }
+        }
+    }
+
+private fun ObjectEngineResult.GroundKey.fixedResolverInputDemand(
+    context: SuccessorDemandContext,
+    arguments: Arguments.Resolved,
+): SelectionForest {
+    if (field !in context.operation.world.resolverRegistry) return selectionForestOf()
+    val boundary = SuccessorBoundary(this, SuccessorBoundaryKind.RESOLVER)
+    if (!context.expandingBoundaries.add(boundary)) return selectionForestOf()
+    return try {
+        context.operation.world.resolverRegistry
+            .resolver(field)
+            .objectFragmentWithFromArguments(arguments)
+            .successorDemandWithChecks(context, checked = true)
+    } finally {
+        context.expandingBoundaries.remove(boundary)
+    }
+}
+
+private fun ObjectEngineResult.GroundKey.fixedCheckerInputDemand(
+    context: SuccessorDemandContext,
+    arguments: Arguments.Resolved,
+): SelectionForest {
+    val checker =
+        context.operation.world.resolverRegistry.fieldChecker(field)
+            ?: return selectionForestOf()
+    val boundary = SuccessorBoundary(this, SuccessorBoundaryKind.CHECKER)
+    if (!context.expandingBoundaries.add(boundary)) return selectionForestOf()
+    return try {
+        checker
+            .objectFragmentWithFromArguments(arguments)
+            .successorDemandWithChecks(context, checked = false)
+    } finally {
+        context.expandingBoundaries.remove(boundary)
+    }
 }
 
 private fun SelectionForest.successorDemandWithoutParentLifting(operation: SharedOperationContext<*>): SelectionForest =
@@ -124,6 +238,18 @@ private fun SelectionForest.boundarySkeleton(operation: SharedOperationContext<*
     }
 
 private fun FieldResolver.objectFragmentWithFromArguments(
+    arguments: Arguments.Resolved,
+): SelectionForest {
+    val bindings =
+        variables.mapNotNull { (variable, definition) ->
+            (definition as? VariableDefinition.FromArgument)?.let {
+                variable to definition.read(arguments)
+            }
+        }.toMap()
+    return objectFragment.substitute(bindings)
+}
+
+private fun FieldChecker.objectFragmentWithFromArguments(
     arguments: Arguments.Resolved,
 ): SelectionForest {
     val bindings =

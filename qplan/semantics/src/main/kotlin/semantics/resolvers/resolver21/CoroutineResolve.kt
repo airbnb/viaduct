@@ -14,7 +14,7 @@ import viaduct.engine.api.EngineObjectData
 /** Resolves one operation through request-root tasks and exact value promises. */
 internal class CoroutineResolve(
     private val operation: SharedOperationContext<*>,
-    private val complete: (SelectionForest) -> SelectionForest,
+    private val complete: (Demand<SelectionForest>) -> SelectionForest,
     private val cycleChecker: CycleCheckState = CycleCheckState.create(),
     private val supportsCheckerFragments: Boolean = false,
 ) {

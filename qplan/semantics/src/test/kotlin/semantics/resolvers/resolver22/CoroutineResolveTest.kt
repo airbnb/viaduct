@@ -33,7 +33,7 @@ class CoroutineResolveTest :
         cycleChecker: CycleCheckState,
     ): ObjectEngineResult = startCoroutineResolution(
         operation, requestScope, selections, cycleChecker,
-        complete = { demand -> demand.successorBoundaryDemand(operation) },
+        complete = { demand -> demand.values.successorBoundaryDemand(operation) },
         supportsCheckerFragments = true,
     )
 }

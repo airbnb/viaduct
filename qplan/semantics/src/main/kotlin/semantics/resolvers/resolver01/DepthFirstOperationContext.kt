@@ -14,6 +14,7 @@ internal class DepthFirstOperationContext(
         world = operation.world,
         variableBindings = operation.variableBindings,
         resolverObserver = operation.resolverObserver,
+        checkerObserver = operation.checkerObserver,
         dispatcher = dispatcher,
     ) {
     /** Passive traversal inherits the Query-OER depth of the task whose value it is traversing. */

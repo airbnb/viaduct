@@ -5,10 +5,14 @@ import model.ObjectEngineResult
 import model.SelectionForest
 import semantics.contract.FragmentFreeFieldCheckerPublicationContract
 import semantics.contract.FragmentFreeFieldCheckerEnforcementContract
+import semantics.contract.GroundedFieldCheckerCapabilityContract
+import semantics.contract.GroundedFieldCheckerObjectFragmentContract
+import semantics.contract.GroundedFieldCheckerQueryFragmentContract
+import semantics.contract.SelectiveFieldCheckerExactnessContract
 import semantics.contract.CoroutineResolverContract
 import semantics.contract.CoroutineResolverTestSubject
 import semantics.resolvers.resolver21.startCoroutineResolution
-import semantics.resolvers.successorDemand
+import semantics.resolvers.successorDemandFromConstructionDemand
 import semantics.shared.CycleCheckState
 import semantics.shared.SharedOperationContext
 
@@ -16,7 +20,11 @@ class CoroutineResolveTest :
     CoroutineResolverTestSubject(),
     CoroutineResolverContract,
     FragmentFreeFieldCheckerPublicationContract,
-    FragmentFreeFieldCheckerEnforcementContract {
+    FragmentFreeFieldCheckerEnforcementContract,
+    GroundedFieldCheckerCapabilityContract,
+    GroundedFieldCheckerObjectFragmentContract,
+    GroundedFieldCheckerQueryFragmentContract,
+    SelectiveFieldCheckerExactnessContract {
     override val usesSingularQueryOER = true
 
     override val selectiveResolvers = true
@@ -28,7 +36,7 @@ class CoroutineResolveTest :
         cycleChecker: CycleCheckState,
     ): ObjectEngineResult = startCoroutineResolution(
         operation, requestScope, selections, cycleChecker,
-        complete = { demand -> demand.successorDemand(operation) },
+        complete = { demand -> demand.successorDemandFromConstructionDemand(operation) },
         supportsCheckerFragments = true,
     )
 }

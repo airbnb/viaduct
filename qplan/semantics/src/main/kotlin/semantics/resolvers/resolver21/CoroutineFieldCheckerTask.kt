@@ -15,6 +15,8 @@ import model.registry.ResolverFragments
 import semantics.resolver26.CoroutineFieldCheckerPublicationOccurrence
 import semantics.shared.fieldCheckerCycleSlot
 import semantics.shared.fieldCheckerCycleTask
+import semantics.shared.CheckerInvocationObservation
+import semantics.shared.CheckerKind
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOERContext
 import semantics.shared.materializeResult
@@ -173,9 +175,19 @@ internal class CoroutineFieldCheckerTask private constructor(
                     queryValue = queryValues.getValue(name),
                 )
             }
+        val arguments = checkNotNull(publication.arguments)
+        publication.operation.checkerObserver.onCheckerInvocation(
+            CheckerInvocationObservation(
+                checkerKind = CheckerKind.FIELD,
+                logicalQueryRoot = publication.oerOccurrence.root,
+                occurrencePath = publication.publicationPath,
+                arguments = arguments,
+                checkedCoordinate = publication.selection.key.field,
+            ),
+        )
         val result =
             checker(
-                checkNotNull(publication.arguments),
+                arguments,
                 inputs,
                 ResolutionExecutionContext.Unsupported,
             )

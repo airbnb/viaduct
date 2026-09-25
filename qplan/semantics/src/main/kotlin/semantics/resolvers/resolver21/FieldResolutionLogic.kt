@@ -39,8 +39,7 @@ internal class FieldResolutionLogic(
         val publication = fieldResolverTask.publication
         val key = publication.selection.groundKey()
         val constructionDemand = publication.constructionDemand
-        val constructionSelections = constructionDemand.values
-        val invocationDemand = publication.invocationDemand ?: publication.operation.complete(constructionSelections)
+        val invocationDemand = publication.invocationDemand ?: publication.operation.complete(constructionDemand)
         var fieldValue: ResolverOutputData? = publication.reference ?: when (val arguments = key.arguments) {
             Arguments.Error -> {
                 check(publication.publicationCell.getValue().complete(ErrorEngineResult.of(EngineErrorData.of()))) {

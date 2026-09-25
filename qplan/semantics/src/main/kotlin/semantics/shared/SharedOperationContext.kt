@@ -11,6 +11,7 @@ interface SharedOperationContext<out D : SharedTaskDispatcher<Nothing, Nothing>>
     val world: Assumptions
     val variableBindings: VariableBindingsState
     val resolverObserver: ResolverObserver
+    val checkerObserver: CheckerObserver
     val dispatcher: D
 
     companion object {
@@ -20,10 +21,12 @@ interface SharedOperationContext<out D : SharedTaskDispatcher<Nothing, Nothing>>
             world: Assumptions,
             variableBindings: VariableBindingsState = VariableBindingsState(),
             resolverObserver: ResolverObserver = ResolverObserver.NOP,
+            checkerObserver: CheckerObserver = CheckerObserver.NOP,
         ): SharedOperationContext<Nothing> = object : SharedOperationContext<Nothing> {
             override val world = world
             override val variableBindings = variableBindings
             override val resolverObserver = resolverObserver
+            override val checkerObserver = checkerObserver
             override val dispatcher: Nothing
                 get() = error("This operation does not dispatch resolver tasks")
         }
@@ -35,10 +38,12 @@ interface SharedOperationContext<out D : SharedTaskDispatcher<Nothing, Nothing>>
             dispatcher: D,
             variableBindings: VariableBindingsState = VariableBindingsState(),
             resolverObserver: ResolverObserver = ResolverObserver.NOP,
+            checkerObserver: CheckerObserver = CheckerObserver.NOP,
         ): SharedOperationContext<D> = object : SharedOperationContext<D> {
             override val world = world
             override val variableBindings = variableBindings
             override val resolverObserver = resolverObserver
+            override val checkerObserver = checkerObserver
             override val dispatcher = dispatcher
         }
     }

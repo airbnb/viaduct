@@ -19,7 +19,7 @@ fun SharedOperationContext<*>.resolve(selections: SelectionForest): ObjectEngine
     val resolver =
         CoroutineResolve(
             operation = this@resolve,
-            complete = { completedSelections -> completedSelections },
+            complete = { constructionDemand -> constructionDemand.values },
         )
     return runBlocking {
         withTimeout(90_000) {

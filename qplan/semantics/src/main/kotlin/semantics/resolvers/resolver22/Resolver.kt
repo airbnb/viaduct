@@ -20,8 +20,8 @@ fun SharedOperationContext<*>.resolve(selections: SelectionForest): ObjectEngine
     val resolver =
         CoroutineResolve(
             operation = this@resolve,
-            complete = { completedSelections ->
-                completedSelections.successorBoundaryDemand(this@resolve)
+            complete = { constructionDemand ->
+                constructionDemand.values.successorBoundaryDemand(this@resolve)
             },
             supportsCheckerFragments = true,
         )

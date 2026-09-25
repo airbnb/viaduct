@@ -57,6 +57,10 @@ class FieldChecker private constructor(
     private val loweredQueryFragment =
         fragmentTemplates.lowerForResolution(ProviderFragment.QUERY)
 
+    /** The lowered variable definitions shared by the combined resolution fragments. */
+    val variables: Map<Arguments.Variable, VariableDefinition>
+        get() = loweredObjectFragment.variables
+
     /** The combined object-rooted fragment used for field-resolution demand. */
     val objectFragment: SelectionForest
         get() = loweredObjectFragment.constructionSelections

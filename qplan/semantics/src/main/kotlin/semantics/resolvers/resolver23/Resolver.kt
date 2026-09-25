@@ -5,7 +5,7 @@ import kotlinx.coroutines.withTimeout
 import model.ObjectEngineResult
 import model.SelectionForest
 import semantics.resolvers.resolver21.CoroutineResolve
-import semantics.resolvers.successorDemand
+import semantics.resolvers.successorDemandFromConstructionDemand
 import semantics.shared.SharedOperationContext
 
 /**
@@ -20,8 +20,8 @@ fun SharedOperationContext<*>.resolve(selections: SelectionForest): ObjectEngine
     val resolver =
         CoroutineResolve(
             operation = this@resolve,
-            complete = { completedSelections ->
-                completedSelections.successorDemand(this@resolve)
+            complete = { constructionDemand ->
+                constructionDemand.successorDemandFromConstructionDemand(this@resolve)
             },
             supportsCheckerFragments = true,
         )

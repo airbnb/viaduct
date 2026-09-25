@@ -7,6 +7,7 @@ import semantics.contract.FragmentFreeFieldCheckerPublicationContract
 import semantics.contract.CoroutineResolverContract
 import semantics.contract.CoroutineResolverTestSubject
 import semantics.shared.CycleCheckState
+import semantics.shared.Demand
 import semantics.shared.SharedOperationContext
 
 class CoroutineResolveTest :
@@ -29,7 +30,7 @@ internal fun startCoroutineResolution(
     requestScope: CoroutineScope,
     selections: SelectionForest,
     cycleChecker: CycleCheckState,
-    complete: (SelectionForest) -> SelectionForest = { it },
+    complete: (Demand<SelectionForest>) -> SelectionForest = { it.values },
     supportsCheckerFragments: Boolean = false,
 ): ObjectEngineResult =
     CoroutineOperationContext(

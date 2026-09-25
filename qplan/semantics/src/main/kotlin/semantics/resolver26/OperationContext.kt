@@ -27,6 +27,7 @@ internal interface OperationContext : SharedOperationContext<CoroutineTaskDispat
                 world = base.world,
                 variableBindings = base.variableBindings,
                 resolverObserver = base.resolverObserver,
+                checkerObserver = base.checkerObserver,
                 dispatcher = CoroutineTaskDispatcher<OrchestrationTask, FieldPublicationOccurrence, Nothing>(
                     requestScope = requestScope,
                     runFieldResolver = FieldResolverTask::execute,
