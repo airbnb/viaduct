@@ -1,12 +1,28 @@
 package semantics.contract
 
 import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNotSame
+import kotlin.test.assertSame
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import model.Arguments
+import model.EngineResultCell
+import model.ObjectEngineResult
 import model.arg
+import model.emptyFragmentOf
 import model.fragmentFrom
 import model.materializeSelectionForestOf
 import model.operationSelectionsFrom
@@ -17,6 +33,12 @@ import model.registry.VariableDefinition
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
+import model.testing.fieldResolverOf
+import semantics.shared.CycleCheckState
+import semantics.shared.CycleSlot
+import semantics.shared.CycleSlotKind
+import semantics.shared.CycleTask
+import semantics.shared.CycleTaskKind
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.ResolverObserver
 import semantics.shared.SharedOERContext
@@ -45,6 +67,7 @@ interface GroundedFieldCheckerQueryFragmentContract {
 
                     type Item {
                       checked(seed: Int!): Int! @resolver(result: 1)
+                      objectShared(seed: Int!): Int! @resolver(result: 5)
                     }
                     """.trimIndent(),
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
@@ -54,7 +77,12 @@ interface GroundedFieldCheckerQueryFragmentContract {
                     val seed = Arguments.Variable.of(checked, "seed")
                     fun queryInput(alias: String): ResolverFragmentTemplates =
                         ResolverFragmentTemplates(
-                            objectFragmentTemplate = materializeSelectionForestOf(),
+                            objectFragmentTemplate =
+                                schema
+                                    .fragmentFrom(
+                                        "fragment Input on Item { ${alias}Object: objectShared(seed: ${'$'}seed) }",
+                                        variableField = checked,
+                                    ).materializeSelections,
                             queryFragmentTemplate =
                                 schema
                                     .fragmentFrom(
@@ -120,6 +148,8 @@ interface GroundedFieldCheckerQueryFragmentContract {
         assertEquals(2, checkerInputs.size)
         assertEquals(1, queryOERs.size)
         checkerInputs.forEach { inputs ->
+            assertEquals(5, inputs.getValue("first").objectValue.get("firstValueObject"))
+            assertEquals(5, inputs.getValue("second").objectValue.get("secondValueObject"))
             assertEquals(7, inputs.getValue("first").queryValue.get("firstValue"))
             assertEquals(7, inputs.getValue("second").queryValue.get("secondValue"))
             assertEquals(emptySet(), inputs.getValue("empty").queryValue.getSelections())
@@ -131,4 +161,253 @@ interface GroundedFieldCheckerQueryFragmentContract {
         assertEquals(2, sharedResolverCalls.get())
         assertEquals(0, sharedCheckerCalls.get())
     }
+
+    @Test
+    fun `object and Query inputs read exact value slots as the field checker`() {
+        val writers = ConcurrentHashMap<CycleSlot, CycleTask>()
+        val reads = Collections.synchronizedList(mutableListOf<Pair<CycleTask, CycleSlot>>())
+        val cycleChecker =
+            object : CycleCheckState {
+                override fun registerWriter(
+                    slot: CycleSlot,
+                    writer: CycleTask,
+                ) {
+                    assertEquals(null, writers.putIfAbsent(slot, writer))
+                }
+
+                override fun cycleCheck(
+                    reader: CycleTask,
+                    slot: CycleSlot,
+                ) {
+                    reads += reader to slot
+                }
+            }
+        val world = pairedInputWorld().assumptions
+
+        val result =
+            coroutineResolverSubject.resolve(
+                SharedOperationContext.create(world),
+                world.operationSelectionsFrom("{ item { checked } }"),
+                cycleChecker,
+            )
+
+        val checkerWriter =
+            writers.values.single { writer ->
+                writer.kind == CycleTaskKind.FIELD_CHECKER && writer.lastFieldName() == "checked"
+            }
+        val checkerReads = reads.filter { (reader) -> reader == checkerWriter }
+        assertEquals(setOf(CycleSlotKind.VALUE), checkerReads.map { (_, slot) -> slot.kind }.toSet())
+        val inputWriters = checkerReads.map { (_, slot) -> writers.getValue(slot) }
+        assertEquals(
+            setOf("objectDependency", "queryDependency"),
+            inputWriters.map { it.lastFieldName() }.toSet(),
+        )
+        assertSame(
+            checkerWriter.root,
+            inputWriters.single { it.lastFieldName() == "objectDependency" }.root,
+        )
+        assertNotSame(
+            checkerWriter.root,
+            inputWriters.single { it.lastFieldName() == "queryDependency" }.root,
+        )
+        assertSame(result, checkerWriter.root)
+    }
+
+    @Test
+    fun `Query input materialization failures complete the checker slot exceptionally`() {
+        val failure = IllegalStateException("Query input materialization failed")
+        val writers = ConcurrentHashMap<CycleSlot, CycleTask>()
+        val cycleChecker =
+            object : CycleCheckState {
+                override fun registerWriter(
+                    slot: CycleSlot,
+                    writer: CycleTask,
+                ) {
+                    writers[slot] = writer
+                }
+
+                override fun cycleCheck(
+                    reader: CycleTask,
+                    slot: CycleSlot,
+                ) {
+                    val writer = writers.getValue(slot)
+                    if (
+                        reader.kind == CycleTaskKind.FIELD_CHECKER &&
+                        writer.lastFieldName() == "queryDependency"
+                    ) {
+                        throw failure
+                    }
+                }
+            }
+        val world = pairedInputWorld().assumptions
+
+        val result =
+            coroutineResolverSubject.resolve(
+                SharedOperationContext.create(world),
+                world.operationSelectionsFrom("{ item { checked } }"),
+                cycleChecker,
+            )
+        val checkedCell = result.objectValue(world, "Query", "item").cell(world, "Item", "checked")
+
+        assertSame(
+            failure,
+            assertFailsWith<IllegalStateException> {
+                checkedCell.getFieldCheckerResult().get()
+            },
+        )
+        assertEquals(1, checkedCell.getValue().get())
+    }
+
+    @Test
+    fun `request cancellation terminates shared Query work and the checker slot`() = runBlocking {
+        val producerEntered = CompletableDeferred<Unit>()
+        val producerCancelled = CompletableDeferred<Unit>()
+        val checkerInvoked = AtomicBoolean()
+        val world =
+            cancellationWorld(producerEntered, producerCancelled, checkerInvoked).assumptions
+        val requestJob = Job()
+        val requestScope = CoroutineScope(coroutineContext + requestJob)
+        val cancellation = CancellationException("request cancelled")
+        try {
+            val result =
+                coroutineResolverSubject.startResolution(
+                    SharedOperationContext.create(world),
+                    requestScope,
+                    world.operationSelectionsFrom("{ checked }"),
+                    CycleCheckState.create(),
+                )
+            withTimeout(5_000) { producerEntered.await() }
+            requestJob.cancel(cancellation)
+            withTimeout(5_000) { requestJob.join() }
+            withTimeout(5_000) { producerCancelled.await() }
+
+            val checkerFailure =
+                assertFailsWith<CancellationException> {
+                    result.cell(world, "Query", "checked").getFieldCheckerResult().await()
+                }
+            assertEquals(cancellation.message, checkerFailure.message)
+            assertFalse(checkerInvoked.get())
+        } finally {
+            requestJob.cancelAndJoin()
+        }
+    }
+
+    private fun pairedInputWorld(): TestWorld =
+        TestWorld.fromDSL(
+            schemaSDL =
+                """
+                extend type Query {
+                  item: Item! @resolver(result: {})
+                  queryDependency: Int! @resolver(result: 3)
+                }
+
+                type Item {
+                  checked: Int! @resolver(result: 1)
+                  objectDependency: Int! @resolver(result: 2)
+                }
+                """.trimIndent(),
+            selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
+            fieldCheckers = { schema ->
+                val checked = schema.requireObjectField("Item", "checked")
+                mapOf(
+                    checked to
+                        FieldChecker.of(
+                            checked,
+                            schema.requireQueryTypeDef(),
+                            fragmentTemplates =
+                                mapOf(
+                                    "input" to
+                                        ResolverFragmentTemplates(
+                                            objectFragmentTemplate =
+                                                schema
+                                                    .fragmentFrom(
+                                                        "fragment Input on Item { objectDependency }",
+                                                    ).materializeSelections,
+                                            queryFragmentTemplate =
+                                                schema
+                                                    .fragmentFrom(
+                                                        "fragment Input on Query { queryDependency }",
+                                                    ).materializeSelections,
+                                        ),
+                                ),
+                        ) { _, inputs, _ ->
+                            assertEquals(2, inputs.getValue("input").objectValue.get("objectDependency"))
+                            assertEquals(3, inputs.getValue("input").queryValue.get("queryDependency"))
+                            CheckerResult.Success
+                        },
+                )
+            },
+        )
+
+    private fun cancellationWorld(
+        producerEntered: CompletableDeferred<Unit>,
+        producerCancelled: CompletableDeferred<Unit>,
+        checkerInvoked: AtomicBoolean,
+    ): TestWorld =
+        TestWorld.fromSDL(
+            schemaSDL = "type Query { checked: Int!, dependency: Int! }",
+            selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
+            fieldResolvers = { schema ->
+                val emptyFragment = schema.emptyFragmentOf("Query")
+                mapOf(
+                    schema.requireObjectField("Query", "checked") to
+                        fieldResolverOf(emptyFragment) { _, _ -> 1 },
+                    schema.requireObjectField("Query", "dependency") to
+                        fieldResolverOf(emptyFragment) { _, _ ->
+                            producerEntered.complete(Unit)
+                            try {
+                                CompletableDeferred<Nothing>().await()
+                            } finally {
+                                producerCancelled.complete(Unit)
+                            }
+                        },
+                )
+            },
+            fieldCheckers = { schema ->
+                val checked = schema.requireObjectField("Query", "checked")
+                mapOf(
+                    checked to
+                        FieldChecker.of(
+                            checked,
+                            schema.requireQueryTypeDef(),
+                            fragmentTemplates =
+                                mapOf(
+                                    "input" to
+                                        ResolverFragmentTemplates(
+                                            objectFragmentTemplate = materializeSelectionForestOf(),
+                                            queryFragmentTemplate =
+                                                schema
+                                                    .fragmentFrom(
+                                                        "fragment Input on Query { dependency }",
+                                                    ).materializeSelections,
+                                        ),
+                                ),
+                        ) { _, _, _ ->
+                            checkerInvoked.set(true)
+                            CheckerResult.Success
+                        },
+                )
+            },
+        )
 }
+
+private fun CycleTask.lastFieldName(): String =
+    (path.last() as ObjectEngineResult.ObjectKey).field.name
+
+private fun ObjectEngineResult.cell(
+    world: model.Assumptions,
+    typeName: String,
+    fieldName: String,
+): EngineResultCell =
+    getCell(
+        ObjectEngineResult.GroundKey.of(
+            world.schema.requireObjectField(typeName, fieldName),
+            emptyMap(),
+        ),
+    )
+
+private fun ObjectEngineResult.objectValue(
+    world: model.Assumptions,
+    typeName: String,
+    fieldName: String,
+): ObjectEngineResult = assertIs(cell(world, typeName, fieldName).getValue().get())

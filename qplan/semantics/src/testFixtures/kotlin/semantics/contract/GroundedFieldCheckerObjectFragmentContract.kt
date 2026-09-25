@@ -4,13 +4,16 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import model.Arguments
 import model.ObjectEngineResult
 import model.arg
+import model.emptyFragmentOf
 import model.fragmentFrom
 import model.materializeSelectionForestOf
 import model.operationSelectionsFrom
@@ -22,6 +25,8 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.testing.TestWorld
+import model.testing.fieldResolverOf
+import semantics.shared.ResolverReadCycleException
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
@@ -30,6 +35,71 @@ import viaduct.graphql.schema.graphqljava.gjDef
 /** Grounded object-rooted checker inputs, composed by Resolver22 and Resolver23. */
 interface GroundedFieldCheckerObjectFragmentContract {
     val coroutineResolverSubject: CoroutineResolverTestSubject
+
+    @Test
+    fun `value and checker wait cycle fails instead of hanging`() {
+        val world =
+            TestWorld.fromSDL(
+                schemaSDL = "type Query { checked: Int!, dependency: Int! }",
+                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
+                fieldResolvers = { schema ->
+                    val checked = schema.requireObjectField("Query", "checked")
+                    val dependency = schema.requireObjectField("Query", "dependency")
+                    mapOf(
+                        checked to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 },
+                        dependency to
+                            fieldResolverOf(
+                                schema.fragmentFrom("fragment Input on Query { checked }"),
+                            ) { _, _ -> 2 },
+                    )
+                },
+                fieldCheckers = { schema ->
+                    val checked = schema.requireObjectField("Query", "checked")
+                    mapOf(
+                        checked to
+                            FieldChecker.of(
+                                checked,
+                                schema.requireQueryTypeDef(),
+                                fragmentTemplates =
+                                    mapOf(
+                                        "input" to
+                                            ResolverFragmentTemplates(
+                                                objectFragmentTemplate =
+                                                    schema
+                                                        .fragmentFrom(
+                                                            "fragment Input on Query { dependency }",
+                                                        ).materializeSelections,
+                                                queryFragmentTemplate = materializeSelectionForestOf(),
+                                            ),
+                                    ),
+                            ) { _, inputs, _ ->
+                                inputs.getValue("input").objectValue.get("dependency")
+                                CheckerResult.Success
+                            },
+                    )
+                },
+            ).assumptions
+
+        val result =
+            coroutineResolverSubject.resolve(
+                SharedOperationContext.create(world),
+                world.operationSelectionsFrom("{ checked }"),
+            )
+        val failure =
+            assertFailsWith<Exception> {
+                result
+                    .getCell(
+                        ObjectEngineResult.GroundKey.of(
+                            world.schema.requireObjectField("Query", "checked"),
+                            emptyMap(),
+                        ),
+                    ).getFieldCheckerResult()
+                    .get()
+            }
+
+        assertTrue(failure.causeSequence().any { it is ResolverReadCycleException })
+    }
 
     @Test
     fun `materializes named object inputs raw after passive construction`() {
@@ -166,3 +236,6 @@ interface GroundedFieldCheckerObjectFragmentContract {
         assertFalse(item.getCell(activeKey).isFieldCheckerResultSet())
     }
 }
+
+private fun Throwable.causeSequence(): Sequence<Throwable> =
+    generateSequence(this) { it.cause }

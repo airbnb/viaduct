@@ -33,9 +33,9 @@ internal class GroundedFieldCheckerPublicationOccurrence(
 ) : CoroutineFieldCheckerPublicationOccurrence
 
 /**
- * Invokes one argument-only checker and publishes independently from the field value. Its
- * lifecycle method names deliberately mirror [semantics.resolver26.CoroutineFieldResolverTask]
- * until checker RSS provides enough real common structure to evaluate a shared abstraction.
+ * Materializes one checker's paired inputs, invokes it, and publishes independently from the
+ * field value. Its lifecycle deliberately parallels the field-resolver task without introducing
+ * a shared task abstraction.
  */
 internal class CoroutineFieldCheckerTask private constructor(
     private val publication: GroundedFieldCheckerPublicationOccurrence,

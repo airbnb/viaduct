@@ -78,10 +78,13 @@ class FieldCheckerTest {
         val schema = world.schema
         val field = schema.requireObjectField("Item", "secured")
         val queryType = schema.requireQueryTypeDef()
-        val variable = Arguments.Variable.of(field, "id")
-        val objectFragment = "fragment AccessInput on Item { testId }"
-        val queryFragment = "fragment AccessInput on Query { b(y: ${'$'}id) }"
-        val definition: VariableDefinition =
+        val objectVariable = Arguments.Variable.of(field, "objectId")
+        val queryVariable = Arguments.Variable.of(field, "queryId")
+        val objectFragment =
+            "fragment AccessInput on Item { testId owner(seed: ${'$'}queryId) }"
+        val queryFragment =
+            "fragment AccessInput on Query { policy b(y: ${'$'}objectId) }"
+        val objectDefinition: VariableDefinition =
             VariableDefinition.FromField.of(
                 providerFragment = ProviderFragment.OBJECT,
                 path =
@@ -93,6 +96,18 @@ class FieldCheckerTest {
                     ),
                 responsePath = listOf("testId"),
             )
+        val queryDefinition: VariableDefinition =
+            VariableDefinition.FromField.of(
+                providerFragment = ProviderFragment.QUERY,
+                path =
+                    listOf(
+                        ObjectEngineResult.Key.of(
+                            schema.requireObjectField("Query", "policy"),
+                            emptyMap(),
+                        ),
+                    ),
+                responsePath = listOf("policy"),
+            )
         val accessInput =
             ResolverFragmentTemplates(
                 objectFragmentTemplate = schema.fragmentFrom(objectFragment).materializeSelections,
@@ -100,7 +115,11 @@ class FieldCheckerTest {
                     schema
                         .fragmentFrom(queryFragment, variableField = field)
                         .materializeSelections,
-                variables = mapOf(variable to definition),
+                variables =
+                    mapOf(
+                        objectVariable to objectDefinition,
+                        queryVariable to queryDefinition,
+                    ),
             )
         val checker =
             FieldChecker.of(
@@ -113,24 +132,36 @@ class FieldCheckerTest {
         val fragments = checker.instantiateFragmentsAt(root, emptyList())
 
         assertEquals(
-            setOf("accessInput:id"),
+            setOf("accessInput:objectId"),
             fragments.objectFragment.pathVariableDefinitions.mapTo(mutableSetOf()) {
                 it.variable.variableName
             },
         )
         assertEquals(
-            setOf("accessInput:id"),
-            fragments.queryFragment.variableDefinitions.mapTo(mutableSetOf()) {
+            setOf("accessInput:queryId"),
+            fragments.queryFragment.pathVariableDefinitions.mapTo(mutableSetOf()) {
                 it.variable.variableName
             },
         )
         assertEquals(
-            setOf("accessInput:id"),
+            setOf("accessInput:queryId"),
+            fragments.objectFragment.constructionSelections
+                .usedVariables()
+                .mapTo(mutableSetOf()) { it.variableName },
+        )
+        assertEquals(
+            setOf("accessInput:objectId"),
             fragments.queryFragment.constructionSelections
                 .usedVariables()
                 .mapTo(mutableSetOf()) { it.variableName },
         )
-        assertEquals(mapOf(variable to definition), accessInput.variables)
+        assertEquals(
+            mapOf(
+                objectVariable to objectDefinition,
+                queryVariable to queryDefinition,
+            ),
+            accessInput.variables,
+        )
     }
 
     @Test

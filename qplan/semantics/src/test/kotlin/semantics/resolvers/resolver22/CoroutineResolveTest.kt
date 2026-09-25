@@ -5,6 +5,7 @@ import model.ObjectEngineResult
 import model.SelectionForest
 import semantics.contract.FragmentFreeFieldCheckerPublicationContract
 import semantics.contract.FragmentFreeFieldCheckerEnforcementContract
+import semantics.contract.GroundedFieldCheckerCapabilityContract
 import semantics.contract.GroundedFieldCheckerObjectFragmentContract
 import semantics.contract.GroundedFieldCheckerQueryFragmentContract
 import semantics.contract.CoroutineResolverContract
@@ -19,6 +20,7 @@ class CoroutineResolveTest :
     CoroutineResolverContract,
     FragmentFreeFieldCheckerPublicationContract,
     FragmentFreeFieldCheckerEnforcementContract,
+    GroundedFieldCheckerCapabilityContract,
     GroundedFieldCheckerObjectFragmentContract,
     GroundedFieldCheckerQueryFragmentContract {
     override val selectiveResolvers = false
