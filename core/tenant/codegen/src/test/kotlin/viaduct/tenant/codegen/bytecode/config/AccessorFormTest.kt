@@ -9,11 +9,11 @@ class AccessorFormTest {
     @Test
     fun `each accessor form keeps its suffix, fetch method, and nullability`() {
         assertEquals("OrThrow", AccessorForm.STRICT.suffix)
-        assertEquals("getInternal", AccessorForm.STRICT.fetchMethod)
+        assertEquals("getStrictInternal", AccessorForm.STRICT.fetchMethod)
         assertFalse(AccessorForm.STRICT.nullable)
 
         assertEquals("", AccessorForm.SOFT.suffix)
-        assertEquals("getOrNullInternal", AccessorForm.SOFT.fetchMethod)
+        assertEquals("getSoftInternal", AccessorForm.SOFT.fetchMethod)
         assertTrue(AccessorForm.SOFT.nullable)
     }
 

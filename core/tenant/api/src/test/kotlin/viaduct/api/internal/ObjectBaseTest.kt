@@ -692,13 +692,13 @@ class ObjectBaseTest {
         context: InternalContext,
         engineObject: EngineObject
     ) : ObjectBase(context, engineObject), viaduct.api.types.Object {
-        suspend fun getIntFieldOrThrow(): Int = getInternal("intField", Int::class, null)
+        suspend fun getIntFieldOrThrow(): Int = getStrictInternal("intField", Int::class, null)
 
-        suspend fun getIntField(): Int? = getOrNullInternal("intField", Int::class, null)
+        suspend fun getIntField(): Int? = getSoftInternal("intField", Int::class, null)
 
-        suspend fun getArgumentedFieldOrThrow(): String? = getInternal("argumentedField", String::class, null)
+        suspend fun getArgumentedFieldOrThrow(): String? = getStrictInternal("argumentedField", String::class, null)
 
-        suspend fun getArgumentedField(): String? = getOrNullInternal("argumentedField", String::class, null)
+        suspend fun getArgumentedField(): String? = getSoftInternal("argumentedField", String::class, null)
 
         // toBuilder implementation that would normally be provided by codegen
         fun toBuilder(): Builder =

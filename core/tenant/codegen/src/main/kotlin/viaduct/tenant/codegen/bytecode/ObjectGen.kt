@@ -279,7 +279,7 @@ private class ObjectClassGenV2(
 
     private fun ViaductSchema.Field.fetchExpression(
         aliasExpression: String,
-        fetchMethod: String = "getInternal"
+        fetchMethod: String
     ): String =
         buildString {
             append("this.$fetchMethod(\n")

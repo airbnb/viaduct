@@ -237,12 +237,9 @@ public record FieldModel(
   }
 
   private static String accessorBody(AccessorForm form, String strictBody) {
-    return switch (form.getFetchMethod()) {
-      case "getInternal" -> strictBody;
-      case "getOrNullInternal" -> "nullOnDataFailure(() -> " + strictBody + ")";
-      default ->
-          throw new IllegalArgumentException(
-              "Unsupported AccessorForm fetch method: " + form.getFetchMethod());
+    return switch (form) {
+      case STRICT -> strictBody;
+      case SOFT -> "nullOnDataFailure(() -> " + strictBody + ")";
     };
   }
 

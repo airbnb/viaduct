@@ -25,7 +25,7 @@ class ObjectA(
     engineObjectData: EngineObjectData
 ) : ObjectBase(context, engineObjectData) {
     final suspend fun a(): Int {
-        return getInternal("a", Int::class, "a")
+        return getStrictInternal("a", Int::class, "a")
     }
 }
 
@@ -34,7 +34,7 @@ class ObjectB(
     engineObjectData: EngineObjectData
 ) : ObjectBase(context, engineObjectData) {
     final suspend fun b(): ObjectA {
-        return getInternal("b", ObjectA::class, "b")
+        return getStrictInternal("b", ObjectA::class, "b")
     }
 }
 
@@ -43,7 +43,7 @@ class ObjectC(
     engineObjectData: EngineObjectData
 ) : ObjectBase(context, engineObjectData) {
     final suspend fun c(): List<List<ObjectA?>?> {
-        return getInternal("c", ObjectA::class, "c")
+        return getStrictInternal("c", ObjectA::class, "c")
     }
 }
 

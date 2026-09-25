@@ -54,7 +54,7 @@ abstract class ObjectBase(
      * that escapes is re-thrown as a [FrameworkException]: only generated code calls this, so a
      * failure here is by definition a framework bug, not tenant misuse.
      */
-    protected fun <T> getInternal(
+    protected fun <T> getStrictInternal(
         fieldName: String,
         baseFieldTypeClass: KClass<*>,
         alias: String? = null
@@ -64,14 +64,14 @@ abstract class ObjectBase(
         }
 
     /**
-     * Codegen entry point for the soft-failing accessor, `getXxx()`. Same as [getInternal], but
+     * Codegen entry point for the soft-failing accessor, `getXxx()`. Same as [getStrictInternal], but
      * data-side failures become `null`; tenant and framework bugs still propagate.
      */
-    protected fun <T> getOrNullInternal(
+    protected fun <T> getSoftInternal(
         fieldName: String,
         baseFieldTypeClass: KClass<*>,
         alias: String? = null
-    ): T? = nullOnDataFailure { getInternal(fieldName, baseFieldTypeClass, alias) }
+    ): T? = nullOnDataFailure { getStrictInternal(fieldName, baseFieldTypeClass, alias) }
 
     /**
      * Soft-failing variant of [get]: data-side failures become `null`; tenant and framework bugs

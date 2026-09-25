@@ -26,7 +26,7 @@ class ObjectV2(
     engineObject: EngineObject
 ) : ObjectBase(context, engineObject), Object {
     final suspend fun getStringFieldOrThrow(alias: String?): String {
-        return getInternal("stringField", String::class, alias)
+        return getStrictInternal("stringField", String::class, alias)
     }
 
     final suspend fun getStringFieldOrThrow(): String {
@@ -34,7 +34,7 @@ class ObjectV2(
     }
 
     final suspend fun getIntFieldOrThrow(alias: String?): Int {
-        return getInternal("intField", Int::class, alias)
+        return getStrictInternal("intField", Int::class, alias)
     }
 
     final suspend fun getIntFieldOrThrow(): Int {
@@ -42,7 +42,7 @@ class ObjectV2(
     }
 
     final suspend fun getListFieldOrThrow(alias: String?): List<String?>? {
-        return getInternal("listField", String::class, alias)
+        return getStrictInternal("listField", String::class, alias)
     }
 
     final suspend fun getListFieldOrThrow(): List<String?>? {
@@ -50,7 +50,7 @@ class ObjectV2(
     }
 
     final suspend fun getNestedListFieldOrThrow(alias: String?): List<List<String?>?>? {
-        return getInternal("nestedListField", String::class, alias)
+        return getStrictInternal("nestedListField", String::class, alias)
     }
 
     final suspend fun getNestedListFieldOrThrow(): List<List<String?>?>? {
@@ -112,7 +112,7 @@ class MissingBuilderObjectV2(
     engineObject: EngineObject
 ) : ObjectBase(context, engineObject), Object {
     final suspend fun getStringFieldOrThrow(alias: String?): String {
-        return getInternal("stringField", String::class, alias)
+        return getStrictInternal("stringField", String::class, alias)
     }
 
     final suspend fun getStringFieldOrThrow(): String {
@@ -144,7 +144,7 @@ class MissingDefaultGetterObjectV2(
     engineObject: EngineObject
 ) : ObjectBase(context, engineObject), Object {
     final suspend fun getStringFieldOrThrow(alias: String?): String {
-        return getInternal("stringField", String::class, alias)
+        return getStrictInternal("stringField", String::class, alias)
     }
 
     class Builder(context: ExecutionContext) :
@@ -190,7 +190,7 @@ class MissingSetterObjectV2(
     engineObject: EngineObject
 ) : ObjectBase(context, engineObject), Object {
     final suspend fun getStringFieldOrThrow(alias: String? = null): String {
-        return getInternal("stringField", String::class, alias)
+        return getStrictInternal("stringField", String::class, alias)
     }
 
     final suspend fun getStringFieldOrThrow(): String {
@@ -499,7 +499,7 @@ class TestArgObject(
     engineObject: EngineObject
 ) : ObjectBase(context, engineObject), Object {
     final suspend fun getTestOrThrow(alias: String? = null): String {
-        return getInternal("test", String::class, alias)
+        return getStrictInternal("test", String::class, alias)
     }
 
     final suspend fun getTestOrThrow(): String {
@@ -569,7 +569,7 @@ class Under_Score_Object(
     engineObject: EngineObject
 ) : ObjectBase(context, engineObject), Object {
     final suspend fun getSomeFieldOrThrow(alias: String? = null): String {
-        return getInternal("someField", String::class, alias)
+        return getStrictInternal("someField", String::class, alias)
     }
 
     class Builder(context: ExecutionContext) :

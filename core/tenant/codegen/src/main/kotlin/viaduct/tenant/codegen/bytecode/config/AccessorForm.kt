@@ -7,10 +7,10 @@ enum class AccessorForm(
     val nullable: Boolean,
 ) {
     /** Throws on any failure. */
-    STRICT("OrThrow", "getInternal", false),
+    STRICT("OrThrow", "getStrictInternal", false),
 
     /** Returns null for data-side failures. Tenant and framework bugs still propagate. */
-    SOFT("", "getOrNullInternal", true),
+    SOFT("", "getSoftInternal", true),
     ;
 
     fun methodName(fieldAccessorName: String): String = fieldAccessorName + suffix
