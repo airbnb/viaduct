@@ -142,7 +142,7 @@ internal class DepthFirstFieldResolverTask private constructor(
             root = oerOccurrence.root,
             expectedType = publicationExpectedType,
             path = publicationPath,
-            constructionDemand = selection.subselections,
+            constructionDemand = constructionDemand,
             invocationDemand = invocationDemand,
             parent = oerOccurrence,
         )

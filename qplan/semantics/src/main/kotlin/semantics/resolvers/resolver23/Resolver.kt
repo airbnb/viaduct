@@ -23,6 +23,7 @@ fun SharedOperationContext<*>.resolve(selections: SelectionForest): ObjectEngine
             complete = { completedSelections ->
                 completedSelections.successorDemand(this@resolve)
             },
+            supportsCheckerFragments = true,
         )
     return runBlocking {
         withTimeout(90_000) {

@@ -94,6 +94,28 @@ class FieldChecker private constructor(
                 ),
         )
 
+    /** Instantiates each named object template without combining its response-key namespace. */
+    fun instantiateObjectMaterializationSelections(
+        resolverOccurrenceId: ResolverOccurrenceId,
+    ): Map<String, MaterializeSelectionForest> =
+        fragmentTemplates.mapValues { (name, templates) ->
+            templates
+                .lowerForResolution(name)
+                .objectFragmentTemplate
+                .instantiateVariables(resolverOccurrenceId)
+        }
+
+    /** Instantiates each named Query template without combining its response-key namespace. */
+    fun instantiateQueryMaterializationSelections(
+        resolverOccurrenceId: ResolverOccurrenceId,
+    ): Map<String, MaterializeSelectionForest> =
+        fragmentTemplates.mapValues { (name, templates) ->
+            templates
+                .lowerForResolution(name)
+                .queryFragmentTemplate
+                .instantiateVariables(resolverOccurrenceId)
+        }
+
     suspend operator fun invoke(
         arguments: Arguments.Resolved,
         inputs: Map<String, CheckerInput>,
@@ -228,6 +250,7 @@ private fun MaterializeSelectionForest.mapVariableTemplates(
                 possibleTypes = selection.possibleTypes,
                 subselections = selection.subselections.mapVariableTemplates(transform),
                 inclusionCondition = selection.inclusionCondition.mapVariables(transform),
+                fieldDirectives = selection.fieldDirectives,
             ),
         )
     }

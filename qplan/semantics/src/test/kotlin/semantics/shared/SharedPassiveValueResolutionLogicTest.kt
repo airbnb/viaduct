@@ -565,6 +565,7 @@ private fun ResolverOutputData?.recordPassiveResolution(
                 error("Executable references are covered by the resolver contracts")
         },
     )
+    val constructionDemandByTask = mutableMapOf<SharedOrchestrationTask<*>, Demand<ObjectSelectionForest>>()
     val resolution = object : SharedPassiveValueResolutionLogic<
         SharedOrchestrationTask<*>,
         SharedOperationContext<SharedTaskDispatcher<SharedOrchestrationTask<*>, *>>,
@@ -575,18 +576,31 @@ private fun ResolverOutputData?.recordPassiveResolution(
         override fun createOrchestrationTask(
             occurrence: OEROccurrence,
             source: EngineObjectData.Sync,
-            constructionDemand: SelectionForest,
-        ): SharedOrchestrationTask<*> = object : SharedOrchestrationTask<SharedOperationContext<*>> {
-            override val operation = taskOperation
-            override val objectOER =
-                SharedOERContext(
-                    occurrence,
-                    source,
-                    collect(constructionDemand, occurrence.target.type),
+            constructionDemand: Demand<SelectionForest>,
+        ): SharedOrchestrationTask<*> {
+            val closed =
+                Demand(
+                    checked = collect(constructionDemand.checked, occurrence.target.type),
+                    unchecked = collect(constructionDemand.unchecked, occurrence.target.type),
                 )
-            override val queryOER =
-                SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef())
+            val task = object : SharedOrchestrationTask<SharedOperationContext<*>> {
+                override val operation = taskOperation
+                override val objectOER =
+                    SharedOERContext(
+                        occurrence,
+                        source,
+                        collect(closed.values, occurrence.target.type),
+                    )
+                override val queryOER =
+                    SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef())
+            }
+            constructionDemandByTask[task] = closed
+            return task
         }
+
+        override fun closedConstructionDemand(
+            orchestration: SharedOrchestrationTask<*>,
+        ): Demand<ObjectSelectionForest> = constructionDemandByTask.getValue(orchestration)
 
         override fun resolveListReference(
             reference: RootFieldReferenceData,
@@ -594,13 +608,19 @@ private fun ResolverOutputData?.recordPassiveResolution(
             path: List<PathComponent>,
             expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
             selection: ObjectSelection,
+            constructionDemand: Demand<SelectionForest>,
             invocationDemand: SelectionForest,
             parent: OEROccurrence,
         ) = error("Executable references are covered by the resolver contracts")
     }
     val root = ObjectEngineResult.of(operation.world.schema.requireQueryTypeDef(), mutable = true)
     val result = resolution.resolvePassiveValues(
-        this, root, expectedType, path, constructionDemand, invocationDemand,
+        this,
+        root,
+        expectedType,
+        path,
+        Demand.checked(constructionDemand),
+        invocationDemand,
         OEROccurrence(root, emptyList(), root),
     )
     return RecordedPassiveResolution(result, pending)

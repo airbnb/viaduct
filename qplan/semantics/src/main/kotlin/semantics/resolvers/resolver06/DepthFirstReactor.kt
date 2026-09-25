@@ -11,6 +11,7 @@ import semantics.resolvers.resolver01.DepthFirstOperationContext
 import semantics.resolvers.resolver01.DepthFirstOrchestrationTask
 import semantics.resolvers.resolver01.DepthFirstTask
 import semantics.shared.OEROccurrence
+import semantics.shared.Demand
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.EngineObjectData
 
@@ -37,7 +38,9 @@ internal class DepthFirstReactor(
         started = true
         val result = ObjectEngineResult.of(source.schemaType, mutable = true)
         operation.passiveValues(queryOERDepth = 0).resolvePassiveObjectValues(
-            source, OEROccurrence(result, emptyList(), result), selections,
+            source,
+            OEROccurrence(result, emptyList(), result),
+            Demand.checked(selections),
         )
         while (tasks.isNotEmpty()) {
             val task = tasks.remove().task

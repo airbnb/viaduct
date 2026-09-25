@@ -7,6 +7,7 @@ import model.requireQueryTypeDef
 import model.selectionForestOf
 import model.testing.TestWorld
 import semantics.shared.CycleCheckState
+import semantics.shared.Demand
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
 import kotlin.test.Test
@@ -69,6 +70,7 @@ class CoroutineOrchestrationTaskTest {
                     requestScope = this,
                     complete = { it },
                     cycleChecker = CycleCheckState.create(),
+                    supportsCheckerFragments = false,
                 )
             val root =
                 ObjectEngineResult.of(
@@ -80,7 +82,7 @@ class CoroutineOrchestrationTaskTest {
                     operation = operation,
                     occurrence = OEROccurrence(root, emptyList(), root),
                     source = world.resolverRegistry.createRootQueryInput(),
-                    initialDemand = selectionForestOf(),
+                    initialDemand = Demand.checked(selectionForestOf()),
                 )
 
             operation.dispatcher.dispatchOrchestrator(task)

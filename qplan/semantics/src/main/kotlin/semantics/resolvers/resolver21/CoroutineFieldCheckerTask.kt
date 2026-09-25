@@ -8,12 +8,17 @@ import model.ObjectEngineResult
 import model.ObjectSelection
 import model.PathComponent
 import model.registry.FieldChecker
+import model.registry.CheckerInput
 import model.registry.ResolutionExecutionContext
+import model.registry.ResolverFragments
+import model.engineObjectDataOf
+import model.requireQueryTypeDef
 import semantics.resolver26.CoroutineFieldCheckerPublicationOccurrence
 import semantics.shared.fieldCheckerCycleSlot
 import semantics.shared.fieldCheckerCycleTask
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOERContext
+import semantics.shared.materializeResult
 
 /** Immutable inputs to one grounded field-checker-result publication in Resolver21-23. */
 internal class GroundedFieldCheckerPublicationOccurrence(
@@ -22,6 +27,7 @@ internal class GroundedFieldCheckerPublicationOccurrence(
     val selection: ObjectSelection,
     override val publicationCell: EngineResultCell,
     val checker: FieldChecker?,
+    val checkerFragments: ResolverFragments?,
     val arguments: Arguments.Resolved?,
     val publicationPath: List<PathComponent>,
 ) : CoroutineFieldCheckerPublicationOccurrence
@@ -39,8 +45,11 @@ internal class CoroutineFieldCheckerTask private constructor(
         fun prepareAll(
             orchestrationTask: CoroutineOrchestrationTask,
         ): List<GroundedFieldCheckerPublicationOccurrence> =
-            listOf(orchestrationTask.objectOER, orchestrationTask.queryOER).flatMap { oer ->
-                oer.closedDemand.byGroundKey().map { (key, selection) ->
+            listOf(
+                orchestrationTask.objectOER to orchestrationTask.closedConstructionDemand.objectRooted.checked,
+                orchestrationTask.queryOER to orchestrationTask.closedConstructionDemand.queryRooted.checked,
+            ).flatMap { (oer, checkedDemand) ->
+                checkedDemand.byGroundKey().map { (key, selection) ->
                     prepare(orchestrationTask, oer, key, selection)
                 }
             }
@@ -59,16 +68,24 @@ internal class CoroutineFieldCheckerTask private constructor(
                 } else {
                     orchestrationTask.operation.world.resolverRegistry
                         .fieldChecker(key.field)
-                        ?.also(::requireNoRequiredSelections)
+                        ?.also { checker ->
+                            requireSupportedRequiredSelections(orchestrationTask.operation, checker)
+                        }
                 }
+            val publicationPath = oer.occurrence.coordinate(key)
             val publication = GroundedFieldCheckerPublicationOccurrence(
                 operation = orchestrationTask.operation,
                 oerOccurrence = oer.occurrence,
                 selection = selection,
                 publicationCell = cell,
                 checker = checker,
+                checkerFragments =
+                    checker?.instantiateFragmentsAt(
+                        oer.occurrence.root,
+                        publicationPath,
+                    ),
                 arguments = key.arguments as? Arguments.Resolved,
-                publicationPath = oer.occurrence.coordinate(key),
+                publicationPath = publicationPath,
             )
             if (checker != null) {
                 publication.operation.cycleChecker.registerWriter(
@@ -83,13 +100,16 @@ internal class CoroutineFieldCheckerTask private constructor(
             CoroutineFieldCheckerTask(publication).run()
         }
 
-        private fun requireNoRequiredSelections(checker: FieldChecker) {
-            require(checker.objectFragment.isEmpty()) {
+        private fun requireSupportedRequiredSelections(
+            operation: CoroutineOperationContext,
+            checker: FieldChecker,
+        ) {
+            require(operation.supportsCheckerFragments || checker.objectFragment.isEmpty()) {
                 "Resolver21 field checker ${checker.field.containingDef.name}/${checker.field.name} " +
                     "cannot declare object required selections"
             }
             require(checker.queryFragment.isEmpty()) {
-                "Resolver21 field checker ${checker.field.containingDef.name}/${checker.field.name} " +
+                "Field checker ${checker.field.containingDef.name}/${checker.field.name} " +
                     "cannot declare Query required selections"
             }
         }
@@ -106,10 +126,33 @@ internal class CoroutineFieldCheckerTask private constructor(
 
     private suspend fun executeAndPublish() {
         if (!publication.publicationCell.fetchActivated()) return
+        val checker = checkNotNull(publication.checker)
+        val fragments = checkNotNull(publication.checkerFragments)
+        val reader =
+            publication.oerOccurrence.root.fieldCheckerCycleTask(publication.publicationPath)
+        val emptyQuery =
+            engineObjectDataOf(publication.operation.world.schema.requireQueryTypeDef())
+        val inputs =
+            checker
+                .instantiateObjectMaterializationSelections(
+                    fragments.objectFragment.resolverOccurrenceId,
+                ).mapValues { (_, selections) ->
+                    CheckerInput(
+                        objectValue =
+                            publication.oerOccurrence.target.materializeResult(
+                                operation = publication.operation,
+                                selections = selections,
+                                reader = reader,
+                                cycleChecker = publication.operation.cycleChecker,
+                                checked = false,
+                            ),
+                        queryValue = emptyQuery,
+                    )
+                }
         val result =
-            checkNotNull(publication.checker)(
+            checker(
                 checkNotNull(publication.arguments),
-                emptyMap(),
+                inputs,
                 ResolutionExecutionContext.Unsupported,
             )
         check(publication.publicationCell.getFieldCheckerResult().complete(result)) {

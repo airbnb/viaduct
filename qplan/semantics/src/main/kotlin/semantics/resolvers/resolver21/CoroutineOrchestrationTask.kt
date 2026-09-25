@@ -2,6 +2,7 @@ package semantics.resolvers.resolver21
 
 import model.Arguments
 import model.ObjectEngineResult
+import model.ObjectSelectionForest
 import model.ResolverOccurrenceId
 import model.RootFieldReferenceData
 import model.SelectionForest
@@ -13,6 +14,7 @@ import model.schemaType
 import semantics.resolvers.OrchestratorConstructionDemand
 import semantics.resolvers.closeOrchestratorConstructionDemand
 import semantics.shared.OEROccurrence
+import semantics.shared.Demand
 import semantics.shared.SharedOERContext
 import semantics.resolver26.installParentBackedgeFields
 import viaduct.engine.api.EngineObjectData
@@ -22,6 +24,7 @@ internal class CoroutineOrchestrationTask private constructor(
     operation: CoroutineOperationContext,
     objectOER: SharedOERContext,
     queryOER: SharedOERContext,
+    val closedConstructionDemand: OrchestratorConstructionDemand<ObjectSelectionForest>,
 ) : semantics.resolver26.CoroutineOrchestrationTask<CoroutineOperationContext>(operation, objectOER, queryOER) {
     companion object {
         /** Prepares grounded bindings and parent backedges without dispatching active work. */
@@ -30,6 +33,15 @@ internal class CoroutineOrchestrationTask private constructor(
             occurrence: OEROccurrence,
             source: EngineObjectData.Sync,
             initialDemand: SelectionForest,
+        ): CoroutineOrchestrationTask =
+            create(operation, occurrence, source, Demand.checked(initialDemand))
+
+        /** Retains checked and unchecked descendant demand through passive object boundaries. */
+        fun create(
+            operation: CoroutineOperationContext,
+            occurrence: OEROccurrence,
+            source: EngineObjectData.Sync,
+            initialDemand: Demand<SelectionForest>,
         ): CoroutineOrchestrationTask {
             require(source.schemaType == occurrence.target.type) {
                 "Source type ${source.schemaType.name} does not match result type ${occurrence.target.type.name}"
@@ -42,7 +54,11 @@ internal class CoroutineOrchestrationTask private constructor(
                     operation = operation,
                     objectOccurrence = occurrence,
                     queryOccurrence = queryOccurrence,
-                    initialDemand = OrchestratorConstructionDemand.checkedObject(initialDemand),
+                    initialDemand =
+                        OrchestratorConstructionDemand(
+                            objectRooted = initialDemand,
+                            queryRooted = Demand.EMPTY,
+                        ),
                 )
             val objectOER =
                 SharedOERContext(
@@ -56,7 +72,7 @@ internal class CoroutineOrchestrationTask private constructor(
                     source = engineObjectDataOf(queryType),
                     closedDemand = closed.queryRooted.values.merge(queryType),
                 )
-            val task = CoroutineOrchestrationTask(operation, objectOER, queryOER)
+            val task = CoroutineOrchestrationTask(operation, objectOER, queryOER, closed)
             listOf(task.objectOER, task.queryOER).forEach { oer ->
                 val parentKeys =
                     oer.closedDemand
@@ -70,13 +86,21 @@ internal class CoroutineOrchestrationTask private constructor(
     }
 
     override val hasActiveWork: Boolean
-        get() = listOf(objectOER, queryOER).any { oer ->
-            oer.closedDemand.groundKeys().any { key ->
+        get() =
+            listOf(
+                objectOER to closedConstructionDemand.objectRooted,
+                queryOER to closedConstructionDemand.queryRooted,
+            ).any { (oer, constructionDemand) ->
+                val checkedKeys = constructionDemand.checked.byGroundKey().keys
+                oer.closedDemand.groundKeys().any { key ->
                 key !is ObjectEngineResult.ParentKey &&
                     (
                         !oer.source.isPresent(key.field.name) ||
                             oer.source.outputValue(key.field.name) is RootFieldReferenceData ||
-                        operation.world.resolverRegistry.fieldChecker(key.field) != null
+                            (
+                                key in checkedKeys &&
+                                    operation.world.resolverRegistry.fieldChecker(key.field) != null
+                            )
                     )
             }
         }

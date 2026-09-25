@@ -613,7 +613,7 @@ private fun SelectionForest.instantiateVariables(
         )
     }
 
-private fun MaterializeSelectionForest.instantiateVariables(
+internal fun MaterializeSelectionForest.instantiateVariables(
     resolverOccurrenceId: ResolverOccurrenceId,
 ): MaterializeSelectionForest =
     flatMap { selection ->

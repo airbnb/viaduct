@@ -10,6 +10,7 @@ import model.requireQueryTypeDef
 import semantics.resolvers.GroundedFieldPublicationOccurrence
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOERContext
+import semantics.shared.Demand
 import semantics.shared.SharedPassiveValueResolutionLogic
 import semantics.shared.applicableGroundSelections
 import viaduct.engine.api.EngineObjectData
@@ -21,9 +22,13 @@ internal class CoroutinePassiveValueResolutionLogic(operation: CoroutineOperatio
     override fun createOrchestrationTask(
         occurrence: OEROccurrence,
         source: EngineObjectData.Sync,
-        constructionDemand: SelectionForest,
+        constructionDemand: Demand<SelectionForest>,
     ): CoroutineOrchestrationTask =
         CoroutineOrchestrationTask.create(operation, occurrence, source, constructionDemand)
+
+    override fun closedConstructionDemand(
+        orchestration: CoroutineOrchestrationTask,
+    ): Demand<ObjectSelectionForest> = orchestration.closedConstructionDemand.objectRooted
 
     override fun collect(selections: SelectionForest, type: ViaductSchema.Object): ObjectSelectionForest =
         selections.applicableGroundSelections(operation, type)
@@ -34,13 +39,22 @@ internal class CoroutinePassiveValueResolutionLogic(operation: CoroutineOperatio
         path: List<PathComponent>,
         expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
         selection: ObjectSelection,
+        constructionDemand: Demand<SelectionForest>,
         invocationDemand: SelectionForest,
         parent: OEROccurrence,
     ) {
         CoroutineFieldResolverTask.launchForListElement(
             GroundedFieldPublicationOccurrence(
-                operation, parent, selection, cell, reference, invocationDemand, path, expectedType,
-                SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef()),
+                operation = operation,
+                oerOccurrence = parent,
+                selection = selection,
+                publicationCell = cell,
+                reference = reference,
+                invocationDemand = invocationDemand,
+                publicationPath = path,
+                publicationExpectedType = expectedType,
+                queryOER = SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef()),
+                constructionDemand = constructionDemand,
             ),
         )
     }

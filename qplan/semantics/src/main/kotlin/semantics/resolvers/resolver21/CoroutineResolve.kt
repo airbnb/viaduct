@@ -6,6 +6,7 @@ import model.ResolverOccurrenceId
 import model.SelectionForest
 import model.schemaType
 import semantics.shared.CycleCheckState
+import semantics.shared.Demand
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.EngineObjectData
@@ -15,6 +16,7 @@ internal class CoroutineResolve(
     private val operation: SharedOperationContext<*>,
     private val complete: (SelectionForest) -> SelectionForest,
     private val cycleChecker: CycleCheckState = CycleCheckState.create(),
+    private val supportsCheckerFragments: Boolean = false,
 ) {
     suspend fun resolve(source: EngineObjectData.Sync, selections: SelectionForest): ObjectEngineResult =
         coroutineScope {
@@ -23,6 +25,7 @@ internal class CoroutineResolve(
                 this,
                 complete,
                 cycleChecker,
+                supportsCheckerFragments,
             ).startResolve(
                 source = source,
                 selections = selections,
@@ -39,7 +42,10 @@ internal fun CoroutineOperationContext.startResolve(
     val result = ObjectEngineResult.of(source.schemaType, mutable = true)
     val orchestration =
         CoroutineOrchestrationTask.create(
-            this@startResolve, OEROccurrence(result, emptyList(), result), source, selections,
+            this@startResolve,
+            OEROccurrence(result, emptyList(), result),
+            source,
+            Demand.checked(selections),
         )
     queryFragmentOwner?.let {
         resolverObserver.onIndependentQueryFragmentPrepared(it, result)

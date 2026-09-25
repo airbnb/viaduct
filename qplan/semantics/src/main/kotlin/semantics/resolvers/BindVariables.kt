@@ -7,6 +7,7 @@ import model.ObjectEngineResult
 import model.PathComponent
 import model.ResolverOccurrenceId
 import model.registry.VariableDefinition
+import model.registry.ResolverFragments
 import semantics.shared.SharedOperationContext
 
 /**
@@ -44,4 +45,23 @@ internal fun Iterable<ObjectEngineResult.GroundKey>.bindFromArguments(
                 }
             }
     }
+}
+
+/** Declares and completes argument-defined variables used by one instantiated fragment pair. */
+internal fun ResolverFragments.bindFromArguments(
+    operation: SharedOperationContext<*>,
+    arguments: Arguments.Resolved,
+) {
+    (objectFragment.variableDefinitions + queryFragment.variableDefinitions)
+        .distinctBy { definition -> definition.variable }
+        .forEach { variableDefinition ->
+            val definition = variableDefinition.definition
+            if (definition is VariableDefinition.FromArgument) {
+                val variableId = requireNotNull(variableDefinition.variable.instanceId)
+                operation.variableBindings.declareBinding(variableId)
+                check(operation.variableBindings.completeBinding(variableId, definition.read(arguments))) {
+                    "Fragment variable binding was completed twice"
+                }
+            }
+        }
 }

@@ -1,5 +1,6 @@
 package semantics.resolvers
 
+import model.Arguments
 import model.InclusionCondition
 import model.ObjectEngineResult
 import model.ObjectSelectionForest
@@ -68,6 +69,8 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
         linkedSetOf<Pair<ObjectEngineResult.GroundKey, InclusionCondition>>()
     val expandedQueryCheckerKeyInclusions =
         linkedSetOf<Pair<ObjectEngineResult.GroundKey, InclusionCondition>>()
+    val boundObjectCheckerKeys = linkedSetOf<ObjectEngineResult.GroundKey>()
+    val boundQueryCheckerKeys = linkedSetOf<ObjectEngineResult.GroundKey>()
 
     var demandNotClosed: Boolean
     do {
@@ -129,9 +132,17 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
                     queryResolverInputs.objectFragment +
                     queryResolverInputs.queryFragment
             val objectCheckerInputs =
-                newObjectCheckerKeyInclusions.checkerObjectInputDemand(operation)
+                newObjectCheckerKeyInclusions.checkerObjectInputDemand(
+                    operation,
+                    objectOccurrence,
+                    boundObjectCheckerKeys,
+                )
             val queryCheckerInputs =
-                newQueryCheckerKeyInclusions.checkerObjectInputDemand(operation)
+                newQueryCheckerKeyInclusions.checkerObjectInputDemand(
+                    operation,
+                    queryOccurrence,
+                    boundQueryCheckerKeys,
+                )
             accumulatedDemand =
                 groundedDemand +
                     OrchestratorConstructionDemand(
@@ -211,11 +222,20 @@ private fun Demand<ObjectSelectionForest>.newCheckerKeyInclusions(
 
 private fun List<Pair<ObjectEngineResult.GroundKey, InclusionCondition>>.checkerObjectInputDemand(
     operation: SharedOperationContext<*>,
+    occurrence: OEROccurrence,
+    boundKeys: MutableSet<ObjectEngineResult.GroundKey>,
 ): SelectionForest =
     flatMapToSelectionForest { (key, inclusion) ->
-        requireNotNull(operation.world.resolverRegistry.fieldChecker(key.field))
-            .objectFragment
-            .guardedBy(inclusion)
+        val fragments =
+            requireNotNull(operation.world.resolverRegistry.fieldChecker(key.field))
+                .instantiateFragmentsAt(occurrence.root, occurrence.coordinate(key))
+        if (boundKeys.add(key)) {
+            fragments.bindFromArguments(
+                operation,
+                key.arguments as Arguments.Resolved,
+            )
+        }
+        fragments.objectFragment.constructionSelections.guardedBy(inclusion)
     }
 
 private fun Set<ObjectEngineResult.GroundKey>.resolverInputDemand(

@@ -13,6 +13,7 @@ internal class CoroutineOperationContext(
     requestScope: CoroutineScope,
     val complete: (SelectionForest) -> SelectionForest,
     val cycleChecker: CycleCheckState,
+    val supportsCheckerFragments: Boolean = false,
 ) : SharedOperationContext<
     CoroutineTaskDispatcher<
         CoroutineOrchestrationTask,

@@ -11,13 +11,16 @@ import model.ObjectEngineResult
 import model.PathComponent
 import model.RootFieldReferenceData
 import model.engineObjectDataOf
+import model.merge
 import model.outputValue
 import model.registry.FieldResolver
 import model.registry.ResolverFragment
 import model.requireQueryTypeDef
+import model.selectionForestOf
 import semantics.resolvers.GroundedFieldPublicationOccurrence
 import semantics.resolvers.materializeResolverInput
 import semantics.shared.CycleTask
+import semantics.shared.Demand
 import semantics.shared.fieldResolverCycleTask
 import semantics.shared.valueCycleSlot
 
@@ -34,20 +37,36 @@ internal class CoroutineFieldResolverTask private constructor(
             orchestrationTask: CoroutineOrchestrationTask,
         ): List<GroundedFieldPublicationOccurrence<CoroutineOperationContext>> {
             val operation = orchestrationTask.operation
-            return listOf(orchestrationTask.objectOER, orchestrationTask.queryOER).flatMap { oer ->
-                    val occurrence = oer.occurrence
-                    oer.closedDemand.byGroundKey().filterKeys { !occurrence.target.isCellSet(it) }.map { (key, selection) ->
+            return listOf(
+                orchestrationTask.objectOER to orchestrationTask.closedConstructionDemand.objectRooted,
+                orchestrationTask.queryOER to orchestrationTask.closedConstructionDemand.queryRooted,
+            ).flatMap { (oer, constructionDemand) ->
+                val occurrence = oer.occurrence
+                val checkedByKey = constructionDemand.checked.byGroundKey()
+                val uncheckedByKey = constructionDemand.unchecked.byGroundKey()
+                oer.closedDemand.byGroundKey()
+                    .filterKeys { !occurrence.target.isCellSet(it) }
+                    .map { (key, selection) ->
                         val reference = if (oer.source.isPresent(key.field.name)) {
                             oer.source.outputValue(key.field.name) as RootFieldReferenceData
                         } else null
                         prepare(
                             GroundedFieldPublicationOccurrence(
-                                operation, occurrence, selection, occurrence.target.reserveCell(key), reference,
+                                operation = operation,
+                                oerOccurrence = occurrence,
+                                selection = selection,
+                                publicationCell = occurrence.target.reserveCell(key),
+                                reference = reference,
                                 queryOER = orchestrationTask.queryOER,
+                                constructionDemand =
+                                    Demand(
+                                        checked = checkedByKey[key]?.subselections ?: selectionForestOf(),
+                                        unchecked = uncheckedByKey[key]?.subselections ?: selectionForestOf(),
+                                    ),
                             ),
                         )
                     }
-                }
+            }
         }
 
         /** List references use the same publication protocol at their exact list-element path. */

@@ -29,5 +29,6 @@ class CoroutineResolveTest :
     ): ObjectEngineResult = startCoroutineResolution(
         operation, requestScope, selections, cycleChecker,
         complete = { demand -> demand.successorDemand(operation) },
+        supportsCheckerFragments = true,
     )
 }

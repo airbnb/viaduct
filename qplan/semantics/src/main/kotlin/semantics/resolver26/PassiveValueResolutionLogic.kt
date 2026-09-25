@@ -12,6 +12,7 @@ import model.RootFieldReferenceData
 import model.SelectionForest
 import model.merge
 import semantics.shared.OEROccurrence
+import semantics.shared.Demand
 import semantics.shared.fieldResolverCycleTask
 import semantics.shared.valueCycleSlot
 import semantics.shared.SharedPassiveValueResolutionLogic
@@ -28,7 +29,13 @@ internal fun ResolverOutputData?.resolvePassiveValues(
     parent: OEROccurrence? = null,
 ): EngineResult? =
     PassiveValueResolutionLogic(operation).resolvePassiveValues(
-        this, root, expectedType, path, constructionDemand, invocationDemand, parent,
+        this,
+        root,
+        expectedType,
+        path,
+        Demand.checked(constructionDemand),
+        invocationDemand,
+        parent,
     )
 
 /** Only symbolic demand and task dispatch are specific to Resolver26. */
@@ -38,9 +45,9 @@ private class PassiveValueResolutionLogic(
     override fun createOrchestrationTask(
         occurrence: OEROccurrence,
         source: EngineObjectData.Sync,
-        constructionDemand: SelectionForest,
+        constructionDemand: Demand<SelectionForest>,
     ): OrchestrationTask =
-        OrchestrationTask.create(operation, occurrence, source, constructionDemand)
+        OrchestrationTask.create(operation, occurrence, source, constructionDemand.values)
 
     override fun collect(selections: SelectionForest, type: ViaductSchema.Object): ObjectSelectionForest =
         selections.merge(type)
@@ -51,6 +58,7 @@ private class PassiveValueResolutionLogic(
         path: List<PathComponent>,
         expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
         selection: ObjectSelection,
+        constructionDemand: Demand<SelectionForest>,
         invocationDemand: SelectionForest,
         parent: OEROccurrence,
     ) {
@@ -77,7 +85,7 @@ private class PassiveValueResolutionLogic(
         selection: ObjectSelection,
         value: ResolverOutputData?,
         invocationDemand: SelectionForest,
-        constructionDemand: SelectionForest,
+        constructionDemand: Demand<SelectionForest>,
     ): Boolean {
         if (selection.inclusionCondition === InclusionCondition.Always) return false
         if (selection.inclusionCondition !== InclusionCondition.Never) {
@@ -88,7 +96,7 @@ private class PassiveValueResolutionLogic(
                     selection = selection,
                     value = value,
                     invocationDemand = invocationDemand,
-                    publicationConstructionDemand = constructionDemand,
+                    publicationConstructionDemand = constructionDemand.values,
                     publicationPath = occurrence.coordinate(selection.key),
                 ),
             )

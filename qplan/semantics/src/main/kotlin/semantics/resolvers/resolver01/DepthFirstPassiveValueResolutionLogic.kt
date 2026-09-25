@@ -10,6 +10,7 @@ import model.requireQueryTypeDef
 import semantics.resolvers.GroundedFieldPublicationOccurrence
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOERContext
+import semantics.shared.Demand
 import semantics.shared.SharedPassiveValueResolutionLogic
 import semantics.shared.applicableGroundSelections
 import viaduct.engine.api.EngineObjectData
@@ -27,7 +28,7 @@ internal class DepthFirstPassiveValueResolutionLogic(
     override fun createOrchestrationTask(
         occurrence: OEROccurrence,
         source: EngineObjectData.Sync,
-        constructionDemand: SelectionForest,
+        constructionDemand: Demand<SelectionForest>,
     ): DepthFirstOrchestrationTask =
         DepthFirstOrchestrationTask.create(
             operation = operation,
@@ -36,6 +37,10 @@ internal class DepthFirstPassiveValueResolutionLogic(
             constructionDemand = constructionDemand,
             queryOERDepth = queryOERDepth,
         )
+
+    override fun closedConstructionDemand(
+        orchestration: DepthFirstOrchestrationTask,
+    ): Demand<ObjectSelectionForest> = orchestration.closedConstructionDemand.objectRooted
 
     override fun collect(selections: SelectionForest, type: ViaductSchema.Object): ObjectSelectionForest =
         selections.applicableGroundSelections(operation, type)
@@ -46,14 +51,23 @@ internal class DepthFirstPassiveValueResolutionLogic(
         path: List<PathComponent>,
         expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
         selection: ObjectSelection,
+        constructionDemand: Demand<SelectionForest>,
         invocationDemand: SelectionForest,
         parent: OEROccurrence,
     ) {
         operation.dispatcher.dispatchFieldResolver(
             publication =
                 GroundedFieldPublicationOccurrence(
-                    operation, parent, selection, cell, reference, invocationDemand, path, expectedType,
-                    SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef()),
+                    operation = operation,
+                    oerOccurrence = parent,
+                    selection = selection,
+                    publicationCell = cell,
+                    reference = reference,
+                    invocationDemand = invocationDemand,
+                    publicationPath = path,
+                    publicationExpectedType = expectedType,
+                    queryOER = SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef()),
+                    constructionDemand = constructionDemand,
                 ),
             queryOERDepth = queryOERDepth,
         )
