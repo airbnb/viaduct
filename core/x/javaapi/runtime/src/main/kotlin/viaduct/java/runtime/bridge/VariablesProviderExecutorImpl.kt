@@ -25,6 +25,7 @@ import viaduct.java.api.variables.VariablesProvider
 class VariablesProviderExecutorImpl(
     override val variableNames: Set<String>,
     private val provider: Provider<out VariablesProvider<*>>,
+    private val resolverId: String,
     private val argumentsClass: Class<out Arguments>? = null,
     private val grtPackagePrefix: String? = null,
 ) : VariablesResolver {
@@ -71,7 +72,7 @@ class VariablesProviderExecutorImpl(
         }
 
         val graphQLInputObjectType: GraphQLInputObjectType? = internalContext?.let { ctx ->
-            buildArgumentsInputType(argumentsClass, ctx)
+            buildArgumentsInputType(argumentsClass, resolverId, ctx)
         }
 
         val constructor = argumentsClass.getDeclaredConstructor(

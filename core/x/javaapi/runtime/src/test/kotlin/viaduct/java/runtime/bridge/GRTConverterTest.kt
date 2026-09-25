@@ -151,55 +151,6 @@ class GRTConverterTest {
         assertEquals(1, result.fields.size)
         assertEquals("id", result.fields[0].name)
     }
-
-    @Test
-    fun `buildArgumentsInputType from class name convention parses correctly`() {
-        val argument = GraphQLArgument.newArgument()
-            .name("name")
-            .type(Scalars.GraphQLString)
-            .build()
-        val field = GraphQLFieldDefinition.newFieldDefinition()
-            .name("greeting")
-            .type(Scalars.GraphQLString)
-            .argument(argument)
-            .build()
-        val objectType = GraphQLObjectType.newObject()
-            .name("Query")
-            .field(field)
-            .build()
-        val graphqlSchema = GraphQLSchema.newSchema()
-            .query(objectType)
-            .build()
-        val viaductSchema = mockk<EngineSchema> {
-            every { schema } returns graphqlSchema
-        }
-        val context = mockk<InternalContext> {
-            every { getSchema() } returns viaductSchema
-        }
-
-        val result = buildArgumentsInputType(
-            Query_greeting_Arguments::class.java,
-            context
-        )
-
-        assertEquals("Query_greeting_Arguments", result.name)
-        assertEquals(1, result.fields.size)
-        assertEquals("name", result.fields[0].name)
-    }
-
-    @Test
-    fun `buildArgumentsInputType from class name throws for invalid name format`() {
-        val context = mockk<InternalContext>()
-
-        assertThrows<IllegalArgumentException> {
-            buildArgumentsInputType(NoUnderscoreArguments::class.java, context)
-        }
-    }
 }
 
 private abstract class TestArguments : Arguments
-
-private abstract class Query_greeting_Arguments : Arguments
-
-@Suppress("ClassName")
-private abstract class NoUnderscoreArguments : Arguments

@@ -66,7 +66,8 @@ class RequiredSelectionSetFactory {
         }
 
         val variables = buildVariables(entry.objectSelections, entry.querySelections)
-        return build(objectSelections, querySelections, variables, resolverClass, injector, argumentsClass, grtPackagePrefix)
+        val resolverId = "${entry.typeName}.${entry.fieldName}"
+        return build(objectSelections, querySelections, variables, resolverClass, injector, resolverId, argumentsClass, grtPackagePrefix)
     }
 
     /**
@@ -80,10 +81,11 @@ class RequiredSelectionSetFactory {
         variables: List<SelectionSetVariable>,
         resolverClass: Class<*>,
         injector: CodeInjector,
+        resolverId: String,
         argumentsClass: Class<out Arguments>?,
         grtPackagePrefix: String?,
     ): RequiredSelectionSets {
-        val variablesProviderExecutor = mkVariablesProviderExecutor(resolverClass, injector, argumentsClass, grtPackagePrefix)
+        val variablesProviderExecutor = mkVariablesProviderExecutor(resolverClass, injector, resolverId, argumentsClass, grtPackagePrefix)
 
         val variableConsumers = buildSet<String> {
             objectSelections?.selections?.collectVariableReferences()?.let(::addAll)
@@ -160,6 +162,7 @@ class RequiredSelectionSetFactory {
     private fun mkVariablesProviderExecutor(
         resolverClass: Class<*>,
         injector: CodeInjector,
+        resolverId: String,
         argumentsClass: Class<out Arguments>?,
         grtPackagePrefix: String?,
     ): VariablesProviderExecutorImpl? {
@@ -174,6 +177,7 @@ class RequiredSelectionSetFactory {
         return VariablesProviderExecutorImpl(
             variableNames = variableNames,
             provider = provider,
+            resolverId = resolverId,
             argumentsClass = argumentsClass,
             grtPackagePrefix = grtPackagePrefix,
         )

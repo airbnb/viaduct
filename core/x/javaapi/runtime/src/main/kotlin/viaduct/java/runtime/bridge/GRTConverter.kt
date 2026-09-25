@@ -155,33 +155,3 @@ internal fun buildArgumentsInputType(
         context.schema
     )
 }
-
-/**
- * Overload for callers that don't have a resolverId — derives type/field from the class name.
- *
- * Arguments class names follow the convention `TypeName_fieldName_Arguments`. This parses the
- * simple name to extract the type and field.
- */
-internal fun buildArgumentsInputType(
-    argumentsClass: Class<out Arguments>,
-    context: InternalContext
-): GraphQLInputObjectType {
-    val simpleName = argumentsClass.simpleName
-    val suffix = "_Arguments"
-    require(simpleName.endsWith(suffix)) {
-        "Arguments class name '$simpleName' does not end with '_Arguments'"
-    }
-    val withoutSuffix = simpleName.removeSuffix(suffix)
-    val lastUnderscore = withoutSuffix.lastIndexOf('_')
-    require(lastUnderscore > 0) {
-        "Arguments class name '$simpleName' does not follow TypeName_fieldName_Arguments convention"
-    }
-    val typeName = withoutSuffix.substring(0, lastUnderscore)
-    val fieldName = withoutSuffix.substring(lastUnderscore + 1)
-    return InputTypeFactory.argumentsInputType(
-        simpleName,
-        typeName,
-        fieldName,
-        context.schema
-    )
-}
