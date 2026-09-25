@@ -18,3 +18,12 @@ internal fun isUnderModulePartition(
     location: ViaductSchema.SourceLocation?,
     modulePathPrefix: String
 ): Boolean = location?.partitionMatchPath()?.contains(modulePathPrefix) == true
+
+internal fun tenantFromLocation(
+    location: ViaductSchema.SourceLocation?,
+    modulePathPrefix: String
+): String? {
+    val sourceName = location?.partitionMatchPath() ?: return null
+    if (!sourceName.contains(modulePathPrefix)) return null
+    return sourceName.substringAfter(modulePathPrefix).substringBefore("/")
+}

@@ -75,12 +75,3 @@ class NoCrossModuleInputExtensionsRule(
         }
     }
 }
-
-internal fun tenantFromLocation(
-    location: ViaductSchema.SourceLocation?,
-    modulePathPrefix: String
-): String? {
-    val sourceName = location?.partitionMatchPath() ?: return null
-    if (!sourceName.contains(modulePathPrefix)) return null
-    return sourceName.substringAfter(modulePathPrefix).substringBefore("/")
-}
