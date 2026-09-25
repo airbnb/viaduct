@@ -12,6 +12,8 @@ import viaduct.engine.api.TenantModuleMetadata
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor.Selector
 import viaduct.engine.api.spi.VariableFromArgumentDefinitions
+import viaduct.engine.api.spi.VariableFromFieldDefinitions
+import viaduct.engine.api.spi.VariableFromFunctionDefinitions
 import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.errors.resultOfSuspend
 import viaduct.service.api.spi.GlobalIDCodec
@@ -33,6 +35,9 @@ class FieldUnbatchedResolverExecutorImpl(
     private val resolverName: String,
     private val tenantMetadata: TenantModuleMetadata? = null,
     override val argumentVariables: VariableFromArgumentDefinitions = VariableFromArgumentDefinitions.EMPTY,
+    override val objectFieldVariables: VariableFromFieldDefinitions = VariableFromFieldDefinitions.EMPTY,
+    override val queryFieldVariables: VariableFromFieldDefinitions = VariableFromFieldDefinitions.EMPTY,
+    override val variablesFromFunctionProvider: VariableFromFunctionDefinitions? = null,
 ) : FieldResolverExecutor {
     override val metadata = ResolverMetadata.forModern(resolverName, ResolverType.FIELD, tenantMetadata)
 

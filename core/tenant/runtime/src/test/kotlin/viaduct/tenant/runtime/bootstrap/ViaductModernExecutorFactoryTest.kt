@@ -1,6 +1,12 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.tenant.runtime.bootstrap
 
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.FieldResolverBase
@@ -12,6 +18,7 @@ import viaduct.api.bootstrap.test.grts.TestNode
 import viaduct.api.context.BaseFieldExecutionContext
 import viaduct.api.context.FieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
+import viaduct.api.context.VariablesProviderContext
 import viaduct.api.internal.BaseBatchedFieldResolver
 import viaduct.api.internal.BaseBatchedNodeResolver
 import viaduct.api.internal.BaseUnbatchedFieldResolver
@@ -19,6 +26,8 @@ import viaduct.api.internal.BaseUnbatchedNodeResolver
 import viaduct.api.internal.InternalContext
 import viaduct.api.internal.NodeResolverFor
 import viaduct.api.resolver.Resolver
+import viaduct.api.resolver.Variables
+import viaduct.api.resolver.VariablesProvider
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
@@ -30,10 +39,13 @@ import viaduct.bootstrap.NodeEntryConfig
 import viaduct.bootstrap.ProviderVariablesAPIData
 import viaduct.bootstrap.SelectionsBlockConfig
 import viaduct.bootstrap.VariableProviderEntryConfig
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.mocks.MockSchema
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 @Suppress("USELESS_IS_CHECK", "UNCHECKED_CAST")
 class ViaductModernExecutorFactoryTest {
@@ -57,6 +69,15 @@ class ViaductModernExecutorFactoryTest {
         override suspend fun resolve(ctx: Context): String = "hello"
     }
 
+    class TestFieldResolverWithVariables : TestFieldResolverBase() {
+        override suspend fun resolve(ctx: Context): String = "hello"
+
+        @Variables("provided: Boolean!")
+        class Provider : VariablesProvider<Arguments.NoArguments> {
+            override suspend fun provide(context: VariablesProviderContext<Arguments.NoArguments>): Map<String, Any?> = mapOf("provided" to true)
+        }
+    }
+
     abstract class TestBatchFieldResolverBase :
         ResolverBase<String>,
         FieldResolverBase<Object, Query, Arguments.NoArguments, String>,
@@ -75,6 +96,15 @@ class ViaductModernExecutorFactoryTest {
 
     class TestBatchFieldResolver : TestBatchFieldResolverBase() {
         override suspend fun batchResolve(ctxs: List<Context>): List<FieldValue<String>> = emptyList()
+    }
+
+    class TestBatchFieldResolverWithVariables : TestBatchFieldResolverBase() {
+        override suspend fun batchResolve(ctxs: List<Context>): List<FieldValue<String>> = emptyList()
+
+        @Variables("provided: Boolean!")
+        class Provider : VariablesProvider<Arguments.NoArguments> {
+            override suspend fun provide(context: VariablesProviderContext<Arguments.NoArguments>): Map<String, Any?> = mapOf("provided" to true)
+        }
     }
 
     @NodeResolverFor(typeName = "TestNode", isSelective = false, isBatching = false)
@@ -401,6 +431,15 @@ class ViaductModernExecutorFactoryTest {
     // Fragment: flagField provides variable $x; testBatchField conditionally included using it.
     private val fragmentWithVariable = "fragment _ on Query { flagField, testBatchField @include(if: \$x) }"
 
+    private fun variableProvider(
+        name: String,
+        source: String,
+        path: String
+    ) = VariableProviderEntryConfig(
+        providedVariables = mapOf(name to "Boolean!"),
+        providerVariablesAPIData = ProviderVariablesAPIData(type = source, path = path),
+    )
+
     private fun fieldEntryWithQuerySelections(selections: SelectionsBlockConfig) =
         fieldEntry(
             typeName = "Query",
@@ -426,7 +465,10 @@ class ViaductModernExecutorFactoryTest {
             ),
             schema,
         )
-        assert(executor is FieldResolverExecutor)
+        assertEquals(mapOf("x" to "flagField"), executor.argumentVariables.variables)
+        assertEquals(emptyMap<String, String>(), executor.objectFieldVariables.variables)
+        assertEquals(emptyMap<String, String>(), executor.queryFieldVariables.variables)
+        assertNull(executor.variablesFromFunctionProvider)
     }
 
     @Test
@@ -449,7 +491,10 @@ class ViaductModernExecutorFactoryTest {
             ),
             schema,
         )
-        assert(executor is FieldResolverExecutor)
+        assertEquals(emptyMap<String, String>(), executor.argumentVariables.variables)
+        assertEquals(mapOf("x" to "flagField"), executor.objectFieldVariables.variables)
+        assertEquals(emptyMap<String, String>(), executor.queryFieldVariables.variables)
+        assertNull(executor.variablesFromFunctionProvider)
     }
 
     @Test
@@ -468,8 +513,116 @@ class ViaductModernExecutorFactoryTest {
             ),
             schema,
         )
-        assert(executor is FieldResolverExecutor)
+        assertEquals(emptyMap<String, String>(), executor.argumentVariables.variables)
+        assertEquals(emptyMap<String, String>(), executor.objectFieldVariables.variables)
+        assertEquals(mapOf("x" to "flagField"), executor.queryFieldVariables.variables)
+        assertNull(executor.variablesFromFunctionProvider)
     }
+
+    @Test
+    fun `createFieldResolverExecutor - variable maps collect both selection blocks in both resolver modes`() {
+        val objectSelections = SelectionsBlockConfig(
+            selections = """
+                fragment _ on Query {
+                    flagField
+                    a: testBatchField @include(if: ${'$'}objectArgument)
+                    b: testBatchField @skip(if: ${'$'}objectFieldFromObject)
+                    c: testBatchField @include(if: ${'$'}queryFieldFromQuery)
+                }
+            """.trimIndent(),
+            variablesProviders = listOf(
+                variableProvider("objectArgument", "fromArgument", "first.flag"),
+                variableProvider("objectFieldFromObject", "fromObjectField", "flagField"),
+                variableProvider("queryFieldFromObject", "fromQueryField", "flagField"),
+            ),
+        )
+        val querySelections = SelectionsBlockConfig(
+            selections = """
+                fragment _ on Query {
+                    flagField
+                    a: testBatchField @include(if: ${'$'}queryArgument)
+                    b: testBatchField @skip(if: ${'$'}objectFieldFromQuery)
+                    c: testBatchField @include(if: ${'$'}queryFieldFromObject)
+                }
+            """.trimIndent(),
+            variablesProviders = listOf(
+                variableProvider("queryArgument", "fromArgument", "second.flag"),
+                variableProvider("objectFieldFromQuery", "fromObjectField", "flagField"),
+                variableProvider("queryFieldFromQuery", "fromQueryField", "flagField"),
+            ),
+        )
+
+        for ((resolverSimpleName, resolverBaseSimpleName, isBatching) in listOf(
+            Triple("TestFieldResolver", "TestFieldResolverBase", false),
+            Triple("TestBatchFieldResolver", "TestBatchFieldResolverBase", true),
+        )) {
+            val executor = factory().createFieldResolverExecutor(
+                fieldEntry(
+                    typeName = "Query",
+                    resolverSimpleName = resolverSimpleName,
+                    resolverBaseSimpleName = resolverBaseSimpleName,
+                    isBatching = isBatching,
+                    objectSelections = objectSelections,
+                    querySelections = querySelections,
+                ),
+                schema,
+            )
+            assertEquals(isBatching, executor.isBatching)
+            assertEquals(
+                mapOf("objectArgument" to "first.flag", "queryArgument" to "second.flag"),
+                executor.argumentVariables.variables,
+            )
+            assertEquals(
+                mapOf("objectFieldFromObject" to "flagField", "objectFieldFromQuery" to "flagField"),
+                executor.objectFieldVariables.variables,
+            )
+            assertEquals(
+                mapOf("queryFieldFromObject" to "flagField", "queryFieldFromQuery" to "flagField"),
+                executor.queryFieldVariables.variables,
+            )
+            assertNull(executor.variablesFromFunctionProvider)
+        }
+    }
+
+    @Test
+    fun `createFieldResolverExecutor - VariablesProvider runs directly in both resolver modes`(): Unit =
+        runBlocking {
+            val selections = SelectionsBlockConfig("fragment _ on Query { testBatchField @include(if: \$provided) }")
+            val context = mockk<EngineExecutionContext> {
+                every { fullSchema } returns schema
+                every { requestContext } returns null
+                every { globalIDCodec } returns GlobalIDCodecDefault
+            }
+            for ((resolverSimpleName, resolverBaseSimpleName, isBatching) in listOf(
+                Triple("TestFieldResolverWithVariables", "TestFieldResolverBase", false),
+                Triple("TestBatchFieldResolverWithVariables", "TestBatchFieldResolverBase", true),
+            )) {
+                val executor = factory().createFieldResolverExecutor(
+                    fieldEntry(
+                        typeName = "Query",
+                        resolverSimpleName = resolverSimpleName,
+                        resolverBaseSimpleName = resolverBaseSimpleName,
+                        isBatching = isBatching,
+                        querySelections = selections,
+                    ),
+                    schema,
+                )
+                assertEquals(isBatching, executor.isBatching)
+                val provider = requireNotNull(executor.variablesFromFunctionProvider)
+                assertEquals(setOf("provided"), provider.variableNames)
+                assertEquals(
+                    mapOf("provided" to true),
+                    provider.provideVariables(
+                        createEngineObjectData(schema.schema.queryType, emptyMap()),
+                        emptyMap(),
+                        context,
+                    ),
+                )
+                assertEquals(emptyMap<String, String>(), executor.argumentVariables.variables)
+                assertEquals(emptyMap<String, String>(), executor.objectFieldVariables.variables)
+                assertEquals(emptyMap<String, String>(), executor.queryFieldVariables.variables)
+            }
+        }
 
     @Test
     fun `createFieldResolverExecutor - unknown variable provider type throws`() {
@@ -502,6 +655,9 @@ class ViaductModernExecutorFactoryTest {
             ),
             schema,
         )
-        assert(executor is FieldResolverExecutor)
+        assertEquals(emptyMap<String, String>(), executor.argumentVariables.variables)
+        assertEquals(emptyMap<String, String>(), executor.objectFieldVariables.variables)
+        assertEquals(emptyMap<String, String>(), executor.queryFieldVariables.variables)
+        assertNull(executor.variablesFromFunctionProvider)
     }
 }

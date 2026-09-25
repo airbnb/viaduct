@@ -7,7 +7,9 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.api.context.VariablesProviderContext
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.DefaultGRTConvFactory
@@ -23,6 +25,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineObjectData
+import viaduct.engine.api.spi.VariableFromFunctionDefinitions
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.context.VariablesProviderContextImpl
 import viaduct.tenant.runtime.context.factory.VariablesProviderContextFactory
@@ -96,7 +99,7 @@ class VariablesProviderExecutorTest {
      * - The VariablesProvider logic itself (just returns static test values)
      */
     @Test
-    fun resolveUnwrapping(): Unit =
+    fun provideVariablesUnwrapping(): Unit =
         runBlocking {
             class MockInputType(
                 override val context: InternalContext,
@@ -121,7 +124,7 @@ class VariablesProviderExecutorTest {
                 ),
             )
 
-            val adapter = VariablesProviderExecutor(
+            val adapter: VariableFromFunctionDefinitions = VariablesProviderExecutor(
                 variablesProvider = VariablesProviderInfo(setOf("foo", "bar")) {
                     VariablesProvider<MockArgs> { _ ->
                         mapOf("foo" to mockInput, "bar" to mockGlobalID)
@@ -140,16 +143,41 @@ class VariablesProviderExecutorTest {
                     ),
                     "bar" to serializedGlobalID,
                 ),
-                adapter.resolve(
-                    VariablesResolver.ResolveCtx(
-                        objectData,
-                        mapOf("a" to 5, "b" to 7),
-                    ),
+                adapter.provideVariables(
+                    objectData,
+                    mapOf("a" to 5, "b" to 7),
                     mockk {
                         every { fullSchema } returns MockSchema.minimal
                         every { requestContext } returns null
                     }
                 )
             )
+        }
+
+    @Test
+    fun provideVariablesValidatesDeclaredNames(): Unit =
+        runBlocking {
+            val context = mockk<EngineExecutionContext> {
+                every { fullSchema } returns MockSchema.minimal
+                every { requestContext } returns null
+            }
+            val arguments = mapOf("a" to 5, "b" to 7)
+
+            for ((values, expectedError) in listOf(
+                emptyMap<String, Any?>() to "Missing keys: foo",
+                mapOf<String, Any?>("foo" to 10, "extra" to 20) to "Extra keys: extra",
+            )) {
+                val adapter: VariableFromFunctionDefinitions = VariablesProviderExecutor(
+                    variablesProvider = VariablesProviderInfo(setOf("foo")) {
+                        VariablesProvider<MockArgs> { values }
+                    },
+                    variablesProviderContextFactory = TestVariablesProviderContextFactory(),
+                )
+
+                val error = assertThrows<IllegalStateException> {
+                    adapter.provideVariables(objectData, arguments, context)
+                }
+                assertTrue(error.message.orEmpty().contains(expectedError))
+            }
         }
 }

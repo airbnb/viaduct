@@ -1,7 +1,6 @@
 package viaduct.tenant.runtime.bootstrap
 
 import graphql.language.FragmentDefinition
-import kotlin.reflect.KClass
 import viaduct.api.NodeResolverBase
 import viaduct.api.ResolverBase
 import viaduct.api.internal.BaseBatchedFieldResolver
@@ -15,9 +14,11 @@ import viaduct.api.types.NodeObject
 import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.NodeEntryConfig
-import viaduct.bootstrap.SelectionsBlockConfig
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionAttribution
+import viaduct.engine.api.FromArgumentVariable
+import viaduct.engine.api.FromObjectFieldVariable
+import viaduct.engine.api.FromQueryFieldVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.SelectionSetVariable
 import viaduct.engine.api.TenantModuleMetadata
@@ -28,6 +29,7 @@ import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.VariableFromArgumentDefinitions
+import viaduct.engine.api.spi.VariableFromFieldDefinitions
 import viaduct.service.api.spi.CodeInjector
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
@@ -35,7 +37,9 @@ import viaduct.tenant.runtime.execution.FieldBatchResolverExecutorImpl
 import viaduct.tenant.runtime.execution.FieldUnbatchedResolverExecutorImpl
 import viaduct.tenant.runtime.execution.NodeBatchResolverExecutorImpl
 import viaduct.tenant.runtime.execution.NodeUnbatchedResolverExecutorImpl
+import viaduct.tenant.runtime.execution.VariablesProviderExecutor
 import viaduct.tenant.runtime.internal.ReflectionLoaderImpl
+import viaduct.tenant.runtime.internal.VariablesProviderInfo
 import viaduct.utils.slf4j.logger
 
 class ViaductModernExecutorFactory(
@@ -97,16 +101,36 @@ class ViaductModernExecutorFactory(
             knownFragments = namedFragments,
         )
 
-        val resolverKClass = resolverClass.kotlin
+        val selectionVariables = RequiredSelectionSetSupport.buildSelectionSetVariables(
+            configData.objectSelections,
+            configData.querySelections,
+        )
+        val hasSelectionConfiguration =
+            configData.objectSelections != null || configData.querySelections != null
 
+        val variablesProviderInfo = if (hasSelectionConfiguration) {
+            resolverClass.kotlin.variablesProvider(codeInjector)
+        } else {
+            null
+        }
         val (objectSelectionSet, querySelectionSet) = buildSelectionSets(
             entry = configData,
-            resolverKClass = resolverKClass,
+            variablesProviderInfo = variablesProviderInfo,
+            variables = selectionVariables,
             attribution = attribution,
             contextFactory = contextFactory,
             queryTypeName = apiData.queryTypeName,
         )
-        val argumentVariables = buildArgumentVariables(configData.objectSelections, configData.querySelections)
+        val argumentVariables = VariableFromArgumentDefinitions(
+            selectionVariables.filterIsInstance<FromArgumentVariable>().associate { it.name to it.valueFromPath }
+        )
+        val objectFieldVariables = VariableFromFieldDefinitions(
+            selectionVariables.filterIsInstance<FromObjectFieldVariable>().associate { it.name to it.valueFromPath }
+        )
+        val queryFieldVariables = VariableFromFieldDefinitions(
+            selectionVariables.filterIsInstance<FromQueryFieldVariable>().associate { it.name to it.valueFromPath }
+        )
+        val variablesFromFunctionProvider = variablesProviderInfo?.let { VariablesProviderExecutor(it, contextFactory) }
         val resolverId = "${configData.typeName}.${configData.fieldName}"
         val tenantMetadata = tenantMetadataFor(resolverClass, configData.tenantAPIData)
 
@@ -122,6 +146,9 @@ class ViaductModernExecutorFactory(
                 resolverContextFactory = contextFactory,
                 resolverName = apiData.resolverClass,
                 argumentVariables = argumentVariables,
+                objectFieldVariables = objectFieldVariables,
+                queryFieldVariables = queryFieldVariables,
+                variablesFromFunctionProvider = variablesFromFunctionProvider,
                 tenantMetadata = tenantMetadata,
             )
         } else {
@@ -136,6 +163,9 @@ class ViaductModernExecutorFactory(
                 resolverContextFactory = contextFactory,
                 resolverName = apiData.resolverClass,
                 argumentVariables = argumentVariables,
+                objectFieldVariables = objectFieldVariables,
+                queryFieldVariables = queryFieldVariables,
+                variablesFromFunctionProvider = variablesFromFunctionProvider,
                 tenantMetadata = tenantMetadata,
             )
         }
@@ -188,7 +218,8 @@ class ViaductModernExecutorFactory(
 
     private fun buildSelectionSets(
         entry: FieldEntryConfig,
-        resolverKClass: KClass<out ResolverBase<*>>,
+        variablesProviderInfo: VariablesProviderInfo?,
+        variables: List<SelectionSetVariable>,
         attribution: ExecutionAttribution,
         contextFactory: FieldExecutionContextFactory,
         queryTypeName: String,
@@ -203,36 +234,13 @@ class ViaductModernExecutorFactory(
         if (objectSelections == null && querySelections == null) return Pair(null, null)
 
         return requiredSelectionSetFactory.createRequiredSelectionSets(
-            variablesProvider = resolverKClass.variablesProvider(codeInjector),
+            variablesProvider = variablesProviderInfo,
             objectSelections = objectSelections,
             querySelections = querySelections,
             variablesProviderContextFactory = contextFactory,
-            variables = buildVariables(entry.objectSelections, entry.querySelections),
+            variables = variables,
             attribution = attribution,
         )
-    }
-
-    private fun buildVariables(
-        objectSelections: SelectionsBlockConfig?,
-        querySelections: SelectionsBlockConfig?,
-    ): List<SelectionSetVariable> = RequiredSelectionSetSupport.buildSelectionSetVariables(objectSelections, querySelections)
-
-    private fun buildArgumentVariables(
-        objectSelections: SelectionsBlockConfig?,
-        querySelections: SelectionsBlockConfig?,
-    ): VariableFromArgumentDefinitions {
-        val variables = buildMap {
-            listOfNotNull(objectSelections, querySelections)
-                .flatMap { it.variablesProviders }
-                .forEach { entry ->
-                    if (entry.providerVariablesAPIData.type == "fromArgument") {
-                        entry.providedVariables.keys.forEach { name ->
-                            put(name, entry.providerVariablesAPIData.path)
-                        }
-                    }
-                }
-        }
-        return VariableFromArgumentDefinitions(variables)
     }
 
     @Suppress("UNCHECKED_CAST")
