@@ -3,6 +3,7 @@ package semantics.resolvers.resolver01
 import model.ObjectEngineResult
 import model.requireField
 import semantics.shared.argumentsContainErrorValue
+import semantics.shared.applicableGroundSelections
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
 import semantics.shared.objectFragmentAt
@@ -11,6 +12,7 @@ import semantics.shared.objectFragmentAt
 internal class SiblingDependencyLogic(
     private val operation: SharedOperationContext<*>,
     private val oerOccurrence: OEROccurrence,
+    private val includeQueryFragments: Boolean = false,
 ) {
     /** Returns a topological ordering using Kahn's algorithm, with accumulation local to this call. */
     fun order(keys: Set<ObjectEngineResult.GroundKey>): List<ObjectEngineResult.GroundKey> =
@@ -44,7 +46,7 @@ internal class SiblingDependencyLogic(
         }.toSet()
     }
 
-    /** Whether the consumer directly demands this sibling in its top-level object fragment. */
+    /** Whether the consumer directly demands this sibling from the fragments rooted in this OER. */
     fun demandsFromSibling(
         consumer: ObjectEngineResult.GroundKey,
         sibling: ObjectEngineResult.GroundKey,
@@ -57,10 +59,24 @@ internal class SiblingDependencyLogic(
         require(operation.world.schema.requireField(objectType.name, sibling.field.name) == sibling.field) {
             "${objectType.name}/${sibling.field.name} is not canonical in this world"
         }
-        return sibling in
-            operation.world.resolverRegistry
-                .resolver(field)
-                .objectFragmentAt(operation, oerOccurrence.root, oerOccurrence.coordinate(consumer))
-                .groundKeys()
+        val resolver = operation.world.resolverRegistry.resolver(field)
+        val dependencies =
+            if (includeQueryFragments) {
+                val fragments =
+                    resolver.instantiateFragmentsAt(
+                        oerOccurrence.root,
+                        oerOccurrence.coordinate(consumer),
+                    )
+                (fragments.objectFragment.constructionSelections +
+                    fragments.queryFragment.constructionSelections)
+                    .applicableGroundSelections(operation, objectType)
+            } else {
+                resolver.objectFragmentAt(
+                    operation,
+                    oerOccurrence.root,
+                    oerOccurrence.coordinate(consumer),
+                )
+            }
+        return sibling in dependencies.groundKeys()
     }
 }

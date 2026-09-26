@@ -7,6 +7,7 @@ import model.EngineResult
 import model.ListEngineResult
 import model.NodeReferenceIdentity
 import model.ObjectEngineResult
+import model.ObjectSelectionForest
 import model.PathComponent
 import model.ResolverOccurrenceId
 import model.Selection
@@ -37,6 +38,7 @@ internal class ReappliedResolver(
 internal class ResolverApplicationCache(
     val root: ObjectEngineResult,
     internal val rootFieldReferenceWitness: RootFieldReferenceWitness,
+    private val queryOERValidation: QueryOERValidationState,
 ) {
     private val applications =
         IdentityHashMap<
@@ -82,6 +84,58 @@ internal class ResolverApplicationCache(
     }
 
     fun hasCompleteRootFieldReferenceWitness(): Boolean = rootFieldReferenceWitness.isComplete()
+
+    fun queryResultConforms(
+        operation: SharedOperationContext<*>,
+        result: ObjectEngineResult,
+        ownerSelections: ObjectSelectionForest,
+    ): Boolean =
+        if (result === root) {
+            queryOERValidation.isValidating(result) &&
+                result.conformsToSelections(operation, ownerSelections)
+        } else {
+            queryOERValidation.validate(
+                operation = operation,
+                result = result,
+                ownerSelections = ownerSelections,
+                rootFieldReferenceWitness = rootFieldReferenceWitness,
+            )
+        }
+}
+
+/** Recursion-safe shared-OER validation with an independent conformance check for every owner. */
+internal class QueryOERValidationState {
+    private val results = IdentityHashMap<ObjectEngineResult, Boolean?>()
+
+    fun isValidating(result: ObjectEngineResult): Boolean =
+        results.containsKey(result) && results[result] == null
+
+    fun validate(
+        operation: SharedOperationContext<*>,
+        result: ObjectEngineResult,
+        ownerSelections: ObjectSelectionForest,
+        rootFieldReferenceWitness: RootFieldReferenceWitness,
+    ): Boolean {
+        if (!result.conformsToSelections(operation, ownerSelections)) return false
+        if (results.containsKey(result)) return results[result] ?: false
+        results[result] = null
+        val queryOER =
+            (operation.resolverObserver as? CorrectnessResolverObserver)
+                ?.queryOER(result)
+        val selections = queryOER?.closedDemand ?: ownerSelections
+        val hasExactOERKeys =
+            queryOER == null || result.keys == queryOER.closedDemand.byGroundKey().keys
+        val valid =
+            hasExactOERKeys &&
+                result.correctResolution(
+                    operation,
+                    selections,
+                    rootFieldReferenceWitness,
+                    this,
+                )
+        results[result] = valid
+        return valid
+    }
 }
 
 private class CachedResolverApplication(
@@ -176,10 +230,12 @@ internal fun SharedOperationContext<*>.rootFieldReferenceWitness(
 internal fun resolverApplicationCache(
     root: ObjectEngineResult,
     rootFieldReferenceWitness: RootFieldReferenceWitness,
+    queryOERValidation: QueryOERValidationState = QueryOERValidationState(),
 ): ResolverApplicationCache =
     ResolverApplicationCache(
         root = root,
         rootFieldReferenceWitness = rootFieldReferenceWitness,
+        queryOERValidation = queryOERValidation,
     )
 
 internal fun SharedOperationContext<*>.resolverApplicationCache(root: ObjectEngineResult): ResolverApplicationCache =
@@ -289,10 +345,10 @@ private class ResolverReplayLogic(
                         queryFragment.constructionSelections
                             .merge(operation.world.schema.requireQueryTypeDef())
                     if (
-                        !queryResult.correctResolution(
+                        !resolverApplicationCache.queryResultConforms(
                             operation,
+                            queryResult,
                             querySelections,
-                            resolverApplicationCache.rootFieldReferenceWitness,
                         )
                     ) {
                         return@getOrPut null
@@ -437,10 +493,10 @@ private class ResolverReplayLogic(
                 val querySelections =
                     queryFragment.constructionSelections.merge(operation.world.schema.requireQueryTypeDef())
                 if (
-                    !queryResult.correctResolution(
+                    !resolverApplicationCache.queryResultConforms(
                         operation,
+                        queryResult,
                         querySelections,
-                        resolverApplicationCache.rootFieldReferenceWitness,
                     )
                 ) {
                     return null

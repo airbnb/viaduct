@@ -5,13 +5,13 @@ import model.ObjectEngineResult
 import model.SelectionForest
 import model.schemaType
 import semantics.resolvers.GroundedFieldPublicationOccurrence
+import semantics.resolvers.resolver01.DepthFirstDispatcher
 import semantics.resolvers.resolver01.DepthFirstFieldResolverTask
 import semantics.resolvers.resolver01.DepthFirstOperationContext
 import semantics.resolvers.resolver01.DepthFirstOrchestrationTask
 import semantics.resolvers.resolver01.DepthFirstTask
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
-import semantics.shared.SharedTaskDispatcher
 import viaduct.engine.api.EngineObjectData
 
 /** Queues the same tasks as Resolver01-03, using depth, task kind, and insertion order for readiness. */
@@ -21,7 +21,7 @@ internal class DepthFirstReactor(
     private val source: EngineObjectData.Sync,
     private val selections: SelectionForest,
     private val onTaskStarted: (DepthFirstTask) -> Unit = {},
-) : SharedTaskDispatcher<DepthFirstOrchestrationTask, GroundedFieldPublicationOccurrence<DepthFirstOperationContext>> {
+) : DepthFirstDispatcher {
     private val operation = DepthFirstOperationContext(operation, complete, this)
     private val tasks = PriorityQueue(depthFirstTaskComparator)
     private val launched = mutableSetOf<DepthFirstTask>()
@@ -36,7 +36,7 @@ internal class DepthFirstReactor(
         check(!started) { "DepthFirstReactor.resolve() may only be called once" }
         started = true
         val result = ObjectEngineResult.of(source.schemaType, mutable = true)
-        operation.passiveValues.resolvePassiveObjectValues(
+        operation.passiveValues(queryOERDepth = 0).resolvePassiveObjectValues(
             source, OEROccurrence(result, emptyList(), result), selections,
         )
         while (tasks.isNotEmpty()) {
@@ -47,6 +47,10 @@ internal class DepthFirstReactor(
                     task.run()
                     check(orchestrated.add(task.objectOER.occurrence)) { "Object orchestrated twice: ${task.path}" }
                     children.remove(task.objectOER.occurrence)?.forEach(::enqueue)
+                    check(orchestrated.add(task.queryOER.occurrence)) {
+                        "Query orchestrated twice: ${task.path}"
+                    }
+                    children.remove(task.queryOER.occurrence)?.forEach(::enqueue)
                 }
                 is DepthFirstFieldResolverTask -> task.run()
             }
@@ -57,6 +61,14 @@ internal class DepthFirstReactor(
             val target = task.objectOER.occurrence.target
             check(task.objectOER.closedDemand.groundKeys().all { target.isCellSet(it) && target.getCell(it).getValue().isCompleted }) {
                 "Completed OER ${task.path} is missing closed demand"
+            }
+            val queryTarget = task.queryOER.occurrence.target
+            check(
+                task.queryOER.closedDemand.groundKeys().all { key ->
+                    queryTarget.isCellSet(key) && queryTarget.getCell(key).getValue().isCompleted
+                },
+            ) {
+                "Completed Query OER ${task.path} is missing closed demand"
             }
         }
         return result
@@ -77,9 +89,12 @@ internal class DepthFirstReactor(
         }
     }
 
-    override fun dispatchFieldResolver(publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>) {
+    override fun dispatchFieldResolver(
+        publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>,
+        queryOERDepth: Int,
+    ) {
         // Preparation claims the cell, rejecting duplicate publication before queueing.
-        val task = DepthFirstFieldResolverTask.create(publication)
+        val task = DepthFirstFieldResolverTask.create(publication, queryOERDepth)
         launched += task
         enqueue(task)
     }
@@ -95,7 +110,8 @@ internal class ScheduledTask(
 )
 
 internal val depthFirstTaskComparator =
-    compareByDescending<ScheduledTask> { it.task.path.size }
+    compareByDescending<ScheduledTask> { it.task.queryOERDepth }
+        .thenByDescending { it.task.path.size }
         .thenBy {
             when (it.task) {
                 is DepthFirstFieldResolverTask -> 0

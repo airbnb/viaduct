@@ -139,10 +139,10 @@ private class ResolverConformanceLogic(
         val queryResult = queryResults.singleOrNull() ?: return false
         val querySelections =
             queryFragment.constructionSelections.merge(operation.world.schema.requireQueryTypeDef())
-        return queryResult.correctResolution(
+        return resolverApplicationCache.queryResultConforms(
             operation,
+            queryResult,
             querySelections,
-            resolverApplicationCache.rootFieldReferenceWitness,
         )
     }
 

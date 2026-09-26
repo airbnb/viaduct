@@ -41,6 +41,7 @@ class DepthFirstOrchestrationTaskTest {
                     world
                         .fragmentFrom("fragment ignored on Query { __typename }")
                         .subselections,
+                queryOERDepth = 0,
             )
         }
     }

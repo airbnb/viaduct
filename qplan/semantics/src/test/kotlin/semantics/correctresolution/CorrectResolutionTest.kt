@@ -30,6 +30,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import semantics.shared.SharedOperationContext
 import semantics.shared.ResolverInvocationObservation
+import semantics.shared.OEROccurrence
+import semantics.shared.SharedOERContext
 
 class CorrectResolutionTest : Resolver26DispatcherResource {
     @Test
@@ -147,15 +149,19 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                     """
                     type Query {
                       source: Int!
+                      extra: Int!
                       consumer: Int!
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     val source = schema.requireObjectField("Query", "source")
+                    val extra = schema.requireObjectField("Query", "extra")
                     val consumer = schema.requireObjectField("Query", "consumer")
                     mapOf(
                         source to
                             fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                        extra to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 9 },
                         consumer to
                             fieldResolverOf(
                                 objectFragment = schema.emptyFragmentOf("Query"),
@@ -195,6 +201,11 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
 
         assertFalse(result.correctResolution(missingObservation, selections))
 
+        val reusedPrimaryRoot =
+            SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
+        reusedPrimaryRoot.resolverObserver.onQueryFragmentPrepared(occurrenceId, result)
+        assertFalse(result.correctResolution(reusedPrimaryRoot, selections))
+
         val incorrectObservation =
             SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
         incorrectObservation.resolverObserver.onQueryFragmentPrepared(
@@ -214,6 +225,27 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
             },
         )
         assertTrue(result.correctResolution(correctObservation, selections))
+
+        val unexplainedExtraCell =
+            SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
+        val queryResult =
+            world.engineResultOf("Query") {
+                "source" resolvesTo 7
+                "extra" resolvesTo 9
+            }
+        unexplainedExtraCell.resolverObserver.onQueryFragmentPrepared(occurrenceId, queryResult)
+        unexplainedExtraCell.resolverObserver.onQueryOERPrepared(
+            SharedOERContext(
+                occurrence = OEROccurrence(queryResult, emptyList(), queryResult),
+                source = engineObjectDataOf(world.schema.requireQueryTypeDef()),
+                closedDemand =
+                    world
+                        .fragmentFrom("fragment Scope on Query { source }")
+                        .subselections
+                        .merge(world.schema.requireQueryTypeDef()),
+            ),
+        )
+        assertFalse(result.correctResolution(unexplainedExtraCell, selections))
 
         correctObservation.resolverObserver.onQueryFragmentPrepared(
             occurrenceId,

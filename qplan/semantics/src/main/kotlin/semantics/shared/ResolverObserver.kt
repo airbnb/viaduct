@@ -1,7 +1,7 @@
 package semantics.shared
 
-import model.ObjectEngineResult.ObjectKey
 import model.ObjectEngineResult
+import model.ObjectEngineResult.ObjectKey
 import model.PathComponent
 import model.ResolverOccurrenceId
 import model.RootFieldReferenceData
@@ -34,6 +34,9 @@ data class RootFieldReferenceInvocationObservation(
  * make the referenced result graphs immutable or provide a snapshot of them.
  */
 interface ResolverObserver {
+    /** Records one shared resolver Query OER after joint closure and before field dispatch. */
+    fun onQueryOERPrepared(queryOER: SharedOERContext) = Unit
+
     /**
      * Associates a nonempty declared Query fragment with its live root, after orchestration
      * preparation and before dispatch. The root's selected cells and values may be unfinished.

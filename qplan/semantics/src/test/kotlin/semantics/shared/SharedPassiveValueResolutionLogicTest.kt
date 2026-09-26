@@ -584,6 +584,8 @@ private fun ResolverOutputData?.recordPassiveResolution(
                     source,
                     collect(constructionDemand, occurrence.target.type),
                 )
+            override val queryOER =
+                SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef())
         }
 
         override fun resolveListReference(

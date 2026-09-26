@@ -1,6 +1,7 @@
 package semantics.resolver26
 
 import java.util.concurrent.atomic.AtomicBoolean
+import model.requireQueryTypeDef
 import semantics.shared.SharedOperationContext
 import semantics.shared.SharedOERContext
 import semantics.shared.SharedOrchestrationTask
@@ -13,6 +14,9 @@ internal abstract class CoroutineOrchestrationTask<O : SharedOperationContext<*>
     final override val operation: O,
     final override val objectOER: SharedOERContext,
 ) : SharedOrchestrationTask<O> {
+    final override val queryOER: SharedOERContext =
+        SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef())
+
     private val launched = AtomicBoolean(false)
 
     internal abstract val hasActiveWork: Boolean

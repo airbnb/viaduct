@@ -4,6 +4,7 @@ import kotlinx.coroutines.runBlocking
 import model.Arguments
 import model.EngineErrorData
 import model.ErrorEngineResult
+import model.MaterializeSelectionForest
 import model.NodeReferenceIdentity
 import model.ObjectEngineResult
 import model.PathComponent
@@ -36,20 +37,25 @@ import viaduct.engine.api.EngineObjectData
  */
 internal class DepthFirstFieldResolverTask private constructor(
     override val publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>,
+    override val queryOERDepth: Int,
 ) : SharedFieldResolverTask<GroundedFieldPublicationOccurrence<DepthFirstOperationContext>>, DepthFirstTask {
     // List-element references sit deeper than the field whose output contains them.
     override val path get() = publication.publicationPath.dropLast(1)
 
     companion object {
         /** Claims the publication synchronously before either execution or reactor enqueue. */
-        fun create(publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>): DepthFirstFieldResolverTask {
+        fun create(
+            publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>,
+            queryOERDepth: Int,
+        ): DepthFirstFieldResolverTask {
+            require(queryOERDepth >= 0) { "Query-OER depth must be nonnegative" }
             require(publication.selection.key.field.containingDef == publication.oerOccurrence.target.type) {
                 "Resolver selection does not belong to its target object"
             }
             // The reactor may freeze the OER before this task runs.
             publication.publicationCell.createValuePromise()
             publication.publicationCell.setActivated(true)
-            return DepthFirstFieldResolverTask(publication)
+            return DepthFirstFieldResolverTask(publication, queryOERDepth)
         }
     }
 
@@ -67,21 +73,33 @@ internal class DepthFirstFieldResolverTask private constructor(
             is Arguments.Resolved -> {
                 val resolver = operation.world.resolverRegistry.resolver(key.field)
                 val fragments = resolver.instantiateFragmentsAt(oerOccurrence.root, publicationPath)
+
+                val queryMaterializationSelections =
+                    resolver.instantiateQueryMaterializationSelections(
+                        fragments.queryFragment.resolverOccurrenceId,
+                    )
+                check(
+                    fragments.queryFragment.constructionSelections.isEmpty() ||
+                        queryOER.isDemanded(),
+                ) {
+                    "Nonempty resolver Query fragment has no demanded shared Query OER"
+                }
+                val queryValue =
+                    queryOER.occurrence.target.materializeInput(
+                        queryMaterializationSelections,
+                        publicationPath,
+                    )
+
                 val objectMaterializationSelections =
                     resolver.instantiateObjectMaterializationSelections(
                         fragments.objectFragment.resolverOccurrenceId,
                     )
-                val input = runBlocking {
-                    // Sibling dependency order and depth-first dispatch make this input ready.
-                    oerOccurrence.target.materializeResolverInput(
-                        operation = operation,
-                        cycleChecker = CycleCheckState.createNOP(),
-                        selections = objectMaterializationSelections,
-                        reader = publicationPath,
+                val input = // Sibling dependency order and depth-first dispatch make this input ready.
+                    oerOccurrence.target.materializeInput(
+                        objectMaterializationSelections,
+                        publicationPath,
                     )
-                }
-                val queryValue =
-                    resolveQueryFragment(resolver, fragments.queryFragment, publicationPath)
+
                 runBlocking {
                     // Coroutine entry is interruptible; record only after crossing that boundary.
                     operation.resolverObserver.onResolverInvocation(
@@ -117,7 +135,7 @@ internal class DepthFirstFieldResolverTask private constructor(
                 reference, oerOccurrence.root, publicationPath, invocationDemand,
             )
         }
-        val result = operation.passiveValues.resolvePassiveValues(
+        val result = operation.passiveValues(queryOERDepth).resolvePassiveValues(
             value = value.withAuthoritativeNodeId(nodeIdentity, invocationDemand),
             root = oerOccurrence.root,
             expectedType = publicationExpectedType,
@@ -139,7 +157,7 @@ internal class DepthFirstFieldResolverTask private constructor(
         val operation = publication.operation
         val invocation = reference.prepareInvocation(operation)
         val queryValue =
-            resolveQueryFragment(
+            resolveIndependentQueryFragment(
                 resolver = invocation.resolver,
                 queryFragment = invocation.fragments.queryFragment,
                 coordinate = invocation.path,
@@ -182,11 +200,8 @@ internal class DepthFirstFieldResolverTask private constructor(
         return output
     }
 
-    /**
-     * Resolves a fresh Query OER recursively, with its own dispatcher, for both depth-first variants.
-     * Its work cannot consume the enclosing passive traversal's accumulated fringe or reactor queue.
-     */
-    private fun resolveQueryFragment(
+    /** Resolves a fresh Query root for an independently rooted reference-target invocation. */
+    private fun resolveIndependentQueryFragment(
         resolver: FieldResolver,
         queryFragment: ResolverFragment,
         coordinate: List<PathComponent>,
@@ -195,18 +210,27 @@ internal class DepthFirstFieldResolverTask private constructor(
         if (queryFragment.constructionSelections.isEmpty()) {
             return engineObjectDataOf(operation.world.schema.requireQueryTypeDef())
         }
-        val queryResult = DepthFirstResolve(operation, operation.complete)
-            .resolve(queryFragment.constructionSelections, queryFragment.resolverOccurrenceId)
-        return runBlocking {
-            queryResult.materializeResolverInput(
-                operation = operation,
-                cycleChecker = CycleCheckState.createNOP(),
-                selections =
-                    resolver.instantiateQueryMaterializationSelections(
-                        queryFragment.resolverOccurrenceId,
-                    ),
-                reader = coordinate,
-            )
-        }
+        val queryResult =
+            DepthFirstResolve(operation, operation.complete)
+                .resolve(queryFragment.constructionSelections, queryFragment.resolverOccurrenceId)
+        return queryResult.materializeInput(
+            resolver.instantiateQueryMaterializationSelections(
+                queryFragment.resolverOccurrenceId,
+            ),
+            coordinate,
+        )
+    }
+
+    /** Materializes one already-prepared depth-first input through the shared suspend API. */
+    private fun ObjectEngineResult.materializeInput(
+        selections: MaterializeSelectionForest,
+        reader: List<PathComponent>,
+    ): EngineObjectData.Sync = runBlocking {
+        materializeResolverInput(
+            operation = publication.operation,
+            cycleChecker = CycleCheckState.createNOP(),
+            selections = selections,
+            reader = reader,
+        )
     }
 }

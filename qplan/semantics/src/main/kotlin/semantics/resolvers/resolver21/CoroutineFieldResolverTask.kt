@@ -36,7 +36,10 @@ internal class CoroutineFieldResolverTask private constructor(
                     objectOER.source.outputValue(key.field.name) as RootFieldReferenceData
                 } else null
                 prepare(
-                    GroundedFieldPublicationOccurrence(operation, occurrence, selection, occurrence.target.reserveCell(key), reference),
+                    GroundedFieldPublicationOccurrence(
+                        operation, occurrence, selection, occurrence.target.reserveCell(key), reference,
+                        queryOER = orchestrationTask.queryOER,
+                    ),
                 )
             }
             publications.forEach(operation.dispatcher::dispatchFieldResolver)

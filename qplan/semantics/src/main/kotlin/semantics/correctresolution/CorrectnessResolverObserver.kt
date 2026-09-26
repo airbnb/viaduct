@@ -7,6 +7,7 @@ import model.ResolverOccurrenceId
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.ResolverObserver
 import semantics.shared.RootFieldReferenceInvocationObservation
+import semantics.shared.SharedOERContext
 
 /**
  * Records invocation identities plus Query roots and reference hops. Query and reference records
@@ -30,6 +31,8 @@ open class CorrectnessResolverObserver : ResolverObserver {
 
     private val queryResults =
         ConcurrentHashMap<ResolverOccurrenceId, ConcurrentLinkedQueue<ObjectEngineResult>>()
+    private val queryOERs =
+        ConcurrentHashMap<ObjectEngineResult, SharedOERContext>()
     private val rootFieldReferenceInvocations =
         ConcurrentLinkedQueue<RootFieldReferenceInvocationObservation>()
 
@@ -41,6 +44,19 @@ open class CorrectnessResolverObserver : ResolverObserver {
             .computeIfAbsent(resolverOccurrenceId) { ConcurrentLinkedQueue() }
             .add(result)
     }
+
+    override fun onQueryOERPrepared(queryOER: SharedOERContext) {
+        val result = queryOER.occurrence.target
+        check(queryOERs.putIfAbsent(result, queryOER) == null) {
+            "Query OER was prepared twice"
+        }
+    }
+
+    fun queryOER(result: ObjectEngineResult): SharedOERContext? =
+        queryOERs[result]
+
+    fun allQueryOERs(): Map<ObjectEngineResult, SharedOERContext> =
+        queryOERs.toMap()
 
     fun queryFragmentResults(
         resolverOccurrenceId: ResolverOccurrenceId,

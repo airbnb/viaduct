@@ -49,6 +49,8 @@ class ResolverContractTest :
     DepthFirstQueryFringeOrderingContract,
     FrozenObjectResolutionContract,
     CorrectResolutionPostTestPolicy {
+    override val usesSingularQueryOER: Boolean = true
+
     override fun resolve(
         operation: SharedOperationContext<*>,
         root: EngineObjectData.Sync,

@@ -6,8 +6,10 @@ import model.ObjectSelectionForest
 import model.PathComponent
 import model.RootFieldReferenceData
 import model.SelectionForest
+import model.requireQueryTypeDef
 import semantics.resolvers.GroundedFieldPublicationOccurrence
 import semantics.shared.OEROccurrence
+import semantics.shared.SharedOERContext
 import semantics.shared.SharedPassiveValueResolutionLogic
 import semantics.shared.applicableGroundSelections
 import viaduct.engine.api.EngineObjectData
@@ -38,6 +40,7 @@ internal class CoroutinePassiveValueResolutionLogic(operation: CoroutineOperatio
         CoroutineFieldResolverTask.launchForListElement(
             GroundedFieldPublicationOccurrence(
                 operation, parent, selection, cell, reference, invocationDemand, path, expectedType,
+                SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef()),
             ),
         )
     }

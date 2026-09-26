@@ -28,6 +28,7 @@ internal class DepthFirstResolve(
                 occurrence = OEROccurrence(result, emptyList(), result),
                 source = source,
                 constructionDemand = selections,
+                queryOERDepth = 0,
             )
         queryFragmentOwner?.let { operation.resolverObserver.onQueryFragmentPrepared(it, result) }
         dispatcher.dispatchOrchestrator(orchestration)

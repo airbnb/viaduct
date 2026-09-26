@@ -2,16 +2,19 @@ package semantics.shared
 
 import model.EngineResultCell
 /**
- * Prepared orchestration task for one object. Its factory closes demand and establishes the
- * state needed by descendants before returning; passive resolution uses [objectOER] before
- * handing the task to [SharedTaskDispatcher.dispatchOrchestrator]. The task supplies its owning
- * context through [operation]; it is not itself an operation context.
+ * Prepared orchestration task for one object OER and its paired shared Query OER. Its factory
+ * closes demand and establishes the state needed by descendants before returning; passive
+ * resolution materializes [objectOER] before handing the paired task to
+ * [SharedTaskDispatcher.dispatchOrchestrator]. The task supplies its owning context through
+ * [operation]; it is not itself an operation context.
  */
 interface SharedOrchestrationTask<out O : SharedOperationContext<*>> {
     /** The owning operation, retaining its resolver-specific type. */
     val operation: O
-    /** The OER being orchestrated, including its source and closed construction demand. */
+    /** The containing OER, including its source and closed construction demand. */
     val objectOER: SharedOERContext
+    /** The Query OER paired with this orchestration; its closed demand may be empty. */
+    val queryOER: SharedOERContext
 }
 
 /**

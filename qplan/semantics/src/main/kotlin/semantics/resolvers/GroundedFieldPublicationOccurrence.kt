@@ -7,6 +7,7 @@ import model.RootFieldReferenceData
 import model.SelectionForest
 import model.outputType
 import semantics.shared.OEROccurrence
+import semantics.shared.SharedOERContext
 import semantics.shared.SharedFieldPublicationOccurrence
 import semantics.shared.SharedTaskDispatcher
 import semantics.shared.SharedOperationContext
@@ -26,5 +27,6 @@ internal class GroundedFieldPublicationOccurrence<out O : SharedOperationContext
     val invocationDemand: SelectionForest? = null,
     val publicationPath: List<PathComponent> = oerOccurrence.coordinate(selection.key),
     val publicationExpectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef> = selection.key.field.outputType,
+    val queryOER: SharedOERContext,
 ) : SharedFieldPublicationOccurrence<O, SharedTaskDispatcher<Nothing, Nothing>>,
     SharedOperationContext<SharedTaskDispatcher<Nothing, Nothing>> by operation
