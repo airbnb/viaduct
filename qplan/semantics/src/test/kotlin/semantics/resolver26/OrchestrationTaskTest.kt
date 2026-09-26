@@ -42,7 +42,7 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
             world.resolverRegistry.createRootQueryInput(),
             world.operationSelectionsFrom("{ second }"),
         )
-        assertEquals(setOf("first", "second"), task.closedDemand.byKey().keys.map { it.field.name }.toSet())
+        assertEquals(setOf("first", "second"), task.objectOER.closedDemand.byKey().keys.map { it.field.name }.toSet())
         assertTrue(root.keys.isEmpty())
         assertFalse(coroutineContext[kotlinx.coroutines.Job]!!.children.any())
 

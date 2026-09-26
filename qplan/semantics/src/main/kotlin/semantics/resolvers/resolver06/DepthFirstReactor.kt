@@ -45,8 +45,8 @@ internal class DepthFirstReactor(
             when (task) {
                 is DepthFirstOrchestrationTask -> {
                     task.run()
-                    check(orchestrated.add(task.occurrence)) { "Object orchestrated twice: ${task.path}" }
-                    children.remove(task.occurrence)?.forEach(::enqueue)
+                    check(orchestrated.add(task.objectOER.occurrence)) { "Object orchestrated twice: ${task.path}" }
+                    children.remove(task.objectOER.occurrence)?.forEach(::enqueue)
                 }
                 is DepthFirstFieldResolverTask -> task.run()
             }
@@ -54,8 +54,8 @@ internal class DepthFirstReactor(
         }
         check(children.isEmpty() && finished == launched) { "Reactor returned with unfinished tasks" }
         launched.filterIsInstance<DepthFirstOrchestrationTask>().forEach { task ->
-            val target = task.occurrence.target
-            check(task.closedDemand.groundKeys().all { target.isCellSet(it) && target.getCell(it).getValue().isCompleted }) {
+            val target = task.objectOER.occurrence.target
+            check(task.objectOER.closedDemand.groundKeys().all { target.isCellSet(it) && target.getCell(it).getValue().isCompleted }) {
                 "Completed OER ${task.path} is missing closed demand"
             }
         }
@@ -69,7 +69,7 @@ internal class DepthFirstReactor(
      */
     override fun dispatchOrchestrator(task: DepthFirstOrchestrationTask) {
         check(launched.add(task)) { "Orchestrator dispatched twice: ${task.path}" }
-        val parent = task.occurrence.parent
+        val parent = task.objectOER.occurrence.parent
         if (parent == null || parent in orchestrated) {
             enqueue(task)
         } else {

@@ -8,7 +8,6 @@ import kotlinx.coroutines.ensureActive
 import model.EngineErrorData
 import model.EngineObjectOrErrorData
 import model.ObjectEngineResult
-import model.ObjectSelectionForest
 import model.PathComponent
 import model.RootFieldReferenceData
 import model.engineObjectDataOf
@@ -28,12 +27,13 @@ internal class CoroutineFieldResolverTask private constructor(
 
     companion object {
         /** Installs all local promises before dispatching any producer, including source references. */
-        fun launchAll(orchestrationTask: CoroutineOrchestrationTask, closed: ObjectSelectionForest) {
+        fun launchAll(orchestrationTask: CoroutineOrchestrationTask) {
             val operation = orchestrationTask.operation
-            val occurrence = orchestrationTask.occurrence
-            val publications = closed.byGroundKey().filterKeys { !occurrence.target.isCellSet(it) }.map { (key, selection) ->
-                val reference = if (orchestrationTask.source.isPresent(key.field.name)) {
-                    orchestrationTask.source.outputValue(key.field.name) as RootFieldReferenceData
+            val objectOER = orchestrationTask.objectOER
+            val occurrence = objectOER.occurrence
+            val publications = objectOER.closedDemand.byGroundKey().filterKeys { !occurrence.target.isCellSet(it) }.map { (key, selection) ->
+                val reference = if (objectOER.source.isPresent(key.field.name)) {
+                    objectOER.source.outputValue(key.field.name) as RootFieldReferenceData
                 } else null
                 prepare(
                     GroundedFieldPublicationOccurrence(operation, occurrence, selection, occurrence.target.reserveCell(key), reference),

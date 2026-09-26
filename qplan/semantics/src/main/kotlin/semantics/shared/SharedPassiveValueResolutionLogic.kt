@@ -185,22 +185,24 @@ internal abstract class SharedPassiveValueResolutionLogic<
             "Source type ${source.schemaType.name} does not match result type ${occurrence.target.type.name}"
         }
         val orchestration = createOrchestrationTask(occurrence, source, constructionDemand)
-        materializePassiveFields(source, occurrence, orchestration.closedDemand, invocationDemand)
+        materializePassiveFields(orchestration.objectOER, invocationDemand)
         operation.dispatcher.dispatchOrchestrator(orchestration)
     }
 
     /**
-     * Passively resolves source-supplied argumentless fields into [occurrence]'s OER. Validates
-     * selective output against [invocationDemand] and propagates [closedDemand] to descendants.
-     * Parent fields are provided structurally, and direct references belong to active resolution.
-     * Reference-bearing lists are omitted when undemanded or deferred by [deferReferenceList].
+     * Passively resolves source-supplied argumentless fields into [objectOER] without creating or
+     * dispatching an orchestration task. Validates selective output against [invocationDemand] and
+     * propagates the OER's closed demand to descendants. Parent fields are provided structurally,
+     * and direct references belong to active resolution. Reference-bearing lists are omitted when
+     * undemanded or deferred by [deferReferenceList].
      */
-    private fun materializePassiveFields(
-        source: EngineObjectData.Sync,
-        occurrence: OEROccurrence,
-        closedDemand: ObjectSelectionForest,
+    internal fun materializePassiveFields(
+        objectOER: SharedOERContext,
         invocationDemand: SelectionForest,
     ) {
+        val source = objectOER.source
+        val occurrence = objectOER.occurrence
+        val closedDemand = objectOER.closedDemand
         val type = source.schemaType
         val invocationByKey = collect(invocationDemand, type).byKey()
         val passiveByKey = collect(invocationDemand + closedDemand, type).byKey()

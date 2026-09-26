@@ -60,16 +60,17 @@ internal class FieldResolverTask private constructor(
             closed: ClosedConstructionDemandContext,
         ) {
             val operation = orchestrationTask.operation
+            val objectOER = orchestrationTask.objectOER
             closed.fieldResolverOccurrences.forEach { (objectKey, fieldResolverOccurrence) ->
                 check(objectKey.field in operation.world.resolverRegistry) {
                     "Resolver26 attempted to install passive key $objectKey"
                 }
-                check(!orchestrationTask.source.isPresent(objectKey.field.name)) {
+                check(!objectOER.source.isPresent(objectKey.field.name)) {
                     "Resolver26 attempted to install source-provided key $objectKey"
                 }
                 installAndLaunch(
                     operation = operation,
-                    oerOccurrence = orchestrationTask.occurrence,
+                    oerOccurrence = objectOER.occurrence,
                     sourceOccurrence = fieldResolverOccurrence,
                     providerReads =
                         closed.variableProviderReadsByResolverOccurrence.getValue(
@@ -80,14 +81,14 @@ internal class FieldResolverTask private constructor(
             closed.rootFieldReferenceOccurrences.values.forEach { referenceOccurrence ->
                 val objectKey = referenceOccurrence.selection.key
                 check(
-                    orchestrationTask.source.outputValue(objectKey.field.name) ===
+                    objectOER.source.outputValue(objectKey.field.name) ===
                         referenceOccurrence.reference,
                 ) {
                     "Resolver26 root reference does not match its source value"
                 }
                 installAndLaunch(
                     operation = operation,
-                    oerOccurrence = orchestrationTask.occurrence,
+                    oerOccurrence = objectOER.occurrence,
                     sourceOccurrence = referenceOccurrence,
                     providerReads = emptyList(),
                 )

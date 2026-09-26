@@ -23,6 +23,16 @@ fun SelectionForest.applicableGroundSelections(
     type: ViaductSchema.Object,
 ): ObjectSelectionForest = merge(type).instantiateBindings(operation)
 
+/** Specializes and grounds checked and unchecked demand independently. */
+internal fun Demand<SelectionForest>.applicableGroundSelections(
+    operation: SharedOperationContext<*>,
+    type: ViaductSchema.Object,
+): Demand<ObjectSelectionForest> =
+    Demand(
+        checked = checked.applicableGroundSelections(operation, type),
+        unchecked = unchecked.applicableGroundSelections(operation, type),
+    )
+
 private inline fun ObjectSelectionForest.groundSelections(
     groundArguments: (ObjectSelection) -> Arguments.Ground,
 ): ObjectSelectionForest {

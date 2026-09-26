@@ -1,22 +1,17 @@
 package semantics.shared
 
 import model.EngineResultCell
-import model.ObjectSelectionForest
-import viaduct.engine.api.EngineObjectData
-
 /**
  * Prepared orchestration task for one object. Its factory closes demand and establishes the
- * state needed by descendants before returning; passive resolution uses [closedDemand] before
+ * state needed by descendants before returning; passive resolution uses [objectOER] before
  * handing the task to [SharedTaskDispatcher.dispatchOrchestrator]. The task supplies its owning
  * context through [operation]; it is not itself an operation context.
  */
 interface SharedOrchestrationTask<out O : SharedOperationContext<*>> {
     /** The owning operation, retaining its resolver-specific type. */
     val operation: O
-    val occurrence: OEROccurrence
-    /** Source-owned passive values; Query roots supply an empty object. */
-    val source: EngineObjectData.Sync
-    val closedDemand: ObjectSelectionForest
+    /** The OER being orchestrated, including its source and closed construction demand. */
+    val objectOER: SharedOERContext
 }
 
 /**

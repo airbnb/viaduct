@@ -555,8 +555,9 @@ private fun ResolverOutputData?.recordPassiveResolution(
         resolverObserver = operation.resolverObserver,
         dispatcher = object : SharedTaskDispatcher<SharedOrchestrationTask<*>, SharedFieldPublicationOccurrence<*, *>> {
             override fun dispatchOrchestrator(task: SharedOrchestrationTask<*>) {
-                if (task.closedDemand.groundKeys().any { it !in task.occurrence.target.keys }) {
-                    pending += RecordedObject(task.occurrence.path, task.occurrence.target, task.closedDemand)
+                val objectOER = task.objectOER
+                if (objectOER.closedDemand.groundKeys().any { it !in objectOER.occurrence.target.keys }) {
+                    pending += RecordedObject(objectOER.occurrence.path, objectOER.occurrence.target, objectOER.closedDemand)
                 }
             }
 
@@ -577,9 +578,12 @@ private fun ResolverOutputData?.recordPassiveResolution(
             constructionDemand: SelectionForest,
         ): SharedOrchestrationTask<*> = object : SharedOrchestrationTask<SharedOperationContext<*>> {
             override val operation = taskOperation
-            override val occurrence = occurrence
-            override val source = source
-            override val closedDemand = collect(constructionDemand, occurrence.target.type)
+            override val objectOER =
+                SharedOERContext(
+                    occurrence,
+                    source,
+                    collect(constructionDemand, occurrence.target.type),
+                )
         }
 
         override fun resolveListReference(

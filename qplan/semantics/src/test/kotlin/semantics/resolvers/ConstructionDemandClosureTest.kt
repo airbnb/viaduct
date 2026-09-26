@@ -4,9 +4,11 @@ import model.Arguments
 import model.EngineObjectDataEntry
 import model.ListEngineResult
 import model.ObjectEngineResult
+import model.ObjectSelectionForest
 import model.ResolverOccurrenceId
 import model.Selection
 import model.VariableBinding
+import model.emptyFragmentOf
 import model.engineObjectDataOf
 import model.fragmentFrom
 import model.objectOf
@@ -14,14 +16,149 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.selectionForestOf
 import model.testing.TestWorld
+import model.testing.fieldResolverOf
 import semantics.resolvers.resolver01.SiblingDependencyLogic
+import semantics.shared.Demand
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class ConstructionDemandClosureTest {
+    @Test
+    fun `empty object closure produces no Query rooted demand`() {
+        val fixture = queryClosureFixture()
+        val schema = fixture.assumptions.schema
+        val closed =
+            fixture.closeOrchestratorDemand(
+                OrchestratorConstructionDemand.checkedObject(
+                    schema.fragmentFrom("fragment F on Query { leaf }").subselections,
+                ),
+            )
+
+        assertEquals(setOf("leaf"), closed.objectRooted.checked.fieldNames())
+        assertTrue(closed.objectRooted.unchecked.isEmpty())
+        assertTrue(closed.queryRooted.checked.isEmpty())
+        assertTrue(closed.queryRooted.unchecked.isEmpty())
+    }
+
+    @Test
+    fun `object resolver Query demand seeds one transitively closed Query component`() {
+        val fixture = queryClosureFixture()
+        val schema = fixture.assumptions.schema
+        val closed =
+            fixture.closeOrchestratorDemand(
+                OrchestratorConstructionDemand.checkedObject(
+                    schema.fragmentFrom("fragment F on Query { entry }").subselections,
+                ),
+            )
+
+        assertEquals(
+            setOf("entry", "objectOnly", "shared"),
+            closed.objectRooted.checked.fieldNames(),
+        )
+        assertEquals(
+            setOf("queryOnly", "shared", "transitive"),
+            closed.queryRooted.checked.fieldNames(),
+        )
+        assertTrue(closed.objectRooted.unchecked.isEmpty())
+        assertTrue(closed.queryRooted.unchecked.isEmpty())
+    }
+
+    @Test
+    fun `overlapping Query inputs coalesce one exact key`() {
+        val fixture = queryClosureFixture()
+        val schema = fixture.assumptions.schema
+        val closed =
+            fixture.closeOrchestratorDemand(
+                OrchestratorConstructionDemand.checkedObject(
+                    schema.fragmentFrom("fragment F on Query { entry }").subselections,
+                ),
+            )
+
+        assertEquals(3, closed.queryRooted.checked.size)
+        assertEquals(
+            1,
+            closed.queryRooted.checked.groundKeys().count { key -> key.field.name == "shared" },
+        )
+    }
+
+    @Test
+    fun `checked and unchecked owners retain provenance while resolver inputs are checked`() {
+        val fixture = queryClosureFixture()
+        val schema = fixture.assumptions.schema
+        val ownerSelections =
+            schema.fragmentFrom("fragment F on Query { checkedOwner }").subselections
+        val rawOwnerSelections =
+            schema.fragmentFrom("fragment F on Query { rawOwner }").subselections
+        val closed =
+            fixture.closeOrchestratorDemand(
+                OrchestratorConstructionDemand(
+                    objectRooted = Demand(ownerSelections, rawOwnerSelections),
+                    queryRooted = Demand(rawOwnerSelections, rawOwnerSelections),
+                ),
+            )
+
+        assertEquals(
+            setOf("checkedOwner", "checkedDependency", "rawDependency"),
+            closed.objectRooted.checked.fieldNames(),
+        )
+        assertEquals(setOf("rawOwner"), closed.objectRooted.unchecked.fieldNames())
+        assertEquals(
+            setOf("rawOwner", "rawDependency"),
+            closed.queryRooted.checked.fieldNames(),
+        )
+        assertEquals(setOf("rawOwner"), closed.queryRooted.unchecked.fieldNames())
+    }
+
+    @Test
+    fun `object rooted parent lifting routes activated resolver inputs across root axes`() {
+        val fixture = parentClosureFixture()
+        val schema = fixture.assumptions.schema
+        val childResult =
+            schema.fragmentFrom("fragment F on Query { child { result } }").subselections
+        val closed =
+            fixture.closeOrchestratorDemand(
+                OrchestratorConstructionDemand.checkedObject(childResult),
+            )
+
+        assertEquals(
+            setOf("child", "lifted", "local"),
+            closed.objectRooted.checked.fieldNames(),
+        )
+        assertTrue(closed.objectRooted.unchecked.isEmpty())
+        assertEquals(
+            setOf("queryInput", "transitive"),
+            closed.queryRooted.checked.fieldNames(),
+        )
+        assertTrue(closed.queryRooted.unchecked.isEmpty())
+    }
+
+    @Test
+    fun `query rooted parent lifting stays in Query and resumes checked resolver inputs`() {
+        val fixture = parentClosureFixture()
+        val schema = fixture.assumptions.schema
+        val childResult =
+            schema.fragmentFrom("fragment F on Query { child { result } }").subselections
+        val closed =
+            fixture.closeOrchestratorDemand(
+                OrchestratorConstructionDemand(
+                    objectRooted = Demand.EMPTY,
+                    queryRooted = Demand.unchecked(childResult),
+                ),
+            )
+
+        assertTrue(closed.objectRooted.checked.isEmpty())
+        assertTrue(closed.objectRooted.unchecked.isEmpty())
+        assertEquals(
+            setOf("lifted", "local", "queryInput", "transitive"),
+            closed.queryRooted.checked.fieldNames(),
+        )
+        assertEquals(setOf("child"), closed.queryRooted.unchecked.fieldNames())
+    }
+
     @Test
     fun `closure and order keep accumulators local to each invocation`() {
         val world = fixture().assumptions
@@ -37,9 +174,19 @@ class ConstructionDemandClosureTest {
         val demand = schema.fragmentFrom("fragment F on Query { a }").subselections
 
         repeat(2) {
-            assertEquals(setOf(a, b, leaf), source.closeConstructionDemand(operation, occurrence, demand).groundKeys())
+            assertEquals(
+                setOf(a, b, leaf),
+                source.closeConstructionDemand(operation, occurrence, demand)
+                    .closedDemand
+                    .groundKeys(),
+            )
             assertEquals(listOf(leaf, b, a), ordering.order(linkedSetOf(a, b, leaf)))
-            assertEquals(emptySet(), source.closeConstructionDemand(operation, occurrence, selectionForestOf()).groundKeys())
+            assertEquals(
+                emptySet(),
+                source.closeConstructionDemand(operation, occurrence, selectionForestOf())
+                    .closedDemand
+                    .groundKeys(),
+            )
             assertEquals(emptyList(), ordering.order(emptySet()))
             assertEquals(listOf(leaf), ordering.order(setOf(leaf)))
         }
@@ -63,13 +210,13 @@ class ConstructionDemandClosureTest {
                 val path = listOf(boxes, ListEngineResult.Index.of(index))
                 val target = ObjectEngineResult.of(boxType, emptyMap())
                 val occurrence = OEROccurrence(root, path, target)
-                val closed =
+                val objectOER =
                     schema.objectOf("Box").closeConstructionDemand(
                         operation,
                         occurrence,
                         demand,
                     )
-                assertEquals(setOf(consumer, sibling), closed.groundKeys())
+                assertEquals(setOf(consumer, sibling), objectOER.closedDemand.groundKeys())
                 val variable =
                     Arguments.Variable
                         .of(consumer.field, "seed")
@@ -97,7 +244,12 @@ class ConstructionDemandClosureTest {
         val occurrence = OEROccurrence(root, emptyList(), root)
         val demand = schema.fragmentFrom("fragment F on Query { a }").subselections
 
-        assertEquals(setOf(key(world, "Query", "a")), source.closeConstructionDemand(operation, occurrence, demand).groundKeys())
+        assertEquals(
+            setOf(key(world, "Query", "a")),
+            source.closeConstructionDemand(operation, occurrence, demand)
+                .closedDemand
+                .groundKeys(),
+        )
     }
 
     @Test
@@ -123,7 +275,12 @@ class ConstructionDemandClosureTest {
             selectionForestOf(
                 Selection.of(errored, setOf(field.containingDef), selectionForestOf()),
             )
-        assertEquals(setOf(errored), source.closeConstructionDemand(operation, occurrence, errorDemand).groundKeys())
+        assertEquals(
+            setOf(errored),
+            source.closeConstructionDemand(operation, occurrence, errorDemand)
+                .closedDemand
+                .groundKeys(),
+        )
 
         val ordinaryDemand =
             schema.fragmentFrom("fragment F on Box { consumer(seed: 7) }").subselections
@@ -170,6 +327,7 @@ class ConstructionDemandClosureTest {
             setOf(errored),
             schema.objectOf("Box")
                 .closeConstructionDemand(operation, occurrence, demand)
+                .closedDemand
                 .groundKeys(),
         )
     }
@@ -225,4 +383,161 @@ class ConstructionDemandClosureTest {
                 }
                 """.trimIndent(),
         )
+
+    private fun queryClosureFixture(): TestWorld =
+        TestWorld.fromSDL(
+            schemaSDL =
+                """
+                type Query {
+                  entry: Int!
+                  objectOnly: Int!
+                  queryOnly: Int!
+                  shared: Int!
+                  transitive: Int!
+                  leaf: Int!
+                  checkedOwner: Int!
+                  checkedDependency: Int!
+                  rawOwner: Int!
+                  rawDependency: Int!
+                }
+                """.trimIndent(),
+            fieldResolvers = { schema ->
+                val empty = schema.emptyFragmentOf("Query")
+                val entry = schema.requireObjectField("Query", "entry")
+                val queryOnly = schema.requireObjectField("Query", "queryOnly")
+                val checkedOwner = schema.requireObjectField("Query", "checkedOwner")
+                val rawOwner = schema.requireObjectField("Query", "rawOwner")
+                listOf(
+                    "entry",
+                    "objectOnly",
+                    "queryOnly",
+                    "shared",
+                    "transitive",
+                    "leaf",
+                    "checkedOwner",
+                    "checkedDependency",
+                    "rawOwner",
+                    "rawDependency",
+                ).associate { fieldName ->
+                    val field = schema.requireObjectField("Query", fieldName)
+                    field to
+                        when (field) {
+                            entry ->
+                                fieldResolverOf(
+                                    objectFragment =
+                                        schema.fragmentFrom(
+                                            "fragment EntryObject on Query { objectOnly shared }",
+                                        ),
+                                    queryFragment =
+                                        schema.fragmentFrom(
+                                            "fragment EntryQuery on Query { queryOnly shared }",
+                                        ),
+                                ) { _, _, _ -> 1 }
+                            queryOnly ->
+                                fieldResolverOf(
+                                    objectFragment =
+                                        schema.fragmentFrom(
+                                            "fragment QueryOnlyObject on Query { shared }",
+                                        ),
+                                    queryFragment =
+                                        schema.fragmentFrom(
+                                            "fragment QueryOnlyQuery on Query { transitive }",
+                                        ),
+                                ) { _, _, _ -> 1 }
+                            checkedOwner ->
+                                fieldResolverOf(
+                                    schema.fragmentFrom(
+                                        "fragment CheckedOwner on Query { checkedDependency }",
+                                    ),
+                                ) { _, _ -> 1 }
+                            rawOwner ->
+                                fieldResolverOf(
+                                    schema.fragmentFrom(
+                                        "fragment RawOwner on Query { rawDependency }",
+                                    ),
+                                ) { _, _ -> 1 }
+                            else -> fieldResolverOf(empty) { _, _ -> 1 }
+                        }
+                }
+            },
+        )
+
+    private fun parentClosureFixture(): TestWorld =
+        TestWorld.fromSDL(
+            schemaSDL =
+                """
+                directive @parent on FIELD_DEFINITION
+
+                type Query {
+                  child: Child!
+                  lifted: Int!
+                  local: Int!
+                  queryInput: Int!
+                  transitive: Int!
+                }
+
+                type Child {
+                  parent: Query @parent
+                  result: Int!
+                }
+                """.trimIndent(),
+            fieldResolvers = { schema ->
+                val emptyQuery = schema.emptyFragmentOf("Query")
+                val child = schema.requireObjectField("Query", "child")
+                val lifted = schema.requireObjectField("Query", "lifted")
+                val local = schema.requireObjectField("Query", "local")
+                val queryInput = schema.requireObjectField("Query", "queryInput")
+                val transitive = schema.requireObjectField("Query", "transitive")
+                val result = schema.requireObjectField("Child", "result")
+                mapOf(
+                    child to
+                        fieldResolverOf(emptyQuery) { _, _ -> schema.objectOf("Child") },
+                    lifted to
+                        fieldResolverOf(
+                            objectFragment =
+                                schema.fragmentFrom("fragment LiftedObject on Query { local }"),
+                            queryFragment =
+                                schema.fragmentFrom(
+                                    "fragment LiftedQuery on Query { queryInput }",
+                                ),
+                        ) { _, _, _ -> 1 },
+                    local to fieldResolverOf(emptyQuery) { _, _ -> 1 },
+                    queryInput to
+                        fieldResolverOf(
+                            objectFragment = emptyQuery,
+                            queryFragment =
+                                schema.fragmentFrom(
+                                    "fragment QueryInput on Query { transitive }",
+                                ),
+                        ) { _, _, _ -> 1 },
+                    transitive to fieldResolverOf(emptyQuery) { _, _ -> 1 },
+                    result to
+                        fieldResolverOf(
+                            schema.fragmentFrom(
+                                "fragment ChildResult on Child { parent { lifted } }",
+                            ),
+                        ) { _, _ -> 1 },
+                )
+            },
+        )
+
+    private fun TestWorld.closeOrchestratorDemand(
+        initialDemand: OrchestratorConstructionDemand<model.SelectionForest>,
+    ): OrchestratorConstructionDemand<ObjectSelectionForest> {
+        val world = assumptions
+        val query = world.schema.requireQueryTypeDef()
+        val objectRoot = ObjectEngineResult.of(query, emptyMap())
+        val queryRoot = ObjectEngineResult.of(query, emptyMap())
+        return world.schema
+            .objectOf("Query")
+            .closeOrchestratorConstructionDemand(
+                operation = SharedOperationContext.create(world),
+                objectOccurrence = OEROccurrence(objectRoot, emptyList(), objectRoot),
+                queryOccurrence = OEROccurrence(queryRoot, emptyList(), queryRoot),
+                initialDemand = initialDemand,
+            )
+    }
+
+    private fun ObjectSelectionForest.fieldNames(): Set<String> =
+        groundKeys().mapTo(linkedSetOf()) { key -> key.field.name }
 }

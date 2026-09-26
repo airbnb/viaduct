@@ -3,13 +3,13 @@ package semantics.resolver26
 import model.Arguments
 import model.InclusionCondition
 import model.ObjectEngineResult
-import model.ObjectSelectionForest
 import model.SelectionForest
 import model.VariableBinding
 import model.registry.VariableDefinition
 import model.requireQueryTypeDef
 import model.schemaType
 import semantics.shared.OEROccurrence
+import semantics.shared.SharedOERContext
 import viaduct.engine.api.EngineObjectData
 
 /**
@@ -20,14 +20,14 @@ import viaduct.engine.api.EngineObjectData
  */
 internal class OrchestrationTask private constructor(
     operation: OperationContext,
-    occurrence: OEROccurrence,
-    source: EngineObjectData.Sync,
-) : CoroutineOrchestrationTask<OperationContext>(operation, occurrence, source) {
-    private lateinit var closed: ClosedConstructionDemandContext
+    objectOER: SharedOERContext,
+    private val closed: ClosedConstructionDemandContext,
+) : CoroutineOrchestrationTask<OperationContext>(operation, objectOER) {
     private var bindingDeclarationStarted = false
-    override val closedDemand: ObjectSelectionForest get() = closed.demand
 
     init {
+        val occurrence = objectOER.occurrence
+        val source = objectOER.source
         require(occurrence.root.type == operation.world.schema.requireQueryTypeDef()) {
             "Resolver26 occurrence root must have Query type"
         }
@@ -46,13 +46,18 @@ internal class OrchestrationTask private constructor(
             occurrence: OEROccurrence,
             source: EngineObjectData.Sync,
             initialDemand: SelectionForest,
-        ): OrchestrationTask =
-            OrchestrationTask(operation, occurrence, source).apply {
-                closed = source.closeConstructionDemand(operation.world, occurrence, initialDemand)
+        ): OrchestrationTask {
+            val closed = source.closeConstructionDemand(operation.world, occurrence, initialDemand)
+            return OrchestrationTask(
+                operation,
+                SharedOERContext(occurrence, source, closed.demand),
+                closed,
+            ).apply {
                 declareBindings()
                 occurrence.installParentBackedgeFields(operation, closed.demand.byKey().keys.filterIsInstance<ObjectEngineResult.ParentKey>())
                 operation.bindingsState.markBindingsDeclared(occurrence.target)
             }
+        }
     }
 
     override val hasActiveWork: Boolean
@@ -76,7 +81,7 @@ internal class OrchestrationTask private constructor(
             ) {
                 check(
                     objectKey is ObjectEngineResult.GroundKey &&
-                        occurrence.target.isCellSet(objectKey),
+                        objectOER.occurrence.target.isCellSet(objectKey),
                 ) {
                     "Resolver26 passive key $objectKey was not materialized by " +
                         "resolvePassiveValues"

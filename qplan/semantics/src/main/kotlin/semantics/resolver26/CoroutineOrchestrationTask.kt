@@ -1,11 +1,9 @@
 package semantics.resolver26
 
 import java.util.concurrent.atomic.AtomicBoolean
-import model.ObjectSelectionForest
-import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
+import semantics.shared.SharedOERContext
 import semantics.shared.SharedOrchestrationTask
-import viaduct.engine.api.EngineObjectData
 
 /**
  * Prepared object task with one-shot dispatch and synchronous field installation/freezing.
@@ -13,12 +11,9 @@ import viaduct.engine.api.EngineObjectData
  */
 internal abstract class CoroutineOrchestrationTask<O : SharedOperationContext<*>>(
     final override val operation: O,
-    final override val occurrence: OEROccurrence,
-    final override val source: EngineObjectData.Sync,
+    final override val objectOER: SharedOERContext,
 ) : SharedOrchestrationTask<O> {
     private val launched = AtomicBoolean(false)
-
-    abstract override val closedDemand: ObjectSelectionForest
 
     internal abstract val hasActiveWork: Boolean
 
@@ -32,13 +27,13 @@ internal abstract class CoroutineOrchestrationTask<O : SharedOperationContext<*>
 
     protected open fun duplicateDispatchException(): RuntimeException =
         IllegalArgumentException(
-            "Orchestration task at ${occurrence.path} was dispatched twice",
+            "Orchestration task at ${objectOER.occurrence.path} was dispatched twice",
         )
 
     /** Installs field tasks before sealing this object's field set. */
     internal fun run() {
         installFieldTasks()
-        occurrence.target.freeze()
+        objectOER.occurrence.target.freeze()
     }
 
     protected open fun validateDispatch() {}

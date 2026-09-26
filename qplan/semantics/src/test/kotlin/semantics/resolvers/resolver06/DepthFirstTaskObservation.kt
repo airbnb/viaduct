@@ -13,7 +13,7 @@ internal fun DepthFirstTask.toContractObservation(): ResolverTaskObservation =
     when (this) {
         is DepthFirstOrchestrationTask ->
             ResolverTaskObservation.SlotOrchestrator(
-                objectType = occurrence.target.type.name,
+                objectType = objectOER.occurrence.target.type.name,
                 path = path.toContractObservationPath(),
             )
 

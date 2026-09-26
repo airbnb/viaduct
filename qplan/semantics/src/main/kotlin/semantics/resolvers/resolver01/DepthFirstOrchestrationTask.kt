@@ -1,7 +1,6 @@
 package semantics.resolvers.resolver01
 
 import model.ObjectEngineResult
-import model.ObjectSelectionForest
 import model.PathComponent
 import model.RootFieldReferenceData
 import model.SelectionForest
@@ -10,6 +9,7 @@ import model.schemaType
 import semantics.resolvers.closeConstructionDemand
 import semantics.resolvers.GroundedFieldPublicationOccurrence
 import semantics.shared.OEROccurrence
+import semantics.shared.SharedOERContext
 import semantics.shared.SharedOrchestrationTask
 import viaduct.engine.api.EngineObjectData
 
@@ -22,19 +22,19 @@ internal sealed interface DepthFirstTask {
 /** Prepared grounded demand and active-field dispatch for Resolver01-03 and Resolver06-08. */
 internal class DepthFirstOrchestrationTask private constructor(
     override val operation: DepthFirstOperationContext,
-    override val occurrence: OEROccurrence,
-    override val source: EngineObjectData.Sync,
-    override val closedDemand: ObjectSelectionForest,
+    override val objectOER: SharedOERContext,
 ) : SharedOrchestrationTask<DepthFirstOperationContext>, DepthFirstTask {
-    override val path get() = occurrence.path
+    override val path get() = objectOER.occurrence.path
 
     /**
      * Dispatches source references first, then standard fields in sibling dependency order.
      * Recursive execution finishes each field's fringe here; a reactor leaves that to its queue.
      */
     fun run(resolveFringe: () -> Unit = {}) {
+        val occurrence = objectOER.occurrence
+        val source = objectOER.source
         val target = occurrence.target
-        val unresolved = closedDemand.byGroundKey().filterKeys { !target.isCellSet(it) }
+        val unresolved = objectOER.closedDemand.byGroundKey().filterKeys { !target.isCellSet(it) }
         val references = unresolved.keys.mapNotNull { key ->
             val reference = if (source.isPresent(key.field.name)) {
                 source.outputValue(key.field.name) as? RootFieldReferenceData
@@ -70,8 +70,12 @@ internal class DepthFirstOrchestrationTask private constructor(
             require(source.schemaType == occurrence.target.type) {
                 "Source type ${source.schemaType.name} does not match result type ${occurrence.target.type.name}"
             }
-            val closed = source.closeConstructionDemand(operation, occurrence, constructionDemand)
-            return DepthFirstOrchestrationTask(operation, occurrence, source, closed)
+            val objectOER =
+                source.closeConstructionDemand(operation, occurrence, constructionDemand)
+            return DepthFirstOrchestrationTask(
+                operation,
+                objectOER,
+            )
         }
     }
 }

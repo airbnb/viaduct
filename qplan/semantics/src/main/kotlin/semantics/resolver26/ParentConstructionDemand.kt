@@ -1,14 +1,17 @@
 package semantics.resolver26
 
 import model.Assumptions
+import model.InclusionCondition
 import model.ObjectEngineResult
 import model.ObjectSelection
 import model.Selection
 import model.SelectionForest
-import model.InclusionCondition
 import model.guardedBy
 import model.objectKey
 import model.selectionForestOf
+import semantics.shared.Demand
+import semantics.shared.guardedBy
+import semantics.shared.plus
 import viaduct.graphql.schema.ViaductSchema
 
 /**
@@ -23,8 +26,32 @@ internal fun SelectionForest.liftParentConstructionDemand(world: Assumptions): S
     if (world.parentFieldRelations.isEmpty()) {
         selectionForestOf()
     } else {
-        analyzeParentDemandInSelectionForest(world, mutableMapOf()).localDemand
+        findParentDemandInSelectionForest(
+            world,
+            ParentDemandContext(),
+            checked = true,
+        ).localDemand.values
     }
+
+/** Preserves checked and unchecked provenance while lifting additional parent demand. */
+internal fun Demand<SelectionForest>.liftParentConstructionDemand(
+    world: Assumptions,
+): Demand<SelectionForest> =
+    if (world.parentFieldRelations.isEmpty()) {
+        Demand.EMPTY
+    } else {
+        val context = ParentDemandContext()
+        (
+            checked.findParentDemandInSelectionForest(world, context, checked = true) +
+                unchecked.findParentDemandInSelectionForest(world, context, checked = false)
+        ).localDemand
+    }
+
+/** Memoization and cycle detection are local to one parent-demand computation. */
+private class ParentDemandContext {
+    val parentDemandByResolverField = mutableMapOf<ViaductSchema.ObjectField, ParentDemandAnalysis>()
+    val expandingResolverFields = mutableSetOf<ViaductSchema.ObjectField>()
+}
 
 /**
  * Intermediate result of lifting parent-induced demand through a selection tree.
@@ -35,24 +62,27 @@ internal fun SelectionForest.liftParentConstructionDemand(world: Assumptions): S
  * can transpose their demand onto the parent object.
  */
 private class ParentDemandAnalysis(
-    val localDemand: SelectionForest = selectionForestOf(),
+    val localDemand: Demand<SelectionForest> = Demand.EMPTY,
     val parentRequests: List<ParentRequest> = emptyList(),
+    val reusable: Boolean = true,
 ) {
     operator fun plus(other: ParentDemandAnalysis): ParentDemandAnalysis =
         ParentDemandAnalysis(
             localDemand = localDemand + other.localDemand,
             parentRequests = parentRequests + other.parentRequests,
+            reusable = reusable && other.reusable,
         )
 }
 
 private class ParentRequest(
     val parentField: ViaductSchema.ObjectField,
-    val demand: SelectionForest,
+    val demand: Demand<SelectionForest>,
 )
 
-private fun SelectionForest.analyzeParentDemandInSelectionForest(
+private fun SelectionForest.findParentDemandInSelectionForest(
     world: Assumptions,
-    parentDemandByResolverField: MutableMap<ViaductSchema.ObjectField, ParentDemandAnalysis>,
+    context: ParentDemandContext,
+    checked: Boolean,
 ): ParentDemandAnalysis {
     var result = ParentDemandAnalysis()
     forEach { selection ->
@@ -65,43 +95,64 @@ private fun SelectionForest.analyzeParentDemandInSelectionForest(
                     possibleTypes = setOf(type),
                     subselections = selection.subselections,
                     inclusionCondition = selection.inclusionCondition,
-                ).analyzeParentDemandInObjectSelection(world, parentDemandByResolverField)
+                ).findParentDemandInObjectSelection(
+                    world,
+                    context,
+                    checked,
+                )
         }
     }
     return result
 }
 
-private fun ObjectSelection.analyzeParentDemandInObjectSelection(
+private fun ObjectSelection.findParentDemandInObjectSelection(
     world: Assumptions,
-    parentDemandByResolverField: MutableMap<ViaductSchema.ObjectField, ParentDemandAnalysis>,
+    context: ParentDemandContext,
+    checked: Boolean,
 ): ParentDemandAnalysis {
     if (key is ObjectEngineResult.ParentKey) {
+        val parentDemand =
+            if (checked) {
+                Demand.checked(subselections.guardedBy(inclusionCondition))
+            } else {
+                Demand.unchecked(subselections.guardedBy(inclusionCondition))
+            }
         return ParentDemandAnalysis(
             parentRequests =
                 listOf(
                     ParentRequest(
                         key.field,
-                        subselections.guardedBy(inclusionCondition),
+                        parentDemand,
                     ),
                 ),
         )
     }
 
     val nested =
-        subselections.analyzeParentDemandInSelectionForest(world, parentDemandByResolverField)
-    var localDemand =
-        if (nested.localDemand.isEmpty()) {
+        subselections.findParentDemandInSelectionForest(
+            world,
+            context,
+            checked,
+        )
+    fun carryNestedDemand(demand: SelectionForest): SelectionForest =
+        if (demand.isEmpty()) {
             selectionForestOf()
         } else {
             selectionForestOf(
                 Selection.of(
                     key = key,
                     possibleTypes = possibleTypes,
-                    subselections = nested.localDemand,
+                    subselections = demand,
                     inclusionCondition = inclusionCondition,
                 ),
             )
         }
+    var localDemand =
+        Demand(
+            checked = carryNestedDemand(nested.localDemand.checked),
+            unchecked = carryNestedDemand(nested.localDemand.unchecked),
+        )
+    var reusable = nested.reusable
     val parentRequests = mutableListOf<ParentRequest>()
     nested.parentRequests.forEach { unguardedRequest ->
         val request =
@@ -110,33 +161,48 @@ private fun ObjectSelection.analyzeParentDemandInObjectSelection(
                 demand = unguardedRequest.demand.guardedBy(inclusionCondition),
             )
         if (world.parentFieldRelations[request.parentField] == key.field) {
-            val ancestor =
-                request.demand.analyzeParentDemandInSelectionForest(world, parentDemandByResolverField)
+            val ancestor = request.demand.findParentDemandInDemand(world, context)
             localDemand += request.demand + ancestor.localDemand
             parentRequests += ancestor.parentRequests
+            reusable = reusable && ancestor.reusable
         }
     }
-    val field = key.field
-    if (field in world.resolverRegistry) {
-        val resolverInput = field.fixedParentDemand(world, parentDemandByResolverField)
-        val guardedResolverInput = resolverInput.guardedBy(inclusionCondition)
-        localDemand += guardedResolverInput.localDemand
-        parentRequests += guardedResolverInput.parentRequests
-    }
-    return ParentDemandAnalysis(localDemand, parentRequests)
+    val fixedInputs = key.field.findParentDemandInResolverObjectFragment(world, context)
+    val guardedFixedInputs = fixedInputs.guardedBy(inclusionCondition)
+    localDemand += guardedFixedInputs.localDemand
+    parentRequests += guardedFixedInputs.parentRequests
+    reusable = reusable && guardedFixedInputs.reusable
+    return ParentDemandAnalysis(localDemand, parentRequests, reusable)
 }
 
-private fun ViaductSchema.ObjectField.fixedParentDemand(
+private fun Demand<SelectionForest>.findParentDemandInDemand(
     world: Assumptions,
-    parentDemandByResolverField: MutableMap<ViaductSchema.ObjectField, ParentDemandAnalysis>,
+    context: ParentDemandContext,
 ): ParentDemandAnalysis =
-    parentDemandByResolverField[this]
-        ?: world.resolverRegistry
+    checked.findParentDemandInSelectionForest(world, context, checked = true) +
+        unchecked.findParentDemandInSelectionForest(world, context, checked = false)
+
+private fun ViaductSchema.ObjectField.findParentDemandInResolverObjectFragment(
+    world: Assumptions,
+    context: ParentDemandContext,
+): ParentDemandAnalysis {
+    if (this !in world.resolverRegistry) return ParentDemandAnalysis()
+    context.parentDemandByResolverField[this]?.let { return it }
+    if (!context.expandingResolverFields.add(this)) {
+        return ParentDemandAnalysis(reusable = false)
+    }
+    val result = try {
+        world.resolverRegistry
             .resolver(this)
             .objectFragment
             .withoutInclusionConditions()
-            .analyzeParentDemandInSelectionForest(world, parentDemandByResolverField)
-            .also { demand -> parentDemandByResolverField[this] = demand }
+            .findParentDemandInSelectionForest(world, context, checked = true)
+    } finally {
+        context.expandingResolverFields.remove(this)
+    }
+    if (result.reusable) context.parentDemandByResolverField[this] = result
+    return result
+}
 
 private fun ParentDemandAnalysis.guardedBy(
     condition: InclusionCondition,
@@ -150,6 +216,7 @@ private fun ParentDemandAnalysis.guardedBy(
                     demand = request.demand.guardedBy(condition),
                 )
             },
+        reusable = reusable,
     )
 
 /** Fixed descendant demand is lifted before occurrence-local condition bindings can exist. */
