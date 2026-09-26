@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.engine.runtime.execution
 
 import graphql.schema.GraphQLObjectType
@@ -8,6 +10,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.Mat
 import viaduct.engine.runtime.mat.MatLedger
@@ -31,8 +34,12 @@ import viaduct.engine.runtime.result.ObjectEngineResult
  * unreserved keys in parallel, then waits for the overlapping materializations to complete.
  *
  * @param mat The ledger calls this value when it needs to load missing fields.
+ * @param fieldValueReader reads each field while walking down to the object at a [MatPath].
  */
-internal class MatLedgerImpl(private val mat: Mat) : MatLedger {
+internal class MatLedgerImpl(
+    private val mat: Mat,
+    private val fieldValueReader: MaterializedFieldValueReader,
+) : MatLedger {
     /**
      * Guards the ledger's materialization state.
      *
@@ -197,15 +204,18 @@ internal class MatLedgerImpl(private val mat: Mat) : MatLedger {
     }
 
     /**
-     * Resolves the source object that covers a field at a member path.
+     * Finds the object to read [key] from.
      *
-     * @param path is the path to the object being read.
-     * @param key is the terminal field instance that must be covered by the resolved source.
+     * The ledger can hold several results for its root object; this uses one that includes [key].
+     * Throws if that result failed.
+     *
+     * @param path is the path from the ledger's root object to the object that holds [key].
+     * @param key is the field to read.
      */
     override suspend fun resolveSource(
         path: MatPath,
         key: ObjectEngineResult.Key,
-    ): EngineObjectData? {
+    ): MatLedger.Source {
         val snapshot = state
         val expectedRootType = snapshot.rootType ?: path.rootType
         requireMaterializedType(path.rootType, expectedRootType)
@@ -218,7 +228,7 @@ internal class MatLedgerImpl(private val mat: Mat) : MatLedger {
             "no mat result of $mat covers key `$key` at path ${path.segments.map { it.key }}"
         }
 
-        var source: Any? = matResult.source.getOrThrow() ?: return null
+        var source: Any? = matResult.source.getOrThrow() ?: return MatLedger.Source.Resolved(null)
         var expectedType = expectedRootType
         for (segment in path.segments) {
             val eod = requireMaterializedNotNull(source as? EngineObjectData) {
@@ -226,7 +236,9 @@ internal class MatLedgerImpl(private val mat: Mat) : MatLedger {
                     "at `${segment.key.responseKey}`, found ${source?.let { it::class.simpleName }}"
             }
             requireMaterializedType(eod, expectedType)
-            source = eod.fetchOrNull(segment.key.name)
+            val read = fieldValueReader.read(eod, segment.key.name, segment.key.responseKey)
+            if (read.fieldIsMissing) return MatLedger.Source.Missing
+            source = read.value
             for (index in segment.indices) {
                 val list = requireMaterializedNotNull(source as? List<*>) {
                     "mat result of $mat diverged: expected list at `${segment.key.responseKey}`"
@@ -239,7 +251,7 @@ internal class MatLedgerImpl(private val mat: Mat) : MatLedger {
                 }
                 source = list[index]
             }
-            if (source == null) return null
+            if (source == null) return MatLedger.Source.Resolved(null)
             expectedType = segment.type
         }
         val eod = requireMaterializedNotNull(source as? EngineObjectData) {
@@ -247,7 +259,7 @@ internal class MatLedgerImpl(private val mat: Mat) : MatLedger {
                 "found ${source?.let { it::class.simpleName }}"
         }
         requireMaterializedType(eod, expectedType)
-        return eod
+        return MatLedger.Source.Resolved(eod)
     }
 
     private fun requireMaterializedType(

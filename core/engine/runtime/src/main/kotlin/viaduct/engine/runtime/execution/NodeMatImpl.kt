@@ -5,6 +5,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.NodeEngineObjectData
+import viaduct.engine.runtime.EngineExecutionContextExtensions.materializedFieldValueReader
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.Mat
 import viaduct.engine.runtime.mat.MatResult
@@ -94,6 +95,7 @@ internal class NodeMatImpl(
             schema = selectionParameters.engineExecutionContext.activeSchema.schema,
             selections = outputKeyTree,
             filter = outputSelectionSetFilter,
+            fieldValueReader = selectionParameters.engineExecutionContext.materializedFieldValueReader,
         )
         // Launched work may re-enter the ledger while this result is being recorded.
         launch(selectionParameters, matPlan, matKeyTree)

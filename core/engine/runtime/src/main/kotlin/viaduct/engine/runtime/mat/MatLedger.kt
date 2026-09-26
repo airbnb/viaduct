@@ -18,18 +18,27 @@ interface MatLedger {
     )
 
     /**
-     * Resolves the backing source object at the provided path for a covered field.
+     * Finds the object to read [key] from.
      *
-     * A null result means the covered materialization resolved successfully to null. Failed
-     * materialization results throw when read.
+     * The ledger can hold several results for its root object; this uses one that includes [key].
+     * Throws if that result failed.
      *
-     * @param path is the path to the object being read.
-     * @param key is the terminal field instance that must be covered by the resolved source.
+     * @param path is the path from the ledger's root object to the object that holds [key].
+     * @param key is the field to read.
      */
     suspend fun resolveSource(
         path: MatPath,
         key: ObjectEngineResult.Key,
-    ): EngineObjectData?
+    ): Source
+
+    /** The result of [resolveSource]: the object to read from, or why there isn't one. */
+    sealed interface Source {
+        /** [data] is the object to read from, or null when an object on the path is null. */
+        data class Resolved(val data: EngineObjectData?) : Source
+
+        /** A field on the path is missing from the result, as opposed to being null. */
+        data object Missing : Source
+    }
 
     /**
      * Returns the selection subtree that is available at a path.

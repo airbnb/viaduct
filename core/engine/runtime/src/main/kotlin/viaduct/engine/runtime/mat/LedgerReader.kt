@@ -38,8 +38,12 @@ internal sealed interface LedgerReader {
 
         override suspend fun read(key: ObjectEngineResult.Key): ReadResult {
             intrinsicRootNodeId(key)?.let { return ReadResult(it, fieldIsMissing = false) }
-            val source = ledger.resolveSource(path, key)
-                ?: return ReadResult(value = null, fieldIsMissing = false)
+            val source = when (val resolved = ledger.resolveSource(path, key)) {
+                MatLedger.Source.Missing -> return ReadResult(value = null, fieldIsMissing = true)
+                is MatLedger.Source.Resolved ->
+                    resolved.data
+                        ?: return ReadResult(value = null, fieldIsMissing = false)
+            }
             return fieldValueReader.read(source, key.name, key.responseKey)
         }
 

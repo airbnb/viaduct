@@ -3,6 +3,7 @@ package viaduct.engine.runtime.execution
 import kotlinx.coroutines.CancellationException
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.runtime.EngineExecutionContextExtensions.materializedFieldValueReader
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.KeyTreeFilter
 import viaduct.engine.runtime.mat.Mat
@@ -103,6 +104,7 @@ internal class FieldMatImpl(
             schema = selectionParameters.engineExecutionContext.activeSchema.schema,
             selections = requestedCoverage,
             filter = outputSelectionSetFilter,
+            fieldValueReader = selectionParameters.engineExecutionContext.materializedFieldValueReader,
         )
         return MatResult(
             coverage = requestedCoverage + returnedCoverage,

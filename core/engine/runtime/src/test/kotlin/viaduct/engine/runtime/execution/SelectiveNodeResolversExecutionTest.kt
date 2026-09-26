@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.engine.runtime.execution
 
 import io.kotest.property.Arb
@@ -42,6 +44,7 @@ import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.NodeEngineObjectData
+import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
@@ -53,6 +56,7 @@ import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
+import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.runtime.invocationContextFor
 import viaduct.graphql.test.assertMatches
 import viaduct.service.api.ExecutionInput
@@ -62,6 +66,16 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.service.api.spi.mocks.MockFlagManager
 
 class SelectiveNodeResolversExecutionTest {
+    private val barWithY = MaterializedFieldValueReader { source, fieldName, responseKey ->
+        val read = MaterializedFieldValueReader.Default.read(source, fieldName, responseKey)
+        val bar = read.value
+        if (source.type.name == "Foo" && fieldName == "bar" && bar is EngineObjectData) {
+            read.copy(value = ResolvedEngineObjectData(bar.type, mapOf("y" to 5)))
+        } else {
+            read
+        }
+    }
+
     @Nested
     inner class BasicExecutionTests {
         @Test
@@ -1425,6 +1439,44 @@ class SelectiveNodeResolversExecutionTest {
             }.runFeatureTest {
                 runQueryWithTimeout("{ foo { x z } }")
                     .assertJson("{data: {foo: {x: 6, z: 1}}}")
+            }
+
+            assertEquals(1, fooCalls.get())
+        }
+
+        @Test
+        fun `configured reader supplies returned coverage and path reads`() {
+            val fooCalls = AtomicInteger()
+
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { foo: Foo }
+                    type Foo implements Node { id: ID!, x: Int, bar: Bar }
+                    type Bar { y: Int }
+                """.trimIndent()
+            ) {
+                field("Query" to "foo") {
+                    valueFromContext { it.createNodeReference("foo", objectType("Foo")) }
+                }
+
+                field("Foo" to "x") {
+                    resolver {
+                        objectSelections("bar { y }")
+                        fn { _, obj, _, _, _ ->
+                            obj.fetchAs<EngineObjectData>("bar").fetchAs<Int>("y") * 3
+                        }
+                    }
+                }
+
+                type("Foo") {
+                    nodeUnbatchedExecutor(selective = true) { _, _, _ ->
+                        fooCalls.incrementAndGet()
+                        createEngineObjectData(objectType, mapOf("bar" to createEngineObjectData("Bar", emptyMap())))
+                    }
+                }
+            }.runFeatureTest(engineConfig = EngineConfiguration.featureTestDefault.copy(materializedFieldValueReader = barWithY)) {
+                runQueryWithTimeout("{ foo { x } }")
+                    .assertJson("{data: {foo: {x: 15}}}")
             }
 
             assertEquals(1, fooCalls.get())

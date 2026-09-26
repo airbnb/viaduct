@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport")
+@file:Suppress("ForbiddenImport", "DEPRECATION")
 
 package viaduct.engine.runtime.execution
 
@@ -63,6 +63,7 @@ import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest as runEngineFeatureTest
 import viaduct.engine.api.spi.FieldSelectivityProvider
+import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.runtime.dfe.engineExecutionContext
 import viaduct.graphql.test.assertMatches
 import viaduct.service.api.ExecutionInput
@@ -1060,6 +1061,46 @@ class SelectiveFieldResolversExecutionTest {
             }.runFeatureTest {
                 runQueryWithTimeout("{ foo { x } }")
                     .assertJson("{data: {foo: {x: 6}}}")
+            }
+
+            assertEquals(1, fooCalls.get())
+        }
+
+        @Test
+        fun `configured reader supplies returned coverage and path reads`() {
+            val fooCalls = AtomicInteger()
+
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { foo:Foo }
+                    type Foo { x:Int, bar:Bar }
+                    type Bar { y:Int }
+                """.trimIndent()
+            ) {
+                field("Query" to "foo") {
+                    resolverExecutor {
+                        MockFieldUnbatchedResolverExecutor(
+                            isSelective = true,
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { _, _, _, _, _ ->
+                                fooCalls.incrementAndGet()
+                                createEngineObjectData("Foo", mapOf("bar" to emptyMap<String, Any?>()))
+                            }
+                        )
+                    }
+                }
+
+                field("Foo" to "x") {
+                    resolver {
+                        objectSelections("bar { y }")
+                        fn { _, obj, _, _, _ ->
+                            obj.fetchAs<EngineObjectData>("bar").fetchAs<Int>("y") * 3
+                        }
+                    }
+                }
+            }.runFeatureTest(EngineConfiguration.featureTestDefault.copy(materializedFieldValueReader = barWithY)) {
+                runQueryWithTimeout("{ foo { x } }")
+                    .assertJson("{data: {foo: {x: 15}}}")
             }
 
             assertEquals(1, fooCalls.get())
@@ -3898,6 +3939,16 @@ class SelectiveFieldResolversExecutionTest {
                 runQueryWithTimeout("{ foo { x } }")
                     .assertJson("{data: {foo: {x: 3}}}")
             }
+        }
+    }
+
+    private val barWithY = MaterializedFieldValueReader { source, fieldName, responseKey ->
+        val read = MaterializedFieldValueReader.Default.read(source, fieldName, responseKey)
+        val bar = read.value
+        if (source.type.name == "Foo" && fieldName == "bar" && bar is EngineObjectData) {
+            read.copy(value = ResolvedEngineObjectData(bar.type, mapOf("y" to 5)))
+        } else {
+            read
         }
     }
 

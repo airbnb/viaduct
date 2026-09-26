@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.engine.runtime.execution
 
 import graphql.schema.GraphQLCompositeType
@@ -5,8 +7,10 @@ import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLTypeUtil
+import java.util.IdentityHashMap
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeEngineObjectData
+import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.KeyTreeFilter
 import viaduct.engine.runtime.mat.KeyTreeFilter.Result.DROP
@@ -15,19 +19,23 @@ import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_WITHOUT_CHILDREN
 import viaduct.engine.runtime.result.ObjectEngineResult
 
 /**
- * Converts returned object data to the selections it satisfies.
+ * Lists the fields that this materialized [EngineObjectData] contains, so later reads know whether
+ * they can reuse it.
  *
- * The returned data identifies fields by schema name. [selections] supplies the exact aliases and
- * arguments for fields requested from this materialization. A returned field absent from
- * [selections] can be represented only when it has no arguments. [filter] drops fields outside the
- * resolver's output selection set and stops traversal below them.
+ * The data only says which fields are present, by schema name. Each recorded field also needs its
+ * alias and arguments, so those are copied from the matching request in [selections], the fields
+ * the engine asked the resolver for. Object fields are read through [fieldValueReader], once per
+ * alias.
+ *
+ * @param filter drops fields outside the resolver's output selection set, and everything below them.
  */
 internal suspend fun EngineObjectData?.toKeyTree(
     schema: GraphQLSchema,
     selections: KeyTree,
     filter: KeyTreeFilter,
+    fieldValueReader: MaterializedFieldValueReader,
 ): KeyTree =
-    EngineObjectDataKeyTreeBuilder(schema, filter)
+    EngineObjectDataKeyTreeBuilder(schema, filter, fieldValueReader)
         .build(
             data = this,
             selections = selections,
@@ -37,6 +45,7 @@ internal suspend fun EngineObjectData?.toKeyTree(
 private class EngineObjectDataKeyTreeBuilder(
     private val schema: GraphQLSchema,
     private val outputSelectionSetFilter: KeyTreeFilter,
+    private val fieldValueReader: MaterializedFieldValueReader,
 ) {
     suspend fun build(
         data: EngineObjectData?,
@@ -64,23 +73,28 @@ private class EngineObjectDataKeyTreeBuilder(
             val decisions = returnedSelections.mapValues { (key, _) ->
                 outputSelectionSetFilter(type, key, atOutputSelectionSetRoot)
             }
-            val recursiveSelections = returnedSelections.filterKeys { decisions[it] == KEEP_AND_RECURSE }
-            val returnedSubtree =
-                if (recursiveSelections.isNotEmpty() && GraphQLTypeUtil.unwrapAll(fieldDefinition.type) is GraphQLCompositeType) {
-                    buildValue(
-                        value = data.fetchOrNull(fieldName),
-                        selections = recursiveSelections.values.fold(KeyTree.empty, KeyTree::plus),
-                    )
-                } else {
-                    KeyTree.empty
-                }
+            val isComposite = GraphQLTypeUtil.unwrapAll(fieldDefinition.type) is GraphQLCompositeType
+            // Aliases that get the same object share one walk, using all of their requested fields.
+            val keysByValue = IdentityHashMap<Any?, MutableList<ObjectEngineResult.Key>>()
 
             for ((key, decision) in decisions) {
                 when (decision) {
                     DROP -> continue
                     KEEP_WITHOUT_CHILDREN -> returnedFields[key] = KeyTree.empty
-                    KEEP_AND_RECURSE -> returnedFields[key] = returnedSubtree
+                    KEEP_AND_RECURSE -> {
+                        if (!isComposite) {
+                            returnedFields[key] = KeyTree.empty
+                            continue
+                        }
+                        val read = fieldValueReader.read(data, key.name, key.responseKey)
+                        if (read.fieldIsMissing) continue
+                        keysByValue.getOrPut(read.value) { mutableListOf() } += key
+                    }
                 }
+            }
+            for ((value, keys) in keysByValue) {
+                val subtree = buildValue(value, keys.map(returnedSelections::getValue).fold(KeyTree.empty, KeyTree::plus))
+                keys.forEach { returnedFields[it] = subtree }
             }
         }
 

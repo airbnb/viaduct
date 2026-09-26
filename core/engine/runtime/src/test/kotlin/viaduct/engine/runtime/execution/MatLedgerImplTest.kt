@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport")
+@file:Suppress("ForbiddenImport", "DEPRECATION")
 
 package viaduct.engine.runtime.execution
 
@@ -28,8 +28,10 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.graphql.asViaductSchema
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.Mat
+import viaduct.engine.runtime.mat.MatLedger
 import viaduct.engine.runtime.mat.MatPath
 import viaduct.engine.runtime.mat.MatPath.Segment
 import viaduct.engine.runtime.mat.MatResult
@@ -49,7 +51,7 @@ class MatLedgerImplTest {
         @Test
         fun `returns top-level field values`(): Unit =
             runBlocking {
-                val ledger = MatLedgerImpl(Mat.Null)
+                val ledger = newLedger(Mat.Null)
                 ledger.initialize(
                     KeyTree.build(schema) {
                         field(foo.name, key("a"))
@@ -64,7 +66,7 @@ class MatLedgerImplTest {
         @Test
         fun `returns nested field values`(): Unit =
             runBlocking {
-                val ledger = MatLedgerImpl(Mat.Null)
+                val ledger = newLedger(Mat.Null)
                 val tree = KeyTree.build(schema) {
                     field(foo.name, key("bar")) {
                         field(bar.name, key("x"))
@@ -86,7 +88,7 @@ class MatLedgerImplTest {
         @Test
         fun `returns initialized node id without invoking mat`(): Unit =
             runBlocking {
-                val ledger = MatLedgerImpl { _, _ -> error("unused") }
+                val ledger = newLedger { _, _ -> error("unused") }
                 ledger.initialize(
                     KeyTree.build(schema) {
                         field(foo.name, key("id"))
@@ -102,7 +104,7 @@ class MatLedgerImplTest {
         @Test
         fun `returns initialized __typename without invoking mat`(): Unit =
             runBlocking {
-                val ledger = MatLedgerImpl { _, _ -> error("unused") }
+                val ledger = newLedger { _, _ -> error("unused") }
                 ledger.initialize(
                     KeyTree.build(schema) {
                         field(foo.name, key("__typename"))
@@ -118,7 +120,7 @@ class MatLedgerImplTest {
         @Test
         fun `returns list values`(): Unit =
             runBlocking {
-                val ledger = MatLedgerImpl(Mat.Null)
+                val ledger = newLedger(Mat.Null)
                 val tree = KeyTree.build(schema) {
                     field(foo.name, key("bar")) {
                         field(bar.name, key("x"))
@@ -161,7 +163,7 @@ class MatLedgerImplTest {
                         field(bar.name, key("b"))
                     }
                 }
-                val ledger = MatLedgerImpl(
+                val ledger = newLedger(
                     successfulMat(
                         ResolvedEngineObjectData(
                             foo,
@@ -211,7 +213,7 @@ class MatLedgerImplTest {
                         field(bar.name, key("b"))
                     }
                 }
-                val ledger = MatLedgerImpl(
+                val ledger = newLedger(
                     successfulMat(
                         ResolvedEngineObjectData(
                             foo,
@@ -247,7 +249,7 @@ class MatLedgerImplTest {
         @Test
         fun `throws when no Mat covers the field`(): Unit =
             runBlocking {
-                val ledger = MatLedgerImpl(Mat.Null)
+                val ledger = newLedger(Mat.Null)
                 ledger.initialize(
                     KeyTree.build(schema) {
                         field(foo.name, key("a"))
@@ -256,7 +258,7 @@ class MatLedgerImplTest {
                 )
 
                 val err = assertThrows<RuntimeException> {
-                    ledger.resolveSource(mkMatPath(foo), key("b"))
+                    ledger.sourceAt(mkMatPath(foo), key("b"))
                 }
 
                 assertTrue(err.message?.contains("Key(name='b'") == true) {
@@ -267,7 +269,7 @@ class MatLedgerImplTest {
         @Test
         fun `returns null when a covered result source is null`(): Unit =
             runBlocking {
-                val ledger = MatLedgerImpl(Mat.Null)
+                val ledger = newLedger(Mat.Null)
                 ledger.initialize(
                     KeyTree.build(schema) {
                         field(foo.name, key("a"))
@@ -275,7 +277,7 @@ class MatLedgerImplTest {
                     null,
                 )
 
-                val source = ledger.resolveSource(mkMatPath(foo), key("a"))
+                val source = ledger.sourceAt(mkMatPath(foo), key("a"))
 
                 assertEquals(null, source)
             }
@@ -283,7 +285,7 @@ class MatLedgerImplTest {
         @Test
         fun `throws when a list index is out of range`(): Unit =
             runBlocking {
-                val ledger = MatLedgerImpl(Mat.Null)
+                val ledger = newLedger(Mat.Null)
                 val tree = KeyTree.build(schema) {
                     field(foo.name, key("bar")) {
                         field(bar.name, key("x"))
@@ -295,7 +297,7 @@ class MatLedgerImplTest {
                     ResolvedEngineObjectData(foo, mapOf("bar" to emptyList<EngineObjectData>()))
                 )
                 val err = assertThrows<RuntimeException> {
-                    ledger.resolveSource(path, key("x"))
+                    ledger.sourceAt(path, key("x"))
                 }
                 assertTrue(err.message?.contains("has 0 items") == true)
             }
@@ -303,7 +305,7 @@ class MatLedgerImplTest {
         @Test
         fun `returns null when a value in traversal path is null`(): Unit =
             runBlocking {
-                val ledger = MatLedgerImpl(Mat.Null)
+                val ledger = newLedger(Mat.Null)
                 ledger.initialize(
                     KeyTree.build(schema) {
                         field(foo.name, key("bar")) {
@@ -313,7 +315,7 @@ class MatLedgerImplTest {
                     ResolvedEngineObjectData(foo, mapOf("bar" to null))
                 )
 
-                val source = ledger.resolveSource(
+                val source = ledger.sourceAt(
                     mkMatPath(
                         foo,
                         mkMatSegment(bar, "bar")
@@ -325,10 +327,85 @@ class MatLedgerImplTest {
             }
 
         @Test
+        fun `reports missing when a field on the path is missing`(): Unit =
+            runBlocking {
+                val ledger = newLedger(Mat.Null)
+                ledger.initialize(
+                    KeyTree.build(schema) {
+                        field(foo.name, key("bar")) {
+                            field(bar.name, key("x"))
+                        }
+                    },
+                    ResolvedEngineObjectData(foo, emptyMap()),
+                )
+
+                val source = ledger.resolveSource(mkMatPath(foo, mkMatSegment(bar, "bar")), key("x"))
+
+                assertEquals(MatLedger.Source.Missing, source)
+            }
+
+        @Test
+        fun `custom reader traverses aliased objects and list elements`(): Unit =
+            runBlocking {
+                val objectKey = key("bar", alias = "selectedObject")
+                val listKey = key("bars", alias = "selectedList")
+                val objectValue = ResolvedEngineObjectData(bar, mapOf("x" to "object"))
+                val listValue = ResolvedEngineObjectData(bar, mapOf("x" to "list"))
+                val source = ResolvedEngineObjectData(
+                    foo,
+                    mapOf(
+                        "selectedObject" to objectValue,
+                        "selectedList" to listOf(null, listValue),
+                    ),
+                )
+                val ledger = MatLedgerImpl(
+                    Mat.Null,
+                    MaterializedFieldValueReader { data, _, responseKey ->
+                        MaterializedFieldValueReader.ReadResult(data.fetch(responseKey), fieldIsMissing = false)
+                    },
+                )
+                ledger.initialize(
+                    KeyTree.build(schema) {
+                        field(foo.name, objectKey) { field(bar.name, key("x")) }
+                        field(foo.name, listKey) { field(bar.name, key("x")) }
+                    },
+                    source,
+                )
+
+                assertSame(objectValue, ledger.sourceAt(mkMatPath(foo, mkMatSegment(bar, objectKey)), key("x")))
+                assertSame(
+                    listValue,
+                    ledger.sourceAt(mkMatPath(foo, mkMatSegment(bar, listKey, indices = listOf(1))), key("x")),
+                )
+            }
+
+        @Test
+        fun `custom reader reports a missing field on the path as missing`(): Unit =
+            runBlocking {
+                val barKey = key("bar", alias = "selected")
+                val ledger = MatLedgerImpl(
+                    Mat.Null,
+                    MaterializedFieldValueReader { _, _, _ ->
+                        MaterializedFieldValueReader.ReadResult(null, fieldIsMissing = true)
+                    },
+                )
+                ledger.initialize(
+                    KeyTree.build(schema) {
+                        field(foo.name, barKey) { field(bar.name, key("x")) }
+                    },
+                    ResolvedEngineObjectData(foo, mapOf("bar" to ResolvedEngineObjectData(bar, mapOf("x" to "X")))),
+                )
+
+                val source = ledger.resolveSource(mkMatPath(foo, mkMatSegment(bar, barKey)), key("x"))
+
+                assertEquals(MatLedger.Source.Missing, source)
+            }
+
+        @Test
         fun `propagates Mat exceptions without wrapping`(): Unit =
             runBlocking {
                 val failure = RuntimeException("mat exploded")
-                val ledger = MatLedgerImpl { _, _ -> throw failure }
+                val ledger = newLedger { _, _ -> throw failure }
 
                 val thrown = assertThrows<RuntimeException> {
                     ledger.ensureCoverage(
@@ -346,7 +423,7 @@ class MatLedgerImplTest {
         fun `failed MatResults throw on covered reads`(): Unit =
             runBlocking {
                 val failure = RuntimeException("mat result failed")
-                val ledger = MatLedgerImpl { tree, _ ->
+                val ledger = newLedger { tree, _ ->
                     MatResult(tree, Result.failure(failure))
                 }
 
@@ -358,7 +435,7 @@ class MatLedgerImplTest {
                 )
 
                 val thrown = assertThrows<RuntimeException> {
-                    ledger.resolveSource(mkMatPath(foo), key("name"))
+                    ledger.sourceAt(mkMatPath(foo), key("name"))
                 }
 
                 assertSame(failure, thrown)
@@ -368,7 +445,7 @@ class MatLedgerImplTest {
         fun `failed MatResults do not poison already covered fields`(): Unit =
             runBlocking {
                 val failure = RuntimeException("mat result failed")
-                val ledger = MatLedgerImpl { tree, _ ->
+                val ledger = newLedger { tree, _ ->
                     MatResult(tree, Result.failure(failure))
                 }
                 ledger.initialize(
@@ -388,7 +465,7 @@ class MatLedgerImplTest {
 
                 assertEquals("A", ledger.fetchField(mkMatPath(foo), "a"))
                 val thrown = assertThrows<RuntimeException> {
-                    ledger.resolveSource(mkMatPath(foo), key("b"))
+                    ledger.sourceAt(mkMatPath(foo), key("b"))
                 }
                 assertSame(failure, thrown)
             }
@@ -402,7 +479,7 @@ class MatLedgerImplTest {
                     field(foo.name, secondKey)
                 }
                 val matCalls = AtomicInteger()
-                val ledger = MatLedgerImpl { coverage, _ ->
+                val ledger = newLedger { coverage, _ ->
                     matCalls.incrementAndGet()
                     MatResult(
                         coverage,
@@ -417,7 +494,7 @@ class MatLedgerImplTest {
                 )
                 ledger.ensureCoverage(secondCoverage, testParameters())
 
-                val source = checkNotNull(ledger.resolveSource(mkMatPath(foo), secondKey))
+                val source = checkNotNull(ledger.sourceAt(mkMatPath(foo), secondKey))
 
                 assertEquals(1, matCalls.get())
                 assertEquals("second", source.fetch("value"))
@@ -435,7 +512,7 @@ class MatLedgerImplTest {
                     }
                 }
                 val matCalls = AtomicInteger()
-                val ledger = MatLedgerImpl { coverage, _ ->
+                val ledger = newLedger { coverage, _ ->
                     matCalls.incrementAndGet()
                     MatResult(
                         coverage,
@@ -471,7 +548,7 @@ class MatLedgerImplTest {
                 ledger.ensureCoverage(secondCoverage, testParameters())
 
                 val source = checkNotNull(
-                    ledger.resolveSource(
+                    ledger.sourceAt(
                         mkMatPath(foo, mkMatSegment(bar, secondPathKey)),
                         valueKey,
                     )
@@ -492,7 +569,7 @@ class MatLedgerImplTest {
                 }
                 val source = ResolvedEngineObjectData(foo, mapOf("a" to "A"))
                 val matCalls = AtomicInteger()
-                val ledger = MatLedgerImpl { tree, _ ->
+                val ledger = newLedger { tree, _ ->
                     matCalls.incrementAndGet()
                     MatResult(tree, Result.success(source))
                 }
@@ -513,7 +590,7 @@ class MatLedgerImplTest {
                     field(foo.name, key("a"))
                 }
                 val source = ResolvedEngineObjectData(foo, mapOf("a" to "A"))
-                val ledger = MatLedgerImpl { tree, _ ->
+                val ledger = newLedger { tree, _ ->
                     matCalls.incrementAndGet()
                     MatResult(tree, Result.success(source))
                 }
@@ -548,7 +625,7 @@ class MatLedgerImplTest {
                         "value" to "surplus",
                     ),
                 )
-                val ledger = MatLedgerImpl { tree, _ ->
+                val ledger = newLedger { tree, _ ->
                     matCalls.incrementAndGet()
                     MatResult(tree, Result.success(source))
                 }
@@ -560,14 +637,14 @@ class MatLedgerImplTest {
                 assertEquals(selected + surplus, ledger.subtreeAt(mkMatPath(foo)))
                 assertEquals(
                     "surplus",
-                    checkNotNull(ledger.resolveSource(mkMatPath(foo), surplusKey)).fetch("value"),
+                    checkNotNull(ledger.sourceAt(mkMatPath(foo), surplusKey)).fetch("value"),
                 )
             }
 
         @Test
         fun `initialization is at most once`(): Unit =
             runBlocking {
-                val ledger = MatLedgerImpl(Mat.Null)
+                val ledger = newLedger(Mat.Null)
                 val coverage = KeyTree.build(schema) {
                     field(foo.name, key("a"))
                 }
@@ -585,7 +662,7 @@ class MatLedgerImplTest {
                     field(foo.name, key("a"))
                 }
                 val matCalls = AtomicInteger()
-                val ledger = MatLedgerImpl { tree, _ ->
+                val ledger = newLedger { tree, _ ->
                     matCalls.incrementAndGet()
                     delay(10.milliseconds)
                     MatResult(
@@ -619,7 +696,7 @@ class MatLedgerImplTest {
                 val secondStarted = CompletableDeferred<Unit>()
                 val requestedShapes = mutableListOf<KeyTree>()
                 val matCalls = AtomicInteger()
-                val ledger = MatLedgerImpl { tree, _ ->
+                val ledger = newLedger { tree, _ ->
                     requestedShapes += tree
                     when (matCalls.incrementAndGet()) {
                         1 -> {
@@ -680,7 +757,7 @@ class MatLedgerImplTest {
                 val thirdStarted = CompletableDeferred<Unit>()
                 val requestedShapes = mutableListOf<KeyTree>()
                 val matCalls = AtomicInteger()
-                val ledger = MatLedgerImpl { tree, _ ->
+                val ledger = newLedger { tree, _ ->
                     requestedShapes += tree
                     when (matCalls.incrementAndGet()) {
                         1 -> {
@@ -740,7 +817,7 @@ class MatLedgerImplTest {
                 val firstStarted = CompletableDeferred<Unit>()
                 val releaseFirst = CompletableDeferred<Unit>()
                 val matCalls = AtomicInteger()
-                val ledger = MatLedgerImpl { tree, _ ->
+                val ledger = newLedger { tree, _ ->
                     if (matCalls.incrementAndGet() == 1) {
                         firstStarted.complete(Unit)
                         releaseFirst.await()
@@ -785,7 +862,7 @@ class MatLedgerImplTest {
                 }
                 val firstStarted = CompletableDeferred<Unit>()
                 val matCalls = AtomicInteger()
-                val ledger = MatLedgerImpl { tree, _ ->
+                val ledger = newLedger { tree, _ ->
                     if (matCalls.incrementAndGet() == 1) {
                         firstStarted.complete(Unit)
                         awaitCancellation()
@@ -828,7 +905,7 @@ class MatLedgerImplTest {
                     field(foo.name, key("a"))
                 }
                 val matCalls = AtomicInteger()
-                val ledger = MatLedgerImpl { tree, _ ->
+                val ledger = newLedger { tree, _ ->
                     matCalls.incrementAndGet()
                     currentCoroutineContext().cancel(CancellationException("owner cancelled"))
                     MatResult(
@@ -862,7 +939,7 @@ class MatLedgerImplTest {
                 val firstStarted = CompletableDeferred<Unit>()
                 val releaseFirst = CompletableDeferred<Unit>()
                 val matCalls = AtomicInteger()
-                val ledger = MatLedgerImpl { tree, _ ->
+                val ledger = newLedger { tree, _ ->
                     matCalls.incrementAndGet()
                     firstStarted.complete(Unit)
                     releaseFirst.await()
@@ -899,7 +976,7 @@ class MatLedgerImplTest {
                 }
                 val matCalls = AtomicInteger()
                 lateinit var ledger: MatLedgerImpl
-                ledger = MatLedgerImpl { tree, selectionHandle ->
+                ledger = newLedger { tree, selectionHandle ->
                     matCalls.incrementAndGet()
                     ledger.ensureCoverage(KeyTree.empty, selectionHandle)
                     MatResult(
@@ -939,7 +1016,7 @@ class MatLedgerImplTest {
                 )
                 val matCalls = AtomicInteger()
                 lateinit var ledger: MatLedgerImpl
-                ledger = MatLedgerImpl { tree, _ ->
+                ledger = newLedger { tree, _ ->
                     if (matCalls.incrementAndGet() == 1) {
                         ledger.ensureCoverage(nested, nestedParameters)
                     }
@@ -976,7 +1053,7 @@ class MatLedgerImplTest {
                     field(foo.name, key("a"))
                     field(foo.name, key("b"))
                 }
-                val ledger = MatLedgerImpl(Mat.Null)
+                val ledger = newLedger(Mat.Null)
                 ledger.initialize(initialCoverage, null)
 
                 assertEquals(initialCoverage, ledger.subtreeAt(mkMatPath(foo)))
@@ -985,7 +1062,7 @@ class MatLedgerImplTest {
         @Test
         fun `empty`(): Unit =
             runBlocking {
-                val subtree = MatLedgerImpl(Mat.Null)
+                val subtree = newLedger(Mat.Null)
                     .subtreeAt(MatPath(foo))
                 assertEquals(KeyTree.empty, subtree)
             }
@@ -993,7 +1070,7 @@ class MatLedgerImplTest {
         @Test
         fun `simple`(): Unit =
             runBlocking {
-                val ledger = MatLedgerImpl(Mat.Null)
+                val ledger = newLedger(Mat.Null)
                 val coverage = KeyTree.build(schema) {
                     field(foo.name, key("a"))
                 }
@@ -1010,7 +1087,7 @@ class MatLedgerImplTest {
                         field(bar.name, key("b"))
                     }
                 }
-                val ledger = MatLedgerImpl(
+                val ledger = newLedger(
                     successfulMat(
                         ResolvedEngineObjectData(
                             foo,
@@ -1052,7 +1129,7 @@ class MatLedgerImplTest {
                         field(bar.name, key("y"))
                     }
                 }
-                val ledger = MatLedgerImpl(
+                val ledger = newLedger(
                     successfulMat(
                         ResolvedEngineObjectData(
                             foo,
@@ -1124,12 +1201,23 @@ class MatLedgerImplTest {
         arguments: Map<String, Any?> = emptyMap(),
     ): ObjectEngineResult.Key = ObjectEngineResult.Key(name, alias, arguments)
 
+    private fun newLedger(mat: Mat): MatLedgerImpl = MatLedgerImpl(mat, MaterializedFieldValueReader.Default)
+
+    private suspend fun MatLedgerImpl.sourceAt(
+        path: MatPath,
+        key: ObjectEngineResult.Key,
+    ): EngineObjectData? =
+        when (val source = resolveSource(path, key)) {
+            is MatLedger.Source.Resolved -> source.data
+            MatLedger.Source.Missing -> error("Unexpected missing source at $path")
+        }
+
     private fun successfulMat(source: EngineObjectData?): Mat = Mat { coverage, _ -> MatResult(coverage, Result.success(source)) }
 
     private suspend fun MatLedgerImpl.fetchField(
         path: MatPath,
         fieldName: String
-    ): Any? = checkNotNull(resolveSource(path, key(fieldName))).fetch(fieldName)
+    ): Any? = checkNotNull(sourceAt(path, key(fieldName))).fetch(fieldName)
 
     private suspend fun MatLedgerImpl.initialize(
         coverage: KeyTree,

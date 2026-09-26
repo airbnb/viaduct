@@ -39,7 +39,7 @@ class LedgerReaderTest {
                     arguments = mapOf("x" to 1),
                 )
             val reader = LedgerReader(
-                MockLedger { _, _ -> error("Unexpected source resolution") },
+                resolvingLedger { _, _ -> error("Unexpected source resolution") },
                 MatPath(rootType),
                 KeyTree.build(schema) {
                     field(rootType.name, selectedKey)
@@ -63,7 +63,7 @@ class LedgerReaderTest {
                 listOf(MatPath.Segment(childType, childKey)),
             )
             val reader = LedgerReader(
-                MockLedger { _, _ -> error("Unexpected source resolution") },
+                resolvingLedger { _, _ -> error("Unexpected source resolution") },
                 path,
                 KeyTree.build(schema) {
                     field(rootType.name, childKey) {
@@ -87,7 +87,7 @@ class LedgerReaderTest {
                 val rootType = schema.objectType("Root")
                 val path = MatPath(rootType)
                 val key = ObjectEngineResult.Key("name", alias = "displayName")
-                val ledger = MockLedger { _, _ ->
+                val ledger = resolvingLedger { _, _ ->
                     ResolvedEngineObjectData(
                         rootType,
                         mapOf("name" to "Ada"),
@@ -116,7 +116,7 @@ class LedgerReaderTest {
                 val rootType = schema.objectType("Root")
                 val key = ObjectEngineResult.Key("value", alias = "selected", arguments = mapOf("x" to 2))
                 val source = ResolvedEngineObjectData(rootType, mapOf("value" to "requested"))
-                val ledger = MockLedger { _, requestedKey ->
+                val ledger = resolvingLedger { _, requestedKey ->
                     assertEquals(key, requestedKey)
                     source
                 }
@@ -143,7 +143,7 @@ class LedgerReaderTest {
                 val missing = ObjectEngineResult.Key("missing")
                 val source = ResolvedEngineObjectData(rootType, mapOf("present" to null))
                 val reader = LedgerReader(
-                    MockLedger { _, _ -> source },
+                    resolvingLedger { _, _ -> source },
                     MatPath(rootType),
                     KeyTree.build(schema) {
                         field(rootType.name, present)
@@ -164,7 +164,7 @@ class LedgerReaderTest {
                 val path = MatPath(rootType)
                 val aliasedKey = ObjectEngineResult.Key("displayName", alias = "id")
                 val schemaFieldKey = ObjectEngineResult.Key("id")
-                val ledger = MockLedger { _, key ->
+                val ledger = resolvingLedger { _, key ->
                     when (key) {
                         aliasedKey -> ResolvedEngineObjectData(
                             rootType,
@@ -205,7 +205,7 @@ class LedgerReaderTest {
                         alias = "selected",
                         arguments = mapOf("x" to 2),
                     )
-                val ledger = MockLedger { _, requestedKey ->
+                val ledger = resolvingLedger { _, requestedKey ->
                     ResolvedEngineObjectData(
                         rootType,
                         mapOf("value" to requestedKey.arguments.getValue("x")),
@@ -236,7 +236,7 @@ class LedgerReaderTest {
                     rootType,
                     listOf(MatPath.Segment(childType, childKey)),
                 )
-                val ledger = MockLedger { _, _ ->
+                val ledger = resolvingLedger { _, _ ->
                     ResolvedEngineObjectData(
                         childType,
                         mapOf("name" to "Ada"),
@@ -264,7 +264,7 @@ class LedgerReaderTest {
                 val rootType = schema.objectType("Root")
                 val path = MatPath(rootType)
                 val key = ObjectEngineResult.Key("name")
-                val ledger = MockLedger { _, _ -> null }
+                val ledger = resolvingLedger { _, _ -> null }
                 val reader = LedgerReader(
                     ledger,
                     path,
@@ -276,6 +276,25 @@ class LedgerReaderTest {
 
                 assertEquals(null, reader.fetchOrNull(key))
                 assertEquals(listOf(MockLedger.Request(path, key)), ledger.resolveSourceRequests)
+            }
+
+        @Test
+        fun `reports a missing source without reading the field`() =
+            runTest {
+                val schema = "type Root { name: String }".asViaductSchema
+                val rootType = schema.objectType("Root")
+                val path = MatPath(rootType)
+                val key = ObjectEngineResult.Key("name")
+                val reader = LedgerReader(
+                    MockLedger { _, _ -> MatLedger.Source.Missing },
+                    path,
+                    KeyTree.build(schema) {
+                        field(rootType.name, key)
+                    },
+                    fieldValueReader = MaterializedFieldValueReader { _, _, _ -> error("Unexpected field read") },
+                )
+
+                assertEquals(ReadResult(null, fieldIsMissing = true), reader.read(key))
             }
     }
 
@@ -310,7 +329,7 @@ class LedgerReaderTest {
                 val schema = "type Root { id: ID }".asViaductSchema
                 val rootType = schema.objectType("Root")
                 val key = ObjectEngineResult.Key("id", alias = "nodeId")
-                val ledger = MockLedger { _, _ -> error("Unexpected source resolution") }
+                val ledger = resolvingLedger { _, _ -> error("Unexpected source resolution") }
                 val reader = LedgerReader(
                     ledger,
                     MatPath(rootType),
@@ -331,7 +350,7 @@ class LedgerReaderTest {
                 val rootType = schema.objectType("Root")
                 val path = MatPath(rootType)
                 val key = ObjectEngineResult.Key("displayName", alias = "id")
-                val ledger = MockLedger { _, _ ->
+                val ledger = resolvingLedger { _, _ ->
                     ResolvedEngineObjectData(
                         rootType,
                         mapOf("displayName" to "display name"),
@@ -366,7 +385,7 @@ class LedgerReaderTest {
                     rootType,
                     listOf(MatPath.Segment(childType, childKey)),
                 )
-                val ledger = MockLedger { _, _ ->
+                val ledger = resolvingLedger { _, _ ->
                     ResolvedEngineObjectData(
                         childType,
                         mapOf("id" to "Child:1"),
@@ -391,8 +410,10 @@ class LedgerReaderTest {
 
     private fun EngineSchema.objectType(name: String): GraphQLObjectType = schema.getObjectType(name)!!
 
+    private fun resolvingLedger(sourceFor: (MatPath, ObjectEngineResult.Key) -> EngineObjectData?): MockLedger = MockLedger { path, key -> MatLedger.Source.Resolved(sourceFor(path, key)) }
+
     private class MockLedger(
-        private val sourceFor: (MatPath, ObjectEngineResult.Key) -> EngineObjectData? = { _, _ -> null },
+        private val sourceFor: (MatPath, ObjectEngineResult.Key) -> MatLedger.Source,
     ) : MatLedger {
         data class Request(
             val path: MatPath,
@@ -409,7 +430,7 @@ class LedgerReaderTest {
         override suspend fun resolveSource(
             path: MatPath,
             key: ObjectEngineResult.Key,
-        ): EngineObjectData? {
+        ): MatLedger.Source {
             resolveSourceRequests += Request(path, key)
             return sourceFor(path, key)
         }

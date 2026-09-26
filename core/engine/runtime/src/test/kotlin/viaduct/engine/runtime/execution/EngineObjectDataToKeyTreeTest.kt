@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.engine.runtime.execution
 
 import graphql.schema.GraphQLObjectType
@@ -8,6 +10,7 @@ import org.junit.jupiter.api.Test
 import viaduct.arbitrary.graphql.asViaductSchema
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.NodeEngineObjectDataImpl
 import viaduct.engine.runtime.mat.KeyTree
@@ -346,6 +349,170 @@ class EngineObjectDataToKeyTreeTest {
                 )
 
                 assertTree(expected, source, selections)
+            }
+        }
+
+        @Test
+        fun `aliases are credited only with children their own value returned`() {
+            Fixture("type Foo { bar:Bar } type Bar { x:Int y:Int }") {
+                val selections = tree {
+                    field("Foo", key("bar", alias = "a")) {
+                        field("Bar", key("x"))
+                    }
+                    field("Foo", key("bar", alias = "b")) {
+                        field("Bar", key("y"))
+                    }
+                }
+                val expected = tree {
+                    field("Foo", key("bar", alias = "a")) {
+                        field("Bar", key("x"))
+                    }
+                    field("Foo", key("bar", alias = "b")) {
+                        field("Bar", key("y"))
+                    }
+                }
+                val source = data(
+                    foo,
+                    "bar" to data(bar, "x" to 1, "y" to 2),
+                    "a" to data(bar, "x" to 1),
+                    "b" to data(bar, "y" to 2),
+                )
+
+                assertTree(expected, source, selections, fieldValueReader = readByResponseKey)
+            }
+        }
+
+        @Test
+        fun `aliases that read the same object share argument children`() {
+            Fixture("type Foo { bar:Bar } type Bar { x(n:Int):Int y:Int }") {
+                val selections = tree {
+                    field("Foo", key("bar", alias = "a")) {
+                        field("Bar", key("y"))
+                    }
+                    field("Foo", key("bar", alias = "b")) {
+                        field("Bar", key("x", arguments = mapOf("n" to 2)))
+                    }
+                }
+                val expected = tree {
+                    field("Foo", key("bar", alias = "a")) {
+                        field("Bar", key("y"))
+                        field("Bar", key("x", arguments = mapOf("n" to 2)))
+                    }
+                    field("Foo", key("bar", alias = "b")) {
+                        field("Bar", key("y"))
+                        field("Bar", key("x", arguments = mapOf("n" to 2)))
+                    }
+                }
+                val source = data(
+                    foo,
+                    "bar" to data(bar, "y" to 1, "x" to 2),
+                )
+
+                assertTree(expected, source, selections)
+            }
+        }
+
+        @Test
+        fun `aliases are not credited with children only their siblings requested`() {
+            Fixture("type Foo { bar:Bar } type Bar { x(n:Int):Int y:Int }") {
+                val selections = tree {
+                    field("Foo", key("bar", alias = "a")) {
+                        field("Bar", key("y"))
+                    }
+                    field("Foo", key("bar", alias = "b")) {
+                        field("Bar", key("x", arguments = mapOf("n" to 2)))
+                    }
+                }
+                val source = data(
+                    foo,
+                    "bar" to data(bar, "y" to 1, "x" to 2),
+                    "a" to data(bar, "y" to 1, "x" to 99),
+                    "b" to data(bar, "x" to 2),
+                )
+
+                assertTree(selections, source, selections, fieldValueReader = readByResponseKey)
+            }
+        }
+
+        @Test
+        fun `aliases are not credited with aliased scalars only their siblings requested`() {
+            Fixture("type Foo { bar:Bar } type Bar { x:Int }") {
+                val selections = tree {
+                    field("Foo", key("bar", alias = "a")) {
+                        field("Bar", key("x", alias = "p"))
+                    }
+                    field("Foo", key("bar", alias = "b")) {
+                        field("Bar", key("x", alias = "q"))
+                    }
+                }
+                val source = data(
+                    foo,
+                    "bar" to data(bar, "x" to 2, "q" to 2),
+                    "a" to data(bar, "x" to 1, "p" to 1),
+                    "b" to data(bar, "x" to 2, "q" to 2),
+                )
+
+                assertTree(selections, source, selections, fieldValueReader = readByResponseKey)
+            }
+        }
+
+        @Test
+        fun `aliases that read the same object walk it once`() {
+            Fixture("type Foo { bar:Bar } type Bar { x:Int y:Int }") {
+                val selections = tree {
+                    field("Foo", key("bar", alias = "a")) {
+                        field("Bar", key("x"))
+                    }
+                    field("Foo", key("bar", alias = "b")) {
+                        field("Bar", key("y"))
+                    }
+                }
+                var walks = 0
+                val shared = object : EngineObjectData by data(bar, "x" to 1, "y" to 2) {
+                    override suspend fun fetchSelections(): Iterable<String> {
+                        walks++
+                        return listOf("x", "y")
+                    }
+                }
+                val expected = tree {
+                    field("Foo", key("bar", alias = "a")) {
+                        field("Bar", key("x"))
+                        field("Bar", key("y"))
+                    }
+                    field("Foo", key("bar", alias = "b")) {
+                        field("Bar", key("x"))
+                        field("Bar", key("y"))
+                    }
+                }
+
+                assertTree(expected, data(foo, "bar" to shared), selections)
+                assertEquals(1, walks)
+            }
+        }
+
+        @Test
+        fun `alias the reader reports missing is dropped`() {
+            Fixture("type Foo { bar:Bar } type Bar { x:Int }") {
+                val selections = tree {
+                    field("Foo", key("bar", alias = "a")) {
+                        field("Bar", key("x"))
+                    }
+                    field("Foo", key("bar", alias = "b")) {
+                        field("Bar", key("x"))
+                    }
+                }
+                val expected = tree {
+                    field("Foo", key("bar", alias = "a")) {
+                        field("Bar", key("x"))
+                    }
+                }
+                val source = data(
+                    foo,
+                    "bar" to data(bar, "x" to 1),
+                    "a" to data(bar, "x" to 1),
+                )
+
+                assertTree(expected, source, selections, fieldValueReader = readByResponseKey)
             }
         }
 
@@ -798,6 +965,13 @@ class EngineObjectDataToKeyTreeTest {
             get() = objectType("Foo")
         val bar: GraphQLObjectType
             get() = objectType("Bar")
+        val readByResponseKey: MaterializedFieldValueReader
+            get() = MaterializedFieldValueReader { data, _, responseKey ->
+                MaterializedFieldValueReader.ReadResult(
+                    value = data.fetchOrNull(responseKey),
+                    fieldIsMissing = responseKey !in data.fetchSelections(),
+                )
+            }
 
         init {
             test.invoke(this)
@@ -854,6 +1028,7 @@ class EngineObjectDataToKeyTreeTest {
             data: EngineObjectData?,
             selections: KeyTree = KeyTree.empty,
             filter: KeyTreeFilter = KeyTreeFilter.KeepAll,
+            fieldValueReader: MaterializedFieldValueReader = MaterializedFieldValueReader.Default,
         ) = runTest {
             assertEquals(
                 expected,
@@ -861,6 +1036,7 @@ class EngineObjectDataToKeyTreeTest {
                     schema = schema.schema,
                     selections = selections,
                     filter = filter,
+                    fieldValueReader = fieldValueReader,
                 ),
             )
         }

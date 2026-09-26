@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.engine.runtime.execution
 
 import graphql.execution.CoercedVariables
@@ -7,6 +9,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.runtime.MatSource
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.mat.KeyTree
@@ -28,7 +31,7 @@ class MatParametersTest {
             "Query" to "x",
             "{ x }",
         )
-        val ledger = MatLedgerImpl(Mat.Null)
+        val ledger = MatLedgerImpl(Mat.Null, MaterializedFieldValueReader.Default)
 
         val result = createAtRoot(
             parameters = parameters,
@@ -281,7 +284,7 @@ class MatParametersTest {
     private fun createAtRoot(
         parameters: ExecutionParameters,
         terminalShape: KeyTree = KeyTree.empty,
-        ledger: MatLedger = MatLedgerImpl(Mat.Null),
+        ledger: MatLedger = MatLedgerImpl(Mat.Null, MaterializedFieldValueReader.Default),
         matFilter: KeyTreeFilter = KeyTreeFilter.KeepAll,
         rootNodeId: String? = null,
     ): MatParameters {
@@ -309,7 +312,7 @@ class MatParametersTest {
         val queryType = schema.schema.queryType
         var objectResult = ObjectEngineResultImpl.newForType(
             queryType,
-            MatSource.Ledger(MatLedgerImpl(Mat.Null)),
+            MatSource.Ledger(MatLedgerImpl(Mat.Null, MaterializedFieldValueReader.Default)),
         )
 
         for (segment in segments) {

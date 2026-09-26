@@ -947,7 +947,7 @@ class FieldResolver(
                 )
             },
         )
-        val ledger = MatLedgerImpl(mat)
+        val ledger = MatLedgerImpl(mat, parameters.engineExecutionContext.materializedFieldValueReader)
         ledger.initialize(mat.resultFromInitialFetch(effectiveData))
         return MatSource.Ledger(ledger, ossFilter, fieldResolutionPolicy = resolutionPolicy)
     }
@@ -1066,7 +1066,7 @@ class FieldResolver(
                 launchMatPlan(selectionParameters, materializationPlan, keyTree)
             },
         )
-        val ledger = MatLedgerImpl(mat)
+        val ledger = MatLedgerImpl(mat, parameters.engineExecutionContext.materializedFieldValueReader)
         val matSource = MatSource.Ledger(ledger, outputSelectionSetFilter, reference.id)
         val engineResult = ObjectEngineResultImpl.newPendingForType(fieldType, matSource)
         val deferred = CompletableDeferred<ObjectEngineResultImpl>()

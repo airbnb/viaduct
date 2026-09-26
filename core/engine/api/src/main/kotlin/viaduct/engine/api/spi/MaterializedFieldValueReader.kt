@@ -12,6 +12,9 @@ fun interface MaterializedFieldValueReader {
      * [source] already comes from the materialization that fetched the field with the requested
      * arguments, so the field is identified by name and response key alone.
      *
+     * All field reads from materialized data go through here, so an object-typed field must be
+     * returned as [EngineObjectData], or a list of it.
+     *
      * @param source the object data that holds the field.
      * @param fieldName the field's name in the schema.
      * @param responseKey the field's alias, or [fieldName] if it has none. For `displayName: name`,
