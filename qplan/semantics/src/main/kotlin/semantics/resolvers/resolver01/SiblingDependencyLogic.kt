@@ -42,7 +42,7 @@ internal class SiblingDependencyLogic(
                 "and has no registered resolver"
         }
         return unresolved.filter { sibling ->
-            sibling != consumer && demandsFromSibling(consumer, sibling)
+            demandsFromSibling(consumer, sibling)
         }.toSet()
     }
 

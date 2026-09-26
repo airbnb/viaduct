@@ -949,6 +949,66 @@ class ResolverDemandTest {
     }
 
     @Test
+    fun `rejects direct Query-fragment resolver recursion`() {
+        val exception =
+            assertFailsWith<IllegalArgumentException> {
+                TestWorld.fromSDL(
+                    schemaSDL = "type Query { value: Int! }",
+                    fieldResolvers = { schema ->
+                        val value = schema.requireObjectField("Query", "value")
+                        mapOf(
+                            value to
+                                fieldResolverOf(
+                                    objectFragment = schema.emptyFragmentOf("Query"),
+                                    queryFragment =
+                                        schema.fragmentFrom(
+                                            "fragment ValueQuery on Query { value }",
+                                        ),
+                                ) { _, _, _ -> error("Not invoked") },
+                        )
+                    },
+                )
+            }
+
+        assertTrue(exception.message!!.contains("demand cycle"))
+    }
+
+    @Test
+    fun `rejects mutual Query-fragment resolver recursion`() {
+        val exception =
+            assertFailsWith<IllegalArgumentException> {
+                TestWorld.fromSDL(
+                    schemaSDL = "type Query { first: Int!, second: Int! }",
+                    fieldResolvers = { schema ->
+                        val first = schema.requireObjectField("Query", "first")
+                        val second = schema.requireObjectField("Query", "second")
+                        val empty = schema.emptyFragmentOf("Query")
+                        mapOf(
+                            first to
+                                fieldResolverOf(
+                                    objectFragment = empty,
+                                    queryFragment =
+                                        schema.fragmentFrom(
+                                            "fragment FirstQuery on Query { second }",
+                                        ),
+                                ) { _, _, _ -> error("Not invoked") },
+                            second to
+                                fieldResolverOf(
+                                    objectFragment = empty,
+                                    queryFragment =
+                                        schema.fragmentFrom(
+                                            "fragment SecondQuery on Query { first }",
+                                        ),
+                                ) { _, _, _ -> error("Not invoked") },
+                        )
+                    },
+                )
+            }
+
+        assertTrue(exception.message!!.contains("demand cycle"))
+    }
+
+    @Test
     fun `statically excluded demand does not form a resolver cycle`() {
         val world =
             TestWorld.fromSDL(

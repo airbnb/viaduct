@@ -43,18 +43,26 @@ Current validation evidence is:
   failures or skips.
 - Grounded closure, Resolver01/06 compatibility, sibling-ordering, and the seed-1 generated
   Query-fragment profiles for Resolver02/03/07/08 pass: 64 tests, no failures or skips.
+- The shared-exact-key/distinct-owner-projection contract passes in all seven fragment-capable
+  families: Resolver02/03/07/08 under singular ownership and Resolver22/23/26 under the existing
+  independent ownership policy.
+- The final focused Resolver01–08 acceptance run passed 295 tests with two expected skips: the
+  selective Query-side witness is inapplicable to complete-output Resolver02/07. It included all six
+  Resolver01–08 contract classes, the six sibling-dependency tests, and seed-1 Query-fragment
+  generated profiles for Resolver02/03/07/08.
 - An unseeded full `./gradlew check` passed before the final `ObjectEngineResult.materializeInput`
   refactor. The exact current tree has not yet had the final seeded full check.
 
-Before advancing to Resolver21–23, close these directed evidence gaps:
+Steps 1–4 are acceptance-complete. The three directed gaps are closed:
 
-1. Add a shared-exact-key test whose owners use genuinely different aliases/materialization shapes,
-   proving one producer and two owner-local projections.
-2. Add a selective Resolver03/08 witness that asserts exact successor demand for Query-side
-   invocations and rejects undemanded output or duplicate application.
-3. Add depth-first Query-scope cycle tests: direct or mutual exact-key recursion where constructible,
-   different arguments as a non-cycle, and a mixed object-/Query-fragment dependency cycle. Static
-   registry rejection is useful but does not replace the narrowest attainable runtime/order test.
+1. Two owners use different aliases and nested materialization shapes over one exact Query key, with
+   one producer in singular families and no projection leakage.
+2. Resolver03/08 prove that a Query-side selective producer is invoked once with exact transitive
+   successor demand; undemanded output is neither requested nor resolved.
+3. Query-side sibling ordering retains exact self-edges and rejects direct exact-key and mixed
+   object-/Query-fragment cycles, while keeping different argument keys distinct. Runtime-only cycle
+   fixtures are assembled by replacing a resolver after ordinary registry validation rather than
+   weakening the registry's conservative static cycle check.
 
 Then continue the original sequence with Resolver21–23, Resolver26, deliberate reference/nested
 object coverage, documentation, and broad validation. Do not run the opt-in stress suites until the
@@ -268,13 +276,13 @@ Revisit `DepthFirstQueryFringeOrderingContract`. It currently proves that an ind
 
 Resolver01 shares the modified recursive task implementation but does not support nonempty Query fragments. Its full contract is a compatibility check: the optimistically allocated Query OER must remain undemanded and its ordinary object orchestration must remain unchanged.
 
-### 3. Add Resolver03 selective successor demand — implemented, directed witness pending
+### 3. Add Resolver03 selective successor demand — acceptance complete
 
 Once Resolver02 passes, run the same shared Query-fragment contract through Resolver03. This should be a small semantic step because Resolver03 shares the recursive orchestration and field-task implementation.
 
 The specific new concern is selective resolution. Successor demand must be computed for resolver invocations on both the object OER and the associated Query OER, including transitive Query-side invocations discovered during joint closure. Assert that combining those invocations does not lose required successor demand, activate undemanded output, or duplicate a resolver application. Retain Resolver03's selective output and one-shot witness expectations.
 
-### 4. Carry the implementation to Resolver06–08 — implemented, directed witness pending
+### 4. Carry the implementation to Resolver06–08 — acceptance complete
 
 Next apply the proven recursive semantics to the explicit depth-first task/reactor family. Resolver06 is a compatibility baseline only: like Resolver01, it does not support nonempty Query fragments but shares the task machinery and must preserve the no-Query-demand path. Resolver07 should match Resolver02's complete-output Query-fragment behavior, and Resolver08 should match Resolver03's selective successor-demand behavior.
 

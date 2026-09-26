@@ -20,8 +20,10 @@ import model.testing.fieldResolverOf
 import model.testing.fromArgument
 import model.testing.selectiveFieldResolverOf
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotSame
 import viaduct.graphql.schema.ViaductSchema
 
 /** Root-field-reference behavior common to every maintained resolver capability tier. */
@@ -298,11 +300,12 @@ interface RootFieldReferenceResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
 
-        val result =
-            resolveAndValidate(
+        val resolution =
+            resolveAndValidateObserved(
                 world,
                 "query { container { product { value extension } products { value } } }",
             )
+        val result = resolution.result
         val container =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "container")).get(),
@@ -323,6 +326,21 @@ interface RootFieldReferenceResolverContract : ResolverContract {
         assertEquals(2, secondApplications.get())
         assertEquals(0, unusedApplications.get())
         assertEquals(0, overriddenApplications.get())
+        val referenceInvocations =
+            (resolution.operation.resolverObserver as CorrectnessResolverObserver)
+                .rootFieldReferenceInvocations()
+        assertEquals(3, referenceInvocations.size)
+        referenceInvocations.forEach { invocation ->
+            assertNotSame(invocation.publicationRoot, invocation.invocationRoot)
+        }
+        referenceInvocations.indices.forEach { left ->
+            ((left + 1)..<referenceInvocations.size).forEach { right ->
+                assertNotSame(
+                    referenceInvocations[left].invocationRoot,
+                    referenceInvocations[right].invocationRoot,
+                )
+            }
+        }
     }
 }
 
@@ -522,7 +540,7 @@ interface ObjectFragmentRootFieldReferenceResolverContract : ResolverContract {
 }
 
 /** Reference targets inherit the Query-fragment and `FromArgument` capability tier. */
-interface QueryFragmentRootFieldReferenceResolverContract : ResolverContract {
+interface QueryFragmentRootFieldReferenceResolverContract : QueryFragmentResolverContract {
     @Test
     fun `binds referenced arguments consumed by the target Query fragment`() {
         val testWorld =
@@ -604,6 +622,84 @@ interface QueryFragmentRootFieldReferenceResolverContract : ResolverContract {
             )
 
         assertEquals("value-7", product.getCell(world.schema.contractKey("Product", "value")).get())
+    }
+
+    @Test
+    fun `referenced Query execution uses singular sharing internally`() {
+        assumeTrue(usesSingularQueryOER)
+        val sourceApplications = AtomicInteger()
+        val testWorld =
+            TestWorld.fromSDL(
+                selectiveResolvers = selectiveResolvers,
+                schemaSDL =
+                    """
+                    type Query {
+                      container: Container!
+                      target: Int!
+                      first: Int!
+                      second: Int!
+                      source: Int!
+                    }
+
+                    type Container {
+                      value: Int!
+                    }
+                    """.trimIndent(),
+                fieldResolvers = { schema ->
+                    val container = schema.requireObjectField("Query", "container")
+                    val target = schema.requireObjectField("Query", "target")
+                    val first = schema.requireObjectField("Query", "first")
+                    val second = schema.requireObjectField("Query", "second")
+                    val source = schema.requireObjectField("Query", "source")
+                    val sourceQuery =
+                        schema.fragmentFrom("fragment SourceQuery on Query { value: source }")
+                    mapOf(
+                        container to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.objectOf("Container") {
+                                    "value" setTo
+                                        RootFieldReferenceData.of(listOf(target), emptyMap())
+                                }
+                            },
+                        target to
+                            fieldResolverOf(
+                                objectFragment = schema.emptyFragmentOf("Query"),
+                                queryFragment =
+                                    schema.fragmentFrom(
+                                        "fragment TargetQuery on Query { first second }",
+                                    ),
+                            ) { _, queryValue, _ ->
+                                queryValue.outputValue("first") as Int +
+                                    queryValue.outputValue("second") as Int
+                            },
+                        first to
+                            fieldResolverOf(
+                                objectFragment = schema.emptyFragmentOf("Query"),
+                                queryFragment = sourceQuery,
+                            ) { _, queryValue, _ -> queryValue.outputValue("value") },
+                        second to
+                            fieldResolverOf(
+                                objectFragment = schema.emptyFragmentOf("Query"),
+                                queryFragment = sourceQuery,
+                            ) { _, queryValue, _ -> queryValue.outputValue("value") },
+                        source to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                                sourceApplications.incrementAndGet()
+                                3
+                            },
+                    )
+                },
+            )
+        val world = testWorld.assumptions
+
+        val result = resolveAndValidate(world, "query { container { value } }")
+        val container =
+            assertIs<ObjectEngineResult>(
+                result.getCell(world.schema.contractKey("Query", "container")).get(),
+            )
+
+        assertEquals(6, container.getCell(world.schema.contractKey("Container", "value")).get())
+        assertEquals(1, sourceApplications.get())
     }
 }
 
