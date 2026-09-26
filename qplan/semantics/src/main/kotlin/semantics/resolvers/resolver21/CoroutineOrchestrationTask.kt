@@ -1,11 +1,17 @@
 package semantics.resolvers.resolver21
 
+import model.Arguments
 import model.ObjectEngineResult
+import model.ResolverOccurrenceId
 import model.RootFieldReferenceData
 import model.SelectionForest
+import model.engineObjectDataOf
+import model.merge
 import model.outputValue
+import model.requireQueryTypeDef
 import model.schemaType
-import semantics.resolvers.closeConstructionDemand
+import semantics.resolvers.OrchestratorConstructionDemand
+import semantics.resolvers.closeOrchestratorConstructionDemand
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOERContext
 import semantics.resolver26.installParentBackedgeFields
@@ -15,7 +21,8 @@ import viaduct.engine.api.EngineObjectData
 internal class CoroutineOrchestrationTask private constructor(
     operation: CoroutineOperationContext,
     objectOER: SharedOERContext,
-) : semantics.resolver26.CoroutineOrchestrationTask<CoroutineOperationContext>(operation, objectOER) {
+    queryOER: SharedOERContext,
+) : semantics.resolver26.CoroutineOrchestrationTask<CoroutineOperationContext>(operation, objectOER, queryOER) {
     companion object {
         /** Prepares grounded bindings and parent backedges without dispatching active work. */
         fun create(
@@ -27,28 +34,47 @@ internal class CoroutineOrchestrationTask private constructor(
             require(source.schemaType == occurrence.target.type) {
                 "Source type ${source.schemaType.name} does not match result type ${occurrence.target.type.name}"
             }
-            val objectOER =
-                source.closeConstructionDemand(
+            val queryType = operation.world.schema.requireQueryTypeDef()
+            val queryResult = ObjectEngineResult.of(queryType, mutable = true)
+            val queryOccurrence = OEROccurrence(queryResult, emptyList(), queryResult)
+            val closed =
+                source.closeOrchestratorConstructionDemand(
                     operation = operation,
-                    occurrence = occurrence,
-                    initialDemand = initialDemand,
+                    objectOccurrence = occurrence,
+                    queryOccurrence = queryOccurrence,
+                    initialDemand = OrchestratorConstructionDemand.checkedObject(initialDemand),
                 )
-            val parentKeys =
-                objectOER.closedDemand
-                    .groundKeys()
-                    .filterIsInstance<ObjectEngineResult.ParentKey>()
-            occurrence.installParentBackedgeFields(operation, parentKeys)
-            return CoroutineOrchestrationTask(
-                operation,
-                objectOER,
-            )
+            val objectOER =
+                SharedOERContext(
+                    occurrence = occurrence,
+                    source = source,
+                    closedDemand = closed.objectRooted.values.merge(source.schemaType),
+                )
+            val queryOER =
+                SharedOERContext(
+                    occurrence = queryOccurrence,
+                    source = engineObjectDataOf(queryType),
+                    closedDemand = closed.queryRooted.values.merge(queryType),
+                )
+            val task = CoroutineOrchestrationTask(operation, objectOER, queryOER)
+            listOf(task.objectOER, task.queryOER).forEach { oer ->
+                val parentKeys =
+                    oer.closedDemand
+                        .groundKeys()
+                        .filterIsInstance<ObjectEngineResult.ParentKey>()
+                oer.occurrence.installParentBackedgeFields(operation, parentKeys)
+            }
+            task.observeQueryOER()
+            return task
         }
     }
 
     override val hasActiveWork: Boolean
-        get() = objectOER.closedDemand.groundKeys().any { key ->
-            key !is ObjectEngineResult.ParentKey &&
-                (!objectOER.source.isPresent(key.field.name) || objectOER.source.outputValue(key.field.name) is RootFieldReferenceData)
+        get() = listOf(objectOER, queryOER).any { oer ->
+            oer.closedDemand.groundKeys().any { key ->
+                key !is ObjectEngineResult.ParentKey &&
+                    (!oer.source.isPresent(key.field.name) || oer.source.outputValue(key.field.name) is RootFieldReferenceData)
+            }
         }
 
     override fun duplicateDispatchException(): RuntimeException =
@@ -57,4 +83,48 @@ internal class CoroutineOrchestrationTask private constructor(
     override fun installFieldTasks() {
         CoroutineFieldResolverTask.launchAll(this)
     }
+
+    private fun observeQueryOER() {
+        operation.resolverObserver.onQueryOERPrepared(queryOER)
+        listOf(objectOER, queryOER).forEach { resolverOER ->
+            queryFragmentOwners(resolverOER).forEach { (resolverKey, owner) ->
+                operation.resolverObserver.onQueryFragmentPrepared(
+                    owner,
+                    queryOER.occurrence.target,
+                    objectOER.occurrence,
+                )
+                operation.resolverObserver.onQueryFragmentOwnerAddress(
+                    owner,
+                    resolverOER.occurrence,
+                    resolverKey,
+                )
+            }
+        }
+    }
+
+    private fun queryFragmentOwners(
+        oer: SharedOERContext,
+    ): List<Pair<ObjectEngineResult.GroundKey, ResolverOccurrenceId>> =
+        oer.closedDemand
+            .byGroundKey()
+            .keys
+            .filter { key -> !oer.occurrence.target.isCellSet(key) }
+            .mapNotNull { key ->
+                if (oer.source.isPresent(key.field.name) || key.arguments !is Arguments.Resolved) {
+                    return@mapNotNull null
+                }
+                val queryFragment =
+                    operation.world.resolverRegistry
+                        .resolver(key.field)
+                        .instantiateFragmentsAt(
+                            oer.occurrence.root,
+                            oer.occurrence.coordinate(key),
+                        )
+                        .queryFragment
+                if (queryFragment.constructionSelections.isEmpty()) {
+                    null
+                } else {
+                    key to queryFragment.resolverOccurrenceId
+                }
+            }
 }

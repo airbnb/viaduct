@@ -9,6 +9,7 @@ import semantics.shared.SharedOperationContext
 
 class CoroutineResolveTest : CoroutineResolverContract {
     override val selectiveResolvers = false
+    override val usesSingularQueryOER = true
 
     override fun startResolution(
         operation: SharedOperationContext<*>,

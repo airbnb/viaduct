@@ -12,6 +12,8 @@ import model.groundKey
 import model.invariants.conformsToResolverOutputSchemaType
 import model.materializeSelectionForestOf
 import model.nodeReferenceIdentityOrNull
+import model.registry.FieldResolver
+import model.registry.ResolverFragment
 import model.registry.ResolutionExecutionContext
 import semantics.resolvers.emptyObjectInput
 import semantics.resolvers.prepareInvocation
@@ -19,6 +21,7 @@ import semantics.shared.ResolverInvocationObservation
 import semantics.shared.RootFieldReferenceInvocationObservation
 import semantics.resolvers.materializeResolverInput
 import semantics.shared.withAuthoritativeNodeId
+import viaduct.engine.api.EngineObjectData
 
 /** Invokes and publishes one already-installed field resolver or root-field reference. */
 internal class FieldResolutionLogic(
@@ -73,11 +76,10 @@ internal class FieldResolutionLogic(
         val publication = fieldResolverTask.publication
         val resolver = publication.operation.world.resolverRegistry.resolver(publication.selection.key.field)
         val fragments = resolver.instantiateFragmentsAt(publication.oerOccurrence.root, publication.publicationPath)
-        val queryProducer =
-            fieldResolverTask.launchQueryFragmentProducer(
+        val queryValue =
+            materializeQueryFragment(
                 resolver,
                 fragments.queryFragment,
-                publication.publicationPath,
             )
         val objectMaterializationSelections =
             resolver.instantiateObjectMaterializationSelections(
@@ -89,10 +91,6 @@ internal class FieldResolutionLogic(
             selections = objectMaterializationSelections,
             reader = publication.publicationPath,
         )
-        val queryValue = when (val value = queryProducer.await()) {
-            is EngineObjectOrErrorData.Success -> value.value
-            is EngineObjectOrErrorData.Error -> return value.error
-        }
         publication.operation.resolverObserver.onResolverInvocation(
             ResolverInvocationObservation(
                 occurrencePath = publication.publicationPath,
@@ -111,6 +109,25 @@ internal class FieldResolutionLogic(
             selections = invocationDemand,
             selectiveResolvers = publication.operation.world.selectiveResolvers,
             executionContext = ResolutionExecutionContext.Unsupported,
+        )
+    }
+
+    private suspend fun materializeQueryFragment(
+        resolver: FieldResolver,
+        queryFragment: ResolverFragment,
+    ): EngineObjectData.Sync {
+        val publication = fieldResolverTask.publication
+        check(queryFragment.constructionSelections.isEmpty() || publication.queryOER.isDemanded()) {
+            "Nonempty resolver Query fragment has no demanded shared Query OER"
+        }
+        return publication.queryOER.occurrence.target.materializeResolverInput(
+            operation = publication.operation,
+            cycleChecker = publication.operation.cycleChecker,
+            selections =
+                resolver.instantiateQueryMaterializationSelections(
+                    queryFragment.resolverOccurrenceId,
+                ),
+            reader = publication.publicationPath,
         )
     }
 

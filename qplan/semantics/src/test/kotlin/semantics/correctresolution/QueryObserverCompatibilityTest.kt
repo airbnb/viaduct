@@ -16,6 +16,8 @@ import semantics.resolvers.resolver02.resolve as resolve02
 import semantics.resolvers.resolver03.resolve as resolve03
 import semantics.resolvers.resolver07.resolve as resolve07
 import semantics.resolvers.resolver08.resolve as resolve08
+import semantics.resolvers.resolver22.resolve as resolve22
+import semantics.resolvers.resolver23.resolve as resolve23
 import semantics.shared.ResolverInvocationObservation
 import semantics.contract.selectionValues
 import semantics.shared.SharedOperationContext
@@ -29,6 +31,8 @@ class QueryObserverCompatibilityTest {
             Subject("Resolver03", true) { selections -> resolve03(selections) },
             Subject("Resolver07", false) { selections -> resolve07(selections) },
             Subject("Resolver08", true) { selections -> resolve08(selections) },
+            Subject("Resolver22", false) { selections -> resolve22(selections) },
+            Subject("Resolver23", true) { selections -> resolve23(selections) },
         ).map { subject ->
             dynamicTest(subject.name) {
                 val events = Collections.synchronizedList(mutableListOf<String>())

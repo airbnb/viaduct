@@ -185,6 +185,11 @@ interface DeepResolverStressContract : ResolverContract {
                     val operation = resolution.operation
                     val correctnessObserver =
                         operation.resolverObserver as CorrectnessResolverObserver
+                    val demandedQueryOERs =
+                        correctnessObserver
+                            .allQueryOERs()
+                            .values
+                            .filter { queryOER -> queryOER.isDemanded() }
                     val demandedQueryOERDepths =
                         correctnessObserver
                             .allQueryOERDepths()
@@ -193,10 +198,12 @@ interface DeepResolverStressContract : ResolverContract {
                                     requireNotNull(correctnessObserver.queryOER(result)).isDemanded()
                                 }
                             }
-                    if (demandedQueryOERDepths.isEmpty()) {
+                    if (demandedQueryOERs.isEmpty()) {
                         casesWithoutDemandedQueryOERs += 1
                     } else {
                         casesWithDemandedQueryOERs += 1
+                    }
+                    if (demandedQueryOERDepths.isNotEmpty()) {
                         demandedQueryOERDepths.forEach { depth ->
                             demandedQueryOERDepthCounts.compute(depth) { _, count ->
                                 (count ?: 0) + 1
@@ -399,11 +406,13 @@ interface DeepResolverStressContract : ResolverContract {
                 assertTrue(activatedQueryFragmentApplications > 0)
                 assertTrue(casesWithDemandedQueryOERs > 0)
                 assertTrue(casesWithoutDemandedQueryOERs > 0)
-                assertTrue(
-                    maximumDemandedQueryOERDepth >= minimumDemandedQueryOERDepth,
-                    "Expected demanded Query-OER depth of at least " +
-                        "$minimumDemandedQueryOERDepth, found $maximumDemandedQueryOERDepth",
-                )
+                if (minimumDemandedQueryOERDepth > 0) {
+                    assertTrue(
+                        maximumDemandedQueryOERDepth >= minimumDemandedQueryOERDepth,
+                        "Expected demanded Query-OER depth of at least " +
+                            "$minimumDemandedQueryOERDepth, found $maximumDemandedQueryOERDepth",
+                    )
+                }
             }
             if (nestedObjectPathCoverageRequired) {
                 assertTrue(activatedNestedObjectPathApplications > 0)

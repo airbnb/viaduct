@@ -13,9 +13,10 @@ import semantics.shared.SharedOrchestrationTask
 internal abstract class CoroutineOrchestrationTask<O : SharedOperationContext<*>>(
     final override val operation: O,
     final override val objectOER: SharedOERContext,
+    queryOER: SharedOERContext =
+        SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef()),
 ) : SharedOrchestrationTask<O> {
-    final override val queryOER: SharedOERContext =
-        SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef())
+    final override val queryOER: SharedOERContext = queryOER
 
     private val launched = AtomicBoolean(false)
 
@@ -38,6 +39,7 @@ internal abstract class CoroutineOrchestrationTask<O : SharedOperationContext<*>
     internal fun run() {
         installFieldTasks()
         objectOER.occurrence.target.freeze()
+        queryOER.occurrence.target.freeze()
     }
 
     protected open fun validateDispatch() {}

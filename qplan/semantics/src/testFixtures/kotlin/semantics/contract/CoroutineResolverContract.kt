@@ -9,6 +9,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeout
@@ -55,6 +56,8 @@ import viaduct.engine.api.EngineObjectData
 interface CoroutineResolverContract {
     val selectiveResolvers: Boolean
         get() = true
+    val usesSingularQueryOER: Boolean
+        get() = false
 
     /** Starts a request under [requestScope] and exposes its live root for lifecycle assertions. */
     fun startResolution(
@@ -357,10 +360,32 @@ interface CoroutineResolverContract {
     }
 
     @Test
-    fun `Query producer failures become field errors and skip resolver bodies`() {
+    fun `Query producer failures become field errors without stopping unrelated fields`() {
         for (failure in listOf(IllegalStateException("Query producer failed"), CancellationException("local cancellation"))) {
             var consumerInvoked = false
-            val world = queryFailureWorld(selectiveResolvers) { consumerInvoked = true }.assumptions
+            val world =
+                queryFailureWorld(
+                    selective = selectiveResolvers,
+                    dependencyFailure = failure.takeIf { usesSingularQueryOER },
+                ) { consumerInvoked = true }.assumptions
+            if (usesSingularQueryOER) {
+                val result = resolve(
+                    SharedOperationContext.create(world),
+                    world.operationSelectionsFrom("{ consumer reference healthy }"),
+                )
+                for (name in listOf("consumer", "reference")) {
+                    assertSame(
+                        failure,
+                        assertIs<ErrorEngineResult>(
+                            result.getCell(world.schema.groundKey("Query", name)).get(),
+                        ).errorData.cause,
+                    )
+                }
+                assertTrue(consumerInvoked)
+                assertEquals(42, result.getCell(world.schema.groundKey("Query", "healthy")).get())
+                assertCompletedAndWriteOnce(result)
+                continue
+            }
             val observer = object : ResolverObserver {
                 override fun onQueryFragmentPrepared(resolverOccurrenceId: ResolverOccurrenceId, result: ObjectEngineResult): Nothing =
                     throw failure
@@ -379,7 +404,87 @@ interface CoroutineResolverContract {
     }
 
     @Test
+    fun `independent reference Query preparation failures remain field local`() {
+        for (
+            failure in
+                listOf(
+                    IllegalStateException("preparation failed"),
+                    CancellationException("local preparation cancellation"),
+                )
+        ) {
+            var targetInvocations = 0
+            var dependencyInvocations = 0
+            val testWorld =
+                TestWorld.fromSDL(
+                    schemaSDL =
+                        "type Query { first: Int!, second: Int!, target: Int!, dependency: Int!, healthy: Int! }",
+                    selectiveResolvers = selectiveResolvers,
+                    fieldResolvers = { schema ->
+                        val empty = schema.emptyFragmentOf("Query")
+                        val target = schema.requireObjectField("Query", "target")
+                        mapOf(
+                            schema.requireObjectField("Query", "first") to
+                                fieldResolverOf(empty) { _, _ ->
+                                    RootFieldReferenceData.of(listOf(target), emptyMap())
+                                },
+                            schema.requireObjectField("Query", "second") to
+                                fieldResolverOf(empty) { _, _ ->
+                                    RootFieldReferenceData.of(listOf(target), emptyMap())
+                                },
+                            target to
+                                fieldResolverOf(
+                                    empty,
+                                    schema.fragmentFrom(
+                                        "fragment TargetQuery on Query { dependency }",
+                                    ),
+                                ) { _, query, _ ->
+                                    targetInvocations += 1
+                                    query.outputValue("dependency")
+                                },
+                            schema.requireObjectField("Query", "dependency") to
+                                fieldResolverOf(empty) { _, _ ->
+                                    dependencyInvocations += 1
+                                    7
+                                },
+                            schema.requireObjectField("Query", "healthy") to
+                                fieldResolverOf(empty) { _, _ -> 42 },
+                        )
+                    },
+                )
+            val world = testWorld.assumptions
+            val observer = object : ResolverObserver {
+                override fun onQueryFragmentPrepared(
+                    resolverOccurrenceId: ResolverOccurrenceId,
+                    result: ObjectEngineResult,
+                ): Nothing = throw failure
+            }
+
+            val result =
+                resolve(
+                    SharedOperationContext.create(world, resolverObserver = observer),
+                    world.operationSelectionsFrom("{ first second healthy }"),
+                )
+
+            for (name in listOf("first", "second")) {
+                assertSame(
+                    failure,
+                    assertIs<ErrorEngineResult>(
+                        result.getCell(world.schema.groundKey("Query", name)).get(),
+                    ).errorData.cause,
+                )
+            }
+            assertEquals(0, targetInvocations)
+            assertEquals(0, dependencyInvocations)
+            assertEquals(42, result.getCell(world.schema.groundKey("Query", "healthy")).get())
+        }
+    }
+
+    @Test
     fun `request cancellation cancels promises before field entry and during Query production`() = runBlocking {
+        if (usesSingularQueryOER) {
+            assertSharedQueryCancellation()
+            return@runBlocking
+        }
         for (cancelBeforeEntry in listOf(true, false)) {
             val requestJob = Job()
             val requestScope = CoroutineScope(coroutineContext + requestJob)
@@ -409,6 +514,86 @@ interface CoroutineResolverContract {
                 assertEquals(cancellation.message, failure.message)
                 assertEquals(!cancelBeforeEntry, producerEntered)
                 assertFalse(consumerInvoked)
+            } finally {
+                requestJob.cancelAndJoin()
+            }
+        }
+    }
+
+    private suspend fun assertSharedQueryCancellation() {
+        for (cancelBeforeEntry in listOf(true, false)) {
+            val requestJob = Job()
+            val requestScope = CoroutineScope(kotlin.coroutines.coroutineContext + requestJob)
+            val cancellation = CancellationException("request cancelled")
+            val producerEntered = CompletableDeferred<Unit>()
+            val producerExited = CompletableDeferred<Unit>()
+            var producerInvocations = 0
+            var ownerInvocations = 0
+            val testWorld =
+                TestWorld.fromSDL(
+                    selectiveResolvers = selectiveResolvers,
+                    schemaSDL =
+                        "type Query { dependency: Int!, first: Int!, second: Int! }",
+                    fieldResolvers = { schema ->
+                        val empty = schema.emptyFragmentOf("Query")
+                        val ownerQuery =
+                            schema.fragmentFrom(
+                                "fragment OwnerQuery on Query { dependency }",
+                            )
+                        mapOf(
+                            schema.requireObjectField("Query", "dependency") to
+                                fieldResolverOf(empty) { _, _ ->
+                                    producerInvocations += 1
+                                    producerEntered.complete(Unit)
+                                    try {
+                                        awaitCancellation()
+                                    } finally {
+                                        producerExited.complete(Unit)
+                                    }
+                                },
+                            schema.requireObjectField("Query", "first") to
+                                fieldResolverOf(empty, ownerQuery) { _, _, _ ->
+                                    ownerInvocations += 1
+                                    1
+                                },
+                            schema.requireObjectField("Query", "second") to
+                                fieldResolverOf(empty, ownerQuery) { _, _, _ ->
+                                    ownerInvocations += 1
+                                    2
+                                },
+                        )
+                    },
+                )
+            val world = testWorld.assumptions
+            try {
+                val result =
+                    startResolution(
+                        SharedOperationContext.create(world),
+                        requestScope,
+                        world.operationSelectionsFrom("{ first second }"),
+                        CycleCheckState.create(),
+                    )
+                if (cancelBeforeEntry) {
+                    requestJob.cancel(cancellation)
+                } else {
+                    withTimeout(5_000) { producerEntered.await() }
+                    requestJob.cancel(cancellation)
+                }
+                withTimeout(5_000) { requestJob.join() }
+                for (name in listOf("first", "second")) {
+                    val failure = assertFailsWith<CancellationException> {
+                        withTimeout(5_000) {
+                            result
+                                .getCell(world.schema.groundKey("Query", name))
+                                .getValue()
+                                .await()
+                        }
+                    }
+                    assertEquals(cancellation.message, failure.message)
+                }
+                assertEquals(if (cancelBeforeEntry) 0 else 1, producerInvocations)
+                assertEquals(0, ownerInvocations)
+                if (!cancelBeforeEntry) withTimeout(5_000) { producerExited.await() }
             } finally {
                 requestJob.cancelAndJoin()
             }
@@ -537,7 +722,11 @@ private fun fieldFailureWorld(selective: Boolean, failure: Throwable): TestWorld
     },
 )
 
-private fun queryFailureWorld(selective: Boolean, onConsumer: () -> Unit): TestWorld = TestWorld.fromSDL(
+private fun queryFailureWorld(
+    selective: Boolean,
+    dependencyFailure: Throwable? = null,
+    onConsumer: () -> Unit,
+): TestWorld = TestWorld.fromSDL(
     selectiveResolvers = selective,
     schemaSDL = "type Query { consumer: Int!, reference: Int!, dependency: Int!, healthy: Int! }",
     fieldResolvers = { schema ->
@@ -551,7 +740,10 @@ private fun queryFailureWorld(selective: Boolean, onConsumer: () -> Unit): TestW
             schema.requireObjectField("Query", "reference") to fieldResolverOf(fragment) { _, _ ->
                 RootFieldReferenceData.of(listOf(consumer), emptyMap())
             },
-            schema.requireObjectField("Query", "dependency") to fieldResolverOf(fragment) { _, _ -> 7 },
+            schema.requireObjectField("Query", "dependency") to fieldResolverOf(fragment) { _, _ ->
+                dependencyFailure?.let { throw it }
+                7
+            },
             schema.requireObjectField("Query", "healthy") to fieldResolverOf(fragment) { _, _ -> 42 },
         )
     },

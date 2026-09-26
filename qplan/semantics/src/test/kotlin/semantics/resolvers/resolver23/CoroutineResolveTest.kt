@@ -10,6 +10,8 @@ import semantics.shared.CycleCheckState
 import semantics.shared.SharedOperationContext
 
 class CoroutineResolveTest : CoroutineResolverContract {
+    override val usesSingularQueryOER = true
+
     override val selectiveResolvers = true
 
     override fun startResolution(

@@ -14,12 +14,112 @@ import model.outputValue
 import model.requireObjectField
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
+import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.shared.ResolverInvocationObservation
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.EngineObjectData
 
 /** Contract for engine-provided parent backedges and transitive ancestor demand. */
 interface ParentFieldResolverContract : ResolverContract {
+    val usesSingularQueryOERForParentDemand: Boolean
+        get() = false
+
+    @Test
+    fun `Query-rooted parent demand activates one ancestor resolver and its Query input`() {
+        assumeTrue(usesSingularQueryOERForParentDemand)
+        val invocations = linkedMapOf<String, Int>()
+        val observer = object : CorrectnessResolverObserver() {
+            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                super.onResolverInvocation(observation)
+                invocations.compute(observation.field.name) { _, count -> (count ?: 0) + 1 }
+            }
+        }
+        val testWorld =
+            TestWorld.fromSDL(
+                selectiveResolvers = selectiveResolvers,
+                schemaSDL =
+                    """
+                    directive @parent on FIELD_DEFINITION
+                    type Query { container: Container!, token: String!, result: String! }
+                    type Container { child: Child!, ancestor: String! }
+                    type Child { parent: Container! @parent, value: String! }
+                    """.trimIndent(),
+                fieldResolvers = { schema ->
+                    val emptyQuery = schema.emptyFragmentOf("Query")
+                    mapOf(
+                        schema.requireObjectField("Query", "container") to
+                            fieldResolverOf(emptyQuery) { _, _ -> schema.objectOf("Container") },
+                        schema.requireObjectField("Query", "token") to
+                            fieldResolverOf(emptyQuery) { _, _ -> "ready" },
+                        schema.requireObjectField("Query", "result") to
+                            fieldResolverOf(
+                                objectFragment = emptyQuery,
+                                queryFragment =
+                                    schema.fragmentFrom(
+                                        "fragment ResultQuery on Query { " +
+                                            "container { child { value } } }",
+                                    ),
+                            ) { _, queryValue, _ ->
+                                val container =
+                                    assertIs<EngineObjectData.Sync>(
+                                        queryValue.outputValue("container"),
+                                    )
+                                val child =
+                                    assertIs<EngineObjectData.Sync>(container.outputValue("child"))
+                                child.outputValue("value")
+                            },
+                        schema.requireObjectField("Container", "child") to
+                            fieldResolverOf(schema.emptyFragmentOf("Container")) { _, _ ->
+                                schema.objectOf("Child")
+                            },
+                        schema.requireObjectField("Container", "ancestor") to
+                            fieldResolverOf(
+                                objectFragment = schema.emptyFragmentOf("Container"),
+                                queryFragment =
+                                    schema.fragmentFrom(
+                                        "fragment AncestorQuery on Query { token }",
+                                    ),
+                            ) { _, queryValue, _ -> queryValue.outputValue("token") },
+                        schema.requireObjectField("Child", "value") to
+                            fieldResolverOf(
+                                schema.fragmentFrom(
+                                    "fragment ValueInput on Child { parent { ancestor } }",
+                                ),
+                            ) { input, _ ->
+                                val parent =
+                                    assertIs<EngineObjectData.Sync>(input.outputValue("parent"))
+                                parent.outputValue("ancestor")
+                            },
+                    )
+                },
+            )
+        val world = testWorld.assumptions
+        val resultKey = world.schema.contractKey("Query", "result")
+
+        val result =
+            resolveAndValidate(
+                world,
+                "query { result }",
+                resolverObserver = observer,
+            )
+
+        assertEquals("ready", result.getCell(resultKey).get())
+        assertEquals(setOf(resultKey), result.keys)
+        assertEquals(
+            mapOf(
+                "result" to 1,
+                "container" to 1,
+                "child" to 1,
+                "value" to 1,
+                "ancestor" to 1,
+                "token" to 1,
+            ),
+            invocations,
+        )
+    }
+
     @Test
     fun `parent demand waits for a revisited active child field`() {
         val world =

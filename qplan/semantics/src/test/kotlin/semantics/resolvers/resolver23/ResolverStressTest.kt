@@ -14,6 +14,8 @@ import semantics.contract.DeepResolverStressContract
 class ResolverStressTest : DeepResolverStressContract {
     override val resolverName: String = "resolver23"
 
+    override val queryFragmentCoverageRequired: Boolean = true
+
     override val stressConfigOverrides: Config =
         Config.default +
             (ParentFieldsEnabled to true)

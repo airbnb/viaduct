@@ -38,6 +38,8 @@ interface QueryFragmentResolverContract : ResolverContract {
     /** Whether one orchestration shares a singular Query OER among all fragment owners. */
     val usesSingularQueryOER: Boolean
         get() = false
+    val singularQueryExpansionDepth: Int
+        get() = 8
 
     @Test
     fun `empty Query fragments follow Query OER ownership policy`() {
@@ -569,7 +571,7 @@ interface QueryFragmentResolverContract : ResolverContract {
     }
 
     @Test
-    fun `depth eight Query expansion invokes each exact field once`() {
+    fun `finite Query expansion invokes each exact field once`() {
         assumeTrue(usesSingularQueryOER)
         val invocations = linkedMapOf<String, Int>()
         val observer = object : CorrectnessResolverObserver() {
@@ -578,7 +580,7 @@ interface QueryFragmentResolverContract : ResolverContract {
                 invocations.compute(observation.field.name) { _, count -> (count ?: 0) + 1 }
             }
         }
-        val depth = 8
+        val depth = singularQueryExpansionDepth
         val testWorld =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,

@@ -29,19 +29,21 @@ internal class CoroutineFieldResolverTask private constructor(
         /** Installs all local promises before dispatching any producer, including source references. */
         fun launchAll(orchestrationTask: CoroutineOrchestrationTask) {
             val operation = orchestrationTask.operation
-            val objectOER = orchestrationTask.objectOER
-            val occurrence = objectOER.occurrence
-            val publications = objectOER.closedDemand.byGroundKey().filterKeys { !occurrence.target.isCellSet(it) }.map { (key, selection) ->
-                val reference = if (objectOER.source.isPresent(key.field.name)) {
-                    objectOER.source.outputValue(key.field.name) as RootFieldReferenceData
-                } else null
-                prepare(
-                    GroundedFieldPublicationOccurrence(
-                        operation, occurrence, selection, occurrence.target.reserveCell(key), reference,
-                        queryOER = orchestrationTask.queryOER,
-                    ),
-                )
-            }
+            val publications =
+                listOf(orchestrationTask.objectOER, orchestrationTask.queryOER).flatMap { oer ->
+                    val occurrence = oer.occurrence
+                    oer.closedDemand.byGroundKey().filterKeys { !occurrence.target.isCellSet(it) }.map { (key, selection) ->
+                        val reference = if (oer.source.isPresent(key.field.name)) {
+                            oer.source.outputValue(key.field.name) as RootFieldReferenceData
+                        } else null
+                        prepare(
+                            GroundedFieldPublicationOccurrence(
+                                operation, occurrence, selection, occurrence.target.reserveCell(key), reference,
+                                queryOER = orchestrationTask.queryOER,
+                            ),
+                        )
+                    }
+                }
             publications.forEach(operation.dispatcher::dispatchFieldResolver)
         }
 

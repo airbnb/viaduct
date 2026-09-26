@@ -41,6 +41,9 @@ class ResolverContractTest :
     CompleteResolverOutputPolicyContract,
     CompleteObjectFragmentOutputPolicyContract,
     CorrectResolutionPostTestPolicy {
+    override val usesSingularQueryOER: Boolean = true
+    override val usesSingularQueryOERForParentDemand: Boolean = true
+
     override fun resolve(
         operation: SharedOperationContext<*>,
         root: EngineObjectData.Sync,
