@@ -1,5 +1,7 @@
 package semantics.contract
 
+import java.util.Collections
+import java.util.IdentityHashMap
 import kotlinx.coroutines.runBlocking
 import model.Arguments
 import model.EngineResult
@@ -198,14 +200,21 @@ fun EngineResult?.registeredResolverOccurrenceApplicationKeyCounts(operation: Sh
 
 private fun EngineResult?.requestQueryRoots(operation: SharedOperationContext<*>): List<ObjectEngineResult> {
     val primaryRoot = this as? ObjectEngineResult ?: return emptyList()
+    val observations = operation.resolverObserver as? CorrectnessResolverObserver
+    check(observations?.queryFragmentOwnershipIsConsistent() != false) {
+        "Query-fragment ownership associations are inconsistent"
+    }
+    // A singular Query OER is observed once per owner but its resolver occurrences exist only once.
+    val seen = Collections.newSetFromMap(IdentityHashMap<ObjectEngineResult, Boolean>())
     return buildList {
-        add(primaryRoot)
-        addAll(
-            operation.resolverObservations()
-                .allQueryFragmentResults()
-                .values
-                .flatten(),
-        )
+        if (seen.add(primaryRoot)) add(primaryRoot)
+        operation.resolverObservations()
+            .allQueryFragmentResults()
+            .values
+            .flatten()
+            .forEach { queryRoot ->
+                if (seen.add(queryRoot)) add(queryRoot)
+            }
     }
 }
 

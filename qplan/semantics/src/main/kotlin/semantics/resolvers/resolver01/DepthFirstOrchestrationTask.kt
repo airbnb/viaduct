@@ -44,14 +44,24 @@ internal class DepthFirstOrchestrationTask private constructor(
 
     /** Resolves the associated Query OER first, then its owner-local containing OER. */
     fun run(resolveFringe: () -> Unit = {}) {
-        operation.resolverObserver.onQueryOERPrepared(queryOER)
-        (queryFragmentOwners(objectOER) + queryFragmentOwners(queryOER))
-            .forEach { owner ->
+        operation.resolverObserver.onQueryOERPrepared(
+            queryOER = queryOER,
+            queryOERDepth = queryOERDepth + 1,
+        )
+        listOf(objectOER, queryOER).forEach { resolverOER ->
+            queryFragmentOwners(resolverOER).forEach { (resolverKey, owner) ->
                 operation.resolverObserver.onQueryFragmentPrepared(
                     owner,
                     queryOER.occurrence.target,
+                    objectOER.occurrence,
+                )
+                operation.resolverObserver.onQueryFragmentOwnerAddress(
+                    owner,
+                    resolverOER.occurrence,
+                    resolverKey,
                 )
             }
+        }
         listOf(queryOER, objectOER).forEach { oer ->
             runOer(
                 oer = oer,
@@ -102,7 +112,9 @@ internal class DepthFirstOrchestrationTask private constructor(
         target.freeze()
     }
 
-    private fun queryFragmentOwners(oer: SharedOERContext): List<ResolverOccurrenceId> =
+    private fun queryFragmentOwners(
+        oer: SharedOERContext,
+    ): List<Pair<ObjectEngineResult.GroundKey, ResolverOccurrenceId>> =
         oer.closedDemand
             .byGroundKey()
             .keys
@@ -123,8 +135,10 @@ internal class DepthFirstOrchestrationTask private constructor(
                             oer.occurrence.coordinate(key),
                         )
                         .queryFragment
-                queryFragment.resolverOccurrenceId.takeUnless {
-                    queryFragment.constructionSelections.isEmpty()
+                if (queryFragment.constructionSelections.isEmpty()) {
+                    null
+                } else {
+                    key to queryFragment.resolverOccurrenceId
                 }
             }
 

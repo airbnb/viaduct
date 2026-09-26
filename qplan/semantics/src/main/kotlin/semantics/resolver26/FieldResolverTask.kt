@@ -331,7 +331,7 @@ private suspend fun FieldResolver.resolveQueryFragment(
             source = source,
             initialDemand = constructionSelections,
         )
-    operation.resolverObserver.onQueryFragmentPrepared(
+    operation.resolverObserver.onIndependentQueryFragmentPrepared(
         queryFragment.resolverOccurrenceId,
         queryResult,
     )

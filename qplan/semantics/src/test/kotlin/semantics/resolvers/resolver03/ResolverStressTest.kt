@@ -12,6 +12,10 @@ import semantics.contract.DeepResolverStressContract
 class ResolverStressTest : DeepResolverStressContract {
     override val resolverName: String = "resolver03"
 
+    override val queryFragmentCoverageRequired: Boolean = true
+
+    override val minimumDemandedQueryOERDepth: Int = 2
+
     override fun resolve(
         operation: SharedOperationContext<*>,
         root: EngineObjectData.Sync,

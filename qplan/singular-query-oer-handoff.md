@@ -50,6 +50,16 @@ Current validation evidence is:
   selective Query-side witness is inapplicable to complete-output Resolver02/07. It included all six
   Resolver01–08 contract classes, the six sibling-dependency tests, and seed-1 Query-fragment
   generated profiles for Resolver02/03/07/08.
+- The Resolver03 and Resolver08 deep-stress profiles now enable generated Query fragments at weight
+  `0.1` and require both fragment-bearing and fragment-free cases, activated Query-fragment
+  applications, demanded and undemanded Query OERs, and demanded Query-OER depth of at least two.
+  With seed `424242`, both full 10,000-case runs passed. Each run generated 20,385 Query fragments,
+  included 1,200 fragment-free cases, activated 60,406 fragment-bearing applications, included
+  7,473 cases with and 2,527 cases without demanded Query OERs, and observed demanded depths
+  `{1=34179, 2=10118, 3=709, 4=9}`.
+- Singular sharing required the resolver-witness oracle to traverse each observed Query result once
+  by identity: multiple owners may now associate the same Query OER with their distinct projections.
+  The first Resolver03 stress attempt exposed and the corrected 10,000-case runs validate this.
 - An unseeded full `./gradlew check` passed before the final `ObjectEngineResult.materializeInput`
   refactor. The exact current tree has not yet had the final seeded full check.
 
@@ -65,10 +75,8 @@ Steps 1–4 are acceptance-complete. The three directed gaps are closed:
    weakening the registry's conservative static cycle check.
 
 Then continue the original sequence with Resolver21–23, Resolver26, deliberate reference/nested
-object coverage, documentation, and broad validation. Do not run the opt-in stress suites until the
-remaining implementation and focused deterministic tests are complete. At that point run the
-Resolver03/08 compatibility stress tasks, add or run a high-volume Query-fragment generated profile
-because those deep-stress tasks do not enable Query fragments, and finally run
+object coverage, documentation, and broad validation. Resolver03/08 Query-fragment stress is now
+complete; the next final validation gap for the current Resolver01–08 milestone is
 `./gradlew check -PresolverPropertySeed=1` on the exact handoff tree.
 
 ## Recommendation

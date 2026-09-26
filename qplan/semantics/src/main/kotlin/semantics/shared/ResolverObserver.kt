@@ -34,17 +34,55 @@ data class RootFieldReferenceInvocationObservation(
  * make the referenced result graphs immutable or provide a snapshot of them.
  */
 interface ResolverObserver {
-    /** Records one shared resolver Query OER after joint closure and before field dispatch. */
-    fun onQueryOERPrepared(queryOER: SharedOERContext) = Unit
+    /**
+     * Records one shared resolver Query OER after joint closure and before field dispatch.
+     * [queryOERDepth] is one for the Query OER associated with the independently rooted top-level
+     * object, and increases when an object discovered inside a Query OER owns another Query OER.
+     * Depth is tracked by the depth-first families for scheduler validation and is otherwise null.
+     */
+    fun onQueryOERPrepared(
+        queryOER: SharedOERContext,
+        queryOERDepth: Int? = null,
+    ) = Unit
 
     /**
-     * Associates a nonempty declared Query fragment with its live root, after orchestration
-     * preparation and before dispatch. The root's selected cells and values may be unfinished.
-     * This is not an observation of a nested ctx.query call or of completed materialization.
+     * Compatibility callback for a nonempty declared Query fragment and its live root. Both
+     * shared-scope and independently rooted preparation delegate here, so observers interested in
+     * ownership must implement the corresponding role-specific callback instead. The root's
+     * selected cells and values may be unfinished. This is not an observation of a nested
+     * ctx.query call or of completed materialization.
      */
     fun onQueryFragmentPrepared(
         resolverOccurrenceId: ResolverOccurrenceId,
         result: ObjectEngineResult,
+    ) = Unit
+
+    /** Records an independently rooted reference-target Query input. */
+    fun onIndependentQueryFragmentPrepared(
+        resolverOccurrenceId: ResolverOccurrenceId,
+        result: ObjectEngineResult,
+    ) = onQueryFragmentPrepared(resolverOccurrenceId, result)
+
+    /**
+     * Associates an ordinary declared Query fragment with both its shared Query OER and the object
+     * orchestration that owns that Query scope. Delegates to the two-argument compatibility
+     * callback before recording the shared ownership role.
+     */
+    fun onQueryFragmentPrepared(
+        resolverOccurrenceId: ResolverOccurrenceId,
+        result: ObjectEngineResult,
+        owningOccurrence: OEROccurrence,
+    ) = onQueryFragmentPrepared(resolverOccurrenceId, result)
+
+    /**
+     * Records the concrete resolver address associated with a shared Query-fragment owner. The
+     * containing-scope association and this address are separate so validation can prove that an
+     * owner actually belongs to its claimed scope.
+     */
+    fun onQueryFragmentOwnerAddress(
+        resolverOccurrenceId: ResolverOccurrenceId,
+        resolverOER: OEROccurrence,
+        resolverKey: ObjectKey,
     ) = Unit
 
     /**

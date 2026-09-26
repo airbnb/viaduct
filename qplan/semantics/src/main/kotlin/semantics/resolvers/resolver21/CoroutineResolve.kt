@@ -36,7 +36,9 @@ internal fun CoroutineOperationContext.startResolve(
         CoroutineOrchestrationTask.create(
             this@startResolve, OEROccurrence(result, emptyList(), result), source, selections,
         )
-    queryFragmentOwner?.let { resolverObserver.onQueryFragmentPrepared(it, result) }
+    queryFragmentOwner?.let {
+        resolverObserver.onIndependentQueryFragmentPrepared(it, result)
+    }
     dispatcher.dispatchOrchestrator(orchestration)
     return result
 }

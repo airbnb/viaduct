@@ -29,6 +29,8 @@ import semantics.arbitrary.ResolverFragmentWeight
 import semantics.arbitrary.ResolverFragmentsEnabled
 import semantics.arbitrary.ResolverFromArgumentVariablesEnabled
 import semantics.arbitrary.ResolverFromQueryFieldVariablesEnabled
+import semantics.arbitrary.ResolverQueryFragmentWeight
+import semantics.arbitrary.ResolverQueryFragmentsEnabled
 import semantics.arbitrary.ResolverVariablesEnabled
 import semantics.arbitrary.SchemaObjectCount
 import semantics.arbitrary.TestCaseCount
@@ -58,6 +60,10 @@ interface DeepResolverStressContract : ResolverContract {
         get() = false
     val rootFieldReferenceCoverageRequired: Boolean
         get() = false
+    val queryFragmentCoverageRequired: Boolean
+        get() = false
+    val minimumDemandedQueryOERDepth: Int
+        get() = 0
     val stressConfigOverrides: Config
         get() = Config.default
 
@@ -99,6 +105,8 @@ interface DeepResolverStressContract : ResolverContract {
                     (ResolverFragmentsEnabled to true) +
                     (ResolverFragmentWeight to 0.85) +
                     (ResolverFragmentDepth to 3) +
+                    (ResolverQueryFragmentsEnabled to queryFragmentCoverageRequired) +
+                    (ResolverQueryFragmentWeight to 0.1) +
                     (NodeResolversEnabled to nodeResolversEnabled) +
                     // Static tests exhaustively cover dispatch; stress samples interactions cheaply.
                     (NodeObjectWeight to 0.05) +
@@ -120,6 +128,8 @@ interface DeepResolverStressContract : ResolverContract {
             var generatedSometimesPassiveFields = 0
             var generatedRootFieldReferences = 0
             var generatedNodeRootFieldReferences = 0
+            var generatedQueryFragments = 0
+            var queryFragmentFreeCases = 0
             var activatedFromArgumentApplications = 0
             var activatedObjectPathApplications = 0
             var activatedQueryPathApplications = 0
@@ -127,6 +137,11 @@ interface DeepResolverStressContract : ResolverContract {
             var activatedSometimesPassiveOccurrences = 0
             var activatedRootFieldReferences = 0
             var activatedNodeRootFieldReferences = 0
+            var activatedQueryFragmentApplications = 0
+            var casesWithDemandedQueryOERs = 0
+            var casesWithoutDemandedQueryOERs = 0
+            val demandedQueryOERDepthCounts = linkedMapOf<Int, Int>()
+            var maximumDemandedQueryOERDepth = 0
             var maximumActivatedObjectPathResolverChainLength = 0
             var coactivatedMixedVariableCases = 0
             val previousSeed = PropertyTesting.defaultSeed
@@ -152,6 +167,9 @@ interface DeepResolverStressContract : ResolverContract {
                         testCase.registry.features.generatedRootFieldReferenceCount
                     generatedNodeRootFieldReferences +=
                         testCase.registry.features.generatedNodeRootFieldReferenceCount
+                    val caseQueryFragmentCount = testCase.registry.features.queryFragmentCount
+                    generatedQueryFragments += caseQueryFragmentCount
+                    if (caseQueryFragmentCount == 0) queryFragmentFreeCases += 1
                     assertTrue(testCase.query.selectionDepth >= 4)
                     val world = testWorld.newAssumptions()
                     val fragment = world.fragmentFrom(testCase.query.source)
@@ -165,10 +183,34 @@ interface DeepResolverStressContract : ResolverContract {
                         )
                     val result = resolution.result
                     val operation = resolution.operation
+                    val correctnessObserver =
+                        operation.resolverObserver as CorrectnessResolverObserver
+                    val demandedQueryOERDepths =
+                        correctnessObserver
+                            .allQueryOERDepths()
+                            .mapNotNull { (result, depth) ->
+                                depth.takeIf {
+                                    requireNotNull(correctnessObserver.queryOER(result)).isDemanded()
+                                }
+                            }
+                    if (demandedQueryOERDepths.isEmpty()) {
+                        casesWithoutDemandedQueryOERs += 1
+                    } else {
+                        casesWithDemandedQueryOERs += 1
+                        demandedQueryOERDepths.forEach { depth ->
+                            demandedQueryOERDepthCounts.compute(depth) { _, count ->
+                                (count ?: 0) + 1
+                            }
+                        }
+                        maximumDemandedQueryOERDepth =
+                            maxOf(
+                                maximumDemandedQueryOERDepth,
+                                demandedQueryOERDepths.max(),
+                            )
+                    }
                     if (rootFieldReferenceCoverageRequired) {
                         val references =
-                            (operation.resolverObserver as CorrectnessResolverObserver)
-                                .rootFieldReferenceInvocations()
+                            correctnessObserver.rootFieldReferenceInvocations()
                         activatedRootFieldReferences += references.size
                         activatedNodeRootFieldReferences +=
                             references.count { observation ->
@@ -210,6 +252,13 @@ interface DeepResolverStressContract : ResolverContract {
                     var activatedFromArgument = false
                     var activatedObjectPath = false
                     witness.applications.forEach { application ->
+                        if (
+                            testCase.registry
+                                .queryFragmentSources[application.key.field]
+                                ?.isNotEmpty() == true
+                        ) {
+                            activatedQueryFragmentApplications += 1
+                        }
                         if (
                             testCase.registry.sourceResolverHasFromArgumentVariables(
                                 application.key.field,
@@ -298,6 +347,8 @@ interface DeepResolverStressContract : ResolverContract {
                         "generatedSometimesPassiveFields=$generatedSometimesPassiveFields, " +
                         "generatedRootFieldReferences=$generatedRootFieldReferences, " +
                         "generatedNodeRootFieldReferences=$generatedNodeRootFieldReferences, " +
+                        "generatedQueryFragments=$generatedQueryFragments, " +
+                        "queryFragmentFreeCases=$queryFragmentFreeCases, " +
                         "activatedFromArgumentApplications=$activatedFromArgumentApplications, " +
                         "activatedObjectPathApplications=$activatedObjectPathApplications, " +
                         "activatedQueryPathApplications=$activatedQueryPathApplications, " +
@@ -307,6 +358,12 @@ interface DeepResolverStressContract : ResolverContract {
                         "$activatedSometimesPassiveOccurrences, " +
                         "activatedRootFieldReferences=$activatedRootFieldReferences, " +
                         "activatedNodeRootFieldReferences=$activatedNodeRootFieldReferences, " +
+                        "activatedQueryFragmentApplications=" +
+                        "$activatedQueryFragmentApplications, " +
+                        "casesWithDemandedQueryOERs=$casesWithDemandedQueryOERs, " +
+                        "casesWithoutDemandedQueryOERs=$casesWithoutDemandedQueryOERs, " +
+                        "demandedQueryOERDepthCounts=$demandedQueryOERDepthCounts, " +
+                        "maximumDemandedQueryOERDepth=$maximumDemandedQueryOERDepth, " +
                         "maximumActivatedObjectPathResolverChainLength=" +
                         "$maximumActivatedObjectPathResolverChainLength, " +
                         "coactivatedMixedVariableCases=$coactivatedMixedVariableCases, " +
@@ -335,6 +392,18 @@ interface DeepResolverStressContract : ResolverContract {
             if (queryPathVariablesEnabled) {
                 assertTrue(generatedQueryPathVariables > 0)
                 assertTrue(activatedQueryPathApplications > 0)
+            }
+            if (queryFragmentCoverageRequired) {
+                assertTrue(generatedQueryFragments > 0)
+                assertTrue(queryFragmentFreeCases > 0)
+                assertTrue(activatedQueryFragmentApplications > 0)
+                assertTrue(casesWithDemandedQueryOERs > 0)
+                assertTrue(casesWithoutDemandedQueryOERs > 0)
+                assertTrue(
+                    maximumDemandedQueryOERDepth >= minimumDemandedQueryOERDepth,
+                    "Expected demanded Query-OER depth of at least " +
+                        "$minimumDemandedQueryOERDepth, found $maximumDemandedQueryOERDepth",
+                )
             }
             if (nestedObjectPathCoverageRequired) {
                 assertTrue(activatedNestedObjectPathApplications > 0)

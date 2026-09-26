@@ -30,7 +30,9 @@ internal class DepthFirstResolve(
                 constructionDemand = selections,
                 queryOERDepth = 0,
             )
-        queryFragmentOwner?.let { operation.resolverObserver.onQueryFragmentPrepared(it, result) }
+        queryFragmentOwner?.let {
+            operation.resolverObserver.onIndependentQueryFragmentPrepared(it, result)
+        }
         dispatcher.dispatchOrchestrator(orchestration)
         dispatcher.resolveOrchestrators()
         return result

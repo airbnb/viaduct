@@ -1177,7 +1177,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                 Arguments.of(consumer, mapOf("value" to variable)),
             )
         primaryRoot.setCellValue(consumerKey, ErrorEngineResult.of(EngineErrorData.of()))
-        observer.onQueryFragmentPrepared(
+        observer.onIndependentQueryFragmentPrepared(
             ResolverOccurrenceId.at(primaryRoot, listOf(consumerKey)),
             queryResult,
         )

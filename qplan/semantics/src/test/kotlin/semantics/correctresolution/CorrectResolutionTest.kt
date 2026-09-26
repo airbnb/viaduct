@@ -244,6 +244,7 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                         .subselections
                         .merge(world.schema.requireQueryTypeDef()),
             ),
+            queryOERDepth = 1,
         )
         assertFalse(result.correctResolution(unexplainedExtraCell, selections))
 

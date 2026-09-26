@@ -112,6 +112,7 @@ class SharedQueryOwnerDemandRegressionTest {
                         engineObjectDataOf(queryType),
                         demand,
                     ),
+                    queryOERDepth = 1,
                 )
             }
             return SharedOperationContext.create(world, resolverObserver = observer).also {
