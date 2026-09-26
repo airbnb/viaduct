@@ -7,13 +7,16 @@ import model.ObjectEngineResult
 import model.ObjectSelectionForest
 import model.ResolverOccurrenceId
 import model.Selection
+import model.SelectionForest
 import model.VariableBinding
 import model.emptyFragmentOf
 import model.engineObjectDataOf
 import model.fragmentFrom
+import model.merge
 import model.objectOf
 import model.requireObjectField
 import model.requireQueryTypeDef
+import model.schemaType
 import model.selectionForestOf
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
@@ -25,6 +28,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import viaduct.engine.api.EngineObjectData
 
 class ConstructionDemandClosureTest {
     @Test
@@ -176,15 +180,13 @@ class ConstructionDemandClosureTest {
         repeat(2) {
             assertEquals(
                 setOf(a, b, leaf),
-                source.closeConstructionDemand(operation, occurrence, demand)
-                    .closedDemand
+                source.closeObjectDemand(operation, occurrence, demand)
                     .groundKeys(),
             )
             assertEquals(listOf(leaf, b, a), ordering.order(linkedSetOf(a, b, leaf)))
             assertEquals(
                 emptySet(),
-                source.closeConstructionDemand(operation, occurrence, selectionForestOf())
-                    .closedDemand
+                source.closeObjectDemand(operation, occurrence, selectionForestOf())
                     .groundKeys(),
             )
             assertEquals(emptyList(), ordering.order(emptySet()))
@@ -210,13 +212,13 @@ class ConstructionDemandClosureTest {
                 val path = listOf(boxes, ListEngineResult.Index.of(index))
                 val target = ObjectEngineResult.of(boxType, emptyMap())
                 val occurrence = OEROccurrence(root, path, target)
-                val objectOER =
-                    schema.objectOf("Box").closeConstructionDemand(
+                val closedObjectDemand =
+                    schema.objectOf("Box").closeObjectDemand(
                         operation,
                         occurrence,
                         demand,
                     )
-                assertEquals(setOf(consumer, sibling), objectOER.closedDemand.groundKeys())
+                assertEquals(setOf(consumer, sibling), closedObjectDemand.groundKeys())
                 val variable =
                     Arguments.Variable
                         .of(consumer.field, "seed")
@@ -246,8 +248,7 @@ class ConstructionDemandClosureTest {
 
         assertEquals(
             setOf(key(world, "Query", "a")),
-            source.closeConstructionDemand(operation, occurrence, demand)
-                .closedDemand
+            source.closeObjectDemand(operation, occurrence, demand)
                 .groundKeys(),
         )
     }
@@ -277,8 +278,7 @@ class ConstructionDemandClosureTest {
             )
         assertEquals(
             setOf(errored),
-            source.closeConstructionDemand(operation, occurrence, errorDemand)
-                .closedDemand
+            source.closeObjectDemand(operation, occurrence, errorDemand)
                 .groundKeys(),
         )
 
@@ -286,7 +286,7 @@ class ConstructionDemandClosureTest {
             schema.fragmentFrom("fragment F on Box { consumer(seed: 7) }").subselections
         val failure =
             assertFailsWith<IllegalArgumentException> {
-                source.closeConstructionDemand(operation, occurrence, ordinaryDemand)
+                source.closeObjectDemand(operation, occurrence, ordinaryDemand)
             }
         assertEquals(
             "Resolver output must not supply argument-bearing field Box/consumer",
@@ -326,8 +326,7 @@ class ConstructionDemandClosureTest {
         assertEquals(
             setOf(errored),
             schema.objectOf("Box")
-                .closeConstructionDemand(operation, occurrence, demand)
-                .closedDemand
+                .closeObjectDemand(operation, occurrence, demand)
                 .groundKeys(),
         )
     }
@@ -348,10 +347,10 @@ class ConstructionDemandClosureTest {
         val source = schema.objectOf("Box")
         val demand =
             schema.fragmentFrom("fragment F on Box { consumer(seed: 7) }").subselections
-        source.closeConstructionDemand(operation, occurrence, demand)
+        source.closeObjectDemand(operation, occurrence, demand)
 
         assertFailsWith<IllegalStateException> {
-            source.closeConstructionDemand(operation, occurrence, demand)
+            source.closeObjectDemand(operation, occurrence, demand)
         }
     }
 
@@ -522,7 +521,7 @@ class ConstructionDemandClosureTest {
         )
 
     private fun TestWorld.closeOrchestratorDemand(
-        initialDemand: OrchestratorConstructionDemand<model.SelectionForest>,
+        initialDemand: OrchestratorConstructionDemand<SelectionForest>,
     ): OrchestratorConstructionDemand<ObjectSelectionForest> {
         val world = assumptions
         val query = world.schema.requireQueryTypeDef()
@@ -536,6 +535,21 @@ class ConstructionDemandClosureTest {
                 queryOccurrence = OEROccurrence(queryRoot, emptyList(), queryRoot),
                 initialDemand = initialDemand,
             )
+    }
+
+    private fun EngineObjectData.Sync.closeObjectDemand(
+        operation: SharedOperationContext<*>,
+        objectOccurrence: OEROccurrence,
+        initialDemand: SelectionForest,
+    ): ObjectSelectionForest {
+        val queryRoot =
+            ObjectEngineResult.of(operation.world.schema.requireQueryTypeDef(), emptyMap())
+        return closeOrchestratorConstructionDemand(
+            operation = operation,
+            objectOccurrence = objectOccurrence,
+            queryOccurrence = OEROccurrence(queryRoot, emptyList(), queryRoot),
+            initialDemand = OrchestratorConstructionDemand.checkedObject(initialDemand),
+        ).objectRooted.values.merge(schemaType)
     }
 
     private fun ObjectSelectionForest.fieldNames(): Set<String> =

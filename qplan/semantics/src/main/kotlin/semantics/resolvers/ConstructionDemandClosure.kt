@@ -10,7 +10,7 @@ import model.selectionForestOf
 import semantics.resolver26.liftParentConstructionDemand
 import semantics.shared.Demand
 import semantics.shared.OEROccurrence
-import semantics.shared.SharedOERContext
+import semantics.shared.ResolverInputConstructionDemand
 import semantics.shared.SharedOperationContext
 import semantics.shared.applicableGroundSelections
 import semantics.shared.argumentsContainErrorValue
@@ -29,7 +29,9 @@ import viaduct.graphql.schema.ViaductSchema
  *
  * Each step grounds selections under existing bindings, binds variables for newly discovered
  * standard resolvers, and adds their direct input-fragment demand as checked. Fields supplied by
- * the object source remain passive. Only demand and the expanded-key sets change between steps.
+ * the object source remain passive. The associated Query OER has no passive source; every demanded
+ * Query field uses its registered resolver. Only demand and the expanded-key sets change between
+ * steps.
  */
 internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
     operation: SharedOperationContext<*>,
@@ -52,46 +54,6 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
     require(queryOccurrence.root !== objectOccurrence.root) {
         "Resolver Query demand must not reuse the containing operation root"
     }
-    return closeConstructionDemandPair(
-        operation = operation,
-        objectOccurrence = objectOccurrence,
-        queryOccurrence = queryOccurrence,
-        initialDemand = initialDemand,
-    )
-}
-
-/**
- * Compatibility entry point for the current one-OER orchestration lifecycle.
- *
- * Step 2 replaces this adapter with [closeOrchestratorConstructionDemand] when orchestration owns
- * and launches the associated Query OER. Until then, declared Query fragments retain their current
- * field-task-owned execution and are intentionally absent from this object's closed demand.
- */
-internal fun EngineObjectData.Sync.closeConstructionDemand(
-    operation: SharedOperationContext<*>,
-    occurrence: OEROccurrence,
-    initialDemand: SelectionForest,
-): SharedOERContext {
-    val closedDemand =
-        closeConstructionDemandPair(
-            operation = operation,
-            objectOccurrence = occurrence,
-            queryOccurrence = null,
-            initialDemand = OrchestratorConstructionDemand.checkedObject(initialDemand),
-        ).objectRooted.values.merge(schemaType)
-    return SharedOERContext(occurrence, this, closedDemand)
-}
-
-private fun EngineObjectData.Sync.closeConstructionDemandPair(
-    operation: SharedOperationContext<*>,
-    objectOccurrence: OEROccurrence,
-    queryOccurrence: OEROccurrence?,
-    initialDemand: OrchestratorConstructionDemand<SelectionForest>,
-): OrchestratorConstructionDemand<ObjectSelectionForest> {
-    require(queryOccurrence != null || initialDemand.queryRooted.values.isEmpty()) {
-        "Query-rooted demand requires a Query OER occurrence"
-    }
-
     // `accumulatedDemand` will become all construction demand rooted at this OER pair.
     var accumulatedDemand = initialDemand
 
@@ -108,7 +70,6 @@ private fun EngineObjectData.Sync.closeConstructionDemandPair(
             accumulatedDemand.groundWithLiftedParentDemand(
                 operation = operation,
                 objectType = objectOccurrence.target.type,
-                includeQueryRoot = queryOccurrence != null,
             )
         val newObjectResolverKeys =
             groundedDemand.objectRooted.newResolverKeys(
@@ -117,15 +78,11 @@ private fun EngineObjectData.Sync.closeConstructionDemandPair(
                 requiresStandardResolution = ::requiresStandardResolution,
             )
         val newQueryResolverKeys =
-            if (queryOccurrence == null) {
-                emptySet()
-            } else {
-                groundedDemand.queryRooted.newResolverKeys(
-                    operation = operation,
-                    expandedKeys = expandedQueryResolverKeys,
-                    requiresStandardResolution = { true },
-                )
-            }
+            groundedDemand.queryRooted.newResolverKeys(
+                operation = operation,
+                expandedKeys = expandedQueryResolverKeys,
+                requiresStandardResolution = { true },
+            )
 
         if (newObjectResolverKeys.isNotEmpty() || newQueryResolverKeys.isNotEmpty()) {
             demandNotClosed = true
@@ -134,28 +91,20 @@ private fun EngineObjectData.Sync.closeConstructionDemandPair(
                 objectOccurrence.root,
                 objectOccurrence.path,
             )
-            queryOccurrence?.let { occurrence ->
-                newQueryResolverKeys.bindFromArguments(
-                    operation,
-                    occurrence.root,
-                    occurrence.path,
-                )
-            }
+            newQueryResolverKeys.bindFromArguments(
+                operation,
+                queryOccurrence.root,
+                queryOccurrence.path,
+            )
 
             val objectResolverInputs =
                 newObjectResolverKeys.resolverInputDemand(operation, objectOccurrence)
             val queryResolverInputs =
-                queryOccurrence?.let { occurrence ->
-                    newQueryResolverKeys.resolverInputDemand(operation, occurrence)
-                } ?: ResolverInputDemand.EMPTY
+                newQueryResolverKeys.resolverInputDemand(operation, queryOccurrence)
             val queryInputSelections =
-                if (queryOccurrence == null) {
-                    selectionForestOf()
-                } else {
-                    objectResolverInputs.queryFragment +
-                        queryResolverInputs.objectFragment +
-                        queryResolverInputs.queryFragment
-                }
+                objectResolverInputs.queryFragment +
+                    queryResolverInputs.objectFragment +
+                    queryResolverInputs.queryFragment
             accumulatedDemand =
                 groundedDemand +
                     OrchestratorConstructionDemand(
@@ -170,23 +119,17 @@ private fun EngineObjectData.Sync.closeConstructionDemandPair(
     return accumulatedDemand.groundWithLiftedParentDemand(
         operation = operation,
         objectType = objectOccurrence.target.type,
-        includeQueryRoot = queryOccurrence != null,
     )
 }
 
 private fun OrchestratorConstructionDemand<SelectionForest>.groundWithLiftedParentDemand(
     operation: SharedOperationContext<*>,
     objectType: ViaductSchema.Object,
-    includeQueryRoot: Boolean,
 ): OrchestratorConstructionDemand<ObjectSelectionForest> {
     val objectWithParentDemand =
         objectRooted + objectRooted.liftParentConstructionDemand(operation.world)
     val queryWithParentDemand =
-        if (includeQueryRoot) {
-            queryRooted + queryRooted.liftParentConstructionDemand(operation.world)
-        } else {
-            Demand.EMPTY
-        }
+        queryRooted + queryRooted.liftParentConstructionDemand(operation.world)
     return OrchestratorConstructionDemand(
         objectRooted = objectWithParentDemand.applicableGroundSelections(operation, objectType),
         queryRooted =
@@ -212,19 +155,10 @@ private fun Demand<ObjectSelectionForest>.newResolverKeys(
                 requiresStandardResolution(key)
         }
 
-private class ResolverInputDemand(
-    val objectFragment: SelectionForest,
-    val queryFragment: SelectionForest,
-) {
-    companion object {
-        val EMPTY = ResolverInputDemand(selectionForestOf(), selectionForestOf())
-    }
-}
-
 private fun Set<ObjectEngineResult.GroundKey>.resolverInputDemand(
     operation: SharedOperationContext<*>,
     occurrence: OEROccurrence,
-): ResolverInputDemand {
+): ResolverInputConstructionDemand {
     var objectFragment: SelectionForest = selectionForestOf()
     var queryFragment: SelectionForest = selectionForestOf()
     forEach { key ->
@@ -235,7 +169,7 @@ private fun Set<ObjectEngineResult.GroundKey>.resolverInputDemand(
         objectFragment += fragments.objectFragment.constructionSelections
         queryFragment += fragments.queryFragment.constructionSelections
     }
-    return ResolverInputDemand(objectFragment, queryFragment)
+    return ResolverInputConstructionDemand(objectFragment, queryFragment)
 }
 
 private fun EngineObjectData.Sync.requiresStandardResolution(

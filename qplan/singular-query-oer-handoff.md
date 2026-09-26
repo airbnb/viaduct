@@ -2,25 +2,46 @@
 
 ## Purpose
 
-This handoff is for the implementation branch already created in `/home/raymie_stata/repos/2rv`. Its first objective is to replace resolver-owned fresh Query OER expansion with singular, shared Query scopes. The motivating walkthrough and the exponential, linear-root, and singular alternatives are in [`examples.md`](/home/raymie_stata/repos/2rv/qplan/examples.md#fresh-query-oer-resolution-strategies); use that example as the compact behavioral specification rather than reproducing it here.
+This handoff is the reviewer entry point for the completed `single-query-oer` branch in `/home/raymie_stata/repos/2rv`. The branch replaces resolver-owned fresh Query OER expansion with singular, shared Query scopes. The motivating walkthrough and the exponential, linear-root, and singular alternatives are in [`examples.md`](./examples.md#fresh-query-oer-resolution-strategies); use that example as the compact behavioral specification rather than reproducing it here.
 
-The user has already created and selected the target branch in the `2rv` worktree and will copy this handoff and the revised `examples.md` there. Treat that existing branch as the starting state; do not recreate it, change its base, or copy other changes from `1rv` unless the user directs otherwise.
+All implementation and validation commands recorded here ran from `/home/raymie_stata/repos/2rv/qplan`. The `1rv` worktree was used only as a read-only architecture reference where explicitly noted. Everst has no qplan information and was not used.
 
-All implementation work belongs in `/home/raymie_stata/repos/2rv/qplan`, and every Gradle command must run from that directory. The `1rv` worktree is a read-only architecture reference only where this handoff explicitly points to it; do not modify it from the implementation session. Everst has no qplan information and must not be used.
+## Reviewer Navigation
+
+Use [`examples.md`](./examples.md#fresh-query-oer-resolution-strategies) first for the old exponential behavior and the implemented singular policy. Then review the branch in commit order: shared preparation and demand closure; Resolver01–08 implementation, validation, and stress evidence; Resolver21–23 implementation and validation; and Resolver26 implementation, validation, and the final cross-family boundary coverage. The rewritten commit identities are recorded in the status section below.
+
+The commit stack maps to the implementation sequence as follows:
+
+| Commit range | Implementation sequence | Significance |
+| --- | --- | --- |
+| `fa0be4e4e^..fa0be4e4e` | Step 1 | Important preparation that should be understood on its own merits. |
+| `fa0be4e4e..c751e7909` | Steps 2–4 | Resolver01–08 were changed together because these steps could not be cleanly separated. These three central commits contain the bulk of the work. |
+| `0f824f8ef^..0f824f8ef` | Step 5 | Resolver21–23 implementation and validation. |
+| `HEAD^..HEAD` | Step 6 | Resolver26, the production-shaped algorithm, and therefore a particularly important layer. |
+
+Steps 7–8 do not have separate commits. Their cross-family finalization, documentation, and validation work is incorporated into the earlier commits.
+
+The central implementation seams are the shared `SharedOERContext` and `ResolverInputConstructionDemand` carriers, the grounded and symbolic `ConstructionDemandClosure.kt` implementations, each family's orchestration and field-task pair, and owner-local Query materialization in each family's `FieldResolutionLogic`. The most direct acceptance specification is `QueryFragmentResolverContract`; `RootFieldReferenceResolverContract`, `ParentFieldResolverContract`, the cycle tests, correctness replay, occurrence witnesses, and the seeded stress suites cover the consequential boundaries around it.
+
+Review especially that one orchestration owns distinct object and associated Query OERs; Query-side resolvers close both fragments back into the same Query scope; every owner retains its response-keyed projection; descendant object and list occurrences retain separate containing scopes; and `ctx.query()` and root-field-reference targets remain independently rooted. Resolver01–08 intentionally retain dependency-bound synchronous ordering, while Resolver21–26 retain promise-based asynchronous readiness. Checker Query-scope migration is explicitly outside this branch.
 
 ## Current Status And Remaining Sequence
 
-This section is authoritative when older planning language below conflicts with the implementation. The committed branch completed Steps 1–4 in `9180ff29f`, `1e444d77d`, `8696e8a0f`, and `029f7753c`; the current `HEAD` commit completes Step 5 for Resolver21–23.
+This section is authoritative when older planning language below conflicts with the implementation. The committed branch completed Steps 1–4 in `fa0be4e4e`, `1befe7648`, `0e62483b5`, and `c751e7909`; `0f824f8ef` completes Step 5 for Resolver21–23, and branch `HEAD` completes Step 6 for Resolver26. The Step 7 cross-family boundary contracts are folded into `0e62483b5`, and the final Step 8 documentation and validation record are folded into `HEAD`.
 
 - `OrchestratorConstructionDemand` represents object- and Query-rooted demand, each retaining checked and unchecked provenance. The grounded closure used by Resolver01–23 closes the pair in one fixed point, including transitive Query-side resolver inputs and parent lifting.
+- `ResolverInputConstructionDemand` is the shared object-/Query-fragment pair contributed by newly expanded resolver occurrences; the grounded and symbolic closures retain different expansion bookkeeping around that common value.
 - `SharedOERContext` carries an OER occurrence, passive source, and closed construction demand. Shared orchestration and publication state use non-null `objectOER` and `queryOER` contexts.
-- Resolver02–03, Resolver07–08, and Resolver22–23 implement singular Query OERs. Resolver01, Resolver06, and Resolver21 remain empty-fragment compatibility baselines while sharing their families' paired-OER machinery.
-- Every Resolver01–23 orchestration optimistically allocates one real associated Query OER. If closure discovers no Query demand, that context has empty `closedDemand`, `isDemanded()` is false, and it is harmlessly frozen and discarded. Resolver26 alone retains a temporary undemanded placeholder and its independent ordinary Query-fragment producers until Step 6.
+- Resolver02–03, Resolver07–08, Resolver22–23, and Resolver26 implement singular Query OERs. Resolver01, Resolver06, and Resolver21 remain empty-fragment compatibility baselines while sharing their families' paired-OER machinery.
+- Every maintained orchestration optimistically allocates one real associated Query OER. If closure discovers no Query demand, that context has empty `closedDemand`, `isDemanded()` is false, and it is harmlessly frozen and discarded.
 - Resolver21–23 jointly close object- and Query-rooted demand, install all publications on both OERs before dispatching any field task, materialize each ordinary owner's local projection from the shared Query OER, and freeze both OERs from one orchestration dispatch. Promise readiness and coroutine suspension remain their execution mechanism; they do not acquire the depth-first families' dependency ordering.
+- Resolver26 now applies the same ownership rule to symbolic demand. Its paired closure retains occurrence-local inclusion alternatives and bindings, provider reads carry their absolute object- or Query-OER root, and ordinary owners materialize from the shared Query OER. Independently rooted reference-target execution remains separate.
 - Resolver22/23 validate Query-rooted parent lifting through a directed ancestor/descendant interaction: lifted demand activates one ancestor resolver with its own Query fragment, every involved resolver runs once, and Query-side cells do not leak into the client result.
 - Resolver23 uses the depth-27 expansion witness and completes with 28 resolver invocations rather than 832,039. Shared-production failure and cancellation tests cover multiple owners waiting on one producer.
 - `queryOERDepth` retains the same meaning throughout Resolver01–08 and remains useful to the Resolver06–08 reactor. Resolver21–23 report their real Query OERs without inventing a depth metric their scheduler neither tracks nor uses.
-- Root-field-reference targets remain independently rooted nested executions. Declared Query fragments reached within such an execution use the singular policy internally for Resolver01–23.
+- Root-field-reference targets remain independently rooted nested executions. Declared Query fragments reached within such an execution use the singular policy internally for every maintained resolver.
+- Boundary contracts require every reference hop and sibling occurrence to retain a distinct invocation root, require nested reference-target execution to use singular sharing internally, and require returned object, list-element, and abstract concrete occurrences to own the correct separate containing scopes.
+- Declarative direct and mutual Query-fragment recursion is rejected during registry construction. Runtime exact-cycle coverage remains in the depth-first sibling-ordering and coroutine cycle-checker contracts. Dynamically returned infinite root-reference tails retain ordinary tenant-code recursion semantics, like recursive `ctx.query()`, and have no reference-specific detector.
 - Observation and correctness replay record each shared Query OER once, associate every nonempty owner with it, validate its exact unioned closed demand once, and validate owner projections separately.
 
 Current validation evidence is:
@@ -28,20 +49,27 @@ Current validation evidence is:
 - The final focused Resolver01–08 acceptance run passed 295 tests with two expected skips. Seeded 10,000-case Resolver03 and Resolver08 stress runs each generated 20,385 Query fragments, included 1,200 fragment-free cases, activated 60,406 fragment-bearing applications, included 7,473 cases with and 2,527 cases without demanded Query OERs, and observed demanded depths `{1=34179, 2=10118, 3=709, 4=9}`.
 - The focused Resolver21–23 lifecycle, contract, and seed-1 generated acceptance run passed 207 tests with one expected skip and no failures. It includes Resolver21's undemanded/frozen context, Resolver22/23 parent integration, Resolver23's depth-27 witness, shared failure and cancellation, and all generated profiles for the three versions.
 - `./gradlew :semantics:resolver23Stress -Presolver23StressSeed=424242` passed all 10,000 requested cases: 26,185 generated Query fragments, 760 fragment-free cases, 31,214 activated Query-fragment applications, 6,540 cases with demanded Query OERs, and 3,460 without. `demandedQueryOERDepthCounts` is intentionally empty because coroutine resolvers do not fabricate the depth-first scheduler metric.
-- Singular sharing required the resolver-witness oracle to traverse each observed Query result once by identity: multiple owners may associate the same Query OER with distinct projections. The focused and stress results validate that behavior across both grounded execution families.
-- An unseeded full `./gradlew check` passed before the final `ObjectEngineResult.materializeInput` refactor. The exact current tree has not yet had the final seeded full check.
+- The full non-stress Resolver26 package passed 244 tests with one expected skip. It includes the shared Query-fragment contract and depth-27 expansion witness, parent-demand interaction, symbolic variables and providers, lifecycle/cancellation behavior, correctness replay, and occurrence witnesses.
+- After aligning the grounded and symbolic closure APIs and sharing `ResolverInputConstructionDemand`, a focused run of both closure tests, the Resolver03/08/23 contracts, and the full Resolver26 package passed 444 tests with one expected skip.
+- `./gradlew :semantics:resolver26Stress -Presolver26StressSeed=424242` passed all 10,000 requested cases in 4m 8s: 32,910 generated Query fragments, 445 fragment-free cases, 7,180 activated Query-fragment applications, 3,595 cases with demanded Query OERs, and 6,405 without. It also exercised 3,715 object-path and 7,180 Query-path variable applications, 145,661 root-field references, and 85,342 sometimes-passive occurrences.
+- Singular sharing required the resolver-witness oracle to traverse each observed Query result once by identity: multiple owners may associate the same Query OER with distinct projections. The focused and stress results validate that behavior across all maintained execution families.
+- The final boundary run passed all seven fragment-capable resolver contracts: 500 tests, three expected skips, and no failures. The focused registry suite also passed with direct and mutual Query-fragment recursion cases.
+- `./gradlew check -PresolverPropertySeed=1` passed the exact final tree in 5m 7s: 134 tasks, 52 executed and 82 up-to-date. Its regular suites reported 1,910 tests, 226 skips, and no failures or errors. No opt-in stress campaign was rerun during Step 8; the earlier seeded 10,000-case Resolver03/08/23/26 evidence above remains the stress acceptance evidence.
+- Post-review fixes preserve checked parent-demand provenance, isolate Resolver26 transitive inputs from unrelated owner guards, retain the two-argument observer compatibility callback, and validate each shared Query owner against its concrete OER/key address. Before history rewriting, the resulting tree passed the regular seeded qplan check and was recorded as snapshot `de60bd262`.
+- A follow-up adversarial review found three ownership-gate false positives rather than runtime defects: wrapper allocation could masquerade as distinct semantic scopes, a Query-side owner could introduce another associated Query root, and an ordinary owner could claim the independent-reference role. The accepted fixes use semantic OER addresses, prohibit associated Query roots from becoming new containing scopes, and justify independent owners with source-replayed root-field-reference evidence. The focused ownership suite passed, the full regular semantics suite passed 1,040 tests with five skips, and the full qplan check plus JMH compilation passed 135 tasks before the accepted tree was recorded as snapshot `f240c2948`.
+- Every rewritten commit was then built independently across all discovered qplan source sets: main and test for `arbitrary`; main, test fixtures, and test for `execution` and `model`; and main, test fixtures, test, and JMH for `semantics`. Focused tests at the changed ownership layers covered the retained adversarial regressions. The reconstructed final implementation and test tree was byte-for-byte equal to `f240c2948` before this commit-identity documentation refresh. The full suite and stress campaigns were not rerun during the history rewrite.
 
-Steps 1–5 are acceptance-complete. Remaining work follows the original sequence: migrate Resolver26 in Step 6, add the deliberate reference and nested-object boundary coverage in Step 7, then complete the remaining cross-cutting documentation and broad seeded validation in Step 8.
+Steps 1–8 are acceptance-complete. The branch is ready for deep review.
 
-## Recommendation
+## Implemented Decision
 
-Implement the singular approach, not the intermediate linear-root approach.
+The branch implements the singular approach, not the intermediate linear-root approach.
 
-The semantic rule should be approximately:
+The semantic rule is:
 
 > One orchestration task owns its object OER and one associated resolver Query OER context. Resolver Query fragments contribute demand to that shared Query OER. Resolver occurrences discovered on the Query side contribute their own object and Query fragments back into the same Query OER rather than creating another one. Joint preparation reaches one finite fixed point and installs each exact key once; each field-resolver task materializes its occurrence-local input from the shared Query OER. An orchestration with no Query demand retains an undemanded context with empty closed demand.
 
-“Singular” does not mean one process-global or request-global Query OER. It means one Query OER for a defined containing occurrence or query-scope boundary, with transitive root-Query dependencies closed inside it. The exact boundary for nested object occurrences and root-field-reference invocations is consequential and is called out below; settle it explicitly before generalizing the first root-scalar implementation.
+“Singular” does not mean one process-global or request-global Query OER. It means one Query OER for a defined containing occurrence or query-scope boundary, with transitive root-Query dependencies closed inside it. The settled boundaries for nested object occurrences and root-field-reference invocations are called out below.
 
 For the scalar-root example in `examples.md`, the required behavior is unambiguous: `Q0.field0` creates `Q1`; `Q1` contains `field1`, `field2`, and the transitively required `field3`; resolvers running on `Q1` read their declared Query inputs from projections of `Q1`; no `Q2` is created. Depth 8 therefore performs nine resolver invocations rather than 88, and depth 27 performs 28 rather than 832,039.
 
@@ -92,11 +120,11 @@ The rule is:
   context; the latter remains undemanded when none of the object's fields declare Query fragments.
 - Nested object occurrences already inside a Query result must not be conflated merely because their overall root identity is the same; list index and containing path remain part of occurrence identity.
 
-This rule preserves the existing meaning of `OEROccurrence` and avoids reopening a frozen Query root when a nested object is discovered only after a producer returns. A recursive dependency crossing a Query root, a returned object occurrence, and another Query scope can still unfold across scope boundaries; add a directed test and use an ancestry-level recursion guard if the ordinary exact cycle graph cannot see the recurrence. Do not merge distinct descendant occurrences merely to obtain cycle detection.
+This rule preserves the existing meaning of `OEROccurrence` and avoids reopening a frozen Query root when a nested object is discovered only after a producer returns. Registry validation conservatively rejects declarative dependencies that recurse through a Query root and returned descendant object. Distinct runtime descendant occurrences must not be merged or rejected by an ancestry guard merely because they repeat a coordinate; dynamically unbounded tenant output retains ordinary tenant-code nontermination semantics.
 
 Root-field references use a different boundary. Treat each emitted reference occurrence as an independently rooted nested Query execution, analogous to `ctx.query()`, rather than contributing the target's demand to the caller's resolver Query scope. The nested execution itself uses singular resolver Query scopes, so declared fragments reached while resolving the reference cannot recover the old Fibonacci expansion internally. This rule may be implemented by reusing the literal nested-query machinery or by preserving the current direct reference invocation with equivalent root and scope ownership; the semantic boundary matters more than code reuse.
 
-This reference rule does not itself introduce algorithmic superlinear growth. A direct reference tail emits at most one next hop, and each emitted list reference starts one nested execution. Work is therefore linear in the number of reference occurrences supplied by tenant results, multiplied by the cost of their nested queries. A tenant can return a huge or branching collection of references, just as any GraphQL list can be large, but that fanout belongs to the returned data rather than duplicate work invented by Query-root allocation. A cyclic reference tail can still fail to terminate as a linear recurrence; detect or bound that separately rather than joining references to the caller's resolver Query scope.
+This reference rule does not itself introduce algorithmic superlinear growth. A direct reference tail emits at most one next hop, and each emitted list reference starts one nested execution. Work is therefore linear in the number of reference occurrences supplied by tenant results, multiplied by the cost of their nested queries. A tenant can return a huge or branching collection of references, just as any GraphQL list can be large, but that fanout belongs to the returned data rather than duplicate work invented by Query-root allocation. The eventual value is resolved under the selection and demand of the position into which the reference was inserted. If tenant code nevertheless dynamically returns an infinite reference tail, qplan treats it like recursive `ctx.query()` or any other infinitely recursive resolver behavior rather than imposing a reference-specific detector.
 
 When field- and type-checker work is rebased, checker owners on one containing OER occurrence should use the same Query scope as resolver owners on that occurrence. A field checker belongs to its field's containing OER occurrence. A type checker belongs to the checked base-object occurrence, which therefore supplies its containing scope boundary. Separate object or list-element occurrences retain separate scopes. Sharing the Query OER coalesces value production; it does not change which consumer enforces checker results.
 
@@ -138,13 +166,13 @@ The intended checker end state is one shared Query scope per containing OER occu
 
 A grounded orchestration preparation closes the task's object-rooted demand and its possibly empty Query-rooted demand as two components of one fixed point. Resolvers active on the object side add object-fragment demand to the object OER and Query-fragment demand to the Query OER. Resolvers active on the Query side add both fragments back to the Query OER. Keep separate expanded-key or expanded-key/inclusion bookkeeping so each exact resolver occurrence contributes fixed inputs once. Do not recursively call the existing fresh-root entry point from inside this closure.
 
-The active field occurrences discovered on the object side provide the initial Query demand. Every Resolver01–23 orchestration allocates its Query OER optimistically before closure; if demand remains empty, the resulting context simply has empty closed demand. Resolver26 temporarily uses an undemanded placeholder until its paired symbolic preparation is implemented.
+The active field occurrences discovered on the object side provide the initial Query demand. Every maintained orchestration allocates its Query OER optimistically before closure; if demand remains empty, the resulting context simply has empty closed demand.
 
 ### Resolver26 construction-demand closure
 
-[`semantics/resolver26/ConstructionDemandClosure.kt`](/home/raymie_stata/repos/2rv/qplan/semantics/src/main/kotlin/semantics/resolver26/ConstructionDemandClosure.kt) retains symbolic keys, exact resolver occurrences, variable definitions, inclusion alternatives, root-field-reference occurrences, and object-fragment provider reads in `ClosedConstructionDemandContext`. It is the likely eventual home for symbolic Query-scope closure, but it should not be the first implementation target.
+[`semantics/resolver26/ConstructionDemandClosure.kt`](/home/raymie_stata/repos/2rv/qplan/semantics/src/main/kotlin/semantics/resolver26/ConstructionDemandClosure.kt) retains object- and Query-rooted symbolic demand, exact resolver occurrences, variable definitions, inclusion alternatives, root-field-reference occurrences, and both fragments' provider reads in `ClosedConstructionDemandContext`.
 
-Resolver26 currently prepares Query-fragment path reads inside each owning `FieldResolverTask`. The orchestration task will need those reads in its prepared Query-side state so every binding is declared before the Query OER freezes and so each owner reads provider paths from the shared Query result with its own reader identity and inclusion condition.
+Resolver26 prepares Query-fragment path reads during orchestration closure. Every binding is declared before the Query OER freezes, and each owner reads provider paths from the shared Query result with its own reader identity and inclusion condition.
 
 ### One-shot orchestration
 
@@ -156,11 +184,11 @@ For Resolver21–23, `FieldResolutionLogic.runFieldResolver` now materializes or
 
 For the fragment-capable depth-first versions, `DepthFirstFieldResolverTask.resolveQueryFragment` recursively creates `DepthFirstResolve`. Replace this with materialization from the task's prepared Query OER. Query-side resolver dependencies must participate in local sibling ordering. Resolver01 and Resolver06 share these task classes but do not support nonempty Query fragments; use them as regression checks for the no-Query-demand path.
 
-For Resolver26, `FieldResolver.resolveQueryFragment` in [`FieldResolverTask.kt`](/home/raymie_stata/repos/2rv/qplan/semantics/src/main/kotlin/semantics/resolver26/FieldResolverTask.kt) creates and dispatches the per-owner Query OER. This is the eventual seam, but its binding, inclusion, cancellation, and symbolic-cell behavior make it a later stage.
+For Resolver26, the private `FieldResolutionLogic.materializeQueryFragment` materializes each ordinary owner's input from its prepared shared Query OER. `FieldResolver.resolveQueryFragment` remains only for independently rooted reference-target invocations.
 
 ### Cycle checking
 
-[`semantics/shared/CycleCheckState.kt`](/home/raymie_stata/repos/2rv/qplan/semantics/src/main/kotlin/semantics/shared/CycleCheckState.kt) already keys tasks by task kind, Query-root identity, and exact path, and keys reads by exact result slot. Once two Query-dependent resolvers truly share a scope root and cells, ordinary resolver-input materialization should register the necessary reader-to-writer edges. Verify this with a focused test before adding special-purpose cycle logic.
+[`semantics/shared/CycleCheckState.kt`](/home/raymie_stata/repos/2rv/qplan/semantics/src/main/kotlin/semantics/shared/CycleCheckState.kt) associates exact result cells with writer paths and records materializer/provider reader-to-writer edges. Sharing a scope root and cells makes ordinary resolver-input materialization expose same-scope cycles to that existing graph.
 
 Depth-first Resolver01–08 do not use the runtime cycle checker for resolver input readiness. [`SiblingDependencyLogic.kt`](/home/raymie_stata/repos/2rv/qplan/semantics/src/main/kotlin/semantics/resolvers/resolver01/SiblingDependencyLogic.kt) topologically orders unresolved sibling keys using object-fragment dependencies. For a Query scope it must also consider same-scope Query-fragment dependencies. Preserve object-only behavior on ordinary OERs.
 
@@ -180,10 +208,7 @@ Launch also handles the pair together. The orchestration task is dispatched once
 
 The primary client Query OER is simply the object side of its orchestration task. Its associated internal Query OER remains distinct. A descendant object occurrence gets its own orchestration task, which likewise owns that object OER and one associated Query OER context.
 
-The shared task state now carries non-null `objectOER` and `queryOER` `SharedOERContext` values, while
-object- and Query-rooted demand use the future-compatible checked/unchecked product described above.
-Resolver26 still needs to replace its undemanded placeholder with prepared Query-side provider reads
-and binding declarations.
+The shared task state carries non-null `objectOER` and `queryOER` `SharedOERContext` values. Grounded-family demand uses the future-compatible checked/unchecked product described above; Resolver26 retains its symbolic per-side closure contexts and prepares Query-side provider reads and binding declarations before dispatch.
 
 Owner-local materialization remains a field-resolver-task responsibility. Each field-resolver task already represents a particular resolver occurrence and therefore has the selections, aliases, arguments, conditions, paths, and variable identities needed to materialize its declared Query fragment. Orchestration makes the prepared shared Query OER available to that task; it does not own a second collection of owner-specific projection selections.
 
@@ -195,6 +220,10 @@ The shared object/Query preparation state belongs on the orchestration task. The
 
 Begin below the resolver execution families in the construction-demand closure shared by Resolver01–23. Introduce `OrchestratorConstructionDemand<S>` as the object-rooted and Query-rooted pair of `Demand<S>` values, then update closure to compute both components in one fixed point. This first change should establish the data model and routing rules without waiting for an end-to-end resolver to own and launch both OERs.
 
+Commit `fa0be4e4e` also performs a deliberate carrier and task-seam preparation that is part of Step 1, not an unrelated refactor. It introduces `SharedOERContext` as the durable bundle of one `OEROccurrence`, its passive source, and its closed construction demand; replaces the corresponding loose triple on `SharedOrchestrationTask` with `objectOER`; threads that context through the depth-first, coroutine, and Resolver26 orchestration implementations; and makes `SharedPassiveValueResolutionLogic.materializePassiveFields` consume an OER context independently of a particular task. At this commit the execution families still orchestrate only `objectOER`. Step 2 adds the paired `queryOER` task property, `isDemanded()`, and the temporary undemanded-Query factory while activating the already prepared closure. Keeping the context migration in Step 1 lets the next commit focus on Query ownership, routing, scheduling, and materialization rather than mixing those semantics with a repository-wide carrier rewrite.
+
+The paired closure in `fa0be4e4e` is intentionally exercised directly by unit tests but not yet used by ordinary resolver execution. Its `closeConstructionDemand` compatibility entry point continues the pre-existing object-only lifecycle and deliberately omits Query-rooted demand until Step 2 makes every orchestration own a real associated Query OER. A reviewer should not interpret that adapter as an attempt to partially execute the new policy.
+
 The closure rules are:
 
 - an active resolver discovered through object-rooted demand contributes its object fragment to `objectRooted` and its Query fragment to `queryRooted`;
@@ -205,7 +234,7 @@ The closure rules are:
 
 Add focused unit tests to [`semantics/resolvers/ConstructionDemandClosureTest.kt`](/home/raymie_stata/repos/2rv/qplan/semantics/src/test/kotlin/semantics/resolvers/ConstructionDemandClosureTest.kt) before changing resolver execution. Cover empty Query demand, initial Query seeding, transitive Query-side closure, exact-key coalescing, and separate checked/unchecked contributions. Add parent cases in which object-rooted and Query-rooted demand independently lift through `@parent`, lifted demand activates another resolver, that resolver's fragments enter the correct components, and multiple closure iterations are required. The tests should assert the generated component forests directly rather than relying only on a final resolved value.
 
-This unit-test rung does not make Resolver01–21 support `@parent`; their public input domains remain unchanged. It puts the parent-aware closure structure in place early. Expect Resolver22, the first end-to-end parent-capable implementation, to expose and fix integration bugs without requiring the demand representation to be redesigned.
+This unit-test rung does not make Resolver01–21 support `@parent`; their public input domains remain unchanged. It puts the parent-aware closure structure in place early. Retrospectively, later integration did not discover a flaw in Step 1's fixed-point, fragment-routing, checked/unchecked, or parent-lifting rules. The final Resolver26 commit removes the now-unused nullable compatibility path and replaces the grounded closure's private fragment-pair helper with shared `ResolverInputConstructionDemand` so the grounded and symbolic closures use the same vocabulary; neither change alters the Step 1 closure result. Later execution, scheduling, lifecycle, and witness fixes belong to their respective steps rather than being retroactive repairs to this closure.
 
 ### 2. Establish the shared semantics and evidence through Resolver02 — implemented
 
@@ -259,35 +288,35 @@ Resolver23's original resolver-only timeout reproduction now runs at depth 27 an
 
 Within joint closure for every family, route fragments according to the side on which the resolver occurrence was discovered: object-side object fragments remain on the object side, while object-side Query fragments and both fragments of Query-side resolvers enter the Query side. This is demand routing inside one orchestration lifecycle, not a second task kind.
 
-### 6. Migrate Resolver26 only after Resolver01–23 are stable
+### 6. Migrate Resolver26 only after Resolver01–23 are stable — acceptance complete
 
-Resolver26 adds symbolic keys, `FromObjectField`, `FromQueryField`, `FromProvider`, inclusion conditions, provider-read cycles, and request-owned concurrent execution. A direct first implementation there will conflate the core ownership change with its hardest binding cases.
+Resolver26 adds symbolic keys, `FromObjectField`, `FromQueryField`, `FromProvider`, inclusion conditions, provider-read cycles, and request-owned concurrent execution. Its migration retained those capabilities while adopting the shared-scope ownership established in earlier families.
 
-Extend `ClosedConstructionDemandContext` to retain the object- and Query-rooted demand components prepared by the one orchestration task, including every contributing resolver occurrence, its inclusion alternatives, and both object- and Query-fragment provider reads. During closure, newly discovered Query-side resolver occurrences must contribute guarded object and Query construction selections back into the Query component.
+`ClosedConstructionDemandContext` now retains the object- and Query-rooted demand components prepared by one orchestration task, including every contributing resolver occurrence, its inclusion alternatives, and both object- and Query-fragment provider reads. During closure, newly discovered Query-side resolver occurrences contribute guarded object and Query construction selections back into the Query component.
 
-Resolver21–23 currently keep shared-Query projection in the private `FieldResolutionLogic.materializeQueryFragment` helper. Revisit that seam during Resolver26 migration: share it only if Resolver26's symbolic selections, occurrence-local bindings, and materializer dependencies can remain explicit rather than being hidden behind a grounded-family abstraction.
+Resolver21–23 and Resolver26 each keep shared-Query projection in a private `FieldResolutionLogic.materializeQueryFragment` helper, preserving the symbolic/grounded distinction and each family's explicit materializer dependencies.
 
-Declare every binding needed by both closed demand components before dispatch. A `FromQueryField` binding reads from the shared Query OER but remains owned by one resolver occurrence; equal produced values do not merge variable instances. A `FromObjectField` binding used in a Query fragment still reads the owner's object OER. Preserve the current parallel readiness behavior so neither fragment is given an artificial global precedence.
+Every binding needed by both closed demand components is declared before dispatch. A `FromQueryField` binding reads from the shared Query OER but remains owned by one resolver occurrence; equal produced values do not merge variable instances. A `FromObjectField` binding used in a Query fragment still reads the owner's object OER. Provider reads retain parallel readiness so neither fragment has artificial global precedence.
 
-The Resolver26 materializer can reserve symbolic cells before producer installation. Under the new invariant, scope preparation should nevertheless determine and install the complete symbolic key domain before freezing. Do not use reservability as permission for unbounded late scope growth.
+Although the Resolver26 materializer can reserve symbolic cells, orchestration determines and installs the complete symbolic key domain on both OERs before dispatching any producer and freezing either result.
 
-### 7. Address references and nested objects deliberately
+### 7. Address references and nested objects deliberately — acceptance complete
 
 After root-scalar and ordinary owner sharing work, add tests for:
 
 - a root-field-reference target that starts an independently rooted nested Query execution;
 - a target with a nonempty declared Query fragment whose nested execution uses singular sharing internally;
 - two emitted reference occurrences that remain distinct nested executions rather than coalescing through the caller's resolver Query scope;
-- a cyclic direct reference tail that fails deterministically rather than running until timeout;
+- direct reference tails retaining tenant-code recursion semantics rather than acquiring a reference-specific cycle detector;
 - a Query field returning an object whose descendant resolver declares a Query fragment;
 - list elements producing separate containing occurrences;
 - abstract result types whose concrete descendant resolvers contribute different Query demand.
 
 Use those tests to enforce the settled scope boundaries described earlier. Do not infer correctness solely from the scalar regression, and do not classify tenant-provided list fanout as resolver Query-scope duplication.
 
-### 8. Update documentation and then run broad validation
+### 8. Update documentation and then run broad validation — acceptance complete
 
-The following documents currently state the old independent-root policy and will need intentional revision:
+The final cross-cutting audit includes the following documents. The Resolver26-local and family-comparison descriptions were brought current during Step 6, but Step 8 must check the complete set together:
 
 - [`design-principles.md`](/home/raymie_stata/repos/2rv/qplan/design-principles.md), especially occurrence identity and the statement that every independently executed Query fragment has a fresh root;
 - [`semantics/README.md`](/home/raymie_stata/repos/2rv/qplan/semantics/README.md), including correctness, depth-first execution, coroutine execution, observer timing, and declared Query-fragment ownership;
@@ -382,14 +411,47 @@ Change the semantic expectation once, in shared contracts and shared oracle code
 - Do not revive Resolver10-style late readiness rescanning or persistent mutable demand acceptance. The desired result is a finite prepared scope, not a more dynamic scheduler.
 - Do not stop after the Resolver02/03 reference implementation. Completion requires Resolver07/08, Resolver22/23, and Resolver26 to satisfy the same shared contract; Resolver01/06/21 must remain green on their empty-fragment capability boundary.
 
-## Remaining Questions For Steps 6–7
+## Resolved Decisions From Steps 6–7
 
-1. How should Resolver26's inclusion alternatives contribute guarded shared-scope demand without making an excluded owner wait on irrelevant production?
-2. How should Resolver26 declare all occurrence-local `FromObjectField`, `FromQueryField`, and `FromProvider` bindings for both OERs before dispatch while retaining concurrent readiness?
-3. Which exact runtime cycles remain after Resolver26's conservative registry validation, and what additional `CycleCheckState` evidence do they require under shared symbolic production?
-4. Should root-field references keep their direct invocation path or reuse literal `ctx.query()` machinery once Step 7 adds the complete boundary suite? Either choice must preserve independently rooted semantics.
-5. Does a recursive dependency crossing a Query root, a returned descendant object occurrence, and another associated Query OER require an ancestry guard beyond ordinary exact-cell cycle checking?
-6. Can the grounded and symbolic orchestration tasks share object/Query demand-pair and per-OER preparation/launch interfaces while retaining their intentionally different installed-cell and binding strategies?
+1. Resolver26 closes every satisfiable inclusion alternative structurally, installs its possible work before dispatch, and lets occurrence-local conditions suppress excluded invocation and reads at runtime.
+2. Resolver26 declares the complete binding domains for both closed demand components before dispatch; object-, Query-, and provider-rooted readers retain their absolute roots and concurrent promise readiness.
+3. Conservative registry validation rejects declarative direct and mutual Query recursion. Runtime exact-cycle evidence remains in `SiblingDependencyLogicTest`, `CoroutineResolverContract`, provider-path validation, and `CycleCheckStateTest`; registry validation was not weakened merely to manufacture another runtime case.
+4. Root-field references retain direct invocation. Each hop receives a fresh invocation identity and independently rooted Query execution, whose internal ordinary fragments use singular sharing.
+5. No ancestry guard is added across distinct returned object occurrences. Registry validation rejects declarative cross-scope recursion, while repeated coordinates in genuinely different runtime occurrences remain semantically distinct.
+6. Grounded and symbolic families share `SharedOERContext`, `ResolverInputConstructionDemand`, paired orchestration roles, and lifecycle contracts. Their closure bookkeeping, installed-cell strategy, bindings, and readiness mechanisms remain intentionally family-specific.
+
+## Follow-Up: Pre-Existing Problems Found During Review
+
+### Resolver26 contract-fixture accounting is unsafe with multiple workers
+
+An adversarial review ran the ordinary Resolver26 package with five resolution workers:
+
+```shell
+./gradlew :semantics:test \
+  --tests 'semantics.resolver26.*' \
+  -PresolverPropertySeed=424242 \
+  -Pviaduct.resolution.threadcount=5
+```
+
+Two unchanged `ObjectFragmentResolverContract` cases failed only in their invocation-accounting
+assertions after their resolved-value and output-shape assertions had passed:
+
+- `object outputs vary by input and arguments at equal-key list occurrences`;
+- `preserves arguments and occurrence-distinct list output shapes`.
+
+The fixtures record concurrently executing resolver bodies in ordinary mutable lists and increment
+ordinary mutable integer counters. Those operations are not thread-safe, so lost list entries or
+counter increments are possible. The observed failures each omitted one expected application entry
+and are consistent with this pre-existing fixture race. The affected cases do not declare Query
+fragments, so this is not direct evidence of a singular Query-OER defect. The new scheduling may
+change timing and make the old race easier to expose, but the review did not reproduce the failure
+on the preceding revision and therefore did not attribute it to this project.
+
+Leave this outside the singular Query-OER commit stack. A future fix should use concurrent
+collections and atomic counters in these fixtures, then rerun the Resolver26 package with five
+workers, preferably repeatedly. Any value, shape, or application-accounting failure that remains
+after making the fixture observations thread-safe should be investigated as a possible Resolver26
+runtime defect.
 
 ## Completion Boundary
 

@@ -31,7 +31,7 @@ internal suspend fun ObjectEngineResult.readProvider(
 ): VariableBinding = readProvider(operation, definition.path, reader)
 
 // Reads and completes provider bindings; the owning field-task root handles cancellation cleanup.
-internal suspend fun ObjectEngineResult.completeProviderBindings(
+internal suspend fun completeProviderBindings(
     operation: OperationContext,
     providerReads: List<VariableProviderReadOccurrence>,
 ) {
@@ -41,8 +41,7 @@ internal suspend fun ObjectEngineResult.completeProviderBindings(
             launch {
                 val binding =
                     try {
-                        if (!providerRead.inclusionCondition.fetchIncluded(operation)) return@launch
-                        readProvider(
+                        providerRead.providerResult.readProvider(
                             operation = operation,
                             definition = providerRead.definition,
                             reader = providerRead.readerPath,

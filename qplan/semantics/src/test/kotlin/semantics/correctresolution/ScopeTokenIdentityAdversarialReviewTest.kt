@@ -77,7 +77,9 @@ class ScopeTokenIdentityAdversarialReviewTest {
         }
 
         // Control: the same invalid per-owner policy is rejected when callers retain one carrier.
-        assertFalse(observe(reuseScopeWrapper = true).queryFragmentOwnershipIsConsistent())
+        assertFalse(
+            observe(reuseScopeWrapper = true).queryFragmentOwnershipIsConsistent(emptySet()),
+        )
         val observer = observe(reuseScopeWrapper = false)
         val log = recordApplications(observer, listOf(result) + queries)
         val operation = SharedOperationContext.create(world, resolverObserver = observer)

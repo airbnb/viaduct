@@ -5,6 +5,7 @@ import model.requireObjectField
 import semantics.contract.selectionValues
 import model.ListEngineResult
 import model.ObjectEngineResult
+import model.ResolverOccurrenceId
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
@@ -19,12 +20,13 @@ import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertSame
 import semantics.shared.SharedOperationContext
 import semantics.correctresolution.CorrectnessResolverObserver
 
 class ResolverOccurrenceWitnessTest {
     @Test
-    fun `occurrence oracle includes query roots and rejects wrong-root applications`() {
+    fun `occurrence oracle includes one shared query root`() {
         val testWorld =
             TestWorld.fromSDL(
                 selectiveResolvers = true,
@@ -99,45 +101,29 @@ class ResolverOccurrenceWitnessTest {
             result.registeredResolverOccurrenceApplicationIdentityCounts(operation)
 
         assertEquals(expected, witness.applicationIdentityCounts())
-        assertEquals(4, expected.values.sum())
+        assertEquals(3, expected.values.sum())
         assertEquals(
             result.registeredResolverApplicationIdentityCounts(operation),
             witness.applications
                 .groupingBy { application -> application.application.identity }
                 .eachCount(),
         )
-        assertEquals(
-            2,
+        val queryResults =
             (operation.resolverObserver as CorrectnessResolverObserver)
                 .allQueryFragmentResults()
-                .size,
-        )
+                .values
+                .flatten()
+        assertEquals(2, queryResults.size)
+        assertSame(queryResults.first(), queryResults.last())
 
         val sourceApplications =
             witness.applications.filter { application ->
                 application.application.key.field == FieldCoordinate("Query", "source")
             }
-        assertEquals(2, sourceApplications.size)
-        val first = sourceApplications.first()
-        val second = sourceApplications.last()
-        assertEquals(first.occurrencePath, second.occurrencePath)
-        assertEquals(first.application.identity, second.application.identity)
-        assertNotEquals(first.resolverOccurrenceId, second.resolverOccurrenceId)
-
-        val wrongRoot =
-            ResolutionOccurrenceWitness(
-                witness.applications.map { application ->
-                    if (application == second) {
-                        second.copy(resolverOccurrenceId = first.resolverOccurrenceId)
-                    } else {
-                        application
-                    }
-                },
-            )
-        assertNotEquals(
-            expected,
-            wrongRoot.applicationIdentityCounts(),
-            "Duplicating one Query root and omitting another must fail the occurrence oracle",
+        val sourceApplication = sourceApplications.single()
+        assertEquals(
+            ResolverOccurrenceId.at(queryResults.first(), sourceApplication.occurrencePath),
+            sourceApplication.resolverOccurrenceId,
         )
     }
 

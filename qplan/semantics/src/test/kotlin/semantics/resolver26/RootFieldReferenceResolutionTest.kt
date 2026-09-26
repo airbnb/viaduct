@@ -32,6 +32,7 @@ import model.testing.fromQueryField
 import semantics.contract.contractKey
 import semantics.contract.registeredResolverOccurrenceApplicationIdentityCounts
 import semantics.correctresolution.correctResolution
+import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
 import semantics.correctresolution.CorrectnessResolverObserver
 import kotlin.test.Test
@@ -1177,9 +1178,17 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                 Arguments.of(consumer, mapOf("value" to variable)),
             )
         primaryRoot.setCellValue(consumerKey, ErrorEngineResult.of(EngineErrorData.of()))
-        observer.onIndependentQueryFragmentPrepared(
-            ResolverOccurrenceId.at(primaryRoot, listOf(consumerKey)),
+        val owner = ResolverOccurrenceId.at(primaryRoot, listOf(consumerKey))
+        val owningOccurrence = OEROccurrence(primaryRoot, emptyList(), primaryRoot)
+        observer.onQueryFragmentPrepared(
+            owner,
             queryResult,
+            owningOccurrence,
+        )
+        observer.onQueryFragmentOwnerAddress(
+            owner,
+            owningOccurrence,
+            consumerKey,
         )
         val selections = model.selectionForestOf().merge(operation.world.schema.requireQueryTypeDef())
 

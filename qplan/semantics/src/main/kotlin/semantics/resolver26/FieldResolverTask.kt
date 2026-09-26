@@ -28,6 +28,7 @@ import model.schemaType
 import semantics.shared.argumentsContainErrorValue
 import semantics.shared.SharedFieldPublicationOccurrence
 import semantics.shared.OEROccurrence
+import semantics.shared.SharedOERContext
 import semantics.shared.materializeResult
 import viaduct.engine.api.EngineObjectData
 
@@ -41,7 +42,8 @@ internal class FieldPublicationOccurrence(
     override val oerOccurrence: OEROccurrence,
     val sourceOccurrence: ValueSourceOccurrence,
     override val publicationCell: EngineResultCell,
-    /** Variable-provider reads rooted in this publication's containing object. */
+    val queryOER: SharedOERContext,
+    /** Variable-provider reads rooted in the publication's object or associated Query OER. */
     val variableProviderReads: List<VariableProviderReadOccurrence>,
 ) : SharedFieldPublicationOccurrence<OperationContext, CoroutineTaskDispatcher<OrchestrationTask, FieldPublicationOccurrence>>,
     OperationContext by operation
@@ -60,39 +62,53 @@ internal class FieldResolverTask private constructor(
             closed: ClosedConstructionDemandContext,
         ) {
             val operation = orchestrationTask.operation
-            val objectOER = orchestrationTask.objectOER
-            closed.fieldResolverOccurrences.forEach { (objectKey, fieldResolverOccurrence) ->
-                check(objectKey.field in operation.world.resolverRegistry) {
-                    "Resolver26 attempted to install passive key $objectKey"
+            val publications =
+                listOf(
+                    orchestrationTask.objectOER to closed.objectRooted,
+                    orchestrationTask.queryOER to closed.queryRooted,
+                ).flatMap { (oer, closedOER) ->
+                    buildList {
+                        closedOER.fieldResolverOccurrences.forEach { (objectKey, fieldResolverOccurrence) ->
+                            check(objectKey.field in operation.world.resolverRegistry) {
+                                "Resolver26 attempted to install passive key $objectKey"
+                            }
+                            check(!oer.source.isPresent(objectKey.field.name)) {
+                                "Resolver26 attempted to install source-provided key $objectKey"
+                            }
+                            add(
+                                prepare(
+                                    operation = operation,
+                                    oerOccurrence = oer.occurrence,
+                                    sourceOccurrence = fieldResolverOccurrence,
+                                    queryOER = orchestrationTask.queryOER,
+                                    providerReads =
+                                        closedOER.variableProviderReadsByResolverOccurrence.getValue(
+                                            fieldResolverOccurrence.resolverOccurrenceId,
+                                        ),
+                                ),
+                            )
+                        }
+                        closedOER.rootFieldReferenceOccurrences.values.forEach { referenceOccurrence ->
+                            val objectKey = referenceOccurrence.selection.key
+                            check(
+                                oer.source.outputValue(objectKey.field.name) ===
+                                    referenceOccurrence.reference,
+                            ) {
+                                "Resolver26 root reference does not match its source value"
+                            }
+                            add(
+                                prepare(
+                                    operation = operation,
+                                    oerOccurrence = oer.occurrence,
+                                    sourceOccurrence = referenceOccurrence,
+                                    queryOER = orchestrationTask.queryOER,
+                                    providerReads = emptyList(),
+                                ),
+                            )
+                        }
+                    }
                 }
-                check(!objectOER.source.isPresent(objectKey.field.name)) {
-                    "Resolver26 attempted to install source-provided key $objectKey"
-                }
-                installAndLaunch(
-                    operation = operation,
-                    oerOccurrence = objectOER.occurrence,
-                    sourceOccurrence = fieldResolverOccurrence,
-                    providerReads =
-                        closed.variableProviderReadsByResolverOccurrence.getValue(
-                            fieldResolverOccurrence.resolverOccurrenceId,
-                        ),
-                )
-            }
-            closed.rootFieldReferenceOccurrences.values.forEach { referenceOccurrence ->
-                val objectKey = referenceOccurrence.selection.key
-                check(
-                    objectOER.source.outputValue(objectKey.field.name) ===
-                        referenceOccurrence.reference,
-                ) {
-                    "Resolver26 root reference does not match its source value"
-                }
-                installAndLaunch(
-                    operation = operation,
-                    oerOccurrence = objectOER.occurrence,
-                    sourceOccurrence = referenceOccurrence,
-                    providerReads = emptyList(),
-                )
-            }
+            publications.forEach(operation.dispatcher::dispatchFieldResolver)
         }
 
         // Called by PassiveValueResolutionLogic to launch a list-element task.
@@ -108,6 +124,7 @@ internal class FieldResolverTask private constructor(
                 oerOccurrence = oerOccurrence,
                 sourceOccurrence = sourceOccurrence,
                 publicationCell = publicationCell,
+                queryOER = SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef()),
                 providerReads = emptyList(),
             )
         }
@@ -117,8 +134,28 @@ internal class FieldResolverTask private constructor(
             operation: OperationContext,
             oerOccurrence: OEROccurrence,
             sourceOccurrence: ValueSourceOccurrence,
+            queryOER: SharedOERContext =
+                SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef()),
             providerReads: List<VariableProviderReadOccurrence> = emptyList(),
         ) {
+            val publication =
+                prepare(
+                    operation = operation,
+                    oerOccurrence = oerOccurrence,
+                    sourceOccurrence = sourceOccurrence,
+                    queryOER = queryOER,
+                    providerReads = providerReads,
+                )
+            operation.dispatcher.dispatchFieldResolver(publication)
+        }
+
+        private fun prepare(
+            operation: OperationContext,
+            oerOccurrence: OEROccurrence,
+            sourceOccurrence: ValueSourceOccurrence,
+            queryOER: SharedOERContext,
+            providerReads: List<VariableProviderReadOccurrence>,
+        ): FieldPublicationOccurrence {
             val objectKey = sourceOccurrence.selection.key
             val publicationCell = oerOccurrence.target.reserveCell(objectKey)
             publicationCell.createValuePromise()
@@ -126,12 +163,9 @@ internal class FieldResolverTask private constructor(
                 cell = publicationCell,
                 writer = oerOccurrence.coordinate(objectKey),
             )
-            launchTask(
-                operation = operation,
-                oerOccurrence = oerOccurrence,
-                sourceOccurrence = sourceOccurrence,
-                publicationCell = publicationCell,
-                providerReads = providerReads,
+            return FieldPublicationOccurrence(
+                operation, oerOccurrence, sourceOccurrence,
+                publicationCell, queryOER, providerReads,
             )
         }
 
@@ -140,12 +174,13 @@ internal class FieldResolverTask private constructor(
             oerOccurrence: OEROccurrence,
             sourceOccurrence: ValueSourceOccurrence,
             publicationCell: EngineResultCell,
+            queryOER: SharedOERContext,
             providerReads: List<VariableProviderReadOccurrence>,
         ) {
             operation.dispatcher.dispatchFieldResolver(
                 FieldPublicationOccurrence(
                     operation, oerOccurrence, sourceOccurrence,
-                    publicationCell, providerReads,
+                    publicationCell, queryOER, providerReads,
                 ),
             )
         }
@@ -206,9 +241,9 @@ internal class FieldResolverTask private constructor(
     }
 
     override suspend fun resolveAndPublish() {
-        val queryProducer = launchTaskSetupCoroutines()
+        launchTaskSetupCoroutines()
         resolutionLogic.validate()
-        resolutionLogic.publishResult(queryProducer)
+        resolutionLogic.publishResult()
     }
 
     override fun publishFieldError(cause: Exception) {
@@ -234,23 +269,20 @@ internal class FieldResolverTask private constructor(
         )
     }
 
-    // Only ordinary fields have an initial Query producer; references launch one per invocation.
-    private fun launchTaskSetupCoroutines(): Deferred<EngineObjectOrErrorData>? {
-        val fieldResolverOccurrence =
-            publication.sourceOccurrence as? FieldResolverOccurrence
-                ?: return null
+    private fun launchTaskSetupCoroutines() {
+        publication.sourceOccurrence as? FieldResolverOccurrence ?: return
         if (publication.variableProviderReads.isNotEmpty()) {
             fieldTaskScope.launch {
-                publication.oerOccurrence.target.completeProviderBindings(
+                if (!publication.publicationCell.fetchActivated()) return@launch
+                completeProviderBindings(
                     publication.operation,
                     publication.variableProviderReads,
                 )
             }
         }
-        return launchQueryFragmentProducer(fieldResolverOccurrence)
     }
 
-    /** Returns the Query outcome directly, with binding cleanup on production failure or cancellation. */
+    /** Produces the independent Query input for one root-field-reference invocation. */
     fun launchQueryFragmentProducer(
         fieldResolverOccurrence: FieldResolverOccurrence,
     ): Deferred<EngineObjectOrErrorData> {
@@ -336,14 +368,14 @@ private suspend fun FieldResolver.resolveQueryFragment(
         queryResult,
     )
     operation.dispatcher.dispatchOrchestrator(orchestration)
-    queryResult.completeProviderBindings(
+    completeProviderBindings(
         operation = operation,
         providerReads =
             queryFragment.pathVariableDefinitions.map { definition ->
                 VariableProviderReadOccurrence(
+                    providerResult = queryResult,
                     definition = definition,
                     readerPath = coordinate,
-                    inclusionCondition = inclusionCondition,
                 )
             },
     )

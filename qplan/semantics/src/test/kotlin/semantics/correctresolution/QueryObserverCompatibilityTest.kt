@@ -18,12 +18,13 @@ import semantics.resolvers.resolver07.resolve as resolve07
 import semantics.resolvers.resolver08.resolve as resolve08
 import semantics.resolvers.resolver22.resolve as resolve22
 import semantics.resolvers.resolver23.resolve as resolve23
+import semantics.resolver26.Resolver26DispatcherResource
 import semantics.shared.ResolverInvocationObservation
 import semantics.contract.selectionValues
 import semantics.shared.SharedOperationContext
 
 /** Existing recorder subclasses must continue receiving the documented compatibility callback. */
-class QueryObserverCompatibilityTest {
+class QueryObserverCompatibilityTest : Resolver26DispatcherResource {
     @TestFactory
     fun `recorder subclasses retain two argument Query preparation callback`() =
         listOf(
@@ -33,6 +34,7 @@ class QueryObserverCompatibilityTest {
             Subject("Resolver08", true) { selections -> resolve08(selections) },
             Subject("Resolver22", false) { selections -> resolve22(selections) },
             Subject("Resolver23", true) { selections -> resolve23(selections) },
+            Subject("Resolver26", true) { selections -> resolveWithTestDispatcher(selections) },
         ).map { subject ->
             dynamicTest(subject.name) {
                 val events = Collections.synchronizedList(mutableListOf<String>())

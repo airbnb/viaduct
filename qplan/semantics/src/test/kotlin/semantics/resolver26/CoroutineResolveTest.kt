@@ -10,6 +10,8 @@ import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
 
 class CoroutineResolveTest : CoroutineResolverContract {
+    override val usesSingularQueryOER = true
+
     override fun startResolution(
         operation: SharedOperationContext<*>,
         requestScope: CoroutineScope,

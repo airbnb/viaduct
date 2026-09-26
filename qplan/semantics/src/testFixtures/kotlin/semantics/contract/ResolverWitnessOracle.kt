@@ -37,6 +37,7 @@ import semantics.shared.RootFieldReferenceInvocationObservation
 fun EngineResult?.registeredResolverApplicationIdentityCounts(operation: SharedOperationContext<*>):
     Map<ResolverApplicationIdentity, Int> {
     val counts = linkedMapOf<ResolverApplicationIdentity, Int>()
+    val referenceOccurrences = rootFieldReferenceOccurrences(operation)
     fun record(
         root: ObjectEngineResult,
         cell: RegisteredResolverOccurrence,
@@ -67,10 +68,10 @@ fun EngineResult?.registeredResolverApplicationIdentityCounts(operation: SharedO
             )
         counts.increment(identity)
     }
-    requestQueryRoots(operation).forEach { root ->
+    requestQueryRoots(operation, referenceOccurrences).forEach { root ->
         root.forEachRegisteredResolverOccurrence(operation, operation.world.resolverRegistry) { cell -> record(root, cell) }
     }
-    rootFieldReferenceOccurrences(operation).forEach { occurrence ->
+    referenceOccurrences.forEach { occurrence ->
         counts.increment(
             ResolverApplicationIdentity(
                 key = occurrence.applicationKey(operation),
@@ -107,6 +108,7 @@ private fun EngineResult?.reconstructResolverOccurrenceApplicationIdentityCounts
     includedOccurrences: Set<ResolverOccurrenceId>?,
 ): Map<ResolverOccurrenceApplicationIdentity, Int> {
     val counts = linkedMapOf<ResolverOccurrenceApplicationIdentity, Int>()
+    val referenceOccurrences = rootFieldReferenceOccurrences(operation)
     fun record(
         root: ObjectEngineResult,
         cell: RegisteredResolverOccurrence,
@@ -143,12 +145,12 @@ private fun EngineResult?.reconstructResolverOccurrenceApplicationIdentityCounts
             )
         counts.increment(identity)
     }
-    requestQueryRoots(operation).forEach { root ->
+    requestQueryRoots(operation, referenceOccurrences).forEach { root ->
         root.forEachRegisteredResolverOccurrence(operation, operation.world.resolverRegistry) { cell ->
             record(root, cell)
         }
     }
-    rootFieldReferenceOccurrences(operation).forEach { occurrence ->
+    referenceOccurrences.forEach { occurrence ->
         val resolverOccurrenceId =
             ResolverOccurrenceId.at(occurrence.invocationRoot, occurrence.invocationPath)
         if (includedOccurrences == null || resolverOccurrenceId in includedOccurrences) {
@@ -173,7 +175,8 @@ private fun EngineResult?.reconstructResolverOccurrenceApplicationIdentityCounts
 fun EngineResult?.registeredResolverOccurrenceApplicationKeyCounts(operation: SharedOperationContext<*>):
     Map<ResolverOccurrenceApplicationKey, Int> {
     val counts = linkedMapOf<ResolverOccurrenceApplicationKey, Int>()
-    requestQueryRoots(operation).forEach { root ->
+    val referenceOccurrences = rootFieldReferenceOccurrences(operation)
+    requestQueryRoots(operation, referenceOccurrences).forEach { root ->
         root.forEachRegisteredResolverOccurrence(operation, operation.world.resolverRegistry) { cell ->
             counts.increment(
                 ResolverOccurrenceApplicationKey(
@@ -183,7 +186,7 @@ fun EngineResult?.registeredResolverOccurrenceApplicationKeyCounts(operation: Sh
             )
         }
     }
-    rootFieldReferenceOccurrences(operation).forEach { occurrence ->
+    referenceOccurrences.forEach { occurrence ->
         counts.increment(
             ResolverOccurrenceApplicationKey(
                 resolverOccurrenceId =
@@ -198,10 +201,17 @@ fun EngineResult?.registeredResolverOccurrenceApplicationKeyCounts(operation: Sh
     return counts
 }
 
-private fun EngineResult?.requestQueryRoots(operation: SharedOperationContext<*>): List<ObjectEngineResult> {
+private fun EngineResult?.requestQueryRoots(
+    operation: SharedOperationContext<*>,
+    referenceOccurrences: List<RootFieldReferenceInvocationObservation>,
+): List<ObjectEngineResult> {
     val primaryRoot = this as? ObjectEngineResult ?: return emptyList()
     val observations = operation.resolverObserver as? CorrectnessResolverObserver
-    check(observations?.queryFragmentOwnershipIsConsistent() != false) {
+    check(
+        observations?.queryFragmentOwnershipIsConsistent(
+            referenceOccurrences.independentQueryFragmentOwners(operation),
+        ) != false,
+    ) {
         "Query-fragment ownership associations are inconsistent"
     }
     // A singular Query OER is observed once per owner but its resolver occurrences exist only once.
@@ -235,6 +245,7 @@ private fun RootFieldReferenceInvocationObservation.applicationKey(operation: Sh
 
 fun EngineResult?.unclosedRegisteredResolverOccurrences(operation: SharedOperationContext<*>): List<RegisteredResolverOccurrence> =
     buildList {
+        val referenceOccurrences = rootFieldReferenceOccurrences(operation)
         fun recordIfUnclosed(
             root: ObjectEngineResult,
             cell: RegisteredResolverOccurrence,
@@ -251,12 +262,25 @@ fun EngineResult?.unclosedRegisteredResolverOccurrences(operation: SharedOperati
                 add(cell)
             }
         }
-        requestQueryRoots(operation).forEach { root ->
+        requestQueryRoots(operation, referenceOccurrences).forEach { root ->
             root.forEachRegisteredResolverOccurrence(operation, operation.world.resolverRegistry) { cell ->
                 recordIfUnclosed(root, cell)
             }
         }
         // Reference targets have no object fragment, so their input is closed by construction.
+    }
+
+private fun List<RootFieldReferenceInvocationObservation>.independentQueryFragmentOwners(
+    operation: SharedOperationContext<*>,
+): Set<ResolverOccurrenceId> =
+    mapNotNullTo(linkedSetOf()) { observation ->
+        val owner = ResolverOccurrenceId.at(observation.invocationRoot, observation.invocationPath)
+        val queryFragment =
+            operation.world.resolverRegistry
+                .resolver(observation.invocationKey.field)
+                .instantiateFragments(owner)
+                .queryFragment
+        owner.takeUnless { queryFragment.constructionSelections.isEmpty() }
     }
 
 private fun <T> MutableMap<T, Int>.increment(key: T) {

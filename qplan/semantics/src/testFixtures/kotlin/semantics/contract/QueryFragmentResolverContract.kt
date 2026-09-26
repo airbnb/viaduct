@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Assumptions.assumeTrue
 import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.groundedArguments
+import semantics.shared.instantiateBindings
 import semantics.shared.isContextuallyGrounded
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
@@ -254,6 +255,7 @@ interface QueryFragmentResolverContract : ResolverContract {
         assertTrue(queryOER.isDemanded())
         val oerExactKeys =
             queryOER.closedDemand
+                .instantiateBindings(resolution.operation)
                 .byGroundKey()
                 .keys
                 .mapTo(linkedSetOf()) { key -> key.field to key.arguments }

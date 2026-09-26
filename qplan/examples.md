@@ -1,6 +1,6 @@
 # Resolution Algorithms By Example
 
-Most examples use the [resolver-test DSL](./resolver-test-dsl.md) to describe complete deterministic resolver worlds. The fresh-Query-OER example uses a direct registry table because the DSL does not declare Query-rooted resolver fragments. The examples illustrate demand operations and execution behavior: local closure determines everything needed to construct resolver inputs, output projection determines everything a producer must retain so client demand and downstream resolver inputs can be satisfied, and fresh Query OERs isolate Query-fragment execution. Resolver worlds are presented top-down: root fields first, followed by the types reached from them.
+Most examples use the [resolver-test DSL](./resolver-test-dsl.md) to describe complete deterministic resolver worlds. The Query-OER strategy example uses a direct registry table because the DSL does not declare Query-rooted resolver fragments. The examples illustrate demand operations and execution behavior: local closure determines everything needed to construct resolver inputs, output projection determines everything a producer must retain so client demand and downstream resolver inputs can be satisfied, and one associated Query OER shares declared-fragment production within each containing orchestration. Resolver worlds are presented top-down: root fields first, followed by the types reached from them.
 
 ## Demand Closure
 
@@ -264,9 +264,9 @@ query {
 }
 ```
 
-### Exponential resolution
+### Historical exponential resolution
 
-Under the current policy, every active resolver occurrence with a nonempty declared Query fragment receives its own fresh Query OER. Let `Q0` name the operation's Query OER. Resolving `Q0.field0` creates `Q1` for that occurrence's `field1 field2` Query fragment. Those sibling selections share `Q1`, but their resolvers create separate roots for their own Query fragments:
+Under the former policy, every active resolver occurrence with a nonempty declared Query fragment received its own fresh Query OER. Let `Q0` name the operation's Query OER. Resolving `Q0.field0` created `Q1` for that occurrence's `field1 field2` Query fragment. Those sibling selections shared `Q1`, but their resolvers created separate roots for their own Query fragments:
 
 ```text
 Q0.field0
@@ -284,7 +284,7 @@ Q0.field0
 
 Extending the same pattern with `field4` makes `field2` select `field3 field4`, `field3` select `field4`, and `field4` select nothing. The per-field invocation counts become `1, 1, 2, 3, 5`. Each additional level receives the sum of the preceding two occurrence counts, producing Fibonacci growth; the total reaches 88 invocations at depth 8 and 832,039 at depth 27.
 
-This graph is finite and acyclic: every edge points from `fieldN` to a field with a larger index. Cycle detection therefore has nothing to reject. The resource problem comes from repeating overlapping acyclic work across independent fresh roots, not from a deadlock or an unrecognized logical cycle. As of September 25, 2026, qplan implements this per-resolver-occurrence policy.
+This graph is finite and acyclic: every edge points from `fieldN` to a field with a larger index. Cycle detection therefore has nothing to reject. The resource problem comes from repeating overlapping acyclic work across independent fresh roots, not from a deadlock or an unrecognized logical cycle. Qplan no longer implements this policy; it is retained here as the motivating comparison.
 
 ### Linear resolution
 
@@ -303,11 +303,11 @@ This policy invokes `field0` and `field1` once and invokes `field2` and `field3`
 
 “Linear” therefore describes root growth, not a linear bound on resolution. Sharing removes the exponential multiplicity caused by sibling roots repeating equal exact keys, but it does not coalesce the same key across different generations. More generally, the one-child policy bounds how many roots occur at a generation; it does not bound how many instantiated selection occurrences recursive or wider resolver fragments contribute at that generation. Grounding maps each such occurrence to at most one exact field-and-arguments key. Different arguments do not generate more occurrences; they only prevent independently generated occurrences from coalescing to one key. Superlinear work relative to the original client selection set must therefore come from repeated fragment instantiation, runtime object or list fanout, or another source of additional occurrences—not from argument grounding itself.
 
-Moving from the current policy to this version would add an OER-to-child-Query-OER association and make each orchestrator collect and ground every active resolver's Query fragment before dispatching the shared child. It would also need owner-specific input projections, compatible merging by exact field key and arguments, and shared failure and cancellation rules. This is moderate orchestration complexity: it preserves nested Query levels and therefore avoids a transitive same-OER fixed point, but it changes sibling resolver occurrences from isolated Query executions to shared production.
+This unimplemented intermediate policy would add an OER-to-child-Query-OER association and make each orchestrator collect and ground every active resolver's Query fragment before dispatching the shared child. It would also need owner-specific input projections, compatible merging by exact field key and arguments, and shared failure and cancellation rules. This is moderate orchestration complexity: it preserves nested Query levels and therefore avoids a transitive same-OER fixed point, but it changes sibling resolver occurrences from isolated Query executions to shared production.
 
 ### Singular resolution
 
-A stronger policy could replace the recursive OER-to-child rule with a Query scope. Source OER `Q0` would own one fresh Query OER `Q1`; resolver occurrences executed inside `Q1` would contribute further Query-fragment demand back into `Q1` rather than creating children. For `Q0.field0`, `Q1` initially receives `field1 field2`; closing the Query fragments of those fields adds `field3` without creating another root:
+Qplan implements a stronger policy that replaces the recursive OER-to-child rule with a Query scope. Source OER `Q0` owns one associated Query OER `Q1`; resolver occurrences executed inside `Q1` contribute further Query-fragment demand back into `Q1` rather than creating children. For `Q0.field0`, `Q1` initially receives `field1 field2`; closing the Query fragments of those fields adds `field3` without creating another root:
 
 ```text
 Q0.field0
@@ -326,7 +326,7 @@ For this exact two-successor pattern, the three policies produce sharply differe
 
 The singular policy makes this example linear because the fixed point contains one exact key for each schema field. For a fixed set of instantiated selection occurrences on one OER, the number of exact grounded keys cannot exceed the number of occurrences, so argument grounding cannot make closure superlinear in that set's size. Work can still be superlinear relative to the original syntactic client selection set when resolver-fragment expansion or runtime object fanout creates additional occurrences. The singular policy removes repetition caused only by Query-root identity; it cannot avoid work represented by those genuinely distinct occurrences.
 
-Moving from the current policy to this version would require a Query-scope fixed point analogous to construction-demand closure. Newly discovered exact resolver keys would contribute their grounded Query fragments back into the same OER; all promises would need installation before producers run; dependency ordering and cycle edges would operate within that shared scope; and each resolver would retain an occurrence-local projection despite shared cells. This is the highest-complexity option and the largest semantic change: same-key recursive Query dependencies would become local cycles, resolver invocations that are currently isolated would coalesce, and variables, inclusion conditions, aliases, failures, cancellation, and Resolver26's value-derived bindings would all need preservation across the fixed point.
+The implementation uses a Query-scope fixed point analogous to construction-demand closure. Newly discovered exact resolver keys contribute their Query fragments back into the same OER; preparation installs every required cell and binding before producers run; dependency ordering and cycle edges operate within that shared scope; and each resolver retains an occurrence-local projection despite shared cells. Same-key recursive Query dependencies become visible cycles, equal exact work coalesces, and variables, inclusion conditions, aliases, failures, cancellation, and Resolver26's value-derived bindings retain their occurrence-local semantics.
 
 ## Why The Depth-First Resolvers Do Not Support `@parent`
 

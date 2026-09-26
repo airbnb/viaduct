@@ -124,7 +124,8 @@ internal class QueryOERValidationState {
                 ?.queryOER(result)
         val selections = queryOER?.closedDemand ?: ownerSelections
         val hasExactOERKeys =
-            queryOER == null || result.keys == queryOER.closedDemand.byGroundKey().keys
+            queryOER == null ||
+                result.keys.toSet() == queryOER.closedDemand.byKey().keys
         val valid =
             hasExactOERKeys &&
                 result.correctResolution(

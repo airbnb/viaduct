@@ -62,6 +62,10 @@ class ResolverContractTest :
     SelectiveObjectFragmentOutputPolicyContract,
     CorrectResolutionPostTestPolicy,
     Resolver26DispatcherResource {
+    override val usesSingularQueryOER: Boolean = true
+    override val usesSingularQueryOERForParentDemand: Boolean = true
+    override val singularQueryExpansionDepth: Int = 27
+
     override fun resolve(
         operation: SharedOperationContext<*>,
         root: EngineObjectData.Sync,

@@ -138,7 +138,10 @@ open class CorrectnessResolverObserver : ResolverObserver {
             .groupBy(QueryScopeObservation::resolverOccurrenceId)
             .mapValues { (_, observations) -> observations.map(QueryScopeObservation::owningOccurrence) }
 
-    internal fun queryFragmentOwnershipIsConsistent(): Boolean {
+    /** [independentQueryOwners] must come from source-replayed root-field-reference invocations. */
+    internal fun queryFragmentOwnershipIsConsistent(
+        independentQueryOwners: Set<ResolverOccurrenceId>,
+    ): Boolean {
         val genericObservations = queryFragmentObservations.toList()
         val independentObservations = independentQueryObservations.toList()
         val scopeObservations = queryScopeObservations.toList()
@@ -179,10 +182,11 @@ open class CorrectnessResolverObserver : ResolverObserver {
             val existingOwner = ownerByIndependentResult[observation.result]
             val existingResult = independentResultByOwner[observation.resolverOccurrenceId]
             val hasSharedRole = scopeByResult.containsKey(observation.result)
+            val isJustifiedByReference = observation.resolverOccurrenceId in independentQueryOwners
             val resultIsConsistent =
                 existingOwner == null || existingOwner == observation.resolverOccurrenceId
             val ownerIsConsistent = existingResult == null || existingResult === observation.result
-            if (!hasSharedRole && resultIsConsistent && ownerIsConsistent) {
+            if (isJustifiedByReference && !hasSharedRole && resultIsConsistent && ownerIsConsistent) {
                 ownerByIndependentResult[observation.result] = observation.resolverOccurrenceId
                 independentResultByOwner[observation.resolverOccurrenceId] = observation.result
                 true

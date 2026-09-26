@@ -1,0 +1,76 @@
+package semantics.correctresolution
+
+import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import model.Arguments
+import model.ObjectEngineResult
+import model.ResolverOccurrenceId
+import model.Selection
+import model.VariableBinding
+import model.emptyFragmentOf
+import model.engineObjectDataOf
+import model.engineResultOf
+import model.fragmentFrom
+import model.merge
+import model.requireObjectField
+import model.requireQueryTypeDef
+import model.selectionForestOf
+import model.testing.TestWorld
+import model.testing.fieldResolverOf
+import semantics.shared.OEROccurrence
+import semantics.shared.SharedOERContext
+import semantics.shared.SharedOperationContext
+
+/** Exact shared Query demand must reject undeclared symbolic cells even if their values coalesce. */
+class SharedQuerySymbolicDomainRegressionTest {
+    @Test
+    fun `grounding equality cannot hide an extra symbolic Query cell`() {
+        assertTrue(validate(false), "The exact declared Query key is valid")
+        assertFalse(validate(true), "An undeclared symbolic Query cell is extra work even when it grounds to an existing key")
+    }
+
+    @Test
+    fun `separate symbolic cell remains valid when explicitly declared`() {
+        assertTrue(validate(extraSymbolicCell = true, declareExtra = true))
+    }
+
+    private fun validate(extraSymbolicCell: Boolean, declareExtra: Boolean = false): Boolean {
+        val world = TestWorld.fromSDL(
+            schemaSDL = "type Query { consumer: Int!, source(value: Int!): Int! }",
+            fieldResolvers = { schema -> mapOf(
+                schema.requireObjectField("Query", "consumer") to fieldResolverOf(
+                    objectFragment = schema.emptyFragmentOf("Query"),
+                    queryFragment = schema.fragmentFrom("fragment Input on Query { source(value: 7) }"),
+                ) { _, _, _ -> 7 },
+                schema.requireObjectField("Query", "source") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+            ) },
+        ).assumptions
+        val queryType = world.schema.requireQueryTypeDef()
+        val source = world.schema.requireObjectField("Query", "source")
+        val consumerKey = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "consumer"), emptyMap())
+        val result = world.engineResultOf("Query") { "consumer" resolvesTo 7 }
+        val closedDemand = world.fragmentFrom("fragment Demand on Query { source(value: 7) }").subselections.merge(queryType)
+
+        var observedDemand = closedDemand
+        val query = ObjectEngineResult.of(queryType, mutable = true)
+        val observer = CorrectnessResolverObserver()
+        val operation = SharedOperationContext.create(world, resolverObserver = observer)
+        query.reserveCell(ObjectEngineResult.GroundKey.of(source, mapOf("value" to 7))).setValue(7)
+        if (extraSymbolicCell) {
+            val variable = Arguments.Variable.of(source, "value").instantiate(ResolverOccurrenceId.at(query, emptyList()))
+            val key = ObjectEngineResult.ObjectKey.of(source, Arguments.of(source, mapOf("value" to variable)))
+            operation.variableBindings.bindVariable(requireNotNull(variable.instanceId), VariableBinding.of(7))
+            query.reserveCell(key).setValue(7)
+            if (declareExtra) {
+                observedDemand = (closedDemand + selectionForestOf(Selection.of(
+                    key = key, possibleTypes = setOf(queryType), subselections = selectionForestOf(),
+                ))).merge(queryType)
+            }
+        }
+        query.freeze()
+        observer.onQueryOERPrepared(SharedOERContext(OEROccurrence(query, emptyList(), query), engineObjectDataOf(queryType), observedDemand))
+        observer.onQueryFragmentPrepared(ResolverOccurrenceId.at(result, listOf(consumerKey)), query)
+        return result.correctResolution(operation, selectionForestOf().merge(queryType))
+    }
+}

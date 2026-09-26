@@ -34,7 +34,7 @@ Errors belong to domains rather than to every pre-domain type. Engine results, e
 
 ## Result Occurrence Is Identity
 
-The semantic identity of work is an occurrence in a rooted result tree. A resolver occurrence combines the reference identity of its Query-rooted OER with its exact path: the primary operation result roots primary occurrences, while each independently executed query fragment has a fresh Query OER that roots its subordinate occurrences. Equal node IDs, schema coordinates, arguments, paths in different roots, or values do not merge separate object or list occurrences. List indices and concrete containing paths remain part of occurrence identity. Caching, batching, and request deduplication are separate execution layers.
+The semantic identity of work is an occurrence in a rooted result tree. A resolver occurrence combines the reference identity of its Query-rooted OER with its exact path. The primary operation result roots primary occurrences. Ordinary declared Query fragments use the one associated Query OER owned by their containing orchestration, so equal exact keys in that scope share production while every owner retains its own projection. Independently rooted operations such as `ctx.query()` and root-field-reference targets retain fresh roots. Equal node IDs, schema coordinates, arguments, paths in different roots, or values do not merge separate object or list occurrences. List indices and concrete containing paths remain part of occurrence identity. Caching, batching, and request deduplication are separate execution layers.
 
 Cells are allocated by their containing OER or LER. Cell reference identity is the cell occurrence identity; a parallel numeric cell identifier would duplicate and risk disagreeing with the carrier.
 
@@ -108,7 +108,7 @@ Resolver10 is useful as a negative lesson rather than a maintained implementatio
 
 ## Validate Independent Properties Independently
 
-`correctResolution` judges the completed primary Query OER and every required occurrence-specific query-fragment OER extensionally. It does not establish resolver application count, supplied demand, binding correctness, execution order, lifecycle ownership, or concurrency.
+`correctResolution` judges the completed primary Query OER and every required shared query-fragment OER extensionally, validating each owner's occurrence-local projection separately. It does not establish resolver application count, supplied demand, binding correctness, execution order, lifecycle ownership, or concurrency.
 
 Keep separate evidence for completed-result correctness, exact and occurrence-aware application identities, from-field bindings, lifecycle invariants, mutation tests, structural activation, and scheduling behavior. An expected-application oracle derived from the completed result under test is not fully independent and must be described accordingly.
 

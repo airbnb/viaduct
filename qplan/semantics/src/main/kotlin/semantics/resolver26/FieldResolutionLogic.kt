@@ -1,8 +1,12 @@
 package semantics.resolver26
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.supervisorScope
 import model.Arguments
 import model.EngineErrorData
 import model.EngineObjectOrErrorData
@@ -27,6 +31,7 @@ import model.registry.ProviderFragment
 import model.registry.VariableDefinition
 import model.requireQueryTypeDef
 import model.selectionForestOf
+import model.satisfiableAlternatives
 import semantics.shared.argumentsContainErrorValue
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.RootFieldReferenceInvocationObservation
@@ -101,8 +106,7 @@ internal class FieldResolutionLogic(
         publication.publicationCell.getValue().complete(ErrorEngineResult.of(EngineErrorData.of(cause)))
     }
 
-    /** [queryProducer] is present for ordinary fields; references launch one for each invocation. */
-    suspend fun publishResult(queryProducer: Deferred<EngineObjectOrErrorData>?) {
+    suspend fun publishResult() {
         val publication = fieldResolverTask.publication
         val sourceOccurrence = publication.sourceOccurrence
         val selection = sourceOccurrence.selection
@@ -123,7 +127,6 @@ internal class FieldResolutionLogic(
                         fieldResolverOccurrence = sourceOccurrence,
                         selection = selection,
                         invocationDemand = invocationDemand,
-                        queryProducer = requireNotNull(queryProducer),
                     )
                 is RootFieldReferenceOccurrence -> sourceOccurrence.reference
                 is PassiveValueOccurrence -> sourceOccurrence.value
@@ -203,7 +206,7 @@ internal class FieldResolutionLogic(
                     requireNotNull(definition.variable.instanceId)
                 }.orEmpty()
         val activated =
-            sourceOccurrence.selection.inclusionCondition.include { variable ->
+            sourceOccurrence.selection.inclusionCondition.includeAnyReadyAlternative { variable ->
                 val variableId = requireNotNull(variable.instanceId)
                 if (
                     fieldResolverOccurrence != null &&
@@ -215,13 +218,13 @@ internal class FieldResolutionLogic(
                     completeFromArgumentBindings(fieldResolverOccurrence, groundedArguments)
                 }
                 when (
-                    val binding =
-                        publication.operation.variableBindings.fetchBinding(variableId)
+                    val binding = publication.operation.variableBindings.fetchBinding(
+                        variableId,
+                    )
                 ) {
                     VariableBinding.Error -> error("Inclusion-condition variable failed")
-                    is VariableBinding.Input ->
-                        binding.value as? Boolean
-                            ?: error("Inclusion-condition variable must contain a Boolean")
+                    is VariableBinding.Input -> binding.value as? Boolean
+                        ?: error("Inclusion-condition variable must contain a Boolean")
                 }
             }
         check(publication.publicationCell.setActivated(activated)) {
@@ -230,11 +233,61 @@ internal class FieldResolutionLogic(
         return activated
     }
 
+    /** Shared cells activate from any independently ready true demand alternative. */
+    private suspend fun model.InclusionCondition.includeAnyReadyAlternative(
+        binding: suspend (Arguments.Variable) -> Boolean,
+    ): Boolean = supervisorScope {
+        val alternatives = satisfiableAlternatives()
+        if (alternatives.size <= 1) {
+            return@supervisorScope alternatives.singleOrNull()?.include(binding) ?: false
+        }
+        val remaining =
+            alternatives.mapTo(linkedSetOf()) { alternative ->
+                async {
+                    try {
+                        Result.success(alternative.include(binding))
+                    } catch (cause: Exception) {
+                        Result.failure(cause)
+                    }
+                }
+            }
+        var failure: Throwable? = null
+        while (remaining.isNotEmpty()) {
+            val (completed, result) =
+                select<Pair<Deferred<Result<Boolean>>, Result<Boolean>>> {
+                    remaining.forEach { alternative ->
+                        alternative.onAwait { result -> alternative to result }
+                    }
+                }
+            remaining.remove(completed)
+            result.fold(
+                onSuccess = { included ->
+                    if (included) {
+                        remaining.forEach { it.cancel() }
+                        remaining.forEach { alternative ->
+                            try {
+                                alternative.await()
+                            } catch (_: CancellationException) {
+                                currentCoroutineContext().ensureActive()
+                            }
+                        }
+                        return@supervisorScope true
+                    }
+                },
+                onFailure = { cause ->
+                    currentCoroutineContext().ensureActive()
+                    if (failure == null) failure = cause
+                },
+            )
+        }
+        failure?.let { throw it }
+        false
+    }
+
     private suspend fun runFieldResolver(
         fieldResolverOccurrence: FieldResolverOccurrence,
         selection: ObjectSelection,
         invocationDemand: SelectionForest,
-        queryProducer: Deferred<EngineObjectOrErrorData>,
     ): ResolverOutputData? {
         val publication = fieldResolverTask.publication
         val groundedArguments =
@@ -265,11 +318,7 @@ internal class FieldResolutionLogic(
                 reader = fieldResolverOccurrence.publicationPath,
                 resultPath = publication.oerOccurrence.path,
             )
-        val queryValue =
-            when (val value = queryProducer.await()) {
-                is EngineObjectOrErrorData.Success -> value.value
-                is EngineObjectOrErrorData.Error -> return value.error
-            }
+        val queryValue = materializeQueryFragment(fieldResolverOccurrence)
         publication.operation.resolverObserver.onResolverInvocation(
             ResolverInvocationObservation(
                 occurrencePath = fieldResolverOccurrence.publicationPath,
@@ -289,6 +338,28 @@ internal class FieldResolutionLogic(
             selections = invocationDemand,
             selectiveResolvers = publication.operation.world.selectiveResolvers,
             executionContext = fieldResolverTask,
+        )
+    }
+
+    private suspend fun materializeQueryFragment(
+        fieldResolverOccurrence: FieldResolverOccurrence,
+    ): EngineObjectData.Sync {
+        val publication = fieldResolverTask.publication
+        val queryFragment = fieldResolverOccurrence.fragments.queryFragment
+        check(queryFragment.constructionSelections.isEmpty() || publication.queryOER.isDemanded()) {
+            "Nonempty resolver Query fragment has no demanded shared Query OER"
+        }
+        val materializationSelections =
+            fieldResolverOccurrence.resolver
+                .instantiateQueryMaterializationSelections(
+                    queryFragment.resolverOccurrenceId,
+                )
+        return publication.queryOER.occurrence.target.materializeResolverInput(
+            operation = publication.operation,
+            cycleChecker = publication.operation.cycleChecker,
+            selections = materializationSelections,
+            reader = fieldResolverOccurrence.publicationPath,
+            resultPath = emptyList(),
         )
     }
 

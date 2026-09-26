@@ -9,32 +9,39 @@ import model.PathComponent
 import model.ResolverOccurrenceId
 import model.RootFieldReferenceData
 import model.SelectionForest
+import model.selectionForestOf
 import model.merge
 import model.guardedBy
 import model.registry.FieldResolver
 import model.registry.InstantiatedFieldPathDefinition
 import model.registry.ResolverFragments
 import model.registry.VariableInstanceDefinition
+import model.requireQueryTypeDef
 import model.schemaType
 import model.outputValue
 import model.satisfiableAlternatives
 import semantics.shared.argumentsContainErrorValue
+import semantics.shared.ResolverInputConstructionDemand
 import viaduct.engine.api.EngineObjectData
 import semantics.shared.OEROccurrence
+import viaduct.graphql.schema.ViaductSchema
 
 /**
- * The result of construction-demand closure for one object orchestration.
- * Bundles closed demand, value-source occurrences, and the variable-provider
- * reads they require.  Retained across binding declaration, dispatch
- * validation, and field installation.
+ * The result of joint construction-demand closure for one object orchestration and its associated
+ * Query OER. Retained across binding declaration, dispatch validation, and field installation.
  */
 internal class ClosedConstructionDemandContext(
+    val objectRooted: ClosedOERConstructionDemandContext,
+    val queryRooted: ClosedOERConstructionDemandContext,
+)
+
+/** Closed symbolic demand and its executable occurrences for one side of an orchestration pair. */
+internal class ClosedOERConstructionDemandContext(
     val demand: ObjectSelectionForest,
     val fieldResolverOccurrences:
         Map<ObjectEngineResult.ObjectKey, FieldResolverOccurrence>,
     val rootFieldReferenceOccurrences:
         Map<ObjectEngineResult.ObjectKey, RootFieldReferenceOccurrence>,
-    /** Object-fragment reads; Query-fragment reads are prepared by their owning field task. */
     val variableProviderReadsByResolverOccurrence:
         Map<ResolverOccurrenceId, List<VariableProviderReadOccurrence>>,
 )
@@ -46,101 +53,187 @@ internal class ClosedConstructionDemandContext(
  * object or Query result supplies the root from which the provider path is read.
  */
 internal class VariableProviderReadOccurrence(
+    val providerResult: ObjectEngineResult,
     val definition: InstantiatedFieldPathDefinition,
     val readerPath: List<PathComponent>,
-    val inclusionCondition: InclusionCondition,
 )
 
 /**
  * Closes demand for one object orchestration and returns the closed construction demand,
- * the field resolver and root field reference occurrences that satisfy it, and the object-fragment
- * variable-provider reads required by those resolver occurrences.
+ * the field resolver and root field reference occurrences that satisfy it, and the object- and
+ * Query-fragment variable-provider reads required by those resolver occurrences. The associated
+ * Query OER has no passive source; every demanded Query field uses its registered resolver.
  */
-internal fun EngineObjectData.Sync.closeConstructionDemand(
+internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
     world: Assumptions,
-    occurrence: OEROccurrence,
+    objectOccurrence: OEROccurrence,
+    queryOccurrence: OEROccurrence,
     initialDemand: SelectionForest,
 ): ClosedConstructionDemandContext {
-    // `accumulatedDemand` will become all construction demand rooted at this OER,
-    // expressed through possibly abstract or concrete field coordinates.
-    var accumulatedDemand: SelectionForest =
-        initialDemand + initialDemand.liftParentConstructionDemand(world)
+    require(schemaType == objectOccurrence.target.type) {
+        "Source type ${schemaType.name} does not match result type ${objectOccurrence.target.type.name}"
+    }
+    require(queryOccurrence.target.type == world.schema.requireQueryTypeDef()) {
+        "Query-rooted construction demand must target Query"
+    }
+    require(
+        queryOccurrence.root === queryOccurrence.target &&
+            queryOccurrence.path.isEmpty(),
+    ) {
+        "Query-rooted construction demand must use a root OER occurrence"
+    }
+    require(queryOccurrence.root !== objectOccurrence.root) {
+        "Resolver Query demand must not reuse the containing operation root"
+    }
 
-    // `requiredResolvers` will eventually contain the concrete top-level keys handled by
-    // this OER's standard-resolution machinery.
-    val requiredResolvers:
-        MutableMap<ObjectEngineResult.ObjectKey, ResolverContext> =
-        linkedMapOf()
+    // These become all construction demand rooted at the two OERs, expressed through possibly
+    // abstract or concrete field coordinates.
+    var objectDemand: SelectionForest =
+        initialDemand + initialDemand.liftParentConstructionDemand(world)
+    var queryDemand: SelectionForest = selectionForestOf()
+
+    // These eventually contain the concrete top-level keys handled by each OER's
+    // standard-resolution machinery.
+    val objectResolvers = linkedMapOf<ObjectEngineResult.ObjectKey, ResolverContext>()
+    val queryResolvers = linkedMapOf<ObjectEngineResult.ObjectKey, ResolverContext>()
 
     var demandNotClosed: Boolean
     do {
-        // Assume optimistically that we've closed demand.  We might discover in the logic
-        // below that we haven't, in which case we'll flip this flag
-        demandNotClosed = false
+        // One joint step discovers newly activated resolvers on both sides before routing their
+        // fragments back into the object or shared Query demand.
+        val newObjectResolverInputs =
+            newResolverInputDemand(
+                world = world,
+                type = schemaType,
+                occurrence = objectOccurrence,
+                accumulatedDemand = objectDemand,
+                requiredResolvers = objectResolvers,
+                requiresStandardResolution = ::requiresStandardResolution,
+            )
+        val newQueryResolverInputs =
+            newResolverInputDemand(
+                world = world,
+                type = queryOccurrence.target.type,
+                occurrence = queryOccurrence,
+                accumulatedDemand = queryDemand,
+                requiredResolvers = queryResolvers,
+                requiresStandardResolution = { true },
+            )
+        demandNotClosed = newObjectResolverInputs != null || newQueryResolverInputs != null
+        if (demandNotClosed) {
+            val objectResolverInputs =
+                newObjectResolverInputs ?: ResolverInputConstructionDemand.EMPTY
+            val queryResolverInputs =
+                newQueryResolverInputs ?: ResolverInputConstructionDemand.EMPTY
+            val queryInputSelections =
+                objectResolverInputs.queryFragment +
+                    queryResolverInputs.objectFragment +
+                    queryResolverInputs.queryFragment
+            objectDemand +=
+                objectResolverInputs.objectFragment +
+                    objectResolverInputs.objectFragment.liftParentConstructionDemand(world)
+            queryDemand +=
+                queryInputSelections +
+                    queryInputSelections.liftParentConstructionDemand(world)
+        }
+    } while (demandNotClosed)
 
-        val mergedDemand: ObjectSelectionForest = accumulatedDemand.merge(schemaType)
+    return ClosedConstructionDemandContext(
+        objectRooted =
+            closeOERConstructionDemand(
+                world = world,
+                passiveSource = this,
+                occurrence = objectOccurrence,
+                accumulatedDemand = objectDemand,
+                requiredResolvers = objectResolvers,
+                requiresStandardResolution = ::requiresStandardResolution,
+                objectProviderResult = objectOccurrence.target,
+                queryProviderResult = queryOccurrence.target,
+            ),
+        queryRooted =
+            closeOERConstructionDemand(
+                world = world,
+                passiveSource = null,
+                occurrence = queryOccurrence,
+                accumulatedDemand = queryDemand,
+                requiredResolvers = queryResolvers,
+                requiresStandardResolution = { true },
+                objectProviderResult = queryOccurrence.target,
+                queryProviderResult = queryOccurrence.target,
+            ),
+    )
+}
 
-        // Find the top-level selections in this concrete `mergedDemand` whose registered
-        // resolvers are not superseded by values in this object's source EOD, i.e., existing
-        // or potential members of `requiredResolvers`.
-        val resolverSelections: Map<ObjectEngineResult.ObjectKey, ObjectSelection> =
-            mergedDemand
-                .byKey()
-                .filter { (objectKey, _) ->
-                    requiresStandardResolution(world, objectKey)
-                }
-
-        resolverSelections.forEach { (objectKey, resolverSelection) ->
-            // This selection belongs in `requiredResolvers` - it might already
-            // be there, but if not create an entry for it
+private fun newResolverInputDemand(
+    world: Assumptions,
+    type: ViaductSchema.Object,
+    occurrence: OEROccurrence,
+    accumulatedDemand: SelectionForest,
+    requiredResolvers: MutableMap<ObjectEngineResult.ObjectKey, ResolverContext>,
+    requiresStandardResolution: (ObjectEngineResult.ObjectKey) -> Boolean,
+): ResolverInputConstructionDemand? {
+    var objectFragment: SelectionForest = selectionForestOf()
+    var queryFragment: SelectionForest = selectionForestOf()
+    var expanded = false
+    accumulatedDemand
+        .merge(type)
+        .byKey()
+        .filter { (objectKey, _) ->
+            objectKey.field in world.resolverRegistry && requiresStandardResolution(objectKey)
+        }
+        .forEach { (objectKey, resolverSelection) ->
+            // This selection belongs in `requiredResolvers`; create its occurrence only once.
             val resolverContext =
                 requiredResolvers.getOrPut(objectKey) {
-                    createResolverContext(
-                        world = world,
-                        occurrence = occurrence,
-                        objectKey = objectKey,
-                    )
+                    createResolverContext(world, occurrence, objectKey)
                 }
-
             if (
                 objectKey is ObjectEngineResult.GroundKey &&
                 objectKey.arguments.argumentsContainErrorValue()
             ) {
-                // An occurrence with argument errors requires a `resolverContext` so that
-                // the error gets published, but it cannot invoke the resolver or contribute
-                // resolver-input demand, so we can stop processing it further
+                // An argument-error occurrence must publish its field error but cannot invoke its
+                // resolver or contribute resolver-input demand.
                 return@forEach
             }
-
-            // Whether or not this selection was in `requiredResolvers`, we may have discovered
-            // new conditions under which its key is included. If so, demand has not closed.
+            // A merged selection can reveal a new condition under which an existing resolver key
+            // is active. Only those new alternatives expand its fixed input fragments.
             val newKeyInclusions =
                 resolverSelection.inclusionCondition
                     .satisfiableAlternatives()
                     .filter(resolverContext.accumulatedKeyInclusions::add)
-            if (newKeyInclusions.isEmpty()) return@forEach
-            demandNotClosed = true
-
-            // For each newly discovered condition under which `objectKey` may be included,
-            // add the resolver's object-fragment construction demand, and any parent-induced
-            // demand, guarded by the same condition.
-            val objectFragment = resolverContext.fragments.objectFragment
             newKeyInclusions.forEach { keyInclusion ->
-                val guardedObjectFragment =
-                    objectFragment.constructionSelections.guardedBy(keyInclusion)
-                accumulatedDemand +=
-                    guardedObjectFragment +
-                        guardedObjectFragment.liftParentConstructionDemand(world)
+                expanded = true
+                objectFragment +=
+                    resolverContext.fragments.objectFragment.constructionSelections
+                        .guardedBy(keyInclusion)
+                queryFragment +=
+                    resolverContext.fragments.queryFragment.constructionSelections
+                        .guardedBy(keyInclusion)
             }
         }
-    } while (demandNotClosed)
+    return ResolverInputConstructionDemand(
+        objectFragment = objectFragment,
+        queryFragment = queryFragment,
+    ).takeIf { expanded }
+}
 
-    val closedDemand = accumulatedDemand.merge(schemaType)
+private fun closeOERConstructionDemand(
+    world: Assumptions,
+    passiveSource: EngineObjectData.Sync?,
+    occurrence: OEROccurrence,
+    accumulatedDemand: SelectionForest,
+    requiredResolvers: Map<ObjectEngineResult.ObjectKey, ResolverContext>,
+    requiresStandardResolution: (ObjectEngineResult.ObjectKey) -> Boolean,
+    objectProviderResult: ObjectEngineResult,
+    queryProviderResult: ObjectEngineResult,
+): ClosedOERConstructionDemandContext {
+    val type = passiveSource?.schemaType ?: occurrence.target.type
+    val closedDemand = accumulatedDemand.merge(type)
     val requiredResolverSelections =
         closedDemand
             .byKey()
             .filter { (objectKey, _) ->
-                requiresStandardResolution(world, objectKey)
+                objectKey.field in world.resolverRegistry && requiresStandardResolution(objectKey)
             }
     check(requiredResolverSelections.keys == requiredResolvers.keys) {
         "Resolver26 closed demand and required resolvers are misaligned"
@@ -151,11 +244,12 @@ internal fun EngineObjectData.Sync.closeConstructionDemand(
                 selection = closedDemand.byKey().getValue(objectKey),
             )
         }
-    val referenceOccurrences = discoverRootFieldReferences(world, occurrence, closedDemand)
+    val referenceOccurrences =
+        passiveSource?.discoverRootFieldReferences(world, occurrence, closedDemand).orEmpty()
     check(fieldResolverOccurrences.keys.intersect(referenceOccurrences.keys).isEmpty()) {
         "Resolver26 classified one field as both an ordinary resolver and a root reference"
     }
-    return ClosedConstructionDemandContext(
+    return ClosedOERConstructionDemandContext(
         demand = closedDemand,
         fieldResolverOccurrences = fieldResolverOccurrences,
         rootFieldReferenceOccurrences = referenceOccurrences,
@@ -170,16 +264,17 @@ internal fun EngineObjectData.Sync.closeConstructionDemand(
                     ) {
                         emptyList()
                     } else {
-                        resolverContext.fragments.objectFragment.pathVariableDefinitions.map {
-                                definition ->
+                        resolverContext.fragments.objectFragment.pathVariableDefinitions.map { definition ->
                             VariableProviderReadOccurrence(
+                                providerResult = objectProviderResult,
                                 definition = definition,
                                 readerPath = occurrence.coordinate(objectKey),
-                                inclusionCondition =
-                                    closedDemand
-                                        .byKey()
-                                        .getValue(objectKey)
-                                        .inclusionCondition,
+                            )
+                        } + resolverContext.fragments.queryFragment.pathVariableDefinitions.map { definition ->
+                            VariableProviderReadOccurrence(
+                                providerResult = queryProviderResult,
+                                definition = definition,
+                                readerPath = occurrence.coordinate(objectKey),
                             )
                         }
                     }
@@ -287,10 +382,8 @@ private fun createResolverContext(
 
 // Returns true if the field is not present yet has a standard resolver, which means it needs standard resolution
 private fun EngineObjectData.Sync.requiresStandardResolution(
-    world: Assumptions,
     objectKey: ObjectEngineResult.ObjectKey,
 ): Boolean {
-    if (objectKey.field !in world.resolverRegistry) return false
     if (!isPresent(objectKey.field.name)) return true
 
     require(objectKey.field.args.isEmpty()) {

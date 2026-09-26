@@ -8,6 +8,7 @@ import model.VariableBinding
 import model.registry.VariableDefinition
 import model.requireQueryTypeDef
 import model.schemaType
+import semantics.shared.argumentsContainErrorValue
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOERContext
 import viaduct.engine.api.EngineObjectData
@@ -21,8 +22,9 @@ import viaduct.engine.api.EngineObjectData
 internal class OrchestrationTask private constructor(
     operation: OperationContext,
     objectOER: SharedOERContext,
+    queryOER: SharedOERContext,
     private val closed: ClosedConstructionDemandContext,
-) : CoroutineOrchestrationTask<OperationContext>(operation, objectOER) {
+) : CoroutineOrchestrationTask<OperationContext>(operation, objectOER, queryOER) {
     private var bindingDeclarationStarted = false
 
     init {
@@ -47,23 +49,49 @@ internal class OrchestrationTask private constructor(
             source: EngineObjectData.Sync,
             initialDemand: SelectionForest,
         ): OrchestrationTask {
-            val closed = source.closeConstructionDemand(operation.world, occurrence, initialDemand)
-            return OrchestrationTask(
-                operation,
-                SharedOERContext(occurrence, source, closed.demand),
-                closed,
-            ).apply {
+            val queryType = operation.world.schema.requireQueryTypeDef()
+            val emptyQuerySource = operation.world.resolverRegistry.createRootQueryInput()
+            val queryResult = ObjectEngineResult.of(queryType, mutable = true)
+            val queryOccurrence = OEROccurrence(queryResult, emptyList(), queryResult)
+            val closed =
+                source.closeOrchestratorConstructionDemand(
+                    world = operation.world,
+                    objectOccurrence = occurrence,
+                    queryOccurrence = queryOccurrence,
+                    initialDemand = initialDemand,
+                )
+            val objectOER =
+                SharedOERContext(
+                    occurrence = occurrence,
+                    source = source,
+                    closedDemand = closed.objectRooted.demand,
+                )
+            val queryOER =
+                SharedOERContext(
+                    occurrence = queryOccurrence,
+                    source = emptyQuerySource,
+                    closedDemand = closed.queryRooted.demand,
+                )
+            return OrchestrationTask(operation, objectOER, queryOER, closed).apply {
                 declareBindings()
-                occurrence.installParentBackedgeFields(operation, closed.demand.byKey().keys.filterIsInstance<ObjectEngineResult.ParentKey>())
-                operation.bindingsState.markBindingsDeclared(occurrence.target)
+                listOf(this.objectOER, this.queryOER).forEach { oer ->
+                    oer.occurrence.installParentBackedgeFields(
+                        operation,
+                        oer.closedDemand.byKey().keys.filterIsInstance<ObjectEngineResult.ParentKey>(),
+                    )
+                    operation.bindingsState.markBindingsDeclared(oer.occurrence.target)
+                }
+                observeQueryOER()
             }
         }
     }
 
     override val hasActiveWork: Boolean
-        get() = closed.fieldResolverOccurrences.isNotEmpty() ||
-            closed.rootFieldReferenceOccurrences.isNotEmpty() ||
-            closed.variableProviderReadsByResolverOccurrence.values.any { it.isNotEmpty() }
+        get() = listOf(closed.objectRooted, closed.queryRooted).any { oer ->
+            oer.fieldResolverOccurrences.isNotEmpty() ||
+                oer.rootFieldReferenceOccurrences.isNotEmpty() ||
+                oer.variableProviderReadsByResolverOccurrence.values.any { it.isNotEmpty() }
+        }
 
     override fun installFieldTasks() {
         FieldResolverTask.launchAll(this, closed)
@@ -71,23 +99,26 @@ internal class OrchestrationTask private constructor(
 
     // Checks that passive values selected by closed demand were installed before task dispatch.
     override fun validateDispatch() {
-        closed.demand.byKey().forEach { (objectKey, selection) ->
-            if (selection.inclusionCondition === InclusionCondition.Never) {
-                return@forEach
-            }
-            if (
-                objectKey !in closed.fieldResolverOccurrences &&
-                objectKey !in closed.rootFieldReferenceOccurrences
-            ) {
-                check(
-                    objectKey is ObjectEngineResult.GroundKey &&
-                        objectOER.occurrence.target.isCellSet(objectKey),
-                ) {
-                    "Resolver26 passive key $objectKey was not materialized by " +
-                        "resolvePassiveValues"
+        listOf(objectOER to closed.objectRooted, queryOER to closed.queryRooted)
+            .forEach { (oer, closedOER) ->
+                closedOER.demand.byKey().forEach { (objectKey, selection) ->
+                    if (selection.inclusionCondition === InclusionCondition.Never) {
+                        return@forEach
+                    }
+                    if (
+                        objectKey !in closedOER.fieldResolverOccurrences &&
+                        objectKey !in closedOER.rootFieldReferenceOccurrences
+                    ) {
+                        check(
+                            objectKey is ObjectEngineResult.GroundKey &&
+                                oer.occurrence.target.isCellSet(objectKey),
+                        ) {
+                            "Resolver26 passive key $objectKey was not materialized by " +
+                                "resolvePassiveValues"
+                        }
+                    }
                 }
             }
-        }
     }
 
     // Adds every binding introduced by the closed demand to the operation's binding domain.
@@ -97,39 +128,71 @@ internal class OrchestrationTask private constructor(
             "Resolver26 orchestration task attempted to declare its bindings twice"
         }
         bindingDeclarationStarted = true
-        closed.fieldResolverOccurrences.values.forEach { fieldResolverOccurrence ->
-            val ownerKey = fieldResolverOccurrence.selection.key
-            fieldResolverOccurrence.variableDefinitions.forEach { variableDefinition ->
-                val variableId = requireNotNull(variableDefinition.variable.instanceId)
-                when (val definition = variableDefinition.definition) {
-                    VariableDefinition.FromProvider ->
-                        operation.variableBindings.declareBinding(variableId)
-
-                    is VariableDefinition.FromArgument ->
-                        if (ownerKey is ObjectEngineResult.GroundKey) {
-                            operation.variableBindings.bindVariable(
-                                variableId,
-                                bindingFor(ownerKey.arguments, definition),
-                            )
-                        } else {
+        listOf(closed.objectRooted, closed.queryRooted).forEach { closedOER ->
+            closedOER.fieldResolverOccurrences.values.forEach { fieldResolverOccurrence ->
+                val ownerKey = fieldResolverOccurrence.selection.key
+                fieldResolverOccurrence.variableDefinitions.forEach { variableDefinition ->
+                    val variableId = requireNotNull(variableDefinition.variable.instanceId)
+                    when (val definition = variableDefinition.definition) {
+                        VariableDefinition.FromProvider ->
                             operation.variableBindings.declareBinding(variableId)
-                        }
 
-                    is VariableDefinition.FromField -> Unit
+                        is VariableDefinition.FromArgument ->
+                            if (ownerKey is ObjectEngineResult.GroundKey) {
+                                operation.variableBindings.bindVariable(
+                                    variableId,
+                                    bindingFor(ownerKey.arguments, definition),
+                                )
+                            } else {
+                                operation.variableBindings.declareBinding(variableId)
+                            }
+
+                        is VariableDefinition.FromField -> Unit
+                    }
                 }
             }
+            val providerVariableIds =
+                closedOER.variableProviderReadsByResolverOccurrence.values
+                    .flatten()
+                    .mapTo(linkedSetOf()) { providerRead ->
+                        requireNotNull(providerRead.definition.variable.instanceId)
+                    }
+            providerVariableIds.forEach(operation.variableBindings::declareBinding)
+            closedOER.fieldResolverOccurrences.values.forEach { fieldResolverOccurrence ->
+                fieldResolverOccurrence.fragments.queryFragment.pathVariableDefinitions
+                    .map { definition -> requireNotNull(definition.variable.instanceId) }
+                    .filterNot(providerVariableIds::contains)
+                    .forEach(operation.variableBindings::declareBinding)
+            }
         }
-        closed.variableProviderReadsByResolverOccurrence.values.flatten().forEach { providerRead ->
-            operation.variableBindings.declareBinding(
-                requireNotNull(providerRead.definition.variable.instanceId),
-            )
-        }
-        closed.fieldResolverOccurrences.values
-            .flatMap { fieldResolverOccurrence -> fieldResolverOccurrence.fragments.queryFragment.pathVariableDefinitions }
-            .forEach { definition ->
-                operation.variableBindings.declareBinding(
-                    requireNotNull(definition.variable.instanceId),
-                )
+    }
+
+    private fun observeQueryOER() {
+        operation.resolverObserver.onQueryOERPrepared(queryOER)
+        listOf(objectOER to closed.objectRooted, queryOER to closed.queryRooted)
+            .forEach { (resolverOER, closedOER) ->
+                closedOER.fieldResolverOccurrences.values.forEach { fieldResolverOccurrence ->
+                    val queryFragment = fieldResolverOccurrence.fragments.queryFragment
+                    val selectionKey = fieldResolverOccurrence.selection.key
+                    if (
+                        !queryFragment.constructionSelections.isEmpty() &&
+                        !(
+                            selectionKey is ObjectEngineResult.GroundKey &&
+                                selectionKey.arguments.argumentsContainErrorValue()
+                        )
+                    ) {
+                        operation.resolverObserver.onQueryFragmentPrepared(
+                            queryFragment.resolverOccurrenceId,
+                            queryOER.occurrence.target,
+                            objectOER.occurrence,
+                        )
+                        operation.resolverObserver.onQueryFragmentOwnerAddress(
+                            queryFragment.resolverOccurrenceId,
+                            resolverOER.occurrence,
+                            selectionKey,
+                        )
+                    }
+                }
             }
     }
 }

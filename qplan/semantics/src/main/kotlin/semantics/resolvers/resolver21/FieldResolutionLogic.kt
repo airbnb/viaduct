@@ -120,13 +120,14 @@ internal class FieldResolutionLogic(
         check(queryFragment.constructionSelections.isEmpty() || publication.queryOER.isDemanded()) {
             "Nonempty resolver Query fragment has no demanded shared Query OER"
         }
+        val materializationSelections =
+            resolver.instantiateQueryMaterializationSelections(
+                queryFragment.resolverOccurrenceId,
+            )
         return publication.queryOER.occurrence.target.materializeResolverInput(
             operation = publication.operation,
             cycleChecker = publication.operation.cycleChecker,
-            selections =
-                resolver.instantiateQueryMaterializationSelections(
-                    queryFragment.resolverOccurrenceId,
-                ),
+            selections = materializationSelections,
             reader = publication.publicationPath,
         )
     }

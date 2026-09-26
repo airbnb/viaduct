@@ -1,0 +1,99 @@
+package semantics.resolver26
+
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import model.Arguments
+import model.EngineErrorData
+import model.testing.fromQueryField
+import model.ErrorEngineResult
+import model.ObjectEngineResult
+import model.emptyFragmentOf
+import model.fragmentFrom
+import model.requireObjectField
+import model.testing.TestWorld
+import model.testing.fieldResolverOf
+import semantics.contract.selectionValues
+import semantics.shared.SharedOperationContext
+
+/** A failed owner's guard must not suppress a different owner's included shared dependency. */
+class SharedQueryInclusionFailureRegressionTest : Resolver26DispatcherResource {
+    @Test
+    fun `failed guard first preserves healthy owner's shared Query input`() = checkOrder("bad good")
+
+    @Test
+    fun `healthy guard first preserves healthy owner's shared Query input`() = checkOrder("good bad")
+
+    @Test
+    fun `failed Query path guard first preserves healthy owner input`() = checkOrder("bad good", true)
+
+    @Test
+    fun `healthy Query path guard first preserves healthy owner input`() = checkOrder("good bad", true)
+
+    private fun checkOrder(order: String, fromQueryField: Boolean = false) {
+        val sourceApplications = AtomicInteger()
+        val failure = IllegalStateException("bad owner's provider failed")
+        val world = TestWorld.fromSDL(
+            selectiveResolvers = true,
+            schemaSDL = """
+                type Query {
+                  bad: Int!
+                  good: Int!
+                  source: Int!
+                  badFlag: Boolean!
+                  goodFlag: Boolean!
+                }
+            """.trimIndent(),
+            fieldResolvers = { schema ->
+                val owners = listOf("bad", "good").associate { name ->
+                    val field = schema.requireObjectField("Query", name)
+                    val resolver = fieldResolverOf(
+                        objectFragment = schema.emptyFragmentOf("Query"),
+                        queryFragment = schema.fragmentFrom(
+                            "fragment Owner on Query { " + (if (fromQueryField) "${name}Flag " else "") +
+                                "source @include(if: ${'$'}enabled) }",
+                            variableField = field,
+                        ),
+                    ) { _, queryValue, _ -> queryValue.selectionValues().getValue("source") }
+                    field to if (fromQueryField) resolver else resolver.withVariablesProvider(setOf("enabled")) {
+                            if (name == "bad") throw failure
+                            mapOf("enabled" to true)
+                        }
+                }
+                val flags = listOf("bad", "good").associate { name ->
+                    schema.requireObjectField("Query", "${name}Flag") to
+                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            if (name == "bad") EngineErrorData.of(failure) else true
+                        }
+                }
+                owners + flags + (schema.requireObjectField("Query", "source") to
+                    fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                        sourceApplications.incrementAndGet()
+                        7
+                    })
+            },
+            variableProviders = { schema ->
+                if (!fromQueryField) emptyMap() else listOf("bad", "good").associate { name ->
+                    val field = schema.requireObjectField("Query", name)
+                    Arguments.Variable.of(field, "enabled") to schema.fromQueryField(
+                        queryFragmentSource = "fragment Flag on Query { ${name}Flag }",
+                        responsePath = listOf("${name}Flag"),
+                        variableField = field,
+                    )
+                }
+            },
+        )
+        val operation = SharedOperationContext.create(world.assumptions)
+        val result = operation.resolveWithTestDispatcher(
+            world.assumptions.fragmentFrom("fragment Test on Query { $order }").subselections,
+        )
+        fun value(name: String) = result.getCell(
+            ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", name), emptyMap()),
+        ).getValue().get()
+
+        assertIs<ErrorEngineResult>(value("bad"))
+        assertEquals(7, value("good"), "Healthy owner must retain its included source for order: $order")
+        assertEquals(1, sourceApplications.get(), "One healthy owner demands one source application")
+    }
+}

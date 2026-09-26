@@ -43,27 +43,25 @@ class QueryFragmentProducerTest : Resolver26DispatcherResource {
         runBlocking {
             val failure = IllegalStateException("Query producer failed")
             val consumerInvoked = AtomicBoolean()
+            var consumerOccurrence: ResolverOccurrenceId? = null
             val observer =
                 object : ResolverObserver {
                     override fun onQueryFragmentPrepared(
                         resolverOccurrenceId: ResolverOccurrenceId,
                         result: ObjectEngineResult,
-                    ): Nothing = throw failure
+                    ): Nothing {
+                        consumerOccurrence = resolverOccurrenceId
+                        throw failure
+                    }
                 }
             val requestJob = Job()
             val requestScope = CoroutineScope(resolverDispatcher + requestJob)
 
             try {
                 val resolution =
-                    startQueryFragmentResolution(requestScope, observer) {
+                    startQueryFragmentResolution(requestScope, observer, useReference = true) {
                         consumerInvoked.set(true)
                     }
-                assertSame(
-                    VariableBinding.Error,
-                    withTimeout(5_000) {
-                        resolution.operation.variableBindings.fetchBinding(resolution.variableId())
-                    },
-                )
                 val fieldValue =
                     assertIs<ErrorEngineResult>(
                         withTimeout(5_000) {
@@ -73,6 +71,12 @@ class QueryFragmentProducerTest : Resolver26DispatcherResource {
                                 .await()
                         },
                     )
+                assertSame(
+                    VariableBinding.Error,
+                    resolution.operation.variableBindings.fetchBinding(
+                        resolution.variableId(requireNotNull(consumerOccurrence)),
+                    ),
+                )
 
                 assertSame(failure, fieldValue.errorData.cause)
                 assertFalse(consumerInvoked.get())
@@ -83,40 +87,26 @@ class QueryFragmentProducerTest : Resolver26DispatcherResource {
         }
 
     @Test
-    fun `cancellation before field or Query producer entry cancels provider bindings`() =
+    fun `cancellation before or during field entry cancels provider bindings`() =
         runBlocking {
             for (cancelBeforeFieldEntry in listOf(true, false)) {
                 val dispatcher = QueuedDispatcher()
                 val requestJob = Job()
                 val requestScope = CoroutineScope(dispatcher + requestJob)
-                val producerStarted = AtomicBoolean()
-                val observer =
-                    object : ResolverObserver {
-                        override fun onQueryFragmentPrepared(
-                            resolverOccurrenceId: ResolverOccurrenceId,
-                            result: ObjectEngineResult,
-                        ) {
-                            producerStarted.set(true)
-                        }
-                    }
                 try {
-                    val resolution = startQueryFragmentResolution(requestScope, observer) {}
+                    val resolution =
+                        startQueryFragmentResolution(requestScope, ResolverObserver.NOP) {}
 
-                    // Optionally enter the field task so it queues its Query producer.
+                    // Optionally enter the field task so it launches its provider read.
                     if (!cancelBeforeFieldEntry) dispatcher.runNext()
                     requestJob.cancel(CancellationException("cancelled before coroutine entry"))
-                    // The Query producer can finish cancellation before its owning field task.
                     dispatcher.runNext()
-                    if (!cancelBeforeFieldEntry) {
-                        assertFalse(resolution.operation.variableBindings.isBound(resolution.variableId()))
-                    }
                     dispatcher.runUntilIdle()
                     requestJob.join()
 
                     kotlin.test.assertFailsWith<CancellationException> {
                         resolution.operation.variableBindings.getBinding(resolution.variableId())
                     }
-                    assertFalse(producerStarted.get())
                 } finally {
                     requestJob.cancel()
                     dispatcher.runUntilIdle()
