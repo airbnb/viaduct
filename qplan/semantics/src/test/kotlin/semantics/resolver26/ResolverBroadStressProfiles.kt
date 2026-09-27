@@ -72,7 +72,7 @@ internal enum class Resolver26BroadStressProfile(
     DESCENDANT_VARIABLES(
         id = "descendant-variables",
         propertyProfile = "resolver26-broad-descendant-variables",
-        defaultSize = "10:20:50",
+        defaultSize = "40:25:10",
         requiredSignatures =
             setOf(
                 Resolver26StructuralSignature.NESTED_VARIABLE_USE,

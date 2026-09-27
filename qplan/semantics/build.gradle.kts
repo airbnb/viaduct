@@ -525,6 +525,16 @@ val resolverPropertyProfiles =
             "generated query fragment worlds resolve correctly",
         "object-fragment-from-argument" to
             "generated object fragment worlds with fromArgument resolve correctly",
+        "resolver23-field-checker-success" to
+            "generated successful field checker worlds resolve correctly",
+        "resolver23-field-checker-denial" to
+            "generated denying field checker worlds resolve correctly",
+        "resolver23-field-checker-mixed" to
+            "generated mixed field checker worlds resolve correctly",
+        "resolver23-field-checker-passive" to
+            "generated passive field checker worlds resolve correctly",
+        "resolver23-field-checker-root-reference" to
+            "generated root-reference field checker worlds resolve correctly",
         "object-fragment-from-object-field" to
             "generated object fragment worlds with fromObjectField resolve correctly",
         "mixed-variables" to
@@ -653,6 +663,71 @@ fun registerResolverStressTask(resolverName: String) {
 
 stressResolverNames.forEach(::registerResolverStressTask)
 
+val resolver23FieldCheckerStressSeed =
+    providers
+        .gradleProperty("resolver23FieldCheckerStressSeed")
+        .orElse(providers.systemProperty("resolver23.field.checker.stress.seed"))
+        .orElse(providers.environmentVariable("RESOLVER23_FIELD_CHECKER_STRESS_SEED"))
+val resolver23FieldCheckerStressProfile =
+    providers
+        .gradleProperty("resolver23FieldCheckerStressProfile")
+        .orElse(providers.systemProperty("resolver23.field.checker.stress.profile"))
+        .orElse(providers.environmentVariable("RESOLVER23_FIELD_CHECKER_STRESS_PROFILE"))
+        .orElse("success")
+val resolver23FieldCheckerStressProfiles =
+    mapOf(
+        "success" to
+            Pair(
+                "resolver23-field-checker-success",
+                "generated successful field checker worlds resolve correctly",
+            ),
+        "denial" to
+            Pair(
+                "resolver23-field-checker-denial",
+                "generated denying field checker worlds resolve correctly",
+            ),
+    )
+
+tasks.register<org.gradle.api.tasks.testing.Test>("resolver23FieldCheckerStress") {
+    group = "verification"
+    description = "Runs 2,500 generated Resolver23 field-checker cases for one replayable profile."
+    maxHeapSize = "2g"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform()
+    outputs.upToDateWhen { false }
+    testLogging {
+        showStandardStreams = true
+    }
+
+    doFirst {
+        val seed =
+            resolver23FieldCheckerStressSeed.orNull
+                ?: throw GradleException(
+                    "Set -Presolver23FieldCheckerStressSeed=<long>, " +
+                        "-Dresolver23.field.checker.stress.seed=<long>, or " +
+                        "RESOLVER23_FIELD_CHECKER_STRESS_SEED=<long>",
+                )
+        seed.toLongOrNull()
+            ?: throw GradleException("resolver23FieldCheckerStressSeed must be a Long: $seed")
+        val selectedProfile = resolver23FieldCheckerStressProfile.get()
+        val (profile, method) =
+            resolver23FieldCheckerStressProfiles[selectedProfile]
+                ?: throw GradleException(
+                    "Unknown resolver23FieldCheckerStressProfile $selectedProfile; profiles=" +
+                        resolver23FieldCheckerStressProfiles.keys.sorted().joinToString(),
+                )
+        filter.includeTestsMatching(
+            "semantics.resolvers.resolver23.ResolverGeneratedTest.$method",
+        )
+        systemProperty("resolver.property.seed", seed)
+        systemProperty("kotest.proptest.default.seed", seed)
+        systemProperty("resolver.property.profile", profile)
+        systemProperty("resolver.property.case", "all")
+        systemProperty("resolver.property.size", "50:5:10")
+    }
+}
+
 val resolver26BroadStressSize =
     providers
         .gradleProperty("resolver26BroadStressSize")
@@ -673,7 +748,7 @@ val resolver26BroadStressProfiles =
     mapOf(
         "balanced" to Pair("resolver26-broad-stress", "10:20:50"),
         "descendant-variables" to
-            Pair("resolver26-broad-descendant-variables", "10:20:50"),
+            Pair("resolver26-broad-descendant-variables", "40:25:10"),
         "nullable-errors" to Pair("resolver26-broad-nullable-errors", "10:20:50"),
         "symbolic-identity" to Pair("resolver26-broad-symbolic-identity", "10:20:50"),
         "multiple-owners" to Pair("resolver26-broad-multiple-owners", "10:50:20"),

@@ -167,6 +167,7 @@ suspend fun checkResolverTestCases(
     config: Config = Config.default,
     profile: String = "resolver-generated",
     seed: Long? = null,
+    fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): ResolverTestRun {
     require(profile.isNotBlank())
@@ -177,6 +178,7 @@ suspend fun checkResolverTestCases(
         config = config,
         profile = profile,
         seed = runSeed,
+        fieldCheckerMode = fieldCheckerMode,
         property = property,
     )
 }
@@ -193,6 +195,7 @@ suspend fun executeResolverTestCases(
     config: Config = Config.default,
     profile: String = "resolver-generated",
     seed: Long,
+    fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): ResolverTestRun {
     require(profile.isNotBlank())
@@ -224,6 +227,7 @@ suspend fun executeResolverTestCases(
                 registry.world(
                     schema = batch.schema,
                     selectiveNodeResolvers = config[SelectiveNodeResolversEnabled],
+                    fieldCheckerMode = fieldCheckerMode,
                 )
             batch.queries.forEachIndexed query@ { queryOffset, query ->
                 val queryIndex = queryOffset + 1

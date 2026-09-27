@@ -111,6 +111,10 @@ class ResolverBroadStressCampaignConfigurationTest {
 
         assertTrue(descendants[ListTypeWeight] > balanced[ListTypeWeight])
         assertEquals(1..2, descendants[ListValueSize])
+        assertEquals(
+            "40:25:10",
+            Resolver26BroadStressProfile.DESCENDANT_VARIABLES.defaultSize,
+        )
         assertTrue(nullableErrors[ErrorValueWeight] > balanced[ErrorValueWeight])
         assertTrue(
             symbolicIdentity[ResolverLiteralVariableConvergenceWeight] >

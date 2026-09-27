@@ -201,6 +201,103 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
     }
 
     @Test
+    fun `checker replay canonicalizes occurrences reached through parent backedges`() {
+        val world =
+            TestWorld.fromSDL(
+                selectiveResolvers = selectiveResolvers,
+                schemaSDL =
+                    """
+                    directive @parent on FIELD_DEFINITION
+
+                    type Query {
+                      root: Root!
+                      marker: Int!
+                    }
+
+                    type Root {
+                      child: Child!
+                      ancestor: Int!
+                    }
+
+                    type Child {
+                      parent: Root! @parent
+                      child: Grandchild!
+                    }
+
+                    type Grandchild {
+                      parent: Child! @parent
+                      child: Int!
+                    }
+                    """.trimIndent(),
+                fieldResolvers = { schema ->
+                    val emptyQuery = schema.emptyFragmentOf("Query")
+                    val emptyRoot = schema.emptyFragmentOf("Root")
+                    val emptyChild = schema.emptyFragmentOf("Child")
+                    mapOf(
+                        schema.requireObjectField("Query", "root") to
+                            fieldResolverOf(emptyQuery) { _, _ -> schema.objectOf("Root") },
+                        schema.requireObjectField("Query", "marker") to
+                            fieldResolverOf(emptyQuery) { _, _ -> 9 },
+                        schema.requireObjectField("Root", "child") to
+                            fieldResolverOf(emptyRoot) { _, _ -> schema.objectOf("Child") },
+                        schema.requireObjectField("Root", "ancestor") to
+                            fieldResolverOf(emptyRoot) { _, _ -> 7 },
+                        schema.requireObjectField("Child", "child") to
+                            fieldResolverOf(emptyChild) { _, _ -> schema.objectOf("Grandchild") },
+                        schema.requireObjectField("Grandchild", "child") to
+                            fieldResolverOf(
+                                schema.fragmentFrom(
+                                    "fragment Input on Grandchild { parent { parent { ancestor } } }",
+                                ),
+                            ) { input, _ ->
+                                val parent = input.outputValue("parent") as viaduct.engine.api.EngineObjectData.Sync
+                                val root = parent.outputValue("parent") as viaduct.engine.api.EngineObjectData.Sync
+                                root.outputValue("ancestor")
+                            },
+                    )
+                },
+                fieldCheckers = { schema ->
+                    val ancestor = schema.requireObjectField("Root", "ancestor")
+                    mapOf(
+                        ancestor to
+                            FieldChecker.of(
+                                field = ancestor,
+                                queryType = schema.requireQueryTypeDef(),
+                                fragmentTemplates =
+                                    mapOf(
+                                        "input" to
+                                            ResolverFragmentTemplates(
+                                                objectFragmentTemplate =
+                                                    schema.emptyFragmentOf("Root").materializeSelections,
+                                                queryFragmentTemplate =
+                                                    schema
+                                                        .fragmentFrom(
+                                                            "fragment Input on Query { marker }",
+                                                        ).materializeSelections,
+                                            ),
+                                    ),
+                            ) { _, inputs, _ ->
+                                assertEquals(9, inputs.getValue("input").queryValue.outputValue("marker"))
+                                CheckerResult.Success
+                            },
+                    )
+                },
+            ).assumptions
+        val fragment =
+            world.fragmentFrom(
+                "fragment Query on Query { root { child { child { child } } } }",
+            )
+        val observation =
+            resolveAndValidateObserved(
+                world = world,
+                root = world.resolverRegistry.createRootQueryInput(),
+                selections = fragment.subselections,
+            )
+
+        assertTrue(observation.result.correctResolution(observation.operation, fragment))
+    }
+
+    @Test
     fun `correct resolution validates access errors in both resolver inputs`() {
         val denial = CorrectResolutionDenial()
         val world =

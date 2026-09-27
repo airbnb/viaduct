@@ -40,6 +40,8 @@ Resolver dependencies and variable provider/use branches are generated in one ac
 
 Resolver02/03, Resolver07/08, and Resolver22/23 generated profiles exercise `FromArgument`, including paths through nullable input objects. Resolver26 profiles additionally execute `FromObjectField`, `FromQueryField`, and `FromProvider`. The isolated `FromProvider` profile generates one callback per owning resolver, returns every declared name together, and derives schema-compatible scalar or list values deterministically from the owning occurrence's grounded arguments. A separate query-fragment profile generates Query-rooted resolver inputs and is enabled only for resolver versions that implement them.
 
+Resolver23's field-checker profiles materialize the generated resolver object and Query fragment plans as duplicate named checker pairs, add an empty pair, and add independently aliased object-only and Query-only `__typename` pairs that create checker-only demand without adding resolver dependencies. Generated checkers support `FromArgument`; coordinates using unsupported variable providers remain unchecked, and the mixed profile also deterministically leaves a subset of otherwise supported coordinates unchecked while alternating successful and denying checker outcomes. The checker mode is an execution-subject input rather than a serialized generator key, so ordinary and Resolver26 worlds remain checker-free. From-field and callback-provided checker variables remain reserved for Resolver26 field-checker work.
+
 Queries and registries are independently generated from one schema. Query sources are bounded below GraphQL Java's parser limit, and oversized candidates are discarded before becoming test cases.
 
 ## Feature Controls

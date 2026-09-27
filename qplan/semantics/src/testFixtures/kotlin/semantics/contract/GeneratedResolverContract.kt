@@ -9,6 +9,7 @@ import semantics.arbitrary.ArbitraryRegistry
 import semantics.arbitrary.Config
 import semantics.arbitrary.ExplicitFieldResolverWeight
 import semantics.arbitrary.FieldArgumentWeight
+import semantics.arbitrary.GeneratedFieldCheckerMode
 import semantics.arbitrary.ImplementationArgumentDefaultWeight
 import semantics.arbitrary.InputListTypeWeight
 import semantics.arbitrary.InputObjectCount
@@ -1110,10 +1111,11 @@ private data class SometimesPassiveCoverage(
     var activatedOccurrences: Int = 0,
 )
 
-private suspend fun checkGeneratedProfile(
+internal suspend fun checkGeneratedProfile(
     profile: String,
     config: Config,
     seed: Long? = null,
+    fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): ResolverTestRun =
     checkGeneratedCases(
@@ -1122,6 +1124,7 @@ private suspend fun checkGeneratedProfile(
         expectedCases = GENERATED_PROFILE_CASE_BUDGET,
         config = config,
         seed = seed,
+        fieldCheckerMode = fieldCheckerMode,
         property = property,
     )
 
@@ -1143,6 +1146,7 @@ private suspend fun checkGeneratedCases(
     expectedCases: Int,
     config: Config,
     seed: Long? = null,
+    fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): ResolverTestRun =
     checkResolverTestCases(
@@ -1150,6 +1154,7 @@ private suspend fun checkGeneratedCases(
         config = config,
         profile = profile,
         seed = seed,
+        fieldCheckerMode = fieldCheckerMode,
         property = property,
     ).also { run ->
         val effectiveExpectedCases =
@@ -1165,7 +1170,7 @@ private suspend fun checkGeneratedCases(
         )
     }
 
-private fun GeneratedCaseAssertionPolicy.observeGeneratedCaseWithCurrentAssertions(
+internal fun GeneratedCaseAssertionPolicy.observeGeneratedCaseWithCurrentAssertions(
     testWorld: TestWorld,
     testCase: ResolverTestCase,
     assertions: List<GeneratedCaseAssertion> = generatedCaseAssertions,

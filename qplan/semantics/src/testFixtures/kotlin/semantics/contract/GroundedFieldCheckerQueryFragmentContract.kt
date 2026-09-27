@@ -25,7 +25,9 @@ import model.arg
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.materializeSelectionForestOf
+import model.objectOf
 import model.operationSelectionsFrom
+import model.outputValue
 import model.registry.CheckerInput
 import model.registry.FieldChecker
 import model.registry.ResolverFragmentTemplates
@@ -241,6 +243,83 @@ interface GroundedFieldCheckerQueryFragmentContract {
         )
         assertEquals(2, sharedResolverCalls.get())
         assertEquals(0, sharedCheckerCalls.get())
+    }
+
+    @Test
+    fun `checker-only raw demand restores checks at a nested resolver boundary`() {
+        val protectedCheckerCalls = AtomicInteger()
+        val world =
+            TestWorld.fromSDL(
+                schemaSDL =
+                    """
+                    type Query {
+                      item: Item!
+                      shared: Int!
+                      protected: Int!
+                    }
+
+                    type Item {
+                      checked: Int!
+                    }
+                    """.trimIndent(),
+                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
+                fieldResolvers = { schema ->
+                    val item = schema.requireObjectField("Query", "item")
+                    val shared = schema.requireObjectField("Query", "shared")
+                    val protected = schema.requireObjectField("Query", "protected")
+                    val checked = schema.requireObjectField("Item", "checked")
+                    mapOf(
+                        item to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.objectOf("Item")
+                            },
+                        shared to
+                            fieldResolverOf(
+                                schema.fragmentFrom("fragment Input on Query { protected }"),
+                            ) { input, _ -> input.outputValue("protected") },
+                        protected to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 3 },
+                        checked to fieldResolverOf(schema.emptyFragmentOf("Item")) { _, _ -> 1 },
+                    )
+                },
+                fieldCheckers = { schema ->
+                    val query = schema.requireQueryTypeDef()
+                    val checked = schema.requireObjectField("Item", "checked")
+                    val protected = schema.requireObjectField("Query", "protected")
+                    mapOf(
+                        checked to
+                            FieldChecker.of(
+                                field = checked,
+                                queryType = query,
+                                fragmentTemplates =
+                                    mapOf(
+                                        "raw" to
+                                            ResolverFragmentTemplates(
+                                                objectFragmentTemplate = materializeSelectionForestOf(),
+                                                queryFragmentTemplate =
+                                                    schema
+                                                        .fragmentFrom("fragment Input on Query { shared }")
+                                                        .materializeSelections,
+                                            ),
+                                    ),
+                            ) { _, inputs, _ ->
+                                assertEquals(3, inputs.getValue("raw").queryValue.get("shared"))
+                                CheckerResult.Success
+                            },
+                        protected to
+                            FieldChecker.of(protected, query) { _, _, _ ->
+                                protectedCheckerCalls.incrementAndGet()
+                                CheckerResult.Success
+                            },
+                    )
+                },
+            ).assumptions
+
+        coroutineResolverSubject.resolve(
+            SharedOperationContext.create(world),
+            world.operationSelectionsFrom("{ item { checked } }"),
+        )
+
+        assertEquals(1, protectedCheckerCalls.get())
     }
 
     @Test

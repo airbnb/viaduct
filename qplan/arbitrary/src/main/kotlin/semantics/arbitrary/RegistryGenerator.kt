@@ -25,11 +25,18 @@ import model.Selection
 import model.SelectionForest
 import model.SourceSchemaAdapter
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.CheckerResultContext
+import model.arg
 import model.fragmentFrom
+import model.inputType
 import model.materializeSelectionForestOf
 import model.objectOf
 import model.requireType
+import model.registry.FieldChecker
 import model.registry.ProviderFragment
+import model.registry.ResolverFragmentTemplates
+import model.registry.VariableDefinition
 import model.selectionForestOf
 import model.toMaterializeSelectionForest
 import model.testing.TestWorld
@@ -58,6 +65,14 @@ enum class ResolverProgramMutation {
     CACHE_FIRST_ARGUMENTS,
     DUPLICATE_APPLICATION,
     APPLICATION_ORDINAL_CONTAMINATION,
+}
+
+/** Generated checker behavior used by Resolver23 access-check property profiles. */
+enum class GeneratedFieldCheckerMode {
+    NONE,
+    SUCCESS,
+    DENIAL,
+    MIXED,
 }
 
 data class RegistryFeatures(
@@ -130,6 +145,68 @@ class ArbitraryRegistry internal constructor(
         variableProviders
             .filterIsInstance<FromArgumentVariableProviderPlan>()
             .mapTo(linkedSetOf(), VariableProviderPlan::owner)
+
+    /** Resolver coordinates whose generated variables are all supported by Resolver23 checkers. */
+    val generatedFieldCheckerCoordinates: Set<FieldCoordinate> =
+        fieldResolverCoordinates.filterTo(linkedSetOf()) { coordinate ->
+            variableProviders
+                .filter { provider -> provider.owner == coordinate }
+                .all { provider -> provider is FromArgumentVariableProviderPlan }
+        }
+
+    private val generatedFieldCheckerOnlyObjectPlans: Map<FieldCoordinate, FragmentPlan> =
+        generatedFieldCheckerCoordinates.associateWith { coordinate ->
+            FragmentPlan(
+                ownerName = coordinate.typeName,
+                selections = listOf(generatedCheckerTypeNameSelection("checkerOnlyObjectType")),
+            )
+        }
+
+    private val generatedFieldCheckerOnlyQueryPlans: Map<FieldCoordinate, FragmentPlan> =
+        generatedFieldCheckerCoordinates.associateWith {
+            FragmentPlan(
+                ownerName = "Query",
+                selections = listOf(generatedCheckerTypeNameSelection("checkerOnlyQueryType")),
+            )
+        }
+
+    /** Checked coordinates with independently generated checker-only object demand. */
+    val generatedFieldCheckerOnlyObjectDemandCoordinates: Set<FieldCoordinate> =
+        generatedFieldCheckerOnlyObjectPlans.keys
+
+    /** Checked coordinates with independently generated checker-only Query demand. */
+    val generatedFieldCheckerOnlyQueryDemandCoordinates: Set<FieldCoordinate> =
+        generatedFieldCheckerOnlyQueryPlans.keys
+
+    /** Coordinates at which a generated profile installs a field checker. */
+    fun generatedFieldCheckerCoordinates(mode: GeneratedFieldCheckerMode): Set<FieldCoordinate> =
+        when (mode) {
+            GeneratedFieldCheckerMode.NONE -> emptySet()
+            GeneratedFieldCheckerMode.SUCCESS,
+            GeneratedFieldCheckerMode.DENIAL,
+            -> generatedFieldCheckerCoordinates
+            GeneratedFieldCheckerMode.MIXED ->
+                generatedFieldCheckerCoordinates
+                    .sortedBy(FieldCoordinate::toString)
+                    .filterIndexedTo(linkedSetOf()) { index, _ -> index % 3 != 0 }
+        }
+
+    /** Whether the generated checker at [coordinate] returns denial in [mode]. */
+    fun generatedFieldCheckerDenies(
+        coordinate: FieldCoordinate,
+        mode: GeneratedFieldCheckerMode,
+    ): Boolean =
+        when (mode) {
+            GeneratedFieldCheckerMode.NONE,
+            GeneratedFieldCheckerMode.SUCCESS,
+            -> false
+            GeneratedFieldCheckerMode.DENIAL -> true
+            GeneratedFieldCheckerMode.MIXED ->
+                generatedFieldCheckerCoordinates
+                    .sortedBy(FieldCoordinate::toString)
+                    .indexOf(coordinate)
+                    .let { index -> index >= 0 && index % 3 == 2 }
+        }
 
     /** Source resolver fields whose generated fragments consume a FromProvider variable. */
     val fromProviderVariableOwnerFields: Set<FieldCoordinate> =
@@ -388,17 +465,20 @@ class ArbitraryRegistry internal constructor(
         schema: ArbitrarySchema,
         resolverProgramMutation: ResolverProgramMutation = ResolverProgramMutation.NONE,
         selectiveNodeResolvers: Boolean = false,
+        fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
     ): TestWorld =
         world(
             schemaSDL = schema.sdl,
             resolverProgramMutation = resolverProgramMutation,
             selectiveNodeResolvers = selectiveNodeResolvers,
+            fieldCheckerMode = fieldCheckerMode,
         )
 
     fun world(
         schemaSDL: String,
         resolverProgramMutation: ResolverProgramMutation = ResolverProgramMutation.NONE,
         selectiveNodeResolvers: Boolean = false,
+        fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
     ): TestWorld {
         val firstInputs = ConcurrentHashMap<FieldCoordinate, EngineObjectData.Sync>()
         val firstArguments = ConcurrentHashMap<FieldCoordinate, Arguments.Resolved>()
@@ -608,6 +688,9 @@ class ArbitraryRegistry internal constructor(
                         }
                 }.toMap()
             },
+            fieldCheckers = { canonicalSchema ->
+                generatedFieldCheckers(canonicalSchema, fieldCheckerMode)
+            },
         )
         objectFragmentSources.values
             .filter(String::isNotEmpty)
@@ -617,6 +700,142 @@ class ArbitraryRegistry internal constructor(
             .forEach(world::selectionsFrom)
         variableProviderSources.values.forEach(world::selectionsFrom)
         return world
+    }
+
+    private fun generatedFieldCheckers(
+        schema: ViaductSchema,
+        mode: GeneratedFieldCheckerMode,
+    ): Map<ViaductSchema.ObjectField, FieldChecker> {
+        if (mode == GeneratedFieldCheckerMode.NONE) return emptyMap()
+        val sourceSchema = SourceSchemaAdapter(schema)
+        val queryType = schema.requireType("Query") as ViaductSchema.Object
+        return generatedFieldCheckerCoordinates(mode).associate { coordinate ->
+            val field =
+                sourceSchema.field(
+                    coordinate.typeName,
+                    coordinate.fieldName,
+                ) as ViaductSchema.ObjectField
+            val variables =
+                variableProviders
+                    .filterIsInstance<FromArgumentVariableProviderPlan>()
+                    .filter { provider -> provider.owner == coordinate }
+                    .associate { provider ->
+                        Arguments.Variable.of(field, provider.variableName) to
+                            provider.variableDefinition(field)
+                    }
+            val templates =
+                ResolverFragmentTemplates(
+                    objectFragmentTemplate =
+                        objectFragments
+                            .getValue(coordinate)
+                            .materialize(schema, field)
+                            .materializeSelections,
+                    queryFragmentTemplate =
+                        queryFragments
+                            .getValue(coordinate)
+                            .materialize(schema, field)
+                            .materializeSelections,
+                    variables = variables,
+                )
+            val emptyObject =
+                FragmentPlan(coordinate.typeName, emptyList())
+                    .materialize(schema, field)
+                    .materializeSelections
+            val emptyQuery =
+                FragmentPlan(queryType.name, emptyList())
+                    .materialize(schema, field)
+                    .materializeSelections
+            val fragmentTemplates =
+                linkedMapOf(
+                    "left" to templates,
+                    "right" to templates,
+                    "empty" to
+                        ResolverFragmentTemplates(
+                            objectFragmentTemplate = emptyObject,
+                            queryFragmentTemplate = emptyQuery,
+                        ),
+                ).apply {
+                    generatedFieldCheckerOnlyObjectPlans[coordinate]?.let { checkerOnlyPlan ->
+                        put(
+                            "rawObject",
+                            ResolverFragmentTemplates(
+                                objectFragmentTemplate =
+                                    checkerOnlyPlan.materialize(schema, field).materializeSelections,
+                                queryFragmentTemplate = emptyQuery,
+                            ),
+                        )
+                    }
+                    generatedFieldCheckerOnlyQueryPlans[coordinate]?.let { checkerOnlyPlan ->
+                        put(
+                            "rawQuery",
+                            ResolverFragmentTemplates(
+                                objectFragmentTemplate = emptyObject,
+                                queryFragmentTemplate =
+                                    checkerOnlyPlan.materialize(schema, field).materializeSelections,
+                            ),
+                        )
+                    }
+                }
+            field to
+                FieldChecker.of(
+                    field = field,
+                    queryType = queryType,
+                    fragmentTemplates = fragmentTemplates,
+                ) { _, inputs, _ ->
+                    val left = inputs.getValue("left")
+                    val right = inputs.getValue("right")
+                    val empty = inputs.getValue("empty")
+                    check(empty.objectValue.getSelections() == emptySet<String>()) {
+                        "Generated checker empty object input is not empty for $coordinate"
+                    }
+                    check(empty.queryValue.getSelections() == emptySet<String>()) {
+                        "Generated checker empty Query input is not empty for $coordinate"
+                    }
+                    if (coordinate in generatedFieldCheckerOnlyObjectDemandCoordinates) {
+                        check(
+                            inputs
+                                .getValue("rawObject")
+                                .objectValue
+                                .getSelections() != emptySet<String>(),
+                        ) {
+                            "Generated checker-only object input is empty for $coordinate"
+                        }
+                    }
+                    if (coordinate in generatedFieldCheckerOnlyQueryDemandCoordinates) {
+                        check(
+                            inputs
+                                .getValue("rawQuery")
+                                .queryValue
+                                .getSelections() != emptySet<String>(),
+                        ) {
+                            "Generated checker-only Query input is empty for $coordinate"
+                        }
+                    }
+                    check(
+                        left.objectValue.resolutionFingerprint() ==
+                            right.objectValue.resolutionFingerprint(),
+                    ) {
+                        "Generated checker object inputs differ for $coordinate"
+                    }
+                    check(
+                        left.queryValue.resolutionFingerprint() ==
+                            right.queryValue.resolutionFingerprint(),
+                    ) {
+                        "Generated checker Query inputs differ for $coordinate"
+                    }
+                    when (mode) {
+                        GeneratedFieldCheckerMode.SUCCESS -> CheckerResult.Success
+                        GeneratedFieldCheckerMode.DENIAL -> GeneratedFieldCheckerDenial
+                        GeneratedFieldCheckerMode.MIXED ->
+                            if (generatedFieldCheckerDenies(coordinate, mode)) {
+                                GeneratedFieldCheckerDenial
+                            } else {
+                                CheckerResult.Success
+                            }
+                        GeneratedFieldCheckerMode.NONE -> error("No generated checker was requested")
+                    }
+                }
+        }
     }
 
     override fun toString(): String =
@@ -2955,6 +3174,14 @@ internal data class FragmentPlan(
         }
 }
 
+private fun generatedCheckerTypeNameSelection(alias: String): FragmentSelectionPlan =
+    FragmentSelectionPlan(
+        fieldName = "__typename",
+        arguments = emptyMap(),
+        subselections = emptyList(),
+        alias = alias,
+    )
+
 internal data class FragmentSelectionPlan(
     val fieldName: String,
     val arguments: Map<String, InputValuePlan>,
@@ -3272,6 +3499,36 @@ internal data class FromArgumentVariableProviderPlan(
 ) : VariableProviderPlan {
     val argumentPath: List<String>
         get() = listOf(argumentName) + inputPath
+}
+
+private fun FromArgumentVariableProviderPlan.variableDefinition(
+    field: ViaductSchema.ObjectField,
+): VariableDefinition.FromArgument {
+    val argument =
+        field.arg(argumentName)
+            ?: error("${field.containingDef.name}/${field.name} has no argument $argumentName")
+    var currentType = argument.inputType
+    val canonicalInputPath =
+        inputPath.map { fieldName ->
+            require(!currentType.isList) {
+                "FromArgument checker path cannot traverse list type $currentType"
+            }
+            val inputObject = currentType.baseTypeDef as ViaductSchema.Input
+            val inputField =
+                inputObject.field(fieldName)
+                    ?: error("Input object ${inputObject.name} has no field $fieldName")
+            currentType = inputField.inputType
+            inputField
+        }
+    return VariableDefinition.FromArgument.of(argument, canonicalInputPath)
+}
+
+private object GeneratedFieldCheckerDenial : CheckerResult.Error {
+    override val error: Exception = IllegalStateException("generated field checker denied access")
+
+    override fun isErrorForResolver(ctx: CheckerResultContext): Boolean = true
+
+    override fun combine(fieldResult: CheckerResult.Error): CheckerResult.Error = this
 }
 
 internal data class FromProviderVariableProviderPlan(

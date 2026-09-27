@@ -16,6 +16,7 @@ import semantics.correctresolution.conformsToResolvers
 import semantics.correctresolution.conformsToSelections
 import semantics.correctresolution.isClosedUnderResolverDemand
 import semantics.correctresolution.rootedAndWellTyped
+import semantics.shared.CheckerInvocationObservation
 import semantics.shared.SharedOperationContext
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -25,6 +26,7 @@ data class GeneratedResolutionObservation(
     val operation: SharedOperationContext<*>,
     val fragment: Fragment,
     val subject: ResolverResolutionObservation,
+    val checkerApplications: List<CheckerInvocationObservation>,
 ) {
     val world: Assumptions
         get() = operation.world
@@ -130,6 +132,20 @@ object GeneratedCaseAssertions {
             }
         }
 
+    val exactFieldCheckerApplications =
+        GeneratedCaseAssertion { observation ->
+            observation.executions.forEach { execution ->
+                val expected =
+                    execution.result.registeredFieldCheckerApplications(execution.operation)
+                assertEquals(
+                    expected.groupingBy { application -> application }.eachCount(),
+                    execution.checkerApplications
+                        .groupingBy { application -> application }
+                        .eachCount(),
+                )
+            }
+        }
+
     val defaultGeneratedContract =
         listOf(
             correctResolution,
@@ -163,19 +179,23 @@ fun ResolverContract.observeGeneratedCase(
     captureSuppliedDemand: Boolean = false,
 ): GeneratedCaseObservation {
     testCase.registry.clearResolutionWitness()
+    val ordinaryCheckerRecorder = CheckerApplicationRecorder()
     val ordinary =
         observeGeneratedResolution(
             testWorld = testWorld,
             resolverObserver = testCase.registry.resolverObserver(captureSuppliedDemand = captureSuppliedDemand),
+            checkerRecorder = ordinaryCheckerRecorder,
             querySource = testCase.query.source,
         )
     val ordinaryApplications = testCase.registry.resolutionWitness().applications
     val selectiveNodeResolverApplications = testCase.registry.selectiveNodeResolverApplications()
     val permutationEquivalent =
         testCase.registry.withoutResolutionWitnessCapture {
+            val checkerRecorder = CheckerApplicationRecorder()
             observeGeneratedResolution(
                 testWorld = testWorld,
                 resolverObserver = testCase.registry.resolverObserver(captureResolutionWitness = false, captureResolutionApplicationCounts = false),
+                checkerRecorder = checkerRecorder,
                 querySource = testCase.query.permutationEquivalentSource,
             )
         }
@@ -191,6 +211,7 @@ fun ResolverContract.observeGeneratedCase(
 private fun ResolverContract.observeGeneratedResolution(
     testWorld: TestWorld,
     resolverObserver: semantics.shared.ResolverObserver,
+    checkerRecorder: CheckerApplicationRecorder,
     querySource: String,
 ): GeneratedResolutionObservation {
     val world = testWorld.newAssumptions(selectiveResolvers)
@@ -201,10 +222,12 @@ private fun ResolverContract.observeGeneratedResolution(
             world.objectOf("Query"),
             fragment.subselections,
             resolverObserver = resolverObserver,
+            checkerObserver = checkerRecorder,
         )
     return GeneratedResolutionObservation(
         operation = subject.operation,
         fragment = fragment,
         subject = subject,
+        checkerApplications = checkerRecorder.checkerApplications(),
     )
 }

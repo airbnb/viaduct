@@ -61,7 +61,12 @@ internal fun ObjectEngineResult.conformsToCheckedSelectionsAt(
             .engineResultConformsToCheckedSelections(
                 operation = operation,
                 selections = selection.subselections,
-                path = path + key,
+                path =
+                    if (key is ObjectEngineResult.ParentKey) {
+                        path.dropLast(1)
+                    } else {
+                        path + key
+                    },
                 resolverApplicationCache = resolverApplicationCache,
             )
     }
