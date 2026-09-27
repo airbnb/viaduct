@@ -36,7 +36,15 @@ An earlier unseeded full check also missed the Resolver23 mixed profile's aggreg
 
 ## Closeout controls
 
-Closeout benchmark results and the tested clean revision will be added after validation. No controlled before/after benchmark exists, so this round makes no measured speedup claim. Benchmark inputs have not been regenerated.
+All three controls passed serially on the otherwise idle host from clean runtime revision `a1057d3f1c8b76da638e1b50dbcc329fea3eefaf` using Corretto 21.0.4+7-LTS and JMH 1.36. The tree was clean before and after measurement. Every measured iteration, score, work count, normalized mean, and emitted corpus statistic is recorded in the [performance log](../../resolver-profiling.md); complete JMH output is in [`benchmark-results.txt`](./benchmark-results.txt). No controlled before/after benchmark exists, so this round makes no measured speedup claim. These checker-free controls do not measure the original depth-two denial workload. Benchmark inputs were not regenerated, and the checksums below were verified after the runs.
+
+Each task ran from the qplan directory with default benchmark parameters (`loopCount=1`; correctness additionally uses `inputCount=50`, `querySeed=1`). There is one fork and one JMH thread; overhead and correctness use one warmup and three measurements, and the property case uses two warmups and five measurements. The build-only heap/compiler settings do not override the benchmark JVM heap.
+
+```shell
+./gradlew :semantics:resolver26OverheadBenchmark --console=plain -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs='-Xmx3g -XX:MaxMetaspaceSize=1g' --max-workers=2
+./gradlew :semantics:correctResolutionBenchmark --console=plain -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs='-Xmx3g -XX:MaxMetaspaceSize=1g' --max-workers=2
+./gradlew :semantics:propertyTestBenchmark --console=plain -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs='-Xmx3g -XX:MaxMetaspaceSize=1g' --max-workers=2
+```
 
 Corpus checksums:
 

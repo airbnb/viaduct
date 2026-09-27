@@ -106,6 +106,44 @@ Update this log whenever a resolver performance investigation concludes. Add the
 
 Each entry must record the UTC date and time, host name and relevant hardware or instance configuration, Codex session ID, tested revision, profiling targets added or used, findings, changes made, and any controlled before/after result. At closeout, run the profiling-related benchmarks serially on an otherwise idle host with default parameters unless the entry explicitly records its overrides: Resolver26 overhead, `correctResolution`, and the frozen property test. The full generated-workflow benchmark is deliberately excluded because it exercises a different workload and is not a control for the profiling targets. Report every measured iteration, JMH score and error, units, work per operation, and mean time per resolution, property case, or correctness judgment. Include all emitted fixed-corpus statistics with their actual percentile labels. Do not compare results across different hosts, JVMs, benchmark parameters, or corpus revisions without calling out that difference.
 
+### 2026-09-27 07:57:14 UTC
+
+Host: `raymie-stata-codex`; one Intel Xeon Platinum 8375C socket, 32 physical cores / 64 logical CPUs, 495 GiB RAM, no swap, one NUMA node, and cgroup `cpu.max=max 100000` (no quota).
+
+Session: `01a0e18b-2eca-7b02-9ff1-60262b09597f`. Clean runtime revision: `a1057d3f1c8b76da638e1b50dbcc329fea3eefaf`. `git status --short` was empty before the serial benchmark controls and remained empty afterward. Profile evidence, exact commands, corpus checksums, raw JMH output, stress coverage, and historical reproduction patches are in [`profiles/2026-09-27-f5-field-checks`](./profiles/2026-09-27-f5-field-checks).
+
+F5 adds symbolic/runtime field checks to Resolver26. Its generated stress investigation used a narrow JFR recording of the failing denial case, exposing construction/parent closure, argument rebuilding, forest merging, and cycle-graph work. The delivered implementation restores cycle-aware successor memoization, compacts duplicate producer demand by concrete key while preserving inclusion correlation, caches immutable occurrence hashes, shares correctness-replay caches per result identity within one judgment, and reuses already-canonical concrete keys. The original depth-two success reproducer passes. The original depth-two denial reproducer remains limited by symbolic dependency-tree amplification: the counting probe observed 129,788 resolver invocations and 52,321 associated Query OERs over 15,379 ms including timeout cancellation. Broad runtime checker generators now use fragment depth one; the [scalability catalog](./profiles/2026-09-27-f5-field-checks/scalability-catalog.md) records this input reduction separately from repairs. Timeouts, product sizes, exactness oracles, and activated coverage requirements remain unchanged.
+
+All three closeout controls passed serially on the otherwise idle host using Corretto 21.0.4+7-LTS and JMH 1.36 with default benchmark parameters: one fork, one JMH thread, single-shot timing, `loopCount=1`; overhead and correctness use one warmup and three measurements, while the frozen property case uses two warmups and five measurements. Correctness uses `inputCount=50` and `querySeed=1`. The build used in-process Kotlin compilation, a 3 GiB Gradle heap, 1 GiB metaspace, and two Gradle workers; these are build-process settings, not benchmark JVM heap overrides. These fixed controls contain no field checkers and do not characterize the denial workload. No controlled before/after benchmark was captured, so no measured speedup is claimed or inferred from older log entries.
+
+| Benchmark | Measured iterations (s/op) | JMH score and error (s/op) | Work per operation | Mean per unit |
+| --- | --- | --- | --- | --- |
+| Resolver26 overhead | 3.022, 2.977, 2.960 | 2.986 +/- 0.582 | 100 resolutions | 29.860 ms/resolution |
+| `correctResolution` | 1.171, 1.147, 1.004 | 1.107 +/- 1.651 | 50 judgments | 22.140 ms/judgment |
+| Frozen property test | 1.405, 1.400, 1.412, 1.403, 1.396 | 1.403 +/- 0.022 | 1 case / 12,763 expected resolver applications | 1.403 s/case |
+
+All emitted overhead statistics for the unchanged 100-query corpus follow, with the original percentile labels. Result-shape counts should not be assumed equal to older semantic revisions; this round did not measure the pre-F5 revision to attribute any intervening change.
+
+```text
+Resolver overhead corpus statistics (100 queries):
+  fields returned: average=244.24, p90=347, max=570
+  active fields returned: average=71.60, p90=113, max=214
+  passive fields returned: average=172.64, p90=241, max=356
+  passive fields per active field: average=2.71, p90=3.68, max=5.76
+  resolvers executed: average=68.73, p90=107, max=165
+  resolver executions with variable-bearing arguments: average=5.72, p50=9, max=20
+  variable-bearing arguments per such resolver execution: average=1.00, p90=1, max=1
+  maximum variable stack depth: average=0.81, p50=1, max=1
+  result depth: average=5.85, p90=6, max=6
+Resolver benchmark registry statistics:
+  active fields per non-Query object: average=1.88, p90=4, max=5
+  passive fields per non-Query object: average=14.31, p90=18, max=18
+  selections per object fragment: average=4.48, p90=18, max=39
+  object fragment depth: average=1.63, p90=5, max=9
+```
+
+Validation passed 15,000 stress cases (2,500 checker success on one thread, 2,500 checker denial on 100 threads, and 10,000 unchanged deep cases). The final full check at seed `424242` passed in 5m 40s, reporting 2,140 regular tests with 226 existing skips and no failures or errors. Type-check discovery and execution-adapter checker integration remain subsequent milestones.
+
 ### 2026-09-04 00:22:58 UTC
 
 Host: `raymie-stata-codex`; one Intel Xeon Platinum 8375C socket, 32 physical cores / 64 vCPUs, 495 GiB RAM, no swap, and one NUMA node.
