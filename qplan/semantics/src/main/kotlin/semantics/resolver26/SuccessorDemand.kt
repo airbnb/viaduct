@@ -12,124 +12,121 @@ import model.flatMapToSelectionForest
 import model.objectKey
 import model.selectionForestOf
 import semantics.shared.liftParentSuccessorDemand
+import model.InclusionCondition
+import model.guardedBy
+import model.merge
+import semantics.shared.Demand
+import semantics.shared.plus
 
-// Returns ground output demand, crossing open resolver boundaries without binding their arguments.
-internal fun SelectionForest.successorDemand(world: Assumptions): SelectionForest {
-    val initialDemand = this + liftParentSuccessorDemand(world)
-    val expandedDemand = initialDemand.successorDemandWithMemo(world, mutableMapOf())
-    return expandedDemand + expandedDemand.liftParentSuccessorDemand(world)
+/** Producer-facing values; checker provenance is retained only while expanding fixed inputs. */
+internal fun SelectionForest.successorDemand(world: Assumptions): SelectionForest = Demand.checked(this).successorDemand(world)
+
+internal fun Demand<SelectionForest>.successorDemand(world: Assumptions): SelectionForest {
+    val demand = this + liftParentConstructionDemand(world)
+    val logic = SuccessorDemandLogic(world)
+    val values = logic.expand(demand.checked, checked = true) + logic.expand(demand.unchecked, checked = false)
+    return values + values.liftParentSuccessorDemand(world)
 }
 
-// Retains requested ground boundaries and adds each resolver-bearing boundary's fixed passive demand.
-private fun SelectionForest.successorDemandWithMemo(
-    world: Assumptions,
-    passiveDemandByResolverField: MutableMap<ViaductSchema.ObjectField, SelectionForest>,
-): SelectionForest =
-    flatMap { selection ->
-        selection.possibleTypes.flatMapToSelectionForest { possibleType ->
-            val objectKey: ObjectEngineResult.ObjectKey = selection.objectKey(possibleType)
-            val requestedDemand: SelectionForest =
-                if (
-                    objectKey.field in world.resolverRegistry &&
-                    objectKey !is ObjectEngineResult.GroundKey
-                ) {
-                    selectionForestOf()
-                } else {
-                    check(
-                        objectKey is ObjectEngineResult.GroundKey ||
-                            objectKey.field in world.resolverRegistry,
-                    ) {
-                        "Resolver26 found open arguments on passive key $objectKey"
-                    }
-                    selectionForestOf(
-                        Selection.of(
-                            key = objectKey,
-                            possibleTypes = setOf(possibleType),
-                            inclusionCondition = selection.inclusionCondition,
-                            subselections =
-                                selection.subselections.successorDemandWithMemo(
-                                    world,
-                                    passiveDemandByResolverField,
+/** Fixed fragments can revisit their own field through raw demand; the boundary kind matters. */
+private data class InputBoundary(
+    val field: ViaductSchema.ObjectField,
+    val checker: Boolean
+)
+
+private class SuccessorDemandLogic(
+    private val world: Assumptions
+) {
+    private val expanding = mutableSetOf<InputBoundary>()
+    private val fixedDemand = mutableMapOf<InputBoundary, SelectionForest>()
+    private var cycleCuts = 0
+
+    fun expand(
+        selections: SelectionForest,
+        checked: Boolean,
+        passiveOnly: Boolean = false
+    ): SelectionForest =
+        selections
+            .flatMap { selection ->
+                selection.possibleTypes.flatMapToSelectionForest { type ->
+                    val key = selection.objectKey(type)
+                    val active = key.field in world.resolverRegistry
+                    val requested =
+                        if (active && (key !is ObjectEngineResult.GroundKey || (passiveOnly && key.field.args.isNotEmpty()))) {
+                            selectionForestOf()
+                        } else {
+                            check(key is ObjectEngineResult.GroundKey) { "Resolver26 found open arguments on passive key $key" }
+                            selectionForestOf(
+                                Selection.of(
+                                    key = key,
+                                    possibleTypes = setOf(type),
+                                    inclusionCondition = selection.inclusionCondition,
+                                    subselections = expand(selection.subselections, checked, passiveOnly),
                                 ),
-                        ),
-                    )
+                            )
+                        }
+                    val inputs =
+                        if (selection.inclusionCondition === InclusionCondition.Never || key.arguments.containsErrorValue()) {
+                            selectionForestOf()
+                        } else {
+                            fixedInputs(key.field, checker = false) +
+                                if (checked) fixedInputs(key.field, checker = true) else selectionForestOf()
+                        }
+                    requested + inputs.guardedBy(selection.inclusionCondition)
                 }
-            val successorInputDemand: SelectionForest =
-                when {
-                    objectKey.arguments.containsErrorValue() ->
-                        selectionForestOf()
+            }.compactSuccessorDemand()
 
-                    objectKey.field in world.resolverRegistry ->
-                        objectKey.field.fixedPassivePredecessorDemand(
-                            world,
-                            passiveDemandByResolverField,
-                        )
-
-                    else -> selectionForestOf()
-                }
-            requestedDemand + successorInputDemand
-        }
-    }
-
-// Memoizes passive demand reachable from one resolver OF before another resolver boundary.
-private fun ViaductSchema.ObjectField.fixedPassivePredecessorDemand(
-    world: Assumptions,
-    passiveDemandByResolverField: MutableMap<ViaductSchema.ObjectField, SelectionForest>,
-): SelectionForest =
-    passiveDemandByResolverField[this]
-        ?: world.resolverRegistry
-            .resolver(this)
-            .objectFragment
-            .passivePredecessorDemand(world, passiveDemandByResolverField)
-            .also { demand -> passiveDemandByResolverField[this] = demand }
-
-// Retains fields that may be passive based on presence and expands their standard passive demand.
-private fun SelectionForest.passivePredecessorDemand(
-    world: Assumptions,
-    passiveDemandByResolverField: MutableMap<ViaductSchema.ObjectField, SelectionForest>,
-): SelectionForest =
-    flatMap { selection ->
-        selection.possibleTypes.flatMapToSelectionForest { possibleType ->
-            val objectKey: ObjectEngineResult.ObjectKey = selection.objectKey(possibleType)
-            if (objectKey.field in world.resolverRegistry) {
-                val potentiallyPassiveSelection =
-                    if (objectKey.field.args.isEmpty()) {
-                        selectionForestOf(
-                            Selection.of(
-                                key = objectKey,
-                                possibleTypes = setOf(possibleType),
-                                inclusionCondition = selection.inclusionCondition,
-                                subselections =
-                                    selection.subselections.successorDemandWithMemo(
-                                        world,
-                                        passiveDemandByResolverField,
-                                    ),
-                            ),
-                        )
-                    } else {
-                        selectionForestOf()
-                    }
-                potentiallyPassiveSelection +
-                    objectKey.field.fixedPassivePredecessorDemand(
-                        world,
-                        passiveDemandByResolverField,
-                    )
+    private fun fixedInputs(
+        field: ViaductSchema.ObjectField,
+        checker: Boolean
+    ): SelectionForest {
+        val boundary = InputBoundary(field, checker)
+        fixedDemand[boundary]?.let { return it }
+        val fragment =
+            if (checker) {
+                world.resolverRegistry.fieldChecker(field)?.objectFragment
+            } else if (field in world.resolverRegistry) {
+                world.resolverRegistry.resolver(field).objectFragment
             } else {
-                check(objectKey is ObjectEngineResult.GroundKey) {
-                    "Resolver26 found open arguments on passive key $objectKey"
-                }
-                selectionForestOf(
-                    Selection.of(
-                        key = objectKey,
-                        possibleTypes = setOf(possibleType),
-                        inclusionCondition = selection.inclusionCondition,
-                        subselections =
-                            selection.subselections.passivePredecessorDemand(
-                                world,
-                                passiveDemandByResolverField,
-                            ),
-                    ),
-                )
+                null
             }
+        if (fragment == null) return selectionForestOf()
+        if (!expanding.add(boundary)) {
+            cycleCuts++
+            return selectionForestOf()
+        }
+        val cutsBefore = cycleCuts
+        val result = try {
+            // Occurrence-local bindings do not exist while choosing a producer's passive output.
+            expand(fragment.withoutInclusionConditions(), checked = !checker, passiveOnly = true)
+        } finally {
+            expanding.remove(boundary)
+        }
+        // A cycle-cut result depends on the current stack and cannot be reused elsewhere.
+        if (cycleCuts == cutsBefore) fixedDemand[boundary] = result
+        return result
+    }
+}
+
+/**
+ * Fixed resolver/checker fragments can reach the same passive field along many dependency paths.
+ * Normalize each concrete branch before reusing it, including descendants, so those paths do not
+ * become an exponentially duplicated producer forest. Merging pushes each alternative's guard
+ * into its own descendants and preserves distinct symbolic keys.
+ */
+private fun SelectionForest.compactSuccessorDemand(): SelectionForest {
+    val types = linkedSetOf<ViaductSchema.Object>()
+    forEach { types += it.possibleTypes }
+    return types.flatMapToSelectionForest { type ->
+        merge(type).flatMap { selection ->
+            selectionForestOf(
+                Selection.of(
+                    key = selection.key,
+                    possibleTypes = selection.possibleTypes,
+                    inclusionCondition = selection.inclusionCondition,
+                    subselections = selection.subselections.compactSuccessorDemand(),
+                ),
+            )
         }
     }
+}

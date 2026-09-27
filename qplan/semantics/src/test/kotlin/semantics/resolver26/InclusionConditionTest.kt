@@ -70,6 +70,7 @@ class InclusionConditionTest : Resolver26DispatcherResource {
         for (name in listOf("controller", "outer")) {
             val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", name), emptyMap())
             assertIs<ErrorEngineResult>(result.getCell(key).getValue().get(), name)
+            assertTrue(result.getCell(key).getFieldCheckerResult().isCompleted, "$name absent checker must finish after activation failure")
         }
         val healthy = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "healthy"), emptyMap())
         assertEquals(42, result.getCell(healthy).getValue().get())

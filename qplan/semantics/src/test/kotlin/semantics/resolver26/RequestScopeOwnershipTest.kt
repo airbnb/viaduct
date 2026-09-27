@@ -49,7 +49,7 @@ class RequestScopeOwnershipTest {
 
         val fieldCheckerRootLaunch = Regex("""(?:\.\s*|::)dispatchFieldChecker(?:\s*\(|\b)""")
         assertEquals(
-            listOf("resolvers/resolver21/CoroutineOrchestrationTask.kt"),
+            listOf("resolver26/OrchestrationTask.kt", "resolvers/resolver21/CoroutineOrchestrationTask.kt"),
             allSources.filter { source -> fieldCheckerRootLaunch.containsMatchIn(source.readText()) }
                 .map { semanticsDirectory.relativize(it).toString() }
                 .sorted(),

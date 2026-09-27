@@ -27,6 +27,14 @@ import semantics.shared.OEROccurrence
 import semantics.shared.CycleTask
 import semantics.shared.fieldResolverCycleTask
 import viaduct.graphql.schema.ViaductSchema
+import model.Arguments
+import model.VariableInstanceId
+import model.registry.FieldChecker
+import model.usedVariables
+import semantics.shared.Demand
+import semantics.shared.fieldCheckerCycleTask
+import semantics.shared.merge
+import semantics.shared.plus
 
 /**
  * The result of joint construction-demand closure for one object orchestration and its associated
@@ -39,14 +47,14 @@ internal class ClosedConstructionDemandContext(
 
 /** Closed symbolic demand and its executable occurrences for one side of an orchestration pair. */
 internal class ClosedOERConstructionDemandContext(
-    val demand: ObjectSelectionForest,
-    val fieldResolverOccurrences:
-        Map<ObjectEngineResult.ObjectKey, FieldResolverOccurrence>,
-    val rootFieldReferenceOccurrences:
-        Map<ObjectEngineResult.ObjectKey, RootFieldReferenceOccurrence>,
-    val variableProviderReadsByResolverOccurrence:
-        Map<ResolverOccurrenceId, List<VariableProviderReadOccurrence>>,
-)
+    val constructionDemand: Demand<ObjectSelectionForest>,
+    val fieldCheckerOccurrences: Map<ObjectEngineResult.ObjectKey, FieldCheckerOccurrence>,
+    val fieldResolverOccurrences: Map<ObjectEngineResult.ObjectKey, FieldResolverOccurrence>,
+    val rootFieldReferenceOccurrences: Map<ObjectEngineResult.ObjectKey, RootFieldReferenceOccurrence>,
+    val variableProviderReadsByResolverOccurrence: Map<ResolverOccurrenceId, List<VariableProviderReadOccurrence>>,
+) {
+    val demand: ObjectSelectionForest = constructionDemand.values.merge(constructionDemand.checked.type)
+}
 
 /**
  * One planned provider-path read that produces an instantiated variable binding.
@@ -72,6 +80,13 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
     objectOccurrence: OEROccurrence,
     queryOccurrence: OEROccurrence,
     initialDemand: SelectionForest,
+): ClosedConstructionDemandContext = closeOrchestratorConstructionDemand(world, objectOccurrence, queryOccurrence, Demand.checked(initialDemand))
+
+internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
+    world: Assumptions,
+    objectOccurrence: OEROccurrence,
+    queryOccurrence: OEROccurrence,
+    initialDemand: Demand<SelectionForest>,
 ): ClosedConstructionDemandContext {
     require(schemaType == objectOccurrence.target.type) {
         "Source type ${schemaType.name} does not match result type ${objectOccurrence.target.type.name}"
@@ -91,14 +106,17 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
 
     // These become all construction demand rooted at the two OERs, expressed through possibly
     // abstract or concrete field coordinates.
-    var objectDemand: SelectionForest =
+    var objectDemand: Demand<SelectionForest> =
         initialDemand + initialDemand.liftParentConstructionDemand(world)
-    var queryDemand: SelectionForest = selectionForestOf()
+    var queryDemand: Demand<SelectionForest> = Demand.EMPTY
 
     // These eventually contain the concrete top-level keys handled by each OER's
     // standard-resolution machinery.
     val objectResolvers = linkedMapOf<ObjectEngineResult.ObjectKey, ResolverContext>()
     val queryResolvers = linkedMapOf<ObjectEngineResult.ObjectKey, ResolverContext>()
+    val expansionState = SymbolicExpansionState()
+    val objectCheckers = linkedMapOf<ObjectEngineResult.ObjectKey, CheckerContext>()
+    val queryCheckers = linkedMapOf<ObjectEngineResult.ObjectKey, CheckerContext>()
 
     var demandNotClosed: Boolean
     do {
@@ -109,8 +127,9 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
                 world = world,
                 type = schemaType,
                 occurrence = objectOccurrence,
-                accumulatedDemand = objectDemand,
+                accumulatedDemand = objectDemand.values,
                 requiredResolvers = objectResolvers,
+                expansionState = expansionState,
                 requiresStandardResolution = ::requiresStandardResolution,
             )
         val newQueryResolverInputs =
@@ -118,11 +137,29 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
                 world = world,
                 type = queryOccurrence.target.type,
                 occurrence = queryOccurrence,
-                accumulatedDemand = queryDemand,
+                accumulatedDemand = queryDemand.values,
                 requiredResolvers = queryResolvers,
+                expansionState = expansionState,
                 requiresStandardResolution = { true },
             )
-        demandNotClosed = newObjectResolverInputs != null || newQueryResolverInputs != null
+        val newObjectCheckerInputs = newCheckerInputDemand(
+            world,
+            objectOccurrence,
+            objectDemand.checked,
+            objectCheckers,
+            expansionState,
+        )
+        val newQueryCheckerInputs = newCheckerInputDemand(
+            world,
+            queryOccurrence,
+            queryDemand.checked,
+            queryCheckers,
+            expansionState,
+        )
+        demandNotClosed = newObjectResolverInputs != null ||
+            newQueryResolverInputs != null ||
+            newObjectCheckerInputs != null ||
+            newQueryCheckerInputs != null
         if (demandNotClosed) {
             val objectResolverInputs =
                 newObjectResolverInputs ?: ResolverInputConstructionDemand.EMPTY
@@ -132,12 +169,15 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
                 objectResolverInputs.queryFragment +
                     queryResolverInputs.objectFragment +
                     queryResolverInputs.queryFragment
-            objectDemand +=
-                objectResolverInputs.objectFragment +
-                    objectResolverInputs.objectFragment.liftParentConstructionDemand(world)
-            queryDemand +=
-                queryInputSelections +
-                    queryInputSelections.liftParentConstructionDemand(world)
+            val objectCheckerInputs = newObjectCheckerInputs ?: ResolverInputConstructionDemand.EMPTY
+            val queryCheckerInputs = newQueryCheckerInputs ?: ResolverInputConstructionDemand.EMPTY
+            val objectInputs = Demand(objectResolverInputs.objectFragment, objectCheckerInputs.objectFragment)
+            val queryInputs = Demand(
+                queryInputSelections,
+                objectCheckerInputs.queryFragment + queryCheckerInputs.objectFragment + queryCheckerInputs.queryFragment,
+            )
+            objectDemand += objectInputs + objectInputs.liftParentConstructionDemand(world)
+            queryDemand += queryInputs + queryInputs.liftParentConstructionDemand(world)
         }
     } while (demandNotClosed)
 
@@ -149,6 +189,7 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
                 occurrence = objectOccurrence,
                 accumulatedDemand = objectDemand,
                 requiredResolvers = objectResolvers,
+                requiredCheckers = objectCheckers,
                 requiresStandardResolution = ::requiresStandardResolution,
                 objectProviderResult = objectOccurrence.target,
                 queryProviderResult = queryOccurrence.target,
@@ -160,6 +201,7 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
                 occurrence = queryOccurrence,
                 accumulatedDemand = queryDemand,
                 requiredResolvers = queryResolvers,
+                requiredCheckers = queryCheckers,
                 requiresStandardResolution = { true },
                 objectProviderResult = queryOccurrence.target,
                 queryProviderResult = queryOccurrence.target,
@@ -173,6 +215,7 @@ private fun newResolverInputDemand(
     occurrence: OEROccurrence,
     accumulatedDemand: SelectionForest,
     requiredResolvers: MutableMap<ObjectEngineResult.ObjectKey, ResolverContext>,
+    expansionState: SymbolicExpansionState,
     requiresStandardResolution: (ObjectEngineResult.ObjectKey) -> Boolean,
 ): ResolverInputConstructionDemand? {
     var objectFragment: SelectionForest = selectionForestOf()
@@ -183,8 +226,7 @@ private fun newResolverInputDemand(
         .byKey()
         .filter { (objectKey, _) ->
             objectKey.field in world.resolverRegistry && requiresStandardResolution(objectKey)
-        }
-        .forEach { (objectKey, resolverSelection) ->
+        }.forEach { (objectKey, resolverSelection) ->
             // This selection belongs in `requiredResolvers`; create its occurrence only once.
             val resolverContext =
                 requiredResolvers.getOrPut(objectKey) {
@@ -204,6 +246,10 @@ private fun newResolverInputDemand(
                 resolverSelection.inclusionCondition
                     .satisfiableAlternatives()
                     .filter(resolverContext.accumulatedKeyInclusions::add)
+            if (newKeyInclusions.isNotEmpty()) {
+                // A reserved but statically excluded occurrence cannot extend a fragment cycle.
+                expansionState.register(occurrence.root, objectKey, checker = false, resolverContext.variableDefinitions)
+            }
             newKeyInclusions.forEach { keyInclusion ->
                 expanded = true
                 objectFragment +=
@@ -224,14 +270,16 @@ private fun closeOERConstructionDemand(
     world: Assumptions,
     passiveSource: EngineObjectData.Sync?,
     occurrence: OEROccurrence,
-    accumulatedDemand: SelectionForest,
+    accumulatedDemand: Demand<SelectionForest>,
+    requiredCheckers: Map<ObjectEngineResult.ObjectKey, CheckerContext>,
     requiredResolvers: Map<ObjectEngineResult.ObjectKey, ResolverContext>,
     requiresStandardResolution: (ObjectEngineResult.ObjectKey) -> Boolean,
     objectProviderResult: ObjectEngineResult,
     queryProviderResult: ObjectEngineResult,
 ): ClosedOERConstructionDemandContext {
     val type = passiveSource?.schemaType ?: occurrence.target.type
-    val closedDemand = accumulatedDemand.merge(type)
+    val constructionDemand = accumulatedDemand.merge(type)
+    val closedDemand = constructionDemand.values.merge(type)
     val requiredResolverSelections =
         closedDemand
             .byKey()
@@ -245,19 +293,34 @@ private fun closeOERConstructionDemand(
         requiredResolvers.mapValues { (objectKey, resolverContext) ->
             resolverContext.toFieldResolverOccurrence(
                 selection = closedDemand.byKey().getValue(objectKey),
+                constructionDemand = constructionDemand.descendants(objectKey),
             )
         }
     val referenceOccurrences =
-        passiveSource?.discoverRootFieldReferences(world, occurrence, closedDemand).orEmpty()
+        passiveSource?.discoverRootFieldReferences(world, occurrence, closedDemand, constructionDemand).orEmpty()
     check(fieldResolverOccurrences.keys.intersect(referenceOccurrences.keys).isEmpty()) {
         "Resolver26 classified one field as both an ordinary resolver and a root reference"
     }
     return ClosedOERConstructionDemandContext(
-        demand = closedDemand,
+        constructionDemand = constructionDemand,
+        fieldCheckerOccurrences = requiredCheckers.mapValues { (key, context) ->
+            val selection = constructionDemand.checked.byKey().getValue(key)
+            FieldCheckerOccurrence(
+                selection,
+                context.checker,
+                context.fragments,
+                context.fragments.objectFragment.pathVariableDefinitions.map { definition ->
+                    VariableProviderReadOccurrence(objectProviderResult, definition, occurrence.fieldCheckerCycleTask(key), selection.inclusionCondition)
+                } + context.fragments.queryFragment.pathVariableDefinitions.map { definition ->
+                    VariableProviderReadOccurrence(queryProviderResult, definition, occurrence.fieldCheckerCycleTask(key), selection.inclusionCondition)
+                },
+            )
+        },
         fieldResolverOccurrences = fieldResolverOccurrences,
         rootFieldReferenceOccurrences = referenceOccurrences,
         variableProviderReadsByResolverOccurrence =
-            requiredResolvers.map { (objectKey, resolverContext) ->
+            requiredResolvers
+                .map { (objectKey, resolverContext) ->
                 val resolverOccurrenceId =
                     fieldResolverOccurrences.getValue(objectKey).resolverOccurrenceId
                 val providerReads =
@@ -309,6 +372,7 @@ private data class ResolverContext(
 
     fun toFieldResolverOccurrence(
         selection: ObjectSelection,
+        constructionDemand: Demand<SelectionForest>,
     ): FieldResolverOccurrence =
         FieldResolverOccurrence(
             selection = selection,
@@ -318,6 +382,7 @@ private data class ResolverContext(
             resolver = resolver,
             variableDefinitions = variableDefinitions,
             fragments = fragments,
+            publicationConstructionDemand = constructionDemand,
         )
 }
 
@@ -325,6 +390,7 @@ private fun EngineObjectData.Sync.discoverRootFieldReferences(
     world: Assumptions,
     occurrence: OEROccurrence,
     demand: ObjectSelectionForest,
+    constructionDemand: Demand<ObjectSelectionForest>,
 ): Map<ObjectEngineResult.ObjectKey, RootFieldReferenceOccurrence> =
     buildMap {
         demand.byKey().forEach { (objectKey, selection) ->
@@ -349,6 +415,7 @@ private fun EngineObjectData.Sync.discoverRootFieldReferences(
                     RootFieldReferenceOccurrence(
                         selection = selection,
                         reference = reference,
+                        publicationConstructionDemand = constructionDemand.descendants(objectKey),
                         publicationPath = occurrence.coordinate(objectKey),
                     ),
                 ) == null,
@@ -404,4 +471,89 @@ private fun EngineObjectData.Sync.requiresStandardResolution(
             "${schemaType.name}/${objectKey.field.name}"
     }
     return false
+}
+
+/** Descendant provenance travels through the value publication, including lists and references. */
+internal fun Demand<ObjectSelectionForest>.descendants(key: ObjectEngineResult.ObjectKey): Demand<SelectionForest> = Demand(checked.byKey()[key]?.subselections ?: selectionForestOf(), unchecked.byKey()[key]?.subselections ?: selectionForestOf())
+
+/** One symbolic checker occurrence; its named pairs share the existing binding domain. */
+internal class FieldCheckerOccurrence(
+    val selection: ObjectSelection,
+    val checker: FieldChecker,
+    val fragments: ResolverFragments,
+    val providerReads: List<VariableProviderReadOccurrence>,
+) {
+    val variableDefinitions = (fragments.objectFragment.variableDefinitions + fragments.queryFragment.variableDefinitions)
+        .distinctBy { it.variable }
+}
+
+private class CheckerContext(
+    val checker: FieldChecker,
+    val fragments: ResolverFragments
+) {
+    val accumulatedKeyInclusions = linkedSetOf<InclusionCondition>()
+}
+
+private fun newCheckerInputDemand(
+    world: Assumptions,
+    occurrence: OEROccurrence,
+    checked: SelectionForest,
+    requiredCheckers: MutableMap<ObjectEngineResult.ObjectKey, CheckerContext>,
+    expansionState: SymbolicExpansionState,
+): ResolverInputConstructionDemand? {
+    var objectFragment: SelectionForest = selectionForestOf()
+    var queryFragment: SelectionForest = selectionForestOf()
+    var expanded = false
+    checked.merge(occurrence.target.type).byKey().forEach { (key, selection) ->
+        if (key is ObjectEngineResult.ParentKey) return@forEach
+        val checker = world.resolverRegistry.fieldChecker(key.field) ?: return@forEach
+        if (selection.inclusionCondition === InclusionCondition.Never) return@forEach
+        val context = requiredCheckers.getOrPut(key) {
+            CheckerContext(checker, checker.instantiateFragmentsAt(occurrence.root, occurrence.coordinate(key))).also { context ->
+                expansionState.register(occurrence.root, key, checker = true, context.fragments.objectFragment.variableDefinitions + context.fragments.queryFragment.variableDefinitions)
+            }
+        }
+        if (key is ObjectEngineResult.GroundKey && key.arguments.argumentsContainErrorValue()) return@forEach
+        selection.inclusionCondition
+            .satisfiableAlternatives()
+            .filter(context.accumulatedKeyInclusions::add)
+            .forEach { inclusion ->
+                expanded = true
+                objectFragment += context.fragments.objectFragment.constructionSelections
+                    .guardedBy(inclusion)
+                queryFragment += context.fragments.queryFragment.constructionSelections
+                    .guardedBy(inclusion)
+            }
+    }
+    return ResolverInputConstructionDemand(objectFragment, queryFragment).takeIf { expanded }
+}
+
+/**
+ * Detects unbounded symbolic expansion before it can monopolize synchronous closure. Revisiting
+ * an existing key is finite; creating a new key through variables owned by the same root, field,
+ * and executor kind again would instantiate the same fragment cycle indefinitely.
+ */
+private class SymbolicExpansionState {
+    private data class Site(
+        val root: ObjectEngineResult,
+        val field: ViaductSchema.ObjectField,
+        val checker: Boolean
+    )
+
+    private val ancestors = mutableMapOf<VariableInstanceId, Set<Site>>()
+
+    fun register(
+        root: ObjectEngineResult,
+        key: ObjectEngineResult.ObjectKey,
+        checker: Boolean,
+        variables: List<VariableInstanceDefinition>
+    ) {
+        val site = Site(root, key.field, checker)
+        val inherited = key.arguments.usedVariables().flatMapTo(linkedSetOf()) { variable ->
+            ancestors[variable.instanceId].orEmpty()
+        }
+        require(site !in inherited) { "Unbounded symbolic checker/resolver demand at ${key.field.containingDef.name}/${key.field.name}" }
+        val lineage = inherited + site
+        variables.forEach { definition -> ancestors[requireNotNull(definition.variable.instanceId)] = lineage }
+    }
 }

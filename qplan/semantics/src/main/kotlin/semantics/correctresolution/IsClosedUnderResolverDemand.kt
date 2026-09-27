@@ -124,6 +124,7 @@ private class ResolverDemandValidationLogic(
                     key is ObjectEngineResult.ParentKey -> true
                     !getCell(key).isFieldCheckerResultSet() -> true
                     argumentsContainError -> true
+                    getCell(key).getFieldCheckerResult().get() == null -> true
                     else ->
                         registry.fieldChecker(key.field)?.let { checker ->
                             val coordinate = path + key

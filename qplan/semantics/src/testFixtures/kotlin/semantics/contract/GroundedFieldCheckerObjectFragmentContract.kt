@@ -228,14 +228,9 @@ interface GroundedFieldCheckerObjectFragmentContract {
         }
         assertEquals(0, rawActiveChecks.get())
         assertEquals(0, rawNestedChecks.get())
-        val activeKey =
-            ObjectEngineResult.GroundKey.of(
-                world.schema.requireObjectField("Item", "active"),
-                mapOf("seed" to 5),
-            )
+        val activeKey = item.keys.single { it.field.name == "active" }
         assertFalse(item.getCell(activeKey).isFieldCheckerResultSet())
     }
 }
 
-private fun Throwable.causeSequence(): Sequence<Throwable> =
-    generateSequence(this) { it.cause }
+private fun Throwable.causeSequence(): Sequence<Throwable> = generateSequence(this) { it.cause }

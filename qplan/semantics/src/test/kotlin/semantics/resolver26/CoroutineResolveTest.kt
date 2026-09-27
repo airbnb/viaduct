@@ -9,11 +9,24 @@ import semantics.contract.CoroutineResolverTestSubject
 import semantics.shared.CycleCheckState
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
+import semantics.contract.FragmentFreeFieldCheckerEnforcementContract
+import semantics.contract.FragmentFreeFieldCheckerPublicationContract
+import semantics.contract.GroundedFieldCheckerCapabilityContract
+import semantics.contract.GroundedFieldCheckerObjectFragmentContract
+import semantics.contract.GroundedFieldCheckerQueryFragmentContract
+import semantics.contract.SelectiveFieldCheckerExactnessContract
 
 class CoroutineResolveTest :
     CoroutineResolverTestSubject(),
-    CoroutineResolverContract {
+    CoroutineResolverContract,
+    FragmentFreeFieldCheckerPublicationContract,
+    FragmentFreeFieldCheckerEnforcementContract,
+    GroundedFieldCheckerCapabilityContract,
+    GroundedFieldCheckerObjectFragmentContract,
+    GroundedFieldCheckerQueryFragmentContract,
+    SelectiveFieldCheckerExactnessContract {
     override val usesSingularQueryOER = true
+    override val coalescesGroundedKeys = false
 
     override fun startResolution(
         operation: SharedOperationContext<*>,

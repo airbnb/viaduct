@@ -28,7 +28,6 @@ import model.EngineResultCell
 import model.ErrorEngineResult
 import model.ListEngineResult
 import model.ObjectEngineResult
-import model.PathComponent
 import viaduct.graphql.schema.ViaductSchema
 import model.UncompletedPromiseException
 import model.emptyFragmentOf
@@ -58,6 +57,7 @@ import viaduct.engine.api.EngineObjectData
 abstract class CoroutineResolverTestSubject {
     open val selectiveResolvers: Boolean
         get() = true
+    open val coalescesGroundedKeys: Boolean get() = true
     open val usesSingularQueryOER: Boolean
         get() = false
 

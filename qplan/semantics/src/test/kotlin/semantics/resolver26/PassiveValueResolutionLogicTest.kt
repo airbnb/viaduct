@@ -282,7 +282,7 @@ class PassiveValueResolutionLogicTest : Resolver26DispatcherResource {
                     expectedType = expectedType,
                     path = path,
                     invocationDemand = invocationDemand,
-                    constructionDemand = constructionDemand,
+                    constructionDemand = semantics.shared.Demand.checked(constructionDemand),
                 )
             }
         }

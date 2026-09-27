@@ -525,6 +525,11 @@ val resolverPropertyProfiles =
             "generated query fragment worlds resolve correctly",
         "object-fragment-from-argument" to
             "generated object fragment worlds with fromArgument resolve correctly",
+        "resolver26-field-checker-success" to "generated successful field checker worlds resolve correctly",
+        "resolver26-field-checker-denial" to "generated denying field checker worlds resolve correctly",
+        "resolver26-field-checker-mixed" to "generated mixed field checker worlds resolve correctly",
+        "resolver26-field-checker-passive" to "generated passive field checker worlds resolve correctly",
+        "resolver26-field-checker-root-reference" to "generated root-reference field checker worlds resolve correctly",
         "resolver23-field-checker-success" to
             "generated successful field checker worlds resolve correctly",
         "resolver23-field-checker-denial" to
@@ -602,9 +607,6 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolverPropertyReplay") {
             "resolverPropertyCase must be all or S:R:Q with positive integers: $case"
         }
         val size = resolverPropertyReplaySize.orNull
-        require(size == null || case.equals("all", ignoreCase = true)) {
-            "resolverPropertySize is allowed only when resolverPropertyCase=all"
-        }
         require(
             size == null ||
                 size.matches(Regex("""[1-9][0-9]*:[1-9][0-9]*:[1-9][0-9]*""")),
@@ -984,5 +986,30 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolver26MultithreadedStress
             "resolver26.multithreaded.rounds",
             resolver26MultithreadedStressRounds.get(),
         )
+    }
+}
+
+// Runtime field checks have their own replayable workload; checker-free broad campaigns stay unchanged.
+tasks.register<org.gradle.api.tasks.testing.Test>("resolver26FieldCheckerStress") {
+    group = "verification"
+    description = "Runs generated Resolver26 runtime field checks with exact checker application accounting."
+    maxHeapSize = "2g"
+    maxParallelForks = 1
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform()
+
+    outputs.upToDateWhen { false }
+    testLogging { showStandardStreams = true }
+    doFirst {
+        val seed = providers.gradleProperty("resolver26FieldCheckerStressSeed").get().toLong()
+        val profile = "resolver26-field-checker-" + providers.gradleProperty("resolver26FieldCheckerStressProfile").orElse("success").get()
+        val method = resolverPropertyProfiles[profile] ?: throw GradleException("Unknown field-checker profile $profile")
+        filter.includeTestsMatching("semantics.resolver26.FieldCheckerGeneratedTest.$method")
+        systemProperty("resolver.property.profile", profile)
+        systemProperty("resolver.property.case", "all")
+        systemProperty("resolver.property.seed", seed)
+        systemProperty("kotest.proptest.default.seed", seed)
+        systemProperty("resolver.property.size", providers.gradleProperty("resolver26FieldCheckerStressSize").orElse("50:5:10").get())
     }
 }

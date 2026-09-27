@@ -15,6 +15,7 @@ import model.selectionForestOf
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
+import model.usedVariables
 
 /** The materialized object- and Query-rooted inputs for one named checker fragment pair. */
 class CheckerInput(
@@ -120,6 +121,23 @@ class FieldChecker private constructor(
                 .instantiateVariables(resolverOccurrenceId)
         }
 
+    /** Runs each named provider once and returns its pair-qualified variable names. */
+    suspend fun provideVariables(arguments: Arguments.Resolved): Map<String, model.EngineInputData?> =
+        buildMap {
+            fragmentTemplates.forEach { (name, templates) ->
+                val provider = templates.variablesProvider ?: return@forEach
+                val expected = templates.variables
+                    .filterValues { it == VariableDefinition.FromProvider }
+                    .keys
+                    .mapTo(linkedSetOf()) { it.variableName }
+                val values = provider(arguments)
+                require(values.keys == expected) {
+                    "Checker variables provider $name returned invalid variables: expected $expected, got ${values.keys}"
+                }
+                values.forEach { (variable, value) -> put(loweredCheckerVariableName(name, variable), value) }
+            }
+        }
+
     suspend operator fun invoke(
         arguments: Arguments.Resolved,
         inputs: Map<String, CheckerInput>,
@@ -166,6 +184,9 @@ class FieldChecker private constructor(
                 templates.objectFragmentTemplate.collect(field.containingDef)
                 templates.queryFragmentTemplate.collect(queryType)
                 templates.requireVariablesBelongTo(field)
+                templates.requireCheckerVariableDependencies()
+                templates.objectFragmentTemplate.requireNoVariablesBeneathParent(field)
+                templates.queryFragmentTemplate.requireNoVariablesBeneathParent(field)
             }
             return FieldChecker(
                 field = field,
@@ -320,4 +341,31 @@ private fun ResolverFragmentTemplates.requireVariablesBelongTo(
             }
         }
     }
+}
+
+/** Checker path bindings must be computable without depending on their own unresolved value. */
+private fun ResolverFragmentTemplates.requireCheckerVariableDependencies() {
+    val used = objectFragmentTemplate.constructionSelections().usedVariables() +
+        queryFragmentTemplate.constructionSelections().usedVariables()
+    require(used == variables.keys) { "Checker variable definitions must match the variables used by its named pair" }
+    val dependencies = variables.mapValues { (_, definition) ->
+        if (definition !is VariableDefinition.FromField) {
+            emptySet()
+        } else {
+            val template = if (definition.providerFragment == ProviderFragment.OBJECT) objectFragmentTemplate else queryFragmentTemplate
+            definition.path.flatMapTo(linkedSetOf()) { it.arguments.usedVariables() } +
+                definition.inclusionConditions(template).flatMap { it.usedVariables() }
+        }
+    }
+    val visited = mutableSetOf<Arguments.Variable>()
+    val visiting = mutableSetOf<Arguments.Variable>()
+
+    fun visit(variable: Arguments.Variable) {
+        if (variable in visited) return
+        require(visiting.add(variable)) { "Checker variables contain a provider dependency cycle" }
+        dependencies.getValue(variable).forEach(::visit)
+        visiting.remove(variable)
+        visited.add(variable)
+    }
+    variables.keys.forEach(::visit)
 }

@@ -227,26 +227,32 @@ class ResolverTestReplayTest {
         }
 
     @Test
-    fun `custom size is rejected for a single case replay`(): Unit =
+    fun `single case replay retains the original custom product`(): Unit =
         runBlocking {
             withResolverProperties(
-                RESOLVER_TEST_CASE_PROPERTY to "1:1:1",
+                RESOLVER_TEST_CASE_PROPERTY to "all",
                 RESOLVER_TEST_SIZE_PROPERTY to "2:2:2",
             ) {
-                val failure =
-                    assertFailsWith<IllegalArgumentException> {
-                        checkResolverTestCases(
-                            counts = TestCaseCount(2, 2, 2),
-                            config = REPLAY_CONFIG,
-                            profile = "replay-invalid",
-                            seed = 42L,
-                        ) { _, _ -> }
-                    }
-
-                assertContains(
-                    failure.message.orEmpty(),
-                    "resolver.property.size is allowed only",
-                )
+                val full = mutableListOf<GeneratedCaseIdentity>()
+                checkResolverTestCases(
+                    counts = TestCaseCount(1, 1, 1),
+                    config = REPLAY_CONFIG,
+                    profile = "replay-sized-single",
+                    seed = 42L,
+                ) { _, testCase -> full += testCase.identity() }
+                withResolverProperties(RESOLVER_TEST_CASE_PROPERTY to "2:2:2") {
+                    val replayed = mutableListOf<GeneratedCaseIdentity>()
+                    val run = checkResolverTestCases(
+                        counts = TestCaseCount(1, 1, 1),
+                        config = REPLAY_CONFIG,
+                        profile = "replay-sized-single",
+                        seed = 42L,
+                    ) { _, testCase -> replayed += testCase.identity() }
+                    assertEquals(listOf(full.last()), replayed)
+                    assertEquals(TestCaseCount(2, 2, 2), run.counts)
+                    assertEquals(1, run.attemptedCases)
+                    run.assertAggregate(false, "single-case replay still suppresses aggregate guards")
+                }
             }
         }
 

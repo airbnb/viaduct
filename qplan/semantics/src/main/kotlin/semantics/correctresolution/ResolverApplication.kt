@@ -133,9 +133,14 @@ internal class ResolverApplicationCache(
 /** Recursion-safe shared-OER validation with an independent conformance check for every owner. */
 internal class QueryOERValidationState {
     private val results = IdentityHashMap<ObjectEngineResult, Boolean?>()
+    private val replayCaches = IdentityHashMap<ObjectEngineResult, ResolverApplicationCache>()
 
-    fun isValidOrValidating(result: ObjectEngineResult): Boolean =
-        results.containsKey(result) && results[result] != false
+    fun replayCache(
+        root: ObjectEngineResult,
+        witness: RootFieldReferenceWitness
+    ): ResolverApplicationCache = replayCaches.getOrPut(root) { ResolverApplicationCache(root, witness, this) }
+
+    fun isValidOrValidating(result: ObjectEngineResult): Boolean = results.containsKey(result) && results[result] != false
 
     fun validate(
         operation: SharedOperationContext<*>,
@@ -283,18 +288,14 @@ internal fun resolverApplicationCache(
     root: ObjectEngineResult,
     rootFieldReferenceWitness: RootFieldReferenceWitness,
     queryOERValidation: QueryOERValidationState = QueryOERValidationState(),
-): ResolverApplicationCache =
-    ResolverApplicationCache(
-        root = root,
-        rootFieldReferenceWitness = rootFieldReferenceWitness,
-        queryOERValidation = queryOERValidation,
-    )
+): ResolverApplicationCache = queryOERValidation.replayCache(root, rootFieldReferenceWitness)
 
-internal fun SharedOperationContext<*>.resolverApplicationCache(root: ObjectEngineResult): ResolverApplicationCache =
-    resolverApplicationCache(root, rootFieldReferenceWitness(root))
+internal fun SharedOperationContext<*>.resolverApplicationCache(root: ObjectEngineResult): ResolverApplicationCache = resolverApplicationCache(root, rootFieldReferenceWitness(root))
 
 /** Reference invocations published beneath this root and justified by deterministic replay. */
-internal fun ObjectEngineResult.ownedRootFieldReferenceInvocations(operation: SharedOperationContext<*>): List<
+internal fun ObjectEngineResult.ownedRootFieldReferenceInvocations(
+    operation: SharedOperationContext<*>
+): List<
     RootFieldReferenceInvocationObservation,
 > {
     val witness = operation.rootFieldReferenceWitness(this)
@@ -490,7 +491,14 @@ private class ResolverReplayLogic(
         if (identity == null || this !is EngineObjectData.Sync) return this
         if (schemaType != identity.type) return this
         val idField = identity.type.field("id") ?: return this
-        if (demand.merge(identity.type).byKey().keys.none { key -> key.field == idField }) return this
+        if (demand
+                .merge(identity.type)
+                .byKey()
+                .keys
+                .none { key -> key.field == idField }
+        ) {
+            return this
+        }
         return engineObjectDataOf(
             identity.type,
             getSelections().associateWith(::outputValue) + (idField.name to identity.id),

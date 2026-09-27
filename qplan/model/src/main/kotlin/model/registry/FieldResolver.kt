@@ -521,7 +521,7 @@ private fun Map<Arguments.Variable, VariableDefinition>.fieldPathInclusionCondit
             ?.let { variable to it.inclusionConditions(materializeSelections) }
     }.toMap()
 
-private fun MaterializeSelectionForest.requireNoVariablesBeneathParent(
+internal fun MaterializeSelectionForest.requireNoVariablesBeneathParent(
     resolverField: ViaductSchema.ObjectField,
 ) {
     forEach { selection ->

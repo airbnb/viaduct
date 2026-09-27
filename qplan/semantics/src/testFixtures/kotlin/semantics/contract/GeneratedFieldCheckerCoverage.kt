@@ -20,6 +20,9 @@ internal enum class GeneratedFieldCheckerCoverageSignature {
     NONEMPTY_OBJECT_FRAGMENT,
     NONEMPTY_QUERY_FRAGMENT,
     FROM_ARGUMENT_VARIABLE,
+    FROM_OBJECT_FIELD_VARIABLE,
+    FROM_QUERY_FIELD_VARIABLE,
+    FROM_PROVIDER_VARIABLE,
     NESTED_FROM_ARGUMENT_VARIABLE,
     NULLABLE_FROM_ARGUMENT_TRAVERSAL,
     PARENT_FIELD_DEMAND,
@@ -33,6 +36,7 @@ internal enum class GeneratedFieldCheckerCoverageSignature {
     LIST_ELEMENT_OCCURRENCE,
     REPEATED_CHECKER_COORDINATE,
     ARGUMENT_DISTINCT_OCCURRENCES,
+    SYMBOLIC_CHECKER_KEY,
     ROOT_FIELD_REFERENCE_RESULT,
     CHECKER_SUCCESS,
     CHECKER_DENIAL,
@@ -138,6 +142,9 @@ private fun ArbitraryRegistry.fieldCheckerCoverage(
                 if (features.queryFragmentCount > 0) {
                     add(GeneratedFieldCheckerCoverageSignature.CHECKER_IN_ASSOCIATED_QUERY_OER)
                 }
+                if (features.variableCount > 0 && installedCheckerCoordinates.isNotEmpty()) {
+                    add(GeneratedFieldCheckerCoverageSignature.SYMBOLIC_CHECKER_KEY)
+                }
                 if (observation.testCase.schema.features.hasOutputLists) {
                     add(GeneratedFieldCheckerCoverageSignature.LIST_ELEMENT_OCCURRENCE)
                     add(GeneratedFieldCheckerCoverageSignature.REPEATED_CHECKER_COORDINATE)
@@ -214,6 +221,9 @@ private fun ArbitraryRegistry.fieldCheckerCoverage(
             }
         val invokedResolvers = resolverObserver.invokedResolverOccurrences()
         execution.checkerApplications.forEach { application ->
+            if (application.occurrencePath.last() !is ObjectEngineResult.GroundKey) {
+                activatedApplications.increment(GeneratedFieldCheckerCoverageSignature.SYMBOLIC_CHECKER_KEY)
+            }
             val sourceField =
                 sourceResolverCoordinate(
                     FieldCoordinate(
@@ -339,6 +349,9 @@ private fun ArbitraryRegistry.generatedCheckerSignatures(
         if (queryFragmentSources.getValue(sourceField).isNotEmpty()) {
             add(GeneratedFieldCheckerCoverageSignature.NONEMPTY_QUERY_FRAGMENT)
         }
+        if (sourceField in fromObjectFieldVariableOwnerFields) add(GeneratedFieldCheckerCoverageSignature.FROM_OBJECT_FIELD_VARIABLE)
+        if (sourceField in fromQueryFieldVariableOwnerFields) add(GeneratedFieldCheckerCoverageSignature.FROM_QUERY_FIELD_VARIABLE)
+        if (sourceField in fromProviderVariableOwnerFields) add(GeneratedFieldCheckerCoverageSignature.FROM_PROVIDER_VARIABLE)
         if (sourceField in fromArgumentVariableOwnerFields) {
             add(GeneratedFieldCheckerCoverageSignature.FROM_ARGUMENT_VARIABLE)
         }

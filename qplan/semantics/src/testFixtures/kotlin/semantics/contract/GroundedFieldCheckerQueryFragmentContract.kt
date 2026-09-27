@@ -210,8 +210,15 @@ interface GroundedFieldCheckerQueryFragmentContract {
             ).assumptions
         val observer =
             object : ResolverObserver {
-                override fun onQueryOERPrepared(queryOER: SharedOERContext, queryOERDepth: Int?) {
-                    if (queryOER.closedDemand.groundKeys().any { it.field.name == "shared" }) {
+                override fun onQueryOERPrepared(
+                    queryOER: SharedOERContext,
+                    queryOERDepth: Int?
+                ) {
+                    if (queryOER.closedDemand
+                            .byKey()
+                            .keys
+                            .any { it.field.name == "shared" }
+                    ) {
                         queryOERs += queryOER
                     }
                 }
@@ -241,7 +248,7 @@ interface GroundedFieldCheckerQueryFragmentContract {
             checkerInputs[0].getValue("first").queryValue,
             checkerInputs[1].getValue("first").queryValue,
         )
-        assertEquals(2, sharedResolverCalls.get())
+        assertEquals(if (coroutineResolverSubject.coalescesGroundedKeys) 2 else 4, sharedResolverCalls.get())
         assertEquals(0, sharedCheckerCalls.get())
     }
 

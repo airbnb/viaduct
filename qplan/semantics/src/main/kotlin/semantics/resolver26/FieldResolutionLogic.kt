@@ -105,6 +105,11 @@ internal class FieldResolutionLogic(
             }
         }
         publication.publicationCell.setActivated(true)
+        // Activation itself can fail before the normal absent-checker publication. A failed
+        // value still needs a terminal absence slot so checked consumers can read its error.
+        if (!publication.checkerScheduled && publication.publicationCell.isFieldCheckerResultSet()) {
+            publication.publicationCell.getFieldCheckerResult().complete(null)
+        }
         publication.publicationCell.getValue().complete(ErrorEngineResult.of(EngineErrorData.of(cause)))
     }
 
@@ -150,7 +155,7 @@ internal class FieldResolutionLogic(
             val invocation =
                 createRootFieldResolverOccurrence(
                     reference = reference,
-                    constructionDemand = constructionDemand,
+                    constructionDemand = constructionDemand.values,
                 )
             fieldValue =
                 invokeRootFieldResolver(
@@ -225,65 +230,20 @@ internal class FieldResolutionLogic(
                     )
                 ) {
                     VariableBinding.Error -> error("Inclusion-condition variable failed")
-                    is VariableBinding.Input -> binding.value as? Boolean
+                    is VariableBinding.Input ->
+                        binding.value as? Boolean
                         ?: error("Inclusion-condition variable must contain a Boolean")
                 }
             }
         check(publication.publicationCell.setActivated(activated)) {
             "Resolver26 field-task cell activation was already decided"
         }
+        if (activated && !publication.checkerScheduled) {
+            if (publication.publicationCell.isFieldCheckerResultSet()) {
+                check(publication.publicationCell.getFieldCheckerResult().complete(null))
+                }
+        }
         return activated
-    }
-
-    /** Shared cells activate from any independently ready true demand alternative. */
-    private suspend fun model.InclusionCondition.includeAnyReadyAlternative(
-        binding: suspend (Arguments.Variable) -> Boolean,
-    ): Boolean = supervisorScope {
-        val alternatives = satisfiableAlternatives()
-        if (alternatives.size <= 1) {
-            return@supervisorScope alternatives.singleOrNull()?.include(binding) ?: false
-        }
-        val remaining =
-            alternatives.mapTo(linkedSetOf()) { alternative ->
-                async {
-                    try {
-                        Result.success(alternative.include(binding))
-                    } catch (cause: Exception) {
-                        Result.failure(cause)
-                    }
-                }
-            }
-        var failure: Throwable? = null
-        while (remaining.isNotEmpty()) {
-            val (completed, result) =
-                select<Pair<Deferred<Result<Boolean>>, Result<Boolean>>> {
-                    remaining.forEach { alternative ->
-                        alternative.onAwait { result -> alternative to result }
-                    }
-                }
-            remaining.remove(completed)
-            result.fold(
-                onSuccess = { included ->
-                    if (included) {
-                        remaining.forEach { it.cancel() }
-                        remaining.forEach { alternative ->
-                            try {
-                                alternative.await()
-                            } catch (_: CancellationException) {
-                                currentCoroutineContext().ensureActive()
-                            }
-                        }
-                        return@supervisorScope true
-                    }
-                },
-                onFailure = { cause ->
-                    currentCoroutineContext().ensureActive()
-                    if (failure == null) failure = cause
-                },
-            )
-        }
-        failure?.let { throw it }
-        false
     }
 
     private suspend fun runFieldResolver(
@@ -576,3 +536,55 @@ internal class FieldResolutionLogic(
         }
     }
 }
+
+/** Shared cells activate from any independently ready true demand alternative. */
+internal suspend fun model.InclusionCondition.includeAnyReadyAlternative(
+    binding: suspend (Arguments.Variable) -> Boolean,
+): Boolean =
+    supervisorScope {
+        val alternatives = satisfiableAlternatives()
+        if (alternatives.size <= 1) {
+            return@supervisorScope alternatives.singleOrNull()?.include(binding) ?: false
+        }
+        val remaining =
+            alternatives.mapTo(linkedSetOf()) { alternative ->
+                async {
+                    try {
+                        Result.success(alternative.include(binding))
+                    } catch (cause: Exception) {
+                        Result.failure(cause)
+                    }
+                }
+            }
+        var failure: Throwable? = null
+        while (remaining.isNotEmpty()) {
+            val (completed, result) =
+                select<Pair<Deferred<Result<Boolean>>, Result<Boolean>>> {
+                    remaining.forEach { alternative ->
+                        alternative.onAwait { result -> alternative to result }
+                    }
+                }
+            remaining.remove(completed)
+            result.fold(
+                onSuccess = { included ->
+                    if (included) {
+                        remaining.forEach { it.cancel() }
+                        remaining.forEach { alternative ->
+                            try {
+                                alternative.await()
+                            } catch (_: CancellationException) {
+                                currentCoroutineContext().ensureActive()
+                            }
+                        }
+                        return@supervisorScope true
+                    }
+                },
+                onFailure = { cause ->
+                    currentCoroutineContext().ensureActive()
+                    if (failure == null) failure = cause
+                },
+            )
+        }
+        failure?.let { throw it }
+        false
+    }

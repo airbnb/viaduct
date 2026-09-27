@@ -56,6 +56,12 @@ private data class ResolverOccurrenceIdImpl(
     val root: ObjectEngineResult,
     val path: List<PathComponent>,
 ) : ResolverOccurrenceId {
+    // Symbolic paths contain variable instances owned by earlier occurrences. Cache this
+    // immutable address's hash so repeated binding/cell lookups do not rewalk that lineage.
+    private val addressHash = 31 * root.hashCode() + path.hashCode()
+
+    override fun hashCode(): Int = addressHash
+
     override fun toString(): String =
         "ResolverOccurrenceId(" +
             "root=${System.identityHashCode(root)}, " +
@@ -106,18 +112,16 @@ private class VariableInstanceIdImpl(
     private val resolverField: ViaductSchema.ObjectField,
     private val variableName: String,
 ) : VariableInstanceId {
+    private val identityHash =
+        31 * (31 * resolverOccurrenceId.hashCode() + resolverField.hashCode()) + variableName.hashCode()
+
     override fun equals(other: Any?): Boolean =
         other is VariableInstanceIdImpl &&
             resolverOccurrenceId == other.resolverOccurrenceId &&
             resolverField == other.resolverField &&
             variableName == other.variableName
 
-    override fun hashCode(): Int {
-        var result = resolverOccurrenceId.hashCode()
-        result = 31 * result + resolverField.hashCode()
-        result = 31 * result + variableName.hashCode()
-        return result
-    }
+    override fun hashCode(): Int = identityHash
 
     override fun toString(): String =
         "VariableInstanceId(" +

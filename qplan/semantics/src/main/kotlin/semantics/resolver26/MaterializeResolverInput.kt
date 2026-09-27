@@ -24,6 +24,7 @@ import semantics.shared.materializeCheckedValueForResolver
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.FieldDirectives
+import semantics.shared.valueCycleSlot
 
 /**
  * Materializes a Resolver26 runtime object or declared Query-fragment input by response key,
@@ -46,13 +47,14 @@ internal suspend fun ObjectEngineResult.materializeResolverInput(
     selections: MaterializeSelectionForest,
     reader: CycleTask,
     resultPath: List<PathComponent>,
-): EngineObjectData.Sync =
-    ResolverInputMaterializationLogic(operation, cycleChecker).materialize(this, selections, reader, resultPath)
+    checked: Boolean = true,
+): EngineObjectData.Sync = ResolverInputMaterializationLogic(operation, cycleChecker, checked).materialize(this, selections, reader, resultPath)
 
 /** Materializes one resolver input, reserving symbolic cells under its operation and selected cycle checker. */
 private class ResolverInputMaterializationLogic(
     private val operation: SharedOperationContext<*>,
     private val cycleChecker: CycleCheckState,
+    private val checked: Boolean,
 ) {
     suspend fun materialize(
         result: ObjectEngineResult,
@@ -79,10 +81,9 @@ private class ResolverInputMaterializationLogic(
             val cell = reserveCell(storedKey)
             cell.reserveValue()
             val checkedValue =
-                cell.materializeCheckedValueForResolver(
+                cell.materializeValueForConsumer(
                     fieldDirectives = selection.fieldDirectives,
                     reader = reader,
-                    cycleChecker = cycleChecker,
                 )
             val selectedValue: EngineOutputData? =
                 if (checkedValue is ErrorEngineResult) {
@@ -133,8 +134,8 @@ private class ResolverInputMaterializationLogic(
         reader: CycleTask,
         resultPath: List<PathComponent>,
         fieldDirectives: FieldDirectives?,
-    ): EngineOutputData? {
-        return when (this) {
+    ): EngineOutputData? =
+        when (this) {
             null -> null
             is ErrorEngineResult -> errorData
             is ObjectEngineResult -> {
@@ -150,10 +151,9 @@ private class ResolverInputMaterializationLogic(
                     indices.map { index ->
                         val cell = get(index)
                         val checkedValue =
-                            cell.materializeCheckedValueForResolver(
+                            cell.materializeValueForConsumer(
                                 fieldDirectives = fieldDirectives,
                                 reader = reader,
-                                cycleChecker = cycleChecker,
                             )
                         if (checkedValue is ErrorEngineResult) {
                             checkedValue.errorData
@@ -171,5 +171,15 @@ private class ResolverInputMaterializationLogic(
             }
             else -> toEngineOutputData(expectedType.baseTypeDef as ViaductSchema.SimpleTypeDef)
         }
+
+    private suspend fun model.EngineResultCell.materializeValueForConsumer(
+        fieldDirectives: FieldDirectives?,
+        reader: CycleTask,
+    ): EngineResult? =
+        if (checked) {
+            materializeCheckedValueForResolver(fieldDirectives, reader, cycleChecker)
+        } else {
+            cycleChecker.cycleCheck(reader, valueCycleSlot)
+            getValue().await()
     }
 }

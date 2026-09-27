@@ -25,7 +25,7 @@ internal fun ResolverOutputData?.resolvePassiveValues(
     expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
     path: List<PathComponent>,
     invocationDemand: SelectionForest,
-    constructionDemand: SelectionForest,
+    constructionDemand: Demand<SelectionForest>,
     parent: OEROccurrence? = null,
 ): EngineResult? =
     PassiveValueResolutionLogic(operation).resolvePassiveValues(
@@ -33,7 +33,7 @@ internal fun ResolverOutputData?.resolvePassiveValues(
         root,
         expectedType,
         path,
-        Demand.checked(constructionDemand),
+        constructionDemand,
         invocationDemand,
         parent,
     )
@@ -46,11 +46,14 @@ private class PassiveValueResolutionLogic(
         occurrence: OEROccurrence,
         source: EngineObjectData.Sync,
         constructionDemand: Demand<SelectionForest>,
-    ): OrchestrationTask =
-        OrchestrationTask.create(operation, occurrence, source, constructionDemand.values)
+    ): OrchestrationTask = OrchestrationTask.create(operation, occurrence, source, constructionDemand)
 
-    override fun collect(selections: SelectionForest, type: ViaductSchema.Object): ObjectSelectionForest =
-        selections.merge(type)
+    override fun closedConstructionDemand(orchestration: OrchestrationTask): Demand<ObjectSelectionForest> = orchestration.closed.objectRooted.constructionDemand
+
+    override fun collect(
+        selections: SelectionForest,
+        type: ViaductSchema.Object
+    ): ObjectSelectionForest = selections.merge(type)
 
     override fun resolveListReference(
         reference: RootFieldReferenceData,
@@ -73,6 +76,7 @@ private class PassiveValueResolutionLogic(
             sourceOccurrence = RootFieldReferenceOccurrence(
                 selection = selection,
                 reference = reference,
+                publicationConstructionDemand = constructionDemand,
                 publicationPath = path,
                 publicationExpectedType = expectedType,
             ),
@@ -96,7 +100,7 @@ private class PassiveValueResolutionLogic(
                     selection = selection,
                     value = value,
                     invocationDemand = invocationDemand,
-                    publicationConstructionDemand = constructionDemand.values,
+                    publicationConstructionDemand = constructionDemand,
                     publicationPath = occurrence.coordinate(selection.key),
                 ),
             )

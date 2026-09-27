@@ -21,8 +21,10 @@ import semantics.shared.OEROccurrence
 
 class OrchestrationTaskTest : Resolver26DispatcherResource {
     @Test
-    fun `factory closes demand without dispatching field work`(): Unit = runBlocking {
-        val world = TestWorld.fromDSL(
+    fun `factory closes demand without dispatching field work`(): Unit =
+        runBlocking {
+            val world = TestWorld
+                .fromDSL(
             schemaSDL = """
                 extend type Query {
                   first: Int! @resolver(result: 7)
@@ -42,8 +44,16 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
             world.resolverRegistry.createRootQueryInput(),
             world.operationSelectionsFrom("{ second }"),
         )
-        assertEquals(setOf("first", "second"), task.objectOER.closedDemand.byKey().keys.map { it.field.name }.toSet())
-        assertTrue(root.keys.isEmpty())
+            assertEquals(
+                setOf("first", "second"),
+                task.objectOER.closedDemand
+                    .byKey()
+                    .keys
+                    .map { it.field.name }
+                    .toSet()
+            )
+            assertEquals(setOf("first", "second"), root.keys.map { it.field.name }.toSet())
+            assertTrue(root.keys.all { root.getCell(it).isFieldCheckerResultSet() })
         assertFalse(coroutineContext[kotlinx.coroutines.Job]!!.children.any())
 
         assertSame(operation, task.operation)

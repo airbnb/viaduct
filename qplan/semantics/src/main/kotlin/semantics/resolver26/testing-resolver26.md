@@ -108,6 +108,21 @@ With no overrides, the dedicated task runs round 1 at its recorded campaign dime
 
 The dedicated multithreaded task records continuation overlap and thread names. Its assertions are useful scheduling evidence, but external OS observation is the stronger check that those threads actually execute on multiple CPUs.
 
+## Runtime Field-Checker Validation
+
+`FieldCheckerGeneratedTest` runs success, denial, mixed, passive, and root-reference profiles through checker-aware correctness replay and independent duplicate-preserving invocation accounting. The broad profiles require activated `FromArgument`, `FromObjectField`, `FromQueryField`, `FromProvider`, and symbolic-key coverage alongside the shared F4 signatures. `SymbolicFieldCheckerTest`, `FieldCheckerLifecycleTest`, and the shared field-check contracts cover inclusion, local aliases, provider failures, raw-to-checked transitions, cycles, independent Query scopes, and cancellation deterministically.
+
+The runtime checker distributions use `ResolverFragmentDepth=1`: two independently bound named pairs can multiply symbolic dependency trees, so copying depth-two fragments at every registered coordinate produced a case with over 129,000 resolver invocations before the 15-second request bound. This limit bounds random workload construction without changing request timeouts, per-case oracles, or required activation signatures. Fixed parent spines still exercise multilevel parent demand, and deterministic contracts retain nested fragment and named-provider combinations. The grounded Resolver23 distributions retain depth two.
+
+Run the 2,500-case checker workload with a recorded seed; select 100 resolution threads for concurrent accounting:
+
+```shell
+./gradlew :semantics:resolver26FieldCheckerStress -Presolver26FieldCheckerStressSeed=424242
+./gradlew :semantics:resolver26FieldCheckerStress -Presolver26FieldCheckerStressSeed=424242 -Presolver26FieldCheckerStressProfile=denial -Pviaduct.resolution.threadcount=100
+```
+
+Profiles accept `success`, `denial`, `mixed`, `passive`, or `root-reference`; `resolver26FieldCheckerStressSize` overrides the default `50:5:10` product. Replay failures through `resolverPropertyReplay` with class `semantics.resolver26.FieldCheckerGeneratedTest`, the reported profile and seed, the original `resolverPropertySize`, and the selected `resolverPropertyCase=S:R:Q`. The original size is essential because changing registry/query counts changes random-number consumption before the selected coordinate.
+
 ## CPU Parallelism Probe
 
 Use a sufficiently deep run and at least two Resolver26 threads; very small cases can finish before sampling or offer too little runnable work. Run Gradle in the background, wait for its test worker, and sample that JVM from a second shell:

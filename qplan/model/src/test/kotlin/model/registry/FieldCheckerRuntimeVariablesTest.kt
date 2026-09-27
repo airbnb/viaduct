@@ -1,0 +1,101 @@
+package model.registry
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlinx.coroutines.runBlocking
+import model.arg
+import model.Arguments
+import model.ObjectEngineResult
+import model.fragmentFrom
+import model.materializeSelectionForestOf
+import model.requireObjectField
+import model.requireQueryTypeDef
+import model.testing.TestWorld
+import viaduct.engine.api.CheckerResult
+
+class FieldCheckerRuntimeVariablesTest {
+    private val schema = TestWorld.fromSDL("type Query { checked: Int flag: Boolean echo(value: Int): Int }").schema
+    private val field = schema.requireObjectField("Query", "checked")
+
+    @Test
+    fun `parent variable validation specializes abstract branches on both input roots`() {
+        val mixed = TestWorld.fromSDL(
+            """
+            directive @parent on FIELD_DEFINITION
+            type Query { nodes: [ChildIface] checked(locale: String!): String }
+            interface ChildIface { edge: ParentIface }
+            type ChildA implements ChildIface { edge: ParentA @parent }
+            type ChildB implements ChildIface { edge: ParentB }
+            interface ParentIface { id: ID }
+            type ParentA implements ParentIface { id: ID child: ChildA localized(locale: String!): String }
+            type ParentB implements ParentIface { id: ID localized(locale: String!): String }
+            """.trimIndent(),
+        ).schema
+        val checked = mixed.requireObjectField("Query", "checked")
+        for (root in ProviderFragment.entries) {
+            fun checker(type: String, directive: String = ""): FieldChecker {
+                val input = mixed.fragmentFrom(
+                    "fragment Input on Query { nodes { edge { ... on $type { localized(locale: ${'$'}locale) $directive } } } }",
+                    variableField = checked,
+                ).materializeSelections
+                val empty = materializeSelectionForestOf()
+                val pair = ResolverFragmentTemplates(
+                    if (root == ProviderFragment.OBJECT) input else empty,
+                    if (root == ProviderFragment.QUERY) input else empty,
+                    mapOf(Arguments.Variable.of(checked, "locale") to VariableDefinition.FromArgument.of(requireNotNull(checked.arg("locale")))),
+                )
+                return FieldChecker.of(checked, mixed.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
+            }
+            assertFailsWith<IllegalArgumentException> { checker("ParentA") }
+            checker("ParentB")
+            checker("ParentA", "@skip(if: true)")
+        }
+    }
+
+    @Test
+    fun `provider names remain independent between named pairs`() =
+        runBlocking {
+            fun pair(value: Int) =
+                ResolverFragmentTemplates(
+                    schema.fragmentFrom("fragment Input on Query { echo(value: ${'$'}v) }", variableField = field).materializeSelections,
+                    materializeSelectionForestOf(),
+                    mapOf(Arguments.Variable.of(field, "v") to VariableDefinition.FromProvider),
+                    variablesProvider = { mapOf("v" to value) },
+                )
+            val checker = FieldChecker.of(field, schema.requireQueryTypeDef(), mapOf("left" to pair(1), "right" to pair(2))) { _, _, _ -> CheckerResult.Success }
+            assertEquals(mapOf("left:v" to 1, "right:v" to 2), checker.provideVariables(Arguments.Resolved.of(field, emptyMap())))
+        }
+
+    @Test
+    fun `checker rejects cycles through provider inclusion conditions`() {
+        val variable = Arguments.Variable.of(field, "flag")
+        val pair = ResolverFragmentTemplates(
+            schema.fragmentFrom("fragment Input on Query { flag @include(if: ${'$'}flag) }", variableField = field).materializeSelections,
+            materializeSelectionForestOf(),
+            mapOf(
+                variable to VariableDefinition.FromField.of(
+                    ProviderFragment.OBJECT,
+                    listOf(ObjectEngineResult.Key.of(schema.requireObjectField("Query", "flag"), emptyMap())),
+                    listOf("flag"),
+                )
+            ),
+        )
+        assertFailsWith<IllegalArgumentException> {
+            FieldChecker.of(field, schema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
+        }
+    }
+
+    @Test
+    fun `provider must return exactly its declared names`(): Unit =
+        runBlocking {
+            val pair = ResolverFragmentTemplates(
+                schema.fragmentFrom("fragment Input on Query { echo(value: ${'$'}v) }", variableField = field).materializeSelections,
+                materializeSelectionForestOf(),
+                mapOf(Arguments.Variable.of(field, "v") to VariableDefinition.FromProvider),
+                variablesProvider = { mapOf("wrong" to 1) },
+            )
+            val checker = FieldChecker.of(field, schema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
+            assertFailsWith<IllegalArgumentException> { checker.provideVariables(Arguments.Resolved.of(field, emptyMap())) }
+        }
+}

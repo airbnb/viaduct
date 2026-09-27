@@ -12,6 +12,7 @@ import semantics.shared.argumentsContainErrorValue
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOERContext
 import viaduct.engine.api.EngineObjectData
+import semantics.shared.Demand
 
 /**
  * Installs and launches the work associated with one object-result occurrence.
@@ -23,9 +24,10 @@ internal class OrchestrationTask private constructor(
     operation: OperationContext,
     objectOER: SharedOERContext,
     queryOER: SharedOERContext,
-    private val closed: ClosedConstructionDemandContext,
+    val closed: ClosedConstructionDemandContext,
 ) : CoroutineOrchestrationTask<OperationContext>(operation, objectOER, queryOER) {
     private var bindingDeclarationStarted = false
+    private var checkerPublications: List<FieldCheckerPublicationOccurrence> = emptyList()
 
     init {
         val occurrence = objectOER.occurrence
@@ -48,6 +50,13 @@ internal class OrchestrationTask private constructor(
             occurrence: OEROccurrence,
             source: EngineObjectData.Sync,
             initialDemand: SelectionForest,
+        ): OrchestrationTask = create(operation, occurrence, source, Demand.checked(initialDemand))
+
+        fun create(
+            operation: OperationContext,
+            occurrence: OEROccurrence,
+            source: EngineObjectData.Sync,
+            initialDemand: Demand<SelectionForest>,
         ): OrchestrationTask {
             val queryType = operation.world.schema.requireQueryTypeDef()
             val emptyQuerySource = operation.world.resolverRegistry.createRootQueryInput()
@@ -77,10 +86,14 @@ internal class OrchestrationTask private constructor(
                 listOf(this.objectOER, this.queryOER).forEach { oer ->
                     oer.occurrence.installParentBackedgeFields(
                         operation,
-                        oer.closedDemand.byKey().keys.filterIsInstance<ObjectEngineResult.ParentKey>(),
+                        oer.closedDemand
+                            .byKey()
+                            .keys
+                            .filterIsInstance<ObjectEngineResult.ParentKey>(),
                     )
                     operation.bindingsState.markBindingsDeclared(oer.occurrence.target)
                 }
+                checkerPublications = FieldCheckerTask.prepareAll(this)
                 observeQueryOER()
             }
         }
@@ -88,13 +101,31 @@ internal class OrchestrationTask private constructor(
 
     override val hasActiveWork: Boolean
         get() = listOf(closed.objectRooted, closed.queryRooted).any { oer ->
-            oer.fieldResolverOccurrences.isNotEmpty() ||
+            oer.fieldCheckerOccurrences.isNotEmpty() ||
+                oer.fieldResolverOccurrences.isNotEmpty() ||
                 oer.rootFieldReferenceOccurrences.isNotEmpty() ||
                 oer.variableProviderReadsByResolverOccurrence.values.any { it.isNotEmpty() }
         }
 
     override fun installFieldTasks() {
         FieldResolverTask.launchAll(this, closed)
+        checkerPublications.forEach(operation.dispatcher::dispatchFieldChecker)
+        listOf(objectOER to closed.objectRooted, queryOER to closed.queryRooted).forEach { (oer, closedOER) ->
+            closedOER.constructionDemand.checked.byKey().forEach { (key, selection) ->
+                if (selection.inclusionCondition === InclusionCondition.Never) return@forEach
+                // Source-present fields are already active. Active field tasks publish absence
+                // synchronously when they decide activation, without launching a checker task.
+                if (key !in closedOER.fieldCheckerOccurrences) {
+                    val cell = oer.occurrence.target.getCell(key)
+                    if (!cell.getValue().isCompleted) return@forEach
+                    if (cell.isFieldCheckerResultSet()) {
+                        if (!cell.getFieldCheckerResult().isCompleted) cell.getFieldCheckerResult().complete(null)
+                    } else {
+                        cell.setFieldCheckerResult(null)
+                    }
+                }
+            }
+        }
     }
 
     // Checks that passive values selected by closed demand were installed before task dispatch.
@@ -148,6 +179,18 @@ internal class OrchestrationTask private constructor(
                             }
 
                         is VariableDefinition.FromField -> Unit
+                    }
+                }
+            }
+            closedOER.fieldCheckerOccurrences.values.forEach { checkerOccurrence ->
+                val ownerKey = checkerOccurrence.selection.key
+                checkerOccurrence.variableDefinitions.forEach { variableDefinition ->
+                    val id = requireNotNull(variableDefinition.variable.instanceId)
+                    val definition = variableDefinition.definition
+                    if (definition is VariableDefinition.FromArgument && ownerKey is ObjectEngineResult.GroundKey) {
+                        operation.variableBindings.bindVariable(id, bindingFor(ownerKey.arguments, definition))
+                    } else {
+                        operation.variableBindings.declareBinding(id)
                     }
                 }
             }

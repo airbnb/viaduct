@@ -33,6 +33,7 @@ import semantics.contract.SometimesPassiveSelectiveResolverContract
 import semantics.contract.VariableSelectionIdentityResolverContract
 import semantics.contract.VariablesProviderResolverContract
 import semantics.contract.FrozenObjectResolutionContract
+import semantics.contract.FieldCheckerCorrectResolutionContract
 
 class ResolverContractTest :
     FrozenObjectResolutionContract,
@@ -60,6 +61,7 @@ class ResolverContractTest :
     LateObjectPathDemandResolverContract,
     SelectiveResolverOutputPolicyContract,
     SelectiveObjectFragmentOutputPolicyContract,
+    FieldCheckerCorrectResolutionContract,
     CorrectResolutionPostTestPolicy,
     Resolver26DispatcherResource {
     override val usesSingularQueryOER: Boolean = true

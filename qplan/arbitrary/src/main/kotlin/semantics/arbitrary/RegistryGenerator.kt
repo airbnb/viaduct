@@ -15,7 +15,6 @@ import io.kotest.property.arbitrary.next
 import model.EngineErrorData
 import model.EngineInputData
 import model.EngineOutputData
-import model.EngineOutputListData
 import model.ResolverOutputData
 import model.RootFieldReferenceData
 import model.Fragment
@@ -30,7 +29,6 @@ import viaduct.engine.api.CheckerResultContext
 import model.arg
 import model.fragmentFrom
 import model.inputType
-import model.materializeSelectionForestOf
 import model.objectOf
 import model.requireType
 import model.registry.FieldChecker
@@ -47,7 +45,6 @@ import model.testing.fromQueryField
 import model.testing.nodeResolverOf
 import model.testing.selectionAwareNodeResolverOf
 import model.testing.withErrorArguments
-import model.toSelectionForest
 import model.usedVariables
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -68,11 +65,16 @@ enum class ResolverProgramMutation {
 }
 
 /** Generated checker behavior used by Resolver23 access-check property profiles. */
-enum class GeneratedFieldCheckerMode {
+enum class GeneratedFieldCheckerMode(
+    val runtimeVariables: Boolean = false
+) {
     NONE,
     SUCCESS,
     DENIAL,
     MIXED,
+    RUNTIME_SUCCESS(true),
+    RUNTIME_DENIAL(true),
+    RUNTIME_MIXED(true),
 }
 
 data class RegistryFeatures(
@@ -155,7 +157,7 @@ class ArbitraryRegistry internal constructor(
         }
 
     private val generatedFieldCheckerOnlyObjectPlans: Map<FieldCoordinate, FragmentPlan> =
-        generatedFieldCheckerCoordinates.associateWith { coordinate ->
+        fieldResolverCoordinates.associateWith { coordinate ->
             FragmentPlan(
                 ownerName = coordinate.typeName,
                 selections = listOf(generatedCheckerTypeNameSelection("checkerOnlyObjectType")),
@@ -163,7 +165,7 @@ class ArbitraryRegistry internal constructor(
         }
 
     private val generatedFieldCheckerOnlyQueryPlans: Map<FieldCoordinate, FragmentPlan> =
-        generatedFieldCheckerCoordinates.associateWith {
+        fieldResolverCoordinates.associateWith {
             FragmentPlan(
                 ownerName = "Query",
                 selections = listOf(generatedCheckerTypeNameSelection("checkerOnlyQueryType")),
@@ -185,6 +187,13 @@ class ArbitraryRegistry internal constructor(
             GeneratedFieldCheckerMode.SUCCESS,
             GeneratedFieldCheckerMode.DENIAL,
             -> generatedFieldCheckerCoordinates
+            GeneratedFieldCheckerMode.RUNTIME_SUCCESS,
+            GeneratedFieldCheckerMode.RUNTIME_DENIAL,
+            -> fieldResolverCoordinates
+            GeneratedFieldCheckerMode.RUNTIME_MIXED ->
+                fieldResolverCoordinates
+                    .sortedBy(FieldCoordinate::toString)
+                    .filterIndexedTo(linkedSetOf()) { index, _ -> index % 3 != 0 }
             GeneratedFieldCheckerMode.MIXED ->
                 generatedFieldCheckerCoordinates
                     .sortedBy(FieldCoordinate::toString)
@@ -199,10 +208,11 @@ class ArbitraryRegistry internal constructor(
         when (mode) {
             GeneratedFieldCheckerMode.NONE,
             GeneratedFieldCheckerMode.SUCCESS,
+            GeneratedFieldCheckerMode.RUNTIME_SUCCESS,
             -> false
-            GeneratedFieldCheckerMode.DENIAL -> true
-            GeneratedFieldCheckerMode.MIXED ->
-                generatedFieldCheckerCoordinates
+            GeneratedFieldCheckerMode.DENIAL, GeneratedFieldCheckerMode.RUNTIME_DENIAL -> true
+            GeneratedFieldCheckerMode.MIXED, GeneratedFieldCheckerMode.RUNTIME_MIXED ->
+                (if (mode.runtimeVariables) fieldResolverCoordinates else generatedFieldCheckerCoordinates)
                     .sortedBy(FieldCoordinate::toString)
                     .indexOf(coordinate)
                     .let { index -> index >= 0 && index % 3 == 2 }
@@ -413,13 +423,9 @@ class ArbitraryRegistry internal constructor(
         return nodeResolverTypes
     }
 
-    private fun sourceField(canonicalField: FieldCoordinate): FieldCoordinate {
-        return canonicalField
-    }
+    private fun sourceField(canonicalField: FieldCoordinate): FieldCoordinate = canonicalField
 
-    private fun FieldCoordinate.isNodeLoader(schema: ArbitrarySchema): Boolean {
-        return nodeLoaderPossibleTypes(schema, this).isNotEmpty()
-    }
+    private fun FieldCoordinate.isNodeLoader(schema: ArbitrarySchema): Boolean = nodeLoaderPossibleTypes(schema, this).isNotEmpty()
 
     /** Creates request-local observation state; constructing a model world installs no hooks. */
     fun resolverObserver(
@@ -715,14 +721,29 @@ class ArbitraryRegistry internal constructor(
                     coordinate.typeName,
                     coordinate.fieldName,
                 ) as ViaductSchema.ObjectField
-            val variables =
-                variableProviders
-                    .filterIsInstance<FromArgumentVariableProviderPlan>()
-                    .filter { provider -> provider.owner == coordinate }
-                    .associate { provider ->
-                        Arguments.Variable.of(field, provider.variableName) to
-                            provider.variableDefinition(field)
+            val providers = variableProviders.filter { it.owner == coordinate }
+            val providerPlans = providers.filterIsInstance<FromProviderVariableProviderPlan>()
+            val variables = providers.associate { provider ->
+                Arguments.Variable.of(field, provider.variableName) to when (provider) {
+                    is FromArgumentVariableProviderPlan -> provider.variableDefinition(field)
+                    is FromProviderVariableProviderPlan -> VariableDefinition.FromProvider
+                    is FromFieldVariableProviderPlan -> {
+                        var selections = (if (provider.providerFragment == ProviderFragment.OBJECT) objectFragments else queryFragments)
+                            .getValue(coordinate)
+                            .materialize(schema, field)
+                            .materializeSelections
+                        val path = provider.responsePath().map { responseKey ->
+                            val selected = selections.filter { it.responseKey == responseKey }
+                            val keys = mutableListOf<model.ObjectEngineResult.Key>()
+                            selected.forEach { keys += it.key }
+                            val key = keys.first()
+                            selections = selected.flatMap { it.subselections }
+                            key
+                        }
+                        VariableDefinition.FromField.of(provider.providerFragment, path, provider.responsePath())
                     }
+                }
+            }
             val templates =
                 ResolverFragmentTemplates(
                     objectFragmentTemplate =
@@ -736,6 +757,13 @@ class ArbitraryRegistry internal constructor(
                             .materialize(schema, field)
                             .materializeSelections,
                     variables = variables,
+                    variablesProvider = if (providerPlans.isEmpty()) {
+                        null
+                    } else {
+                        { arguments ->
+                            providerPlans.associate { it.variableName to it.value(arguments, field) }
+                        }
+                    },
                 )
             val emptyObject =
                 FragmentPlan(coordinate.typeName, emptyList())
@@ -824,9 +852,9 @@ class ArbitraryRegistry internal constructor(
                         "Generated checker Query inputs differ for $coordinate"
                     }
                     when (mode) {
-                        GeneratedFieldCheckerMode.SUCCESS -> CheckerResult.Success
-                        GeneratedFieldCheckerMode.DENIAL -> GeneratedFieldCheckerDenial
-                        GeneratedFieldCheckerMode.MIXED ->
+                        GeneratedFieldCheckerMode.SUCCESS, GeneratedFieldCheckerMode.RUNTIME_SUCCESS -> CheckerResult.Success
+                        GeneratedFieldCheckerMode.DENIAL, GeneratedFieldCheckerMode.RUNTIME_DENIAL -> GeneratedFieldCheckerDenial
+                        GeneratedFieldCheckerMode.MIXED, GeneratedFieldCheckerMode.RUNTIME_MIXED ->
                             if (generatedFieldCheckerDenies(coordinate, mode)) {
                                 GeneratedFieldCheckerDenial
                             } else {

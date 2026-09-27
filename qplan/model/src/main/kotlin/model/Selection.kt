@@ -233,6 +233,9 @@ fun Selection.objectKey(type: ViaductSchema.Object): ObjectEngineResult.ObjectKe
 internal fun ObjectEngineResult.Key.objectKey(
     type: ViaductSchema.Object,
 ): ObjectEngineResult.ObjectKey {
+    // Concrete keys already carry this canonical field's coerced arguments and defaults.
+    // Repeated closure/merge passes need not rebuild and revalidate the same argument tree.
+    if (this is ObjectEngineResult.ObjectKey && field.containingDef == type) return this
     val concreteField = type.requireField(field.name)
     return ObjectEngineResult.ObjectKey.of(
         field = concreteField,

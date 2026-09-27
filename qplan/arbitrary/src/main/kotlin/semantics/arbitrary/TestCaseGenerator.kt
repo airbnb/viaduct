@@ -256,7 +256,9 @@ suspend fun executeResolverTestCases(
                     property(world, testCase)
                 } catch (failure: Throwable) {
                     failingSchemaIndex = schemaIndex
-                    throw AssertionError(testCase.failureContext(), failure)
+                    val counts = execution.counts
+                    val size = "${counts.schemas}:${counts.registriesPerSchema}:${counts.queriesPerSchema}"
+                    throw AssertionError("${testCase.failureContext()}\nReplay size: -PresolverPropertySize=$size", failure)
                 }
             }
         }
@@ -327,9 +329,6 @@ fun configuredResolverTestExecution(
         configuredCase
             ?.takeUnless { configured -> configured.equals("all", ignoreCase = true) }
             ?.let(::parseResolverTestCase)
-    require(selectedCase == null || configuredSize == null) {
-        "$RESOLVER_TEST_SIZE_PROPERTY is allowed only when $RESOLVER_TEST_CASE_PROPERTY=all"
-    }
     return ResolverTestExecution(
         counts = configuredSize?.let(::parseResolverTestSize) ?: defaultCounts,
         selectedCase = selectedCase,

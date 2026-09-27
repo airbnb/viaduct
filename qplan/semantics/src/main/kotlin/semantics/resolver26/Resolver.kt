@@ -10,6 +10,7 @@ import model.SelectionForest
 import model.schemaType
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
+import semantics.shared.Demand
 
 /**
  * Resolves selective demand once per object-local symbolic key on [coroutineContext].
@@ -56,8 +57,10 @@ fun SharedOperationContext<*>.startResolve(
 }
 
 /** Starts another independently rooted Query execution in an existing logical operation. */
+internal fun OperationContext.startResolve(selections: SelectionForest): ObjectEngineResult = startResolve(Demand.checked(selections))
+
 internal fun OperationContext.startResolve(
-    selections: SelectionForest,
+    selections: Demand<SelectionForest>,
 ): ObjectEngineResult {
     val source = world.resolverRegistry.createRootQueryInput()
     val result: ObjectEngineResult =

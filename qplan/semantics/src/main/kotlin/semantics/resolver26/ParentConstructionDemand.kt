@@ -250,7 +250,7 @@ private fun ParentDemandAnalysis.guardedBy(
     )
 
 /** Fixed descendant demand is lifted before occurrence-local condition bindings can exist. */
-private fun SelectionForest.withoutInclusionConditions(): SelectionForest =
+internal fun SelectionForest.withoutInclusionConditions(): SelectionForest =
     flatMap { selection ->
         if (selection.inclusionCondition === InclusionCondition.Never) {
             return@flatMap selectionForestOf()

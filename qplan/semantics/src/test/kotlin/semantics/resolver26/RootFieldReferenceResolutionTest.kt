@@ -42,8 +42,19 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 import viaduct.engine.api.EngineObjectData
+import model.registry.FieldChecker
+import viaduct.engine.api.CheckerResult
 
 class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
+    @Test
+    fun `conditioned passive reference list preserves its independent checker writer`() {
+        for (enabled in listOf(false, true)) {
+            val resolution = resolveConditionalPassiveListReference(enabled, withChecker = true)
+            assertEquals(if (enabled) 1 else 0, resolution.checkerApplications.get())
+            assertEquals(if (enabled) 1 else 0, resolution.targetApplications.get())
+        }
+    }
+
     @Test
     fun `list provider awaits root-reference elements`() {
         val resultFragment =
@@ -1371,8 +1382,10 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
 
     private fun resolveConditionalPassiveListReference(
         enabled: Boolean,
+        withChecker: Boolean = false,
     ): ConditionalPassiveListResolution {
         val targetApplications = AtomicInteger()
+        val checkerApplications = AtomicInteger()
         val testWorld =
             TestWorld.fromSDL(
                 schemaSDL =
@@ -1428,6 +1441,15 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                             },
                     )
                 },
+                fieldCheckers = { schema ->
+                    if (!withChecker) emptyMap() else {
+                        val products = schema.requireObjectField("Container", "products")
+                        mapOf(products to FieldChecker.of(products, schema.requireQueryTypeDef()) { _, _, _ ->
+                            checkerApplications.incrementAndGet()
+                            CheckerResult.Success
+                        })
+                    }
+                },
                 variableProviders = { schema ->
                     val result = schema.requireObjectField("Query", "result")
                     mapOf(
@@ -1440,7 +1462,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
         val query = world.fragmentFrom("fragment Result on Query { result(enabled: $enabled) }")
         val operation = SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
         val result = operation.resolveWithTestDispatcher(query.subselections)
-        return ConditionalPassiveListResolution(result, operation, targetApplications)
+        return ConditionalPassiveListResolution(result, operation, targetApplications, checkerApplications)
     }
 
     private fun listReferenceFailureWorld(
@@ -1615,5 +1637,6 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
         val result: ObjectEngineResult,
         val operation: SharedOperationContext<*>,
         val targetApplications: AtomicInteger,
+        val checkerApplications: AtomicInteger,
     )
 }

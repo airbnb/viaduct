@@ -14,7 +14,6 @@ import model.EngineResultCell
 import model.InclusionCondition
 import model.MaterializeSelectionForest
 import model.ObjectEngineResult
-import model.PathComponent
 import model.VariableBinding
 import model.engineObjectDataOf
 import model.guardedBy
@@ -48,14 +47,16 @@ internal class FieldPublicationOccurrence(
     val queryOER: SharedOERContext,
     /** Variable-provider reads rooted in the publication's object or associated Query OER. */
     val variableProviderReads: List<VariableProviderReadOccurrence>,
-) : SharedFieldPublicationOccurrence<OperationContext, CoroutineTaskDispatcher<OrchestrationTask, FieldPublicationOccurrence, Nothing>>,
+    val checkerScheduled: Boolean = false,
+) : SharedFieldPublicationOccurrence<OperationContext, CoroutineTaskDispatcher<OrchestrationTask, FieldPublicationOccurrence, FieldCheckerPublicationOccurrence>>,
     OperationContext by operation
 
 /** Owns setup and resolution for one field publication. */
 internal class FieldResolverTask private constructor(
     publication: FieldPublicationOccurrence,
     fieldTaskScope: CoroutineScope,
-) : CoroutineFieldResolverTask<FieldPublicationOccurrence>(publication, fieldTaskScope), ResolutionExecutionContext {
+) : CoroutineFieldResolverTask<FieldPublicationOccurrence>(publication, fieldTaskScope),
+    ResolutionExecutionContext {
     private val resolutionLogic = FieldResolutionLogic(this)
 
     companion object {
@@ -83,6 +84,7 @@ internal class FieldResolverTask private constructor(
                                     operation = operation,
                                     oerOccurrence = oer.occurrence,
                                     sourceOccurrence = fieldResolverOccurrence,
+                                    checkerScheduled = objectKey in closedOER.fieldCheckerOccurrences,
                                     queryOER = orchestrationTask.queryOER,
                                     providerReads =
                                         closedOER.variableProviderReadsByResolverOccurrence.getValue(
@@ -104,6 +106,7 @@ internal class FieldResolverTask private constructor(
                                     operation = operation,
                                     oerOccurrence = oer.occurrence,
                                     sourceOccurrence = referenceOccurrence,
+                                    checkerScheduled = objectKey in closedOER.fieldCheckerOccurrences,
                                     queryOER = orchestrationTask.queryOER,
                                     providerReads = emptyList(),
                                 ),
@@ -148,6 +151,12 @@ internal class FieldResolverTask private constructor(
                     sourceOccurrence = sourceOccurrence,
                     queryOER = queryOER,
                     providerReads = providerReads,
+                    // Conditioned passive reference lists are installed during passive descent,
+                    // after checker preparation but before ordinary field-task installation.
+                    checkerScheduled =
+                        sourceOccurrence.selection.key !is ObjectEngineResult.ParentKey &&
+                            operation.world.resolverRegistry.fieldChecker(sourceOccurrence.selection.key.field) != null &&
+                            oerOccurrence.target.reserveCell(sourceOccurrence.selection.key).isFieldCheckerResultSet(),
                 )
             operation.dispatcher.dispatchFieldResolver(publication)
         }
@@ -158,6 +167,7 @@ internal class FieldResolverTask private constructor(
             sourceOccurrence: ValueSourceOccurrence,
             queryOER: SharedOERContext,
             providerReads: List<VariableProviderReadOccurrence>,
+            checkerScheduled: Boolean = false,
         ): FieldPublicationOccurrence {
             val objectKey = sourceOccurrence.selection.key
             val publicationCell = oerOccurrence.target.reserveCell(objectKey)
@@ -167,8 +177,13 @@ internal class FieldResolverTask private constructor(
                 writer = oerOccurrence.fieldResolverCycleTask(objectKey),
             )
             return FieldPublicationOccurrence(
-                operation, oerOccurrence, sourceOccurrence,
-                publicationCell, queryOER, providerReads,
+                operation,
+                oerOccurrence,
+                sourceOccurrence,
+                publicationCell,
+                queryOER,
+                providerReads,
+                checkerScheduled,
             )
         }
 
@@ -201,9 +216,13 @@ internal class FieldResolverTask private constructor(
         }
 
         /** Terminates owned promises even when cancellation prevents the task body from entering. */
-        internal fun cancel(publication: FieldPublicationOccurrence, cause: CancellationException) {
+        internal fun cancel(
+            publication: FieldPublicationOccurrence,
+            cause: CancellationException
+        ) {
             with(publication) {
                 publicationCell.cancelValue(cause)
+                if (!checkerScheduled && publicationCell.isFieldCheckerResultSet()) publicationCell.cancelFieldCheckerResult(cause)
                 val fieldResolverOccurrence =
                     sourceOccurrence as? FieldResolverOccurrence
                         ?: return

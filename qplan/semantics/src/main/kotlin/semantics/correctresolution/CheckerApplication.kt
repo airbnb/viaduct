@@ -20,6 +20,8 @@ import semantics.shared.groundedArguments
 import semantics.shared.materializeResult
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
+import model.EngineErrorData
+import model.outputValue
 
 /** One deterministic checker relation reconstructed from a completed result. */
 internal class ReappliedChecker(
@@ -82,6 +84,25 @@ internal fun ObjectEngineResult.reapplyChecker(
                     queryValue = queryInputs.getValue(name),
                 )
             }
+        // Read the original named response path, independently of the compiled provider guards.
+        // Another owner's physical demand cannot make an excluded defining alias a provider.
+        val definitions = (fragments.objectFragment.variableDefinitions + fragments.queryFragment.variableDefinitions)
+            .distinctBy { it.variable }
+            .associateBy { it.variable.variableName }
+        val bindingsAgree = checker.fragmentTemplates.all { (name, templates) ->
+            templates.variables.all { (variable, definition) ->
+                if (definition !is VariableDefinition.FromField) {
+                    true
+                } else {
+                    val input = inputs.getValue(name)
+                    val source = if (definition.providerFragment == model.registry.ProviderFragment.OBJECT) input.objectValue else input.queryValue
+                    val expected = source.bindingAtResponsePath(definition.responsePath)
+                    val instance = definitions.getValue("$name:${variable.variableName}").variable.instanceId!!
+                    operation.variableBindings.getBinding(instance) == expected
+                }
+            }
+        }
+        if (!bindingsAgree) return@getOrPutChecker null
         ReappliedChecker(
             runBlocking {
                 checker.evaluateRelation(
@@ -158,3 +179,21 @@ internal fun CheckerResult?.sameResultVariantAs(other: CheckerResult?): Boolean 
         is CheckerResult.Error -> other is CheckerResult.Error
         null -> other == null
     }
+
+/** Null covers both an excluded path component and a selected null intermediate or terminal. */
+private fun EngineObjectData.Sync.bindingAtResponsePath(path: List<String>): VariableBinding {
+    var value: Any? = this
+    path.forEach { responseKey ->
+        if (value == null) return VariableBinding.of(null)
+        if (value is EngineErrorData) return VariableBinding.Error
+        val objectValue = value as EngineObjectData.Sync
+        if (!objectValue.isPresent(responseKey)) return VariableBinding.of(null)
+        value = objectValue.outputValue(responseKey)
+    }
+    fun hasError(value: Any?): Boolean = when (value) {
+        is EngineErrorData -> true
+        is List<*> -> value.any(::hasError)
+        else -> false
+    }
+    return if (hasError(value)) VariableBinding.Error else VariableBinding.of(value)
+}
