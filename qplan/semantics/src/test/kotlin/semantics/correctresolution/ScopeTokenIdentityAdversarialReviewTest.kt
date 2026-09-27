@@ -1,11 +1,13 @@
 package semantics.correctresolution
 
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import model.ObjectEngineResult
 import model.Arguments
+import model.Assumptions
 import model.ResolverOccurrenceId
 import model.emptyFragmentOf
 import model.engineObjectDataOf
@@ -25,6 +27,8 @@ import semantics.shared.OEROccurrence
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.SharedOERContext
 import semantics.shared.SharedOperationContext
+import semantics.shared.fieldResolverCycleTask
+import semantics.shared.materializeResult
 
 /** Retained review regression: reconstructing a scope carrier must not create a new semantic scope. */
 class ScopeTokenIdentityAdversarialReviewTest {
@@ -81,7 +85,7 @@ class ScopeTokenIdentityAdversarialReviewTest {
             observe(reuseScopeWrapper = true).queryFragmentOwnershipIsConsistent(emptySet()),
         )
         val observer = observe(reuseScopeWrapper = false)
-        val log = recordApplications(observer, listOf(result) + queries)
+        val log = recordApplications(world, observer, listOf(result) + queries)
         val operation = SharedOperationContext.create(world, resolverObserver = observer)
         assertTrue(result.correctResolution(operation, resultDemand), "The mutation preserves all values and declared input projections")
         val accepted = runCatching {
@@ -127,7 +131,7 @@ class ScopeTokenIdentityAdversarialReviewTest {
             control.onQueryFragmentPrepared(owner, sharedQuery, controlScope)
             control.onQueryFragmentOwnerAddress(owner, OEROccurrence(root, emptyList(), root), key)
         }
-        val controlLog = recordApplications(control, listOf(result, sharedQuery))
+        val controlLog = recordApplications(world, control, listOf(result, sharedQuery))
         val controlOperation = SharedOperationContext.create(world, resolverObserver = control)
         assertTrue(result.correctResolution(controlOperation, resultDemand))
         assertEquals(controlLog.snapshot().applicationIdentityCounts(), result.registeredResolverOccurrenceApplicationIdentityCounts(controlOperation))
@@ -145,7 +149,7 @@ class ScopeTokenIdentityAdversarialReviewTest {
             observer.onQueryFragmentPrepared(owner, query, containing)
             observer.onQueryFragmentOwnerAddress(owner, containing, key)
         }
-        val log = recordApplications(observer, listOf(result, firstQuery, secondQuery))
+        val log = recordApplications(world, observer, listOf(result, firstQuery, secondQuery))
         assertEquals(3, log.snapshot().applications.size)
         val operation = SharedOperationContext.create(world, resolverObserver = observer)
         assertTrue(result.correctResolution(operation, resultDemand), "This misplaced root boundary preserves values")
@@ -156,6 +160,7 @@ class ScopeTokenIdentityAdversarialReviewTest {
     }
 
     private fun recordApplications(
+        world: Assumptions,
         observer: CorrectnessResolverObserver,
         roots: List<ObjectEngineResult>,
     ): ResolutionOccurrenceApplicationLog {
@@ -165,14 +170,30 @@ class ScopeTokenIdentityAdversarialReviewTest {
                 val owner = ResolverOccurrenceId.at(root, listOf(key))
                 val arguments = key.arguments as Arguments.Resolved
                 val input = engineObjectDataOf(root.type)
+                val resolver = world.resolverRegistry.resolver(key.field)
+                val fragments = resolver.instantiateFragments(owner)
+                val queryInputSelections =
+                    resolver.instantiateQueryMaterializationSelections(
+                        fragments.queryFragment.resolverOccurrenceId,
+                    )
+                val queryValue =
+                    observer.queryFragmentResults(owner).singleOrNull()?.let { queryRoot ->
+                        runBlocking {
+                            queryRoot.materializeResult(
+                                operation = SharedOperationContext.create(world),
+                                selections = queryInputSelections,
+                                reader = root.fieldResolverCycleTask(listOf(key)),
+                            )
+                        }
+                    } ?: engineObjectDataOf(world.schema.requireQueryTypeDef())
                 observer.onResolverInvocation(
                     ResolverInvocationObservation(
                         occurrencePath = listOf(key),
                         field = key.field,
                         input = input,
                         inputSelections = materializeSelectionForestOf(),
-                        queryValue = input,
-                        queryInputSelections = materializeSelectionForestOf(),
+                        queryValue = queryValue,
+                        queryInputSelections = queryInputSelections,
                         arguments = arguments,
                         suppliedDemand = null,
                         resolverOccurrenceId = owner,

@@ -142,22 +142,29 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
             context,
             checked,
         )
-    var localDemand =
-        if (nested.localDemand.values.isEmpty()) {
-            Demand.EMPTY
+    fun carryNestedDemand(demand: SelectionForest): SelectionForest =
+        if (demand.isEmpty()) {
+            selectionForestOf()
         } else {
-            // This selection transports newly discovered construction work to a descendant. The
-            // work itself recovers its checked provenance at the resolver or checker boundary.
-            Demand.unchecked(
-                selectionForestOf(
-                    Selection.of(
-                        key = key,
-                        possibleTypes = possibleTypes,
-                        subselections = nested.localDemand.values,
-                        inclusionCondition = inclusionCondition,
-                    ),
+            selectionForestOf(
+                Selection.of(
+                    key = key,
+                    possibleTypes = possibleTypes,
+                    subselections = demand,
+                    inclusionCondition = inclusionCondition,
                 ),
             )
+        }
+    var localDemand =
+        if (checked) {
+            Demand(
+                checked = carryNestedDemand(nested.localDemand.checked),
+                unchecked = carryNestedDemand(nested.localDemand.unchecked),
+            )
+        } else {
+            // An unchecked ancestor is only transport. Checked work below it recovers checked
+            // provenance when passive descent reaches its resolver boundary.
+            Demand.unchecked(carryNestedDemand(nested.localDemand.values))
         }
     var reusable = nested.reusable
     val parentRequests = mutableListOf<ParentRequest>()
