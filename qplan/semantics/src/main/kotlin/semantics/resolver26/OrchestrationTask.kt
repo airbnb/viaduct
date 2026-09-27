@@ -8,14 +8,15 @@ import model.VariableBinding
 import model.registry.VariableDefinition
 import model.requireQueryTypeDef
 import model.schemaType
-import semantics.shared.argumentsContainErrorValue
-import semantics.shared.OEROccurrence
-import semantics.shared.SharedOERContext
-import viaduct.engine.api.EngineObjectData
 import semantics.shared.Demand
+import semantics.shared.OEROccurrence
+import semantics.shared.OrchestrationConstructionDemand
+import semantics.shared.SharedOERContext
+import semantics.shared.argumentsContainErrorValue
+import viaduct.engine.api.EngineObjectData
 
 /**
- * Installs and launches the work associated with one object-result occurrence.
+ * Prepares and dispatches the work associated with one object-result occurrence.
  *
  * An occurrence with active work retains a request-root coroutine as an architectural placeholder
  * for future asynchronous orchestration. The current orchestration body does not suspend.
@@ -24,10 +25,12 @@ internal class OrchestrationTask private constructor(
     operation: OperationContext,
     objectOER: SharedOERContext,
     queryOER: SharedOERContext,
-    val closed: ClosedConstructionDemandContext,
-) : CoroutineOrchestrationTask<OperationContext>(operation, objectOER, queryOER) {
+    val closedConstructionDemand: ClosedConstructionDemandContext,
+) : CoroutineOrchestrationTaskBase<OperationContext>(operation, objectOER, queryOER) {
     private var bindingDeclarationStarted = false
-    private var checkerPublications: List<FieldCheckerPublicationOccurrence> = emptyList()
+    internal lateinit var checkerPreparation: FieldCheckerPreparation
+        private set
+    private val conditionedPassivePublications = mutableListOf<SymbolicFieldPublicationOccurrence>()
 
     init {
         val occurrence = objectOER.occurrence
@@ -49,102 +52,93 @@ internal class OrchestrationTask private constructor(
             operation: OperationContext,
             occurrence: OEROccurrence,
             source: EngineObjectData.Sync,
-            initialDemand: SelectionForest,
-        ): OrchestrationTask = create(operation, occurrence, source, Demand.checked(initialDemand))
+            constructionDemand: SelectionForest,
+        ): OrchestrationTask = create(operation, occurrence, source, Demand.checked(constructionDemand))
 
         fun create(
             operation: OperationContext,
             occurrence: OEROccurrence,
             source: EngineObjectData.Sync,
-            initialDemand: Demand<SelectionForest>,
+            constructionDemand: Demand<SelectionForest>,
         ): OrchestrationTask {
             val queryType = operation.world.schema.requireQueryTypeDef()
             val emptyQuerySource = operation.world.resolverRegistry.createRootQueryInput()
             val queryResult = ObjectEngineResult.of(queryType, mutable = true)
             val queryOccurrence = OEROccurrence(queryResult, emptyList(), queryResult)
-            val closed =
-                source.closeOrchestratorConstructionDemand(
+            val closedConstructionDemand =
+                source.closeOrchestrationConstructionDemand(
                     world = operation.world,
                     objectOccurrence = occurrence,
                     queryOccurrence = queryOccurrence,
-                    initialDemand = initialDemand,
+                    initialDemand = OrchestrationConstructionDemand(constructionDemand, Demand.EMPTY),
                 )
             val objectOER =
                 SharedOERContext(
                     occurrence = occurrence,
                     source = source,
-                    closedDemand = closed.objectRooted.demand,
+                    closedValueSelections = closedConstructionDemand.objectRooted.closedValueSelections,
                 )
             val queryOER =
                 SharedOERContext(
                     occurrence = queryOccurrence,
                     source = emptyQuerySource,
-                    closedDemand = closed.queryRooted.demand,
+                    closedValueSelections = closedConstructionDemand.queryRooted.closedValueSelections,
                 )
-            return OrchestrationTask(operation, objectOER, queryOER, closed).apply {
+            return OrchestrationTask(operation, objectOER, queryOER, closedConstructionDemand).apply {
                 declareBindings()
                 listOf(this.objectOER, this.queryOER).forEach { oer ->
                     oer.occurrence.installParentBackedgeFields(
                         operation,
-                        oer.closedDemand
+                        oer.closedValueSelections
                             .byKey()
                             .keys
                             .filterIsInstance<ObjectEngineResult.ParentKey>(),
                     )
                     operation.bindingsState.markBindingsDeclared(oer.occurrence.target)
                 }
-                checkerPublications = FieldCheckerTask.prepareAll(this)
+                checkerPreparation = FieldCheckerTask.prepareAll(this)
                 observeQueryOER()
             }
         }
     }
 
     override val hasActiveWork: Boolean
-        get() = listOf(closed.objectRooted, closed.queryRooted).any { oer ->
-            oer.fieldCheckerOccurrences.isNotEmpty() ||
-                oer.fieldResolverOccurrences.isNotEmpty() ||
-                oer.rootFieldReferenceOccurrences.isNotEmpty() ||
-                oer.variableProviderReadsByResolverOccurrence.values.any { it.isNotEmpty() }
+        get() = conditionedPassivePublications.isNotEmpty() || listOf(closedConstructionDemand.objectRooted, closedConstructionDemand.queryRooted).any { closedOER ->
+            closedOER.fieldCheckerOccurrences.isNotEmpty() ||
+                closedOER.fieldResolverOccurrences.isNotEmpty() ||
+                closedOER.rootFieldReferenceOccurrences.isNotEmpty() ||
+                closedOER.variableProviderReadsByResolverOccurrence.values.any { it.isNotEmpty() }
         }
 
-    override fun installFieldTasks() {
-        FieldResolverTask.launchAll(this, closed)
-        checkerPublications.forEach(operation.dispatcher::dispatchFieldChecker)
-        listOf(objectOER to closed.objectRooted, queryOER to closed.queryRooted).forEach { (oer, closedOER) ->
-            closedOER.constructionDemand.checked.byKey().forEach { (key, selection) ->
-                if (selection.inclusionCondition === InclusionCondition.Never) return@forEach
-                // Source-present fields are already active. Active field tasks publish absence
-                // synchronously when they decide activation, without launching a checker task.
-                if (key !in closedOER.fieldCheckerOccurrences) {
-                    val cell = oer.occurrence.target.getCell(key)
-                    if (!cell.getValue().isCompleted) return@forEach
-                    if (cell.isFieldCheckerResultSet()) {
-                        if (!cell.getFieldCheckerResult().isCompleted) cell.getFieldCheckerResult().complete(null)
-                    } else {
-                        cell.setFieldCheckerResult(null)
-                    }
-                }
-            }
-        }
+    /** Passive descent prepares the publication; field dispatch remains owned by this task. */
+    internal fun prepareConditionedPassiveValue(sourceOccurrence: PassiveValueOccurrence) {
+        conditionedPassivePublications += FieldResolverTask.prepareConditionedPassiveValue(this, sourceOccurrence)
     }
 
-    // Checks that passive values selected by closed demand were installed before task dispatch.
+    override fun prepareAndDispatchFieldWork() {
+        val fieldPublications = FieldResolverTask.prepareAll(this)
+        (fieldPublications + conditionedPassivePublications).forEach(operation.dispatcher::dispatchFieldResolver)
+        checkerPreparation.executablePublications.forEach(operation.dispatcher::dispatchFieldChecker)
+        checkerPreparation.publishReadyAbsences()
+    }
+
+    // Checks that passive values selected by closed construction demand were installed before task dispatch.
     override fun validateDispatch() {
-        listOf(objectOER to closed.objectRooted, queryOER to closed.queryRooted)
+        listOf(objectOER to closedConstructionDemand.objectRooted, queryOER to closedConstructionDemand.queryRooted)
             .forEach { (oer, closedOER) ->
-                closedOER.demand.byKey().forEach entry@ { (objectKey, selection) ->
+                closedOER.closedValueSelections.byKey().forEach entry@ { (key, selection) ->
                     if (selection.inclusionCondition === InclusionCondition.Never) {
                         return@entry
                     }
                     if (
-                        objectKey !in closedOER.fieldResolverOccurrences &&
-                        objectKey !in closedOER.rootFieldReferenceOccurrences
+                        key !in closedOER.fieldResolverOccurrences &&
+                        key !in closedOER.rootFieldReferenceOccurrences
                     ) {
                         check(
-                            objectKey is ObjectEngineResult.GroundKey &&
-                                oer.occurrence.target.isCellSet(objectKey),
+                            key is ObjectEngineResult.GroundKey &&
+                                oer.occurrence.target.isCellSet(key),
                         ) {
-                            "Resolver26 passive key $objectKey was not materialized by " +
+                            "Resolver26 passive key $key was not materialized by " +
                                 "resolvePassiveValues"
                         }
                     }
@@ -152,14 +146,14 @@ internal class OrchestrationTask private constructor(
             }
     }
 
-    // Adds every binding introduced by the closed demand to the operation's binding domain.
+    // Adds every binding introduced by the closed construction demand to the operation's binding domain.
     // Grounded argument bindings receive values immediately; open and provider bindings remain pending.
     private fun declareBindings() {
         check(!bindingDeclarationStarted) {
             "Resolver26 orchestration task attempted to declare its bindings twice"
         }
         bindingDeclarationStarted = true
-        listOf(closed.objectRooted, closed.queryRooted).forEach { closedOER ->
+        listOf(closedConstructionDemand.objectRooted, closedConstructionDemand.queryRooted).forEach { closedOER ->
             closedOER.fieldResolverOccurrences.values.forEach { fieldResolverOccurrence ->
                 val ownerKey = fieldResolverOccurrence.selection.key
                 fieldResolverOccurrence.variableDefinitions.forEach { variableDefinition ->
@@ -212,7 +206,7 @@ internal class OrchestrationTask private constructor(
 
     private fun observeQueryOER() {
         operation.resolverObserver.onQueryOERPrepared(queryOER)
-        listOf(objectOER to closed.objectRooted, queryOER to closed.queryRooted)
+        listOf(objectOER to closedConstructionDemand.objectRooted, queryOER to closedConstructionDemand.queryRooted)
             .forEach { (resolverOER, closedOER) ->
                 closedOER.fieldResolverOccurrences.values.forEach { fieldResolverOccurrence ->
                     val queryFragment = fieldResolverOccurrence.fragments.queryFragment

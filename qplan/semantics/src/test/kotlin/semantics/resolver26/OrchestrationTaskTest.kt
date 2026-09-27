@@ -1,7 +1,16 @@
 package semantics.resolver26
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import model.emptyFragmentOf
+import model.fragmentFrom
+import model.ListEngineResult
+import model.RootFieldReferenceData
+import model.objectOf
+import model.registry.FieldChecker
+import viaduct.engine.api.CheckerResult
 import model.ObjectEngineResult
 import model.operationSelectionsFrom
 import model.requireObjectField
@@ -9,12 +18,15 @@ import model.requireQueryTypeDef
 import model.requireType
 import model.selectionForestOf
 import model.testing.TestWorld
+import model.testing.fieldResolverOf
 import semantics.shared.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import semantics.shared.OEROccurrence
@@ -46,7 +58,7 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
         )
             assertEquals(
                 setOf("first", "second"),
-                task.objectOER.closedDemand
+                task.objectOER.closedValueSelections
                     .byKey()
                     .keys
                     .map { it.field.name }
@@ -57,11 +69,139 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
         assertFalse(coroutineContext[kotlinx.coroutines.Job]!!.children.any())
 
         assertSame(operation, task.operation)
-        task.operation.dispatcher.dispatchOrchestrator(task)
+        task.operation.dispatcher.dispatchOrchestration(task)
         val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "second"), emptyMap())
         assertEquals(7, root.getCell(key).getValue().await())
-        assertFailsWith<IllegalArgumentException> { operation.dispatcher.dispatchOrchestrator(task) }
+        assertFailsWith<IllegalArgumentException> { operation.dispatcher.dispatchOrchestration(task) }
     }
+
+    @Test
+    fun `value preparation claims both roots without dispatching or deciding activation`(): Unit =
+        runBlocking {
+            val world = TestWorld.fromSDL(
+                "type Query { consumer: Int!, dependency: Int! }",
+                fieldResolvers = { schema ->
+                    val empty = schema.emptyFragmentOf("Query")
+                    mapOf(
+                        schema.requireObjectField("Query", "consumer") to fieldResolverOf(
+                            objectFragment = empty,
+                            queryFragment = schema.fragmentFrom("fragment Input on Query { dependency }"),
+                        ) { _, _, _ -> error("Preparation must not invoke the consumer") },
+                        schema.requireObjectField("Query", "dependency") to fieldResolverOf(empty) { _, _ ->
+                            error("Preparation must not invoke the dependency")
+                        },
+                    )
+                },
+            ).assumptions
+            val operation = OperationContext.create(SharedOperationContext.create(world), this)
+            val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
+            val task = OrchestrationTask.create(
+                operation, OEROccurrence(root, emptyList(), root),
+                world.resolverRegistry.createRootQueryInput(), world.operationSelectionsFrom("{ consumer }"),
+            )
+            val publications = FieldResolverTask.prepareAll(task)
+            try {
+                assertEquals(2, publications.size)
+                assertEquals(setOf(root, task.queryOER.occurrence.target), publications.map { it.oerOccurrence.target }.toSet())
+                assertFalse(coroutineContext[Job]!!.children.any(), "Preparation dispatched coroutine work")
+                publications.forEach { publication ->
+                    assertFalse(publication.publicationCell.getValue().isCompleted)
+                    assertFailsWith<IllegalStateException> { publication.publicationCell.checkActivated() }
+                }
+            } finally {
+                publications.forEach { FieldResolverTask.cancel(it, CancellationException("Preparation-only test")) }
+            }
+        }
+
+    @Test
+    fun `conditioned passive lists wait for orchestration dispatch and retain checker activation`() =
+        runBlocking {
+            for (enabled in listOf(false, true)) {
+                for (withChecker in listOf(false, true)) {
+                    val world = TestWorld.fromDSL(
+                        """
+                        extend type Query {
+                          outer: Int! @resolver(of: "values @include(if: ${'$'}enabled)", providerVars: {enabled: $enabled}, result: 1)
+                          values: [Int!]!
+                          target: Int! @resolver(result: 7)
+                        }
+                        """.trimIndent(),
+                        fieldCheckers = { schema ->
+                            if (withChecker) {
+                                val values = schema.requireObjectField("Query", "values")
+                                mapOf(values to FieldChecker.of(values, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success })
+                            } else emptyMap()
+                        },
+                    ).assumptions
+                    val operation = OperationContext.create(SharedOperationContext.create(world), this)
+                    val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
+                    val reference = RootFieldReferenceData.of(listOf(world.schema.requireObjectField("Query", "target")), emptyMap())
+                    val source = world.objectOf("Query") { "values" setTo listOf(reference) }
+                    val task = OrchestrationTask.create(
+                        operation, OEROccurrence(root, emptyList(), root), source,
+                        world.operationSelectionsFrom("{ outer }"),
+                    )
+                    PassiveValueResolutionLogic(operation).materializePassiveFields(
+                        task, task.closedConstructionDemand.objectRooted.constructionDemand, task.objectOER.closedValueSelections,
+                    )
+                    val valuesKey = root.keys.single { it.field.name == "values" }
+                    val cell = root.getCell(valuesKey)
+                    assertFalse(coroutineContext[Job]!!.children.any(), "Passive descent dispatched field work")
+                    assertFalse(cell.getValue().isCompleted)
+                    assertFailsWith<IllegalStateException> { cell.checkActivated() }
+                    assertFalse(cell.getFieldCheckerResult().isCompleted)
+                    operation.dispatcher.dispatchOrchestration(task)
+                    assertEquals(enabled, cell.fetchActivated())
+                    if (enabled) {
+                        val values = assertIs<ListEngineResult>(cell.getValue().await())
+                        assertEquals(7, values[0].getValue().await())
+                        assertEquals(if (withChecker) CheckerResult.Success else null, cell.getFieldCheckerResult().await())
+                    }
+                    coroutineContext[Job]!!.children.toList().forEach { it.join() }
+                }
+            }
+        }
+
+    @Test
+    fun `checker preparation records every claimed slot and delays absence for pending values`() =
+        runBlocking {
+            val world = TestWorld.fromDSL(
+                """
+                extend type Query {
+                  checked: Int! @resolver(result: 1)
+                  pending: Int! @resolver(result: 2)
+                  passive: Int!
+                }
+                """.trimIndent(),
+                fieldCheckers = { schema ->
+                    val checked = schema.requireObjectField("Query", "checked")
+                    mapOf(checked to FieldChecker.of(checked, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success })
+                },
+            ).assumptions
+            val operation = OperationContext.create(SharedOperationContext.create(world), this)
+            val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
+            val source = world.objectOf("Query") { "passive" setTo 3 }
+            val task = OrchestrationTask.create(
+                operation, OEROccurrence(root, emptyList(), root), source,
+                world.operationSelectionsFrom("{ checked pending passive }"),
+            )
+            val preparation = task.checkerPreparation
+            assertEquals(3, preparation.claimedSlots.size)
+            assertEquals(1, preparation.executablePublications.size)
+            assertEquals(2, preparation.delayedAbsenceSlots.size)
+            assertTrue(preparation.claimedSlots.all { !it.cell.getFieldCheckerResult().isCompleted })
+            PassiveValueResolutionLogic(operation).materializePassiveFields(
+                task, task.closedConstructionDemand.objectRooted.constructionDemand, task.objectOER.closedValueSelections,
+            )
+            operation.dispatcher.dispatchOrchestration(task)
+            val passive = root.getCell(root.keys.single { it.field.name == "passive" })
+            val pending = root.getCell(root.keys.single { it.field.name == "pending" })
+            assertNull(passive.getFieldCheckerResult().get())
+            assertFalse(pending.getFieldCheckerResult().isCompleted)
+            assertFalse(pending.getValue().isCompleted)
+            assertEquals(2, pending.getValue().await())
+            assertNull(pending.getFieldCheckerResult().await())
+        }
 
     @Test
     fun `object orchestration validates source and target types at construction`(): Unit =
@@ -113,7 +253,7 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
                                 target = target,
                             ),
                         source = world.resolverRegistry.createRootQueryInput(),
-                        initialDemand = selectionForestOf(),
+                        constructionDemand = selectionForestOf(),
                     )
                 }
             }

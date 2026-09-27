@@ -16,7 +16,7 @@ import semantics.shared.SharedOperationContext
 sealed interface ResolverTaskObservation {
     val path: List<String>
 
-    data class SlotOrchestrator(
+    data class SlotOrchestration(
         val objectType: String,
         override val path: List<String>,
     ) : ResolverTaskObservation
@@ -106,13 +106,13 @@ interface DepthFirstTaskOrderingContract : ResolverContract {
 
         assertEquals(
             listOf(
-                ResolverTaskObservation.SlotOrchestrator("Query", emptyList()),
+                ResolverTaskObservation.SlotOrchestration("Query", emptyList()),
                 ResolverTaskObservation.SlotResolver("container", emptyList()),
-                ResolverTaskObservation.SlotOrchestrator(
+                ResolverTaskObservation.SlotOrchestration(
                     "Container",
                     listOf("container"),
                 ),
-                ResolverTaskObservation.SlotOrchestrator(
+                ResolverTaskObservation.SlotOrchestration(
                     "Child",
                     listOf("container", "left"),
                 ),
@@ -120,7 +120,7 @@ interface DepthFirstTaskOrderingContract : ResolverContract {
                     "nested",
                     listOf("container", "left"),
                 ),
-                ResolverTaskObservation.SlotOrchestrator(
+                ResolverTaskObservation.SlotOrchestration(
                     "Child",
                     listOf("container", "right"),
                 ),

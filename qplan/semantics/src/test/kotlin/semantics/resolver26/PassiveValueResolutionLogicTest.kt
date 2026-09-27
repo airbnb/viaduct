@@ -272,8 +272,8 @@ class PassiveValueResolutionLogicTest : Resolver26DispatcherResource {
                         base = baseOperation,
                         requestScope = this,
                     )
-                value.resolvePassiveValues(
-                    operation = operation,
+                operation.passiveValues.resolvePassiveValues(
+                    value = value,
                     root =
                         ObjectEngineResult.of(
                             world.schema.requireQueryTypeDef(),

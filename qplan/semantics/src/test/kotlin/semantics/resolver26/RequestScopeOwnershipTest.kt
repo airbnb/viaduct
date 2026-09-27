@@ -30,27 +30,35 @@ class RequestScopeOwnershipTest {
                 .sorted(),
         )
 
-        val orchestrationRootLaunch = Regex("""\.\s*dispatchOrchestrator\s*\(""")
+        val orchestrationDispatch = Regex("""\.\s*dispatchOrchestration\s*\(""")
         assertEquals(
             listOf("FieldResolverTask.kt", "Resolver.kt"),
             sources.filter { source ->
-                orchestrationRootLaunch.containsMatchIn(source.readText())
+                orchestrationDispatch.containsMatchIn(source.readText())
             }.map(Path::name)
                 .sorted(),
         )
 
-        val fieldRootLaunch = Regex("""\.\s*dispatchFieldResolver\s*\(""")
+        val fieldDispatch = Regex("""(?:\.\s*|::)dispatchFieldResolver(?:\s*\(|\b)""")
         assertEquals(
-            listOf("FieldResolverTask.kt"),
-            sources.filter { source -> fieldRootLaunch.containsMatchIn(source.readText()) }
+            listOf("FieldResolverTask.kt", "OrchestrationTask.kt"),
+            sources.filter { source -> fieldDispatch.containsMatchIn(source.readText()) }
                 .map(Path::name)
                 .sorted(),
         )
 
-        val fieldCheckerRootLaunch = Regex("""(?:\.\s*|::)dispatchFieldChecker(?:\s*\(|\b)""")
+        // List-element references may be discovered after their containing orchestration freezes.
+        // Every ordinary or conditioned passive field publication dispatches from orchestration.
+        val fieldResolverSource = sourceDirectory.resolve("FieldResolverTask.kt").readText()
+        val beforeListHelper = fieldResolverSource.substringBefore("fun prepareAndDispatchListElement(")
+        val afterListHelper = fieldResolverSource.substringAfter("fun prepareConditionedPassiveValue(")
+        assertTrue(!fieldDispatch.containsMatchIn(beforeListHelper + afterListHelper))
+        assertEquals(1, fieldDispatch.findAll(fieldResolverSource).count())
+
+        val fieldCheckerDispatch = Regex("""(?:\.\s*|::)dispatchFieldChecker(?:\s*\(|\b)""")
         assertEquals(
             listOf("resolver26/OrchestrationTask.kt", "resolvers/resolver21/CoroutineOrchestrationTask.kt"),
-            allSources.filter { source -> fieldCheckerRootLaunch.containsMatchIn(source.readText()) }
+            allSources.filter { source -> fieldCheckerDispatch.containsMatchIn(source.readText()) }
                 .map { semanticsDirectory.relativize(it).toString() }
                 .sorted(),
         )

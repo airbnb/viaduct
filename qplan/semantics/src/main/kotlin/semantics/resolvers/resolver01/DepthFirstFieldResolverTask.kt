@@ -22,7 +22,7 @@ import model.registry.ResolutionExecutionContext
 import model.requireQueryTypeDef
 import semantics.resolvers.GroundedFieldPublicationOccurrence
 import semantics.resolvers.emptyObjectInput
-import semantics.resolvers.prepareInvocation
+import semantics.resolvers.prepareRootFieldReferenceInvocation
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.CycleCheckState
 import semantics.shared.CycleTask
@@ -46,7 +46,7 @@ internal class DepthFirstFieldResolverTask private constructor(
 
     companion object {
         /** Claims the publication synchronously before either execution or reactor enqueue. */
-        fun create(
+        fun prepare(
             publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>,
             queryOERDepth: Int,
         ): DepthFirstFieldResolverTask {
@@ -65,7 +65,7 @@ internal class DepthFirstFieldResolverTask private constructor(
     fun run(): Unit = with(publication) {
         val key = selection.groundKey()
         val invocationDemand = this.invocationDemand ?: operation.complete(selection.subselections)
-        var value: ResolverOutputData? = reference ?: when (val arguments = key.arguments) {
+        var fieldValue: ResolverOutputData? = reference ?: when (val arguments = key.arguments) {
             Arguments.Error -> {
                 check(publicationCell.getValue().complete(ErrorEngineResult.of(EngineErrorData.of()))) {
                     "Cell value was completed twice"
@@ -127,19 +127,19 @@ internal class DepthFirstFieldResolverTask private constructor(
                 }
             }
         }
-        var nodeIdentity: NodeReferenceIdentity? = null
-        while (value is RootFieldReferenceData) {
-            val reference = value
+        var authoritativeNodeIdentity: NodeReferenceIdentity? = null
+        while (fieldValue is RootFieldReferenceData) {
+            val reference = fieldValue
             require(reference.conformsToResolverOutputSchemaType(publicationExpectedType)) {
                 "Root-field reference does not conform to ${publicationExpectedType}"
             }
-            nodeIdentity = nodeIdentity ?: reference.nodeReferenceIdentityOrNull()
-            value = resolveRootFieldReference(
+            authoritativeNodeIdentity = authoritativeNodeIdentity ?: reference.nodeReferenceIdentityOrNull()
+            fieldValue = invokeRootFieldResolver(
                 reference, oerOccurrence.root, publicationPath, invocationDemand,
             )
         }
-        val result = operation.passiveValues(queryOERDepth).resolvePassiveValues(
-            value = value.withAuthoritativeNodeId(nodeIdentity, invocationDemand),
+        val passiveValue = operation.passiveValues(queryOERDepth).resolvePassiveValues(
+            value = fieldValue.withAuthoritativeNodeId(authoritativeNodeIdentity, invocationDemand),
             root = oerOccurrence.root,
             expectedType = publicationExpectedType,
             path = publicationPath,
@@ -147,23 +147,23 @@ internal class DepthFirstFieldResolverTask private constructor(
             invocationDemand = invocationDemand,
             parent = oerOccurrence,
         )
-        check(publicationCell.getValue().complete(result)) { "Cell value was completed twice" }
+        check(publicationCell.getValue().complete(passiveValue)) { "Cell value was completed twice" }
     }
 
     /** Invokes one independently rooted reference target using this resolver's Query-fragment policy. */
-    private fun resolveRootFieldReference(
+    private fun invokeRootFieldResolver(
         reference: RootFieldReferenceData,
         publicationRoot: ObjectEngineResult,
         publicationPath: List<PathComponent>,
         invocationDemand: SelectionForest,
     ): ResolverOutputData? {
         val operation = publication.operation
-        val invocation = reference.prepareInvocation(operation)
+        val invocation = reference.prepareRootFieldReferenceInvocation(operation)
         val queryValue =
-            resolveIndependentQueryFragment(
+            produceAndMaterializeIndependentQueryFragment(
                 resolver = invocation.resolver,
                 queryFragment = invocation.fragments.queryFragment,
-                coordinate = invocation.path,
+                coordinate = invocation.invocationPath,
             )
         val input = invocation.emptyObjectInput()
         val queryMaterializationSelections =
@@ -175,8 +175,8 @@ internal class DepthFirstFieldResolverTask private constructor(
                 // Reference targets have the same interruptible coroutine-entry boundary.
                 operation.resolverObserver.onResolverInvocation(
                     ResolverInvocationObservation(
-                        occurrencePath = invocation.path,
-                        field = invocation.key.field,
+                        occurrencePath = invocation.invocationPath,
+                        field = invocation.invocationKey.field,
                         input = input,
                         inputSelections = materializeSelectionForestOf(),
                         queryValue = queryValue,
@@ -200,9 +200,9 @@ internal class DepthFirstFieldResolverTask private constructor(
                 publicationRoot = publicationRoot,
                 publicationPath = publicationPath,
                 reference = reference,
-                invocationRoot = invocation.root,
-                invocationPath = invocation.path,
-                invocationKey = invocation.key,
+                invocationRoot = invocation.invocationRoot,
+                invocationPath = invocation.invocationPath,
+                invocationKey = invocation.invocationKey,
                 suppliedDemand = invocationDemand,
             ),
         )
@@ -210,7 +210,7 @@ internal class DepthFirstFieldResolverTask private constructor(
     }
 
     /** Resolves a fresh Query root for an independently rooted reference-target invocation. */
-    private fun resolveIndependentQueryFragment(
+    private fun produceAndMaterializeIndependentQueryFragment(
         resolver: FieldResolver,
         queryFragment: ResolverFragment,
         coordinate: List<PathComponent>,

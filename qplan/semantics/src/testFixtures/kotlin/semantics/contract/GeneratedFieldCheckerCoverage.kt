@@ -5,6 +5,7 @@ import java.util.IdentityHashMap
 import model.ListEngineResult
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
+import model.SelectionForest
 import model.requireObjectField
 import semantics.arbitrary.ArbitraryRegistry
 import semantics.arbitrary.FieldCoordinate
@@ -151,7 +152,10 @@ private fun ArbitraryRegistry.fieldCheckerCoverage(
                 }
                 if (
                     observation.testCase.query.features.hasDuplicateSelections ||
-                    features.queryFragmentCount > 0
+                    features.queryFragmentCount > 0 ||
+                    observation.ordinary.fragment.subselections
+                        .repeatedSelectedFieldCoordinates()
+                        .any { sourceResolverCoordinate(it) in installedCheckerCoordinates }
                 ) {
                     add(GeneratedFieldCheckerCoverageSignature.REPEATED_CHECKER_COORDINATE)
                 }
@@ -333,6 +337,27 @@ private fun ArbitraryRegistry.fieldCheckerCoverage(
         activated = activatedApplications.keys,
         activatedApplications = activatedApplications,
     )
+}
+
+/**
+ * Generated potential, independent of execution: the same concrete field can be selected under
+ * different object paths, including paths through interfaces or unions. Syntactic repetitions
+ * can still merge at runtime, so this does not establish activation.
+ */
+internal fun SelectionForest.repeatedSelectedFieldCoordinates(): Set<FieldCoordinate> {
+    val seen = mutableSetOf<FieldCoordinate>()
+    val repeated = mutableSetOf<FieldCoordinate>()
+    fun visit(selections: SelectionForest) {
+        selections.forEach { selection ->
+            selection.possibleTypes.forEach { type ->
+                val coordinate = FieldCoordinate(type.name, selection.key.field.name)
+                if (!seen.add(coordinate)) repeated.add(coordinate)
+            }
+            visit(selection.subselections)
+        }
+    }
+    visit(this)
+    return repeated
 }
 
 private fun <T> List<T>.startsWith(prefix: List<T>): Boolean =

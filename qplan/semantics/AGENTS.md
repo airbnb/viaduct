@@ -1,7 +1,7 @@
 # Semantics Documentation
 
 - [`README.md`](./README.md) - Start here for the module boundary, principal judgment, semantic context vocabulary and ownership, shared operation dependencies, and publication model.
-- [`../resolver-versions.md`](../resolver-versions.md) - Use to compare capabilities and execution structures across maintained resolvers.
+- [`../resolver-versions.md`](../resolver-versions.md) - Read before changing resolver decomposition or naming; use its alignment policy, code naming preferences, and capability/execution comparison grid.
 - [`testing-contracts.md`](./testing-contracts.md) - Read before changing or interpreting feature contracts, policies, generated profiles, or replay behavior.
 - [`property-test-rounds.md`](./property-test-rounds.md) - Read before changing serialized generator profiles, campaign resources, the standalone launcher, or broad-campaign execution.
 - [`src/main/kotlin/semantics/resolver26/design.md`](./src/main/kotlin/semantics/resolver26/design.md) - Canonical description of the primary Resolver26 algorithm.

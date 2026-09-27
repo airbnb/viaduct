@@ -8,14 +8,14 @@ Maintaining Resolver01–23 helps preserve Resolver26's architectural integrity.
 
 Qplan models resolver object fragments and independently resolved Query-rooted fragments. It also models source-sensitive ownership for argumentless fields: a field with a standard resolver is dynamically passive when an ancestor resolver output supplies it and otherwise remains active. Support for these capabilities varies by resolver version; [`resolver-versions.md`](./resolver-versions.md) and [`semantics/testing-contracts.md`](./semantics/testing-contracts.md) contain the maintained capability matrix.
 
-The longer-term `viaduct.engine.runtime.execution2` goal is query execution only. Its stated boundary excludes mutations, subscriptions, custom scalars, resolver query fragments and `fromQueryField` variables, EOD aliases, and asynchronous EOD variants. Qplan's current query-fragment model is intentionally broader than that prospective integration boundary. The future goal supplies context for qplan but is not an instruction to design or implement `execution2`.
+The longer-term [runtime2 integration plan](https://slate.airbnb.tools/hSFpbNvtAN) centers Resolver26 as the production algorithm and retains earlier families in unpublished development support outside `main`. [`resolver-versions.md`](./resolver-versions.md#production-direction-and-package-ownership) explains how that direction guides today's package ownership. The plan owns the integration milestones and supported subset; implementing runtime2 remains separate from an ordinary qplan refactor.
 
 ## Documentation Map
 
 - [`handoff.md`](./handoff.md) records the current implementation state, carrier boundaries, validation evidence, and longer-term context.
 - [`design-principles.md`](./design-principles.md) states durable modeling and resolver-design principles.
 - [`research-evidence.md`](./research-evidence.md) preserves findings, correctness obligations, hard cases, acceptance cases, prior art, and source provenance behind those principles.
-- [`resolver-versions.md`](./resolver-versions.md) explains why every maintained resolver exists and how earlier versions help simplify or debug Resolver26 work.
+- [`resolver-versions.md`](./resolver-versions.md) defines cross-family alignment goals and code naming preferences, explains why every maintained resolver exists, and shows how earlier versions help simplify or debug Resolver26 work.
 - [`model/guidelines.md`](./model/guidelines.md) defines model-world boundaries, including the role of `Assumptions` and the mathematical-signature rules for model dependencies.
 - [`semantics/README.md`](./semantics/README.md) defines semantic contexts, state and task roles, dependency ownership, and the shared resolver boundaries built around `SharedOperationContext`.
 - [`viaduct-execution.md`](./viaduct-execution.md) describes the idealized source-world execution model that qplan represents.

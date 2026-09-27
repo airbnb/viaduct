@@ -21,6 +21,7 @@ import model.selectionForestOf
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import semantics.resolvers.resolver01.SiblingDependencyLogic
+import semantics.shared.OrchestrationConstructionDemand
 import semantics.shared.Demand
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
@@ -36,8 +37,8 @@ class ConstructionDemandClosureTest {
         val fixture = queryClosureFixture()
         val schema = fixture.assumptions.schema
         val closed =
-            fixture.closeOrchestratorDemand(
-                OrchestratorConstructionDemand.checkedObject(
+            fixture.closeOrchestrationDemand(
+                OrchestrationConstructionDemand.checkedObject(
                     schema.fragmentFrom("fragment F on Query { leaf }").subselections,
                 ),
             )
@@ -53,8 +54,8 @@ class ConstructionDemandClosureTest {
         val fixture = queryClosureFixture()
         val schema = fixture.assumptions.schema
         val closed =
-            fixture.closeOrchestratorDemand(
-                OrchestratorConstructionDemand.checkedObject(
+            fixture.closeOrchestrationDemand(
+                OrchestrationConstructionDemand.checkedObject(
                     schema.fragmentFrom("fragment F on Query { entry }").subselections,
                 ),
             )
@@ -76,8 +77,8 @@ class ConstructionDemandClosureTest {
         val fixture = queryClosureFixture()
         val schema = fixture.assumptions.schema
         val closed =
-            fixture.closeOrchestratorDemand(
-                OrchestratorConstructionDemand.checkedObject(
+            fixture.closeOrchestrationDemand(
+                OrchestrationConstructionDemand.checkedObject(
                     schema.fragmentFrom("fragment F on Query { entry }").subselections,
                 ),
             )
@@ -98,8 +99,8 @@ class ConstructionDemandClosureTest {
         val rawOwnerSelections =
             schema.fragmentFrom("fragment F on Query { rawOwner }").subselections
         val closed =
-            fixture.closeOrchestratorDemand(
-                OrchestratorConstructionDemand(
+            fixture.closeOrchestrationDemand(
+                OrchestrationConstructionDemand(
                     objectRooted = Demand(ownerSelections, rawOwnerSelections),
                     queryRooted = Demand(rawOwnerSelections, rawOwnerSelections),
                 ),
@@ -124,8 +125,8 @@ class ConstructionDemandClosureTest {
         val childResult =
             schema.fragmentFrom("fragment F on Query { child { result } }").subselections
         val closed =
-            fixture.closeOrchestratorDemand(
-                OrchestratorConstructionDemand.checkedObject(childResult),
+            fixture.closeOrchestrationDemand(
+                OrchestrationConstructionDemand.checkedObject(childResult),
             )
 
         assertEquals(
@@ -147,8 +148,8 @@ class ConstructionDemandClosureTest {
         val childResult =
             schema.fragmentFrom("fragment F on Query { child { result } }").subselections
         val closed =
-            fixture.closeOrchestratorDemand(
-                OrchestratorConstructionDemand(
+            fixture.closeOrchestrationDemand(
+                OrchestrationConstructionDemand(
                     objectRooted = Demand.EMPTY,
                     queryRooted = Demand.unchecked(childResult),
                 ),
@@ -520,16 +521,16 @@ class ConstructionDemandClosureTest {
             },
         )
 
-    private fun TestWorld.closeOrchestratorDemand(
-        initialDemand: OrchestratorConstructionDemand<SelectionForest>,
-    ): OrchestratorConstructionDemand<ObjectSelectionForest> {
+    private fun TestWorld.closeOrchestrationDemand(
+        initialDemand: OrchestrationConstructionDemand<SelectionForest>,
+    ): OrchestrationConstructionDemand<ObjectSelectionForest> {
         val world = assumptions
         val query = world.schema.requireQueryTypeDef()
         val objectRoot = ObjectEngineResult.of(query, emptyMap())
         val queryRoot = ObjectEngineResult.of(query, emptyMap())
         return world.schema
             .objectOf("Query")
-            .closeOrchestratorConstructionDemand(
+            .closeOrchestrationConstructionDemand(
                 operation = SharedOperationContext.create(world),
                 objectOccurrence = OEROccurrence(objectRoot, emptyList(), objectRoot),
                 queryOccurrence = OEROccurrence(queryRoot, emptyList(), queryRoot),
@@ -544,11 +545,11 @@ class ConstructionDemandClosureTest {
     ): ObjectSelectionForest {
         val queryRoot =
             ObjectEngineResult.of(operation.world.schema.requireQueryTypeDef(), emptyMap())
-        return closeOrchestratorConstructionDemand(
+        return closeOrchestrationConstructionDemand(
             operation = operation,
             objectOccurrence = objectOccurrence,
             queryOccurrence = OEROccurrence(queryRoot, emptyList(), queryRoot),
-            initialDemand = OrchestratorConstructionDemand.checkedObject(initialDemand),
+            initialDemand = OrchestrationConstructionDemand.checkedObject(initialDemand),
         ).objectRooted.values.merge(schemaType)
     }
 

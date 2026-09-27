@@ -13,11 +13,13 @@ import model.schemaType
 import model.satisfiableAlternatives
 import model.selectionForestOf
 import semantics.resolver26.liftParentConstructionDemand
+import semantics.shared.OrchestrationConstructionDemand
 import semantics.shared.Demand
 import semantics.shared.OEROccurrence
 import semantics.shared.ResolverInputConstructionDemand
 import semantics.shared.SharedOperationContext
 import semantics.shared.applicableGroundSelections
+import semantics.shared.requiresStandardResolution
 import semantics.shared.argumentsContainErrorValue
 import semantics.shared.plus
 import viaduct.engine.api.EngineObjectData
@@ -27,8 +29,8 @@ import viaduct.graphql.schema.ViaductSchema
  * Closes object- and Query-rooted construction demand for one orchestration scope.
  *
  * Object-side resolvers contribute object fragments to
- * [OrchestratorConstructionDemand.objectRooted] and Query fragments to
- * [OrchestratorConstructionDemand.queryRooted]. Query-side resolvers contribute both fragments
+ * [OrchestrationConstructionDemand.objectRooted] and Query fragments to
+ * [OrchestrationConstructionDemand.queryRooted]. Query-side resolvers contribute both fragments
  * back to the Query-rooted component. Every resolver input contribution is checked even when
  * unchecked demand activated its owner.
  *
@@ -38,12 +40,12 @@ import viaduct.graphql.schema.ViaductSchema
  * source remain passive. The associated Query OER has no passive source; every demanded Query
  * field uses its registered resolver. Only demand and expansion bookkeeping change between steps.
  */
-internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
+internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
     operation: SharedOperationContext<*>,
     objectOccurrence: OEROccurrence,
     queryOccurrence: OEROccurrence,
-    initialDemand: OrchestratorConstructionDemand<SelectionForest>,
-): OrchestratorConstructionDemand<ObjectSelectionForest> {
+    initialDemand: OrchestrationConstructionDemand<SelectionForest>,
+): OrchestrationConstructionDemand<ObjectSelectionForest> {
     require(schemaType == objectOccurrence.target.type) {
         "Source type ${schemaType.name} does not match result type ${objectOccurrence.target.type.name}"
     }
@@ -145,7 +147,7 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
                 )
             accumulatedDemand =
                 groundedDemand +
-                    OrchestratorConstructionDemand(
+                    OrchestrationConstructionDemand(
                         objectRooted =
                             Demand(
                                 checked = objectResolverInputs.objectFragment,
@@ -171,15 +173,15 @@ internal fun EngineObjectData.Sync.closeOrchestratorConstructionDemand(
     )
 }
 
-private fun OrchestratorConstructionDemand<SelectionForest>.groundWithLiftedParentDemand(
+private fun OrchestrationConstructionDemand<SelectionForest>.groundWithLiftedParentDemand(
     operation: SharedOperationContext<*>,
     objectType: ViaductSchema.Object,
-): OrchestratorConstructionDemand<ObjectSelectionForest> {
+): OrchestrationConstructionDemand<ObjectSelectionForest> {
     val objectWithParentDemand =
         objectRooted + objectRooted.liftParentConstructionDemand(operation.world)
     val queryWithParentDemand =
         queryRooted + queryRooted.liftParentConstructionDemand(operation.world)
-    return OrchestratorConstructionDemand(
+    return OrchestrationConstructionDemand(
         objectRooted = objectWithParentDemand.applicableGroundSelections(operation, objectType),
         queryRooted =
             queryWithParentDemand.applicableGroundSelections(
@@ -261,15 +263,4 @@ private fun Set<ObjectEngineResult.GroundKey>.resolverInputDemand(
         queryFragment += fragments.queryFragment.constructionSelections
     }
     return ResolverInputConstructionDemand(objectFragment, queryFragment)
-}
-
-private fun EngineObjectData.Sync.requiresStandardResolution(
-    key: ObjectEngineResult.GroundKey,
-): Boolean {
-    if (!isPresent(key.field.name)) return true
-    require(key.field.args.isEmpty()) {
-        "Resolver output must not supply argument-bearing field " +
-            "${schemaType.name}/${key.field.name}"
-    }
-    return false
 }

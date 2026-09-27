@@ -12,7 +12,7 @@ import semantics.resolvers.resolver01.DepthFirstFieldResolverTask
 internal fun DepthFirstTask.toContractObservation(): ResolverTaskObservation =
     when (this) {
         is DepthFirstOrchestrationTask ->
-            ResolverTaskObservation.SlotOrchestrator(
+            ResolverTaskObservation.SlotOrchestration(
                 objectType = objectOER.occurrence.target.type.name,
                 path = path.toContractObservationPath(),
             )

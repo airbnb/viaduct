@@ -16,10 +16,11 @@ import model.outputValue
 import model.registry.FieldResolver
 import model.registry.ResolverFragment
 import model.requireQueryTypeDef
-import model.selectionForestOf
+import semantics.resolver26.CoroutineFieldResolverTaskBase
 import semantics.resolvers.GroundedFieldPublicationOccurrence
 import semantics.resolvers.materializeResolverInput
 import semantics.shared.CycleTask
+import semantics.shared.descendants
 import semantics.shared.Demand
 import semantics.shared.fieldResolverCycleTask
 import semantics.shared.valueCycleSlot
@@ -28,7 +29,7 @@ import semantics.shared.valueCycleSlot
 internal class CoroutineFieldResolverTask private constructor(
     publication: GroundedFieldPublicationOccurrence<CoroutineOperationContext>,
     fieldTaskScope: CoroutineScope,
-) : semantics.resolver26.CoroutineFieldResolverTask<GroundedFieldPublicationOccurrence<CoroutineOperationContext>>(publication, fieldTaskScope) {
+) : CoroutineFieldResolverTaskBase<GroundedFieldPublicationOccurrence<CoroutineOperationContext>>(publication, fieldTaskScope) {
     private val resolutionLogic = FieldResolutionLogic(this)
 
     companion object {
@@ -42,9 +43,7 @@ internal class CoroutineFieldResolverTask private constructor(
                 orchestrationTask.queryOER to orchestrationTask.closedConstructionDemand.queryRooted,
             ).flatMap { (oer, constructionDemand) ->
                 val occurrence = oer.occurrence
-                val checkedByKey = constructionDemand.checked.byGroundKey()
-                val uncheckedByKey = constructionDemand.unchecked.byGroundKey()
-                oer.closedDemand.byGroundKey()
+                oer.closedValueSelections.byGroundKey()
                     .filterKeys { !occurrence.target.isCellSet(it) }
                     .map { (key, selection) ->
                         val reference = if (oer.source.isPresent(key.field.name)) {
@@ -58,11 +57,7 @@ internal class CoroutineFieldResolverTask private constructor(
                                 publicationCell = occurrence.target.reserveCell(key),
                                 reference = reference,
                                 queryOER = orchestrationTask.queryOER,
-                                constructionDemand =
-                                    Demand(
-                                        checked = checkedByKey[key]?.subselections ?: selectionForestOf(),
-                                        unchecked = uncheckedByKey[key]?.subselections ?: selectionForestOf(),
-                                    ),
+                                constructionDemand = constructionDemand.descendants(key),
                             ),
                         )
                     }
@@ -70,7 +65,7 @@ internal class CoroutineFieldResolverTask private constructor(
         }
 
         /** List references use the same publication protocol at their exact list-element path. */
-        fun launchForListElement(publication: GroundedFieldPublicationOccurrence<CoroutineOperationContext>) {
+        fun prepareAndDispatchListElement(publication: GroundedFieldPublicationOccurrence<CoroutineOperationContext>) {
             publication.operation.dispatcher.dispatchFieldResolver(prepare(publication))
         }
 
@@ -92,6 +87,7 @@ internal class CoroutineFieldResolverTask private constructor(
     }
 
     override suspend fun executeAndPublish() {
+        resolutionLogic.validate()
         resolutionLogic.publishResult()
     }
 
@@ -104,7 +100,7 @@ internal class CoroutineFieldResolverTask private constructor(
      * are dispatched on the request root, as in Resolver26; the producer awaits only its input.
      * Failures are returned to the owning field without cancelling its scope.
      */
-    fun launchQueryFragmentProducer(
+    fun launchIndependentQueryFragmentProducer(
         resolver: FieldResolver,
         queryFragment: ResolverFragment,
         reader: CycleTask,

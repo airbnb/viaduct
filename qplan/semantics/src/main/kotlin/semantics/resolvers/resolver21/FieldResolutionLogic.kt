@@ -5,6 +5,7 @@ import model.EngineErrorData
 import model.EngineObjectOrErrorData
 import model.ErrorEngineResult
 import model.NodeReferenceIdentity
+import model.ObjectEngineResult
 import model.ResolverOutputData
 import model.RootFieldReferenceData
 import model.SelectionForest
@@ -16,7 +17,7 @@ import model.registry.FieldResolver
 import model.registry.ResolverFragment
 import model.registry.ResolutionExecutionContext
 import semantics.resolvers.emptyObjectInput
-import semantics.resolvers.prepareInvocation
+import semantics.resolvers.prepareRootFieldReferenceInvocation
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.RootFieldReferenceInvocationObservation
 import semantics.shared.CycleTask
@@ -29,6 +30,25 @@ import viaduct.engine.api.EngineObjectData
 internal class FieldResolutionLogic(
     private val fieldResolverTask: CoroutineFieldResolverTask,
 ) {
+    /** Validate inside the field-error boundary, before starting any invocation or Query producer. */
+    fun validate() {
+        val publication = fieldResolverTask.publication
+        val key = publication.selection.key
+        require(key.field.containingDef == publication.oerOccurrence.target.type) {
+            "Resolver selection does not belong to its target occurrence"
+        }
+        if (publication.publicationPath.lastOrNull() is ObjectEngineResult.ObjectKey) {
+            require(publication.oerOccurrence.target.getCell(key) === publication.publicationCell) {
+                "Resolver cell does not belong to its target occurrence and selection"
+            }
+        }
+        publication.reference?.let { reference ->
+            require(reference.targetField in publication.operation.world.resolverRegistry) {
+                "Root-field-reference target has no resolver"
+            }
+        }
+    }
+
     /** Publishes into the cell already activated by task preparation. */
     fun publishFieldError(cause: Exception) {
         val publication = fieldResolverTask.publication
@@ -148,12 +168,12 @@ internal class FieldResolutionLogic(
         invocationDemand: SelectionForest,
     ): ResolverOutputData? {
         val publication = fieldResolverTask.publication
-        val invocation = reference.prepareInvocation(publication.operation)
+        val invocation = reference.prepareRootFieldReferenceInvocation(publication.operation)
         val queryProducer =
-            fieldResolverTask.launchQueryFragmentProducer(
+            fieldResolverTask.launchIndependentQueryFragmentProducer(
                 invocation.resolver,
                 invocation.fragments.queryFragment,
-                invocation.root.fieldResolverCycleTask(invocation.path),
+                invocation.invocationRoot.fieldResolverCycleTask(invocation.invocationPath),
             )
         val queryValue = when (val value = queryProducer.await()) {
             is EngineObjectOrErrorData.Success -> value.value
@@ -166,8 +186,8 @@ internal class FieldResolutionLogic(
             )
         publication.operation.resolverObserver.onResolverInvocation(
             ResolverInvocationObservation(
-                occurrencePath = invocation.path,
-                field = invocation.key.field,
+                occurrencePath = invocation.invocationPath,
+                field = invocation.invocationKey.field,
                 input = input,
                 inputSelections = materializeSelectionForestOf(),
                 queryValue = queryValue,
@@ -191,9 +211,9 @@ internal class FieldResolutionLogic(
                 publicationRoot = publication.oerOccurrence.root,
                 publicationPath = publication.publicationPath,
                 reference = reference,
-                invocationRoot = invocation.root,
-                invocationPath = invocation.path,
-                invocationKey = invocation.key,
+                invocationRoot = invocation.invocationRoot,
+                invocationPath = invocation.invocationPath,
+                invocationKey = invocation.invocationKey,
                 suppliedDemand = invocationDemand,
             ),
         )

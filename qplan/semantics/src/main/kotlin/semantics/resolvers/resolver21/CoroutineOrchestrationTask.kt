@@ -11,37 +11,38 @@ import model.merge
 import model.outputValue
 import model.requireQueryTypeDef
 import model.schemaType
-import semantics.resolvers.OrchestratorConstructionDemand
-import semantics.resolvers.closeOrchestratorConstructionDemand
+import semantics.shared.OrchestrationConstructionDemand
+import semantics.resolver26.CoroutineOrchestrationTaskBase
+import semantics.resolvers.closeOrchestrationConstructionDemand
 import semantics.shared.OEROccurrence
 import semantics.shared.Demand
 import semantics.shared.SharedOERContext
 import semantics.resolver26.installParentBackedgeFields
 import viaduct.engine.api.EngineObjectData
 
-/** Closes one object's demand before passive descent, then installs and launches its field tasks. */
+/** Closes one object's demand before passive descent, then prepares and dispatches its field work. */
 internal class CoroutineOrchestrationTask private constructor(
     operation: CoroutineOperationContext,
     objectOER: SharedOERContext,
     queryOER: SharedOERContext,
-    val closedConstructionDemand: OrchestratorConstructionDemand<ObjectSelectionForest>,
-) : semantics.resolver26.CoroutineOrchestrationTask<CoroutineOperationContext>(operation, objectOER, queryOER) {
+    val closedConstructionDemand: OrchestrationConstructionDemand<ObjectSelectionForest>,
+) : CoroutineOrchestrationTaskBase<CoroutineOperationContext>(operation, objectOER, queryOER) {
     companion object {
         /** Prepares grounded bindings and parent backedges without dispatching active work. */
         fun create(
             operation: CoroutineOperationContext,
             occurrence: OEROccurrence,
             source: EngineObjectData.Sync,
-            initialDemand: SelectionForest,
+            constructionDemand: SelectionForest,
         ): CoroutineOrchestrationTask =
-            create(operation, occurrence, source, Demand.checked(initialDemand))
+            create(operation, occurrence, source, Demand.checked(constructionDemand))
 
         /** Retains checked and unchecked descendant demand through passive object boundaries. */
         fun create(
             operation: CoroutineOperationContext,
             occurrence: OEROccurrence,
             source: EngineObjectData.Sync,
-            initialDemand: Demand<SelectionForest>,
+            constructionDemand: Demand<SelectionForest>,
         ): CoroutineOrchestrationTask {
             require(source.schemaType == occurrence.target.type) {
                 "Source type ${source.schemaType.name} does not match result type ${occurrence.target.type.name}"
@@ -49,14 +50,14 @@ internal class CoroutineOrchestrationTask private constructor(
             val queryType = operation.world.schema.requireQueryTypeDef()
             val queryResult = ObjectEngineResult.of(queryType, mutable = true)
             val queryOccurrence = OEROccurrence(queryResult, emptyList(), queryResult)
-            val closed =
-                source.closeOrchestratorConstructionDemand(
+            val closedConstructionDemand =
+                source.closeOrchestrationConstructionDemand(
                     operation = operation,
                     objectOccurrence = occurrence,
                     queryOccurrence = queryOccurrence,
                     initialDemand =
-                        OrchestratorConstructionDemand(
-                            objectRooted = initialDemand,
+                        OrchestrationConstructionDemand(
+                            objectRooted = constructionDemand,
                             queryRooted = Demand.EMPTY,
                         ),
                 )
@@ -64,24 +65,24 @@ internal class CoroutineOrchestrationTask private constructor(
                 SharedOERContext(
                     occurrence = occurrence,
                     source = source,
-                    closedDemand = closed.objectRooted.values.merge(source.schemaType),
+                    closedValueSelections = closedConstructionDemand.objectRooted.values.merge(source.schemaType),
                 )
             val queryOER =
                 SharedOERContext(
                     occurrence = queryOccurrence,
                     source = engineObjectDataOf(queryType),
-                    closedDemand = closed.queryRooted.values.merge(queryType),
+                    closedValueSelections = closedConstructionDemand.queryRooted.values.merge(queryType),
                 )
-            val task = CoroutineOrchestrationTask(operation, objectOER, queryOER, closed)
-            listOf(task.objectOER, task.queryOER).forEach { oer ->
+            val orchestration = CoroutineOrchestrationTask(operation, objectOER, queryOER, closedConstructionDemand)
+            listOf(orchestration.objectOER, orchestration.queryOER).forEach { oer ->
                 val parentKeys =
-                    oer.closedDemand
+                    oer.closedValueSelections
                         .groundKeys()
                         .filterIsInstance<ObjectEngineResult.ParentKey>()
                 oer.occurrence.installParentBackedgeFields(operation, parentKeys)
             }
-            task.observeQueryOER()
-            return task
+            orchestration.observeQueryOER()
+            return orchestration
         }
     }
 
@@ -92,7 +93,7 @@ internal class CoroutineOrchestrationTask private constructor(
                 queryOER to closedConstructionDemand.queryRooted,
             ).any { (oer, constructionDemand) ->
                 val checkedKeys = constructionDemand.checked.byGroundKey().keys
-                oer.closedDemand.groundKeys().any { key ->
+                oer.closedValueSelections.groundKeys().any { key ->
                 key !is ObjectEngineResult.ParentKey &&
                     (
                         !oer.source.isPresent(key.field.name) ||
@@ -108,7 +109,7 @@ internal class CoroutineOrchestrationTask private constructor(
     override fun duplicateDispatchException(): RuntimeException =
         IllegalStateException("Object orchestrated twice: ${objectOER.occurrence.path}")
 
-    override fun installFieldTasks() {
+    override fun prepareAndDispatchFieldWork() {
         val fieldPublications = CoroutineFieldResolverTask.prepareAll(this)
         val checkerPublications = CoroutineFieldCheckerTask.prepareAll(this)
         checkerPublications.filter { it.checker == null }.forEach { publication ->
@@ -141,7 +142,7 @@ internal class CoroutineOrchestrationTask private constructor(
     private fun queryFragmentOwners(
         oer: SharedOERContext,
     ): List<Pair<ObjectEngineResult.GroundKey, ResolverOccurrenceId>> =
-        oer.closedDemand
+        oer.closedValueSelections
             .byGroundKey()
             .keys
             .filter { key -> !oer.occurrence.target.isCellSet(key) }

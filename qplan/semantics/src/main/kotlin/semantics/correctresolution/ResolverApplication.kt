@@ -155,10 +155,10 @@ internal class QueryOERValidationState {
             val queryOER =
                 (operation.resolverObserver as? CorrectnessResolverObserver)
                     ?.queryOER(result)
-            val selections = queryOER?.closedDemand ?: ownerSelections
+            val selections = queryOER?.closedValueSelections ?: ownerSelections
             val hasExactOERKeys =
                 queryOER == null ||
-                    result.keys.toSet() == queryOER.closedDemand.byKey().keys
+                    result.keys.toSet() == queryOER.closedValueSelections.byKey().keys
             val valid =
                 hasExactOERKeys &&
                     result.correctResolution(

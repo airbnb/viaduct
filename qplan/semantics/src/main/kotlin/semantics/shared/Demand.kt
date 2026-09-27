@@ -1,5 +1,6 @@
 package semantics.shared
 
+import model.ObjectEngineResult
 import model.InclusionCondition
 import model.ObjectSelectionForest
 import model.SelectionForest
@@ -54,4 +55,13 @@ internal fun Demand<SelectionForest>.merge(
     Demand(
         checked = checked.merge(type),
         unchecked = unchecked.merge(type),
+    )
+
+/** Descendant provenance travels through value publication, including lists and references. */
+internal fun Demand<ObjectSelectionForest>.descendants(
+    key: ObjectEngineResult.ObjectKey,
+): Demand<SelectionForest> =
+    Demand(
+        checked = checked.byKey()[key]?.subselections ?: selectionForestOf(),
+        unchecked = unchecked.byKey()[key]?.subselections ?: selectionForestOf(),
     )

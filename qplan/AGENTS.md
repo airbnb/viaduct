@@ -5,7 +5,7 @@
 - [`design-principles.md`](./design-principles.md) - Use for durable modeling rules, semantic boundaries, occurrence identity, one-shot correctness, and the Engine API boundary.
 - [`research-evidence.md`](./research-evidence.md) - Use for the evidence, obligations, hard cases, prior art, acceptance cases, and provenance behind the design principles.
 - [`maintainer-guide.md`](./maintainer-guide.md) - Use for validation, replay, failure classification, debugging, documentation conventions, and investigation workflow.
-- [`resolver-versions.md`](./resolver-versions.md) - Use to understand the maintained resolver grid and choose a simpler comparison implementation.
+- [`resolver-versions.md`](./resolver-versions.md) - Read before changing resolver decomposition or naming; owns cross-family alignment policy, code naming preferences, and the maintained comparison grid.
 - [`access-check-semantics.md`](./access-check-semantics.md) - Use for access-check vocabulary, checker demand, enforcement boundaries, type base-cell behavior, fresh checker Query OERs, and bypass semantics.
 - [Producer-Activation Inclusion Handoff](https://slate.airbnb.tools/w875KwohFB) - Deferred design handoff for making Resolver01–08 and Resolver21–23 apply `@skip`/`@include` to resolver, checker, Query-fragment, and reference activation rather than only input projection.
 - [`model/guidelines.md`](./model/guidelines.md) - Read before changing semantic carriers, equality, factories, promises, keys, result structures, or model dependency boundaries involving `Assumptions`.

@@ -235,9 +235,9 @@ class QueryFragmentProducerTest : Resolver26DispatcherResource {
                         target = root,
                     ),
                 source = source,
-                initialDemand = selections,
+                constructionDemand = selections,
             )
-        operation.dispatcher.dispatchOrchestrator(orchestration)
+        operation.dispatcher.dispatchOrchestration(orchestration)
         return StartedQueryFragmentResolution(operation, root, key)
     }
 

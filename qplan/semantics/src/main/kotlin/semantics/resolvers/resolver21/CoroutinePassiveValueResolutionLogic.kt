@@ -43,7 +43,7 @@ internal class CoroutinePassiveValueResolutionLogic(operation: CoroutineOperatio
         invocationDemand: SelectionForest,
         parent: OEROccurrence,
     ) {
-        CoroutineFieldResolverTask.launchForListElement(
+        CoroutineFieldResolverTask.prepareAndDispatchListElement(
             GroundedFieldPublicationOccurrence(
                 operation = operation,
                 oerOccurrence = parent,

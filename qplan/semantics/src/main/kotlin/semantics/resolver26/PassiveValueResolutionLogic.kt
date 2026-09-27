@@ -1,9 +1,7 @@
 package semantics.resolver26
 
-import model.EngineResult
 import model.EngineResultCell
 import model.InclusionCondition
-import model.ObjectEngineResult
 import model.ObjectSelection
 import model.ObjectSelectionForest
 import model.PathComponent
@@ -13,33 +11,12 @@ import model.SelectionForest
 import model.merge
 import semantics.shared.OEROccurrence
 import semantics.shared.Demand
-import semantics.shared.fieldResolverCycleTask
-import semantics.shared.valueCycleSlot
 import semantics.shared.SharedPassiveValueResolutionLogic
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
 
-internal fun ResolverOutputData?.resolvePassiveValues(
-    operation: OperationContext,
-    root: ObjectEngineResult,
-    expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
-    path: List<PathComponent>,
-    invocationDemand: SelectionForest,
-    constructionDemand: Demand<SelectionForest>,
-    parent: OEROccurrence? = null,
-): EngineResult? =
-    PassiveValueResolutionLogic(operation).resolvePassiveValues(
-        this,
-        root,
-        expectedType,
-        path,
-        constructionDemand,
-        invocationDemand,
-        parent,
-    )
-
 /** Only symbolic demand and task dispatch are specific to Resolver26. */
-private class PassiveValueResolutionLogic(
+internal class PassiveValueResolutionLogic(
     operation: OperationContext,
 ) : SharedPassiveValueResolutionLogic<OrchestrationTask, OperationContext>(operation) {
     override fun createOrchestrationTask(
@@ -48,7 +25,7 @@ private class PassiveValueResolutionLogic(
         constructionDemand: Demand<SelectionForest>,
     ): OrchestrationTask = OrchestrationTask.create(operation, occurrence, source, constructionDemand)
 
-    override fun closedConstructionDemand(orchestration: OrchestrationTask): Demand<ObjectSelectionForest> = orchestration.closed.objectRooted.constructionDemand
+    override fun closedConstructionDemand(orchestration: OrchestrationTask): Demand<ObjectSelectionForest> = orchestration.closedConstructionDemand.objectRooted.constructionDemand
 
     override fun collect(
         selections: SelectionForest,
@@ -65,12 +42,7 @@ private class PassiveValueResolutionLogic(
         invocationDemand: SelectionForest,
         parent: OEROccurrence,
     ) {
-        cell.createValuePromise()
-        operation.cycleChecker.registerWriter(
-            slot = cell.valueCycleSlot,
-            writer = parent.root.fieldResolverCycleTask(path),
-        )
-        FieldResolverTask.launchForListElement(
+        FieldResolverTask.prepareAndDispatchListElement(
             operation = operation,
             oerOccurrence = parent,
             sourceOccurrence = RootFieldReferenceOccurrence(
@@ -85,7 +57,7 @@ private class PassiveValueResolutionLogic(
     }
 
     override fun deferReferenceList(
-        occurrence: OEROccurrence,
+        orchestration: OrchestrationTask,
         selection: ObjectSelection,
         value: ResolverOutputData?,
         invocationDemand: SelectionForest,
@@ -93,15 +65,13 @@ private class PassiveValueResolutionLogic(
     ): Boolean {
         if (selection.inclusionCondition === InclusionCondition.Always) return false
         if (selection.inclusionCondition !== InclusionCondition.Never) {
-            FieldResolverTask.installAndLaunch(
-                operation = operation,
-                oerOccurrence = occurrence,
-                sourceOccurrence = PassiveValueOccurrence(
+            orchestration.prepareConditionedPassiveValue(
+                PassiveValueOccurrence(
                     selection = selection,
                     value = value,
                     invocationDemand = invocationDemand,
                     publicationConstructionDemand = constructionDemand,
-                    publicationPath = occurrence.coordinate(selection.key),
+                    publicationPath = orchestration.objectOER.occurrence.coordinate(selection.key),
                 ),
             )
         }

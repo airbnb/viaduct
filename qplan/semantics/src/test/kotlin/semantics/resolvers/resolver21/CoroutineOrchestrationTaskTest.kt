@@ -38,11 +38,11 @@ class CoroutineOrchestrationTaskTest {
                     operation = operation,
                     occurrence = OEROccurrence(root, emptyList(), root),
                     source = world.resolverRegistry.createRootQueryInput(),
-                    initialDemand = selectionForestOf(),
+                    constructionDemand = selectionForestOf(),
                 )
 
             assertFalse(task.queryOER.isDemanded())
-            operation.dispatcher.dispatchOrchestrator(task)
+            operation.dispatcher.dispatchOrchestration(task)
 
             assertEquals(emptySet(), task.queryOER.occurrence.target.keys)
             val extra =
@@ -82,14 +82,14 @@ class CoroutineOrchestrationTaskTest {
                     operation = operation,
                     occurrence = OEROccurrence(root, emptyList(), root),
                     source = world.resolverRegistry.createRootQueryInput(),
-                    initialDemand = Demand.checked(selectionForestOf()),
+                    constructionDemand = Demand.checked(selectionForestOf()),
                 )
 
-            operation.dispatcher.dispatchOrchestrator(task)
+            operation.dispatcher.dispatchOrchestration(task)
 
             val failure =
                 assertFailsWith<IllegalStateException> {
-                    operation.dispatcher.dispatchOrchestrator(task)
+                    operation.dispatcher.dispatchOrchestration(task)
                 }
             assertEquals("Object orchestrated twice: []", failure.message)
         }

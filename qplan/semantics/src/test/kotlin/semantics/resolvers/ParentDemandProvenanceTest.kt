@@ -9,6 +9,7 @@ import model.objectOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
+import semantics.shared.OrchestrationConstructionDemand
 import semantics.shared.Demand
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
@@ -51,14 +52,14 @@ class ParentDemandProvenanceTest {
         val original = schema.fragmentFrom(
             "fragment F on Query { organization { company { parent { name } } } }",
         ).subselections
-        val initial: OrchestratorConstructionDemand<SelectionForest> =
+        val initial: OrchestrationConstructionDemand<SelectionForest> =
             if (queryRooted) {
-                OrchestratorConstructionDemand(Demand.EMPTY, Demand.checked(original))
+                OrchestrationConstructionDemand(Demand.EMPTY, Demand.checked(original))
             } else {
-                OrchestratorConstructionDemand.checkedObject(original)
+                OrchestrationConstructionDemand.checkedObject(original)
             }
 
-        val closed = schema.objectOf("Query").closeOrchestratorConstructionDemand(
+        val closed = schema.objectOf("Query").closeOrchestrationConstructionDemand(
             operation = SharedOperationContext.create(world),
             objectOccurrence = OEROccurrence(objectRoot, emptyList(), objectRoot),
             queryOccurrence = OEROccurrence(queryRoot, emptyList(), queryRoot),

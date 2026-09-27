@@ -33,8 +33,8 @@ internal class DepthFirstResolve(
         queryFragmentOwner?.let {
             operation.resolverObserver.onIndependentQueryFragmentPrepared(it, result)
         }
-        dispatcher.dispatchOrchestrator(orchestration)
-        dispatcher.resolveOrchestrators()
+        dispatcher.dispatchOrchestration(orchestration)
+        dispatcher.resolveOrchestrationFringe()
         return result
     }
 }

@@ -254,7 +254,7 @@ interface QueryFragmentResolverContract : ResolverContract {
         val queryOER = requireNotNull(observations.queryOER(firstQueryResult))
         assertTrue(queryOER.isDemanded())
         val oerExactKeys =
-            queryOER.closedDemand
+            queryOER.closedValueSelections
                 .instantiateBindings(resolution.operation)
                 .byGroundKey()
                 .keys

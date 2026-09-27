@@ -6,7 +6,7 @@ import semantics.resolvers.GroundedFieldPublicationOccurrence
 internal class DepthFirstTaskDispatcher : DepthFirstDispatcher {
     private var pending = mutableListOf<DepthFirstOrchestrationTask>()
 
-    override fun dispatchOrchestrator(task: DepthFirstOrchestrationTask) {
+    override fun dispatchOrchestration(task: DepthFirstOrchestrationTask) {
         pending += task
     }
 
@@ -14,7 +14,7 @@ internal class DepthFirstTaskDispatcher : DepthFirstDispatcher {
         publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>,
         queryOERDepth: Int,
     ) {
-        DepthFirstFieldResolverTask.create(publication, queryOERDepth).run()
+        DepthFirstFieldResolverTask.prepare(publication, queryOERDepth).run()
     }
 
     /**
@@ -22,9 +22,9 @@ internal class DepthFirstTaskDispatcher : DepthFirstDispatcher {
      * dispatches children before their containing object, already in depth-first execution order.
      * A field's fringe must finish before its next dependent sibling may materialize inputs.
      */
-    fun resolveOrchestrators() {
+    fun resolveOrchestrationFringe() {
         val fringe = pending
         pending = mutableListOf()
-        fringe.forEach { it.run(::resolveOrchestrators) }
+        fringe.forEach { it.run(::resolveOrchestrationFringe) }
     }
 }

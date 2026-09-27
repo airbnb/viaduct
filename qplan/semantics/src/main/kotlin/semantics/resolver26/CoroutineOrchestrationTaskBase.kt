@@ -7,10 +7,10 @@ import semantics.shared.SharedOERContext
 import semantics.shared.SharedOrchestrationTask
 
 /**
- * Prepared object task with one-shot dispatch and synchronous field installation/freezing.
+ * Prepared object task with one-shot dispatch and synchronous publication preparation, dispatch, and freezing.
  * Supplies its concretely typed operation through [operation], separately from the task lifecycle.
  */
-internal abstract class CoroutineOrchestrationTask<O : SharedOperationContext<*>>(
+internal abstract class CoroutineOrchestrationTaskBase<O : SharedOperationContext<*>>(
     final override val operation: O,
     final override val objectOER: SharedOERContext,
     queryOER: SharedOERContext =
@@ -18,13 +18,13 @@ internal abstract class CoroutineOrchestrationTask<O : SharedOperationContext<*>
 ) : SharedOrchestrationTask<O> {
     final override val queryOER: SharedOERContext = queryOER
 
-    private val launched = AtomicBoolean(false)
+    private val dispatched = AtomicBoolean(false)
 
     internal abstract val hasActiveWork: Boolean
 
     /** Claims dispatch before validation or entering a request-root coroutine. */
     internal fun checkDispatch() {
-        if (!launched.compareAndSet(false, true)) {
+        if (!dispatched.compareAndSet(false, true)) {
             throw duplicateDispatchException()
         }
         validateDispatch()
@@ -35,14 +35,14 @@ internal abstract class CoroutineOrchestrationTask<O : SharedOperationContext<*>
             "Orchestration task at ${objectOER.occurrence.path} was dispatched twice",
         )
 
-    /** Installs field tasks before sealing this object's field set. */
+    /** Prepares and dispatches field work before sealing this object's field set. */
     internal fun run() {
-        installFieldTasks()
+        prepareAndDispatchFieldWork()
         objectOER.occurrence.target.freeze()
         queryOER.occurrence.target.freeze()
     }
 
     protected open fun validateDispatch() {}
 
-    protected abstract fun installFieldTasks()
+    protected abstract fun prepareAndDispatchFieldWork()
 }

@@ -49,6 +49,7 @@ internal class FieldResolutionLogic(
     private var currentInvocation =
         fieldResolverTask.publication.sourceOccurrence as? FieldResolverOccurrence
 
+    /** Validate inside the field-error boundary, before starting any provider-reader work. */
     fun validate() {
         val publication = fieldResolverTask.publication
         val sourceOccurrence = publication.sourceOccurrence
@@ -121,7 +122,7 @@ internal class FieldResolutionLogic(
         val invocationDemand: SelectionForest =
             when (sourceOccurrence) {
                 is PassiveValueOccurrence -> sourceOccurrence.invocationDemand
-                else -> constructionDemand.successorDemand(publication.operation.world)
+                else -> constructionDemand.successorDemandFromConstructionDemand(publication.operation.world)
             }
 
         val activated = activatePublication()
@@ -153,7 +154,7 @@ internal class FieldResolutionLogic(
                     "the consumer publication type"
             }
             val invocation =
-                createRootFieldResolverOccurrence(
+                prepareRootFieldReferenceInvocation(
                     reference = reference,
                     constructionDemand = constructionDemand.values,
                 )
@@ -183,8 +184,8 @@ internal class FieldResolutionLogic(
             )
 
         val passiveValue: EngineResult? =
-            fieldValue.resolvePassiveValues(
-                operation = publication.operation,
+            publication.operation.passiveValues.resolvePassiveValues(
+                value = fieldValue,
                 root = publication.oerOccurrence.root,
                 expectedType = sourceOccurrence.publicationExpectedType,
                 path = sourceOccurrence.publicationPath,
@@ -336,20 +337,20 @@ internal class FieldResolutionLogic(
         )
     }
 
-    private fun createRootFieldResolverOccurrence(
+    private fun prepareRootFieldReferenceInvocation(
         reference: RootFieldReferenceData,
         constructionDemand: SelectionForest,
     ): FieldResolverOccurrence {
         val publication = fieldResolverTask.publication
-        val queryRoot = ObjectEngineResult.of(publication.operation.world.schema.requireQueryTypeDef())
+        val invocationRoot = ObjectEngineResult.of(publication.operation.world.schema.requireQueryTypeDef())
         val prefixKeys =
             reference.path.dropLast(1).map { prefixField ->
                 ObjectEngineResult.GroundKey.of(prefixField, emptyMap())
             }
-        val targetKey =
+        val invocationKey =
             ObjectEngineResult.GroundKey.of(reference.targetField, reference.arguments)
-        val invocationPath: List<PathComponent> = prefixKeys + targetKey
-        val resolverOccurrenceId = ResolverOccurrenceId.at(queryRoot, invocationPath)
+        val invocationPath: List<PathComponent> = prefixKeys + invocationKey
+        val resolverOccurrenceId = ResolverOccurrenceId.at(invocationRoot, invocationPath)
         val resolver = publication.operation.world.resolverRegistry.resolver(reference.targetField)
         val fragments = resolver.instantiateFragments(resolverOccurrenceId)
         require(fragments.objectFragment.constructionSelections.isEmpty()) {
@@ -370,12 +371,12 @@ internal class FieldResolutionLogic(
                 selection =
                     selectionForestOf(
                         Selection.of(
-                            key = targetKey,
+                            key = invocationKey,
                             possibleTypes = setOf(reference.targetField.containingDef),
                             subselections = constructionDemand,
                         ),
-                    ).merge(reference.targetField.containingDef).byKey().getValue(targetKey),
-                invocationRoot = queryRoot,
+                    ).merge(reference.targetField.containingDef).byKey().getValue(invocationKey),
+                invocationRoot = invocationRoot,
                 invocationPath = invocationPath,
                 resolverOccurrenceId = resolverOccurrenceId,
                 resolver = resolver,
@@ -419,7 +420,7 @@ internal class FieldResolutionLogic(
     ): ResolverOutputData? {
         val publication = fieldResolverTask.publication
         currentInvocation = fieldResolverOccurrence
-        val queryProducer = fieldResolverTask.launchQueryFragmentProducer(fieldResolverOccurrence)
+        val queryProducer = fieldResolverTask.launchIndependentQueryFragmentProducer(fieldResolverOccurrence)
         completeVariablesProviderBindings(fieldResolverOccurrence, arguments)?.let { return it }
         val input = engineObjectDataOf(fieldResolverOccurrence.resolver.field.containingDef)
         val queryValue =

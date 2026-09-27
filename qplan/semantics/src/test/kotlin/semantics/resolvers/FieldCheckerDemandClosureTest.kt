@@ -19,6 +19,7 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.selectionForestOf
 import model.testing.TestWorld
+import semantics.shared.OrchestrationConstructionDemand
 import semantics.shared.Demand
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
@@ -204,7 +205,7 @@ class FieldCheckerDemandClosureTest {
         val queryRoot = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), emptyMap())
         val objectTarget = ObjectEngineResult.of(world.schema.requireObjectField("Box", "a").containingDef, emptyMap())
         val closed =
-            world.schema.objectOf("Box") { "a" setTo 1 }.closeOrchestratorConstructionDemand(
+            world.schema.objectOf("Box") { "a" setTo 1 }.closeOrchestrationConstructionDemand(
                 operation = SharedOperationContext.create(world),
                 objectOccurrence =
                     OEROccurrence(
@@ -214,7 +215,7 @@ class FieldCheckerDemandClosureTest {
                     ),
                 queryOccurrence = OEROccurrence(queryRoot, emptyList(), queryRoot),
                 initialDemand =
-                    OrchestratorConstructionDemand(
+                    OrchestrationConstructionDemand(
                         objectRooted = Demand.checked(selections(world, "Box", "a")),
                         queryRooted = Demand.EMPTY,
                     ),
@@ -451,12 +452,12 @@ class FieldCheckerDemandClosureTest {
     ): Demand<ObjectSelectionForest> {
         val query = operation.world.schema.requireQueryTypeDef()
         val queryRoot = ObjectEngineResult.of(query, emptyMap())
-        return closeOrchestratorConstructionDemand(
+        return closeOrchestrationConstructionDemand(
             operation = operation,
             objectOccurrence = occurrence,
             queryOccurrence = OEROccurrence(queryRoot, emptyList(), queryRoot),
             initialDemand =
-                OrchestratorConstructionDemand(
+                OrchestrationConstructionDemand(
                     objectRooted = initialDemand,
                     queryRooted = Demand.EMPTY,
                 ),

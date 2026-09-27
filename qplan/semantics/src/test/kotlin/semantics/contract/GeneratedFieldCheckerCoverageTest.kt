@@ -1,0 +1,66 @@
+package semantics.contract
+
+import model.fragmentFrom
+import model.testing.TestWorld
+import org.junit.jupiter.api.Test
+import semantics.arbitrary.FieldCoordinate
+import kotlin.test.assertEquals
+
+class GeneratedFieldCheckerCoverageTest {
+    private val world = TestWorld.fromSDL(
+        """
+        type Query {
+          first: Result!
+          second: Entity
+        }
+
+        union Result = Item
+
+        interface Entity {
+          value: Int!
+        }
+
+        type Item implements Entity {
+          value: Int!
+          other: Int!
+        }
+        """.trimIndent(),
+    ).assumptions
+
+    @Test
+    fun `recognizes repeated concrete coordinates through different abstract object paths`() {
+        val selections = world.fragmentFrom(
+            """
+            fragment Generated on Query {
+              first { ... on Item { value } }
+              second { value }
+            }
+            """.trimIndent(),
+        ).subselections
+
+        assertEquals(setOf(FieldCoordinate("Item", "value")), selections.repeatedSelectedFieldCoordinates())
+    }
+
+    @Test
+    fun `different fields on the same returned type do not imply a repeated coordinate`() {
+        val selections = world.fragmentFrom(
+            """
+            fragment Generated on Query {
+              first { ... on Item { other } }
+              second { value }
+            }
+            """.trimIndent(),
+        ).subselections
+
+        assertEquals(emptySet(), selections.repeatedSelectedFieldCoordinates())
+    }
+
+    @Test
+    fun `one abstract field selection does not imply repetition`() {
+        val selections = world.fragmentFrom(
+            "fragment Generated on Query { second { value } }",
+        ).subselections
+
+        assertEquals(emptySet(), selections.repeatedSelectedFieldCoordinates())
+    }
+}

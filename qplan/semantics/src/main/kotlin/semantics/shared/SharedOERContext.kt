@@ -8,14 +8,14 @@ import model.selectionForestOf
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
 
-/** The occurrence, passive source, and closed construction demand for one OER. */
+/** The occurrence, passive source, and closed value-selection projection for one OER. */
 class SharedOERContext internal constructor(
     val occurrence: OEROccurrence,
     val source: EngineObjectData.Sync,
-    val closedDemand: ObjectSelectionForest,
+    val closedValueSelections: ObjectSelectionForest,
 ) {
-    /** Whether this context has any closed construction demand. */
-    fun isDemanded(): Boolean = !closedDemand.isEmpty()
+    /** Whether this context has any closed value selections. */
+    fun isDemanded(): Boolean = !closedValueSelections.isEmpty()
 
     companion object {
         /** Temporary undemanded Query context for resolver families awaiting paired-OER preparation. */
@@ -24,7 +24,7 @@ class SharedOERContext internal constructor(
             return SharedOERContext(
                 occurrence = OEROccurrence(result, emptyList(), result),
                 source = engineObjectDataOf(queryType),
-                closedDemand = selectionForestOf().merge(queryType),
+                closedValueSelections = selectionForestOf().merge(queryType),
             )
         }
     }

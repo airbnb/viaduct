@@ -50,7 +50,7 @@ class FieldCheckerClosureTest : Resolver26DispatcherResource {
             val task = OrchestrationTask.create(operation, OEROccurrence(root, emptyList(), root), world.assumptions.resolverRegistry.createRootQueryInput(), world.assumptions.operationSelectionsFrom("{ checked }"))
             assertEquals(
                 setOf("checked", "protected"),
-                task.closed.objectRooted.constructionDemand.checked
+                task.closedConstructionDemand.objectRooted.constructionDemand.checked
                     .byKey()
                     .keys
                     .map { it.field.name }
@@ -58,7 +58,7 @@ class FieldCheckerClosureTest : Resolver26DispatcherResource {
             )
             assertEquals(
                 setOf("raw"),
-                task.closed.objectRooted.constructionDemand.unchecked
+                task.closedConstructionDemand.objectRooted.constructionDemand.unchecked
                     .byKey()
                     .keys
                     .map { it.field.name }
@@ -66,7 +66,7 @@ class FieldCheckerClosureTest : Resolver26DispatcherResource {
             )
             assertEquals(
                 setOf("protected"),
-                task.closed.queryRooted.constructionDemand.checked
+                task.closedConstructionDemand.queryRooted.constructionDemand.checked
                     .byKey()
                     .keys
                     .map { it.field.name }
@@ -74,13 +74,13 @@ class FieldCheckerClosureTest : Resolver26DispatcherResource {
             )
             assertEquals(
                 setOf("raw"),
-                task.closed.queryRooted.constructionDemand.unchecked
+                task.closedConstructionDemand.queryRooted.constructionDemand.unchecked
                     .byKey()
                     .keys
                     .map { it.field.name }
                     .toSet()
             )
-            operation.dispatcher.dispatchOrchestrator(task)
+            operation.dispatcher.dispatchOrchestration(task)
         }
 
     @Test

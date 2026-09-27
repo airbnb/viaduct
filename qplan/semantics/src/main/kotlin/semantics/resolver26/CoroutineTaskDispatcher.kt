@@ -15,7 +15,7 @@ internal interface CoroutineFieldCheckerPublicationOccurrence {
 
 /** Owns the permitted request-root coroutine kinds for Resolver21-23 and Resolver26. */
 internal class CoroutineTaskDispatcher<
-    O : CoroutineOrchestrationTask<*>,
+    O : CoroutineOrchestrationTaskBase<*>,
     F : SharedFieldPublicationOccurrence<*, *>,
     C : CoroutineFieldCheckerPublicationOccurrence,
 >(
@@ -31,7 +31,7 @@ internal class CoroutineTaskDispatcher<
         publication.publicationCell.cancelFieldCheckerResult(cause)
     },
 ) : SharedTaskDispatcher<O, F> {
-    override fun dispatchOrchestrator(task: O) {
+    override fun dispatchOrchestration(task: O) {
         task.checkDispatch()
         if (task.hasActiveWork) {
             // Installation remains synchronous even when the coroutine dispatcher queues execution.

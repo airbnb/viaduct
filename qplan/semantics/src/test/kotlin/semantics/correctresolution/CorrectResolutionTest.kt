@@ -246,7 +246,7 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
             SharedOERContext(
                 occurrence = OEROccurrence(queryResult, emptyList(), queryResult),
                 source = engineObjectDataOf(world.schema.requireQueryTypeDef()),
-                closedDemand =
+                closedValueSelections =
                     world
                         .fragmentFrom("fragment Scope on Query { source }")
                         .subselections

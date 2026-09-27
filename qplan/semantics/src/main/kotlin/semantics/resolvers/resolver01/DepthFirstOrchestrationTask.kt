@@ -13,9 +13,10 @@ import model.outputValue
 import model.requireQueryTypeDef
 import model.schemaType
 import semantics.resolvers.GroundedFieldPublicationOccurrence
-import semantics.resolvers.OrchestratorConstructionDemand
-import semantics.resolvers.closeOrchestratorConstructionDemand
+import semantics.shared.OrchestrationConstructionDemand
+import semantics.resolvers.closeOrchestrationConstructionDemand
 import semantics.shared.OEROccurrence
+import semantics.shared.descendants
 import semantics.shared.Demand
 import semantics.shared.SharedOERContext
 import semantics.shared.SharedOrchestrationTask
@@ -40,7 +41,7 @@ internal class DepthFirstOrchestrationTask private constructor(
     override val operation: DepthFirstOperationContext,
     override val objectOER: SharedOERContext,
     override val queryOER: SharedOERContext,
-    val closedConstructionDemand: OrchestratorConstructionDemand<ObjectSelectionForest>,
+    val closedConstructionDemand: OrchestrationConstructionDemand<ObjectSelectionForest>,
     override val queryOERDepth: Int,
 ) : SharedOrchestrationTask<DepthFirstOperationContext>, DepthFirstTask {
     override val path get() = objectOER.occurrence.path
@@ -82,11 +83,10 @@ internal class DepthFirstOrchestrationTask private constructor(
         val oerOccurrence = oer.occurrence
         val oerSource = oer.source
         val target = oerOccurrence.target
-        val unresolved = oer.closedDemand.byGroundKey().filterKeys { !target.isCellSet(it) }
+        val unresolved = oer.closedValueSelections.byGroundKey().filterKeys { !target.isCellSet(it) }
         val constructionDemand =
             if (querySide) closedConstructionDemand.queryRooted else closedConstructionDemand.objectRooted
-        val checkedByKey = constructionDemand.checked.byGroundKey()
-        val uncheckedByKey = constructionDemand.unchecked.byGroundKey()
+
         val fieldQueryOERDepth = queryOERDepth + if (querySide) 1 else 0
         val references = unresolved.keys.mapNotNull { key ->
             val reference =
@@ -107,11 +107,7 @@ internal class DepthFirstOrchestrationTask private constructor(
                         publicationCell = target.reserveCell(key),
                         reference = reference,
                         queryOER = queryOER,
-                        constructionDemand =
-                            Demand(
-                                checked = checkedByKey[key]?.subselections ?: model.selectionForestOf(),
-                                unchecked = uncheckedByKey[key]?.subselections ?: model.selectionForestOf(),
-                            ),
+                        constructionDemand = constructionDemand.descendants(key),
                     ),
                 queryOERDepth = fieldQueryOERDepth,
             )
@@ -127,7 +123,7 @@ internal class DepthFirstOrchestrationTask private constructor(
     private fun queryFragmentOwners(
         oer: SharedOERContext,
     ): List<Pair<ObjectEngineResult.GroundKey, ResolverOccurrenceId>> =
-        oer.closedDemand
+        oer.closedValueSelections
             .byGroundKey()
             .keys
             .filter { key -> !oer.occurrence.target.isCellSet(key) }
@@ -186,13 +182,13 @@ internal class DepthFirstOrchestrationTask private constructor(
             val queryType = operation.world.schema.requireQueryTypeDef()
             val queryResult = ObjectEngineResult.of(queryType, mutable = true)
             val queryOccurrence = OEROccurrence(queryResult, emptyList(), queryResult)
-            val closed =
-                source.closeOrchestratorConstructionDemand(
+            val closedConstructionDemand =
+                source.closeOrchestrationConstructionDemand(
                     operation = operation,
                     objectOccurrence = occurrence,
                     queryOccurrence = queryOccurrence,
                     initialDemand =
-                        OrchestratorConstructionDemand(
+                        OrchestrationConstructionDemand(
                             objectRooted = constructionDemand,
                             queryRooted = Demand.EMPTY,
                         ),
@@ -201,7 +197,7 @@ internal class DepthFirstOrchestrationTask private constructor(
                 SharedOERContext(
                     occurrence = queryOccurrence,
                     source = engineObjectDataOf(queryType),
-                    closedDemand = closed.queryRooted.values.merge(queryType),
+                    closedValueSelections = closedConstructionDemand.queryRooted.values.merge(queryType),
                 )
             return DepthFirstOrchestrationTask(
                 operation = operation,
@@ -209,10 +205,10 @@ internal class DepthFirstOrchestrationTask private constructor(
                     SharedOERContext(
                         occurrence = occurrence,
                         source = source,
-                        closedDemand = closed.objectRooted.values.merge(source.schemaType),
+                        closedValueSelections = closedConstructionDemand.objectRooted.values.merge(source.schemaType),
                     ),
                 queryOER = queryOER,
-                closedConstructionDemand = closed,
+                closedConstructionDemand = closedConstructionDemand,
                 queryOERDepth = queryOERDepth,
             )
         }

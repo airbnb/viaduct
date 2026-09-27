@@ -25,9 +25,9 @@ fun SelectionForest.successorDemand(operation: SharedOperationContext<*>): Selec
 }
 
 /**
- * Computes producer-facing value demand while retaining checked/raw provenance long enough to
+ * Computes producer-facing value demand while retaining checked/unchecked provenance long enough to
  * expand the right fixed inputs. Resolver inputs are checked regardless of how their output field
- * was reached. Checker inputs are raw and are introduced only by checked field demand.
+ * was reached. Checker inputs are unchecked and are introduced only by checked field demand.
  */
 internal fun Demand<SelectionForest>.successorDemandFromConstructionDemand(
     operation: SharedOperationContext<*>,
@@ -42,7 +42,18 @@ internal fun Demand<SelectionForest>.successorDemandFromConstructionDemand(
 private class SuccessorDemandContext(
     val operation: SharedOperationContext<*>,
 ) {
-    val expandingBoundaries = mutableSetOf<SuccessorBoundary>()
+    val expansionState = SuccessorExpansionState()
+}
+
+/** Grounded recursion needs only the active boundaries; symbolic expansion also memoizes inputs. */
+private class SuccessorExpansionState {
+    private val expandingBoundaries = mutableSetOf<SuccessorBoundary>()
+
+    fun beginExpansion(boundary: SuccessorBoundary): Boolean = expandingBoundaries.add(boundary)
+
+    fun endExpansion(boundary: SuccessorBoundary) {
+        expandingBoundaries.remove(boundary)
+    }
 }
 
 private data class SuccessorBoundary(
@@ -60,18 +71,22 @@ private fun SelectionForest.successorDemandWithChecks(
     checked: Boolean,
 ): SelectionForest =
     flatMap { selection ->
-        val nestedDemand =
-            selection.subselections.successorDemandWithChecks(context, checked)
-        val rootedSelection =
-            Selection.of(
-                key = selection.key,
-                possibleTypes = selection.possibleTypes,
-                subselections = nestedDemand,
-                inclusionCondition = selection.inclusionCondition,
-            )
-        selectionForestOf(rootedSelection) +
+        selection.requestedSuccessorDemand(context, checked) +
             selection.fixedSuccessorInputDemand(context, checked)
     }
+
+private fun Selection.requestedSuccessorDemand(
+    context: SuccessorDemandContext,
+    checked: Boolean,
+): SelectionForest =
+    selectionForestOf(
+        Selection.of(
+            key = key,
+            possibleTypes = possibleTypes,
+            subselections = subselections.successorDemandWithChecks(context, checked),
+            inclusionCondition = inclusionCondition,
+        ),
+    )
 
 private fun Selection.fixedSuccessorInputDemand(
     context: SuccessorDemandContext,
@@ -107,14 +122,14 @@ private fun ObjectEngineResult.GroundKey.fixedResolverInputDemand(
 ): SelectionForest {
     if (field !in context.operation.world.resolverRegistry) return selectionForestOf()
     val boundary = SuccessorBoundary(this, SuccessorBoundaryKind.RESOLVER)
-    if (!context.expandingBoundaries.add(boundary)) return selectionForestOf()
+    if (!context.expansionState.beginExpansion(boundary)) return selectionForestOf()
     return try {
         context.operation.world.resolverRegistry
             .resolver(field)
             .objectFragmentWithFromArguments(arguments)
             .successorDemandWithChecks(context, checked = true)
     } finally {
-        context.expandingBoundaries.remove(boundary)
+        context.expansionState.endExpansion(boundary)
     }
 }
 
@@ -126,25 +141,27 @@ private fun ObjectEngineResult.GroundKey.fixedCheckerInputDemand(
         context.operation.world.resolverRegistry.fieldChecker(field)
             ?: return selectionForestOf()
     val boundary = SuccessorBoundary(this, SuccessorBoundaryKind.CHECKER)
-    if (!context.expandingBoundaries.add(boundary)) return selectionForestOf()
+    if (!context.expansionState.beginExpansion(boundary)) return selectionForestOf()
     return try {
         checker
             .objectFragmentWithFromArguments(arguments)
             .successorDemandWithChecks(context, checked = false)
     } finally {
-        context.expandingBoundaries.remove(boundary)
+        context.expansionState.endExpansion(boundary)
     }
 }
 
 private fun SelectionForest.successorDemandWithoutParentLifting(operation: SharedOperationContext<*>): SelectionForest =
     flatMap { selection ->
         val nestedDemand = selection.subselections.successorDemand(operation)
-        val rootedSelection =
-            Selection.of(
-                key = selection.key,
-                possibleTypes = selection.possibleTypes,
-                subselections = nestedDemand,
-                inclusionCondition = selection.inclusionCondition,
+        val requestedDemand =
+            selectionForestOf(
+                Selection.of(
+                    key = selection.key,
+                    possibleTypes = selection.possibleTypes,
+                    subselections = nestedDemand,
+                    inclusionCondition = selection.inclusionCondition,
+                ),
             )
         val resolverInputDemand =
             selection.possibleTypes.flatMapToSelectionForest { possibleType ->
@@ -168,7 +185,7 @@ private fun SelectionForest.successorDemandWithoutParentLifting(operation: Share
                         .successorDemand(operation)
                 }
             }
-        selectionForestOf(rootedSelection) + resolverInputDemand
+        requestedDemand + resolverInputDemand
     }
 
 /** Extends this demand with the paths needed to find every successor resolver boundary. */

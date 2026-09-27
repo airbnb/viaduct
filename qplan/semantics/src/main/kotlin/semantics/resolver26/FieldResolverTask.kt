@@ -39,7 +39,7 @@ import viaduct.engine.api.EngineObjectData
  * initial value source, destination cell, and provider reads. Retained across all reference-hop
  * invocations of its task; publication completes the destination cell's value slot.
  */
-internal class FieldPublicationOccurrence(
+internal class SymbolicFieldPublicationOccurrence(
     override val operation: OperationContext,
     override val oerOccurrence: OEROccurrence,
     val sourceOccurrence: ValueSourceOccurrence,
@@ -48,118 +48,107 @@ internal class FieldPublicationOccurrence(
     /** Variable-provider reads rooted in the publication's object or associated Query OER. */
     val variableProviderReads: List<VariableProviderReadOccurrence>,
     val checkerScheduled: Boolean = false,
-) : SharedFieldPublicationOccurrence<OperationContext, CoroutineTaskDispatcher<OrchestrationTask, FieldPublicationOccurrence, FieldCheckerPublicationOccurrence>>,
+) : SharedFieldPublicationOccurrence<OperationContext, CoroutineTaskDispatcher<OrchestrationTask, SymbolicFieldPublicationOccurrence, SymbolicFieldCheckerPublicationOccurrence>>,
     OperationContext by operation
 
 /** Owns setup and resolution for one field publication. */
 internal class FieldResolverTask private constructor(
-    publication: FieldPublicationOccurrence,
+    publication: SymbolicFieldPublicationOccurrence,
     fieldTaskScope: CoroutineScope,
-) : CoroutineFieldResolverTask<FieldPublicationOccurrence>(publication, fieldTaskScope),
+) : CoroutineFieldResolverTaskBase<SymbolicFieldPublicationOccurrence>(publication, fieldTaskScope),
     ResolutionExecutionContext {
     private val resolutionLogic = FieldResolutionLogic(this)
 
     companion object {
-        /** Installs and launches every local field task owned by one object orchestration. */
-        fun launchAll(
+        /** Installs all local value promises and writers before orchestration dispatches any producer. */
+        fun prepareAll(
             orchestrationTask: OrchestrationTask,
-            closed: ClosedConstructionDemandContext,
-        ) {
+        ): List<SymbolicFieldPublicationOccurrence> {
             val operation = orchestrationTask.operation
-            val publications =
-                listOf(
-                    orchestrationTask.objectOER to closed.objectRooted,
-                    orchestrationTask.queryOER to closed.queryRooted,
-                ).flatMap { (oer, closedOER) ->
-                    buildList {
-                        closedOER.fieldResolverOccurrences.forEach { (objectKey, fieldResolverOccurrence) ->
-                            check(objectKey.field in operation.world.resolverRegistry) {
-                                "Resolver26 attempted to install passive key $objectKey"
-                            }
-                            check(!oer.source.isPresent(objectKey.field.name)) {
-                                "Resolver26 attempted to install source-provided key $objectKey"
-                            }
-                            add(
-                                prepare(
-                                    operation = operation,
-                                    oerOccurrence = oer.occurrence,
-                                    sourceOccurrence = fieldResolverOccurrence,
-                                    checkerScheduled = objectKey in closedOER.fieldCheckerOccurrences,
-                                    queryOER = orchestrationTask.queryOER,
-                                    providerReads =
-                                        closedOER.variableProviderReadsByResolverOccurrence.getValue(
-                                            fieldResolverOccurrence.resolverOccurrenceId,
-                                        ),
-                                ),
-                            )
+            return listOf(
+                orchestrationTask.objectOER to orchestrationTask.closedConstructionDemand.objectRooted,
+                orchestrationTask.queryOER to orchestrationTask.closedConstructionDemand.queryRooted,
+            ).flatMap { (oer, closedOER) ->
+                buildList {
+                    closedOER.fieldResolverOccurrences.forEach { (objectKey, fieldResolverOccurrence) ->
+                        check(objectKey.field in operation.world.resolverRegistry) {
+                            "Resolver26 attempted to install passive key $objectKey"
                         }
-                        closedOER.rootFieldReferenceOccurrences.values.forEach { referenceOccurrence ->
-                            val objectKey = referenceOccurrence.selection.key
-                            check(
-                                oer.source.outputValue(objectKey.field.name) ===
-                                    referenceOccurrence.reference,
-                            ) {
-                                "Resolver26 root reference does not match its source value"
-                            }
-                            add(
-                                prepare(
-                                    operation = operation,
-                                    oerOccurrence = oer.occurrence,
-                                    sourceOccurrence = referenceOccurrence,
-                                    checkerScheduled = objectKey in closedOER.fieldCheckerOccurrences,
-                                    queryOER = orchestrationTask.queryOER,
-                                    providerReads = emptyList(),
-                                ),
-                            )
+                        check(!oer.source.isPresent(objectKey.field.name)) {
+                            "Resolver26 attempted to install source-provided key $objectKey"
                         }
+                        add(
+                            prepare(
+                                operation = operation,
+                                oerOccurrence = oer.occurrence,
+                                sourceOccurrence = fieldResolverOccurrence,
+                                checkerScheduled = objectKey in closedOER.fieldCheckerOccurrences,
+                                queryOER = orchestrationTask.queryOER,
+                                providerReads =
+                                    closedOER.variableProviderReadsByResolverOccurrence.getValue(
+                                        fieldResolverOccurrence.resolverOccurrenceId,
+                                    ),
+                            ),
+                        )
+                    }
+                    closedOER.rootFieldReferenceOccurrences.values.forEach { referenceOccurrence ->
+                        val objectKey = referenceOccurrence.selection.key
+                        check(
+                            oer.source.outputValue(objectKey.field.name) ===
+                                referenceOccurrence.reference,
+                        ) {
+                            "Resolver26 root reference does not match its source value"
+                        }
+                        add(
+                            prepare(
+                                operation = operation,
+                                oerOccurrence = oer.occurrence,
+                                sourceOccurrence = referenceOccurrence,
+                                checkerScheduled = objectKey in closedOER.fieldCheckerOccurrences,
+                                queryOER = orchestrationTask.queryOER,
+                                providerReads = emptyList(),
+                            ),
+                        )
                     }
                 }
-            publications.forEach(operation.dispatcher::dispatchFieldResolver)
+            }
         }
 
-        // Called by PassiveValueResolutionLogic to launch a list-element task.
-        // The caller has already claimed the cell and registered its writer.
-        fun launchForListElement(
+        /** Claims and dispatches a reference publication at its exact list-element path. */
+        fun prepareAndDispatchListElement(
             operation: OperationContext,
             oerOccurrence: OEROccurrence,
             sourceOccurrence: ValueSourceOccurrence,
             publicationCell: EngineResultCell,
         ) {
-            launchTask(
-                operation = operation,
-                oerOccurrence = oerOccurrence,
-                sourceOccurrence = sourceOccurrence,
-                publicationCell = publicationCell,
-                queryOER = SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef()),
-                providerReads = emptyList(),
+            publicationCell.createValuePromise()
+            operation.cycleChecker.registerWriter(
+                slot = publicationCell.valueCycleSlot,
+                writer = oerOccurrence.root.fieldResolverCycleTask(sourceOccurrence.publicationPath),
+            )
+            operation.dispatcher.dispatchFieldResolver(
+                SymbolicFieldPublicationOccurrence(
+                    operation, oerOccurrence, sourceOccurrence, publicationCell,
+                    SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef()),
+                    emptyList(),
+                ),
             )
         }
 
-        // Installs one field task while retaining its symbolic cell key.
-        fun installAndLaunch(
-            operation: OperationContext,
-            oerOccurrence: OEROccurrence,
-            sourceOccurrence: ValueSourceOccurrence,
-            queryOER: SharedOERContext =
-                SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef()),
-            providerReads: List<VariableProviderReadOccurrence> = emptyList(),
-        ) {
-            val publication =
-                prepare(
-                    operation = operation,
-                    oerOccurrence = oerOccurrence,
-                    sourceOccurrence = sourceOccurrence,
-                    queryOER = queryOER,
-                    providerReads = providerReads,
-                    // Conditioned passive reference lists are installed during passive descent,
-                    // after checker preparation but before ordinary field-task installation.
-                    checkerScheduled =
-                        sourceOccurrence.selection.key !is ObjectEngineResult.ParentKey &&
-                            operation.world.resolverRegistry.fieldChecker(sourceOccurrence.selection.key.field) != null &&
-                            oerOccurrence.target.reserveCell(sourceOccurrence.selection.key).isFieldCheckerResultSet(),
-                )
-            operation.dispatcher.dispatchFieldResolver(publication)
-        }
+        /** Claims a conditioned passive field during descent; its orchestration owns dispatch. */
+        fun prepareConditionedPassiveValue(
+            orchestrationTask: OrchestrationTask,
+            sourceOccurrence: PassiveValueOccurrence,
+        ): SymbolicFieldPublicationOccurrence =
+            prepare(
+                operation = orchestrationTask.operation,
+                oerOccurrence = orchestrationTask.objectOER.occurrence,
+                sourceOccurrence = sourceOccurrence,
+                queryOER = orchestrationTask.queryOER,
+                providerReads = emptyList(),
+                checkerScheduled = sourceOccurrence.selection.key in
+                    orchestrationTask.closedConstructionDemand.objectRooted.fieldCheckerOccurrences,
+            )
 
         private fun prepare(
             operation: OperationContext,
@@ -168,7 +157,7 @@ internal class FieldResolverTask private constructor(
             queryOER: SharedOERContext,
             providerReads: List<VariableProviderReadOccurrence>,
             checkerScheduled: Boolean = false,
-        ): FieldPublicationOccurrence {
+        ): SymbolicFieldPublicationOccurrence {
             val objectKey = sourceOccurrence.selection.key
             val publicationCell = oerOccurrence.target.reserveCell(objectKey)
             publicationCell.createValuePromise()
@@ -176,7 +165,7 @@ internal class FieldResolverTask private constructor(
                 slot = publicationCell.valueCycleSlot,
                 writer = oerOccurrence.fieldResolverCycleTask(objectKey),
             )
-            return FieldPublicationOccurrence(
+            return SymbolicFieldPublicationOccurrence(
                 operation,
                 oerOccurrence,
                 sourceOccurrence,
@@ -187,25 +176,9 @@ internal class FieldResolverTask private constructor(
             )
         }
 
-        private fun launchTask(
-            operation: OperationContext,
-            oerOccurrence: OEROccurrence,
-            sourceOccurrence: ValueSourceOccurrence,
-            publicationCell: EngineResultCell,
-            queryOER: SharedOERContext,
-            providerReads: List<VariableProviderReadOccurrence>,
-        ) {
-            operation.dispatcher.dispatchFieldResolver(
-                FieldPublicationOccurrence(
-                    operation, oerOccurrence, sourceOccurrence,
-                    publicationCell, queryOER, providerReads,
-                ),
-            )
-        }
-
         /** Enters the existing field-task body under its dispatched coroutine's scope. */
         internal suspend fun execute(
-            publication: FieldPublicationOccurrence,
+            publication: SymbolicFieldPublicationOccurrence,
             scope: CoroutineScope,
         ) {
             val task = FieldResolverTask(
@@ -217,7 +190,7 @@ internal class FieldResolverTask private constructor(
 
         /** Terminates owned promises even when cancellation prevents the task body from entering. */
         internal fun cancel(
-            publication: FieldPublicationOccurrence,
+            publication: SymbolicFieldPublicationOccurrence,
             cause: CancellationException
         ) {
             with(publication) {
@@ -263,8 +236,20 @@ internal class FieldResolverTask private constructor(
     }
 
     override suspend fun executeAndPublish() {
+        try {
+            resolutionLogic.validate()
+        } catch (cause: Exception) {
+            currentCoroutineContext().ensureActive()
+            // Validation precedes provider readers, so no helper will complete their bindings.
+            publication.variableProviderReads.forEach { providerRead ->
+                publication.operation.variableBindings.completeBinding(
+                    requireNotNull(providerRead.definition.variable.instanceId),
+                    VariableBinding.Error,
+                )
+            }
+            throw cause
+        }
         launchTaskSetupCoroutines()
-        resolutionLogic.validate()
         resolutionLogic.publishResult()
     }
 
@@ -307,7 +292,7 @@ internal class FieldResolverTask private constructor(
     }
 
     /** Produces the independent Query input for one root-field-reference invocation. */
-    fun launchQueryFragmentProducer(
+    fun launchIndependentQueryFragmentProducer(
         fieldResolverOccurrence: FieldResolverOccurrence,
     ): Deferred<EngineObjectOrErrorData> {
         // Register each invocation with the field-task root, including later reference hops.
@@ -387,13 +372,13 @@ private suspend fun FieldResolver.resolveQueryFragment(
                     target = queryResult,
                 ),
             source = source,
-            initialDemand = constructionSelections,
+            constructionDemand = constructionSelections,
         )
     operation.resolverObserver.onIndependentQueryFragmentPrepared(
         queryFragment.resolverOccurrenceId,
         queryResult,
     )
-    operation.dispatcher.dispatchOrchestrator(orchestration)
+    operation.dispatcher.dispatchOrchestration(orchestration)
     completeProviderBindings(
         operation = operation,
         providerReads =

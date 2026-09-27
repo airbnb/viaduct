@@ -14,9 +14,9 @@ import semantics.shared.SharedOperationContext
 
 /** One independently rooted invocation prepared from a symbolic root-field reference. */
 internal data class PreparedRootFieldReferenceInvocation(
-    val root: ObjectEngineResult,
-    val path: List<PathComponent>,
-    val key: ObjectEngineResult.GroundKey,
+    val invocationRoot: ObjectEngineResult,
+    val invocationPath: List<PathComponent>,
+    val invocationKey: ObjectEngineResult.GroundKey,
     val resolver: FieldResolver,
     val fragments: ResolverFragments,
 )
@@ -27,19 +27,19 @@ internal data class PreparedRootFieldReferenceInvocation(
  * The maintained pre-Resolver26 algorithms support only `FromArgument` variables. Reference
  * targets inherit that boundary instead of acquiring Resolver26's runtime binding protocols.
  */
-internal fun RootFieldReferenceData.prepareInvocation(operation: SharedOperationContext<*>): PreparedRootFieldReferenceInvocation {
+internal fun RootFieldReferenceData.prepareRootFieldReferenceInvocation(operation: SharedOperationContext<*>): PreparedRootFieldReferenceInvocation {
     require(targetField in operation.world.resolverRegistry) {
         "Root-field-reference target has no registered resolver: " +
             "${targetField.containingDef.name}/${targetField.name}"
     }
-    val root = ObjectEngineResult.of(operation.world.schema.requireQueryTypeDef())
+    val invocationRoot = ObjectEngineResult.of(operation.world.schema.requireQueryTypeDef())
     val prefixKeys =
         path.dropLast(1).map { field ->
             ObjectEngineResult.GroundKey.of(field, emptyMap())
         }
-    val key = ObjectEngineResult.GroundKey.of(targetField, arguments)
-    val invocationPath: List<PathComponent> = prefixKeys + key
-    val resolverOccurrenceId = ResolverOccurrenceId.at(root, invocationPath)
+    val invocationKey = ObjectEngineResult.GroundKey.of(targetField, arguments)
+    val invocationPath: List<PathComponent> = prefixKeys + invocationKey
+    val resolverOccurrenceId = ResolverOccurrenceId.at(invocationRoot, invocationPath)
     val resolver = operation.world.resolverRegistry.resolver(targetField)
     val fragments = resolver.instantiateFragments(resolverOccurrenceId)
     require(fragments.objectFragment.constructionSelections.isEmpty()) {
@@ -50,11 +50,11 @@ internal fun RootFieldReferenceData.prepareInvocation(operation: SharedOperation
         "Root-field-reference target ${targetField.containingDef.name}/${targetField.name} " +
             "uses a variable source unsupported before Resolver26"
     }
-    setOf(key).bindFromArguments(operation, root, prefixKeys)
+    setOf(invocationKey).bindFromArguments(operation, invocationRoot, prefixKeys)
     return PreparedRootFieldReferenceInvocation(
-        root = root,
-        path = invocationPath,
-        key = key,
+        invocationRoot = invocationRoot,
+        invocationPath = invocationPath,
+        invocationKey = invocationKey,
         resolver = resolver,
         fragments = fragments,
     )
@@ -62,4 +62,4 @@ internal fun RootFieldReferenceData.prepareInvocation(operation: SharedOperation
 
 /** Empty resolver object input required by every root-field-reference target. */
 internal fun PreparedRootFieldReferenceInvocation.emptyObjectInput() =
-    engineObjectDataOf(key.field.containingDef)
+    engineObjectDataOf(invocationKey.field.containingDef)

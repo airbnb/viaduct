@@ -38,7 +38,7 @@ class DepthFirstReactorTest {
         val operation = DepthFirstOperationContext(SharedOperationContext.create(world), { it }, DepthFirstTaskDispatcher())
         val occurrence = OEROccurrence(target, emptyList(), target)
         val firstResolver =
-            DepthFirstFieldResolverTask.create(
+            DepthFirstFieldResolverTask.prepare(
                 GroundedFieldPublicationOccurrence(
                     operation, occurrence, selection, target.reserveCell(selection.key),
                     queryOER = SharedOERContext.undemandedQuery(world.schema.requireQueryTypeDef()),
@@ -46,7 +46,7 @@ class DepthFirstReactorTest {
                 queryOERDepth = 0,
             )
         val secondResolver =
-            DepthFirstFieldResolverTask.create(
+            DepthFirstFieldResolverTask.prepare(
                 GroundedFieldPublicationOccurrence(
                     operation, occurrence, selection,
                     ObjectEngineResult.of(sourceType, mutable = true).reserveCell(selection.key),
@@ -55,7 +55,7 @@ class DepthFirstReactorTest {
                 queryOERDepth = 0,
             )
         val queryResolver =
-            DepthFirstFieldResolverTask.create(
+            DepthFirstFieldResolverTask.prepare(
                 GroundedFieldPublicationOccurrence(
                     operation, occurrence, selection,
                     ObjectEngineResult.of(sourceType, mutable = true).reserveCell(selection.key),
@@ -63,12 +63,12 @@ class DepthFirstReactorTest {
                 ),
                 queryOERDepth = 1,
             )
-        val orchestrator =
+        val orchestration =
             DepthFirstOrchestrationTask.create(
                 operation, occurrence, source, selections,
                 queryOERDepth = 0,
             )
-        assertSame(operation, orchestrator.operation)
+        assertSame(operation, orchestration.operation)
         val publication = firstResolver.publication
         assertSame(operation, publication.operation)
         assertSame(operation.world, publication.world)
@@ -77,7 +77,7 @@ class DepthFirstReactorTest {
         assertSame(operation.dispatcher, publication.dispatcher)
         val tasks = PriorityQueue(depthFirstTaskComparator)
 
-        tasks += ScheduledTask(orchestrator, sequence = 0)
+        tasks += ScheduledTask(orchestration, sequence = 0)
         tasks += ScheduledTask(firstResolver, sequence = 1)
         tasks += ScheduledTask(secondResolver, sequence = 2)
         tasks += ScheduledTask(queryResolver, sequence = 3)
@@ -85,7 +85,7 @@ class DepthFirstReactorTest {
         assertSame(queryResolver, tasks.remove().task)
         assertSame(firstResolver, tasks.remove().task)
         assertSame(secondResolver, tasks.remove().task)
-        assertSame(orchestrator, tasks.remove().task)
+        assertSame(orchestration, tasks.remove().task)
     }
 
     @Test

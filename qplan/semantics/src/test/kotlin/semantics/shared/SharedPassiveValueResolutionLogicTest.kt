@@ -554,10 +554,10 @@ private fun ResolverOutputData?.recordPassiveResolution(
         variableBindings = operation.variableBindings,
         resolverObserver = operation.resolverObserver,
         dispatcher = object : SharedTaskDispatcher<SharedOrchestrationTask<*>, SharedFieldPublicationOccurrence<*, *>> {
-            override fun dispatchOrchestrator(task: SharedOrchestrationTask<*>) {
+            override fun dispatchOrchestration(task: SharedOrchestrationTask<*>) {
                 val objectOER = task.objectOER
-                if (objectOER.closedDemand.groundKeys().any { it !in objectOER.occurrence.target.keys }) {
-                    pending += RecordedObject(objectOER.occurrence.path, objectOER.occurrence.target, objectOER.closedDemand)
+                if (objectOER.closedValueSelections.groundKeys().any { it !in objectOER.occurrence.target.keys }) {
+                    pending += RecordedObject(objectOER.occurrence.path, objectOER.occurrence.target, objectOER.closedValueSelections)
                 }
             }
 

@@ -39,7 +39,7 @@ class CoroutineResolveTest :
         )
         val source = operation.world.resolverRegistry.createRootQueryInput()
         val root = ObjectEngineResult.of(source.schemaType, mutable = true)
-        resolverOperation.dispatcher.dispatchOrchestrator(
+        resolverOperation.dispatcher.dispatchOrchestration(
             OrchestrationTask.create(resolverOperation, OEROccurrence(root, emptyList(), root), source, selections),
         )
         return root

@@ -10,7 +10,7 @@ import semantics.shared.SharedFieldResolverTask
  * Owns one field's helper scope and its exception-to-publication boundary.
  * Supplies its concretely typed publication through [publication], separately from the task lifecycle.
  */
-internal abstract class CoroutineFieldResolverTask<P : SharedFieldPublicationOccurrence<*, *>>(
+internal abstract class CoroutineFieldResolverTaskBase<P : SharedFieldPublicationOccurrence<*, *>>(
     final override val publication: P,
     /** Structured child scope of the dispatched field task, not the request root. */
     val fieldTaskScope: CoroutineScope,

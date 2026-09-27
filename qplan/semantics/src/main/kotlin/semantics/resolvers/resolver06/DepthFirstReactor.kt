@@ -25,7 +25,7 @@ internal class DepthFirstReactor(
 ) : DepthFirstDispatcher {
     private val operation = DepthFirstOperationContext(operation, complete, this)
     private val tasks = PriorityQueue(depthFirstTaskComparator)
-    private val launched = mutableSetOf<DepthFirstTask>()
+    private val dispatchedTasks = mutableSetOf<DepthFirstTask>()
     private val finished = mutableSetOf<DepthFirstTask>()
     private val orchestrated = mutableSetOf<OEROccurrence>()
     private val children = mutableMapOf<OEROccurrence, MutableList<DepthFirstOrchestrationTask>>()
@@ -59,15 +59,15 @@ internal class DepthFirstReactor(
             }
             check(finished.add(task)) { "Task finished twice: ${task.path}" }
         }
-        check(children.isEmpty() && finished == launched) { "Reactor returned with unfinished tasks" }
-        launched.filterIsInstance<DepthFirstOrchestrationTask>().forEach { task ->
+        check(children.isEmpty() && finished == dispatchedTasks) { "Reactor returned with unfinished tasks" }
+        dispatchedTasks.filterIsInstance<DepthFirstOrchestrationTask>().forEach { task ->
             val target = task.objectOER.occurrence.target
-            check(task.objectOER.closedDemand.groundKeys().all { target.isCellSet(it) && target.getCell(it).getValue().isCompleted }) {
+            check(task.objectOER.closedValueSelections.groundKeys().all { target.isCellSet(it) && target.getCell(it).getValue().isCompleted }) {
                 "Completed OER ${task.path} is missing closed demand"
             }
             val queryTarget = task.queryOER.occurrence.target
             check(
-                task.queryOER.closedDemand.groundKeys().all { key ->
+                task.queryOER.closedValueSelections.groundKeys().all { key ->
                     queryTarget.isCellSet(key) && queryTarget.getCell(key).getValue().isCompleted
                 },
             ) {
@@ -82,8 +82,8 @@ internal class DepthFirstReactor(
      * until their parent has orchestrated, preserving the reactor's parent-before-child discovery.
      * Objects produced by a later field can enter the queue immediately because their parent ran.
      */
-    override fun dispatchOrchestrator(task: DepthFirstOrchestrationTask) {
-        check(launched.add(task)) { "Orchestrator dispatched twice: ${task.path}" }
+    override fun dispatchOrchestration(task: DepthFirstOrchestrationTask) {
+        check(dispatchedTasks.add(task)) { "Orchestration task dispatched twice: ${task.path}" }
         val parent = task.objectOER.occurrence.parent
         if (parent == null || parent in orchestrated) {
             enqueue(task)
@@ -97,8 +97,8 @@ internal class DepthFirstReactor(
         queryOERDepth: Int,
     ) {
         // Preparation claims the cell, rejecting duplicate publication before queueing.
-        val task = DepthFirstFieldResolverTask.create(publication, queryOERDepth)
-        launched += task
+        val task = DepthFirstFieldResolverTask.prepare(publication, queryOERDepth)
+        dispatchedTasks += task
         enqueue(task)
     }
 

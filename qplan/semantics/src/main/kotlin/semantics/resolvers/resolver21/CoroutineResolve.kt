@@ -50,6 +50,6 @@ internal fun CoroutineOperationContext.startResolve(
     queryFragmentOwner?.let {
         resolverObserver.onIndependentQueryFragmentPrepared(it, result)
     }
-    dispatcher.dispatchOrchestrator(orchestration)
+    dispatcher.dispatchOrchestration(orchestration)
     return result
 }

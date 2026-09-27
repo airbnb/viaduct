@@ -5,7 +5,7 @@ import model.EngineResultCell
  * Prepared orchestration task for one object OER and its paired shared Query OER. Its factory
  * closes demand and establishes the state needed by descendants before returning; passive
  * resolution materializes [objectOER] before handing the paired task to
- * [SharedTaskDispatcher.dispatchOrchestrator]. The task supplies its owning context through
+ * [SharedTaskDispatcher.dispatchOrchestration]. The task supplies its owning context through
  * [operation]; it is not itself an operation context.
  */
 interface SharedOrchestrationTask<out O : SharedOperationContext<*>> {
@@ -38,7 +38,7 @@ interface SharedFieldPublicationOccurrence<
  */
 interface SharedTaskDispatcher<in O : SharedOrchestrationTask<*>, in F : SharedFieldPublicationOccurrence<*, *>> {
     /** Dispatches prepared object work after its passive fields have been resolved. */
-    fun dispatchOrchestrator(task: O)
+    fun dispatchOrchestration(task: O)
 
     /** Dispatches field work according to this resolver's dependency-ordering policy. */
     fun dispatchFieldResolver(publication: F)

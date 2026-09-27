@@ -6,6 +6,8 @@ import model.requireField
 import model.requireObjectField
 import viaduct.engine.api.EngineObjectData
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
 import model.Arguments
 import model.Assumptions
 import model.ErrorEngineResult
@@ -614,8 +616,8 @@ interface ObjectFragmentResolverContract : ResolverContract {
 
     @Test
     fun `object outputs vary by input and arguments at equal-key list occurrences`() {
-        val productApplications = mutableListOf<Pair<Int, Int>>()
-        var computedApplications = 0
+        val productApplications = ConcurrentLinkedQueue<Pair<Int, Int>>()
+        val computedApplications = AtomicInteger()
         val testWorld =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,
@@ -649,7 +651,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                                 "fragment ignored on $typeName { base }",
                             ),
                         ) { input, _ ->
-                            computedApplications += 1
+                            computedApplications.incrementAndGet()
                             val base = input.selectionValues().getValue("base") as Int
                             base * if (typeName == "EvenProduct") 10 else 100
                         }
@@ -678,7 +680,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                                     input.selectionValues().getValue(seedKey.field.name) as Int
                                 val factor =
                                     arguments.fieldValues.getValue("factor") as Int
-                                productApplications += seed to factor
+                                productApplications.add(seed to factor)
                                 val base = seed * factor
                                 schema.objectOf(
                                     if (base % 2 == 0) "EvenProduct" else "OddProduct",
@@ -753,15 +755,15 @@ interface ObjectFragmentResolverContract : ResolverContract {
                 (2 to 2) to 1,
                 (2 to 3) to 1,
             ),
-            productApplications.groupingBy { it }.eachCount(),
+            productApplications.toList().groupingBy { it }.eachCount(),
         )
-        assertEquals(4, computedApplications)
+        assertEquals(4, computedApplications.get())
     }
 
     @Test
     fun `preserves arguments and occurrence-distinct list output shapes`() {
-        val applications = mutableListOf<Pair<Int, Int>>()
-        var renderedApplications = 0
+        val applications = ConcurrentLinkedQueue<Pair<Int, Int>>()
+        val renderedApplications = AtomicInteger()
         val testWorld =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,
@@ -802,7 +804,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                                     input.selectionValues().getValue(seedKey.field.name) as Int
                                 val count =
                                     arguments.fieldValues.getValue("count") as Int
-                                applications += seed to count
+                                applications.add(seed to count)
                                 (0 until count).map { offset ->
                                         schema.objectOf("Entry") {
                                             "raw" setTo seed + offset
@@ -815,7 +817,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                                     "fragment ignored on Entry { raw }",
                                 ),
                             ) { input, _ ->
-                                renderedApplications += 1
+                                renderedApplications.incrementAndGet()
                                 val raw =
                                     input.selectionValues().getValue(rawKey.field.name) as Int
                                 "entry-$raw"
@@ -870,8 +872,8 @@ interface ObjectFragmentResolverContract : ResolverContract {
                 (20 to 1) to 1,
                 (20 to 3) to 1,
             ),
-            applications.groupingBy { it }.eachCount(),
+            applications.toList().groupingBy { it }.eachCount(),
         )
-        assertEquals(8, renderedApplications)
+        assertEquals(8, renderedApplications.get())
     }
 }

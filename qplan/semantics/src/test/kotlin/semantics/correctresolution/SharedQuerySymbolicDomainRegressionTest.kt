@@ -50,9 +50,9 @@ class SharedQuerySymbolicDomainRegressionTest {
         val source = world.schema.requireObjectField("Query", "source")
         val consumerKey = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "consumer"), emptyMap())
         val result = world.engineResultOf("Query") { "consumer" resolvesTo 7 }
-        val closedDemand = world.fragmentFrom("fragment Demand on Query { source(value: 7) }").subselections.merge(queryType)
+        val closedValueSelections = world.fragmentFrom("fragment Demand on Query { source(value: 7) }").subselections.merge(queryType)
 
-        var observedDemand = closedDemand
+        var observedDemand = closedValueSelections
         val query = ObjectEngineResult.of(queryType, mutable = true)
         val observer = CorrectnessResolverObserver()
         val operation = SharedOperationContext.create(world, resolverObserver = observer)
@@ -63,7 +63,7 @@ class SharedQuerySymbolicDomainRegressionTest {
             operation.variableBindings.bindVariable(requireNotNull(variable.instanceId), VariableBinding.of(7))
             query.reserveCell(key).setValue(7)
             if (declareExtra) {
-                observedDemand = (closedDemand + selectionForestOf(Selection.of(
+                observedDemand = (closedValueSelections + selectionForestOf(Selection.of(
                     key = key, possibleTypes = setOf(queryType), subselections = selectionForestOf(),
                 ))).merge(queryType)
             }

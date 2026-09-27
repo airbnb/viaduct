@@ -54,7 +54,7 @@ internal abstract class SharedPassiveValueResolutionLogic<
     protected open fun closedConstructionDemand(
         orchestration: T,
     ): Demand<ObjectSelectionForest> =
-        Demand.checked(orchestration.objectOER.closedDemand)
+        Demand.checked(orchestration.objectOER.closedValueSelections)
             .merge(orchestration.objectOER.source.schemaType)
 
     /**
@@ -89,10 +89,10 @@ internal abstract class SharedPassiveValueResolutionLogic<
      * references execute only if inclusion succeeds, and omits Never lists. Resolvers without
      * conditional activation use the default immediate passive resolution.
      *
-     * @return true when the hook has scheduled or omitted the list; false to resolve it passively now.
+     * @return true when the hook has registered deferred work or omitted the list; false to resolve it passively now.
      */
     protected open fun deferReferenceList(
-        occurrence: OEROccurrence,
+        orchestration: T,
         selection: ObjectSelection,
         value: ResolverOutputData?,
         invocationDemand: SelectionForest,
@@ -199,32 +199,33 @@ internal abstract class SharedPassiveValueResolutionLogic<
         }
         val orchestration = createOrchestrationTask(occurrence, source, constructionDemand)
         materializePassiveFields(
-            orchestration.objectOER,
+            orchestration,
             closedConstructionDemand(orchestration),
             invocationDemand,
         )
-        operation.dispatcher.dispatchOrchestrator(orchestration)
+        operation.dispatcher.dispatchOrchestration(orchestration)
     }
 
     /**
-     * Passively resolves source-supplied argumentless fields into [objectOER] without creating or
+     * Passively resolves source-supplied argumentless fields into [orchestration] without creating or
      * dispatching an orchestration task. Validates selective output against [invocationDemand] and
      * propagates the OER's closed demand to descendants. Parent fields are provided structurally,
      * and direct references belong to active resolution. Reference-bearing lists are omitted when
      * undemanded or deferred by [deferReferenceList].
      */
     internal fun materializePassiveFields(
-        objectOER: SharedOERContext,
-        closedDemand: Demand<ObjectSelectionForest>,
+        orchestration: T,
+        closedConstructionDemand: Demand<ObjectSelectionForest>,
         invocationDemand: SelectionForest,
     ) {
+        val objectOER = orchestration.objectOER
         val source = objectOER.source
         val occurrence = objectOER.occurrence
         val type = source.schemaType
         val invocationByKey = collect(invocationDemand, type).byKey()
-        val passiveByKey = collect(invocationDemand + closedDemand.values, type).byKey()
-        val checkedByKey = closedDemand.checked.byKey()
-        val uncheckedByKey = closedDemand.unchecked.byKey()
+        val passiveByKey = collect(invocationDemand + closedConstructionDemand.values, type).byKey()
+        val checkedByKey = closedConstructionDemand.checked.byKey()
+        val uncheckedByKey = closedConstructionDemand.unchecked.byKey()
         if (operation.world.selectiveResolvers) {
             val selectedNames = invocationByKey.keys.mapTo(linkedSetOf()) { it.field.name }
             val unselectedFields =
@@ -263,7 +264,7 @@ internal abstract class SharedPassiveValueResolutionLogic<
                 if (
                     containsReference &&
                     deferReferenceList(
-                        occurrence = occurrence,
+                        orchestration = orchestration,
                         selection = passiveByKey.getValue(key),
                         value = value,
                         invocationDemand = childInvocation,

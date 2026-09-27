@@ -2,14 +2,14 @@
 
 ## Working Context
 
-Follow the current explicit prompt and [`handoff.md`](./handoff.md) before this guide. The handoff records qplan's current state without assigning an immediate objective. Resolver26 is the primary algorithm and eventual blueprint. Treat `execution2` only as longer-term context unless it is explicitly requested.
+Follow the current explicit prompt and [`handoff.md`](./handoff.md) before this guide. The handoff records qplan's current state without assigning an immediate objective. Resolver26 is the primary algorithm and eventual production implementation; the [runtime2 direction](./resolver-versions.md#production-direction-and-package-ownership) keeps earlier families as development support. Treat runtime2 integration as longer-term context unless it is explicitly requested.
 
 ## Read Before Changing Code
 
 1. [`README.md`](./README.md) for the project map and integration state.
 2. [`handoff.md`](./handoff.md) for current state and scope boundaries.
 3. [`design-principles.md`](./design-principles.md) for durable semantic constraints.
-4. [`resolver-versions.md`](./resolver-versions.md) for comparison and reduction roles.
+4. [`resolver-versions.md`](./resolver-versions.md) for cross-family alignment policy, code naming preferences, and comparison and reduction roles.
 5. [`semantics/testing-contracts.md`](./semantics/testing-contracts.md) for test capabilities and replay.
 6. The local Resolver26 design document when changing Resolver26.
 
@@ -105,7 +105,7 @@ During resolution, instrumentation must be thread-safe and cheap. Snapshot after
 
 ## Documentation Maintenance
 
-`README.md` files own stable module explanations. `AGENTS.md` files are annotated indexes that point to those explanations and say when they matter. `handoff.md` owns current state, explicit scope boundaries, and longer-term context. `design-principles.md` owns durable principles. Resolver-local design and testing files own implementation-specific protocols. Git history owns completed chronology.
+`README.md` files own stable module explanations. `AGENTS.md` files are annotated indexes that point to those explanations and say when they matter. `handoff.md` owns current state, explicit scope boundaries, and longer-term context. `design-principles.md` owns durable principles. `resolver-versions.md` owns cross-family alignment policy and code naming preferences, linking to canonical semantic definitions in `semantics/README.md`. Resolver-local design and testing files own implementation-specific protocols. Git history owns completed chronology.
 
 Keep each prose paragraph and list item on one physical line. Document factory-established carrier invariants on the factory with an `### Invariant: kebab-case-label` heading. Invariant labels and claim labels share one namespace checked by `checkDocumentationLabels`.
 

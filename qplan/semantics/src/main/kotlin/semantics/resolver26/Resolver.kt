@@ -78,8 +78,8 @@ internal fun OperationContext.startResolve(
                     target = result,
                 ),
             source = source,
-            initialDemand = selections,
+            constructionDemand = selections,
         )
-    dispatcher.dispatchOrchestrator(orchestration)
+    dispatcher.dispatchOrchestration(orchestration)
     return result
 }

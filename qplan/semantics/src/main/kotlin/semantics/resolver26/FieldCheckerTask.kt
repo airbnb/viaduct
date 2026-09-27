@@ -10,6 +10,7 @@ import model.EngineResultCell
 import model.InclusionCondition
 import model.MaterializeSelectionForest
 import model.ObjectEngineResult
+import model.ObjectSelection
 import model.VariableBinding
 import model.registry.CheckerInput
 import model.registry.ResolutionExecutionContext
@@ -26,7 +27,7 @@ import semantics.shared.materializeResult
 import viaduct.engine.api.EngineObjectData
 
 /** A checker writer retains its original symbolic address independently of its late arguments. */
-internal class FieldCheckerPublicationOccurrence(
+internal class SymbolicFieldCheckerPublicationOccurrence(
     val operation: OperationContext,
     val oerOccurrence: OEROccurrence,
     val checkerOccurrence: FieldCheckerOccurrence,
@@ -34,9 +35,32 @@ internal class FieldCheckerPublicationOccurrence(
     val queryOER: SharedOERContext,
 ) : CoroutineFieldCheckerPublicationOccurrence
 
+/** One claimed slot either has an executable checker or defers absence until value activation. */
+internal class PreparedFieldCheckerSlot(
+    val cell: EngineResultCell,
+    val executablePublication: SymbolicFieldCheckerPublicationOccurrence?,
+)
+
+/**
+ * Records every claim, including absent checkers. Passive values permit immediate absence after
+ * descent; pending values leave absence to their field-resolver task's activation/cancellation.
+ */
+internal class FieldCheckerPreparation(val claimedSlots: List<PreparedFieldCheckerSlot>) {
+    val executablePublications = claimedSlots.mapNotNull { it.executablePublication }
+    val delayedAbsenceSlots = claimedSlots.filter { it.executablePublication == null }.map { it.cell }
+
+    fun publishReadyAbsences() {
+        delayedAbsenceSlots.forEach { cell ->
+            if (cell.getValue().isCompleted && !cell.getFieldCheckerResult().isCompleted) {
+                cell.getFieldCheckerResult().complete(null)
+            }
+        }
+    }
+}
+
 /** Raw projections and runtime bindings for one checker, parallel to the field value task. */
 internal class FieldCheckerTask private constructor(
-    private val publication: FieldCheckerPublicationOccurrence,
+    private val publication: SymbolicFieldCheckerPublicationOccurrence,
     private val scope: CoroutineScope,
 ) : ResolutionExecutionContext {
     private val operation = publication.operation
@@ -46,31 +70,49 @@ internal class FieldCheckerTask private constructor(
 
     companion object {
         /** Claims all checked slots before passive descent can expose cells to readers. */
-        fun prepareAll(task: OrchestrationTask): List<FieldCheckerPublicationOccurrence> =
-            listOf(task.objectOER to task.closed.objectRooted, task.queryOER to task.closed.queryRooted)
-                .flatMap { (oer, closed) ->
-                    closed.constructionDemand.checked.byKey().mapNotNull { (key, selection) ->
-                        if (selection.inclusionCondition === InclusionCondition.Never) return@mapNotNull null
-                        val cell = oer.occurrence.target.reserveCell(key)
-                        cell.createFieldCheckerResultPromise()
-                        val occurrence = closed.fieldCheckerOccurrences[key] ?: return@mapNotNull null
-                        task.operation.cycleChecker.registerWriter(
-                            cell.fieldCheckerCycleSlot,
-                            oer.occurrence.fieldCheckerCycleTask(key),
-                        )
-                        FieldCheckerPublicationOccurrence(task.operation, oer.occurrence, occurrence, cell, task.queryOER)
+        fun prepareAll(orchestrationTask: OrchestrationTask): FieldCheckerPreparation =
+            FieldCheckerPreparation(
+                listOf(
+                    orchestrationTask.objectOER to orchestrationTask.closedConstructionDemand.objectRooted,
+                    orchestrationTask.queryOER to orchestrationTask.closedConstructionDemand.queryRooted,
+                ).flatMap { (oer, closedOER) ->
+                    closedOER.constructionDemand.checked.byKey().mapNotNull { (key, selection) ->
+                        prepare(orchestrationTask, oer, selection, closedOER.fieldCheckerOccurrences[key])
                     }
-                }
+                },
+            )
+
+        private fun prepare(
+            orchestrationTask: OrchestrationTask,
+            oer: SharedOERContext,
+            selection: ObjectSelection,
+            checkerOccurrence: FieldCheckerOccurrence?,
+        ): PreparedFieldCheckerSlot? {
+            if (selection.inclusionCondition === InclusionCondition.Never) return null
+            val key = selection.key
+            val cell = oer.occurrence.target.reserveCell(key)
+            cell.createFieldCheckerResultPromise()
+            // Absence is published at the existing activation boundary, without a checker task.
+            if (checkerOccurrence == null) return PreparedFieldCheckerSlot(cell, null)
+            orchestrationTask.operation.cycleChecker.registerWriter(
+                cell.fieldCheckerCycleSlot,
+                oer.occurrence.fieldCheckerCycleTask(key),
+            )
+            val publication = SymbolicFieldCheckerPublicationOccurrence(
+                orchestrationTask.operation, oer.occurrence, checkerOccurrence, cell, orchestrationTask.queryOER,
+            )
+            return PreparedFieldCheckerSlot(cell, publication)
+        }
 
         suspend fun execute(
-            publication: FieldCheckerPublicationOccurrence,
+            publication: SymbolicFieldCheckerPublicationOccurrence,
             scope: CoroutineScope
         ) {
             FieldCheckerTask(publication, scope).run()
         }
 
         fun cancel(
-            publication: FieldCheckerPublicationOccurrence,
+            publication: SymbolicFieldCheckerPublicationOccurrence,
             cause: CancellationException
         ) {
             publication.publicationCell.cancelFieldCheckerResult(cause)

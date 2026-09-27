@@ -214,7 +214,7 @@ interface GroundedFieldCheckerQueryFragmentContract {
                     queryOER: SharedOERContext,
                     queryOERDepth: Int?
                 ) {
-                    if (queryOER.closedDemand
+                    if (queryOER.closedValueSelections
                             .byKey()
                             .keys
                             .any { it.field.name == "shared" }

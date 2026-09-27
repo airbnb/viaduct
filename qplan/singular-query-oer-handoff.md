@@ -21,7 +21,7 @@ The commit stack maps to the implementation sequence as follows:
 
 Steps 7–8 do not have separate commits. Their cross-family finalization, documentation, and validation work is incorporated into the earlier commits.
 
-The central implementation seams are the shared `SharedOERContext` and `ResolverInputConstructionDemand` carriers, the grounded and symbolic `ConstructionDemandClosure.kt` implementations, each family's orchestration and field-task pair, and owner-local Query materialization in each family's `FieldResolutionLogic`. The most direct acceptance specification is `QueryFragmentResolverContract`; `RootFieldReferenceResolverContract`, `ParentFieldResolverContract`, the cycle tests, correctness replay, occurrence witnesses, and the seeded stress suites cover the consequential boundaries around it.
+The central implementation seams are the shared `SharedOERContext` and `ResolverInputConstructionDemand` carriers, the grounded and symbolic `ConstructionDemandClosure.kt` implementations, each family's orchestration and field-resolver-task pair, and owner-local Query materialization in each family's `FieldResolutionLogic`. The most direct acceptance specification is `QueryFragmentResolverContract`; `RootFieldReferenceResolverContract`, `ParentFieldResolverContract`, the cycle tests, correctness replay, occurrence witnesses, and the seeded stress suites cover the consequential boundaries around it.
 
 Review especially that one orchestration owns distinct object and associated Query OERs; Query-side resolvers close both fragments back into the same Query scope; every owner retains its response-keyed projection; descendant object and list occurrences retain separate containing scopes; and `ctx.query()` and root-field-reference targets remain independently rooted. Resolver01–08 intentionally retain dependency-bound synchronous ordering, while Resolver21–26 retain promise-based asynchronous readiness. Checker Query-scope migration is explicitly outside this branch.
 
@@ -29,20 +29,20 @@ Review especially that one orchestration owns distinct object and associated Que
 
 This section is authoritative when older planning language below conflicts with the implementation. The committed branch completed Steps 1–4 in `fa0be4e4e`, `1befe7648`, `0e62483b5`, and `c751e7909`; `0f824f8ef` completes Step 5 for Resolver21–23, and branch `HEAD` completes Step 6 for Resolver26. The Step 7 cross-family boundary contracts are folded into `0e62483b5`, and the final Step 8 documentation and validation record are folded into `HEAD`.
 
-- `OrchestratorConstructionDemand` represents object- and Query-rooted demand, each retaining checked and unchecked provenance. The grounded closure used by Resolver01–23 closes the pair in one fixed point, including transitive Query-side resolver inputs and parent lifting.
+- `OrchestrationConstructionDemand` represents object- and Query-rooted demand, each retaining checked and unchecked provenance. The grounded closure used by Resolver01–23 closes the pair in one fixed point, including transitive Query-side resolver inputs and parent lifting.
 - `ResolverInputConstructionDemand` is the shared object-/Query-fragment pair contributed by newly expanded resolver occurrences; the grounded and symbolic closures retain different expansion bookkeeping around that common value.
 - `SharedOERContext` carries an OER occurrence, passive source, and closed construction demand. Shared orchestration and publication state use non-null `objectOER` and `queryOER` contexts.
 - Resolver02–03, Resolver07–08, Resolver22–23, and Resolver26 implement singular Query OERs. Resolver01, Resolver06, and Resolver21 remain empty-fragment compatibility baselines while sharing their families' paired-OER machinery.
-- Every maintained orchestration optimistically allocates one real associated Query OER. If closure discovers no Query demand, that context has empty `closedDemand`, `isDemanded()` is false, and it is harmlessly frozen and discarded.
-- Resolver21–23 jointly close object- and Query-rooted demand, install all publications on both OERs before dispatching any field task, materialize each ordinary owner's local projection from the shared Query OER, and freeze both OERs from one orchestration dispatch. Promise readiness and coroutine suspension remain their execution mechanism; they do not acquire the depth-first families' dependency ordering.
-- Resolver26 now applies the same ownership rule to symbolic demand. Its paired closure retains occurrence-local inclusion alternatives and bindings, provider reads carry their absolute object- or Query-OER root, and ordinary owners materialize from the shared Query OER. Independently rooted reference-target execution remains separate.
+- Every maintained orchestration optimistically allocates one real associated Query OER. If closure discovers no Query demand, that context has empty `closedValueSelections`, `isDemanded()` is false, and it is harmlessly frozen and discarded.
+- Resolver21–23 jointly close object- and Query-rooted demand, prepare all ordinary publications on both OERs before their dispatch, materialize each ordinary owner's local projection from the associated Query OER, and freeze both OERs from one orchestration dispatch. Promise readiness and coroutine suspension remain their execution mechanism; they do not acquire the depth-first families' dependency ordering.
+- Resolver26 now applies the same ownership rule to symbolic demand. Its paired closure retains occurrence-local inclusion alternatives and bindings, provider reads carry their absolute object- or Query-OER root, and ordinary owners materialize from the associated Query OER. Independently rooted reference-target execution remains separate.
 - Resolver22/23 validate Query-rooted parent lifting through a directed ancestor/descendant interaction: lifted demand activates one ancestor resolver with its own Query fragment, every involved resolver runs once, and Query-side cells do not leak into the client result.
 - Resolver23 uses the depth-27 expansion witness and completes with 28 resolver invocations rather than 832,039. Shared-production failure and cancellation tests cover multiple owners waiting on one producer.
 - `queryOERDepth` retains the same meaning throughout Resolver01–08 and remains useful to the Resolver06–08 reactor. Resolver21–23 report their real Query OERs without inventing a depth metric their scheduler neither tracks nor uses.
 - Root-field-reference targets remain independently rooted nested executions. Declared Query fragments reached within such an execution use the singular policy internally for every maintained resolver.
 - Boundary contracts require every reference hop and sibling occurrence to retain a distinct invocation root, require nested reference-target execution to use singular sharing internally, and require returned object, list-element, and abstract concrete occurrences to own the correct separate containing scopes.
 - Declarative direct and mutual Query-fragment recursion is rejected during registry construction. Runtime exact-cycle coverage remains in the depth-first sibling-ordering and coroutine cycle-checker contracts. Dynamically returned infinite root-reference tails retain ordinary tenant-code recursion semantics, like recursive `ctx.query()`, and have no reference-specific detector.
-- Observation and correctness replay record each shared Query OER once, associate every nonempty owner with it, validate its exact unioned closed demand once, and validate owner projections separately.
+- Observation and correctness replay record each associated Query OER once, associate every nonempty owner with it, validate its exact unioned closed demand once, and validate owner projections separately.
 
 Current validation evidence is:
 
@@ -67,7 +67,7 @@ The branch implements the singular approach, not the intermediate linear-root ap
 
 The semantic rule is:
 
-> One orchestration task owns its object OER and one associated resolver Query OER context. Resolver Query fragments contribute demand to that shared Query OER. Resolver occurrences discovered on the Query side contribute their own object and Query fragments back into the same Query OER rather than creating another one. Joint preparation reaches one finite fixed point and installs each exact key once; each field-resolver task materializes its occurrence-local input from the shared Query OER. An orchestration with no Query demand retains an undemanded context with empty closed demand.
+> One orchestration task owns its object OER and one associated resolver Query OER context. Resolver Query fragments contribute demand to that associated Query OER. Resolver occurrences discovered on the Query side contribute their own object and Query fragments back into the same Query OER rather than creating another one. Joint preparation reaches one finite fixed point and installs each exact key once; each field-resolver task materializes its occurrence-local input from the associated Query OER. An orchestration with no Query demand retains an undemanded context with empty closed demand.
 
 “Singular” does not mean one process-global or request-global Query OER. It means one Query OER for a defined containing occurrence or query-scope boundary, with transitive root-Query dependencies closed inside it. The settled boundaries for nested object occurrences and root-field-reference invocations are called out below.
 
@@ -136,10 +136,10 @@ The repository already has most of the mechanisms needed for closure and exact e
 
 The field-checker architecture in the `1rv` worktree is useful “architecture of the future” even though checker execution is not part of the first singular-scope implementation. Inspect [`/home/raymie_stata/repos/1rv/qplan/semantics/src/main/kotlin/semantics/shared/Demand.kt`](/home/raymie_stata/repos/1rv/qplan/semantics/src/main/kotlin/semantics/shared/Demand.kt) in that worktree. It represents checked and unchecked construction demand separately, preserves both components through union, guards, and concrete-type merging, and exposes their value union only where provenance no longer matters.
 
-Singular scopes add an independent root-location axis. Do not overload `checked` to mean object-rooted or `unchecked` to mean Query-rooted. The paired construction demand belongs to the orchestrator rather than to any singular resolver, so use `OrchestratorConstructionDemand` consistently with the repository's construction-demand terminology:
+Singular scopes add an independent root-location axis. Do not overload `checked` to mean object-rooted or `unchecked` to mean Query-rooted. The paired construction demand belongs to the orchestration task rather than to any singular resolver, so use `OrchestrationConstructionDemand` consistently with the repository's construction-demand terminology:
 
 ```kotlin
-internal class OrchestratorConstructionDemand<out S : SelectionForest>(
+internal class OrchestrationConstructionDemand<out S : SelectionForest>(
     val objectRooted: Demand<S>,
     val queryRooted: Demand<S>,
 )
@@ -176,15 +176,15 @@ Resolver26 prepares Query-fragment path reads during orchestration closure. Ever
 
 ### One-shot orchestration
 
-Treat orchestration as two phases. Preparation closes demand and installs or declares everything that must exist before execution; launch starts the required field work. One orchestration task performs both phases for its object OER and its associated Query OER. The task is prepared once and dispatched once, and its launch logic handles both OERs. Owner field tasks should only materialize their projections and await already-installed Query work. An undemanded Query OER follows the same lifecycle with an empty key set.
+Treat orchestration as two phases. Preparation closes demand and installs or declares everything that must exist before execution; launch starts the required field work. One orchestration task performs both phases for its object OER and its associated Query OER. The task is prepared once and dispatched once, and its launch logic handles both OERs. Owner field-resolver tasks should only materialize their projections and await already-installed Query work. An undemanded Query OER follows the same lifecycle with an empty key set.
 
-The shared coroutine `CoroutineOrchestrationTask` now carries both OER contexts and freezes both after field installation. Resolver21–23 close the pair jointly and use one uniform prepare-all-before-dispatch pass across both sides, so installation, freezing, dispatch, failure, and cancellation do not diverge merely because one OER holds resolver Query input. `queryOER.isDemanded()` remains available only where skipping expensive empty work is useful; the carrier is non-null.
+The shared coroutine `CoroutineOrchestrationTaskBase` now carries both OER contexts and freezes both after field installation. Resolver21–23 close the pair jointly and use one uniform prepare-all-before-dispatch pass across both sides, so installation, freezing, dispatch, failure, and cancellation do not diverge merely because one OER holds resolver Query input. `queryOER.isDemanded()` remains available only where skipping expensive empty work is useful; the carrier is non-null.
 
-For Resolver21–23, `FieldResolutionLogic.runFieldResolver` now materializes ordinary resolver Query input from the prepared shared scope. `CoroutineOperationContext.startResolve` remains the fresh-root entry only for independently rooted nested executions, including `invokeRootFieldResolver`; that path retains `launchQueryFragmentProducer` and the nested orchestration applies singular sharing internally.
+For Resolver21–23, `FieldResolutionLogic.runFieldResolver` now materializes ordinary resolver Query input from the prepared shared scope. `CoroutineOperationContext.startResolve` remains the fresh-root entry only for independently rooted nested executions, including `invokeRootFieldResolver`; that path retains `launchIndependentQueryFragmentProducer` and the nested orchestration applies singular sharing internally.
 
 For the fragment-capable depth-first versions, `DepthFirstFieldResolverTask.resolveQueryFragment` recursively creates `DepthFirstResolve`. Replace this with materialization from the task's prepared Query OER. Query-side resolver dependencies must participate in local sibling ordering. Resolver01 and Resolver06 share these task classes but do not support nonempty Query fragments; use them as regression checks for the no-Query-demand path.
 
-For Resolver26, the private `FieldResolutionLogic.materializeQueryFragment` materializes each ordinary owner's input from its prepared shared Query OER. `FieldResolver.resolveQueryFragment` remains only for independently rooted reference-target invocations.
+For Resolver26, the private `FieldResolutionLogic.materializeQueryFragment` materializes each ordinary owner's input from its prepared associated Query OER. `FieldResolver.resolveQueryFragment` remains only for independently rooted reference-target invocations.
 
 ### Cycle checking
 
@@ -210,7 +210,7 @@ The primary client Query OER is simply the object side of its orchestration task
 
 The shared task state carries non-null `objectOER` and `queryOER` `SharedOERContext` values. Grounded-family demand uses the future-compatible checked/unchecked product described above; Resolver26 retains its symbolic per-side closure contexts and prepares Query-side provider reads and binding declarations before dispatch.
 
-Owner-local materialization remains a field-resolver-task responsibility. Each field-resolver task already represents a particular resolver occurrence and therefore has the selections, aliases, arguments, conditions, paths, and variable identities needed to materialize its declared Query fragment. Orchestration makes the prepared shared Query OER available to that task; it does not own a second collection of owner-specific projection selections.
+Owner-local materialization remains a field-resolver-task responsibility. Each field-resolver task already represents a particular resolver occurrence and therefore has the selections, aliases, arguments, conditions, paths, and variable identities needed to materialize its declared Query fragment. Orchestration makes the prepared associated Query OER available to that task; it does not own a second collection of owner-specific projection selections.
 
 The shared object/Query preparation state belongs on the orchestration task. The owner-local selections remain on the resolver occurrence and field-resolver task rather than being copied into immutable `Assumptions`, `ResolverRegistry`, or another orchestration-owned structure.
 
@@ -218,7 +218,7 @@ The shared object/Query preparation state belongs on the orchestration task. The
 
 ### 1. Generalize Resolver01–23 construction-demand closure — implemented
 
-Begin below the resolver execution families in the construction-demand closure shared by Resolver01–23. Introduce `OrchestratorConstructionDemand<S>` as the object-rooted and Query-rooted pair of `Demand<S>` values, then update closure to compute both components in one fixed point. This first change should establish the data model and routing rules without waiting for an end-to-end resolver to own and launch both OERs.
+Begin below the resolver execution families in the construction-demand closure shared by Resolver01–23. Introduce `OrchestrationConstructionDemand<S>` as the object-rooted and Query-rooted pair of `Demand<S>` values, then update closure to compute both components in one fixed point. This first change should establish the data model and routing rules without waiting for an end-to-end resolver to own and launch both OERs.
 
 Commit `fa0be4e4e` also performs a deliberate carrier and task-seam preparation that is part of Step 1, not an unrelated refactor. It introduces `SharedOERContext` as the durable bundle of one `OEROccurrence`, its passive source, and its closed construction demand; replaces the corresponding loose triple on `SharedOrchestrationTask` with `objectOER`; threads that context through the depth-first, coroutine, and Resolver26 orchestration implementations; and makes `SharedPassiveValueResolutionLogic.materializePassiveFields` consume an OER context independently of a particular task. At this commit the execution families still orchestrate only `objectOER`. Step 2 adds the paired `queryOER` task property, `isDemanded()`, and the temporary undemanded-Query factory while activating the already prepared closure. Keeping the context migration in Step 1 lets the next commit focus on Query ownership, routing, scheduling, and materialization rather than mixing those semantics with a repository-wide carrier rewrite.
 
@@ -246,7 +246,7 @@ The revised contract should require:
 
 - two resolver owners on one containing OER associate with the same Query OER;
 - aliases and owner-local materialization shapes remain distinct;
-- different grounded arguments occupy different keys in the shared Query OER;
+- different grounded arguments occupy different keys in the associated Query OER;
 - equal exact dependencies coalesce to one application;
 - a transitive root-Query dependency associates the outer and inner owners with the same OER;
 - empty Query fragments leave the optimistically allocated associated Query OER undemanded and
@@ -256,7 +256,7 @@ The revised contract should require:
 
 Add a small diamond test in which two owners request the same exact Query key and assert one producer application plus two correct owner projections. Add the argument variant where the owners request the same coordinate with different arguments and assert two keys and two applications in the same Query OER. Adapt the resolver-only expansion fixture so Resolver02 can prove that depth 8 performs nine resolver invocations, each `fieldN` exact key is invoked once, and the client result remains unchanged.
 
-Update observation and correctness evidence as part of this Resolver02 milestone. `ResolverObserver.onQueryFragmentPrepared` should still emit once per nonempty owner, but several owner IDs may carry the same `ObjectEngineResult`. `CorrectnessResolverObserver` and every `queryFragmentResults(...).single()` consumer must tolerate that shared identity. Validate the shared Query OER once against its unioned closed demand and validate each field-resolver task's projection separately; do not globally permit unexplained extra cells.
+Update observation and correctness evidence as part of this Resolver02 milestone. `ResolverObserver.onQueryFragmentPrepared` should still emit once per nonempty owner, but several owner IDs may carry the same `ObjectEngineResult`. `CorrectnessResolverObserver` and every `queryFragmentResults(...).single()` consumer must tolerate that shared identity. Validate the associated Query OER once against its unioned closed demand and validate each field-resolver task's projection separately; do not globally permit unexplained extra cells.
 
 Implement the paired-OER lifecycle in the shared `DepthFirstOrchestrationTask` and `DepthFirstFieldResolverTask` machinery, but use Resolver02 as the first semantic target. The depth-first task must know the complete dependencies of both OERs before launch. Extend `SiblingDependencyLogic` so a resolver on the Query side depends on exact keys selected by both its object fragment and its Query fragment. Repeated exact dependencies must become dependency cycles rather than recursive root creation.
 
@@ -266,7 +266,7 @@ Resolver01 shares the modified recursive task implementation but does not suppor
 
 ### 3. Add Resolver03 selective successor demand — acceptance complete
 
-Once Resolver02 passes, run the same shared Query-fragment contract through Resolver03. This should be a small semantic step because Resolver03 shares the recursive orchestration and field-task implementation.
+Once Resolver02 passes, run the same shared Query-fragment contract through Resolver03. This should be a small semantic step because Resolver03 shares the recursive orchestration and field-resolver-task implementation.
 
 The specific new concern is selective resolution. Successor demand must be computed for resolver invocations on both the object OER and the associated Query OER, including transitive Query-side invocations discovered during joint closure. Assert that combining those invocations does not lose required successor demand, activate undemanded output, or duplicate a resolver application. Retain Resolver03's selective output and one-shot witness expectations.
 
@@ -280,7 +280,7 @@ Use this stage to expose any assumption that worked only because Resolver02/03 e
 
 Resolver21 remains the empty-fragment compatibility check for the shared coroutine orchestration lifecycle: its real Query context remains undemanded, is frozen with the object OER, and leaves existing publication behavior unchanged. Resolver22 establishes complete-output singular behavior and validates the parent-aware closure structure introduced in Step 1. Resolver23 adds selective successor demand and confirms that checker-free selective resolution behaves like Resolver03/08.
 
-Resolver21–23 `CoroutineOrchestrationTask` now replaces the temporary undemanded Query context with real Query-side closed state, installs both sides' publications before dispatching any producer, and launches them from one dispatch. Each `GroundedFieldPublicationOccurrence` receives the prepared Query OER, and its field-resolver task uses the resolver occurrence's existing fragment information to materialize its own projection without creating or dispatching ordinary Query production.
+Resolver21–23 `CoroutineOrchestrationTask` now replaces the temporary undemanded Query context with real Query-side closed state, prepares both sides' ordinary publications before their dispatch, and dispatches them from one dispatch. Each `GroundedFieldPublicationOccurrence` receives the prepared Query OER, and its field-resolver task uses the resolver occurrence's existing fragment information to materialize its own projection without creating or dispatching ordinary Query production.
 
 Resolver22/23 retain the full `ParentFieldResolverContract` and add a directed interaction in which Query-rooted parent-lifted demand activates an ancestor resolver with a nonempty Query fragment. Query-rooted closure traverses the parent structure without leaking cells into the client result, ancestor/descendant re-entry does not freeze an OER early, and every producer runs once.
 
@@ -296,7 +296,7 @@ Resolver26 adds symbolic keys, `FromObjectField`, `FromQueryField`, `FromProvide
 
 Resolver21–23 and Resolver26 each keep shared-Query projection in a private `FieldResolutionLogic.materializeQueryFragment` helper, preserving the symbolic/grounded distinction and each family's explicit materializer dependencies.
 
-Every binding needed by both closed demand components is declared before dispatch. A `FromQueryField` binding reads from the shared Query OER but remains owned by one resolver occurrence; equal produced values do not merge variable instances. A `FromObjectField` binding used in a Query fragment still reads the owner's object OER. Provider reads retain parallel readiness so neither fragment has artificial global precedence.
+Every binding needed by both closed demand components is declared before dispatch. A `FromQueryField` binding reads from the associated Query OER but remains owned by one resolver occurrence; equal produced values do not merge variable instances. A `FromObjectField` binding used in a Query fragment still reads the owner's object OER. Provider reads retain parallel readiness so neither fragment has artificial global precedence.
 
 Although the Resolver26 materializer can reserve symbolic cells, orchestration determines and installs the complete symbolic key domain on both OERs before dispatching any producer and freezing either result.
 

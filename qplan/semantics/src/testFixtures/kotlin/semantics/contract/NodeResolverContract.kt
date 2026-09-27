@@ -1,5 +1,7 @@
 package semantics.contract
 
+import java.util.concurrent.ConcurrentLinkedQueue
+
 import semantics.shared.ResolverInvocationObservation
 import semantics.correctresolution.CorrectnessResolverObserver
 import model.requireField
@@ -476,12 +478,12 @@ interface NodeResolverContract : ResolverContract {
 
     @Test
     fun `dispatches every nested node-list reference occurrence`() {
-        val observedFields = mutableListOf<String>()
+        val observedFields = ConcurrentLinkedQueue<String>()
         val invocationObserver = object : CorrectnessResolverObserver() {
             override fun onResolverInvocation(observation: ResolverInvocationObservation) {
                 super.onResolverInvocation(observation)
                 val field = observation.field
-                observedFields += field.name
+                observedFields.add(field.name)
             }
         }
         val testWorld =
