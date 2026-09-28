@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Names the known infrastructure failure, if any, in a GitHub Actions job log.
 
-Reads a job log on stdin and prints one short label: the first known signature
-found, or UNRECOGNIZED when none matches. A label names what the log shows, not
-a guess at why it happened.
+Reads a job log on stdin and prints one short label: the highest-priority known
+signature present, or UNRECOGNIZED when none matches. A repository HTTP status
+outranks every other signature. A label names what the log shows, not a guess
+at why it happened.
 
 Exit codes:
   0 - success, including when no signature matches
@@ -17,13 +18,16 @@ from extract_failed_tasks import plain_text
 UNRECOGNIZED = "no known infrastructure cause"
 
 REPOSITORY_STATUS = re.compile(
-    r"Could not (?:GET|HEAD) 'https?://([^/']+)[^']*'\. Received status code (\d{3})"
+    r"Could not (?:GET|HEAD) 'https?://(?:[^/'@]*@)?([\w.:-]+)[^']*'\. Received status code (\d{3})"
 )
 
 SIGNATURES = [
     (re.compile(r"Unable to download artifact\(s\)"), lambda m: "GitHub artifact download failed"),
     (re.compile(r"java\.net\.UnknownHostException: ([\w.-]+)"), lambda m: f"DNS lookup failed ({m.group(1)})"),
-    (re.compile(r"Unable to connect to the child process"), lambda m: "Gradle test JVM never connected"),
+    (
+        re.compile(r"Unable to connect to the child process '(.+?)(?: \d+)?'"),
+        lambda m: f"Gradle child process never connected ({m.group(1)})",
+    ),
 ]
 
 

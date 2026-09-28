@@ -18,6 +18,8 @@ Reads a JSON object from stdin with the following fields:
     sha         - commit SHA (for push-triggered failures)
     actor       - GitHub username who pushed (for push-triggered failures)
     attempt     - run attempt number; labeled only when above 1
+    summary_url - URL of the page carrying the --summary table; linked when the
+                  alert is cut to fit
     outcome     - "failure" (default), "retry_success" for a run that a retry
                   recovered, or "retrying" for a run whose retry is under way
 
@@ -25,7 +27,8 @@ Prints formatted alert text to stdout, or with --summary a Markdown table for
 the run page. Single-job alerts produce one line;
 multi-job alerts produce a header line followed by a bulleted list of jobs. Any
 job carrying tasks switches the whole message to the header form, listing each
-job's tasks beneath it.
+job's tasks beneath it. Jobs that do not fit MAX_ALERT_CHARS are counted in a
+closing line instead.
 
 Exit codes:
   0 - success
@@ -42,6 +45,9 @@ OUTCOMES = {
 }
 
 MAX_TASKS_SHOWN = 3
+
+# Discord rejects messages longer than 2,000 characters.
+MAX_ALERT_CHARS = 2000
 
 
 def format_attempt_label(attempt) -> str:
@@ -96,16 +102,32 @@ def format_alert(data: dict) -> str:
         job = jobs[0]
         return f"{emoji} {job['name']} {verb} on `{branch}`{commit_info}{format_cause(job)} ({job_url(data, job)})"
 
-    lines = [f"{emoji} CI {verb} on `{branch}`{commit_info}"]
-    for job in jobs:
-        tasks = job.get("tasks") or []
-        if not tasks:
-            lines.append(f"• {job['name']}{format_cause(job)}: {job_url(data, job)}")
-            continue
-        lines.append(f"• {job['name']}{format_cause(job)}")
-        lines.extend(format_task_lines(tasks))
-        lines.append(f"  {job_url(data, job)}")
+    header = f"{emoji} CI {verb} on `{branch}`{commit_info}"
+    return fit_job_blocks(header, [format_job_block(data, job) for job in jobs], data.get("summary_url"))
+
+
+def format_job_block(data: dict, job: dict) -> str:
+    tasks = job.get("tasks") or []
+    if not tasks:
+        return f"• {job['name']}{format_cause(job)}: {job_url(data, job)}"
+    lines = [f"• {job['name']}{format_cause(job)}"]
+    lines.extend(format_task_lines(tasks))
+    lines.append(f"  {job_url(data, job)}")
     return "\n".join(lines)
+
+
+def fit_job_blocks(header: str, blocks: list, summary_url) -> str:
+    text = "\n".join([header] + blocks)
+    if len(text) <= MAX_ALERT_CHARS:
+        return text
+    kept = []
+    for shown, block in enumerate(blocks):
+        hidden = len(blocks) - shown
+        more = f"+{hidden} more job{'s' if hidden > 1 else ''}" + (f": {summary_url}" if summary_url else "")
+        if len("\n".join([header] + kept + [block, more])) > MAX_ALERT_CHARS:
+            return "\n".join([header] + kept + [more])
+        kept.append(block)
+    return text
 
 
 def markdown_cell(text: str) -> str:

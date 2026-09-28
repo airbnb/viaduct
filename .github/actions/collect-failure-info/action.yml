@@ -26,6 +26,10 @@ inputs:
     description: 'Run attempt number (optional); labeled in the alert only when above 1'
     required: false
     default: ''
+  summary_url:
+    description: 'URL of the run page carrying the summary (optional); linked when the alert is cut to fit'
+    required: false
+    default: ''
   outcome:
     description: '"failure" (default), "retry_success" for a run a retry recovered, or "retrying"'
     required: false
@@ -54,6 +58,7 @@ runs:
         ACTOR: ${{ inputs.actor }}
         ATTEMPT: ${{ inputs.attempt }}
         OUTCOME: ${{ inputs.outcome }}
+        SUMMARY_URL: ${{ inputs.summary_url }}
       run: |
         # Build the full payload — format_alert.py handles empty sha/actor
         # gracefully via .get() + truthiness checks.
@@ -65,13 +70,15 @@ runs:
           --arg actor "$ACTOR" \
           --arg attempt "$ATTEMPT" \
           --arg outcome "$OUTCOME" \
+          --arg summary_url "$SUMMARY_URL" \
           --argjson jobs "$JOBS_JSON" \
           '{ branch: $branch, server_url: $server_url, repository: $repository,
              jobs: $jobs }
            + (if $sha  != "" then { sha: $sha }   else {} end)
            + (if $actor != "" then { actor: $actor } else {} end)
            + (if $attempt != "" then { attempt: $attempt } else {} end)
-           + (if $outcome != "" then { outcome: $outcome } else {} end)')
+           + (if $outcome != "" then { outcome: $outcome } else {} end)
+           + (if $summary_url != "" then { summary_url: $summary_url } else {} end)')
         text=$(printf '%s' "$payload" | python3 .github/scripts/format_alert.py)
         summary=$(printf '%s' "$payload" | python3 .github/scripts/format_alert.py --summary)
 

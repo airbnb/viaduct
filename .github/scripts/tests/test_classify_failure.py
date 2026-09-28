@@ -31,7 +31,11 @@ class TestClassifyFailure(unittest.TestCase):
 
     def test_test_executor_never_connected(self):
         log = "> Unable to connect to the child process 'Gradle Test Executor 4'.\n"
-        self.assertEqual("Gradle test JVM never connected", classify_failure(log))
+        self.assertEqual("Gradle child process never connected (Gradle Test Executor)", classify_failure(log))
+
+    def test_worker_daemon_never_connected(self):
+        log = "> Unable to connect to the child process 'Gradle Worker Daemon 1'.\n"
+        self.assertEqual("Gradle child process never connected (Gradle Worker Daemon)", classify_failure(log))
 
     def test_test_failure_is_unrecognized(self):
         log = "> Task :core:shared:utils:test FAILED\nFooTest > bar FAILED\n"
@@ -43,6 +47,16 @@ class TestClassifyFailure(unittest.TestCase):
     def test_ansi_and_crlf_are_ignored(self):
         log = "\x1b[31mjava.net.UnknownHostException: repo.example.org\x1b[0m\r\n"
         self.assertEqual("DNS lookup failed (repo.example.org)", classify_failure(log))
+
+    def test_repository_status_omits_url_credentials(self):
+        log = ("> Could not GET 'https://user:token@mirror.example.com/x.pom'. "
+               "Received status code 429 from server\n")
+        self.assertEqual("HTTP 429 from mirror.example.com", classify_failure(log))
+
+    def test_repository_status_wins_over_an_earlier_signature(self):
+        log = ("java.net.UnknownHostException: services.gradle.org\n"
+               "> Could not GET 'https://repo.maven.apache.org/x.pom'. Received status code 502 from server\n")
+        self.assertEqual("HTTP 502 from repo.maven.apache.org", classify_failure(log))
 
     def test_repository_status_wins_over_a_later_signature(self):
         log = ("> Could not GET 'https://plugins.gradle.org/m2/x.pom'. Received status code 502 from server\n"

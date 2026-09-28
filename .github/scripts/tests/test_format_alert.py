@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from format_alert import format_alert, format_attempt_label, format_summary, format_task_lines, main
+from format_alert import MAX_ALERT_CHARS, format_alert, format_attempt_label, format_summary, format_task_lines, main
 
 
 BASE = {
@@ -305,6 +305,49 @@ class TestJobLinksAndCauses(unittest.TestCase):
     def test_cause_follows_the_name_above_tasks(self):
         data = {**BASE, "jobs": [{"name": "A", "run_id": "1", "tasks": [":a:test"], "cause": "no known infrastructure cause"}]}
         self.assertEqual("• A — no known infrastructure cause", format_alert(data).splitlines()[1])
+
+
+class TestAlertLength(unittest.TestCase):
+
+    SUMMARY_URL = "https://github.com/example/repo/actions/runs/999"
+
+    def jobs(self, count, tasks=None):
+        return [{"name": f"ci-check / build-and-test / Test (Java {n}) macos-latest", "run_id": "36145963812",
+                 "job_id": str(108107150063 + n), "cause": "DNS lookup failed (services.gradle.org)",
+                 **({"tasks": tasks} if tasks else {})} for n in range(count)]
+
+    def alert(self, jobs):
+        return format_alert({**BASE, "sha": "c7ea22020976", "actor": "viaductbot", "attempt": "2",
+                             "outcome": "retry_success", "summary_url": self.SUMMARY_URL, "jobs": jobs})
+
+    def test_twelve_labeled_jobs_fit_the_limit(self):
+        self.assertLessEqual(len(self.alert(self.jobs(12))), MAX_ALERT_CHARS)
+
+    def test_jobs_that_do_not_fit_are_counted_and_linked(self):
+        lines = self.alert(self.jobs(12)).splitlines()
+        self.assertRegex(lines[-1], rf"^\+\d+ more jobs: {self.SUMMARY_URL}$")
+        hidden = int(lines[-1].split()[0][1:])
+        self.assertEqual(12, len(lines) - 2 + hidden)
+
+    def test_blocks_with_tasks_are_kept_whole(self):
+        text = self.alert(self.jobs(12, tasks=[":core:engine:runtime:test", ":core:tenant:api:test", ":a:b:check", ":c:d:e"]))
+        self.assertLessEqual(len(text), MAX_ALERT_CHARS)
+        lines = text.splitlines()
+        self.assertEqual(0, (len(lines) - 2) % 5)
+
+    def test_one_hidden_job_is_singular(self):
+        jobs = self.jobs(9)
+        full = self.alert(jobs)
+        self.assertNotIn("more job", full)
+        long_name = {**jobs[0], "name": "x" * (MAX_ALERT_CHARS - len(full) + 20)}
+        self.assertTrue(self.alert(jobs + [long_name]).endswith(f"+1 more job: {self.SUMMARY_URL}"))
+
+    def test_without_a_summary_url_the_count_stands_alone(self):
+        data = {**BASE, "jobs": self.jobs(12)}
+        self.assertRegex(format_alert(data).splitlines()[-1], r"^\+\d+ more jobs?$")
+
+    def test_short_alerts_are_unchanged(self):
+        self.assertNotIn("more job", self.alert(self.jobs(2)))
 
 
 class TestFormatSummary(unittest.TestCase):

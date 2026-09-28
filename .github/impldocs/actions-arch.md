@@ -176,6 +176,7 @@ All alerts are formatted by `.github/scripts/format_alert.py`, a pure Python scr
 - `branch`, `server_url`, `repository`, `jobs` are required.
 - `sha`, `actor` are optional (present for push-triggered failures).
 - `attempt` is optional and rendered only above 1, so the label means the run had already been retried.
+- `summary_url` is optional and linked only when the alert is cut to fit.
 - `outcome` is optional: `failure` (the default), `retry_success`, or `retrying`. It selects the emoji and verb. `retrying` is only rendered into the run-page summary, never posted. An unrecognized value is rejected rather than silently read as a failure.
 - `jobs` is a non-empty array. Each entry has a `name` (display label) and a `run_id`. The link is `{server_url}/{repository}/actions/runs/{run_id}/job/{job_id}` when the optional `job_id` is present, which opens the failed attempt's log, and the run page otherwise. Optional `tasks` lists failing Gradle task paths, and optional `cause` is a short label.
 
@@ -184,9 +185,10 @@ All alerts are formatted by `.github/scripts/format_alert.py`, a pure Python scr
 - One failed job with no tasks: a single line with job name, branch, optional commit info, and link.
 - Otherwise a header line followed by one bullet per job. A job with no tasks stays inline as `name: url`; a job with tasks puts its name, then up to 3 tasks one per line, then its link. Beyond 3 the last line gains `+N more`.
 - A job's `cause` follows its name as ` — cause`.
+- An alert is capped at 2,000 characters, Discord's message limit. Job blocks that do not fit are dropped whole and counted in a closing `+N more jobs` line, which links the optional `summary_url`: the listener run whose summary lists every job.
 - `--summary` prints the same data as a Markdown table (job link, cause, every failed task) for `$GITHUB_STEP_SUMMARY`.
 
-Job names come from the run's job list, so an alert names the job that actually failed (`build-and-test / Test (Java 17) ubuntu-latest`) rather than the atomic that contained it. Tasks come from `extract_failed_tasks.py` reading that job's log, which is why a failure with no Gradle task — an HTTP 429 from a dependency repository, say — still reports its job name. The cause comes from `classify_failure.py` reading the same log. It labels a repository HTTP error, a GitHub artifact download failure, a DNS lookup failure, or a test JVM that never connected, and prints `no known infrastructure cause` otherwise.
+Job names come from the run's job list, so an alert names the job that actually failed (`build-and-test / Test (Java 17) ubuntu-latest`) rather than the atomic that contained it. Tasks come from `extract_failed_tasks.py` reading that job's log, which is why a failure with no Gradle task — an HTTP 429 from a dependency repository, say — still reports its job name. The cause comes from `classify_failure.py` reading the same log. It labels a repository HTTP error, a GitHub artifact download failure, a DNS lookup failure, or a Gradle child process that never connected, and prints `no known infrastructure cause` otherwise. A repository HTTP status outranks the others.
 
 ### Alert Posting Protocol
 

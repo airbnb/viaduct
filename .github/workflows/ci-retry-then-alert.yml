@@ -151,6 +151,7 @@ jobs:
           actor: ${{ github.event.workflow_run.actor.login }}
           attempt: ${{ github.event.workflow_run.run_attempt }}
           outcome: ${{ steps.jobs.outputs.outcome }}
+          summary_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       - name: Summarize on the run page
         if: "!cancelled() && steps.fmt.outputs.summary != ''"
