@@ -14,8 +14,8 @@ import model.VariableInstanceId
 import model.guardedBy
 import model.merge
 import model.outputValue
-import model.registry.FieldChecker
-import model.registry.FieldResolver
+import model.registry.FieldCheckerResolver
+import model.registry.FieldValueResolver
 import model.registry.InstantiatedFieldPathDefinition
 import model.registry.ResolverFragments
 import model.registry.VariableInstanceDefinition
@@ -365,7 +365,7 @@ private data class ResolverContext(
     val invocationRoot: ObjectEngineResult,
     val invocationPath: List<PathComponent>,
     val resolverOccurrenceId: ResolverOccurrenceId,
-    val resolver: FieldResolver,
+    val resolver: FieldValueResolver,
     val variableDefinitions: List<VariableInstanceDefinition>,
     val fragments: ResolverFragments,
 ) {
@@ -431,7 +431,7 @@ private fun createResolverContext(
     occurrence: OEROccurrence,
     objectKey: ObjectEngineResult.ObjectKey,
 ): ResolverContext {
-    val resolver: FieldResolver = world.resolverRegistry.resolver(objectKey.field)
+    val resolver: FieldValueResolver = world.resolverRegistry.resolver(objectKey.field)
     val resolverOccurrenceId =
         ResolverOccurrenceId.at(
             occurrence.root,
@@ -464,7 +464,7 @@ private fun createResolverContext(
 /** One symbolic checker occurrence; its named pairs share the existing binding domain. */
 internal class FieldCheckerOccurrence(
     val selection: ObjectSelection,
-    val checker: FieldChecker,
+    val checker: FieldCheckerResolver,
     val fragments: ResolverFragments,
     val providerReads: List<VariableProviderReadOccurrence>,
 ) {
@@ -473,7 +473,7 @@ internal class FieldCheckerOccurrence(
 }
 
 private class CheckerContext(
-    val checker: FieldChecker,
+    val checker: FieldCheckerResolver,
     val fragments: ResolverFragments
 ) {
     val accumulatedKeyInclusions = linkedSetOf<InclusionCondition>()

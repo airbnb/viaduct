@@ -381,7 +381,7 @@ private fun ArgumentExpression?.rootRelativeHashCode(): Int =
     when (this) {
         null -> 0
         is Arguments.Variable -> {
-            var hash = field.hashCode()
+            var hash = target.hashCode()
             hash = 31 * hash + variableName.hashCode()
             hash =
                 31 * hash +
@@ -405,7 +405,7 @@ private fun Map<*, *>.hasSameRootRelativeStructureAs(other: Map<*, *>): Boolean 
 private fun ArgumentExpression?.hasSameRootRelativeStructureAs(other: ArgumentExpression?): Boolean =
     when {
         this is Arguments.Variable && other is Arguments.Variable ->
-            field == other.field &&
+            target == other.target &&
                 variableName == other.variableName &&
                 when {
                     instanceId == null || other.instanceId == null -> instanceId == other.instanceId

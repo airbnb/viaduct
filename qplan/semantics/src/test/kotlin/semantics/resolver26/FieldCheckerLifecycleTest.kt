@@ -24,7 +24,8 @@ import model.ObjectEngineResult
 import model.VariableBinding
 import model.fragmentFrom
 import model.operationSelectionsFrom
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
+import model.registry.ResolverTarget
 import model.registry.ResolverFragmentTemplates
 import model.registry.VariableDefinition
 import model.registry.VariablesProviderFunction
@@ -104,14 +105,14 @@ class FieldCheckerLifecycleTest : Resolver26DispatcherResource {
                 val dependency = schema.requireObjectField("Query", "dependency")
                 val protected = schema.requireObjectField("Query", "protected")
                 mapOf(
-                    checked to FieldChecker.of(checked, schema.requireQueryTypeDef()) { _, _, ctx ->
+                    checked to FieldCheckerResolver.of(checked, schema.requireQueryTypeDef()) { _, _, ctx ->
                         val selections = schema.fragmentFrom("fragment Child on Query { dependency }").materializeSelections
                         assertEquals(7, ctx.resolveSelectionSet(selections).get("dependency"))
                         assertEquals(7, ctx.resolveSelectionSet(selections).get("dependency"))
                         CheckerResult.Success
                     },
-                    dependency to FieldChecker.of(dependency, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success },
-                    protected to FieldChecker.of(protected, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success },
+                    dependency to FieldCheckerResolver.of(dependency, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success },
+                    protected to FieldCheckerResolver.of(protected, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success },
                 )
             },
         )
@@ -143,14 +144,14 @@ class FieldCheckerLifecycleTest : Resolver26DispatcherResource {
             fieldCheckers = { schema ->
                 val field = schema.requireObjectField("Query", "checked")
                 mapOf(
-                    field to FieldChecker.of(
+                    field to FieldCheckerResolver.of(
                         field,
                         schema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                objectFragmentTemplate = schema.fragmentFrom("fragment Input on Query { dependency(value: ${'$'}v) }", variableField = field).materializeSelections,
+                                objectFragmentTemplate = schema.fragmentFrom("fragment Input on Query { dependency(value: ${'$'}v) }", variableTarget = ResolverTarget.FieldCheckerTarget(field)).materializeSelections,
                                 queryFragmentTemplate = model.materializeSelectionForestOf(),
-                                variables = mapOf(Arguments.Variable.of(field, "v") to VariableDefinition.FromProvider),
+                                variables = mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "v") to VariableDefinition.FromProvider),
                                 variablesProvider = provider,
                             )
                         )

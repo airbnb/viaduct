@@ -1,5 +1,7 @@
 package model
 
+import model.registry.ResolverTarget
+
 import viaduct.graphql.schema.ViaductSchema
 
 import model.testing.TestWorld
@@ -532,7 +534,10 @@ class AssumptionsTest {
 
 private fun Arguments.Variable.testInstance(
     path: List<PathComponent>,
-): Arguments.Variable = instantiate(ResolverOccurrenceId.at(field.testRoot(), path))
+): Arguments.Variable =
+    instantiate(
+        ResolverOccurrenceId.at((target as ResolverTarget.FieldTarget).field.testRoot(), path),
+    )
 
 private val Arguments.Variable.testId: VariableInstanceId
     get() = requireNotNull(instanceId)

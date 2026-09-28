@@ -10,7 +10,7 @@ import model.ResolverOccurrenceId
 import model.MaterializeSelectionForest
 import model.VariableBinding
 import model.outputType
-import model.registry.FieldResolver
+import model.registry.FieldValueResolver
 import model.registry.InstantiatedFieldPathDefinition
 import model.registry.VariableDefinition
 import model.registry.ProviderFragment
@@ -118,7 +118,7 @@ fun ObjectEngineResult.validateFromFieldBindings(
     }
 }
 
-internal fun FieldResolver.fieldPathDefinitions(
+internal fun FieldValueResolver.fieldPathDefinitions(
     root: ObjectEngineResult,
     path: List<PathComponent>,
 ): List<InstantiatedFieldPathDefinition> =

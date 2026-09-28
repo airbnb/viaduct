@@ -42,7 +42,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 import viaduct.engine.api.EngineObjectData
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import viaduct.engine.api.CheckerResult
 
 class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
@@ -1444,7 +1444,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                 fieldCheckers = { schema ->
                     if (!withChecker) emptyMap() else {
                         val products = schema.requireObjectField("Container", "products")
-                        mapOf(products to FieldChecker.of(products, schema.requireQueryTypeDef()) { _, _, _ ->
+                        mapOf(products to FieldCheckerResolver.of(products, schema.requireQueryTypeDef()) { _, _, _ ->
                             checkerApplications.incrementAndGet()
                             CheckerResult.Success
                         })

@@ -34,7 +34,7 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
 import model.outputValue
-import model.registry.FieldResolver
+import model.registry.FieldValueResolver
 import model.registry.ResolverFragmentTemplates
 import model.registry.ResolverRegistry
 import model.sameCompletedResultAs
@@ -237,7 +237,7 @@ interface CoroutineResolverContract {
         val first = testWorld.schema.requireObjectField("Query", "first")
         val second = testWorld.schema.requireObjectField("Query", "second")
         // Bypass registry cycle validation, while keeping each resolver's field identity valid.
-        val cyclicResolver = FieldResolver.of(
+        val cyclicResolver = FieldValueResolver.of(
             field = second,
             fragmentTemplates =
                 ResolverFragmentTemplates(
@@ -684,7 +684,7 @@ private fun assertCompletedAndWriteOnce(result: EngineResult?) {
 
 private fun registryOverride(
     delegate: ResolverRegistry,
-    resolver: (ViaductSchema.ObjectField, ResolverRegistry) -> FieldResolver?,
+    resolver: (ViaductSchema.ObjectField, ResolverRegistry) -> FieldValueResolver?,
 ): ResolverRegistry =
     object : ResolverRegistry {
         override fun createRootQueryInput(): EngineObjectData.Sync = delegate.createRootQueryInput()
@@ -692,7 +692,7 @@ private fun registryOverride(
         override fun contains(field: ViaductSchema.ObjectField): Boolean =
             resolver(field, delegate) != null
 
-        override fun resolver(field: ViaductSchema.ObjectField): FieldResolver =
+        override fun resolver(field: ViaductSchema.ObjectField): FieldValueResolver =
             resolver(field, delegate)
                 ?: error(
                     "Missing overridden resolver: " +

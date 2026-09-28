@@ -17,7 +17,7 @@ import semantics.shared.SharedOperationContext
  * This judgment is purposefully permissive: as long as the [ObjectEngineResult] conforms
  * to our world assumptions (e.g., regarding schema conformance and resolver conformance),
  * this predicate allows the [ObjectEngineResult] to contain more values than the input
- * [selections] and implicated [model.registry.FieldResolver.objectFragment]s require. Other
+ * [selections] and implicated [model.registry.FieldValueResolver.objectFragment]s require. Other
  * predicates define various degrees of minimality.
  *
  * [selections] must be rooted at the reasoning world's canonical Query type. Reapplying a resolver

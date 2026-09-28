@@ -86,7 +86,7 @@ interface ResolverObserver {
     ) = Unit
 
     /**
-     * Records each attempted resolver call immediately before entering FieldResolver.invoke.
+     * Records each attempted resolver call immediately before entering FieldValueResolver.invoke.
      * Emit inside the execution coroutine, after input preparation, with no suspension,
      * dispatch, or interruptible coroutine-entry boundary between this event and the call.
      */

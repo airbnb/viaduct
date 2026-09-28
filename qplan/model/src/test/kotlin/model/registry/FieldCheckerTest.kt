@@ -42,7 +42,7 @@ class FieldCheckerTest {
                 queryFragmentTemplate = materializeSelectionForestOf(),
             )
         val checker =
-            FieldChecker.of(
+            FieldCheckerResolver.of(
                 field = schema.requireObjectField("Item", "secured"),
                 queryType = queryType,
                 fragmentTemplates =
@@ -78,8 +78,8 @@ class FieldCheckerTest {
         val schema = world.schema
         val field = schema.requireObjectField("Item", "secured")
         val queryType = schema.requireQueryTypeDef()
-        val objectVariable = Arguments.Variable.of(field, "objectId")
-        val queryVariable = Arguments.Variable.of(field, "queryId")
+        val objectVariable = Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "objectId")
+        val queryVariable = Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "queryId")
         val objectFragment =
             "fragment AccessInput on Item { testId owner(seed: ${'$'}queryId) }"
         val queryFragment =
@@ -110,10 +110,15 @@ class FieldCheckerTest {
             )
         val accessInput =
             ResolverFragmentTemplates(
-                objectFragmentTemplate = schema.fragmentFrom(objectFragment).materializeSelections,
+                objectFragmentTemplate =
+                    schema
+                        .fragmentFrom(
+                            objectFragment,
+                            variableTarget = ResolverTarget.FieldCheckerTarget(field),
+                        ).materializeSelections,
                 queryFragmentTemplate =
                     schema
-                        .fragmentFrom(queryFragment, variableField = field)
+                        .fragmentFrom(queryFragment, variableTarget = ResolverTarget.FieldCheckerTarget(field))
                         .materializeSelections,
                 variables =
                     mapOf(
@@ -122,7 +127,7 @@ class FieldCheckerTest {
                     ),
             )
         val checker =
-            FieldChecker.of(
+            FieldCheckerResolver.of(
                 field = field,
                 queryType = queryType,
                 fragmentTemplates = mapOf("accessInput" to accessInput),
@@ -170,7 +175,7 @@ class FieldCheckerTest {
         val schema = world.schema
         val field = schema.requireObjectField("Item", "secured")
         val queryType = schema.requireQueryTypeDef()
-        val variable = Arguments.Variable.of(field, "seed")
+        val variable = Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "seed")
         val definition = VariableDefinition.FromArgument.of(requireNotNull(field.arg("seed")))
         val ownerInput =
             ResolverFragmentTemplates(
@@ -178,7 +183,7 @@ class FieldCheckerTest {
                     schema
                         .fragmentFrom(
                             "fragment Owner on Item { owner(seed: ${'$'}seed) }",
-                            variableField = field,
+                            variableTarget = ResolverTarget.FieldCheckerTarget(field),
                         ).materializeSelections,
                 queryFragmentTemplate = materializeSelectionForestOf(),
                 variables = mapOf(variable to definition),
@@ -190,12 +195,12 @@ class FieldCheckerTest {
                     schema
                         .fragmentFrom(
                             "fragment Viewer on Query { viewer(seed: ${'$'}seed) }",
-                            variableField = field,
+                            variableTarget = ResolverTarget.FieldCheckerTarget(field),
                         ).materializeSelections,
                 variables = mapOf(variable to definition),
             )
         val checker =
-            FieldChecker.of(
+            FieldCheckerResolver.of(
                 field = field,
                 queryType = queryType,
                 fragmentTemplates =

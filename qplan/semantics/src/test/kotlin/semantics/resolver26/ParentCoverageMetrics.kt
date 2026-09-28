@@ -9,7 +9,8 @@ import model.ObjectEngineResult
 import model.SelectionForest
 import model.objectKey
 import model.outputValue
-import model.registry.FieldResolver
+import model.registry.FieldValueResolver
+import model.registry.ResolverTarget
 import model.registry.ProviderFragment
 import model.registry.VariableDefinition
 import model.schemaType
@@ -125,7 +126,7 @@ internal class ParentCoverageAnalyzer(
                                 key.arguments
                                     .usedVariables()
                                     .mapTo(linkedSetOf()) { variable ->
-                                        check(variable.field == variableOwner)
+                                        check((variable.target as ResolverTarget.FieldTarget).field == variableOwner)
                                         variableSources.getValue(variable.variableName)
                                     }
                             currentParents.forEach { parent ->
@@ -190,7 +191,7 @@ internal class ParentCoverageAnalyzer(
         )
     }
 
-    private fun FieldResolver.variableArgumentSelections(
+    private fun FieldValueResolver.variableArgumentSelections(
         variableOwner: ViaductSchema.ObjectField,
     ): List<ParentResolverVariableArgumentCoverage> {
         val sources = variableSourcesByName()
@@ -218,7 +219,7 @@ internal class ParentCoverageAnalyzer(
                     selection.key.arguments
                         .usedVariables()
                         .mapTo(linkedSetOf()) { variable ->
-                            check(variable.field == variableOwner)
+                            check((variable.target as ResolverTarget.FieldTarget).field == variableOwner)
                             variableSources.getValue(variable.variableName)
                         }
                 if (sources.isNotEmpty()) {
@@ -296,7 +297,7 @@ private data class MutableParentSelectionSetCoverage(
         )
 }
 
-private fun FieldResolver.variableSourcesByName(): Map<String, ParentVariableSource> =
+private fun FieldValueResolver.variableSourcesByName(): Map<String, ParentVariableSource> =
     variables.mapKeys { (variable, _) -> variable.variableName }
         .mapValues { (_, definition) -> definition.parentVariableSource() }
 

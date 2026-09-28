@@ -21,7 +21,7 @@ import model.schemaType
 import viaduct.engine.api.EngineObjectData
 import model.toEngineOutputData
 import model.usedVariables
-import model.registry.FieldResolver
+import model.registry.FieldValueResolver
 import model.registry.ResolverFragments
 import model.registry.VariableDefinition
 import model.merge
@@ -249,7 +249,7 @@ private class ResolverConformanceLogic(
     }
 }
 
-internal fun FieldResolver.fragmentsSatisfiedBy(
+internal fun FieldValueResolver.fragmentsSatisfiedBy(
     operation: SharedOperationContext<*>,
     root: ObjectEngineResult,
     result: ObjectEngineResult,
@@ -279,7 +279,7 @@ internal fun FieldResolver.fragmentsSatisfiedBy(
     }
 }
 
-private fun FieldResolver.fromArgumentBindingsAgree(
+private fun FieldValueResolver.fromArgumentBindingsAgree(
     operation: SharedOperationContext<*>,
     fragments: ResolverFragments,
     arguments: Arguments.Resolved,

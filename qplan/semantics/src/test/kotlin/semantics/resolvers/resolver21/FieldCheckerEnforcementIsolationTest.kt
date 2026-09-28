@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import model.ObjectEngineResult
 import model.operationSelectionsFrom
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
@@ -29,7 +29,7 @@ class FieldCheckerEnforcementIsolationTest {
                 fieldCheckers = { schema ->
                     val field = schema.requireObjectField("Query", "denied")
                     mapOf(
-                        field to FieldChecker.of(field, schema.requireQueryTypeDef()) { _, _, _ -> denial },
+                        field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ -> denial },
                     )
                 },
             ).assumptions

@@ -3,7 +3,7 @@ package semantics.resolvers.resolver01
 import java.util.concurrent.atomic.AtomicInteger
 import model.ObjectEngineResult
 import model.operationSelectionsFrom
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
@@ -30,7 +30,7 @@ class FieldCheckerIsolationTest {
                     val field = schema.requireObjectField("Query", "value")
                     mapOf(
                         field to
-                            FieldChecker.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
                                 checkerCalls.incrementAndGet()
                                 CheckerResult.Success
                             },

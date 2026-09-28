@@ -29,7 +29,8 @@ import model.objectOf
 import model.operationSelectionsFrom
 import model.outputValue
 import model.registry.CheckerInput
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
+import model.registry.ResolverTarget
 import model.registry.ResolverFragmentTemplates
 import model.registry.VariableDefinition
 import model.requireObjectField
@@ -71,10 +72,10 @@ interface GroundedFieldCheckerQueryFragmentContract {
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
                     val checked = schema.requireObjectField("Item", "checked")
-                    val enabled = Arguments.Variable.of(checked, "enabled")
+                    val enabled = Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(checked), "enabled")
                     mapOf(
                         checked to
-                            FieldChecker.of(
+                            FieldCheckerResolver.of(
                                 field = checked,
                                 queryType = schema.requireQueryTypeDef(),
                                 fragmentTemplates =
@@ -85,13 +86,13 @@ interface GroundedFieldCheckerQueryFragmentContract {
                                                     schema
                                                         .fragmentFrom(
                                                             "fragment Input on Item { objectDependency @include(if: ${'$'}enabled) }",
-                                                            variableField = checked,
+                                                            variableTarget = ResolverTarget.FieldCheckerTarget(checked),
                                                         ).materializeSelections,
                                                 queryFragmentTemplate =
                                                     schema
                                                         .fragmentFrom(
                                                             "fragment Input on Query { queryDependency @include(if: ${'$'}enabled) }",
-                                                            variableField = checked,
+                                                            variableTarget = ResolverTarget.FieldCheckerTarget(checked),
                                                         ).materializeSelections,
                                                 variables =
                                                     mapOf<Arguments.Variable, VariableDefinition>(
@@ -157,20 +158,20 @@ interface GroundedFieldCheckerQueryFragmentContract {
                 fieldCheckers = { schema ->
                     val query = schema.requireQueryTypeDef()
                     val checked = schema.requireObjectField("Item", "checked")
-                    val seed = Arguments.Variable.of(checked, "seed")
+                    val seed = Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(checked), "seed")
                     fun queryInput(alias: String): ResolverFragmentTemplates =
                         ResolverFragmentTemplates(
                             objectFragmentTemplate =
                                 schema
                                     .fragmentFrom(
                                         "fragment Input on Item { ${alias}Object: objectShared(seed: ${'$'}seed) }",
-                                        variableField = checked,
+                                        variableTarget = ResolverTarget.FieldCheckerTarget(checked),
                                     ).materializeSelections,
                             queryFragmentTemplate =
                                 schema
                                     .fragmentFrom(
                                         "fragment Input on Query { $alias: shared(seed: ${'$'}seed) }",
-                                        variableField = checked,
+                                        variableTarget = ResolverTarget.FieldCheckerTarget(checked),
                                     ).materializeSelections,
                             variables =
                                 mapOf<Arguments.Variable, VariableDefinition>(
@@ -183,7 +184,7 @@ interface GroundedFieldCheckerQueryFragmentContract {
                     val shared = schema.requireObjectField("Query", "shared")
                     mapOf(
                         checked to
-                            FieldChecker.of(
+                            FieldCheckerResolver.of(
                                 field = checked,
                                 queryType = query,
                                 fragmentTemplates =
@@ -201,7 +202,7 @@ interface GroundedFieldCheckerQueryFragmentContract {
                                 CheckerResult.Success
                             },
                         shared to
-                            FieldChecker.of(shared, query) { _, _, _ ->
+                            FieldCheckerResolver.of(shared, query) { _, _, _ ->
                                 sharedCheckerCalls.incrementAndGet()
                                 CheckerResult.Success
                             },
@@ -294,7 +295,7 @@ interface GroundedFieldCheckerQueryFragmentContract {
                     val protected = schema.requireObjectField("Query", "protected")
                     mapOf(
                         checked to
-                            FieldChecker.of(
+                            FieldCheckerResolver.of(
                                 field = checked,
                                 queryType = query,
                                 fragmentTemplates =
@@ -313,7 +314,7 @@ interface GroundedFieldCheckerQueryFragmentContract {
                                 CheckerResult.Success
                             },
                         protected to
-                            FieldChecker.of(protected, query) { _, _, _ ->
+                            FieldCheckerResolver.of(protected, query) { _, _, _ ->
                                 protectedCheckerCalls.incrementAndGet()
                                 CheckerResult.Success
                             },
@@ -478,7 +479,7 @@ interface GroundedFieldCheckerQueryFragmentContract {
                 val checked = schema.requireObjectField("Item", "checked")
                 mapOf(
                     checked to
-                        FieldChecker.of(
+                        FieldCheckerResolver.of(
                             checked,
                             schema.requireQueryTypeDef(),
                             fragmentTemplates =
@@ -534,7 +535,7 @@ interface GroundedFieldCheckerQueryFragmentContract {
                 val checked = schema.requireObjectField("Query", "checked")
                 mapOf(
                     checked to
-                        FieldChecker.of(
+                        FieldCheckerResolver.of(
                             checked,
                             schema.requireQueryTypeDef(),
                             fragmentTemplates =

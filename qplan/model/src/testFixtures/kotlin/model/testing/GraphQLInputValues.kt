@@ -26,6 +26,7 @@ import model.EngineInputObjectData
 import model.EngineSimpleData
 import model.coerceArgumentExpression
 import model.requireType
+import model.registry.ResolverTarget
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.utils.collections.BitVector
 
@@ -36,7 +37,7 @@ internal fun decodeInputValue(
     value: InputValueWithState,
     variableValues: Map<String, EngineInputData?>,
     schema: ViaductSchema,
-    variableField: ViaductSchema.ObjectField? = null,
+    variableTarget: ResolverTarget.FieldTarget? = null,
 ): Any? =
     if (value.isLiteral) {
         decodeLiteral(
@@ -44,7 +45,7 @@ internal fun decodeInputValue(
             value.value as GraphQLValue<*>,
             variableValues,
             schema,
-            variableField,
+            variableTarget,
         )
     } else {
         coerceArgumentExpression(
@@ -58,7 +59,7 @@ internal fun decodeLiteral(
     value: GraphQLValue<*>,
     variableValues: Map<String, EngineInputData?>,
     schema: ViaductSchema,
-    variableField: ViaductSchema.ObjectField? = null,
+    variableTarget: ResolverTarget.FieldTarget? = null,
 ): Any? {
     if (value is VariableReference) {
         return if (variableValues.containsKey(value.name)) {
@@ -69,10 +70,10 @@ internal fun decodeLiteral(
                 coerceArgumentExpression(decodeModelInputType(type, schema), bound)
             }
         } else {
-            requireNotNull(variableField) {
+            requireNotNull(variableTarget) {
                 "Unbound operation variable \$${value.name}"
             }
-            Arguments.Variable.of(variableField, value.name)
+            Arguments.Variable.of(variableTarget, value.name)
         }
     }
     if (value is NullValue) return null
@@ -84,7 +85,7 @@ internal fun decodeLiteral(
                 value,
                 variableValues,
                 schema,
-                variableField,
+                variableTarget,
             )
         is GraphQLList -> {
             val values = if (value is ArrayValue) value.values else listOf(value)
@@ -96,7 +97,7 @@ internal fun decodeLiteral(
                         it,
                         variableValues,
                         schema,
-                        variableField,
+                        variableTarget,
                     )
                 },
             )
@@ -112,7 +113,7 @@ internal fun decodeLiteral(
                 (value as EnumValue).name,
             )
         is GraphQLInputObjectType ->
-            decodeObjectLiteral(type, value as ObjectValue, variableValues, schema, variableField)
+            decodeObjectLiteral(type, value as ObjectValue, variableValues, schema, variableTarget)
         else -> error("Unexpected input type: $type")
     }
 }
@@ -181,7 +182,7 @@ private fun decodeObjectLiteral(
     value: ObjectValue,
     variableValues: Map<String, EngineInputData?>,
     schema: ViaductSchema,
-    variableField: ViaductSchema.ObjectField?,
+    variableTarget: ResolverTarget.FieldTarget?,
 ): Any {
     val suppliedFields = value.objectFields.associateBy { it.name }
     return decodeInputObjectFields(
@@ -193,7 +194,7 @@ private fun decodeObjectLiteral(
                 suppliedFields.getValue(fieldName).value,
                 variableValues,
                 schema,
-                variableField,
+                variableTarget,
             )
         },
         variableValues = variableValues,

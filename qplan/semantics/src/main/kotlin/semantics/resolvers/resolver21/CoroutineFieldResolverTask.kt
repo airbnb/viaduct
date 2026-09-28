@@ -13,7 +13,7 @@ import model.RootFieldReferenceData
 import model.engineObjectDataOf
 import model.merge
 import model.outputValue
-import model.registry.FieldResolver
+import model.registry.FieldValueResolver
 import model.registry.ResolverFragment
 import model.requireQueryTypeDef
 import semantics.resolver26.CoroutineFieldResolverTaskBase
@@ -101,7 +101,7 @@ internal class CoroutineFieldResolverTask private constructor(
      * Failures are returned to the owning field without cancelling its scope.
      */
     fun launchIndependentQueryFragmentProducer(
-        resolver: FieldResolver,
+        resolver: FieldValueResolver,
         queryFragment: ResolverFragment,
         reader: CycleTask,
     ): Deferred<EngineObjectOrErrorData> = fieldTaskScope.async {

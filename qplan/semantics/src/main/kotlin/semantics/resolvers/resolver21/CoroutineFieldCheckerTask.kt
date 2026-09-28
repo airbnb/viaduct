@@ -8,7 +8,7 @@ import model.EngineResultCell
 import model.ObjectEngineResult
 import model.ObjectSelection
 import model.PathComponent
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import model.registry.CheckerInput
 import model.registry.ResolutionExecutionContext
 import model.registry.ResolverFragments
@@ -27,7 +27,7 @@ internal class GroundedFieldCheckerPublicationOccurrence(
     val oerOccurrence: OEROccurrence,
     val selection: ObjectSelection,
     override val publicationCell: EngineResultCell,
-    val checker: FieldChecker?,
+    val checker: FieldCheckerResolver?,
     val checkerFragments: ResolverFragments?,
     val arguments: Arguments.Resolved?,
     val publicationPath: List<PathComponent>,
@@ -108,14 +108,14 @@ internal class CoroutineFieldCheckerTask private constructor(
 
         private fun requireSupportedRequiredSelections(
             operation: CoroutineOperationContext,
-            checker: FieldChecker,
+            checker: FieldCheckerResolver,
         ) {
             require(operation.supportsCheckerFragments || checker.objectFragment.isEmpty()) {
-                "Resolver21 field checker ${checker.field.containingDef.name}/${checker.field.name} " +
+                "Resolver21 field checker ${checker.target.field.containingDef.name}/${checker.target.field.name} " +
                     "cannot declare object required selections"
             }
             require(operation.supportsCheckerFragments || checker.queryFragment.isEmpty()) {
-                "Resolver21 field checker ${checker.field.containingDef.name}/${checker.field.name} " +
+                "Resolver21 field checker ${checker.target.field.containingDef.name}/${checker.target.field.name} " +
                     "cannot declare Query required selections"
             }
         }

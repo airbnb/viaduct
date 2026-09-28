@@ -34,18 +34,18 @@ class FieldCheckerRuntimeVariablesTest {
         ).schema
         val checked = mixed.requireObjectField("Query", "checked")
         for (root in ProviderFragment.entries) {
-            fun checker(type: String, directive: String = ""): FieldChecker {
+            fun checker(type: String, directive: String = ""): FieldCheckerResolver {
                 val input = mixed.fragmentFrom(
                     "fragment Input on Query { nodes { edge { ... on $type { localized(locale: ${'$'}locale) $directive } } } }",
-                    variableField = checked,
+                    variableTarget = ResolverTarget.FieldCheckerTarget(checked),
                 ).materializeSelections
                 val empty = materializeSelectionForestOf()
                 val pair = ResolverFragmentTemplates(
                     if (root == ProviderFragment.OBJECT) input else empty,
                     if (root == ProviderFragment.QUERY) input else empty,
-                    mapOf(Arguments.Variable.of(checked, "locale") to VariableDefinition.FromArgument.of(requireNotNull(checked.arg("locale")))),
+                    mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(checked), "locale") to VariableDefinition.FromArgument.of(requireNotNull(checked.arg("locale")))),
                 )
-                return FieldChecker.of(checked, mixed.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
+                return FieldCheckerResolver.of(checked, mixed.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
             }
             assertFailsWith<IllegalArgumentException> { checker("ParentA") }
             checker("ParentB")
@@ -58,20 +58,20 @@ class FieldCheckerRuntimeVariablesTest {
         runBlocking {
             fun pair(value: Int) =
                 ResolverFragmentTemplates(
-                    schema.fragmentFrom("fragment Input on Query { echo(value: ${'$'}v) }", variableField = field).materializeSelections,
+                    schema.fragmentFrom("fragment Input on Query { echo(value: ${'$'}v) }", variableTarget = ResolverTarget.FieldCheckerTarget(field)).materializeSelections,
                     materializeSelectionForestOf(),
-                    mapOf(Arguments.Variable.of(field, "v") to VariableDefinition.FromProvider),
+                    mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "v") to VariableDefinition.FromProvider),
                     variablesProvider = { mapOf("v" to value) },
                 )
-            val checker = FieldChecker.of(field, schema.requireQueryTypeDef(), mapOf("left" to pair(1), "right" to pair(2))) { _, _, _ -> CheckerResult.Success }
+            val checker = FieldCheckerResolver.of(field, schema.requireQueryTypeDef(), mapOf("left" to pair(1), "right" to pair(2))) { _, _, _ -> CheckerResult.Success }
             assertEquals(mapOf("left:v" to 1, "right:v" to 2), checker.provideVariables(Arguments.Resolved.of(field, emptyMap())))
         }
 
     @Test
     fun `checker rejects cycles through provider inclusion conditions`() {
-        val variable = Arguments.Variable.of(field, "flag")
+        val variable = Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "flag")
         val pair = ResolverFragmentTemplates(
-            schema.fragmentFrom("fragment Input on Query { flag @include(if: ${'$'}flag) }", variableField = field).materializeSelections,
+            schema.fragmentFrom("fragment Input on Query { flag @include(if: ${'$'}flag) }", variableTarget = ResolverTarget.FieldCheckerTarget(field)).materializeSelections,
             materializeSelectionForestOf(),
             mapOf(
                 variable to VariableDefinition.FromField.of(
@@ -82,7 +82,7 @@ class FieldCheckerRuntimeVariablesTest {
             ),
         )
         assertFailsWith<IllegalArgumentException> {
-            FieldChecker.of(field, schema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
+            FieldCheckerResolver.of(field, schema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
         }
     }
 
@@ -90,12 +90,12 @@ class FieldCheckerRuntimeVariablesTest {
     fun `provider must return exactly its declared names`(): Unit =
         runBlocking {
             val pair = ResolverFragmentTemplates(
-                schema.fragmentFrom("fragment Input on Query { echo(value: ${'$'}v) }", variableField = field).materializeSelections,
+                schema.fragmentFrom("fragment Input on Query { echo(value: ${'$'}v) }", variableTarget = ResolverTarget.FieldCheckerTarget(field)).materializeSelections,
                 materializeSelectionForestOf(),
-                mapOf(Arguments.Variable.of(field, "v") to VariableDefinition.FromProvider),
+                mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "v") to VariableDefinition.FromProvider),
                 variablesProvider = { mapOf("wrong" to 1) },
             )
-            val checker = FieldChecker.of(field, schema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
+            val checker = FieldCheckerResolver.of(field, schema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
             assertFailsWith<IllegalArgumentException> { checker.provideVariables(Arguments.Resolved.of(field, emptyMap())) }
         }
 }

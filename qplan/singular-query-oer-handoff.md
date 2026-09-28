@@ -184,7 +184,7 @@ For Resolver21–23, `FieldResolutionLogic.runFieldResolver` now materializes or
 
 For the fragment-capable depth-first versions, `DepthFirstFieldResolverTask.resolveQueryFragment` recursively creates `DepthFirstResolve`. Replace this with materialization from the task's prepared Query OER. Query-side resolver dependencies must participate in local sibling ordering. Resolver01 and Resolver06 share these task classes but do not support nonempty Query fragments; use them as regression checks for the no-Query-demand path.
 
-For Resolver26, the private `FieldResolutionLogic.materializeQueryFragment` materializes each ordinary owner's input from its prepared associated Query OER. `FieldResolver.resolveQueryFragment` remains only for independently rooted reference-target invocations.
+For Resolver26, the private `FieldResolutionLogic.materializeQueryFragment` materializes each ordinary owner's input from its prepared associated Query OER. `FieldValueResolver.resolveQueryFragment` remains only for independently rooted reference-target invocations.
 
 ### Cycle checking
 

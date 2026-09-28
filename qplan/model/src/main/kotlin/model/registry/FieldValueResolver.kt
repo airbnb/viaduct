@@ -127,8 +127,8 @@ class ResolverFragments(
  * selection. A variable guarded by a concrete branch disjoint from every parent retarget remains
  * valid. Parent traversal itself remains valid for selective and nonselective resolvers.
  */
-class FieldResolver private constructor(
-    val field: ViaductSchema.ObjectField,
+class FieldValueResolver private constructor(
+    val target: ResolverTarget.FieldValueResolverTarget,
     private val fragmentTemplates: ResolverFragmentTemplates,
     private val queryType: ViaductSchema.Object,
     private val function: SelectiveFieldResolverFunction,
@@ -322,14 +322,15 @@ class FieldResolver private constructor(
             queryType: ViaductSchema.Object,
             function: NonselectiveFieldResolverFunction,
             projectionDemand: (SelectionForest) -> SelectionForest = { it },
-        ): FieldResolver {
+        ): FieldValueResolver {
+            val target = ResolverTarget.FieldValueResolverTarget(field)
             validateFactoryArguments(
-                field = field,
+                target = target,
                 fragmentTemplates = fragmentTemplates,
                 queryType = queryType,
             )
-            return FieldResolver(
-                field = field,
+            return FieldValueResolver(
+                target = target,
                 fragmentTemplates = fragmentTemplates,
                 queryType = queryType,
                 function = { input, queryValue, arguments, _, executionContext ->
@@ -351,14 +352,15 @@ class FieldResolver private constructor(
             fragmentTemplates: ResolverFragmentTemplates,
             queryType: ViaductSchema.Object,
             function: SelectiveFieldResolverFunction,
-        ): FieldResolver {
+        ): FieldValueResolver {
+            val target = ResolverTarget.FieldValueResolverTarget(field)
             validateFactoryArguments(
-                field = field,
+                target = target,
                 fragmentTemplates = fragmentTemplates,
                 queryType = queryType,
             )
-            return FieldResolver(
-                field = field,
+            return FieldValueResolver(
+                target = target,
                 fragmentTemplates = fragmentTemplates,
                 queryType = queryType,
                 function = function,
@@ -380,14 +382,15 @@ class FieldResolver private constructor(
             queryType: ViaductSchema.Object,
             function: SelectiveFieldResolverFunction,
             projectionDemand: (SelectionForest) -> SelectionForest = { it },
-        ): FieldResolver {
+        ): FieldValueResolver {
+            val target = ResolverTarget.FieldValueResolverTarget(field)
             validateFactoryArguments(
-                field = field,
+                target = target,
                 fragmentTemplates = fragmentTemplates,
                 queryType = queryType,
             )
-            return FieldResolver(
-                field = field,
+            return FieldValueResolver(
+                target = target,
                 fragmentTemplates = fragmentTemplates,
                 queryType = queryType,
                 function = function,
@@ -397,10 +400,11 @@ class FieldResolver private constructor(
         }
 
         private fun validateFactoryArguments(
-            field: ViaductSchema.ObjectField,
+            target: ResolverTarget.FieldValueResolverTarget,
             fragmentTemplates: ResolverFragmentTemplates,
             queryType: ViaductSchema.Object,
         ) {
+            val field = target.field
             val objectFragment = fragmentTemplates.objectFragmentTemplate
             val queryFragment = fragmentTemplates.queryFragmentTemplate
             require(
@@ -430,7 +434,7 @@ class FieldResolver private constructor(
                 require(variable.isTemplate) {
                     "Resolver registry variables must be templates"
                 }
-                require(variable.field == field) {
+                require(variable.target == target) {
                     "Variable ${variable.variableName} is not defined by a resolver on " +
                         "${field.containingDef.name}/${field.name}"
                 }
@@ -439,12 +443,12 @@ class FieldResolver private constructor(
                     is VariableDefinition.FromArgument -> {
                         val argument = definition.argument
                         require(
-                            argument.containingDef == variable.field &&
-                                variable.field.arg(argument.name) == argument,
+                            argument.containingDef == target.field &&
+                                target.field.arg(argument.name) == argument,
                         ) {
                             "Variable ${variable.variableName} argument ${argument.name} " +
-                                "does not belong to ${variable.field.containingDef.name}/" +
-                                variable.field.name
+                                "does not belong to ${target.field.containingDef.name}/" +
+                                target.field.name
                         }
                     }
                     is VariableDefinition.FromField -> {

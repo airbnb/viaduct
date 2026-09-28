@@ -13,7 +13,7 @@ import model.fragmentFrom
 import model.merge
 import model.objectOf
 import model.materializeSelectionForestOf
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import model.registry.ResolverFragmentTemplates
 import model.requireObjectField
 import model.requireQueryTypeDef
@@ -171,7 +171,7 @@ class FieldCheckerDemandClosureTest {
             fieldCheckers = { schema ->
                 val a = schema.requireObjectField("Box", "a")
                 mapOf(
-                    a to FieldChecker.of(
+                    a to FieldCheckerResolver.of(
                         a,
                         schema.requireQueryTypeDef(),
                         fragmentTemplates = mapOf(
@@ -408,9 +408,9 @@ class FieldCheckerDemandClosureTest {
         type: String,
         name: String,
         vararg inputs: String,
-    ): Pair<ViaductSchema.ObjectField, FieldChecker> {
+    ): Pair<ViaductSchema.ObjectField, FieldCheckerResolver> {
         val field = schema.requireObjectField(type, name)
-        return field to FieldChecker.of(
+        return field to FieldCheckerResolver.of(
             field,
             schema.requireQueryTypeDef(),
             fragmentTemplates =

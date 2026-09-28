@@ -6,8 +6,9 @@ import model.Arguments
 import model.InclusionCondition
 import model.Selection
 import model.SelectionForest
-import model.registry.FieldResolver
+import model.registry.FieldValueResolver
 import model.registry.ProviderFragment
+import model.registry.ResolverTarget
 import model.registry.VariableDefinition
 import model.variables
 import model.requireField
@@ -16,7 +17,7 @@ import model.requireField
  * Validates the argument-insensitive structural branch order before semantic reasoning begins.
  */
 internal class BranchOrderValidator(
-    private val fieldResolvers: Map<ViaductSchema.Field, FieldResolver>,
+    private val fieldResolvers: Map<ViaductSchema.Field, FieldValueResolver>,
 ) {
     private data class Edge(
         val prerequisite: ViaductSchema.ObjectField,
@@ -41,7 +42,7 @@ internal class BranchOrderValidator(
         ) : EdgeReason {
             override fun describe(): String =
                 "variable \$${variable.variableName} defined by " +
-                    "${variable.field.coordinate()} has provider path $providerPath " +
+                    "${variable.fieldValueResolverField.coordinate()} has provider path $providerPath " +
                     "with production path $productionPath " +
                     "and use path $usePath"
         }
@@ -85,7 +86,7 @@ internal class BranchOrderValidator(
                         definition.providerFragment != ProviderFragment.OBJECT
                     ) return@variables
                     val providerPath = definition.path
-                    val type = variable.field.containingDef
+                    val type = variable.fieldValueResolverField.containingDef
                     val graph = graphs.getValue(type)
                     val providerBranch =
                         type.requireField(providerPath.first().field.name)
@@ -210,6 +211,9 @@ internal class BranchOrderValidator(
         }
     }
 }
+
+private val Arguments.Variable.fieldValueResolverField: ViaductSchema.ObjectField
+    get() = (target as ResolverTarget.FieldValueResolverTarget).field
 
 private fun Selection.branchOn(type: ViaductSchema.Object): ViaductSchema.ObjectField? =
     if (inclusionCondition !== InclusionCondition.Never && type in possibleTypes) {

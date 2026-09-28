@@ -5,6 +5,7 @@ import model.Arguments
 import model.Fragment
 import model.engineObjectDataOf
 import model.registry.VariablesProviderFunction
+import model.registry.ResolverTarget
 import model.testing.VariableDeclaration
 import model.testing.fromArgument
 import model.testing.fromObjectField
@@ -35,7 +36,9 @@ internal fun FieldResolverExecutor.compileVariableDeclarations(
         .flatMap { it.subselections.usedVariables() }.toSet()
         .groupBy { it.variableName }
     require(templates.values.all { variables ->
-        variables.size == 1 && variables.single().isTemplate && variables.single().field == field
+        variables.size == 1 &&
+            variables.single().isTemplate &&
+            variables.single().target == ResolverTarget.FieldValueResolverTarget(field)
     }) { "Required selections for $coordinate contain ambiguous or foreign variable templates" }
 
     val functionProvider = variablesFromFunctionProvider

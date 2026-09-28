@@ -9,7 +9,7 @@ import model.fragmentFrom
 import model.ListEngineResult
 import model.RootFieldReferenceData
 import model.objectOf
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import viaduct.engine.api.CheckerResult
 import model.ObjectEngineResult
 import model.operationSelectionsFrom
@@ -129,7 +129,7 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
                         fieldCheckers = { schema ->
                             if (withChecker) {
                                 val values = schema.requireObjectField("Query", "values")
-                                mapOf(values to FieldChecker.of(values, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success })
+                                mapOf(values to FieldCheckerResolver.of(values, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success })
                             } else emptyMap()
                         },
                     ).assumptions
@@ -175,7 +175,7 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
                 """.trimIndent(),
                 fieldCheckers = { schema ->
                     val checked = schema.requireObjectField("Query", "checked")
-                    mapOf(checked to FieldChecker.of(checked, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success })
+                    mapOf(checked to FieldCheckerResolver.of(checked, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success })
                 },
             ).assumptions
             val operation = OperationContext.create(SharedOperationContext.create(world), this)

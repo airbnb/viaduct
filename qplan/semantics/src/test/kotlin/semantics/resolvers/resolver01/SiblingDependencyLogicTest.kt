@@ -15,7 +15,7 @@ import model.fragmentFrom
 import model.objectOf
 import model.selectionForestOf
 import model.toCanonicalMaterializeSelectionForest
-import model.registry.FieldResolver
+import model.registry.FieldValueResolver
 import model.registry.ResolverFragmentTemplates
 import model.registry.ResolverRegistry
 import model.testing.TestWorld
@@ -267,7 +267,7 @@ class SiblingDependencyLogicTest {
         val templateResolver =
             resolverRegistry.resolver(schema.requireObjectField("Query", templateName))
         val replacement =
-            FieldResolver.of(
+            FieldValueResolver.of(
                 field = target,
                 fragmentTemplates =
                     ResolverFragmentTemplates(
@@ -281,7 +281,7 @@ class SiblingDependencyLogicTest {
             )
         val overriddenRegistry =
             object : ResolverRegistry by resolverRegistry {
-                override fun resolver(field: ViaductSchema.ObjectField): FieldResolver =
+                override fun resolver(field: ViaductSchema.ObjectField): FieldValueResolver =
                     if (field == target) replacement else resolverRegistry.resolver(field)
             }
         return Assumptions.of(

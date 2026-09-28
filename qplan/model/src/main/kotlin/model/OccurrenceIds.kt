@@ -1,6 +1,7 @@
 package model
 
-import viaduct.graphql.schema.ViaductSchema
+import model.registry.ResolverTarget
+import model.registry.render
 
 /**
  * Opaque identity of one concrete field-resolver application.
@@ -28,7 +29,7 @@ sealed interface ResolverOccurrenceId {
 /**
  * Opaque identity of one variable declaration instantiated for one resolver occurrence.
  *
- * Equality is structural over the resolver occurrence, defining field, and local variable name.
+ * Equality is structural over the resolver occurrence, resolver target, and local variable name.
  */
 sealed interface VariableInstanceId {
     /** The concrete resolver application that owns this variable instance. */
@@ -37,7 +38,7 @@ sealed interface VariableInstanceId {
     companion object {
         fun of(
             resolverOccurrenceId: ResolverOccurrenceId,
-            resolverField: ViaductSchema.ObjectField,
+            resolverTarget: ResolverTarget,
             variableName: String,
         ): VariableInstanceId {
             require(variableName.isNotEmpty()) {
@@ -45,7 +46,7 @@ sealed interface VariableInstanceId {
             }
             return VariableInstanceIdImpl(
                 resolverOccurrenceId = resolverOccurrenceId,
-                resolverField = resolverField,
+                resolverTarget = resolverTarget,
                 variableName = variableName,
             )
         }
@@ -109,16 +110,16 @@ internal fun ResolverOccurrenceId.hasSameRootRelativeAddressAs(
 
 private class VariableInstanceIdImpl(
     override val resolverOccurrenceId: ResolverOccurrenceId,
-    private val resolverField: ViaductSchema.ObjectField,
+    private val resolverTarget: ResolverTarget,
     private val variableName: String,
 ) : VariableInstanceId {
     private val identityHash =
-        31 * (31 * resolverOccurrenceId.hashCode() + resolverField.hashCode()) + variableName.hashCode()
+        31 * (31 * resolverOccurrenceId.hashCode() + resolverTarget.hashCode()) + variableName.hashCode()
 
     override fun equals(other: Any?): Boolean =
         other is VariableInstanceIdImpl &&
             resolverOccurrenceId == other.resolverOccurrenceId &&
-            resolverField == other.resolverField &&
+            resolverTarget == other.resolverTarget &&
             variableName == other.variableName
 
     override fun hashCode(): Int = identityHash
@@ -126,7 +127,8 @@ private class VariableInstanceIdImpl(
     override fun toString(): String =
         "VariableInstanceId(" +
             "resolver=$resolverOccurrenceId, " +
-            "variable=${resolverField.containingDef.name}/${resolverField.name}:$variableName" +
+            "target=${resolverTarget.render()}, " +
+            "variable=$variableName" +
             ")"
 }
 

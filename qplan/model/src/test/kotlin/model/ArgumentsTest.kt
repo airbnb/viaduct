@@ -5,6 +5,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import model.testing.TestWorld
 import model.testing.testRoot
+import model.registry.ResolverTarget
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -92,7 +93,7 @@ class ArgumentsTest {
     }
 
     @Test
-    fun `template identity contains its name and defining field`() {
+    fun `template identity contains its name and resolver target`() {
         val schema =
             TestWorld.fromSDL(
                 """
@@ -109,10 +110,14 @@ class ArgumentsTest {
         assertEquals(Arguments.Variable.of(first, "value"), template)
         assertNotEquals(Arguments.Variable.of(first, "other"), template)
         assertNotEquals(Arguments.Variable.of(second, "value"), template)
+        assertNotEquals(
+            Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(first), "value"),
+            template,
+        )
         assertTrue(template.isTemplate)
         assertFalse(template.isInstantiated)
         assertNull(template.instanceId)
-        assertEquals("Variable.Template(name=value, field=Query/first)", "$template")
+        assertEquals("Variable.Template(name=value, target=field-value:Query/first)", "$template")
     }
 
     @Test
@@ -136,6 +141,11 @@ class ArgumentsTest {
         assertEquals(template.instantiate(resolverOccurrenceId), instance)
         assertNotEquals(Arguments.Variable.of(first, "other").instantiate(resolverOccurrenceId), instance)
         assertNotEquals(Arguments.Variable.of(second, "value").instantiate(resolverOccurrenceId), instance)
+        assertNotEquals(
+            Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(first), "value")
+                .instantiate(resolverOccurrenceId),
+            instance,
+        )
         assertNotEquals<Arguments.Variable>(template, instance)
         assertNotEquals(
             template.instantiate(ResolverOccurrenceId.at(schema.testRoot(), emptyList())),
@@ -148,10 +158,10 @@ class ArgumentsTest {
             instance.instantiate(resolverOccurrenceId)
         }
         assertEquals(
-            "Variable.Instance(name=value, field=Query/first, " +
+            "Variable.Instance(name=value, target=field-value:Query/first, " +
                 "id=VariableInstanceId(resolver=ResolverOccurrenceId(" +
                 "root=${System.identityHashCode(schema.testRoot())}, path=[index=0]), " +
-                "variable=Query/first:value))",
+                "target=field-value:Query/first, variable=value))",
             "$instance",
         )
     }

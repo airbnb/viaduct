@@ -66,7 +66,9 @@ Resolver object and Query fragments determine input requirements. Resolver argum
 
 ## Keep Field Resolvers And Checkers Structurally Aligned
 
-`FieldChecker` should follow `FieldResolver`'s representation, terminology, validation, and variable model wherever their semantics do not require a difference. Do not introduce checker-specific wrappers or lifecycle concepts for facts already modeled by field resolvers.
+`FieldCheckerResolver` should follow `FieldValueResolver`'s representation, terminology, validation, and variable model wherever their semantics do not require a difference. Do not introduce checker-specific wrappers or lifecycle concepts for facts already modeled by field resolvers.
+
+Resolver-owned identities use an explicit `ResolverTarget`, not a bare schema field. A field-value target and field-checker target for the same schema coordinate identify different resolver slots; variable templates and their instantiated IDs retain that distinction.
 
 `ResolverFragmentTemplates` groups one object template, one Query template, and the variable definitions and optional provider shared by both. A field resolver owns one such pair. A checker owns a named map of pairs and receives both materialized values for each name. For resolution, both expose exactly one object fragment and one Query fragment; the checker combines its pairs independently per root after prefixing variables with the pair name. `ResolverFragment` contains only occurrence-specific resolution facts, while response-key-preserving materialization templates remain on the registry entry until input materialization begins. Their result relations also differ: a resolver produces the field value and may consume output demand, while a checker produces a checker result. Other differences require a concrete semantic justification rather than implementation history.
 

@@ -14,7 +14,7 @@ import model.materializeSelectionForestOf
 import model.merge
 import model.objectOf
 import model.operationSelectionsFrom
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import model.registry.ResolverFragmentTemplates
 import model.requireObjectField
 import model.requireQueryTypeDef
@@ -197,7 +197,7 @@ interface SelectiveFieldCheckerExactnessContract {
                 listOf("checked", "raw", "dependency", "extra").associate { name ->
                     val field = schema.requireObjectField("Item", name)
                     field to
-                        FieldChecker.of(
+                        FieldCheckerResolver.of(
                             field = field,
                             queryType = query,
                             fragmentTemplates =
@@ -263,7 +263,7 @@ interface SelectiveFieldCheckerExactnessContract {
                 val checked = schema.requireObjectField("Item", "checked")
                 listOf(
                     checked to
-                        FieldChecker.of(
+                        FieldCheckerResolver.of(
                             field = checked,
                             queryType = query,
                             fragmentTemplates =
@@ -279,12 +279,12 @@ interface SelectiveFieldCheckerExactnessContract {
                                 ),
                         ) { _, _, _ -> CheckerResult.Success },
                     schema.requireObjectField("Query", "wrapper") to
-                        FieldChecker.of(
+                        FieldCheckerResolver.of(
                             schema.requireObjectField("Query", "wrapper"),
                             query,
                         ) { _, _, _ -> CheckerResult.Success },
                     schema.requireObjectField("Query", "policy") to
-                        FieldChecker.of(
+                        FieldCheckerResolver.of(
                             schema.requireObjectField("Query", "policy"),
                             query,
                         ) { _, _, _ -> CheckerResult.Success },

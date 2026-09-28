@@ -1,5 +1,7 @@
 package model
 
+import model.registry.ResolverTarget
+
 import viaduct.graphql.schema.ViaductSchema
 
 import model.testing.TestWorld
@@ -406,4 +408,7 @@ class SelectionMergeTest {
 
 private fun Arguments.Variable.instanceAt(
     path: List<PathComponent>,
-): Arguments.Variable = instantiate(ResolverOccurrenceId.at(field.testRoot(), path))
+): Arguments.Variable =
+    instantiate(
+        ResolverOccurrenceId.at((target as ResolverTarget.FieldTarget).field.testRoot(), path),
+    )

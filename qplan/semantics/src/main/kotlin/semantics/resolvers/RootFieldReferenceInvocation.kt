@@ -6,7 +6,7 @@ import model.PathComponent
 import model.ResolverOccurrenceId
 import model.RootFieldReferenceData
 import model.engineObjectDataOf
-import model.registry.FieldResolver
+import model.registry.FieldValueResolver
 import model.registry.ResolverFragments
 import model.registry.VariableDefinition
 import model.requireQueryTypeDef
@@ -17,7 +17,7 @@ internal data class PreparedRootFieldReferenceInvocation(
     val invocationRoot: ObjectEngineResult,
     val invocationPath: List<PathComponent>,
     val invocationKey: ObjectEngineResult.GroundKey,
-    val resolver: FieldResolver,
+    val resolver: FieldValueResolver,
     val fragments: ResolverFragments,
 )
 

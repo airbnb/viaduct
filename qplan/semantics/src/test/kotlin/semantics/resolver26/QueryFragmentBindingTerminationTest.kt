@@ -22,6 +22,7 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.operationSelectionsFrom
 import model.requireObjectField
+import model.registry.ResolverTarget
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.fromArgument
@@ -259,7 +260,11 @@ class QueryFragmentBindingTerminationTest {
         )
 
         fun variableId(name: String): VariableInstanceId = VariableInstanceId.of(
-            requireNotNull(consumerOccurrence), world.schema.requireObjectField("Query", "consumer"), name,
+            requireNotNull(consumerOccurrence),
+            ResolverTarget.FieldValueResolverTarget(
+                world.schema.requireObjectField("Query", "consumer"),
+            ),
+            name,
         )
     }
 

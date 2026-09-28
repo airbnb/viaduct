@@ -23,6 +23,7 @@ import model.fragmentFrom
 import model.merge
 import model.operationSelectionsFrom
 import model.requireObjectField
+import model.registry.ResolverTarget
 import model.schemaType
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
@@ -250,7 +251,11 @@ class QueryFragmentProducerTest : Resolver26DispatcherResource {
             occurrence: ResolverOccurrenceId = ResolverOccurrenceId.at(root, listOf(key)),
             name: String = "provided",
         ): VariableInstanceId = VariableInstanceId.of(
-            occurrence, operation.world.schema.requireObjectField("Query", "consumer"), name,
+            occurrence,
+            ResolverTarget.FieldValueResolverTarget(
+                operation.world.schema.requireObjectField("Query", "consumer"),
+            ),
+            name,
         )
     }
 

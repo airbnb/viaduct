@@ -23,7 +23,7 @@ import model.PathComponent
 import model.SelectionForest
 import model.emptyFragmentOf
 import model.operationSelectionsFrom
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
@@ -71,7 +71,7 @@ interface FragmentFreeFieldCheckerPublicationContract {
                     val field = schema.requireObjectField("Query", "first")
                     mapOf(
                         field to
-                            FieldChecker.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
                                 assertBarrier()
                                 CheckerResult.Success
                             },
@@ -132,7 +132,7 @@ interface FragmentFreeFieldCheckerPublicationContract {
                     ).associate { (name, count) ->
                         val field = schema.requireObjectField("Item", name)
                         field to
-                            FieldChecker.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
                                 count.incrementAndGet()
                                 CheckerResult.Success
                             }
@@ -170,7 +170,7 @@ interface FragmentFreeFieldCheckerPublicationContract {
                     val checked = schema.requireObjectField("Query", "checked")
                     mapOf(
                         checked to
-                            FieldChecker.of(checked, schema.requireQueryTypeDef()) { arguments, _, _ ->
+                            FieldCheckerResolver.of(checked, schema.requireQueryTypeDef()) { arguments, _, _ ->
                                 argumentsSeen += arguments.fieldValues.getValue("value") as Int
                                 CheckerResult.Success
                             },
@@ -208,9 +208,9 @@ interface FragmentFreeFieldCheckerPublicationContract {
                     """.trimIndent(),
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
-                    fun checker(name: String, function: suspend () -> CheckerResult): Pair<viaduct.graphql.schema.ViaductSchema.ObjectField, FieldChecker> {
+                    fun checker(name: String, function: suspend () -> CheckerResult): Pair<viaduct.graphql.schema.ViaductSchema.ObjectField, FieldCheckerResolver> {
                         val field = schema.requireObjectField("Query", name)
-                        return field to FieldChecker.of(field, schema.requireQueryTypeDef()) { _, _, _ -> function() }
+                        return field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ -> function() }
                     }
                     mapOf(
                         checker("denied") { denial },
@@ -282,7 +282,7 @@ interface FragmentFreeFieldCheckerPublicationContract {
                 val checked = schema.requireObjectField("Query", "checked")
                 mapOf(
                     checked to
-                        FieldChecker.of(checked, schema.requireQueryTypeDef()) { _, _, _ ->
+                        FieldCheckerResolver.of(checked, schema.requireQueryTypeDef()) { _, _, _ ->
                             checkerEntered.complete(Unit)
                             CompletableDeferred<Nothing>().await()
                         },

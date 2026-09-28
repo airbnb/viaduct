@@ -33,6 +33,7 @@ import model.SelectionForest
 import model.requireField
 import model.requireQueryTypeDef
 import model.requireType
+import model.registry.ResolverTarget
 import model.spec.SpecSelection
 import model.spec.flatten
 import model.spec.flattenForMaterialization
@@ -47,11 +48,11 @@ import viaduct.engine.api.FieldDirectives
 internal class GJSelectionParser(
     private val schema: GJSchema,
     private val variableValues: Map<String, EngineInputData?>,
-    private val variableField: ViaductSchema.ObjectField? = null,
+    private val variableTarget: ResolverTarget.FieldTarget? = null,
     private val preserveSourceResponseKeys: Boolean = false,
 ) {
     private val sourceSchema = SourceSchemaAdapter(schema)
-    private var effectiveVariableField = variableField
+    private var effectiveVariableTarget = variableTarget
 
     fun selectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> {
         val parsed = specSelectionsFrom(fragment)
@@ -109,12 +110,14 @@ internal class GJSelectionParser(
 
         val typeConditionName = definition.typeCondition.name!!
         val typeCondition = schema.requireType(typeConditionName) as ViaductSchema.CompositeTypeDef
-        if (effectiveVariableField == null) {
-            effectiveVariableField =
-                typeCondition.possibleObjectTypes
-                    .first()
-                    .fields
-                    .first()
+        if (effectiveVariableTarget == null) {
+            effectiveVariableTarget =
+                ResolverTarget.FieldValueResolverTarget(
+                    typeCondition.possibleObjectTypes
+                        .first()
+                        .fields
+                        .first(),
+                )
         }
         val graphQLTypeCondition =
             schema.graphQLSchema.getType(typeConditionName) as GraphQLCompositeType
@@ -323,7 +326,7 @@ internal class GJSelectionParser(
                                     value = suppliedArgument.value,
                                     variableValues = variableValues,
                                     schema = schema,
-                                    variableField = effectiveVariableField,
+                                    variableTarget = effectiveVariableTarget,
                                 )
                         argumentDefinition.hasSetDefaultValue() ->
                             argumentDefinition.name to
@@ -332,7 +335,7 @@ internal class GJSelectionParser(
                                     argumentDefinition.argumentDefaultValue,
                                     variableValues,
                                     schema,
-                                    effectiveVariableField,
+                                    effectiveVariableTarget,
                                 )
                         else -> null
                     }
@@ -370,7 +373,7 @@ internal class GJSelectionParser(
                                     InclusionCondition.requires(
                                         mapOf(
                                             Arguments.Variable.of(
-                                                requireNotNull(effectiveVariableField),
+                                                requireNotNull(effectiveVariableTarget),
                                                 value.name,
                                             ) to required,
                                         ),

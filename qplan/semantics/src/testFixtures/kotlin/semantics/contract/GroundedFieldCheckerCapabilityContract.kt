@@ -15,7 +15,7 @@ import model.fragmentFrom
 import model.materializeSelectionForestOf
 import model.objectOf
 import model.operationSelectionsFrom
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import model.registry.ResolverFragmentTemplates
 import model.requireObjectField
 import model.requireQueryTypeDef
@@ -121,7 +121,7 @@ interface GroundedFieldCheckerCapabilityContract {
                     val protected = schema.requireObjectField("Child", "protected")
                     mapOf(
                         protected to
-                            FieldChecker.of(
+                            FieldCheckerResolver.of(
                                 protected,
                                 schema.requireQueryTypeDef(),
                                 fragmentTemplates =
@@ -220,7 +220,7 @@ interface GroundedFieldCheckerCapabilityContract {
                         )
                     mapOf(
                         a to
-                            FieldChecker.of(
+                            FieldCheckerResolver.of(
                                 a,
                                 schema.requireQueryTypeDef(),
                                 fragmentTemplates =
@@ -235,12 +235,12 @@ interface GroundedFieldCheckerCapabilityContract {
                                 CheckerResult.Success
                             },
                         b to
-                            FieldChecker.of(b, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(b, schema.requireQueryTypeDef()) { _, _, _ ->
                                 bCheckerCalls.incrementAndGet()
                                 CheckerResult.Success
                             },
                         c to
-                            FieldChecker.of(c, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(c, schema.requireQueryTypeDef()) { _, _, _ ->
                                 cCheckerCalls.incrementAndGet()
                                 case.cResult
                             },

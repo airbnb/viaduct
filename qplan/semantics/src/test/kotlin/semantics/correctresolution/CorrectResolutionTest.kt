@@ -16,7 +16,7 @@ import model.materializeSelectionForestOf
 import model.merge
 import model.objectOf
 import model.registry.ResolutionExecutionContext
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import model.registry.ResolverFragmentTemplates
 import model.requireObjectField
 import model.requireQueryTypeDef
@@ -282,7 +282,7 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                     val checked = schema.requireObjectField("Query", "checked")
                     mapOf(
                         checked to
-                            FieldChecker.of(
+                            FieldCheckerResolver.of(
                                 field = checked,
                                 queryType = schema.requireQueryTypeDef(),
                                 fragmentTemplates =
@@ -376,7 +376,7 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                         val checked = schema.requireObjectField("Query", "checked")
                         mapOf(
                             checked to
-                                FieldChecker.of(checked, schema.requireQueryTypeDef()) { _, _, _ ->
+                                FieldCheckerResolver.of(checked, schema.requireQueryTypeDef()) { _, _, _ ->
                                     checkerCalls += 1
                                     CheckerResult.Success
                                 },
@@ -427,7 +427,7 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                         val checked = schema.requireObjectField("Query", "checked")
                         mapOf(
                             checked to
-                                FieldChecker.of(
+                                FieldCheckerResolver.of(
                                     field = checked,
                                     queryType = schema.requireQueryTypeDef(),
                                     fragmentTemplates =
@@ -501,7 +501,7 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                     val denied = schema.requireObjectField("Query", "denied")
                     mapOf(
                         denied to
-                            FieldChecker.of(denied, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(denied, schema.requireQueryTypeDef()) { _, _, _ ->
                                 denial
                             },
                     )

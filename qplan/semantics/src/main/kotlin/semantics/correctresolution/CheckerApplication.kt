@@ -8,7 +8,7 @@ import model.VariableBinding
 import model.engineObjectDataOf
 import model.merge
 import model.registry.CheckerInput
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import model.registry.ResolutionExecutionContext
 import model.registry.ResolverFragments
 import model.registry.VariableDefinition
@@ -114,7 +114,7 @@ internal fun ObjectEngineResult.reapplyChecker(
         )
     }
 
-private fun FieldChecker.checkerQueryInputs(
+private fun FieldCheckerResolver.checkerQueryInputs(
     operation: SharedOperationContext<*>,
     resolverApplicationCache: ResolverApplicationCache,
     fragments: ResolverFragments,

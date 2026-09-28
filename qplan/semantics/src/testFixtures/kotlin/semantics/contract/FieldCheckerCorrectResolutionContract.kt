@@ -15,7 +15,8 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
 import model.outputValue
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
+import model.registry.ResolverTarget
 import model.registry.ResolverFragmentTemplates
 import model.registry.VariableDefinition
 import model.requireObjectField
@@ -57,11 +58,11 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                     val checked = schema.requireObjectField("Query", "checked")
                     mapOf(
                         source to
-                            FieldChecker.of(source, query) { _, _, _ ->
+                            FieldCheckerResolver.of(source, query) { _, _, _ ->
                                 error("Raw checker inputs must not invoke the source checker")
                             },
                         checked to
-                            FieldChecker.of(
+                            FieldCheckerResolver.of(
                                 field = checked,
                                 queryType = query,
                                 fragmentTemplates =
@@ -152,10 +153,10 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                 },
                 fieldCheckers = { schema ->
                     val checked = schema.requireObjectField("Item", "checked")
-                    val value = Arguments.Variable.of(checked, "value")
+                    val value = Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(checked), "value")
                     mapOf(
                         checked to
-                            FieldChecker.of(
+                            FieldCheckerResolver.of(
                                 field = checked,
                                 queryType = schema.requireQueryTypeDef(),
                                 fragmentTemplates =
@@ -166,7 +167,7 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                                                     schema
                                                         .fragmentFrom(
                                                             "fragment Input on Item { dependency(value: ${'$'}value) }",
-                                                            variableField = checked,
+                                                            variableTarget = ResolverTarget.FieldCheckerTarget(checked),
                                                         ).materializeSelections,
                                                 queryFragmentTemplate = schema.emptyFragmentOf("Query").materializeSelections,
                                                 variables =
@@ -260,7 +261,7 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                     val ancestor = schema.requireObjectField("Root", "ancestor")
                     mapOf(
                         ancestor to
-                            FieldChecker.of(
+                            FieldCheckerResolver.of(
                                 field = ancestor,
                                 queryType = schema.requireQueryTypeDef(),
                                 fragmentTemplates =
@@ -349,7 +350,7 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                     listOf("objectDenied", "queryDenied").associate { name ->
                         val field = schema.requireObjectField("Query", name)
                         field to
-                            FieldChecker.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
                                 denial
                             }
                     }

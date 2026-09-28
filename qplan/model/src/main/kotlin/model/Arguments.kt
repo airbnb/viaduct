@@ -2,12 +2,16 @@ package model
 
 import viaduct.graphql.schema.ViaductSchema
 
+import model.registry.ResolverTarget
+import model.registry.ResolverTarget.FieldValueResolverTarget
+import model.registry.render
+
 /**
  * One schema-checked output-field argument tuple.
  *
  * A tuple may be ground, may recursively contain [Variable] expressions, or may be a
  * resolver-registry [Template]. Equality is structural over the represented argument expressions,
- * including each variable's defining field, name, instance ID, and recursive expression
+ * including each variable's resolver target, name, instance ID, and recursive expression
  * position. Equality and hashing never inspect a variable's eventual binding.
  *
  * ### Invariant: arguments-schema-canonicality
@@ -87,7 +91,7 @@ sealed interface Arguments {
      * owning resolver occurrence.
      */
     sealed interface Variable {
-        val field: ViaductSchema.ObjectField
+        val target: ResolverTarget
         val variableName: String
 
         /** Whether this is the registry template rather than an occurrence-specific variable. */
@@ -104,11 +108,11 @@ sealed interface Arguments {
             require(isTemplate) { "Only variable templates can be instantiated" }
             return InstanceVariableImpl(
                 variableName = variableName,
-                field = field,
+                target = target,
                 instanceId =
                     VariableInstanceId.of(
                         resolverOccurrenceId = resolverOccurrenceId,
-                        resolverField = field,
+                        resolverTarget = target,
                         variableName = variableName,
                     ),
             )
@@ -116,13 +120,19 @@ sealed interface Arguments {
 
         companion object {
             /**
-             * Returns the template named [variableName] defined by [field]. Equal arguments yield
+             * Returns the template named [variableName] defined by [target]. Equal arguments yield
              * equal templates.
              */
             fun of(
+                target: ResolverTarget,
+                variableName: String,
+            ): Variable = TemplateVariableImpl(variableName, target)
+
+            /** Returns a field-value-resolver template for compatibility with field-only callers. */
+            fun of(
                 field: ViaductSchema.ObjectField,
                 variableName: String,
-            ): Variable = TemplateVariableImpl(variableName, field)
+            ): Variable = of(FieldValueResolverTarget(field), variableName)
         }
     }
 
@@ -156,7 +166,7 @@ private val emptyResolvedArguments = ResolvedArgumentsImpl(emptyMap())
 
 private data class TemplateVariableImpl(
     override val variableName: String,
-    override val field: ViaductSchema.ObjectField,
+    override val target: ResolverTarget,
 ) : Arguments.Variable {
     override val isTemplate: Boolean
         get() = true
@@ -167,13 +177,13 @@ private data class TemplateVariableImpl(
     override fun toString(): String =
         "Variable.Template(" +
             "name=$variableName, " +
-            "field=${field.containingDef.name}/${field.name}" +
+            "target=${target.render()}" +
             ")"
 }
 
 private data class InstanceVariableImpl(
     override val variableName: String,
-    override val field: ViaductSchema.ObjectField,
+    override val target: ResolverTarget,
     override val instanceId: VariableInstanceId,
 ) : Arguments.Variable {
     override val isTemplate: Boolean
@@ -182,7 +192,7 @@ private data class InstanceVariableImpl(
     override fun toString(): String =
         "Variable.Instance(" +
             "name=$variableName, " +
-            "field=${field.containingDef.name}/${field.name}, " +
+            "target=${target.render()}, " +
             "id=$instanceId" +
             ")"
 }

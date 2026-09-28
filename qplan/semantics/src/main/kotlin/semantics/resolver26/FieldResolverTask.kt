@@ -18,7 +18,7 @@ import model.VariableBinding
 import model.engineObjectDataOf
 import model.guardedBy
 import model.outputValue
-import model.registry.FieldResolver
+import model.registry.FieldValueResolver
 import model.registry.ResolverFragment
 import model.registry.ResolutionExecutionContext
 import model.registry.VariableDefinition
@@ -344,7 +344,7 @@ internal class FieldResolverTask private constructor(
     }
 }
 
-private suspend fun FieldResolver.resolveQueryFragment(
+private suspend fun FieldValueResolver.resolveQueryFragment(
     queryFragment: ResolverFragment,
     operation: OperationContext,
     reader: CycleTask,

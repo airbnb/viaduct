@@ -71,7 +71,7 @@ class ResolverRegistryTest {
         var observedDemand: SelectionForest? = null
         var observedExecutionContext: ResolutionExecutionContext? = null
         val resolver =
-            FieldResolver.ofSelective(
+            FieldValueResolver.ofSelective(
                 field = userField,
                 fragmentTemplates =
                     ResolverFragmentTemplates(
@@ -123,7 +123,7 @@ class ResolverRegistryTest {
         val query = schema.requireQueryTypeDef()
         val userField = schema.requireObjectField("Query", "user")
         val resolver =
-            FieldResolver.of(
+            FieldValueResolver.of(
                 field = userField,
                 fragmentTemplates =
                     ResolverFragmentTemplates(
@@ -179,7 +179,7 @@ class ResolverRegistryTest {
             ).subselections
         var observedDemand: SelectionForest? = null
         val resolver =
-            FieldResolver.ofSelectionAwareNonselective(
+            FieldValueResolver.ofSelectionAwareNonselective(
                 field = userField,
                 fragmentTemplates =
                     ResolverFragmentTemplates(

@@ -9,7 +9,7 @@ import model.SelectionForest
 import model.guardedBy
 import model.objectKey
 import model.selectionForestOf
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import semantics.shared.Demand
 import semantics.shared.guardedBy
 import semantics.shared.plus
@@ -50,7 +50,7 @@ internal fun Demand<SelectionForest>.liftParentConstructionDemand(
 
 /** Memoization and cycle detection are local to one parent-demand computation. */
 private class ParentDemandContext(
-    val fieldChecker: (ViaductSchema.ObjectField) -> FieldChecker?,
+    val fieldChecker: (ViaductSchema.ObjectField) -> FieldCheckerResolver?,
 ) {
     val parentDemandByObjectFragmentId = mutableMapOf<ObjectFragmentId, ParentDemandAnalysis>()
     val expandingObjectFragmentIds = mutableSetOf<ObjectFragmentId>()

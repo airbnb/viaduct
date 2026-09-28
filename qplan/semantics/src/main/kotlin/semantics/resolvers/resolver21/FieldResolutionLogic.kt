@@ -13,7 +13,7 @@ import model.groundKey
 import model.invariants.conformsToResolverOutputSchemaType
 import model.materializeSelectionForestOf
 import model.nodeReferenceIdentityOrNull
-import model.registry.FieldResolver
+import model.registry.FieldValueResolver
 import model.registry.ResolverFragment
 import model.registry.ResolutionExecutionContext
 import semantics.resolvers.emptyObjectInput
@@ -143,7 +143,7 @@ internal class FieldResolutionLogic(
     }
 
     private suspend fun materializeQueryFragment(
-        resolver: FieldResolver,
+        resolver: FieldValueResolver,
         queryFragment: ResolverFragment,
         reader: CycleTask,
     ): EngineObjectData.Sync {

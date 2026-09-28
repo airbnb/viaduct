@@ -11,7 +11,8 @@ import model.arg
 import model.fragmentFrom
 import model.materializeSelectionForestOf
 import model.operationSelectionsFrom
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
+import model.registry.ResolverTarget
 import model.registry.ResolverFragmentTemplates
 import model.registry.VariableDefinition
 import model.requireObjectField
@@ -39,9 +40,9 @@ class FieldCheckerClosureTest : Resolver26DispatcherResource {
                     val protected = schema.requireObjectField("Query", "protected")
                     val fragment = schema.fragmentFrom("fragment Input on Query { raw }").materializeSelections
                     mapOf(
-                        checked to FieldChecker.of(checked, schema.requireQueryTypeDef(), mapOf("input" to ResolverFragmentTemplates(fragment, fragment))) { _, _, _ -> CheckerResult.Success },
-                        raw to FieldChecker.of(raw, schema.requireQueryTypeDef()) { _, _, _ -> error("raw checker must not run") },
-                        protected to FieldChecker.of(protected, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success },
+                        checked to FieldCheckerResolver.of(checked, schema.requireQueryTypeDef(), mapOf("input" to ResolverFragmentTemplates(fragment, fragment))) { _, _, _ -> CheckerResult.Success },
+                        raw to FieldCheckerResolver.of(raw, schema.requireQueryTypeDef()) { _, _, _ -> error("raw checker must not run") },
+                        protected to FieldCheckerResolver.of(protected, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success },
                     )
                 },
             )
@@ -111,11 +112,11 @@ class FieldCheckerClosureTest : Resolver26DispatcherResource {
             fieldCheckers = { schema ->
                 val checked = schema.requireObjectField("Query", "checked")
                 val pair = ResolverFragmentTemplates(
-                    schema.fragmentFrom("fragment Input on Query { bridge(seed: ${'$'}seed) }", variableField = checked).materializeSelections,
+                    schema.fragmentFrom("fragment Input on Query { bridge(seed: ${'$'}seed) }", variableTarget = ResolverTarget.FieldCheckerTarget(checked)).materializeSelections,
                     materializeSelectionForestOf(),
-                    mapOf(Arguments.Variable.of(checked, "seed") to VariableDefinition.FromArgument.of(checkNotNull(checked.arg("seed")))),
+                    mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(checked), "seed") to VariableDefinition.FromArgument.of(checkNotNull(checked.arg("seed")))),
                 )
-                mapOf(checked to FieldChecker.of(checked, schema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success })
+                mapOf(checked to FieldCheckerResolver.of(checked, schema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success })
             },
         )
         val failure = assertFailsWith<IllegalArgumentException> {

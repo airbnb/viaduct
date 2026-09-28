@@ -16,7 +16,7 @@ import model.SelectionForest
 import model.emptyFragmentOf
 import model.lowering.LOWERED_TYPENAME_FIELD
 import model.requireQueryTypeDef
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import model.registry.ResolverRegistry
 import model.selectionsFrom
 import java.util.IdentityHashMap
@@ -92,7 +92,7 @@ class TestWorld private constructor(
             fieldResolvers:
                 ((ViaductSchema) -> Map<ViaductSchema.Field, FieldResolverDefinition>)? = null,
             fieldCheckers:
-                (ViaductSchema) -> Map<ViaductSchema.ObjectField, FieldChecker> = { emptyMap() },
+                (ViaductSchema) -> Map<ViaductSchema.ObjectField, FieldCheckerResolver> = { emptyMap() },
             variableProviders:
                 (ViaductSchema) -> Map<Arguments.Variable, VariableDeclaration> = { emptyMap() },
             selectiveResolvers: Boolean = true,
@@ -110,7 +110,7 @@ class TestWorld private constructor(
             schemaSDL: String,
             nodeResolvers: (ViaductSchema) -> Map<ViaductSchema.Object, NodeResolverFunction>,
             fieldResolvers: ((ViaductSchema) -> Map<ViaductSchema.Field, FieldResolverDefinition>)?,
-            fieldCheckers: (ViaductSchema) -> Map<ViaductSchema.ObjectField, FieldChecker>,
+            fieldCheckers: (ViaductSchema) -> Map<ViaductSchema.ObjectField, FieldCheckerResolver>,
             variableProviders: (ViaductSchema) -> Map<Arguments.Variable, VariableDeclaration>,
             selectiveResolvers: Boolean,
         ): TestWorld {
@@ -146,7 +146,7 @@ class TestWorld private constructor(
             schemaSDL: String,
             selectiveResolvers: Boolean = true,
             fieldCheckers:
-                (ViaductSchema) -> Map<ViaductSchema.ObjectField, FieldChecker> = { emptyMap() },
+                (ViaductSchema) -> Map<ViaductSchema.ObjectField, FieldCheckerResolver> = { emptyMap() },
         ): TestWorld {
             val dsl = ResolverTestDsl.parse(schemaSDL)
             return create(
@@ -166,7 +166,7 @@ private class TestWorldModule(
     private val schemaSDL: String,
     private val nodeResolvers: (ViaductSchema) -> Map<ViaductSchema.Object, NodeResolverFunction>,
     private val fieldResolvers: ((ViaductSchema) -> Map<ViaductSchema.Field, FieldResolverDefinition>)?,
-    private val fieldCheckers: (ViaductSchema) -> Map<ViaductSchema.ObjectField, FieldChecker>,
+    private val fieldCheckers: (ViaductSchema) -> Map<ViaductSchema.ObjectField, FieldCheckerResolver>,
     private val variableProviders: (ViaductSchema) -> Map<Arguments.Variable, VariableDeclaration>,
     private val selectiveResolvers: Boolean,
 ) : AbstractModule() {
@@ -199,7 +199,7 @@ private class TestWorldModule(
 
     @Provides
     @FieldCheckers
-    fun fieldCheckers(schema: GJSchema): Map<ViaductSchema.ObjectField, FieldChecker> =
+    fun fieldCheckers(schema: GJSchema): Map<ViaductSchema.ObjectField, FieldCheckerResolver> =
         fieldCheckers.invoke(schema)
 
     @Provides
@@ -208,7 +208,7 @@ private class TestWorldModule(
         schema: GJSchema,
         @NodeResolvers nodeResolvers: Map<ViaductSchema.Object, NodeResolverFunction>,
         @FieldResolvers fieldResolvers: Map<ViaductSchema.Field, FieldResolverDefinition>,
-        @FieldCheckers fieldCheckers: Map<ViaductSchema.ObjectField, FieldChecker>,
+        @FieldCheckers fieldCheckers: Map<ViaductSchema.ObjectField, FieldCheckerResolver>,
         @VariableProviders
         variableProviders: Map<Arguments.Variable, VariableDeclaration>,
     ): ResolverRegistry =

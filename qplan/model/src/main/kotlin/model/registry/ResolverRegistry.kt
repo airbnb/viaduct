@@ -20,8 +20,8 @@ import viaduct.engine.api.EngineObjectData
  *
  * Every variable is defined from one argument of its resolver field, from one nonempty canonical
  * [ObjectEngineResult.Key] path relative to that field's containing object, or by its resolver's
- * one-shot [FieldResolver.variablesProvider]. Object-field paths are structurally contained by the
- * defining field resolver's fixed [FieldResolver.objectFragment] envelope.
+ * one-shot [FieldValueResolver.variablesProvider]. Object-field paths are structurally contained by the
+ * defining field resolver's fixed [FieldValueResolver.objectFragment] envelope.
  * Variables referenced by a field resolver's object fragment, query fragment, or one of its
  * object-field paths belong to that same field. An object-field path must terminate at an
  * input-compatible value whose effective nullability and list shape can be coerced at every
@@ -47,10 +47,10 @@ interface ResolverRegistry {
     operator fun contains(field: ViaductSchema.ObjectField): Boolean
 
     /** Defined only when [field] is registered. */
-    fun resolver(field: ViaductSchema.ObjectField): FieldResolver
+    fun resolver(field: ViaductSchema.ObjectField): FieldValueResolver
 
     /** Returns the checker for [field], or null when no field checker applies. */
-    fun fieldChecker(field: ViaductSchema.ObjectField): FieldChecker? = null
+    fun fieldChecker(field: ViaductSchema.ObjectField): FieldCheckerResolver? = null
 
     /**
      * The registered fields that may be directly demanded by [field].

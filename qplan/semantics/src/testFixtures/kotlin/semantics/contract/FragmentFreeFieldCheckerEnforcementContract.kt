@@ -14,7 +14,7 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.materializeSelectionForestOf
 import model.operationSelectionsFrom
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import model.registry.ResolverFragmentTemplates
 import model.requireObjectField
 import model.requireQueryTypeDef
@@ -52,7 +52,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     listOf("active", "passive").associate { name ->
                         val field = schema.requireObjectField("Item", name)
                         field to
-                            FieldChecker.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
                                 CheckerResult.Success
                             }
                     }
@@ -87,7 +87,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                 fieldCheckers = { schema ->
                     listOf("active", "passive").associate { name ->
                         val field = schema.requireObjectField("Item", name)
-                        field to FieldChecker.of(field, schema.requireQueryTypeDef()) { _, _, _ -> denial }
+                        field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ -> denial }
                     }
                 },
             ).assumptions
@@ -133,7 +133,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     val dependency = schema.requireObjectField("Query", "dependency")
                     mapOf(
                         dependency to
-                            FieldChecker.of(dependency, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(dependency, schema.requireQueryTypeDef()) { _, _, _ ->
                                 denial
                             },
                     )
@@ -170,7 +170,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     val field = schema.requireObjectField("Item", "denied")
                     mapOf(
                         field to
-                            FieldChecker.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
                                 checkerCalls.incrementAndGet()
                                 denial
                             },
@@ -211,7 +211,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     val field = schema.requireObjectField("Item", "denied")
                     mapOf(
                         field to
-                            FieldChecker.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
                                 denial
                             },
                     )
@@ -260,7 +260,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     val dependency = schema.requireObjectField("Query", "dependency")
                     mapOf(
                         dependency to
-                            FieldChecker.of(dependency, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(dependency, schema.requireQueryTypeDef()) { _, _, _ ->
                                 checkerDenial
                             },
                     )
@@ -320,7 +320,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     val dependency = schema.requireObjectField("Query", "dependency")
                     mapOf(
                         dependency to
-                            FieldChecker.of(dependency, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(dependency, schema.requireQueryTypeDef()) { _, _, _ ->
                                 denial
                             },
                     )
@@ -366,7 +366,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     val field = schema.requireObjectField("Item", "dependency")
                     mapOf(
                         field to
-                            FieldChecker.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
                                 throw failure
                             },
                     )
@@ -414,7 +414,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     val dependency = schema.requireObjectField("Query", "dependency")
                     mapOf(
                         dependency to
-                            FieldChecker.of(dependency, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(dependency, schema.requireQueryTypeDef()) { _, _, _ ->
                                 denial
                             },
                     )
@@ -465,7 +465,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     val dependency = schema.requireObjectField("Query", "dependency")
                     mapOf(
                         dependency to
-                            FieldChecker.of(dependency, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(dependency, schema.requireQueryTypeDef()) { _, _, _ ->
                                 denial
                             },
                     )

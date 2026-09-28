@@ -12,6 +12,7 @@ import model.isParentField
 import model.requireField
 import model.requireQueryTypeDef
 import model.registry.ProviderFragment
+import model.registry.ResolverTarget
 import model.spec.flatten
 import model.spec.flattenForMaterialization
 import viaduct.graphql.utils.GraphQLTypeRelation
@@ -75,7 +76,8 @@ class FromField private constructor(
                 GJSelectionParser(
                     schema = schema,
                     variableValues = bindings,
-                    variableField = variableField,
+                    variableTarget =
+                        variableField?.let(ResolverTarget::FieldValueResolverTarget),
                 ).specSelectionsFrom(fragmentSource)
             if (providerFragment == ProviderFragment.QUERY) {
                 require(parsed.nominalType == schema.requireQueryTypeDef()) {

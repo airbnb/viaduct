@@ -34,7 +34,7 @@ typealias FieldCheckerFunction =
 /**
  * A field checker supplied by the reasoning world's external resolver registry.
  *
- * Keep this model shaped like [FieldResolver] except where their semantics require a difference.
+ * Keep this model shaped like [FieldValueResolver] except where their semantics require a difference.
  * A resolver owns one [ResolverFragmentTemplates] pair; a checker owns a named map of pairs because
  * its function receives one independently materialized [CheckerInput] for each name. For
  * resolution, both expose exactly one combined object fragment and one combined Query fragment and
@@ -46,8 +46,8 @@ typealias FieldCheckerFunction =
  * independent. The variables of one pair are shared by its object and Query templates, so a
  * variable supplied from either root may be used by selections in either template.
  */
-class FieldChecker private constructor(
-    val field: ViaductSchema.ObjectField,
+class FieldCheckerResolver private constructor(
+    val target: ResolverTarget.FieldCheckerTarget,
     val fragmentTemplates: Map<String, ResolverFragmentTemplates>,
     private val queryType: ViaductSchema.Object,
     private val function: FieldCheckerFunction,
@@ -161,7 +161,8 @@ class FieldChecker private constructor(
             queryType: ViaductSchema.Object,
             fragmentTemplates: Map<String, ResolverFragmentTemplates> = emptyMap(),
             function: FieldCheckerFunction,
-        ): FieldChecker {
+        ): FieldCheckerResolver {
+            val target = ResolverTarget.FieldCheckerTarget(field)
             require(queryType.name == "Query") { "Checker Query type must be Query" }
             fragmentTemplates.values.forEach { templates ->
                 require(
@@ -183,13 +184,13 @@ class FieldChecker private constructor(
                 }
                 templates.objectFragmentTemplate.collect(field.containingDef)
                 templates.queryFragmentTemplate.collect(queryType)
-                templates.requireVariablesBelongTo(field)
+                templates.requireVariablesBelongTo(target)
                 templates.requireCheckerVariableDependencies()
                 templates.objectFragmentTemplate.requireNoVariablesBeneathParent(field)
                 templates.queryFragmentTemplate.requireNoVariablesBeneathParent(field)
             }
-            return FieldChecker(
-                field = field,
+            return FieldCheckerResolver(
+                target = target,
                 fragmentTemplates = fragmentTemplates.toMap(),
                 queryType = queryType,
                 function = function,
@@ -247,7 +248,7 @@ private fun ResolverFragmentTemplates.lowerForResolution(
             "Checker fragment templates may contain only variable templates"
         }
         return Arguments.Variable.of(
-            variable.field,
+            variable.target,
             loweredCheckerVariableName(fragmentName, variable.variableName),
         )
     }
@@ -312,13 +313,14 @@ private fun VariableDefinition.mapVariableTemplates(
     }
 
 private fun ResolverFragmentTemplates.requireVariablesBelongTo(
-    field: ViaductSchema.ObjectField,
+    target: ResolverTarget.FieldCheckerTarget,
 ) {
+    val field = target.field
     variables.forEach { (variable, definition) ->
         require(variable.isTemplate) {
             "Checker registry variables must be templates"
         }
-        require(variable.field == field) {
+        require(variable.target == target) {
             "Variable ${variable.variableName} is not defined by a checker on " +
                 "${field.containingDef.name}/${field.name}"
         }

@@ -11,6 +11,7 @@ import graphql.language.FragmentDefinition
 import graphql.parser.Parser
 import graphql.validation.Validator
 import java.util.Locale
+import model.registry.ResolverTarget
 import model.testing.GJSelectionParser
 import model.testing.GJSchema
 
@@ -91,12 +92,15 @@ fun ViaductSchema.fragmentFrom(
     source: String,
     bindings: Map<String, EngineInputData?> = emptyMap(),
     variableField: ViaductSchema.ObjectField? = null,
+    variableTarget: ResolverTarget.FieldTarget? = null,
     preserveSourceResponseKeys: Boolean = false,
 ): Fragment =
     GJSelectionParser(
         schema = this as GJSchema,
         variableValues = bindings,
-        variableField = variableField,
+        variableTarget =
+            variableTarget
+                ?: variableField?.let(ResolverTarget::FieldValueResolverTarget),
         preserveSourceResponseKeys = preserveSourceResponseKeys,
     ).fragmentFrom(source)
 

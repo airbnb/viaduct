@@ -11,7 +11,7 @@ import model.ResolverOutputData
 import model.SelectionForest
 import model.materializeSelectionForestOf
 import model.objectKey
-import model.registry.FieldResolver
+import model.registry.FieldValueResolver
 import model.registry.NonselectiveFieldResolverFunction
 import model.registry.ResolverFragmentTemplates
 import model.registry.ResolutionExecutionContext
@@ -27,7 +27,7 @@ import viaduct.engine.api.EngineObjectData
  * A raw field-resolver definition accepted only by test-fixture composition.
  *
  * Definitions may be transformed while external coordinates are lowered. Registry assembly
- * consumes them and exposes only fully assembled canonical [FieldResolver] values.
+ * consumes them and exposes only fully assembled canonical [FieldValueResolver] values.
  */
 class FieldResolverDefinition private constructor(
     val objectFragment: Fragment,
@@ -143,7 +143,7 @@ class FieldResolverDefinition private constructor(
         queryType: ViaductSchema.Object,
         variables: Map<Arguments.Variable, VariableDefinition>,
         validateObjectFragment: (Fragment) -> Unit,
-    ): FieldResolver {
+    ): FieldValueResolver {
         val objectType = field.containingDef
 
         fun normalize(
@@ -190,7 +190,7 @@ class FieldResolverDefinition private constructor(
                 variablesProvider = variablesProvider,
             )
         return if (selective) {
-            FieldResolver.ofSelective(
+            FieldValueResolver.ofSelective(
                 field = field,
                 fragmentTemplates = fragmentTemplates,
                 queryType = queryType,
@@ -205,7 +205,7 @@ class FieldResolverDefinition private constructor(
                 },
             )
         } else if (passesDemand) {
-            FieldResolver.ofSelectionAwareNonselective(
+            FieldValueResolver.ofSelectionAwareNonselective(
                 field = field,
                 fragmentTemplates = fragmentTemplates,
                 queryType = queryType,
@@ -220,7 +220,7 @@ class FieldResolverDefinition private constructor(
                 },
             )
         } else {
-            FieldResolver.of(
+            FieldValueResolver.of(
                 field = field,
                 fragmentTemplates = fragmentTemplates,
                 queryType = queryType,

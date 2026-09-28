@@ -31,12 +31,13 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.schemaType
-import model.registry.FieldChecker
-import model.registry.FieldResolver
+import model.registry.FieldCheckerResolver
+import model.registry.FieldValueResolver
 import model.registry.ResolutionExecutionContext
 import model.registry.MissingResolverException
 import model.registry.ProviderFragment
 import model.registry.ResolverRegistry
+import model.registry.ResolverTarget
 import model.registry.VariableDefinition
 import model.registry.snipToDemand
 import model.selectionForestOf
@@ -126,7 +127,7 @@ internal fun resolverRegistryOf(
     schema: GJSchema,
     nodeResolvers: Map<ViaductSchema.Object, NodeResolverFunction>,
     fieldResolvers: Map<ViaductSchema.Field, FieldResolverDefinition>,
-    fieldCheckers: Map<ViaductSchema.ObjectField, FieldChecker> = emptyMap(),
+    fieldCheckers: Map<ViaductSchema.ObjectField, FieldCheckerResolver> = emptyMap(),
     variableProviders: Map<Arguments.Variable, VariableDeclaration>,
 ): ResolverRegistry {
     val lowering = NodeResolverLowering(schema, nodeResolvers, fieldResolvers)
@@ -142,7 +143,7 @@ internal fun resolverRegistryOf(
     }
     val variablesByField =
         allVariableTemplates
-            .groupBy(Arguments.Variable::field)
+            .groupBy(Arguments.Variable::fieldValueResolverField)
             .mapValues { (_, variables) ->
                 variables.associateBy(Arguments.Variable::variableName)
             }
@@ -164,7 +165,7 @@ internal fun resolverRegistryOf(
         }
     val registryVariableProviders =
         variableProviders.mapValues { (variable, declaration) ->
-            val variablesByName = variablesByField.getValue(variable.field)
+            val variablesByName = variablesByField.getValue(variable.fieldValueResolverField)
             when (declaration) {
                 is FromField ->
                     declaration.mapVariables { referenced ->
@@ -453,11 +454,11 @@ private sealed interface DependencyVertex {
 private class TestResolverRegistry(
     private val schema: ViaductSchema,
     fieldResolverDefinitions: Map<ViaductSchema.Field, FieldResolverDefinition>,
-    private val fieldCheckers: Map<ViaductSchema.ObjectField, FieldChecker>,
+    private val fieldCheckers: Map<ViaductSchema.ObjectField, FieldCheckerResolver>,
     variableDeclarations: Map<Arguments.Variable, VariableDeclaration>,
 ) : ResolverRegistry {
     private val sourceFieldResolvers = fieldResolverDefinitions
-    private val fieldResolvers: Map<ViaductSchema.Field, FieldResolver>
+    private val fieldResolvers: Map<ViaductSchema.Field, FieldValueResolver>
     private val variablesProviderTemplates =
         fieldResolverDefinitions.flatMap { (field, resolver) ->
             resolver.variablesProviderNames.map { name ->
@@ -485,8 +486,8 @@ private class TestResolverRegistry(
     init {
         fieldCheckers.forEach { (field, checker) ->
             validateCanonicalField(field, "field-checker field")
-            require(checker.field == field) {
-                "Field checker ${checker.field.containingDef.name}/${checker.field.name} does not belong to " +
+            require(checker.target.field == field) {
+                "Field checker ${checker.target.field.containingDef.name}/${checker.target.field.name} does not belong to " +
                     "${field.containingDef.name}/${field.name}"
             }
         }
@@ -519,17 +520,17 @@ private class TestResolverRegistry(
         }
 
         variableDeclarations.forEach { (variable, declaration) ->
-            validateCanonicalField(variable.field, "variable-defining field")
-            require(variable.field in fieldResolverDefinitions) {
+            validateCanonicalField(variable.fieldValueResolverField, "variable-defining field")
+            require(variable.fieldValueResolverField in fieldResolverDefinitions) {
                 "Variable ${variable.variableName} belongs to an unregistered resolver"
             }
             when (declaration) {
                 is FromArgument -> {
-                    val resolver = fieldResolverDefinitions.getValue(variable.field)
-                    require(declaration.argument.containingDef == variable.field) {
+                    val resolver = fieldResolverDefinitions.getValue(variable.fieldValueResolverField)
+                    require(declaration.argument.containingDef == variable.fieldValueResolverField) {
                         "Variable ${variable.variableName} argument " +
                             "${declaration.argument.name} does not belong to " +
-                            "${variable.field.containingDef.name}/${variable.field.name}"
+                            "${variable.fieldValueResolverField.containingDef.name}/${variable.fieldValueResolverField.name}"
                     }
                     validateVariableUses(
                         variable = variable,
@@ -545,10 +546,10 @@ private class TestResolverRegistry(
                     )
                 }
                 is FromField -> {
-                    val resolver = fieldResolverDefinitions.getValue(variable.field)
+                    val resolver = fieldResolverDefinitions.getValue(variable.fieldValueResolverField)
                     val expectedType =
                         when (declaration.providerFragment) {
-                            ProviderFragment.OBJECT -> variable.field.containingDef
+                            ProviderFragment.OBJECT -> variable.fieldValueResolverField.containingDef
                             ProviderFragment.QUERY -> schema.requireQueryTypeDef()
                         }
                     require(declaration.fragment.nominalType == expectedType) {
@@ -564,7 +565,7 @@ private class TestResolverRegistry(
                                 }
                         }
                     validateProviderContainment(
-                        field = variable.field,
+                        field = variable.fieldValueResolverField,
                         fragment = providerFragment,
                         providerFragment = declaration.providerFragment,
                     )
@@ -582,15 +583,15 @@ private class TestResolverRegistry(
             }
         }
         variablesProviderTemplates.forEach { variable ->
-            validateCanonicalField(variable.field, "variables-provider field")
-            val resolver = fieldResolverDefinitions.getValue(variable.field)
+            validateCanonicalField(variable.fieldValueResolverField, "variables-provider field")
+            val resolver = fieldResolverDefinitions.getValue(variable.fieldValueResolverField)
             val usedVariables =
                 listOfNotNull(resolver.objectFragment, resolver.queryFragment)
                     .flatMap { fragment -> fragment.subselections.usedVariables() }
                     .toSet()
             require(variable in usedVariables) {
                 "Variables provider declares unused variable ${variable.variableName} for " +
-                    "${variable.field.containingDef.name}/${variable.field.name}"
+                    "${variable.fieldValueResolverField.containingDef.name}/${variable.fieldValueResolverField.name}"
             }
         }
 
@@ -612,7 +613,7 @@ private class TestResolverRegistry(
                             VariableDefinition.FromProvider -> emptySet<DependencyVertex>()
                             is VariableDefinition.FromArgument -> emptySet<DependencyVertex>()
                             is VariableDefinition.FromField -> {
-                                val resolver = fieldResolverDefinitions.getValue(variable.field)
+                                val resolver = fieldResolverDefinitions.getValue(variable.fieldValueResolverField)
                                 val providerFragment = when (definition.providerFragment) {
                                     ProviderFragment.OBJECT -> resolver.objectFragment
                                     ProviderFragment.QUERY -> requireNotNull(resolver.queryFragment)
@@ -620,7 +621,7 @@ private class TestResolverRegistry(
                                 val conditions = definition.inclusionConditions(providerFragment.materializeSelections)
                                 val providerType =
                                     when (definition.providerFragment) {
-                                        ProviderFragment.OBJECT -> variable.field.containingDef
+                                        ProviderFragment.OBJECT -> variable.fieldValueResolverField.containingDef
                                         ProviderFragment.QUERY -> schema.requireQueryTypeDef()
                                     }
                                 implicatedVertices(
@@ -633,14 +634,14 @@ private class TestResolverRegistry(
                                             ),
                                         ),
                                     ),
-                                    variable.field,
+                                    variable.fieldValueResolverField,
                                 )
                             }
                         },
                     )
                 }
             }
-        val assembledResolvers = mutableMapOf<ViaductSchema.Field, FieldResolver>()
+        val assembledResolvers = mutableMapOf<ViaductSchema.Field, FieldValueResolver>()
         dependencyOrder(outgoing).forEach { site ->
             when (site) {
                 is DependencyVertex.Field -> {
@@ -650,7 +651,7 @@ private class TestResolverRegistry(
                             queryType = schema.requireQueryTypeDef(),
                             variables =
                                 variableDefinitions.filterKeys { variable ->
-                                    variable.field == site.field
+                                    variable.fieldValueResolverField == site.field
                                 },
                             validateObjectFragment = { fragment ->
                                 validateProviderContainment(
@@ -681,13 +682,13 @@ private class TestResolverRegistry(
         return engineObjectDataOf(schemaType = query)
     }
 
-    override fun resolver(field: ViaductSchema.ObjectField): FieldResolver {
+    override fun resolver(field: ViaductSchema.ObjectField): FieldValueResolver {
         validateCanonicalField(field)
         return fieldResolvers[field]
             ?: throw MissingResolverException(field.containingDef.name, field.name)
     }
 
-    override fun fieldChecker(field: ViaductSchema.ObjectField): FieldChecker? {
+    override fun fieldChecker(field: ViaductSchema.ObjectField): FieldCheckerResolver? {
         validateCanonicalField(field)
         return fieldCheckers[field]
     }
@@ -707,7 +708,7 @@ private class TestResolverRegistry(
         providerFragment: ProviderFragment,
     ) {
         variableDefinitions.forEach { (variable, definition) ->
-            if (variable.field != field) return@forEach
+            if (variable.fieldValueResolverField != field) return@forEach
             if (
                 definition !is VariableDefinition.FromField ||
                 definition.providerFragment != providerFragment
@@ -869,7 +870,7 @@ private class TestResolverRegistry(
             require(variable in variableDefinitions) {
                 "Missing variable definition: \$${variable.variableName}"
             }
-            require(variable.field == ownerField) {
+            require(variable.fieldValueResolverField == ownerField) {
                 "Variable \$${variable.variableName} is not defined by " +
                     "${ownerField.containingDef.name}/${ownerField.name}"
             }
@@ -902,3 +903,6 @@ private class TestResolverRegistry(
     }
 
 }
+
+private val Arguments.Variable.fieldValueResolverField: ViaductSchema.ObjectField
+    get() = (target as ResolverTarget.FieldValueResolverTarget).field

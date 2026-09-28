@@ -16,7 +16,7 @@ import model.groundKey
 import model.invariants.conformsToResolverOutputSchemaType
 import model.materializeSelectionForestOf
 import model.nodeReferenceIdentityOrNull
-import model.registry.FieldResolver
+import model.registry.FieldValueResolver
 import model.registry.ResolverFragment
 import model.registry.ResolutionExecutionContext
 import model.requireQueryTypeDef
@@ -211,7 +211,7 @@ internal class DepthFirstFieldResolverTask private constructor(
 
     /** Resolves a fresh Query root for an independently rooted reference-target invocation. */
     private fun produceAndMaterializeIndependentQueryFragment(
-        resolver: FieldResolver,
+        resolver: FieldValueResolver,
         queryFragment: ResolverFragment,
         coordinate: List<PathComponent>,
     ): EngineObjectData.Sync {

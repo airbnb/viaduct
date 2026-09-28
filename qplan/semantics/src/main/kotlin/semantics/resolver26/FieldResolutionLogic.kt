@@ -70,8 +70,8 @@ internal class FieldResolutionLogic(
             is FieldResolverOccurrence -> {
                 val resolver = sourceOccurrence.resolver
                 val resolverOccurrenceId = sourceOccurrence.resolverOccurrenceId
-                require(resolver.field == selection.key.field) {
-                    "Resolver field ${resolver.field.name} does not match ${selection.key.field.name}"
+                require(resolver.target.field == selection.key.field) {
+                    "Resolver field ${resolver.target.field.name} does not match ${selection.key.field.name}"
                 }
                 require(
                     resolverOccurrenceId ==
@@ -422,7 +422,7 @@ internal class FieldResolutionLogic(
         currentInvocation = fieldResolverOccurrence
         val queryProducer = fieldResolverTask.launchIndependentQueryFragmentProducer(fieldResolverOccurrence)
         completeVariablesProviderBindings(fieldResolverOccurrence, arguments)?.let { return it }
-        val input = engineObjectDataOf(fieldResolverOccurrence.resolver.field.containingDef)
+        val input = engineObjectDataOf(fieldResolverOccurrence.resolver.target.field.containingDef)
         val queryValue =
             when (val value = queryProducer.await()) {
                 is EngineObjectOrErrorData.Success -> value.value

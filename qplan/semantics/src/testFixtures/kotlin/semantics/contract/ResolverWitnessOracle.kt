@@ -9,7 +9,7 @@ import model.engineObjectDataOf
 import model.ObjectEngineResult
 import model.PathComponent
 import model.ResolverOccurrenceId
-import model.registry.FieldResolver
+import model.registry.FieldValueResolver
 import model.registry.ResolverFragment
 import model.usedVariables
 import semantics.arbitrary.ResolverApplicationIdentity
@@ -288,7 +288,7 @@ private fun <T> MutableMap<T, Int>.increment(key: T) {
     this[key] = getOrDefault(key, 0) + 1
 }
 
-private fun FieldResolver.objectFragmentSatisfiedBy(
+private fun FieldValueResolver.objectFragmentSatisfiedBy(
     operation: SharedOperationContext<*>,
     root: ObjectEngineResult,
     result: ObjectEngineResult,

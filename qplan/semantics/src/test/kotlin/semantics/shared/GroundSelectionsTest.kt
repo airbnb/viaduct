@@ -14,6 +14,7 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.selectionForestOf
+import model.registry.ResolverTarget
 import model.testing.TestWorld
 import model.testing.testRoot
 import viaduct.graphql.schema.ViaductSchema
@@ -140,4 +141,6 @@ class GroundSelectionsTest {
 }
 
 private fun Arguments.Variable.instanceAt(path: List<PathComponent>): Arguments.Variable =
-    instantiate(ResolverOccurrenceId.at(field.testRoot(), path))
+    instantiate(
+        ResolverOccurrenceId.at((target as ResolverTarget.FieldTarget).field.testRoot(), path),
+    )

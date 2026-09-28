@@ -6,7 +6,7 @@ import kotlin.test.assertTrue
 import model.Assumptions
 import model.fragmentFrom
 import model.merge
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import model.registry.ResolverFragmentTemplates
 import model.registry.ResolverRegistry
 import model.requireObjectField
@@ -32,7 +32,7 @@ class SuccessorDemandRegressionTest {
                             schema.fragmentFrom("fragment Input on Query { ${inputs(index)} }").materializeSelections,
                             model.materializeSelectionForestOf(),
                         )
-                        field to FieldChecker.of(field, schema.requireQueryTypeDef(), mapOf("first" to pair, "second" to pair)) { _, _, _ -> CheckerResult.Success }
+                        field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef(), mapOf("first" to pair, "second" to pair)) { _, _, _ -> CheckerResult.Success }
                     }
                 },
             ).assumptions

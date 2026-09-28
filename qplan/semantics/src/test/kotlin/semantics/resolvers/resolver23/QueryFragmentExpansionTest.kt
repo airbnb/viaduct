@@ -8,7 +8,7 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.materializeSelectionForestOf
 import model.operationSelectionsFrom
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import model.registry.ResolverFragmentTemplates
 import model.requireObjectField
 import model.requireQueryTypeDef
@@ -93,7 +93,7 @@ class QueryFragmentExpansionTest : CoroutineResolverTestSubject() {
                                 queryFragmentTemplate = querySelections,
                             )
                         field to
-                            FieldChecker.of(
+                            FieldCheckerResolver.of(
                                 field = field,
                                 queryType = schema.requireQueryTypeDef(),
                                 fragmentTemplates = mapOf("left" to templates, "right" to templates),

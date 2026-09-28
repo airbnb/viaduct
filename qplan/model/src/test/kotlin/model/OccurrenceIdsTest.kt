@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import model.testing.TestWorld
+import model.registry.ResolverTarget
 
 class OccurrenceIdsTest {
     @Test
@@ -30,7 +31,7 @@ class OccurrenceIdsTest {
     }
 
     @Test
-    fun `variable instance identity contains occurrence declaration field and name`() {
+    fun `variable instance identity contains occurrence resolver target and name`() {
         val schema =
             TestWorld.fromSDL(
                 """
@@ -49,11 +50,13 @@ class OccurrenceIdsTest {
             ResolverOccurrenceId.at(root, listOf(ListEngineResult.Index.of(1)))
         val secondOccurrence =
             ResolverOccurrenceId.at(root, listOf(ListEngineResult.Index.of(2)))
+        val firstTarget = ResolverTarget.FieldValueResolverTarget(firstField)
+        val secondTarget = ResolverTarget.FieldValueResolverTarget(secondField)
 
         val first =
             VariableInstanceId.of(
                 resolverOccurrenceId = firstOccurrence,
-                resolverField = firstField,
+                resolverTarget = firstTarget,
                 variableName = "value",
             )
 
@@ -61,27 +64,27 @@ class OccurrenceIdsTest {
             first,
             VariableInstanceId.of(
                 resolverOccurrenceId = equalFirstOccurrence,
-                resolverField = firstField,
+                resolverTarget = firstTarget,
                 variableName = "value",
             ),
         )
         assertNotEquals(
             first,
-            VariableInstanceId.of(secondOccurrence, firstField, "value"),
+            VariableInstanceId.of(secondOccurrence, firstTarget, "value"),
         )
         assertNotEquals(
             first,
-            VariableInstanceId.of(firstOccurrence, secondField, "value"),
+            VariableInstanceId.of(firstOccurrence, secondTarget, "value"),
         )
         assertNotEquals(
             first,
-            VariableInstanceId.of(firstOccurrence, firstField, "other"),
+            VariableInstanceId.of(firstOccurrence, firstTarget, "other"),
         )
         assertEquals(
             "VariableInstanceId(" +
                 "resolver=ResolverOccurrenceId(" +
                 "root=${System.identityHashCode(root)}, path=[index=1]), " +
-                "variable=Query/first:value)",
+                "target=field-value:Query/first, variable=value)",
             first.toString(),
         )
     }

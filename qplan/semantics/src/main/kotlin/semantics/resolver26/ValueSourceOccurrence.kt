@@ -8,7 +8,7 @@ import model.ResolverOutputData
 import model.RootFieldReferenceData
 import model.SelectionForest
 import model.outputType
-import model.registry.FieldResolver
+import model.registry.FieldValueResolver
 import model.registry.ResolverFragments
 import model.registry.VariableInstanceDefinition
 import viaduct.graphql.schema.ViaductSchema
@@ -36,7 +36,7 @@ internal data class FieldResolverOccurrence(
     val invocationRoot: ObjectEngineResult,
     val invocationPath: List<PathComponent>,
     val resolverOccurrenceId: ResolverOccurrenceId,
-    val resolver: FieldResolver,
+    val resolver: FieldValueResolver,
     val variableDefinitions: List<VariableInstanceDefinition>,
     val fragments: ResolverFragments,
     override val publicationConstructionDemand: Demand<SelectionForest> = Demand.checked(selection.subselections),

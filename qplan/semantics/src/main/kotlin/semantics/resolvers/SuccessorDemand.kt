@@ -10,8 +10,8 @@ import model.objectKey
 import model.requireField
 import model.selectionForestOf
 import model.substituteTemplates
-import model.registry.FieldResolver
-import model.registry.FieldChecker
+import model.registry.FieldValueResolver
+import model.registry.FieldCheckerResolver
 import model.registry.VariableDefinition
 import semantics.shared.Demand
 import semantics.shared.liftParentSuccessorDemand
@@ -254,7 +254,7 @@ private fun SelectionForest.boundarySkeleton(operation: SharedOperationContext<*
         }
     }
 
-private fun FieldResolver.objectFragmentWithFromArguments(
+private fun FieldValueResolver.objectFragmentWithFromArguments(
     arguments: Arguments.Resolved,
 ): SelectionForest {
     val bindings =
@@ -266,7 +266,7 @@ private fun FieldResolver.objectFragmentWithFromArguments(
     return objectFragment.substitute(bindings)
 }
 
-private fun FieldChecker.objectFragmentWithFromArguments(
+private fun FieldCheckerResolver.objectFragmentWithFromArguments(
     arguments: Arguments.Resolved,
 ): SelectionForest {
     val bindings =

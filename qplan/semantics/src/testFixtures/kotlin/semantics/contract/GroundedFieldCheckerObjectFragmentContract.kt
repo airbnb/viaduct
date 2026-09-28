@@ -18,7 +18,8 @@ import model.fragmentFrom
 import model.materializeSelectionForestOf
 import model.operationSelectionsFrom
 import model.registry.CheckerInput
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
+import model.registry.ResolverTarget
 import model.registry.ResolverFragmentTemplates
 import model.registry.VariableDefinition
 import model.requireObjectField
@@ -58,7 +59,7 @@ interface GroundedFieldCheckerObjectFragmentContract {
                     val checked = schema.requireObjectField("Query", "checked")
                     mapOf(
                         checked to
-                            FieldChecker.of(
+                            FieldCheckerResolver.of(
                                 checked,
                                 schema.requireQueryTypeDef(),
                                 fragmentTemplates =
@@ -129,7 +130,7 @@ interface GroundedFieldCheckerObjectFragmentContract {
                 fieldCheckers = { schema ->
                     val query = schema.requireQueryTypeDef()
                     val checked = schema.requireObjectField("Item", "checked")
-                    val seed = Arguments.Variable.of(checked, "seed")
+                    val seed = Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(checked), "seed")
                     val fragments =
                         linkedMapOf(
                             "active" to
@@ -138,7 +139,7 @@ interface GroundedFieldCheckerObjectFragmentContract {
                                         schema
                                             .fragmentFrom(
                                                 "fragment Input on Item { active(seed: ${'$'}seed) }",
-                                                variableField = checked,
+                                                variableTarget = ResolverTarget.FieldCheckerTarget(checked),
                                             ).materializeSelections,
                                     queryFragmentTemplate = materializeSelectionForestOf(),
                                     variables =
@@ -173,7 +174,7 @@ interface GroundedFieldCheckerObjectFragmentContract {
                         )
                     mapOf(
                         checked to
-                            FieldChecker.of(
+                            FieldCheckerResolver.of(
                                 field = checked,
                                 queryType = query,
                                 fragmentTemplates = fragments,
@@ -182,7 +183,7 @@ interface GroundedFieldCheckerObjectFragmentContract {
                                 CheckerResult.Success
                             },
                         schema.requireObjectField("Item", "active") to
-                            FieldChecker.of(
+                            FieldCheckerResolver.of(
                                 schema.requireObjectField("Item", "active"),
                                 query,
                             ) { _, _, _ ->
@@ -190,7 +191,7 @@ interface GroundedFieldCheckerObjectFragmentContract {
                                 CheckerResult.Success
                             },
                         schema.requireObjectField("Child", "nested") to
-                            FieldChecker.of(
+                            FieldCheckerResolver.of(
                                 schema.requireObjectField("Child", "nested"),
                                 query,
                             ) { _, _, _ ->

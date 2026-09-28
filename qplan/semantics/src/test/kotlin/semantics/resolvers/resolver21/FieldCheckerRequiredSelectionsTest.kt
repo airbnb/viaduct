@@ -6,7 +6,7 @@ import kotlin.test.assertTrue
 import model.fragmentFrom
 import model.materializeSelectionForestOf
 import model.operationSelectionsFrom
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import model.registry.ResolverFragmentTemplates
 import model.requireObjectField
 import model.requireQueryTypeDef
@@ -41,7 +41,7 @@ class FieldCheckerRequiredSelectionsTest {
                             )
                         mapOf(
                             checked to
-                                FieldChecker.of(
+                                FieldCheckerResolver.of(
                                     checked,
                                     query,
                                     fragmentTemplates = mapOf("input" to fragmentTemplates),

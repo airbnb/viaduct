@@ -31,9 +31,10 @@ import model.fragmentFrom
 import model.inputType
 import model.objectOf
 import model.requireType
-import model.registry.FieldChecker
+import model.registry.FieldCheckerResolver
 import model.registry.ProviderFragment
 import model.registry.ResolverFragmentTemplates
+import model.registry.ResolverTarget
 import model.registry.VariableDefinition
 import model.selectionForestOf
 import model.toMaterializeSelectionForest
@@ -711,7 +712,7 @@ class ArbitraryRegistry internal constructor(
     private fun generatedFieldCheckers(
         schema: ViaductSchema,
         mode: GeneratedFieldCheckerMode,
-    ): Map<ViaductSchema.ObjectField, FieldChecker> {
+    ): Map<ViaductSchema.ObjectField, FieldCheckerResolver> {
         if (mode == GeneratedFieldCheckerMode.NONE) return emptyMap()
         val sourceSchema = SourceSchemaAdapter(schema)
         val queryType = schema.requireType("Query") as ViaductSchema.Object
@@ -721,16 +722,17 @@ class ArbitraryRegistry internal constructor(
                     coordinate.typeName,
                     coordinate.fieldName,
                 ) as ViaductSchema.ObjectField
+            val target = ResolverTarget.FieldCheckerTarget(field)
             val providers = variableProviders.filter { it.owner == coordinate }
             val providerPlans = providers.filterIsInstance<FromProviderVariableProviderPlan>()
             val variables = providers.associate { provider ->
-                Arguments.Variable.of(field, provider.variableName) to when (provider) {
+                Arguments.Variable.of(target, provider.variableName) to when (provider) {
                     is FromArgumentVariableProviderPlan -> provider.variableDefinition(field)
                     is FromProviderVariableProviderPlan -> VariableDefinition.FromProvider
                     is FromFieldVariableProviderPlan -> {
                         var selections = (if (provider.providerFragment == ProviderFragment.OBJECT) objectFragments else queryFragments)
                             .getValue(coordinate)
-                            .materialize(schema, field)
+                            .materialize(schema, field, target)
                             .materializeSelections
                         val path = provider.responsePath().map { responseKey ->
                             val selected = selections.filter { it.responseKey == responseKey }
@@ -749,12 +751,12 @@ class ArbitraryRegistry internal constructor(
                     objectFragmentTemplate =
                         objectFragments
                             .getValue(coordinate)
-                            .materialize(schema, field)
+                            .materialize(schema, field, target)
                             .materializeSelections,
                     queryFragmentTemplate =
                         queryFragments
                             .getValue(coordinate)
-                            .materialize(schema, field)
+                            .materialize(schema, field, target)
                             .materializeSelections,
                     variables = variables,
                     variablesProvider = if (providerPlans.isEmpty()) {
@@ -767,11 +769,11 @@ class ArbitraryRegistry internal constructor(
                 )
             val emptyObject =
                 FragmentPlan(coordinate.typeName, emptyList())
-                    .materialize(schema, field)
+                    .materialize(schema, field, target)
                     .materializeSelections
             val emptyQuery =
                 FragmentPlan(queryType.name, emptyList())
-                    .materialize(schema, field)
+                    .materialize(schema, field, target)
                     .materializeSelections
             val fragmentTemplates =
                 linkedMapOf(
@@ -788,7 +790,7 @@ class ArbitraryRegistry internal constructor(
                             "rawObject",
                             ResolverFragmentTemplates(
                                 objectFragmentTemplate =
-                                    checkerOnlyPlan.materialize(schema, field).materializeSelections,
+                                    checkerOnlyPlan.materialize(schema, field, target).materializeSelections,
                                 queryFragmentTemplate = emptyQuery,
                             ),
                         )
@@ -799,13 +801,13 @@ class ArbitraryRegistry internal constructor(
                             ResolverFragmentTemplates(
                                 objectFragmentTemplate = emptyObject,
                                 queryFragmentTemplate =
-                                    checkerOnlyPlan.materialize(schema, field).materializeSelections,
+                                    checkerOnlyPlan.materialize(schema, field, target).materializeSelections,
                             ),
                         )
                     }
                 }
             field to
-                FieldChecker.of(
+                FieldCheckerResolver.of(
                     field = field,
                     queryType = queryType,
                     fragmentTemplates = fragmentTemplates,
@@ -3166,6 +3168,8 @@ internal data class FragmentPlan(
     fun materialize(
         schema: ViaductSchema,
         variableField: ViaductSchema.ObjectField,
+        variableTarget: ResolverTarget.FieldTarget =
+            ResolverTarget.FieldValueResolverTarget(variableField),
     ): Fragment =
         if (selections.isEmpty()) {
             Fragment.of(
@@ -3173,7 +3177,7 @@ internal data class FragmentPlan(
                 subselections = selectionForestOf(),
             )
         } else {
-            val parsed = schema.fragmentFrom(source(), variableField = variableField)
+            val parsed = schema.fragmentFrom(source(), variableTarget = variableTarget)
             Fragment.of(
                 nominalType = parsed.nominalType,
                 materializeSelections =
