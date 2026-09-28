@@ -84,6 +84,76 @@ class EngineResultTest {
     }
 
     @Test
+    fun `object type checker result is independently monotonic`() {
+        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
+        val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
+
+        assertFalse(result.isTypeCheckerResultSet())
+        assertFailsWith<IllegalStateException> { result.getTypeCheckerResult() }
+
+        result.setTypeCheckerResult(null)
+
+        assertTrue(result.isTypeCheckerResultSet())
+        assertNull(result.getTypeCheckerResult().get())
+        assertTrue(result.isCompleted)
+        assertFailsWith<IllegalStateException> {
+            result.setTypeCheckerResult(CheckerResult.Success)
+        }
+    }
+
+    @Test
+    fun `object type checker promise supports deferred completion failure and cancellation`() {
+        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
+        val successful = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
+        val successPromise = successful.createTypeCheckerResultPromise()
+
+        assertFalse(successful.isCompleted)
+        assertTrue(successPromise.complete(CheckerResult.Success))
+        assertSame(CheckerResult.Success, successful.getTypeCheckerResult().get())
+        assertTrue(successful.isCompleted)
+
+        val failed = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
+        val failure = IllegalStateException("checker failed")
+        failed.createTypeCheckerResultPromise()
+        assertTrue(failed.failTypeCheckerResult(failure))
+        assertSame(
+            failure,
+            assertFailsWith<IllegalStateException> { failed.getTypeCheckerResult().get() },
+        )
+        assertFalse(failed.failTypeCheckerResult(IllegalStateException("late")))
+
+        val cancelled = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
+        val cancellation = CancellationException("checker cancelled")
+        cancelled.createTypeCheckerResultPromise()
+        assertTrue(cancelled.cancelTypeCheckerResult(cancellation))
+        assertSame(
+            cancellation,
+            assertFailsWith<CancellationException> { cancelled.getTypeCheckerResult().get() },
+        )
+        assertFalse(cancelled.cancelTypeCheckerResult(cancellation))
+    }
+
+    @Test
+    fun `completed object comparison and union include the object type checker result`() {
+        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
+        val query = schema.requireQueryTypeDef()
+        val absent = ObjectEngineResult.of(query)
+        val noChecker = ObjectEngineResult.of(type = query, typeCheckerResult = null)
+        val denial = TestCheckerError()
+        val denied = ObjectEngineResult.of(type = query, typeCheckerResult = denial)
+
+        assertFalse(absent.sameCompletedResultAs(noChecker))
+        assertFalse(noChecker.sameCompletedResultAs(denied))
+
+        val union = absent.union(denied)
+        assertSame(denial, union.getTypeCheckerResult().get())
+        assertFalse(absent.isTypeCheckerResultSet())
+        assertFailsWith<IllegalArgumentException> {
+            denied.union(ObjectEngineResult.of(type = query, typeCheckerResult = TestCheckerError()))
+        }
+    }
+
+    @Test
     fun `list engine result retains its elements`() {
         val world = TestWorld.fromSDL(SCHEMA_SDL).assumptions
         val schema = world.schema
