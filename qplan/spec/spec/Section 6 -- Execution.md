@@ -8,7 +8,7 @@ The specialization makes the following principal changes:
 
 - {ResolveFieldValue()} is no longer an intentionally abstract call into an implementation-provided resolver. Its {objectValue} is specifically an `ObjectEngineResult`; the concrete type, field name, and coerced arguments form a `Key` that selects an existing `EngineResultCell`. The special `__typename` field is obtained directly from the object's retained concrete type.
 - `ObjectEngineResult` values use `Key` values rather than GraphQL response keys. A `Key` identifies a field by a concrete Object type, the name of a field on that type, and the field's coerced argument values. A response key still determines the name written to the response map, but an alias never participates in selecting the backing `EngineResultCell`.
-- {ReadResultCellValue()} is a new common operation for reading both object-field cells and list-element cells. It gives a raw field-resolution error precedence, then grants access only when the cell's Boolean field-check and type-check values are both {true}. Both values default to {true} when no corresponding check applies; either value being {false} raises an _execution error_.
+- {ReadResultCellValue()} is a new common operation for reading both object-field cells and list-element cells. It gives a raw field-resolution error precedence, then grants access only when the cell's Boolean field-check value and any reached `ObjectEngineResult`'s Boolean type-check value are both {true}. Either value defaults to {true} when no corresponding check applies; either value being {false} raises an _execution error_.
 - {CompleteValue()} retains the recursive structure and error propagation of the published algorithm. Its inserted steps make the backing representation concrete by requiring `ObjectEngineResult` and `ListEngineResult` values, reading list-element cells, checking retained type witnesses, and coercing the specified leaf carriers. Apart from the access checks applied while cells are read, these are small representational refinements rather than a structural overhaul of value completion.
 - The [Chapter Appendix](#sec-Chapter-Appendix) defines the Engine Result Tree, its object and list forms, result cells, access decisions, and the synchronous response-completion boundary assumed by the chapter.
 
@@ -1028,7 +1028,7 @@ An `ErrorEngineResult` retains useful diagnostic information associated with an 
 
 {++
 
-An `ObjectEngineResult` is the representation of one concrete object occurrence in the Engine Result Tree. It retains a canonical concrete Object type and a finite mapping from `Key` values to `EngineResultCell` values. Object occurrences use identity rather than their field contents for equality.
+An `ObjectEngineResult` is the representation of one concrete object occurrence in the Engine Result Tree. It retains a canonical concrete Object type, one Boolean type-check decision, and a finite mapping from `Key` values to `EngineResultCell` values. Object occurrences use identity rather than their field contents for equality. The type-check decision is complete before response completion begins and defaults to {true} when no type access check applies.
 
 A `Key` is a triple consisting of a concrete Object type, the name of a field on that type, and the field's coerced argument values. Declared argument defaults have been applied, and the argument values contain no unresolved variables. A `Key` contains neither a response alias nor a response path.
 
@@ -1050,11 +1050,11 @@ List positions have stable identity and are addressed by zero-based indices. A l
 
 {++
 
-An `EngineResultCell` represents one object-field or list-element occurrence. At the response-completion boundary it exposes a value slot, a field-check slot, and a type-check slot.
+An `EngineResultCell` represents one object-field or list-element occurrence. At the response-completion boundary it exposes a value slot and a field-check slot.
 
 The value slot contains GraphQL {null} or an `EngineResult`. It is complete before response completion begins and is read synchronously without invoking a tenant resolver.
 
-The field-check and type-check slots each contain a Boolean and are likewise complete before response completion begins. Tree construction supplies {true} by default when no corresponding access check applies.
+The field-check slot contains a Boolean and is likewise complete before response completion begins. Tree construction supplies {true} when no field access check applies. A list-element cell also uses {true} because a list element has no independent field check.
 
 ++}
 
@@ -1062,16 +1062,16 @@ The field-check and type-check slots each contain a Boolean and are likewise com
 
 {++
 
-The Boolean in a cell's field-check slot records whether access to that field occurrence is granted. It is {true} when no field access check is configured; a list-element cell also uses {true} because a list element has no independent field check. The Boolean in a cell's type-check slot records whether access to the concrete object occurrence in its value slot is granted. It is {true} when the value is not an `ObjectEngineResult` or when no type access check is configured for that object's concrete type.
+The Boolean in a cell's field-check slot records whether access to that field occurrence is granted. The Boolean on an `ObjectEngineResult` records whether access to that concrete object occurrence is granted. Field and type decisions are resolved independently and combine only when a checked consumer reaches the object through a field or list-element value.
 
-For a field whose value is an `ObjectEngineResult`, the field and returned object's type decisions occupy that field's cell. For a list, the field decision occupies the cell containing the `ListEngineResult`, while each object-valued list element's type decision occupies that element's cell. Consequently the same cell-reading algorithm applies uniformly to object fields and list elements.
+For a field whose value is an `ObjectEngineResult`, enforcement uses the field decision from the containing cell and the type decision from the returned object occurrence. For a list, the field decision belongs to the cell containing the `ListEngineResult`, while each reached object occurrence supplies its own type decision. Distinct ordinary object occurrences are checked independently; a structural reference to an existing OER reuses that occurrence's one type decision.
 
 ReadResultCellValue(cell):
 
 - Let {result} be the value in {cell}'s value slot.
-- If {result} is an `ErrorEngineResult`, return {result} without inspecting the check slots.
+- If {result} is an `ErrorEngineResult`, return {result} without inspecting the access decisions.
 - Let {fieldCheck} be the Boolean in {cell}'s field-check slot.
-- Let {typeCheck} be the Boolean in {cell}'s type-check slot.
+- If {result} is an `ObjectEngineResult`, let {typeCheck} be its Boolean type-check decision; otherwise let {typeCheck} be {true}.
 - If either {fieldCheck} or {typeCheck} is {false}, raise an _execution error_ indicating that access to this response position was denied.
 - Return {result}.
 
