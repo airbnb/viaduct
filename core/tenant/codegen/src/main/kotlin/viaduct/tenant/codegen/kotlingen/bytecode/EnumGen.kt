@@ -2,6 +2,7 @@ package viaduct.tenant.codegen.kotlingen.bytecode
 
 // See README.md for the patterns that guided this file
 
+import getEscapedFieldName
 import viaduct.apiannotations.VisibleForTest
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
@@ -18,7 +19,7 @@ interface EnumModel {
     /** Name of the class to be generated. */
     val className: String
 
-    /** Names of the values of this enumeration. */
+    /** Names of the values of this enumeration, escaped for use as Kotlin enum entries. */
     val valueNames: List<String>
 
     /** A rendered template string that describes this types Reflection object */
@@ -45,6 +46,6 @@ private class EnumModelImpl(
     reflectedType: STContents
 ) : EnumModel {
     override val className get() = typeDef.name
-    override val valueNames get() = typeDef.values.map { it.name }
+    override val valueNames get() = typeDef.values.map { getEscapedFieldName(it.name) }
     override val reflection: String = reflectedType.toString()
 }
