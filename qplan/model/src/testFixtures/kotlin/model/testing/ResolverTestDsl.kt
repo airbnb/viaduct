@@ -336,7 +336,7 @@ private class Compiler(
     fun nodeResolvers(): Map<ViaductSchema.Object, NodeResolverFunction> =
         nodeEntries
             .groupBy(CompiledNodeResult::type)
-            .mapValues { (type, entries) ->
+            .mapValues { (_, entries) ->
                 val byId = entries.associateBy(CompiledNodeResult::id)
                 nodeResolverOf { id ->
                     byId[id]?.let { entry ->

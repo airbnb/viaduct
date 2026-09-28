@@ -568,7 +568,7 @@ private class SchemaGenerator(
                     Document.newDocument().definitions(definitions).build(),
                 ).trim()
         val deepFields =
-            buildMap {
+            buildMap<String, String> {
                 if (config[ParentFieldsEnabled]) {
                     put("Query", GENERATED_PARENT_ROOT_FIELD)
                     put(GENERATED_PARENT_ROOT_TYPE, GENERATED_PARENT_CHILD_FIELD)
@@ -1849,10 +1849,10 @@ private class SchemaGenerator(
             val ownerIndex = objectIndices.getValue(objectType.name)
             objectType.copy(
                 fields =
-                    objectType.fields.map { field ->
-                        val targetIndex = objectIndices[field.type.namedType] ?: return@map field
-                        if (targetIndex <= ownerIndex) return@map field
-                        if (!chance(config[PassiveAbstractOutputTypeWeight])) return@map field
+                    objectType.fields.map transformField@ { field ->
+                        val targetIndex = objectIndices[field.type.namedType] ?: return@transformField field
+                        if (targetIndex <= ownerIndex) return@transformField field
+                        if (!chance(config[PassiveAbstractOutputTypeWeight])) return@transformField field
                         val candidates =
                             abstractMembers
                                 .filterValues { members ->

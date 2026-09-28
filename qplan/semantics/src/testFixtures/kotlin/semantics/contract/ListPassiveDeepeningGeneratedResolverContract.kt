@@ -116,18 +116,18 @@ private fun countListPassiveDeepening(
             .merge(type)
             .instantiateBindings(operation)
             .byGroundKey()
-            .forEach { (requiredKey, requiredPassive) ->
+            .forEach requiredField@ { (requiredKey, requiredPassive) ->
                 val passiveField = requiredKey.field
                 val passiveType = passiveField.type.baseTypeDef as? ViaductSchema.CompositeTypeDef
-                    ?: return@forEach
+                    ?: return@requiredField
                 if (
                     passiveField in operation.world.resolverRegistry ||
                     !passiveField.type.isList
                 ) {
-                    return@forEach
+                    return@requiredField
                 }
                 val selectedPassive =
-                    incomingByKey[requiredKey] ?: return@forEach
+                    incomingByKey[requiredKey] ?: return@requiredField
                 if (
                     hasMissingDemand(
                         operation,

@@ -101,9 +101,9 @@ internal class OrchestrationTask private constructor(
     override fun validateDispatch() {
         listOf(objectOER to closed.objectRooted, queryOER to closed.queryRooted)
             .forEach { (oer, closedOER) ->
-                closedOER.demand.byKey().forEach { (objectKey, selection) ->
+                closedOER.demand.byKey().forEach entry@ { (objectKey, selection) ->
                     if (selection.inclusionCondition === InclusionCondition.Never) {
-                        return@forEach
+                        return@entry
                     }
                     if (
                         objectKey !in closedOER.fieldResolverOccurrences &&

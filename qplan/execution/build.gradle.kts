@@ -32,13 +32,9 @@ dependencies {
     testImplementation(testFixtures(viaductLibs.viaduct.shared.graphql))
     testImplementation(viaductLibs.viaduct.service.api)
     testImplementation(testFixtures(viaductLibs.viaduct.service.api))
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 kotlin {
-    compilerOptions {
-        freeCompilerArgs.add("-Xjspecify-annotations=ignore")
-    }
     jvmToolchain(17)
 }
 

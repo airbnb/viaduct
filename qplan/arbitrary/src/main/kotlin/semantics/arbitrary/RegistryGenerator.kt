@@ -328,6 +328,7 @@ class ArbitraryRegistry internal constructor(
         objectFragments.values.map(FragmentPlan::selectionDepth)
 
     fun nodeLoaderPossibleTypes(
+        @Suppress("UNUSED_PARAMETER")
         schema: ArbitrarySchema,
         canonicalField: FieldCoordinate,
     ): Set<String> {
@@ -439,7 +440,6 @@ class ArbitraryRegistry internal constructor(
                             coordinate.typeName,
                             coordinate.fieldName,
                         )
-                    val owner = field.containingDef as ViaductSchema.Object
                     val constant =
                         plan.materialize(
                             canonicalSchema,

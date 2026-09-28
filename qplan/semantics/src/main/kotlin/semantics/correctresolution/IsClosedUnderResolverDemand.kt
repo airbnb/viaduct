@@ -121,7 +121,7 @@ private class ResolverDemandValidationLogic(
                 when {
                     key is ObjectEngineResult.ParentKey -> true
                     argumentsContainError -> true
-                    sourceSuppliesField ->
+                    source != null && sourceSuppliesField ->
                         value.engineResultIsClosedUnderResolverDemand(
                             path = path + key,
                             source = source.outputValue(fieldName),

@@ -145,7 +145,7 @@ class ResolverOccurrenceWitnessTest {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     val items = schema.requireObjectField("Query", "items")
-                    val payloadType = checkNotNull(items.type.unwrapList())
+                    checkNotNull(items.type.unwrapList())
                     val baseKey =
                         ObjectEngineResult.GroundKey.of(
                             schema.requireObjectField("Payload", "base"),

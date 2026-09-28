@@ -396,7 +396,7 @@ class BranchOrderInvariantTest {
                 """.trimIndent(),
             nodeResolvers = { schema ->
                 val user = schema.requireType("User") as ViaductSchema.Object
-                mapOf(user to nodeResolverOf { error("Not invoked") })
+                mapOf(user to nodeResolverOf { _: String -> error("Not invoked") })
             },
             fieldResolvers = { schema ->
                 mapOf(

@@ -444,7 +444,7 @@ class ResolverRegistryTest {
                     """.trimIndent(),
                 nodeResolvers = { schema ->
                     val user = schema.requireType("User") as ViaductSchema.Object
-                    mapOf(user to nodeResolverOf { error("Not invoked") })
+                    mapOf(user to nodeResolverOf { _: String -> error("Not invoked") })
                 },
                 fieldResolvers = { schema ->
                     val user = schema.requireField("Query", "user")
@@ -582,7 +582,7 @@ class ResolverRegistryTest {
             TestWorld.fromSDL(
                 schemaSDL = SCHEMA_SDL,
                 nodeResolvers = {
-                    mapOf(foreignUser to nodeResolverOf { error("Not invoked") })
+                    mapOf(foreignUser to nodeResolverOf { _: String -> error("Not invoked") })
                 },
             )
         }
@@ -619,7 +619,7 @@ class ResolverRegistryTest {
                     """.trimIndent(),
                 nodeResolvers = { schema ->
                     val user = schema.requireType("User") as ViaductSchema.Object
-                    mapOf(user to nodeResolverOf { error("Not invoked") })
+                    mapOf(user to nodeResolverOf { _: String -> error("Not invoked") })
                 },
             )
         }
@@ -650,7 +650,7 @@ class ResolverRegistryTest {
                     """.trimIndent(),
                 nodeResolvers = { schema ->
                     val other = schema.requireType("Other") as ViaductSchema.Object
-                    mapOf(other to nodeResolverOf { error("Not invoked") })
+                    mapOf(other to nodeResolverOf { _: String -> error("Not invoked") })
                 },
             )
         }
@@ -733,7 +733,7 @@ class ResolverRegistryTest {
                     schemaSDL = SCHEMA_SDL,
                     nodeResolvers = { schema ->
                         val user = schema.requireType("User") as ViaductSchema.Object
-                        mapOf(user to nodeResolverOf { error("Not invoked") })
+                        mapOf(user to nodeResolverOf { _: String -> error("Not invoked") })
                     },
                     fieldResolvers = { schema ->
                         val fragment = schema.emptyFragmentOf("User")
@@ -1198,7 +1198,7 @@ class ResolverRegistryTest {
                 nodeResolvers = { schema ->
                     if (withNodeResolver) {
                         val user = schema.requireType("User") as ViaductSchema.Object
-                        mapOf(user to nodeResolverOf { error("Not invoked") })
+                        mapOf(user to nodeResolverOf { _: String -> error("Not invoked") })
                     } else {
                         emptyMap()
                     }

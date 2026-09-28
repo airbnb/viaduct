@@ -19,7 +19,6 @@ dependencies {
     testImplementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.3")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     testImplementation(kotlin("test-junit5"))
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     add("jmhImplementation", sourceSets["testFixtures"].output)
 }

@@ -640,7 +640,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     val groups = schema.requireField("Query", "groups")
-                    val groupElement = checkNotNull(groups.type.unwrapList())
+                    checkNotNull(groups.type.unwrapList())
                     val seedKey = schema.contractKey("Group", "seed")
 
                     fun computedResolver(typeName: String) =
@@ -773,9 +773,9 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     val groups = schema.requireField("Query", "groups")
-                    val groupElement = checkNotNull(groups.type.unwrapList())
+                    checkNotNull(groups.type.unwrapList())
                     val entries = schema.requireField("Group", "entries")
-                    val entryElement = checkNotNull(entries.type.unwrapList())
+                    checkNotNull(entries.type.unwrapList())
                     val seedKey = schema.contractKey("Group", "seed")
                     val rawKey = schema.contractKey("Entry", "raw")
                     mapOf(

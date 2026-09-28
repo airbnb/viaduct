@@ -844,7 +844,7 @@ private class TestResolverRegistry(
         selection.possibleTypes.forEach { possibleType ->
             possibleType.field(selection.key.field.name)
                 ?.takeIf { it in sourceFieldResolvers }
-                ?.let { add(DependencyVertex.Field(it as ViaductSchema.ObjectField)) }
+                ?.let { add(DependencyVertex.Field(it)) }
         }
         (
             selection.key.arguments.variableTemplates() +

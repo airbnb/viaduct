@@ -193,8 +193,7 @@ internal fun EngineInputData?.conformsToInputSchemaType(
 
 private fun EngineInputData.asEngineInputListDataOrNull(): EngineInputListData? {
     val values = this as? List<*> ?: return null
-    @Suppress("UNCHECKED_CAST")
-    return values as EngineInputListData
+    return values
 }
 
 private fun EngineInputData.asEngineInputObjectDataOrNull(): EngineInputObjectData? {

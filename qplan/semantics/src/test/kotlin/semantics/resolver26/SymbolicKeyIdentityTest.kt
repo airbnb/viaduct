@@ -56,7 +56,7 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                     val result = schema.requireObjectField("Query", "result")
                     val items = schema.requireObjectField("Query", "items")
                     val itemsKey = ObjectEngineResult.GroundKey.of(items, emptyMap())
-                    val itemType = checkNotNull(items.type.unwrapList())
+                    checkNotNull(items.type.unwrapList())
                     val child = schema.requireObjectField("Item", "child")
                     val visibleChildKey = ObjectEngineResult.GroundKey.of(child, mapOf("value" to 7))
                     mapOf(
@@ -309,7 +309,6 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val payloadType = schema.requireType("Payload") as ViaductSchema.Object
                     val frank = schema.requireObjectField("Query", "frank")
                     val frankKey = ObjectEngineResult.GroundKey.of(frank, mapOf("arg" to "hi"))
                     val oneKey =

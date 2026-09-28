@@ -17,7 +17,6 @@ dependencies {
     testFixturesApi(viaductLibs.viaduct.shared.viaductschema)
 
     testImplementation(kotlin("test-junit5"))
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 kotlin {

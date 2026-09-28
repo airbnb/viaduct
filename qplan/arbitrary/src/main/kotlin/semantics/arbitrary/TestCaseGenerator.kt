@@ -225,13 +225,13 @@ suspend fun executeResolverTestCases(
                     schema = batch.schema,
                     selectiveNodeResolvers = config[SelectiveNodeResolversEnabled],
                 )
-            batch.queries.forEachIndexed { queryOffset, query ->
+            batch.queries.forEachIndexed query@ { queryOffset, query ->
                 val queryIndex = queryOffset + 1
                 if (
                     execution.selectedCase != null &&
                     queryIndex != execution.selectedCase.queryIndex
                 ) {
-                    return@forEachIndexed
+                    return@query
                 }
                 attemptedCases += 1
                 val testCase =

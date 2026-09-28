@@ -17,14 +17,12 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
 import model.outputValue
-import model.requireOutputType
 import model.requireType
 import model.testing.FieldResolverDefinition
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.nodeResolverOf
 import org.junit.jupiter.api.Test
-import viaduct.graphql.schema.toTypeExpr
 import viaduct.engine.api.EngineObjectData
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -470,7 +468,7 @@ interface NodeResolverContract : ResolverContract {
         val expectedTypes = listOf("User", "Admin")
         assertEquals(
             expectedTypes,
-            first.zip(expectedTypes).map { (cell, expectedType) ->
+            first.zip(expectedTypes).map { (cell, _) ->
                 assertIs<ObjectEngineResult>(cell.get()).type.name
             },
         )
@@ -508,8 +506,6 @@ interface NodeResolverContract : ResolverContract {
                 },
                 fieldResolvers = { schema ->
                     val matrix = schema.requireField("Query", "matrix")
-                    val outer =
-                        schema.toTypeExpr("!!!", "User").requireOutputType()
                     fun row(vararg ids: String): EngineOutputListData =
                         ids.map { id ->
                             schema.objectOf("User") {

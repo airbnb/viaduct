@@ -104,11 +104,11 @@ fun EngineTestModule.runQPlanFeatureTest(
     val world =
         TestWorld.fromSDL(
             schemaSDL = fullSchemaSDL,
-            fieldResolvers = { schema ->
+            fieldResolvers = { canonicalSchema ->
                 registryInputs
-                    .getOrPut(schema) {
+                    .getOrPut(canonicalSchema) {
                         qplanRegistryInputs(
-                            schema = schema,
+                            schema = canonicalSchema,
                             context = context,
                             fieldSelectivityProvider = fieldSelectivityProvider,
                             includeDefaultQueryNodeResolvers = !withoutDefaultQueryNodeResolvers,
@@ -116,14 +116,14 @@ fun EngineTestModule.runQPlanFeatureTest(
                     }
                     .fieldResolvers
             },
-            nodeResolvers = { schema ->
-                qplanNodeResolvers(schema, context)
+            nodeResolvers = { canonicalSchema ->
+                qplanNodeResolvers(canonicalSchema, context)
             },
-            variableProviders = { schema ->
+            variableProviders = { canonicalSchema ->
                 registryInputs
-                    .getOrPut(schema) {
+                    .getOrPut(canonicalSchema) {
                         qplanRegistryInputs(
-                            schema = schema,
+                            schema = canonicalSchema,
                             context = context,
                             fieldSelectivityProvider = fieldSelectivityProvider,
                             includeDefaultQueryNodeResolvers = !withoutDefaultQueryNodeResolvers,
@@ -489,7 +489,7 @@ private fun EngineTestModule.qplanNodeResolvers(
         nodeType.possibleObjectTypes
             .filter { type -> type !in supplied }
             .associateWith { type ->
-                nodeResolverOf { model.engineObjectDataOf(type) }
+                nodeResolverOf { _: String -> model.engineObjectDataOf(type) }
             }
     return supplied + unavailable
 }

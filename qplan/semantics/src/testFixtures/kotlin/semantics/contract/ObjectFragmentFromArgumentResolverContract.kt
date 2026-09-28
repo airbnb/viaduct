@@ -43,7 +43,6 @@ interface ObjectFragmentFromArgumentResolverContract :
             )
         val world = testWorld.assumptions
         val resultField = world.schema.requireObjectField("Query", "result")
-        val variable = Arguments.Variable.of(resultField, "seed")
         val firstKey =
             ObjectEngineResult.GroundKey.of(
                 resultField,

@@ -843,8 +843,8 @@ class ResolverDemandTest {
                     val user = schema.requireType("User") as ViaductSchema.Object
                     val admin = schema.requireType("Admin") as ViaductSchema.Object
                     mapOf(
-                        user to nodeResolverOf { error("Not invoked") },
-                        admin to nodeResolverOf { error("Not invoked") },
+                        user to nodeResolverOf { _: String -> error("Not invoked") },
+                        admin to nodeResolverOf { _: String -> error("Not invoked") },
                     )
                 },
                 fieldResolvers = { schema ->
@@ -885,8 +885,6 @@ class ResolverDemandTest {
             )
         val schema = world.schema
         val registry = world.resolverRegistry
-        val user = schema.requireType("User") as ViaductSchema.Object
-        val admin = schema.requireType("Admin") as ViaductSchema.Object
         val queryNode = schema.requireObjectField("Query", "node")
         val consumer = schema.requireObjectField("Query", "consumer")
         val outer = schema.requireObjectField("Query", "outer")

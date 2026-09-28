@@ -23,7 +23,7 @@ class RootFieldReferenceDataTest {
         assertEquals(listOf(factoryField, createField), reference.path)
         assertEquals(createField, reference.targetField)
         assertEquals(schema.requireType("Product"), reference.type)
-        assertEquals(mapOf("name" to "chair"), (reference.arguments as Arguments.Resolved).fieldValues)
+        assertEquals(mapOf("name" to "chair"), reference.arguments.fieldValues)
         assertEquals(
             reference,
             RootFieldReferenceData.of(listOf(factoryField, createField), mapOf("name" to "chair")),

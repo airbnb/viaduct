@@ -26,7 +26,7 @@ class SourceSchemaAdapterRootFieldReferenceTest {
             reference.path,
         )
         assertEquals("Product", reference.type.name)
-        assertEquals(mapOf("id" to "p1"), (reference.arguments as Arguments.Resolved).fieldValues)
+        assertEquals(mapOf("id" to "p1"), reference.arguments.fieldValues)
     }
 
     @Test

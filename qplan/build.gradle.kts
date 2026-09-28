@@ -1,5 +1,8 @@
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
-    kotlin("jvm") apply false
+    alias(viaductLibs.plugins.kotlin.jvm) apply false
 }
 
 data class DocumentationLabel(
@@ -150,6 +153,33 @@ tasks.register("check") {
 }
 
 subprojects {
+    plugins.withId("org.jetbrains.kotlin.jvm") {
+        dependencies {
+            add("testImplementation", viaductLibs.junit)
+            add("testImplementation", viaductLibs.junit.params)
+            add("testRuntimeOnly", viaductLibs.junit.engine)
+            add("testRuntimeOnly", viaductLibs.junit.launcher)
+        }
+    }
+
+    plugins.withId("java-test-fixtures") {
+        dependencies.add("testFixturesImplementation", viaductLibs.junit)
+    }
+
+    tasks.withType<KotlinCompile>().configureEach {
+        compilerOptions {
+            apiVersion = KotlinVersion.KOTLIN_1_9
+            languageVersion = KotlinVersion.KOTLIN_1_9
+            allWarningsAsErrors = true
+            freeCompilerArgs.add("-Xjspecify-annotations=ignore")
+            if (!name.lowercase().contains("testfixtures")) {
+                optIn.add("viaduct.apiannotations.ExperimentalApi")
+                optIn.add("viaduct.apiannotations.InternalApi")
+                optIn.add("viaduct.apiannotations.VisibleForTest")
+            }
+        }
+    }
+
     tasks.matching { it.name == "check" || it.name == "test" }.configureEach {
         dependsOn(rootProject.tasks.named("checkDocumentationLabels"))
     }

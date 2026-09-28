@@ -379,7 +379,6 @@ class ArgumentsTest {
         val template = Arguments.Variable.of(source, "value")
         val path = listOf(ListEngineResult.Index.of(2))
         val resolverOccurrenceId = ResolverOccurrenceId.at(world.schema.testRoot(), path)
-        val variable = template.instantiate(resolverOccurrenceId)
         val arguments =
             Arguments.of(
                 consume,
@@ -412,7 +411,6 @@ class ArgumentsTest {
         val consume = world.schema.requireObjectField("Query", "consume")
         val template = Arguments.Variable.of(source, "value")
         val resolverOccurrenceId = ResolverOccurrenceId.at(world.schema.testRoot(), emptyList())
-        val variable = template.instantiate(resolverOccurrenceId)
         val arguments =
             Arguments.of(consume, mapOf("values" to template))
                 .instantiateVariables(consume, resolverOccurrenceId)
@@ -454,7 +452,6 @@ class ArgumentsTest {
         val template = Arguments.Variable.of(source, "value")
         val path = listOf(ListEngineResult.Index.of(1))
         val resolverOccurrenceId = ResolverOccurrenceId.at(world.schema.testRoot(), path)
-        val variable = template.instantiate(resolverOccurrenceId)
         val arguments =
             Arguments
                 .of(
@@ -503,7 +500,6 @@ class ArgumentsTest {
         val firstOccurrence = ResolverOccurrenceId.at(world.schema.testRoot(), firstPath)
         val secondOccurrence = ResolverOccurrenceId.at(world.schema.testRoot(), secondPath)
         val firstVariable = template.instantiate(firstOccurrence)
-        val secondVariable = template.instantiate(secondOccurrence)
         fun symbolicKey(resolverOccurrenceId: ResolverOccurrenceId): ObjectEngineResult.ObjectKey =
             ObjectEngineResult.Key.of(
                 field = consume,
@@ -625,14 +621,7 @@ class ArgumentsTest {
                             ),
                     ),
                 )
-            val sourceSelection =
-                Selection.of(
-                    key = ObjectEngineResult.Key.of(consume, openArguments),
-                    possibleTypes = setOf(world.schema.requireQueryTypeDef()),
-                    subselections = selectionForestOf(),
-                )
             val resolverOccurrenceId = ResolverOccurrenceId.at(world.schema.testRoot(), path)
-            val variable = variableTemplate.instantiate(resolverOccurrenceId)
             val arguments =
                 Arguments.Template
                     .of(consume, openArguments)
