@@ -43,7 +43,7 @@ Feature tests may provide a scoped executable schema distinct from the full sche
 
 ## Executor-Backed Feature Tests
 
-`EngineTestModule.runQPlanFeatureTest` is defined in `src/testFixtures/kotlin/execution/testing/EngineTestModuleQPlanFeatureTest.kt`. It consumes the pre-dispatcher field and node executor maps exposed by `EngineTestModule`.
+`EngineTestModule.runQPlanFeatureTest` is defined in `src/testFixtures/kotlin/execution/testing/QPlanFeatureTest.kt`. It consumes the pre-dispatcher field and node executor maps exposed by `EngineTestModule`.
 
 The adapter translates field executors into qplan `FieldResolverDefinition` values. It maps source field coordinates through `SourceSchemaAdapter`, decodes object and Query required selections into the canonical schema, compiles explicit executor variable declarations across both fragments, passes resolved arguments plus synchronous object and occurrence-specific Query data through a one-element `FieldResolverExecutor.Selector`, and normalizes source-shaped executor outputs before they enter qplan. Selective field executors are assembled with `selectiveFieldResolverOf`; their Resolver26 successor demand is converted to an `EngineSelectionSet` for composite outputs, while scalar outputs receive no selection set. The conversion restores qplan's lowered typename field to source `__typename` before crossing the Engine API boundary.
 

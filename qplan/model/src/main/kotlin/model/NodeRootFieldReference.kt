@@ -1,3 +1,5 @@
+@file:Suppress("MatchingDeclarationName")
+
 package model
 
 import viaduct.graphql.schema.ViaductSchema

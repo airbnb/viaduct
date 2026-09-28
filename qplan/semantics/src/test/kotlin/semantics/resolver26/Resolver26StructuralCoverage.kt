@@ -1,3 +1,5 @@
+@file:Suppress("MatchingDeclarationName")
+
 package semantics.resolver26
 
 import model.Arguments

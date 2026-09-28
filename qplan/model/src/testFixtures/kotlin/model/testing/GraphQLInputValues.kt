@@ -1,3 +1,5 @@
+@file:Suppress("MatchingDeclarationName")
+
 package model.testing
 
 import graphql.language.ArrayValue

@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport")
+@file:Suppress("ForbiddenImport", "MatchingDeclarationName")
 
 package semantics.correctresolution
 
