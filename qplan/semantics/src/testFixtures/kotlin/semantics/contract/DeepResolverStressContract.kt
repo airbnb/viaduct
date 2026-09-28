@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package semantics.contract
 
 import model.requireField

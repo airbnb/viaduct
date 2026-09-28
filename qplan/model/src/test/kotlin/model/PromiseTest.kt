@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package model
 
 import kotlinx.coroutines.CompletableDeferred

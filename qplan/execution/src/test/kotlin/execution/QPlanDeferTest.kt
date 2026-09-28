@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package execution
 
 import execution.testing.ExecutionTestFixture

@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package semantics.resolver26
 
 import kotlinx.coroutines.CompletableDeferred

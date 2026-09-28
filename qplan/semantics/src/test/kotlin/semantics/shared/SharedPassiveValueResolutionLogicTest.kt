@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package semantics.shared
 
 import kotlin.test.Test

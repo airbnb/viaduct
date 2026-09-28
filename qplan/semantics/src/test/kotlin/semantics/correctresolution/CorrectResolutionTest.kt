@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package semantics.correctresolution
 
 import java.util.concurrent.CopyOnWriteArrayList

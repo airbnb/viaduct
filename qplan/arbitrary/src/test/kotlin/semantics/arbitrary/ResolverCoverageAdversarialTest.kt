@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package semantics.arbitrary
 
 import semantics.resolvers.resolver01.resolve as resolveObservedFields

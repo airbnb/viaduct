@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package model.registry
 
 import kotlin.test.Test

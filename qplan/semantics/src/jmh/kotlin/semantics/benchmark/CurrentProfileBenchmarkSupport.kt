@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package semantics.benchmark
 
 import viaduct.engine.api.EngineObjectData

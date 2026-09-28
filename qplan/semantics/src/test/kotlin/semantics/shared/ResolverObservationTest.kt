@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package semantics.shared
 
 import semantics.contract.get

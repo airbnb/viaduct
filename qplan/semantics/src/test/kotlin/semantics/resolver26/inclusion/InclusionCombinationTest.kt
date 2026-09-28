@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package semantics.resolver26.inclusion
 
 import semantics.resolver26.Resolver26DispatcherResource

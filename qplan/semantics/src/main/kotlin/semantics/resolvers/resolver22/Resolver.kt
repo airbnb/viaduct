@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package semantics.resolvers.resolver22
 
 import kotlinx.coroutines.runBlocking

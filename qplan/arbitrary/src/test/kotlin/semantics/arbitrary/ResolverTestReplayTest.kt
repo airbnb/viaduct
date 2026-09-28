@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package semantics.arbitrary
 
 import kotlinx.coroutines.runBlocking

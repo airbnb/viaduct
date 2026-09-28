@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package model.testing
 
 import kotlinx.coroutines.runBlocking

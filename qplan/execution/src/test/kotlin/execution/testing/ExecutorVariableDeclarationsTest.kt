@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package execution.testing
 
 import java.util.concurrent.atomic.AtomicInteger

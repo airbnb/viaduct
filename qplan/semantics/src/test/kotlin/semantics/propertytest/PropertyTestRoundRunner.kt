@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package semantics.propertytest
 
 import kotlinx.coroutines.runBlocking
