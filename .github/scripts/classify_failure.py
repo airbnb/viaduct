@@ -12,30 +12,36 @@ Exit codes:
 
 import re
 import sys
+from urllib.parse import urlsplit
 
 from extract_failed_tasks import plain_text
 
 UNRECOGNIZED = "no known infrastructure cause"
 
-REPOSITORY_STATUS = re.compile(
-    r"Could not (?:GET|HEAD) 'https?://(?:[^/'@]*@)?([\w.:-]+)[^']*'\. Received status code (\d{3})"
-)
+REPOSITORY_STATUS = re.compile(r"Could not (?:GET|HEAD) '(https?://[^']+)'\. Received status code (\d{3})")
+HOSTNAME = re.compile(r"[\w.:-]+")
 
 SIGNATURES = [
     (re.compile(r"Unable to download artifact\(s\)"), lambda m: "GitHub artifact download failed"),
-    (re.compile(r"java\.net\.UnknownHostException: ([\w.-]+)"), lambda m: f"DNS lookup failed ({m.group(1)})"),
-    (
-        re.compile(r"Unable to connect to the child process '(.+?)(?: \d+)?'"),
-        lambda m: f"Gradle child process never connected ({m.group(1)})",
-    ),
+    (re.compile(r"java\.net\.UnknownHostException: ([\w.-]+)"), lambda m: f"DNS lookup failed for {m.group(1)}"),
+    (re.compile(r"Unable to connect to the child process '(.+?)(?: \d+)?'"), lambda m: f"{m.group(1)} never connected"),
 ]
+
+
+def repository_host(url: str) -> str:
+    # The label is posted publicly, so only a parsed hostname may reach it, never URL credentials.
+    try:
+        host = urlsplit(url).hostname
+    except ValueError:
+        host = None
+    return host if host and HOSTNAME.fullmatch(host) else "a dependency repository"
 
 
 def classify_failure(log: str) -> str:
     plain = plain_text(log)
     match = REPOSITORY_STATUS.search(plain)
     if match:
-        return f"HTTP {match.group(2)} from {match.group(1)}"
+        return f"HTTP {match.group(2)} from {repository_host(match.group(1))}"
     for pattern, label in SIGNATURES:
         match = pattern.search(plain)
         if match:

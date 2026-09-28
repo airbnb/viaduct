@@ -184,7 +184,7 @@ All alerts are formatted by `.github/scripts/format_alert.py`, a pure Python scr
 
 - One failed job with no tasks: a single line with job name, branch, optional commit info, and link.
 - Otherwise a header line followed by one bullet per job. A job with no tasks stays inline as `name: url`; a job with tasks puts its name, then up to 3 tasks one per line, then its link. Beyond 3 the last line gains `+N more`.
-- A job's `cause` follows its name as ` — cause`.
+- A job's `cause` follows its name as ` — cause` in a bullet, and follows the commit information in the single-line form.
 - An alert is capped at 2,000 characters, Discord's message limit. Job blocks that do not fit are dropped whole and counted in a closing `+N more jobs` line, which links the optional `summary_url`: the listener run whose summary lists every job.
 - `--summary` prints the same data as a Markdown table (job link, cause, every failed task) for `$GITHUB_STEP_SUMMARY`.
 
@@ -233,6 +233,8 @@ triage:
       uses: ./.github/actions/collect-failure-info
     - name: Summarize on the run page
       if: "!cancelled() && steps.fmt.outputs.summary != ''"
+      env:
+        SUMMARY: ${{ steps.fmt.outputs.summary }}
       run: printf '%s\n' "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
 
 post:

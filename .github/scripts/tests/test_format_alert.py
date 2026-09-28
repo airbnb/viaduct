@@ -296,10 +296,10 @@ class TestJobLinksAndCauses(unittest.TestCase):
         )
 
     def test_cause_follows_an_inline_bullet_name(self):
-        data = {**BASE, "jobs": [{"name": "A", "run_id": "1", "cause": "DNS lookup failed (x.org)"},
+        data = {**BASE, "jobs": [{"name": "A", "run_id": "1", "cause": "DNS lookup failed for x.org"},
                                  {"name": "B", "run_id": "2"}]}
         lines = format_alert(data).splitlines()
-        self.assertEqual("• A — DNS lookup failed (x.org): https://github.com/example/repo/actions/runs/1", lines[1])
+        self.assertEqual("• A — DNS lookup failed for x.org: https://github.com/example/repo/actions/runs/1", lines[1])
         self.assertEqual("• B: https://github.com/example/repo/actions/runs/2", lines[2])
 
     def test_cause_follows_the_name_above_tasks(self):
@@ -313,7 +313,7 @@ class TestAlertLength(unittest.TestCase):
 
     def jobs(self, count, tasks=None):
         return [{"name": f"ci-check / build-and-test / Test (Java {n}) macos-latest", "run_id": "36145963812",
-                 "job_id": str(108107150063 + n), "cause": "DNS lookup failed (services.gradle.org)",
+                 "job_id": str(108107150063 + n), "cause": "DNS lookup failed for services.gradle.org",
                  **({"tasks": tasks} if tasks else {})} for n in range(count)]
 
     def alert(self, jobs):
@@ -354,7 +354,8 @@ class TestFormatSummary(unittest.TestCase):
 
     DATA = {**BASE, "sha": "abc1234567", "attempt": "2", "outcome": "retry_success",
             "jobs": [{"name": "Test | macOS", "run_id": "123", "job_id": "456",
-                      "tasks": [":a:test", ":b:check"], "cause": "HTTP 429 from repo.example.org"},
+                      "tasks": [":a:test", ":b:check", ":c:test", ":d:check"],
+                      "cause": "HTTP 429 from repo.example.org"},
                      {"name": "Bare", "run_id": "123"}]}
 
     def test_heading_names_the_outcome_commit_and_attempt(self):
@@ -364,7 +365,7 @@ class TestFormatSummary(unittest.TestCase):
     def test_row_links_the_job_and_lists_cause_and_tasks(self):
         self.assertIn(
             "| [Test \\| macOS](https://github.com/example/repo/actions/runs/123/job/456)"
-            " | HTTP 429 from repo.example.org | `:a:test`, `:b:check` |",
+            " | HTTP 429 from repo.example.org | `:a:test`, `:b:check`, `:c:test`, `:d:check` |",
             format_summary(self.DATA),
         )
 

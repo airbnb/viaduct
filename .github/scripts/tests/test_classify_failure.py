@@ -27,15 +27,15 @@ class TestClassifyFailure(unittest.TestCase):
 
     def test_dns_names_the_host(self):
         log = '##[error]Exception in thread "main" java.net.UnknownHostException: services.gradle.org\n'
-        self.assertEqual("DNS lookup failed (services.gradle.org)", classify_failure(log))
+        self.assertEqual("DNS lookup failed for services.gradle.org", classify_failure(log))
 
     def test_test_executor_never_connected(self):
         log = "> Unable to connect to the child process 'Gradle Test Executor 4'.\n"
-        self.assertEqual("Gradle child process never connected (Gradle Test Executor)", classify_failure(log))
+        self.assertEqual("Gradle Test Executor never connected", classify_failure(log))
 
     def test_worker_daemon_never_connected(self):
         log = "> Unable to connect to the child process 'Gradle Worker Daemon 1'.\n"
-        self.assertEqual("Gradle child process never connected (Gradle Worker Daemon)", classify_failure(log))
+        self.assertEqual("Gradle Worker Daemon never connected", classify_failure(log))
 
     def test_test_failure_is_unrecognized(self):
         log = "> Task :core:shared:utils:test FAILED\nFooTest > bar FAILED\n"
@@ -46,12 +46,25 @@ class TestClassifyFailure(unittest.TestCase):
 
     def test_ansi_and_crlf_are_ignored(self):
         log = "\x1b[31mjava.net.UnknownHostException: repo.example.org\x1b[0m\r\n"
-        self.assertEqual("DNS lookup failed (repo.example.org)", classify_failure(log))
+        self.assertEqual("DNS lookup failed for repo.example.org", classify_failure(log))
 
     def test_repository_status_omits_url_credentials(self):
         log = ("> Could not GET 'https://user:token@mirror.example.com/x.pom'. "
                "Received status code 429 from server\n")
         self.assertEqual("HTTP 429 from mirror.example.com", classify_failure(log))
+
+    def test_repository_status_omits_credentials_on_an_ipv6_host(self):
+        log = ("> Could not GET 'https://reader:dummy-token@[2001:db8::1]/artifact.pom'. "
+               "Received status code 429 from server\n")
+        self.assertEqual("HTTP 429 from 2001:db8::1", classify_failure(log))
+
+    def test_repository_status_keeps_the_port_out_of_the_host(self):
+        log = "> Could not GET 'https://mirror.example.com:8443/x.pom'. Received status code 503 from server\n"
+        self.assertEqual("HTTP 503 from mirror.example.com", classify_failure(log))
+
+    def test_unparseable_repository_url_names_no_host(self):
+        log = "> Could not GET 'https://[not-an-ip/x.pom'. Received status code 429 from server\n"
+        self.assertEqual("HTTP 429 from a dependency repository", classify_failure(log))
 
     def test_repository_status_wins_over_an_earlier_signature(self):
         log = ("java.net.UnknownHostException: services.gradle.org\n"
@@ -71,7 +84,7 @@ class TestClassifyFailure(unittest.TestCase):
             self.assertEqual(0, main())
         finally:
             sys.stdin, sys.stdout = sys.__stdin__, sys.__stdout__
-        self.assertEqual("DNS lookup failed (a.org)\n", out.getvalue())
+        self.assertEqual("DNS lookup failed for a.org\n", out.getvalue())
 
 
 if __name__ == "__main__":
