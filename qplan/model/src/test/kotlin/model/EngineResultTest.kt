@@ -166,7 +166,6 @@ class EngineResultTest {
         )
         result.forEach { cell ->
             assertNull(cell.getFieldCheckerResult().get())
-            assertNull(cell.getTypeCheckerResult().get())
         }
         assertEquals(elementType, result.typeExpr)
     }
@@ -194,7 +193,6 @@ class EngineResultTest {
         result.forEach { cell ->
             cell.checkActivated()
             assertFailsWith<IllegalStateException> { cell.getFieldCheckerResult() }
-            assertFailsWith<IllegalStateException> { cell.getTypeCheckerResult() }
             assertFalse(cell.getValue().isCompleted)
         }
 
@@ -297,24 +295,20 @@ class EngineResultTest {
     }
 
     @Test
-    fun `cancelling claimed checker results activates and terminates their promises`() {
+    fun `cancelling a claimed field checker result activates and terminates its promise`() {
         val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val cell =
             ObjectEngineResult
                 .of(schema.requireQueryTypeDef(), mutable = true)
                 .reserveCell(schema.key("Query", "first"))
         val fieldPromise = cell.createFieldCheckerResultPromise()
-        val typePromise = cell.createTypeCheckerResultPromise()
         val cancellation = CancellationException("checker writer cancelled")
 
         assertTrue(cell.cancelFieldCheckerResult(cancellation))
-        assertTrue(cell.cancelTypeCheckerResult(cancellation))
 
         cell.checkActivated()
         assertSame(cancellation, assertFailsWith<CancellationException> { fieldPromise.get() })
-        assertSame(cancellation, assertFailsWith<CancellationException> { typePromise.get() })
         assertFalse(cell.cancelFieldCheckerResult(cancellation))
-        assertFalse(cell.cancelTypeCheckerResult(cancellation))
     }
 
     @Test
@@ -490,7 +484,7 @@ class EngineResultTest {
     }
 
     @Test
-    fun `cell value and checker results are independently monotonic`() {
+    fun `cell value and field checker result are independently monotonic`() {
         val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val key = schema.key("Query", "first")
         val result =
@@ -500,33 +494,23 @@ class EngineResultTest {
         val cell = result.reserveCell(key)
         assertFailsWith<IllegalStateException> { cell.getValue() }
         assertFailsWith<IllegalStateException> { cell.getFieldCheckerResult() }
-        assertFailsWith<IllegalStateException> { cell.getTypeCheckerResult() }
         assertFalse(cell.isFieldCheckerResultSet())
-        assertFalse(cell.isTypeCheckerResultSet())
 
         val value = cell.createValuePromise()
         val fieldCheckerResult = cell.createFieldCheckerResultPromise()
-        val typeCheckerResult = cell.createTypeCheckerResultPromise()
         cell.setActivated(true)
         assertTrue(cell.isFieldCheckerResultSet())
-        assertTrue(cell.isTypeCheckerResultSet())
 
         assertFailsWith<UncompletedPromiseException> { value.get() }
         assertFailsWith<UncompletedPromiseException> { fieldCheckerResult.get() }
-        assertFailsWith<UncompletedPromiseException> { typeCheckerResult.get() }
 
         value.complete("ready")
         fieldCheckerResult.complete(CheckerResult.Success)
-        typeCheckerResult.complete(null)
 
         assertEquals("ready", cell.getValue().get())
         assertSame(CheckerResult.Success, cell.getFieldCheckerResult().get())
-        assertNull(cell.getTypeCheckerResult().get())
         assertFailsWith<IllegalStateException> {
             cell.setFieldCheckerResult(null)
-        }
-        assertFailsWith<IllegalStateException> {
-            cell.setTypeCheckerResult(CheckerResult.Success)
         }
     }
 
@@ -544,14 +528,11 @@ class EngineResultTest {
             )
 
         assertSame(completedError, completed.getCell(firstKey).getFieldCheckerResult().get())
-        assertNull(completed.getCell(firstKey).getTypeCheckerResult().get())
 
         val mutable = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
         val direct = mutable.reserveCell(firstKey)
         direct.setFieldCheckerResult(completedError)
-        direct.setTypeCheckerResult(null)
         assertSame(completedError, direct.getFieldCheckerResult().get())
-        assertNull(direct.getTypeCheckerResult().get())
 
         val deferred = mutable.reserveCell(secondKey).createFieldCheckerResultPromise()
         mutable.getCell(secondKey).setActivated(true)
@@ -592,29 +573,6 @@ class EngineResultTest {
 
         val union = unpublished.union(noChecker)
         assertNull(union.getCell(key).getFieldCheckerResult().get())
-        assertNull(union.getCell(key).getTypeCheckerResult().get())
-    }
-
-    @Test
-    fun `list allocates stable cells whose checker promises complete independently`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
-        val elementType = schema.requireField("Query", "value").outputType
-        val result = ListEngineResult.ofPendingValues(elementType, size = 2)
-
-        val first = result[0]
-        val second = result[1]
-        val firstCheck = first.createTypeCheckerResultPromise()
-        val secondCheck = second.createTypeCheckerResultPromise()
-
-        firstCheck.complete(TestCheckerError())
-        assertIs<CheckerResult.Error>(first.getTypeCheckerResult().get())
-        assertFailsWith<UncompletedPromiseException> { second.getTypeCheckerResult().get() }
-
-        secondCheck.complete(null)
-        assertNull(second.getTypeCheckerResult().get())
-        assertSame(first, result[0])
-        assertSame(second, result[1])
-        assertNotEquals(first, second)
     }
 
     @Test
@@ -801,7 +759,6 @@ class EngineResultTest {
         mutable.reserveCell(firstKey).also { cell ->
             cell.setValue(firstValue)
             cell.setFieldCheckerResult(null)
-            cell.setTypeCheckerResult(null)
         }
 
         assertNotEquals(equivalent, mutable)
@@ -812,7 +769,6 @@ class EngineResultTest {
         mutable.reserveCell(secondKey).also { cell ->
             cell.setValue("second")
             cell.setFieldCheckerResult(null)
-            cell.setTypeCheckerResult(null)
         }
 
         assertEquals(hashCode, mutable.hashCode())
@@ -870,17 +826,6 @@ class EngineResultTest {
                         "first".resolvesTo("same", TestCheckerError())
                     }
             }
-        val differentTypeCheck =
-            schema.engineResultOf("Query") {
-                "user" resolvesTo
-                    engineResultOf("User") {
-                        "first".resolvesTo(
-                            "same",
-                            CheckerResult.Success,
-                            TestCheckerError(),
-                        )
-                    }
-            }
         val firstKey = schema.key("Query", "first")
         val leftError = ErrorEngineResult.of(EngineErrorData.of())
         val rightError = ErrorEngineResult.of(EngineErrorData.of())
@@ -901,7 +846,6 @@ class EngineResultTest {
 
         assertTrue(left.sameCompletedResultAs(right))
         assertFalse(left.sameCompletedResultAs(differentCheck))
-        assertFalse(left.sameCompletedResultAs(differentTypeCheck))
         assertTrue(leftErrorResult.sameCompletedResultAs(rightErrorResult))
     }
 
@@ -937,7 +881,6 @@ class EngineResultTest {
             root.reserveCell(key).apply {
                 setValue(7)
                 setFieldCheckerResult(null)
-                setTypeCheckerResult(null)
             }
             root.freeze()
             return root
@@ -995,7 +938,6 @@ class EngineResultTest {
         symbolicRoot.reserveCell(symbolicKey).apply {
             setValue(7)
             setFieldCheckerResult(null)
-            setTypeCheckerResult(null)
         }
         symbolicRoot.freeze()
         val grounded =
@@ -1009,13 +951,6 @@ class EngineResultTest {
                         ) to 7,
                     ),
                 fieldCheckerResults =
-                    mapOf(
-                        ObjectEngineResult.GroundKey.of(
-                            consume,
-                            mapOf("value" to 7),
-                        ) to null,
-                    ),
-                typeCheckerResults =
                     mapOf(
                         ObjectEngineResult.GroundKey.of(
                             consume,

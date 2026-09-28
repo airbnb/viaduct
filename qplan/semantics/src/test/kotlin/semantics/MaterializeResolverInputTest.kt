@@ -119,7 +119,6 @@ private suspend fun assertSlotDrivenMaterialization(
             type = world.schema.requireQueryTypeDef(),
             values = mapOf(key to valueResult("open")),
             fieldCheckerResults = emptyMap(),
-            typeCheckerResults = emptyMap(),
         )
     val openInput =
         materialize(
@@ -130,7 +129,6 @@ private suspend fun assertSlotDrivenMaterialization(
         )
 
     assertFalse(openResult.getCell(key).isFieldCheckerResultSet())
-    assertFalse(openResult.getCell(key).isTypeCheckerResultSet())
     assertEquals("open", assertIs<EngineObjectData.Sync>(openInput.get("value")).get("text"))
 
     val denial = ResolverInputDenial("field denied")
@@ -139,7 +137,6 @@ private suspend fun assertSlotDrivenMaterialization(
             type = world.schema.requireQueryTypeDef(),
             values = mapOf(key to valueResult("field denied")),
             fieldCheckerResults = mapOf(key to denial),
-            typeCheckerResults = emptyMap(),
         )
     val deniedInput =
         materialize(
@@ -157,7 +154,6 @@ private suspend fun assertSlotDrivenMaterialization(
             type = world.schema.requireQueryTypeDef(),
             values = mapOf(key to valueResult("type denied", typeDenial)),
             fieldCheckerResults = emptyMap(),
-            typeCheckerResults = emptyMap(),
         )
     val typeDeniedInput =
         materialize(
@@ -180,7 +176,6 @@ private suspend fun assertSlotDrivenMaterialization(
                     key to valueResult("multiply denied", combiningTypeDenial),
                 ),
             fieldCheckerResults = mapOf(key to fieldDenial),
-            typeCheckerResults = emptyMap(),
         )
     val multiplyDeniedInput =
         materialize(
@@ -211,7 +206,6 @@ private suspend fun assertSlotDrivenMaterialization(
             type = world.schema.requireQueryTypeDef(),
             values = mapOf(valuesKey to listResult),
             fieldCheckerResults = emptyMap(),
-            typeCheckerResults = emptyMap(),
         )
     val listedSelections =
         world

@@ -46,17 +46,14 @@ class ParentFieldsTest {
             child.reserveCell(parentKey).also { cell ->
                 cell.setValue(if (wrongParent) child else root)
                 cell.setFieldCheckerResult(null)
-                cell.setTypeCheckerResult(null)
             }
             root.reserveCell(childKey).also { cell ->
                 cell.setValue(child)
                 cell.setFieldCheckerResult(null)
-                cell.setTypeCheckerResult(null)
             }
             query.reserveCell(rootKey).also { cell ->
                 cell.setValue(root)
                 cell.setFieldCheckerResult(null)
-                cell.setTypeCheckerResult(null)
             }
             return query
         }
@@ -162,7 +159,6 @@ class ParentFieldsTest {
         parent.reserveCell(alternateProducer).also { cell ->
             cell.setValue(child)
             cell.setFieldCheckerResult(null)
-            cell.setTypeCheckerResult(null)
         }
 
         assertFalse(parent.conformsToSchema(assumptions.parentFieldRelations))
@@ -183,7 +179,6 @@ class ParentFieldsTest {
             )
         parent.reserveCell(childKey).setValue(child)
         parent.reserveCell(childKey).setFieldCheckerResult(null)
-        parent.reserveCell(childKey).setTypeCheckerResult(null)
         return parent
     }
 

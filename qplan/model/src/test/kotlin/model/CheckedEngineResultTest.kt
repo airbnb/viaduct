@@ -17,7 +17,7 @@ import viaduct.engine.api.CheckerResultContext
 
 class CheckedEngineResultTest {
     @Test
-    fun `cell completion includes every claimed slot`() {
+    fun `cell completion includes every claimed cell slot`() {
         val cell = newCell()
 
         assertFalse(cell.isCompleted)
@@ -25,12 +25,9 @@ class CheckedEngineResultTest {
         assertTrue(cell.isCompleted)
 
         val fieldPromise = cell.createFieldCheckerResultPromise()
-        val typePromise = cell.createTypeCheckerResultPromise()
         assertFalse(cell.isCompleted)
 
         fieldPromise.complete(CheckerResult.Success)
-        assertFalse(cell.isCompleted)
-        typePromise.complete(null)
         assertTrue(cell.isCompleted)
     }
 

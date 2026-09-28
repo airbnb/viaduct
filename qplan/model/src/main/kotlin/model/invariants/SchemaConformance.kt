@@ -330,6 +330,5 @@ private fun ViaductSchema.TypeExpr<*>.hasScalarType(expectedName: String): Boole
 
 private fun EngineResultCell.hasCompletedCheckerResults(): Boolean {
     getFieldCheckerResult().get()
-    getTypeCheckerResult().get()
     return true
 }
