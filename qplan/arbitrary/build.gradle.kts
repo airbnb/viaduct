@@ -1,5 +1,6 @@
 plugins {
-    kotlin("jvm")
+    id("conventions.kotlin")
+    id("conventions.kotlin-static-analysis")
     `java-library`
 }
 
@@ -15,12 +16,4 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     testImplementation(testFixtures(project(":semantics")))
     testImplementation(kotlin("test-junit5"))
-}
-
-kotlin {
-    jvmToolchain(17)
-}
-
-tasks.test {
-    useJUnitPlatform()
 }
