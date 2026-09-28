@@ -140,7 +140,7 @@ The emit step runs early so that `run_id` is available to the calling orchestrat
 
 ### Principles
 
-- **Notifications link to diagnostic info; they do not contain it.** An alert message names the failed job and links to its run. It does not reproduce logs, stack traces, or error details.
+- **Notifications link to diagnostic info; they do not contain it.** An alert message names the failed job and links to that job's log. When the log matches a known infrastructure signature, the alert adds a short label naming it. It does not reproduce logs, stack traces, or error details.
 
 - **One listener owns failure alerting.** `ci-retry-then-alert.yml` is the only place a run's failure becomes an alert. Neither atomics nor orchestrators notify on failure. A second alerting path anywhere means double-alerting.
 
@@ -148,7 +148,7 @@ The emit step runs early so that `run_id` is available to the calling orchestrat
 
 - **Transient failures are retried before they alert.** CI Check, Nightly Build and Periodic Green Check are re-run once on their first failure and alert only if the retry also fails.
 
-- **A retry that succeeds is still reported.** A run that ends `success` past its first attempt gets an informational notice naming what failed on attempt 1. Silence would hide the flake rate, which is the number that decides whether a flake is worth chasing. Re-running an already-green run reports nothing, since attempt 1 has no failed job to name.
+- **A retry that succeeds is still reported.** A run that ends `success` past its first attempt gets a green notice naming what failed on attempt 1. Silence would hide the flake rate, which is the number that decides whether a flake is worth chasing. Re-running an already-green run reports nothing, since attempt 1 has no failed job to name.
 
 ### Alert Formatting
 
@@ -162,7 +162,8 @@ All alerts are formatted by `.github/scripts/format_alert.py`, a pure Python scr
   "server_url": "https://github.com",
   "repository": "org/repo",
   "jobs": [
-    { "name": "Build and Test", "run_id": "12345", "tasks": [":core:tenant:runtime:compileTestKotlin"] },
+    { "name": "Build and Test", "run_id": "12345", "job_id": "67890", "tasks": [":core:tenant:runtime:compileTestKotlin"],
+      "cause": "no known infrastructure cause" },
     { "name": "API Compatibility", "run_id": "12346" }
   ],
   "sha": "abc1234...",
@@ -175,15 +176,17 @@ All alerts are formatted by `.github/scripts/format_alert.py`, a pure Python scr
 - `branch`, `server_url`, `repository`, `jobs` are required.
 - `sha`, `actor` are optional (present for push-triggered failures).
 - `attempt` is optional and rendered only above 1, so the label means the run had already been retried.
-- `outcome` is optional, either `failure` (the default) or `retry_success`. It selects the emoji and verb. An unrecognized value is rejected rather than silently read as a failure.
-- `jobs` is a non-empty array. Each entry has a `name` (display label), a `run_id` (used to construct the URL `{server_url}/{repository}/actions/runs/{run_id}`), and an optional `tasks` array of failing Gradle task paths.
+- `outcome` is optional: `failure` (the default), `retry_success`, or `retrying`. It selects the emoji and verb. `retrying` is only rendered into the run-page summary, never posted. An unrecognized value is rejected rather than silently read as a failure.
+- `jobs` is a non-empty array. Each entry has a `name` (display label) and a `run_id`. The link is `{server_url}/{repository}/actions/runs/{run_id}/job/{job_id}` when the optional `job_id` is present, which opens the failed attempt's log, and the run page otherwise. Optional `tasks` lists failing Gradle task paths, and optional `cause` is a short label.
 
 **Output format:**
 
 - One failed job with no tasks: a single line with job name, branch, optional commit info, and link.
 - Otherwise a header line followed by one bullet per job. A job with no tasks stays inline as `name: url`; a job with tasks puts its name, then up to 3 tasks one per line, then its link. Beyond 3 the last line gains `+N more`.
+- A job's `cause` follows its name as ` — cause`.
+- `--summary` prints the same data as a Markdown table (job link, cause, every failed task) for `$GITHUB_STEP_SUMMARY`.
 
-Job names come from the run's job list, so an alert names the job that actually failed (`build-and-test / Test (Java 17) ubuntu-latest`) rather than the atomic that contained it. Tasks come from `extract_failed_tasks.py` reading that job's log, which is why a failure with no Gradle task — an HTTP 429 from a dependency repository, say — still reports its job name.
+Job names come from the run's job list, so an alert names the job that actually failed (`build-and-test / Test (Java 17) ubuntu-latest`) rather than the atomic that contained it. Tasks come from `extract_failed_tasks.py` reading that job's log, which is why a failure with no Gradle task — an HTTP 429 from a dependency repository, say — still reports its job name. The cause comes from `classify_failure.py` reading the same log. It labels a repository HTTP error, a GitHub artifact download failure, a DNS lookup failure, or a test JVM that never connected, and prints `no known infrastructure cause` otherwise.
 
 ### Alert Posting Protocol
 
@@ -207,7 +210,7 @@ triage:
         || (github.event.workflow_run.conclusion == 'success'
             && github.event.workflow_run.run_attempt > 1))
   outputs:
-    text: ${{ steps.fmt.outputs.text }}
+    text: ${{ steps.retry.outputs.retried != 'true' && steps.fmt.outputs.text || '' }}
   steps:
     - uses: actions/checkout@v6
     - name: Retry once before alerting
@@ -217,15 +220,18 @@ triage:
         # POST rerun-failed-jobs; set retried=true, or false if the call fails
     - name: Collect the jobs and tasks that failed
       id: jobs
-      if: "!cancelled() && steps.retry.outputs.retried != 'true'"
+      if: "!cancelled()"
       run: |
         # query attempt 1 when the run ended in success, else the current attempt
-        # list failed and cancelled job ids and names, pipe each job's log through extract_failed_tasks.py
-        # emit outcome=retry_success|failure, and an empty jobs_json when there is nothing to say
+        # list failed and cancelled job ids and names, pipe each job's log through extract_failed_tasks.py and classify_failure.py
+        # emit outcome=retry_success|retrying|failure, and an empty jobs_json when there is nothing to say
     - name: Format alert
       id: fmt
       if: "!cancelled() && steps.jobs.outputs.jobs_json != ''"
       uses: ./.github/actions/collect-failure-info
+    - name: Summarize on the run page
+      if: "!cancelled() && steps.fmt.outputs.summary != ''"
+      run: printf '%s\n' "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
 
 post:
   needs: [triage]
@@ -236,7 +242,7 @@ post:
   secrets: inherit
 ```
 
-Empty text is how a retried run stays quiet, so `post` keys off the text rather than `triage`'s result. A skipped retry step leaves `retried` unset, which also alerts. If the re-run call fails, or a job's log cannot be read, the listener still alerts, because going silent is worse than one extra alert or one missing task name.
+Empty text is how a retried run stays quiet, so `post` keys off the text rather than `triage`'s result. The listener run that starts a retry still writes the attempt's failures to its own summary. A skipped retry step leaves `retried` unset, which also alerts. If the re-run call fails, or a job's log cannot be read, the listener still alerts, because going silent is worse than one extra alert or one missing task name.
 
 Only the collection step knows whether the run recovered, so it emits `outcome` rather than having the format step recompute it.
 

@@ -10,16 +10,19 @@ Reads a JSON object from stdin with the following fields:
     jobs        - non-empty array of failed jobs, each with:
                     name   - display name of the job/workflow
                     run_id - GitHub Actions run ID (used to construct the URL)
+                    job_id - optional job ID; links straight to that job's log
                     tasks  - optional array of failing Gradle task paths
+                    cause  - optional short label naming a known failure cause
 
   Optional:
     sha         - commit SHA (for push-triggered failures)
     actor       - GitHub username who pushed (for push-triggered failures)
     attempt     - run attempt number; labeled only when above 1
-    outcome     - "failure" (default), or "retry_success" for a run that a
-                  retry recovered
+    outcome     - "failure" (default), "retry_success" for a run that a retry
+                  recovered, or "retrying" for a run whose retry is under way
 
-Prints formatted alert text to stdout. Single-job alerts produce one line;
+Prints formatted alert text to stdout, or with --summary a Markdown table for
+the run page. Single-job alerts produce one line;
 multi-job alerts produce a header line followed by a bulleted list of jobs. Any
 job carrying tasks switches the whole message to the header form, listing each
 job's tasks beneath it.
@@ -34,7 +37,8 @@ import sys
 
 OUTCOMES = {
     "failure": (":red_circle:", "failed"),
-    "retry_success": (":large_yellow_circle:", "needed a retry"),
+    "retry_success": (":green_circle:", "passed on retry"),
+    "retrying": (":repeat:", "is being retried"),
 }
 
 MAX_TASKS_SHOWN = 3
@@ -57,14 +61,7 @@ def format_task_lines(tasks) -> list:
     return lines
 
 
-def format_alert(data: dict) -> str:
-    branch = data["branch"]
-    server_url = data["server_url"]
-    repository = data["repository"]
-    jobs = data["jobs"]
-
-    emoji, verb = OUTCOMES.get(data.get("outcome"), OUTCOMES["failure"])
-
+def format_commit_info(data: dict) -> str:
     sha = data.get("sha")
     actor = data.get("actor")
 
@@ -76,28 +73,62 @@ def format_alert(data: dict) -> str:
     elif actor:
         commit_info = f" — pushed by {actor}"
 
-    commit_info += format_attempt_label(data.get("attempt"))
+    return commit_info + format_attempt_label(data.get("attempt"))
 
-    def job_url(job):
-        return f"{server_url}/{repository}/actions/runs/{job['run_id']}"
+
+def job_url(data: dict, job: dict) -> str:
+    run_url = f"{data['server_url']}/{data['repository']}/actions/runs/{job['run_id']}"
+    return f"{run_url}/job/{job['job_id']}" if job.get("job_id") else run_url
+
+
+def format_cause(job: dict) -> str:
+    return f" — {job['cause']}" if job.get("cause") else ""
+
+
+def format_alert(data: dict) -> str:
+    branch = data["branch"]
+    jobs = data["jobs"]
+
+    emoji, verb = OUTCOMES.get(data.get("outcome"), OUTCOMES["failure"])
+    commit_info = format_commit_info(data)
 
     if len(jobs) == 1 and not jobs[0].get("tasks"):
         job = jobs[0]
-        return f"{emoji} {job['name']} {verb} on `{branch}`{commit_info} ({job_url(job)})"
+        return f"{emoji} {job['name']} {verb} on `{branch}`{commit_info}{format_cause(job)} ({job_url(data, job)})"
 
     lines = [f"{emoji} CI {verb} on `{branch}`{commit_info}"]
     for job in jobs:
         tasks = job.get("tasks") or []
         if not tasks:
-            lines.append(f"• {job['name']}: {job_url(job)}")
+            lines.append(f"• {job['name']}{format_cause(job)}: {job_url(data, job)}")
             continue
-        lines.append(f"• {job['name']}")
+        lines.append(f"• {job['name']}{format_cause(job)}")
         lines.extend(format_task_lines(tasks))
-        lines.append(f"  {job_url(job)}")
+        lines.append(f"  {job_url(data, job)}")
     return "\n".join(lines)
 
 
-def main():
+def markdown_cell(text: str) -> str:
+    return text.replace("|", "\\|")
+
+
+def format_summary(data: dict) -> str:
+    _, verb = OUTCOMES.get(data.get("outcome"), OUTCOMES["failure"])
+    lines = [
+        f"### CI {verb} on `{data['branch']}`{format_commit_info(data)}",
+        "",
+        "| Job | Cause | Failed tasks |",
+        "| --- | --- | --- |",
+    ]
+    for job in data["jobs"]:
+        tasks = ", ".join(f"`{task}`" for task in job.get("tasks") or []) or "—"
+        cause = markdown_cell(job.get("cause") or "—")
+        lines.append(f"| [{markdown_cell(job['name'])}]({job_url(data, job)}) | {cause} | {tasks} |")
+    return "\n".join(lines)
+
+
+def main(argv=None):
+    summary = "--summary" in (sys.argv[1:] if argv is None else argv)
     try:
         data = json.load(sys.stdin)
     except json.JSONDecodeError as e:
@@ -131,7 +162,7 @@ def main():
         print(f"'outcome' must be one of: {', '.join(sorted(OUTCOMES))}", file=sys.stderr)
         return 1
 
-    print(format_alert(data))
+    print(format_summary(data) if summary else format_alert(data))
     return 0
 
 

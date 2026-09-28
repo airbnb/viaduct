@@ -1,9 +1,9 @@
 name: Collect Failure Info
-description: Formats CI failure metadata into an alert message using format_alert.py
+description: Formats CI failure metadata into an alert message and a run-page summary using format_alert.py
 
 inputs:
   jobs_json:
-    description: 'JSON array of failed jobs, each with "name" and "run_id" fields'
+    description: 'JSON array of failed jobs, each with "name" and "run_id" and optional "job_id", "tasks" and "cause"'
     required: true
   branch:
     description: 'Branch name'
@@ -27,7 +27,7 @@ inputs:
     required: false
     default: ''
   outcome:
-    description: '"failure" (default) or "retry_success" for a run a retry recovered'
+    description: '"failure" (default), "retry_success" for a run a retry recovered, or "retrying"'
     required: false
     default: ''
 
@@ -35,6 +35,9 @@ outputs:
   text:
     description: 'Formatted alert text'
     value: ${{ steps.fmt.outputs.text }}
+  summary:
+    description: 'Markdown table of the failed jobs, for $GITHUB_STEP_SUMMARY'
+    value: ${{ steps.fmt.outputs.summary }}
 
 runs:
   using: composite
@@ -54,7 +57,7 @@ runs:
       run: |
         # Build the full payload — format_alert.py handles empty sha/actor
         # gracefully via .get() + truthiness checks.
-        text=$(jq -n \
+        payload=$(jq -n \
           --arg branch "$BRANCH" \
           --arg server_url "$SERVER_URL" \
           --arg repository "$REPOSITORY" \
@@ -68,11 +71,15 @@ runs:
            + (if $sha  != "" then { sha: $sha }   else {} end)
            + (if $actor != "" then { actor: $actor } else {} end)
            + (if $attempt != "" then { attempt: $attempt } else {} end)
-           + (if $outcome != "" then { outcome: $outcome } else {} end)' | \
-          python3 .github/scripts/format_alert.py)
+           + (if $outcome != "" then { outcome: $outcome } else {} end)')
+        text=$(printf '%s' "$payload" | python3 .github/scripts/format_alert.py)
+        summary=$(printf '%s' "$payload" | python3 .github/scripts/format_alert.py --summary)
 
         {
           echo "text<<ALERT_EOF"
           echo "$text"
           echo "ALERT_EOF"
+          echo "summary<<SUMMARY_EOF"
+          echo "$summary"
+          echo "SUMMARY_EOF"
         } >> "$GITHUB_OUTPUT"
