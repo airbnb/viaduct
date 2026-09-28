@@ -7,16 +7,13 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
-import viaduct.apiannotations.ExperimentalApi
 import viaduct.gradle.task.AssembleCentralSchemaTask
-import viaduct.service.api.scoping.SchemaScoping
 
 /**
  * Tests for ViaductApplicationPlugin base schema functionality.
@@ -24,7 +21,6 @@ import viaduct.service.api.scoping.SchemaScoping
  * These tests focus on the AssembleCentralSchemaTask's ability to discover and process
  * base schema files from src/main/viaduct/schemabase directory.
  */
-@OptIn(ExperimentalApi::class)
 class ViaductApplicationPluginTest {
     @TempDir
     lateinit var tempDir: Path
@@ -53,31 +49,52 @@ class ViaductApplicationPluginTest {
     }
 
     @Test
-    fun `task defaults to disabled schema scoping`() {
-        assertEquals(SchemaScoping.EMPTY, task.schemaScoping.get())
-        assertFalse(task.schemaScoping.get().isScoped)
+    fun `task has no scope definitions until a file is wired in`() {
+        assertTrue(task.scopesFile.isEmpty, "expected an empty scopesFile, got ${task.scopesFile.files}")
     }
 
     @Test
-    fun `application plugin passes declared schema scoping to assembly task`() {
+    fun `application plugin wires the conventional scopes file path into the assembly task`() {
         val rootDir = tempDir.resolve("scoped").toFile().apply { mkdirs() }
+        val scopesFile = rootDir.resolve(ViaductScopesYaml.RELATIVE_PATH).apply {
+            parentFile.mkdirs()
+            writeText("version: 1\nschemaScopes:\n  - public\n")
+        }
+
         val root = ProjectBuilder.builder()
             .withName("root")
             .withProjectDir(rootDir)
             .build()
         root.pluginManager.apply("java-library")
         root.registerViaductTopology(":")
-
         root.pluginManager.apply(ViaductApplicationPlugin::class.java)
-        root.extensions.getByType(ViaductApplicationExtension::class.java).declareScoping {
-            scopes("public")
-        }
 
         val assembleTask = root.tasks.named(
             "assembleViaductCentralSchema",
             AssembleCentralSchemaTask::class.java,
         ).get()
-        assertEquals(setOf("public"), assembleTask.schemaScoping.get().scopeUniverse)
+        assertEquals(
+            setOf(scopesFile.canonicalFile),
+            assembleTask.scopesFile.files.map { it.canonicalFile }.toSet(),
+        )
+    }
+
+    @Test
+    fun `application plugin leaves the scopes file input empty when the project declares none`() {
+        val rootDir = tempDir.resolve("unscoped").toFile().apply { mkdirs() }
+        val root = ProjectBuilder.builder()
+            .withName("root")
+            .withProjectDir(rootDir)
+            .build()
+        root.pluginManager.apply("java-library")
+        root.registerViaductTopology(":")
+        root.pluginManager.apply(ViaductApplicationPlugin::class.java)
+
+        val assembleTask = root.tasks.named(
+            "assembleViaductCentralSchema",
+            AssembleCentralSchemaTask::class.java,
+        ).get()
+        assertTrue(assembleTask.scopesFile.isEmpty)
     }
 
     @Test

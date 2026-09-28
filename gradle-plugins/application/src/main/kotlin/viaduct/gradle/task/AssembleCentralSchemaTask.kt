@@ -7,9 +7,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileSystemOperations
-import org.gradle.api.provider.Property
 import org.gradle.api.tasks.CacheableTask
-import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
@@ -21,7 +19,9 @@ import viaduct.gradle.SchemaContributionReconciler
 import viaduct.gradle.ViaductApplicationPlugin
 import viaduct.gradle.ViaductApplicationPlugin.Companion.BUILTIN_SCHEMA_FILE
 import viaduct.gradle.ViaductSchemaValidator
+import viaduct.gradle.ViaductScopesYaml
 import viaduct.graphql.utils.DefaultSchemaFactory
+import viaduct.service.api.scoping.SchemaScopeDefinitions
 import viaduct.service.api.scoping.SchemaScoping
 
 /**
@@ -40,7 +40,6 @@ abstract class AssembleCentralSchemaTask
         init {
             group = "viaduct"
             description = "Merge and validate GraphQL schema files from all modules into a single central schema. Run this in CI to verify the complete schema is valid."
-            schemaScoping.convention(SchemaScoping.EMPTY)
         }
 
         /** Schema partition files from individual viaduct-module projects. */
@@ -83,12 +82,29 @@ abstract class AssembleCentralSchemaTask
         @get:OutputDirectory
         abstract val outputDirectory: DirectoryProperty
 
-        /** The application's schema-scoping declaration, or [SchemaScoping.EMPTY] when scoping is disabled. */
-        @get:Input
-        abstract val schemaScoping: Property<SchemaScoping>
+        /**
+         * The application's `scopes.yaml`, empty when the application declares no scopes.
+         *
+         * A file collection rather than a `RegularFileProperty` because the conventional path is wired
+         * unconditionally and most applications have no such file: `@InputFile` fails validation for a
+         * configured-but-absent path, while an empty collection is a legitimate state.
+         */
+        @get:InputFiles
+        @get:PathSensitive(PathSensitivity.RELATIVE)
+        abstract val scopesFile: ConfigurableFileCollection
 
         @TaskAction
         fun taskAction() {
+            // Read before writing anything, so an invalid scopes.yaml leaves no half-built output.
+            val declaredScopesFiles = scopesFile.files
+            if (declaredScopesFiles.size > 1) {
+                throw GradleException(
+                    "Expected at most one ${SchemaScopeDefinitions.SOURCE_FILE_NAME}, but scopesFile holds " +
+                        "${declaredScopesFiles.map { it.invariantSeparatorsPath }}.",
+                )
+            }
+            val scoping = ViaductScopesYaml.read(declaredScopesFiles.firstOrNull())
+
             val reconciledBaseSchema = SchemaContributionReconciler.reconcile(
                 baseSchemaFiles.filter { it.exists() }.files,
                 schemaContributionFiles.filter { it.exists() }.files,
@@ -124,18 +140,20 @@ abstract class AssembleCentralSchemaTask
 
             validateCompleteSchema(
                 schemaFiles = allSchemaFiles + sdlFile,
-                excludeFromViaductValidation = listOf(sdlFile)
+                excludeFromViaductValidation = listOf(sdlFile),
+                scoping = scoping,
             )
         }
 
         private fun validateCompleteSchema(
             schemaFiles: Collection<File>,
-            excludeFromViaductValidation: Collection<File> = emptyList()
+            excludeFromViaductValidation: Collection<File>,
+            scoping: SchemaScoping,
         ) {
             val logger = LoggerFactory.getLogger(ViaductApplicationPlugin::class.java)
             val validator = ViaductSchemaValidator(
                 logger,
-                validateScopeConsistency = schemaScoping.get().isScoped,
+                validateScopeConsistency = scoping.isScoped,
             )
             val errors = validator.validateSchema(schemaFiles, excludeFromViaductValidation)
             if (errors.isNotEmpty()) {

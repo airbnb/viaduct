@@ -152,6 +152,15 @@ class ViaductModulePluginModuleConfigExecutionTest {
             "viaduct.testFixtureVersion is set by the test task; run this suite through Gradle"
         }
 
+    /**
+     * These nested builds resolve the Kotlin runtime remotely, and CI rate-limits Maven Central. The
+     * mirror is preferred rather than substituted, so an artifact it does not carry still resolves.
+     */
+    private val remoteRepositories: String
+        get() = System.getenv("VIADUCT_ARTIFACTORY_MIRROR")
+            ?.let { """maven { url = uri("$it") }; mavenCentral()""" }
+            ?: "mavenCentral()"
+
     private fun combinedPluginClasspath(): List<File> {
         return System.getProperty("java.class.path")
             .split(File.pathSeparator)
@@ -173,7 +182,7 @@ class ViaductModulePluginModuleConfigExecutionTest {
             }
 
             repositories {
-                mavenCentral()
+                $remoteRepositories
                 flatDir { dirs("$fixtureRepoPath") }
             }
 
@@ -213,7 +222,7 @@ class ViaductModulePluginModuleConfigExecutionTest {
             }
 
             repositories {
-                mavenCentral()
+                $remoteRepositories
                 flatDir { dirs("$fixtureRepoPath") }
             }
             """.trimIndent()
@@ -230,7 +239,7 @@ class ViaductModulePluginModuleConfigExecutionTest {
                 }
 
                 repositories {
-                    mavenCentral()
+                    $remoteRepositories
                     flatDir { dirs("$fixtureRepoPath") }
                 }
 

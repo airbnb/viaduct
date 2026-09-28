@@ -1,9 +1,5 @@
 package viaduct.service.api.scoping
 
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.ObjectInputStream
-import java.io.ObjectOutputStream
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -74,27 +70,5 @@ class SchemaScopingTest {
             scopedSchemas = emptyMap(),
         )
         assertEquals(SchemaScoping.CURRENT_VERSION, scoping.version)
-    }
-
-    @Test
-    fun `Serializable round-trip preserves all fields`() {
-        val original = SchemaScoping(
-            scopeUniverse = setOf("public", "internal"),
-            scopedSchemas = mapOf(
-                "PUBLIC_API" to setOf("public"),
-                "BASE_ALIAS" to emptySet(),
-            ),
-        )
-
-        val bytes = ByteArrayOutputStream().use { bytes ->
-            ObjectOutputStream(bytes).use { it.writeObject(original) }
-            bytes.toByteArray()
-        }
-
-        val restored = ObjectInputStream(ByteArrayInputStream(bytes)).use { it.readObject() }
-            as SchemaScoping
-
-        assertEquals(original, restored)
-        assertEquals(original.isScoped, restored.isScoped)
     }
 }
