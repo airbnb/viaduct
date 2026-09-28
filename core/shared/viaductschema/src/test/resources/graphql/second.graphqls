@@ -1,0 +1,6 @@
+extend type Query {
+  second: Second
+}
+type Second {
+  id: ID
+}

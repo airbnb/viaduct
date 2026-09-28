@@ -47,7 +47,7 @@ The Viaduct module plugin does NOT apply KSP itself. The consumer ("service engi
 1. Reacts to `com.google.devtools.ksp` via `pluginManager.withPlugin(...)`.
 2. Adds `com.airbnb.viaduct:buildtime:$version` to the `ksp` configuration (this contains the processor).
 3. Validates Kotlin is in [1.9, 2.2] and warns about mismatches.
-4. If KSP is not applied, logs a warning (runtime falls back to ClassGraph scanning).
+4. Resolver modules must apply KSP to generate their module configs; runtime resolver discovery has no scanning fallback.
 
 This avoids the version-coupling problem entirely — we never need to know the consumer's Kotlin version at publish time.
 

@@ -6,9 +6,9 @@ import graphql.schema.GraphQLSchema
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.binary.extensions.fromBinaryFile
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.graphql.schema.graphqljava.readTypesFromURLs
-import viaduct.utils.classgraph.findResourcePathsMatching
 
 private val MIN_SCHEMA: String = """
     schema {
@@ -22,8 +22,6 @@ private val MIN_SCHEMA: String = """
 
 """.trimIndent()
 
-private val EXCLUDED_SCHEMA_MODULES = setOf("testfixtures", "data/codelab", "presentation/codelab")
-
 fun createSchema(schema: String): ViaductSchema = ViaductSchema.fromTypeDefinitionRegistry(SchemaParser().parse(MIN_SCHEMA + schema))
 
 fun createGraphQLSchema(schema: String): GraphQLSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(MIN_SCHEMA + schema))
@@ -34,32 +32,7 @@ fun loadGraphQLSchema(schemaResourcePaths: List<String>): ViaductSchema {
     return ViaductSchema.fromTypeDefinitionRegistry(readTypesFromURLs(paths))
 }
 
-fun loadGraphQLSchema(schemaResourcePath: String? = null): ViaductSchema {
-    val packageWithSchema = System.getenv()["PACKAGE_WITH_SCHEMA"] ?: "graphql"
-    val paths = findGraphQLSchemaResources(packageWithSchema, schemaResourcePath)
-
-    if (paths.isEmpty()) {
-        throw IllegalStateException("Could not find any graphqls files in the classpath ($packageWithSchema)")
-    }
-
-    return ViaductSchema.fromTypeDefinitionRegistry(readTypesFromURLs(paths))
-}
-
-fun findGraphQLSchemaResources(
-    packageWithSchema: String,
-    schemaResourcePath: String? = null
-) = if (schemaResourcePath != null) {
-    listOf(Resources.getResource(schemaResourcePath))
-} else {
-    findResourcePathsMatching(packageWithSchema, Regex(".*\\.graphqls"))
-        .filter(::isIncludedSchemaResource)
-        .map { resourcePath -> Resources.getResource(resourcePath) }
-}
-
-fun isIncludedSchemaResource(resourcePath: String): Boolean =
-    EXCLUDED_SCHEMA_MODULES.none { schemaModuleDirectoryPath ->
-        resourcePath.contains("graphql/$schemaModuleDirectoryPath")
-    }
+fun loadBinaryGraphQLSchema(schemaResourcePath: String): ViaductSchema = Resources.getResource(schemaResourcePath).openStream().use { ViaductSchema.fromBinaryFile(it, readDescriptions = true) }
 
 /**
  * Built-in scalar definitions for use in tests that parse raw SDL.

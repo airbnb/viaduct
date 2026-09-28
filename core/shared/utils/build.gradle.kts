@@ -8,8 +8,6 @@ dependencies {
     api(libs.graphql.java)
     api(libs.viaduct.shared.apiannotations)
 
-    implementation(libs.caffeine)
-    implementation(libs.classgraph)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.slf4j.api)
 

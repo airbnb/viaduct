@@ -1,0 +1,6 @@
+type Query {
+  first: First
+}
+type First {
+  id: ID
+}

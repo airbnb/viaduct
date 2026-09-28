@@ -17,7 +17,7 @@ Package: `viaduct.graphql.schema.test`
 | `mkGraphQLSchema(sdl: String)` | Create a graphql-java `GraphQLSchema` from an SDL string. Same auto-prepending behavior as `mkSchema`. |
 | `mkSchemaWithSourceLocation(sdl, sourceName, ...)` | Create a schema with explicit source location metadata for all types/fields. |
 | `mkSchemaWithSourceLocations(sdlAndSourceNames, ...)` | Create a schema from multiple SDL fragments, each with its own source name. |
-| `loadGraphQLSchema(resourcePath?)` | Load a `ViaductSchema` from `.graphqls` files on the classpath. |
+| `loadGraphQLSchema(resourcePaths: List<String>)` | Load a `ViaductSchema` from an explicit, nonempty list of classpath resources. |
 
 **Constants:**
 

@@ -56,11 +56,7 @@ abstract class AbstractFeatureAppTestContractBase {
     /** Contract tests generate GRTs into the tenant package rather than the production default. */
     protected open fun grtPackagePrefix(): String? = null
 
-    /**
-     * Hook called just before build. Override to add pre-build
-     * validation (e.g., resolver completeness checks).
-     */
-    protected open fun onBeforeBuild() {}
+    protected open val validateResolverCompleteness: Boolean = false
 
     /**
      * Override to provide additional Guice modules for the injector that creates
@@ -111,7 +107,7 @@ abstract class AbstractFeatureAppTestContractBase {
         if (!::viaductBuilder.isInitialized) {
             viaductBuilder = StandardViaduct.Builder()
                 .withFlagManager(flagManager)
-                .withLenientResolverValidation()
+                .withLenientResolverValidation(!validateResolverCompleteness)
                 .withTenantModuleInjectorFactory(tenantModuleInjectorFactory())
                 .withExecutorRegistryConfigSources(moduleConfigSources(), grtPackagePrefix())
                 .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl()))
@@ -171,7 +167,6 @@ abstract class AbstractFeatureAppTestContractBase {
     @Suppress("TooGenericExceptionCaught")
     fun tryBuildViaductService() {
         if (!::viaductService.isInitialized) {
-            onBeforeBuild()
             try {
                 viaductService = viaductBuilder.build()
             } catch (t: Throwable) {
