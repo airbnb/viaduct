@@ -576,7 +576,7 @@ private class SchemaGenerator(
                     put(GENERATED_PARENT_GRANDCHILD_TYPE, GENERATED_PARENT_CHILD_FIELD)
                 } else {
                     if (minimumDepth > 0) put("Query", "query0")
-                    (0 until minimumDepth - 1).forEach { index ->
+                    for (index in 0 until (minimumDepth - 1)) {
                         put(objectNames[index], "field0")
                     }
                 }

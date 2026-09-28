@@ -1,6 +1,7 @@
 package semantics.shared
 
 import model.EngineResultCell
+
 /**
  * Prepared orchestration task for one object OER and its paired shared Query OER. Its factory
  * closes demand and establishes the state needed by descendants before returning; passive

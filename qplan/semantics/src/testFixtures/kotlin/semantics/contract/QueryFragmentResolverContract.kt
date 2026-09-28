@@ -589,7 +589,9 @@ interface QueryFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     buildString {
                         appendLine("type Query {")
-                        (0..depth).forEach { index -> appendLine("  field$index: Int!") }
+                        for (index in 0..depth) {
+                            appendLine("  field$index: Int!")
+                        }
                         append("}")
                     },
                 fieldResolvers = { schema ->

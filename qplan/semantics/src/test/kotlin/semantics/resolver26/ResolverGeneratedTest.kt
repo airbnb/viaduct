@@ -1,6 +1,5 @@
 package semantics.resolver26
 
-
 import viaduct.engine.api.EngineObjectData
 
 import model.ObjectEngineResult

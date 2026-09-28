@@ -333,8 +333,8 @@ interface RootFieldReferenceResolverContract : ResolverContract {
         referenceInvocations.forEach { invocation ->
             assertNotSame(invocation.publicationRoot, invocation.invocationRoot)
         }
-        referenceInvocations.indices.forEach { left ->
-            ((left + 1)..<referenceInvocations.size).forEach { right ->
+        for (left in referenceInvocations.indices) {
+            for (right in (left + 1)..<referenceInvocations.size) {
                 assertNotSame(
                     referenceInvocations[left].invocationRoot,
                     referenceInvocations[right].invocationRoot,
