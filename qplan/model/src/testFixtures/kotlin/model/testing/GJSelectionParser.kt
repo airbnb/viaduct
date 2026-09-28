@@ -48,7 +48,7 @@ import viaduct.engine.api.FieldDirectives
 internal class GJSelectionParser(
     private val schema: GJSchema,
     private val variableValues: Map<String, EngineInputData?>,
-    private val variableTarget: ResolverTarget.FieldTarget? = null,
+    private val variableTarget: ResolverTarget? = null,
     private val preserveSourceResponseKeys: Boolean = false,
 ) {
     private val sourceSchema = SourceSchemaAdapter(schema)

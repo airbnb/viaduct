@@ -3,7 +3,7 @@ package model.registry
 import model.MaterializeSelectionForest
 import viaduct.engine.api.EngineObjectData
 
-/** Execution capabilities available to one field-resolver invocation. */
+/** Execution capabilities available to one resolver invocation. */
 interface ResolutionExecutionContext {
     /** Resolves a response-key-preserving selection set from the Query root. */
     suspend fun resolveSelectionSet(

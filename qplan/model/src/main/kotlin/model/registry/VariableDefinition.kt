@@ -17,17 +17,17 @@ enum class ProviderFragment {
 }
 
 /**
- * The source of one field-relative variable defined by a field resolver or checker fragment.
+ * The source of one resolver-relative variable defined by a resolver fragment.
  *
  * Equality is structural: two definitions are equal exactly when they have the same variant and
  * equal [FromArgument.argument] and [FromArgument.inputPath], or equal [FromField.providerFragment]
  * and [FromField.path] and [FromField.responsePath], respectively.
  */
 sealed interface VariableDefinition {
-    /** A variable whose value is returned by its field function's one-shot variables provider. */
+    /** A variable whose value is returned by its resolver function's one-shot variables provider. */
     data object FromProvider : VariableDefinition
 
-    /** A variable whose value is read from an input path rooted at one resolver argument. */
+    /** A field-target variable whose value is read from a path rooted at one resolver argument. */
     sealed interface FromArgument : VariableDefinition {
         val argument: ViaductSchema.FieldArg
         val inputPath: List<ViaductSchema.Field>

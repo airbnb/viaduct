@@ -4,7 +4,7 @@ import model.registry.ResolverTarget
 import model.registry.render
 
 /**
- * Opaque identity of one concrete field-resolver application.
+ * Opaque identity of one concrete resolver application.
  *
  * Equality is structural over the identity of the Query-rooted [root] result and the exact result
  * tree [path]. Runtime code may carry, compare, hash, and print this value, but cannot decompose

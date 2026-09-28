@@ -92,7 +92,7 @@ fun ViaductSchema.fragmentFrom(
     source: String,
     bindings: Map<String, EngineInputData?> = emptyMap(),
     variableField: ViaductSchema.ObjectField? = null,
-    variableTarget: ResolverTarget.FieldTarget? = null,
+    variableTarget: ResolverTarget? = null,
     preserveSourceResponseKeys: Boolean = false,
 ): Fragment =
     GJSelectionParser(
