@@ -48,6 +48,14 @@ class TestClassifyFailure(unittest.TestCase):
         log = "\x1b[31mjava.net.UnknownHostException: repo.example.org\x1b[0m\r\n"
         self.assertEqual("DNS lookup failed for repo.example.org", classify_failure(log))
 
+    def test_unexpected_child_process_name_is_unrecognized(self):
+        log = "> Unable to connect to the child process '@everyone [click](https://evil.example) 3'.\n"
+        self.assertEqual(UNRECOGNIZED, classify_failure(log))
+
+    def test_overlong_child_process_name_is_unrecognized(self):
+        log = "> Unable to connect to the child process 'Gradle " + "A" * 2500 + "'.\n"
+        self.assertEqual(UNRECOGNIZED, classify_failure(log))
+
     def test_repository_status_omits_url_credentials(self):
         log = ("> Could not GET 'https://user:token@mirror.example.com/x.pom'. "
                "Received status code 429 from server\n")

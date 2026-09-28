@@ -24,7 +24,10 @@ HOSTNAME = re.compile(r"[\w.:-]+")
 SIGNATURES = [
     (re.compile(r"Unable to download artifact\(s\)"), lambda m: "GitHub artifact download failed"),
     (re.compile(r"java\.net\.UnknownHostException: ([\w.-]+)"), lambda m: f"DNS lookup failed for {m.group(1)}"),
-    (re.compile(r"Unable to connect to the child process '(.+?)(?: \d+)?'"), lambda m: f"{m.group(1)} never connected"),
+    (
+        re.compile(r"Unable to connect to the child process '(Gradle [A-Za-z ]{1,40}?)(?: \d+)?'"),
+        lambda m: f"{m.group(1)} never connected",
+    ),
 ]
 
 

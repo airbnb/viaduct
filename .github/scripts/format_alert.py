@@ -100,7 +100,9 @@ def format_alert(data: dict) -> str:
 
     if len(jobs) == 1 and not jobs[0].get("tasks"):
         job = jobs[0]
-        return f"{emoji} {job['name']} {verb} on `{branch}`{commit_info}{format_cause(job)} ({job_url(data, job)})"
+        line = f"{emoji} {job['name']} {verb} on `{branch}`{commit_info}{format_cause(job)} ({job_url(data, job)})"
+        if len(line) <= MAX_ALERT_CHARS:
+            return line
 
     header = f"{emoji} CI {verb} on `{branch}`{commit_info}"
     return fit_job_blocks(header, [format_job_block(data, job) for job in jobs], data.get("summary_url"))
@@ -117,17 +119,14 @@ def format_job_block(data: dict, job: dict) -> str:
 
 
 def fit_job_blocks(header: str, blocks: list, summary_url) -> str:
-    text = "\n".join([header] + blocks)
-    if len(text) <= MAX_ALERT_CHARS:
-        return text
-    kept = []
-    for shown, block in enumerate(blocks):
+    for shown in range(len(blocks), -1, -1):
         hidden = len(blocks) - shown
-        more = f"+{hidden} more job{'s' if hidden > 1 else ''}" + (f": {summary_url}" if summary_url else "")
-        if len("\n".join([header] + kept + [block, more])) > MAX_ALERT_CHARS:
-            return "\n".join([header] + kept + [more])
-        kept.append(block)
-    return text
+        lines = [header] + blocks[:shown]
+        if hidden:
+            lines.append(f"+{hidden} more job{'s' if hidden > 1 else ''}" + (f": {summary_url}" if summary_url else ""))
+        text = "\n".join(lines)
+        if len(text) <= MAX_ALERT_CHARS or shown == 0:
+            return text
 
 
 def markdown_cell(text: str) -> str:

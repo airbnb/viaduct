@@ -346,6 +346,11 @@ class TestAlertLength(unittest.TestCase):
         data = {**BASE, "jobs": self.jobs(12)}
         self.assertRegex(format_alert(data).splitlines()[-1], r"^\+\d+ more jobs?$")
 
+    def test_an_overlong_single_job_line_falls_back_to_the_capped_form(self):
+        text = self.alert([{**self.jobs(1)[0], "cause": "x" * 2500}])
+        self.assertLessEqual(len(text), MAX_ALERT_CHARS)
+        self.assertTrue(text.endswith(f"+1 more job: {self.SUMMARY_URL}"))
+
     def test_short_alerts_are_unchanged(self):
         self.assertNotIn("more job", self.alert(self.jobs(2)))
 
