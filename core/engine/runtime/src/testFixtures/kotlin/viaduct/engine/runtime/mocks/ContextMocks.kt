@@ -10,6 +10,8 @@ import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import viaduct.apiannotations.InternalApi
+import viaduct.engine.api.Caller
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
@@ -68,6 +70,18 @@ class ContextMocks(
 
     val engineExecutionContextImpl: EngineExecutionContextImpl get() =
         engineExecutionContext as EngineExecutionContextImpl
+
+    @OptIn(InternalApi::class)
+    fun invocationContext(
+        fieldScope: EngineExecutionContext.FieldExecutionScope,
+        currentResolver: Caller?,
+        executionHandle: EngineExecutionContext.ExecutionHandle,
+    ): EngineExecutionContext =
+        engineExecutionContextImpl.copy(
+            fieldScopeSupplier = { fieldScope },
+            currentResolver = currentResolver,
+            executionHandle = executionHandle,
+        )
 
     val engineExecutionContextFactory =
         myEngineExecutionContextFactory ?: EngineExecutionContextFactory(

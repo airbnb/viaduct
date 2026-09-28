@@ -11,6 +11,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
+import viaduct.engine.api.invocationContextFor
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.VariableFromArgumentDefinitions
 import viaduct.errors.ErroneousFieldException
@@ -64,6 +65,7 @@ class FieldBatchResolverExecutorImpl(
 
         // Build one typed context per selector
         val javaContexts: List<FieldExecutionContext<*, *, *, *>> = selectors.map { selector ->
+            val invocationContext = context.invocationContextFor(selector)
             val arguments = handleFrameworkErrors("$resolverId: createArguments") {
                 createArguments(selector.arguments, internalContext)
             }
@@ -74,11 +76,11 @@ class FieldBatchResolverExecutorImpl(
                 createQueryValue(selector, internalContext)
             }
             SimpleFieldExecutionContext(
-                requestContext = context.requestContext,
+                requestContext = invocationContext.requestContext,
                 arguments = arguments,
                 objectValue = objectValue,
                 queryValue = queryValue,
-                engineExecutionContext = context,
+                engineExecutionContext = invocationContext,
                 coroutineScope = scope,
                 grtPackagePrefix = grtPackagePrefix,
                 knownFragments = knownFragments,

@@ -12,6 +12,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
+import viaduct.engine.api.invocationContextFor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.errors.ErroneousFieldException
 import viaduct.errors.FrameworkException
@@ -69,13 +70,14 @@ class NodeBatchResolverExecutorImpl(
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
         val scope = CoroutineScope(currentCoroutineContext())
         val inputs = selectors.map { selector ->
+            val invocationContext = context.invocationContextFor(selector)
             ResolverInput(
                 selector = selector,
                 context = SimpleNodeExecutionContext(
                     serializedId = selector.id,
                     typeName = typeName,
-                    requestContext = context.requestContext,
-                    engineExecutionContext = context,
+                    requestContext = invocationContext.requestContext,
+                    engineExecutionContext = invocationContext,
                     coroutineScope = scope,
                     grtPackagePrefix = grtPackagePrefix,
                     knownFragments = knownFragments,

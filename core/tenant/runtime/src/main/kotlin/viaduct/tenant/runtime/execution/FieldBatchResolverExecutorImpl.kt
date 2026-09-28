@@ -10,12 +10,12 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.TenantModuleMetadata
+import viaduct.engine.api.invocationContextFor
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor.Selector
 import viaduct.engine.api.spi.VariableFromArgumentDefinitions
 import viaduct.engine.api.spi.VariableFromFieldDefinitions
 import viaduct.engine.api.spi.VariableFromFunctionDefinitions
-import viaduct.engine.runtime.invocationContextFor
 import viaduct.errors.ErroneousFieldException
 import viaduct.errors.FrameworkException
 import viaduct.errors.PassthroughException

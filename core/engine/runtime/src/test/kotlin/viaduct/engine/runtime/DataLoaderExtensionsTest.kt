@@ -11,6 +11,7 @@ import viaduct.dataloader.DataLoader
 import viaduct.dataloader.DispatchingContext
 import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.invocationContextFor
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.mocks.ContextMocks
 
@@ -44,13 +45,6 @@ class DataLoaderExtensionsTest {
         val error = assertThrows<IllegalStateException> { batch.invocationContextFor("missing") }
 
         assertTrue(error.message!!.contains("No invocation context was captured for selector missing"))
-    }
-
-    @Test
-    fun `invocationContextFor returns the receiver when it carries no invocation contexts`() {
-        val plain = context()
-
-        assertSame(plain, plain.invocationContextFor("anything"))
     }
 
     @Test
