@@ -6,6 +6,8 @@ import io.grpc.protobuf.services.ProtoReflectionService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import org.slf4j.LoggerFactory
+import viaduct.remote.RemoteResolverRuntime
+import viaduct.remote.RemoteResolverRuntimeProvider
 import viaduct.remote.RemoteResolverServiceImpl
 
 /**
@@ -14,8 +16,12 @@ import viaduct.remote.RemoteResolverServiceImpl
  * hook calls [stop]. Uses shaded Netty so the module doesn't clash with a non-shaded
  * `grpc-netty` brought in by host applications.
  */
-class RemoteServer(private val config: RemoteConfiguration) {
+class RemoteServer(
+    private val config: RemoteConfiguration,
+    runtime: RemoteResolverRuntime,
+) {
     private val log = LoggerFactory.getLogger(RemoteServer::class.java)
+    private val runtimeProvider = RemoteResolverRuntimeProvider { runtime }
     private val started = AtomicBoolean(false)
     private var server: Server? = null
     private var resolverService: RemoteResolverServiceImpl? = null
@@ -25,7 +31,7 @@ class RemoteServer(private val config: RemoteConfiguration) {
         if (!started.compareAndSet(false, true)) return
         log.info("Starting remote gRPC server on port {}", config.port)
         try {
-            val service = RemoteResolverServiceImpl()
+            val service = RemoteResolverServiceImpl(runtimeProvider = runtimeProvider)
             resolverService = service
             server = NettyServerBuilder.forPort(config.port)
                 .addService(service)

@@ -1,7 +1,6 @@
 package viaduct.remote
 
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -12,7 +11,6 @@ import viaduct.remote.api.spi.RemoteResolverExecutionInstrumentation
 import viaduct.remote.api.spi.RemoteResolverFunction
 import viaduct.remote.fixtures.SimpleNodeResolverExecutor
 import viaduct.remote.grpc.Selector
-import viaduct.remote.registry.NodeExecutorRegistry
 
 /** Unit tests for [resolveNodeExecutorBatch]'s [RemoteResolverExecutionInstrumentation] wiring, shared by the unary and streaming transports. */
 class RemoteResolverBatchResolutionTest {
@@ -27,16 +25,10 @@ class RemoteResolverBatchResolutionTest {
         """.trimIndent()
     )
 
-    @AfterEach
-    fun tearDown() {
-        NodeExecutorRegistry.clear()
-    }
-
     @Test
     fun `invokes the instrumentation with the executor's resolver metadata`() =
         runTest {
             val executor = SimpleNodeResolverExecutor.createUserResolver()
-            val executorId = NodeExecutorRegistry.register(executor)
             val context = ContextMocks(testSchema).engineExecutionContext
             var capturedMetadata: viaduct.engine.api.ResolverMetadata? = null
             val recording = object : RemoteResolverExecutionInstrumentation {
@@ -50,7 +42,7 @@ class RemoteResolverBatchResolutionTest {
             }
 
             val results = resolveNodeExecutorBatch(
-                executorId,
+                executor,
                 listOf(Selector.newBuilder().setId("user:1").build()),
                 context,
                 recording,
@@ -65,7 +57,6 @@ class RemoteResolverBatchResolutionTest {
     fun `an exception thrown by the instrumentation itself is caught and reported per-selector`() =
         runTest {
             val executor = SimpleNodeResolverExecutor.createUserResolver()
-            val executorId = NodeExecutorRegistry.register(executor)
             val context = ContextMocks(testSchema).engineExecutionContext
             val throwing = object : RemoteResolverExecutionInstrumentation {
                 override suspend fun <T> instrumentRemoteResolverExecution(
@@ -75,7 +66,7 @@ class RemoteResolverBatchResolutionTest {
             }
 
             val results = resolveNodeExecutorBatch(
-                executorId,
+                executor,
                 listOf(
                     Selector.newBuilder().setId("user:1").build(),
                     Selector.newBuilder().setId("user:2").build(),

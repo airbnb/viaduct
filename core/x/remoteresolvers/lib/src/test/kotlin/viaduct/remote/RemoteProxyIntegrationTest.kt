@@ -493,7 +493,12 @@ internal class InProcessCallbackRemoteResolverService(
     contextApplier: RemoteResolverContextApplier = RemoteResolverContextApplier.NO_OP,
     responseContextCapturer: RemoteResolverResponseContextCapturer =
         RemoteResolverResponseContextCapturer.NO_OP,
-) : RemoteResolverServiceImpl(contextApplier, responseContextCapturer) {
+    runtimeProvider: RemoteResolverRuntimeProvider? = null,
+) : RemoteResolverServiceImpl(
+        contextApplier = contextApplier,
+        responseContextCapturer = responseContextCapturer,
+        runtimeProvider = runtimeProvider,
+    ) {
     override fun createCallbackChannel(endpoint: String): ManagedChannel =
         InProcessChannelBuilder.forName(endpoint)
             .directExecutor()

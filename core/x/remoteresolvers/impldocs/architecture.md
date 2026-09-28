@@ -99,15 +99,15 @@ Selective node resolvers cannot use the current response correlation by node ID 
 The StarWars `TenantBootstrapper` demonstrates the remote process bootstrap:
 
 1. `SchemaFactory.fromResources()` loads the schema from `.graphqls` resources.
-2. `SchemaRegistry` publishes that schema for schema-only remote execution contexts.
-3. `ExecutionRegistryConfigSourceCollector.fromResources()` finds tenant manifests under `META-INF/viaduct/modules/<package>.json`.
-4. `BootstrapperFactory` and `SharedTenantModuleInjectorFactory` construct tenant module bootstrappers using the remote process's `CodeInjector`.
-5. `builtinModuleConfigSources(...)` generates the built-in node and field resolver configs (`Query.node`/`Query.nodes` and `@namespaceType`) that are not present in tenant manifests, and they are bootstrapped through the same `BootstrapperFactory` path.
-6. Node and field executors are registered by stable ID in `NodeExecutorRegistry` and `FieldExecutorRegistry`.
+2. `ExecutionRegistryConfigSourceCollector.fromResources()` finds tenant manifests under `META-INF/viaduct/modules/<package>.json`.
+3. `BootstrapperFactory` and `SharedTenantModuleInjectorFactory` construct tenant module bootstrappers using the remote process's `CodeInjector`.
+4. `builtinModuleConfigSources(...)` generates the built-in node and field resolver configs (`Query.node`/`Query.nodes` and `@namespaceType`) that are not present in tenant manifests, and they are bootstrapped through the same `BootstrapperFactory` path.
+5. The schema and executors are assembled into one `RemoteResolverRuntime`, indexed by stable executor ID.
+6. The runtime is passed to the remote resolver service for dispatch and schema-only contexts.
 
 The schema filters which manifest entries are realized and supports field selection-set reconstruction. The remote process does not create a full `Viaduct` engine just to execute resolver executors.
 
-Executor registration is later-wins. Re-registering the same instance is treated as idempotent; replacing a different instance under an existing ID logs a warning. The main and remote processes must agree on the logical resolver behind every proxied ID.
+Runtime indexing is later-wins when duplicate executor IDs appear. The main and remote processes must agree on the logical resolver behind every proxied ID.
 
 ## Node Resolver Flow
 
@@ -162,7 +162,7 @@ If argument, RSS value, or selection-set serialization fails, only that selector
 3. Resolves the parent object type from the executor ID and the query type from the remote schema.
 4. Deserializes object and query RSS values against those real schema types.
 5. Deserializes arguments.
-6. Uses a locally resolvable selection handle when available; otherwise reconstructs the serialized selection set against the remote schema.
+6. Reconstructs the serialized selection set against the injected runtime schema; the provider-free compatibility path prefers a locally resolvable selection handle.
 7. Calls the remote field executor with all selectors that survived reconstruction.
 8. Serializes each returned field value independently.
 
@@ -270,7 +270,7 @@ Unary `ctx.query()` and `ctx.mutation()` callbacks do not depend on a shared `Se
 
 Other context behavior in a separate process is intentionally partial:
 
-- `fullSchema`, `scopedSchema`, and `activeSchema` use `SchemaRegistry`.
+- `fullSchema`, `scopedSchema`, and `activeSchema` use the runtime schema.
 - `engineSelectionSetFactory` is built from the local schema.
 - `globalIDCodec` falls back to `GlobalIDCodecDefault`.
 - `createNodeReference()` creates a lightweight remote reference for result serialization.
@@ -288,11 +288,13 @@ All registries are in-memory JVM singletons:
 | --- | --- | --- | --- |
 | `ContextRegistry` | Random UUID | `ContextRegistry.Registration` (`EngineExecutionContext` and captured coroutine context) | Main server, one outbound RPC; removed in proxy `finally` |
 | `SelectionsRegistry` | Random UUID | `EngineSelectionSet` | Main server node or field proxy call; removed in proxy `finally`; same-JVM callback fallback |
-| `NodeExecutorRegistry` | GraphQL type name | `NodeResolverExecutor` | RRS process, bootstrap to shutdown |
-| `FieldExecutorRegistry` | `Type.field` | `FieldResolverExecutor` | RRS process, bootstrap to shutdown |
-| `SchemaRegistry` | Singleton slot | `ViaductSchema` | Remote process, bootstrap to shutdown |
+| `NodeExecutorRegistry` | GraphQL type name | `NodeResolverExecutor` | Compatibility service path |
+| `FieldExecutorRegistry` | `Type.field` | `FieldResolverExecutor` | Compatibility service path |
+| `SchemaRegistry` | Singleton slot | `ViaductSchema` | Compatibility service path |
 
 `ContextRegistry`, `SelectionsRegistry`, and executor registries use `ConcurrentHashMap`. Every context registration returns a fresh UUID, even when concurrent RPCs use the same context, so one request's cleanup cannot remove another's entry.
+
+The RRS bootstrap path instead owns a `RemoteResolverRuntime` containing one schema and complete node and field executor maps, and injects that runtime into both service transports.
 
 Do not treat registry handles as globally resolvable. A handle lookup succeeds in integration tests because both gRPC services run in one JVM; that is not evidence that the same lookup works between deployed processes.
 

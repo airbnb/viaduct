@@ -17,10 +17,11 @@ fun main(args: Array<String>) {
 
     // Plug your own tenant by passing your Guice module here in place of StarWarsRemoteModule.
     val codeInjector = RemoteCodeInjector(Guice.createInjector(StarWarsRemoteModule()))
-    val resolverCount = TenantBootstrapper(codeInjector).bootstrap()
+    val runtime = TenantBootstrapper(codeInjector).bootstrap()
+    val resolverCount = runtime.nodeExecutors.size + runtime.fieldExecutors.size
     log.info("Tenant bootstrap complete; registered {} resolver(s)", resolverCount)
 
-    val server = RemoteServer(config)
+    val server = RemoteServer(config, runtime)
     Runtime.getRuntime().addShutdownHook(Thread({ server.stop() }, "remote-server-shutdown"))
 
     try {

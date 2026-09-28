@@ -18,6 +18,7 @@ import viaduct.remote.grpc.RemoteResolverServiceMessage
 import viaduct.remote.grpc.RemoteResolverStreamServiceGrpcKt
 import viaduct.remote.grpc.ViaductServiceFieldMessage
 import viaduct.remote.grpc.ViaductServiceMessage
+import viaduct.remote.registry.NodeExecutorRegistry
 import viaduct.remote.registry.SchemaRegistry
 
 /**
@@ -28,7 +29,7 @@ import viaduct.remote.registry.SchemaRegistry
  * Establishes the stream lifecycle -- reading the first message as the resolve request, wiring a
  * [CallbackDispatcher] to the stream's outbound side, and dispatching inbound callback_response
  * messages to it -- for both RPCs, via [withStreamedCallbacks]. `resolveNodeBatch` resolves
- * against a registered [viaduct.remote.registry.NodeExecutorRegistry] executor, reusing
+ * against the configured node executor, reusing
  * [resolveNodeExecutorBatch] shared with the unary transport. `resolveFieldBatch` doesn't do real
  * resolution yet -- it currently answers with an empty resolve_response.
  */
@@ -38,6 +39,7 @@ open class RemoteResolverStreamServiceImpl(
         RemoteResolverResponseContextCapturer.NO_OP,
     private val executionInstrumentation: RemoteResolverExecutionInstrumentation =
         RemoteResolverExecutionInstrumentation.NO_OP,
+    private val runtimeProvider: RemoteResolverRuntimeProvider? = null,
 ) : RemoteResolverStreamServiceGrpcKt.RemoteResolverStreamServiceCoroutineImplBase() {
     override fun resolveNodeBatch(requests: Flow<ViaductServiceMessage>): Flow<RemoteResolverServiceMessage> =
         channelFlow {
@@ -48,8 +50,14 @@ open class RemoteResolverStreamServiceImpl(
                 wrapCallbackRequest = { RemoteResolverServiceMessage.newBuilder().setCallbackRequest(it).build() }
             ) { request, dispatcher ->
                 runWithRemoteContext(contextApplier, request.hasRemoteContext(), request.remoteContext) {
-                    val context = buildStreamContext(dispatcher, request.executorId)
-                    val results = resolveNodeExecutorBatch(request.executorId, request.selectorsList, context, executionInstrumentation)
+                    val runtime = runtimeProvider?.get()
+                    val executor = if (runtime == null) {
+                        NodeExecutorRegistry.get(request.executorId)
+                    } else {
+                        runtime.nodeExecutors[request.executorId]
+                    } ?: throw notFound("executor", request.executorId)
+                    val context = buildStreamContext(dispatcher, request.executorId, runtime)
+                    val results = resolveNodeExecutorBatch(executor, request.selectorsList, context, executionInstrumentation)
                     send(
                         RemoteResolverServiceMessage.newBuilder()
                             .setResolveResponse(
@@ -91,12 +99,13 @@ open class RemoteResolverStreamServiceImpl(
      */
     private fun buildStreamContext(
         dispatcher: CallbackDispatcher,
-        resolverId: String
+        resolverId: String,
+        runtime: RemoteResolverRuntime?,
     ): RemoteResolverStreamExecutionContext =
         RemoteResolverStreamExecutionContext(
             dispatcher = dispatcher,
             resolverId = resolverId,
-            localSchema = SchemaRegistry.get() ?: throw notFound("schema", "none registered")
+            localSchema = runtime?.schema ?: SchemaRegistry.get() ?: throw notFound("schema", "none registered")
         )
 }
 

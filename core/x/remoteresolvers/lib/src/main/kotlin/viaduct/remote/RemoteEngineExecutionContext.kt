@@ -63,18 +63,16 @@ abstract class RemoteEngineExecutionContext(
     override val fieldScope: EngineExecutionContext.FieldExecutionScope
         get() = requireDelegate("fieldScope").fieldScope
 
-    // With no delegate, build a schema-only factory from localSchema so a remotely-run resolver can
-    // reconstruct sub-selection sets shipped over the wire. Mirrors the delegate-first
-    // createNodeReference / globalIDCodec fallback (delegate and localSchema are mutually exclusive —
-    // callers set localSchema only when there's no delegate — so the order doesn't matter).
+    // Build from localSchema when supplied so schema access and selection construction use the same
+    // runtime generation even when a same-JVM delegate is available.
     // Memoized: one factory per context instance.
     private val localSelectionSetFactory: EngineSelectionSet.Factory? by lazy {
         localSchema?.let { EngineSelectionSetFactoryImpl(it) }
     }
 
     override val engineSelectionSetFactory: EngineSelectionSet.Factory
-        get() = delegate?.engineSelectionSetFactory
-            ?: localSelectionSetFactory
+        get() = localSelectionSetFactory
+            ?: delegate?.engineSelectionSetFactory
             ?: throw UnsupportedOperationException("'engineSelectionSetFactory' requires a local engine context or schema")
 
     // A resolver running remotely may build a node reference (e.g. `ctx.ref(...)`). Without a

@@ -64,14 +64,18 @@ class RemoteResolverStreamServiceImplTest {
     }
 
     @Test
-    fun `resolveNodeBatch resolves a batch against a registered executor`() =
+    fun `resolveNodeBatch resolves a batch against the runtime executor`() =
         runTest {
-            val executorId = NodeExecutorRegistry.register(SimpleNodeResolverExecutor.createUserResolver())
-            withServer { stub ->
+            val executor = SimpleNodeResolverExecutor.createUserResolver()
+            val runtime = RemoteResolverRuntime(testSchema, nodeExecutors = listOf(executor))
+            val service = RemoteResolverStreamServiceImpl(
+                runtimeProvider = RemoteResolverRuntimeProvider { runtime },
+            )
+            withServer(service) { stub ->
                 val request = ViaductServiceMessage.newBuilder()
                     .setResolveRequest(
                         BatchResolveNodeRequest.newBuilder()
-                            .setExecutorId(executorId)
+                            .setExecutorId(executor.typeName)
                             .addSelectors(Selector.newBuilder().setId("user:1").build())
                             .build()
                     )
@@ -111,11 +115,14 @@ class RemoteResolverStreamServiceImplTest {
             }
         }
 
-    private suspend fun withServer(block: suspend (RemoteResolverStreamServiceGrpcKt.RemoteResolverStreamServiceCoroutineStub) -> Unit) {
+    private suspend fun withServer(
+        service: RemoteResolverStreamServiceImpl = RemoteResolverStreamServiceImpl(),
+        block: suspend (RemoteResolverStreamServiceGrpcKt.RemoteResolverStreamServiceCoroutineStub) -> Unit,
+    ) {
         val serverName = "rrs-stream-${System.nanoTime()}"
         val server = InProcessServerBuilder.forName(serverName)
             .directExecutor()
-            .addService(RemoteResolverStreamServiceImpl())
+            .addService(service)
             .build()
             .start()
         try {

@@ -14,7 +14,6 @@ import viaduct.remote.api.spi.RemoteResolverFunction
 import viaduct.remote.grpc.ErrorInfo
 import viaduct.remote.grpc.ResolvedNode
 import viaduct.remote.grpc.Selector
-import viaduct.remote.registry.NodeExecutorRegistry
 import viaduct.remote.registry.SelectionsRegistry
 
 private val log = LoggerFactory.getLogger("viaduct.remote.RemoteResolverBatchResolution")
@@ -29,12 +28,11 @@ private val log = LoggerFactory.getLogger("viaduct.remote.RemoteResolverBatchRes
  * implementations can share it.
  */
 internal suspend fun resolveNodeExecutorBatch(
-    executorId: String,
+    executor: NodeResolverExecutor,
     protoSelectors: List<Selector>,
     context: EngineExecutionContext,
     executionInstrumentation: RemoteResolverExecutionInstrumentation = RemoteResolverExecutionInstrumentation.NO_OP,
 ): List<ResolvedNode> {
-    val executor = NodeExecutorRegistry.get(executorId) ?: throw notFound("executor", executorId)
     val keyedSelectors = buildNodeSelectors(protoSelectors, executor)
     // An unbatched built-in resolver asserts a non-empty batch, so guard against calling it empty.
     if (keyedSelectors.isEmpty()) return emptyList()
