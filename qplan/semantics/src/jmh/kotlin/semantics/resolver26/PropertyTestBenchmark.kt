@@ -54,6 +54,7 @@ open class PropertyTestBenchmark {
     private var profileRecording: Recording? = null
 
     @Setup(Level.Trial)
+    @Suppress("TooGenericExceptionCaught") // Release the dispatcher even if setup throws an Error.
     fun prepareTrial() {
         val dispatcher =
             ResolutionDispatcherFactory.create(configuredResolutionThreadCount())

@@ -131,6 +131,7 @@ class ExecutionTestFixture private constructor(
                 resolverCoroutineContext = resolverCoroutineContext,
             )
 
+        @Suppress("TooGenericExceptionCaught") // Release the dispatcher even if setup throws an Error.
         internal fun fromWorld(
             schemaSDL: String,
             world: TestWorld,

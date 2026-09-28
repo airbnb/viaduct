@@ -190,6 +190,7 @@ suspend fun checkResolverTestCases(
  * own annotations, Gradle properties, or [configuredResolverTestExecution].
  */
 @OptIn(ExperimentalKotest::class)
+@Suppress("TooGenericExceptionCaught") // Include assertion failures in replay diagnostics.
 suspend fun executeResolverTestCases(
     execution: ResolverTestExecution,
     config: Config = Config.default,
