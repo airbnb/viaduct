@@ -72,17 +72,29 @@ enum class CycleSlotKind {
     TYPE_CHECKER,
 }
 
-/** Exact identity of one slot on one result cell. */
-class CycleSlot(
+/** Exact identity of one independently readable result slot. */
+class CycleSlot private constructor(
     val kind: CycleSlotKind,
-    val cell: EngineResultCell,
+    private val owner: Any,
 ) {
+    internal val cellOwner: EngineResultCell?
+        get() = owner as? EngineResultCell
+
+    constructor(
+        kind: CycleSlotKind,
+        cell: EngineResultCell,
+    ) : this(kind, cell as Any) {
+        require(kind != CycleSlotKind.TYPE_CHECKER) {
+            "A type-checker cycle slot belongs to an ObjectEngineResult"
+        }
+    }
+
     override fun equals(other: Any?): Boolean =
-        other is CycleSlot && kind == other.kind && cell === other.cell
+        other is CycleSlot && kind == other.kind && owner === other.owner
 
-    override fun hashCode(): Int = 31 * kind.hashCode() + System.identityHashCode(cell)
+    override fun hashCode(): Int = 31 * kind.hashCode() + System.identityHashCode(owner)
 
-    override fun toString(): String = "$kind@${System.identityHashCode(cell)}"
+    override fun toString(): String = "$kind@${System.identityHashCode(owner)}"
 
     companion object {
         fun value(cell: EngineResultCell): CycleSlot =
@@ -91,8 +103,8 @@ class CycleSlot(
         fun fieldChecker(cell: EngineResultCell): CycleSlot =
             CycleSlot(CycleSlotKind.FIELD_CHECKER, cell)
 
-        fun typeChecker(cell: EngineResultCell): CycleSlot =
-            CycleSlot(CycleSlotKind.TYPE_CHECKER, cell)
+        fun typeChecker(result: ObjectEngineResult): CycleSlot =
+            CycleSlot(CycleSlotKind.TYPE_CHECKER, result)
     }
 }
 
@@ -102,7 +114,7 @@ internal val EngineResultCell.valueCycleSlot: CycleSlot
 internal val EngineResultCell.fieldCheckerCycleSlot: CycleSlot
     get() = CycleSlot.fieldChecker(this)
 
-internal val EngineResultCell.typeCheckerCycleSlot: CycleSlot
+internal val ObjectEngineResult.typeCheckerCycleSlot: CycleSlot
     get() = CycleSlot.typeChecker(this)
 
 /** Tracks exact task-to-slot reads and rejects cycles in the resulting writer dependency graph. */

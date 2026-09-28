@@ -45,9 +45,8 @@ class CheckedEngineResultTest {
         fieldPending.createFieldCheckerResultPromise()
         assertSame(EngineResultIsPending, fieldPending.materializeCheckedValue { true })
 
-        val typePending = newCell()
-        typePending.setValue("type")
-        typePending.createTypeCheckerResultPromise()
+        val (typePending, pendingObject) = newObjectCell()
+        pendingObject.createTypeCheckerResultPromise()
         assertSame(EngineResultIsPending, typePending.materializeCheckedValue { true })
     }
 
@@ -114,10 +113,9 @@ class CheckedEngineResultTest {
         val fieldError = TestCheckerError("field")
         val combinedError = TestCheckerError("combined")
         val typeError = CombiningCheckerError(fieldError, combinedError)
-        val cell = newCell()
-        cell.setValue("secret")
+        val (cell, value) = newObjectCell()
         cell.setFieldCheckerResult(fieldError)
-        cell.setTypeCheckerResult(typeError)
+        value.setTypeCheckerResult(typeError)
         var observedError: CheckerResult.Error? = null
 
         val denied =
@@ -128,7 +126,32 @@ class CheckedEngineResultTest {
 
         assertSame(combinedError, observedError)
         assertSame(combinedError.error, (denied as ErrorEngineResult).errorData.cause)
-        assertSame("secret", cell.materializeCheckedValue { false })
+        assertSame(value, cell.materializeCheckedValue { false })
+    }
+
+    private fun newObjectCell(): Pair<EngineResultCell, ObjectEngineResult> {
+        val schema =
+            TestWorld
+                .fromSDL(
+                    """
+                    type Query { value: Value }
+                    type Value { text: String }
+                    """.trimIndent(),
+                ).schema
+        val valueType = schema.requireType("Value")
+        require(valueType is viaduct.graphql.schema.ViaductSchema.Object)
+        val value = ObjectEngineResult.of(valueType, mutable = true)
+        val cell =
+            ObjectEngineResult
+                .of(schema.requireQueryTypeDef(), mutable = true)
+                .reserveCell(
+                    ObjectEngineResult.GroundKey.of(
+                        schema.requireObjectField("Query", "value"),
+                        emptyMap(),
+                    ),
+                )
+        cell.setValue(value)
+        return cell to value
     }
 
     private fun newCell(): EngineResultCell {

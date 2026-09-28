@@ -247,7 +247,18 @@ private fun EngineResultCell.preferredTerminalFailureOrNull(): Exception? {
     val checkerPromises =
         buildList {
             if (isFieldCheckerResultSet()) add(getFieldCheckerResult())
-            if (isTypeCheckerResultSet()) add(getTypeCheckerResult())
+            val valuePromise = getValue()
+            if (valuePromise.isCompleted) {
+                val value =
+                    try {
+                        valuePromise.get()
+                    } catch (failure: Exception) {
+                        return failure
+                    }
+                if (value is ObjectEngineResult && value.isTypeCheckerResultSet()) {
+                    add(value.getTypeCheckerResult())
+                }
+            }
         }
     checkerPromises.forEach { promise ->
         val failure = promise.terminalFailureOrNull()

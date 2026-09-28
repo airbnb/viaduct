@@ -189,7 +189,7 @@ interface CoroutineResolverContract {
                     writer: CycleTask,
                 ) {
                     if (writer.path.size == 1) {
-                        rootCell = slot.cell
+                        rootCell = requireNotNull(slot.cellOwner)
                     } else {
                         assertFailsWith<UncompletedPromiseException> {
                             assertNotNull(rootCell).getValue().get()

@@ -95,6 +95,15 @@ private suspend fun assertSlotDrivenMaterialization(
             type = valueType,
             values = mapOf(textKey to text),
         )
+    fun valueResult(
+        text: String,
+        typeCheckerResult: CheckerResult,
+    ): ObjectEngineResult =
+        ObjectEngineResult.of(
+            type = valueType,
+            typeCheckerResult = typeCheckerResult,
+            values = mapOf(textKey to text),
+        )
     val key =
         ObjectEngineResult.GroundKey.of(
             world.schema.requireObjectField("Query", "value"),
@@ -146,9 +155,9 @@ private suspend fun assertSlotDrivenMaterialization(
     val typeDeniedResult =
         ObjectEngineResult.of(
             type = world.schema.requireQueryTypeDef(),
-            values = mapOf(key to valueResult("type denied")),
+            values = mapOf(key to valueResult("type denied", typeDenial)),
             fieldCheckerResults = emptyMap(),
-            typeCheckerResults = mapOf(key to typeDenial),
+            typeCheckerResults = emptyMap(),
         )
     val typeDeniedInput =
         materialize(
@@ -166,9 +175,12 @@ private suspend fun assertSlotDrivenMaterialization(
     val multiplyDeniedResult =
         ObjectEngineResult.of(
             type = world.schema.requireQueryTypeDef(),
-            values = mapOf(key to valueResult("multiply denied")),
+            values =
+                mapOf(
+                    key to valueResult("multiply denied", combiningTypeDenial),
+                ),
             fieldCheckerResults = mapOf(key to fieldDenial),
-            typeCheckerResults = mapOf(key to combiningTypeDenial),
+            typeCheckerResults = emptyMap(),
         )
     val multiplyDeniedInput =
         materialize(
@@ -192,8 +204,7 @@ private suspend fun assertSlotDrivenMaterialization(
     val listResult =
         ListEngineResult.of(
             typeExpr = valuesKey.field.outputType.unwrapList()!!,
-            values = listOf(valueResult("list item")),
-            typeCheckerResults = listOf(listItemDenial),
+            values = listOf(valueResult("list item", listItemDenial)),
         )
     val listedResult =
         ObjectEngineResult.of(
@@ -221,7 +232,6 @@ private suspend fun assertSlotDrivenMaterialization(
     val failedResult = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
     val failedCell = failedResult.reserveCell(key)
     failedCell.setFieldCheckerResult(CheckerResult.Success)
-    failedCell.setTypeCheckerResult(CheckerResult.Success)
     failedCell.setValue(ErrorEngineResult.of(rawFailure))
     val failedInput =
         withTimeout(1_000) {

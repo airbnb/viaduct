@@ -23,11 +23,12 @@ data object EngineResultIsPending
  * Returns the checked value currently available from this cell, or [EngineResultIsPending] when a
  * required slot is unfinished.
  *
- * Unclaimed checker slots default open. When both claimed checker results exist, the type result
- * combines with the field result through the production [CheckerResult] contract. An applicable
- * checker error short-circuits without consulting the value slot and is represented as an
- * [ErrorEngineResult] so downstream materializers handle raw and access-check failures uniformly.
- * The value slot is inspected only after the checker results allow this consumer.
+ * Unclaimed checker slots default open. The field result belongs to this cell; when its completed
+ * raw value is an object, the type result belongs to that [ObjectEngineResult]. When both results
+ * exist, the type result combines with the field result through the production [CheckerResult]
+ * contract. A completed applicable field error can short-circuit an unfinished raw value. Access
+ * failures are represented as [ErrorEngineResult] so downstream materializers handle raw and
+ * access-check failures uniformly.
  */
 fun EngineResultCell.materializeCheckedValue(
     isErrorForConsumer: (CheckerResult.Error) -> Boolean,
@@ -38,17 +39,25 @@ fun EngineResultCell.materializeCheckedValue(
         } else {
             null
         }
-    val typePromise =
-        if (isTypeCheckerResultSet()) {
-            getTypeCheckerResult()
-        } else {
-            null
-        }
-    if (fieldPromise?.isCompleted == false || typePromise?.isCompleted == false) {
-        return EngineResultIsPending
-    }
+    if (fieldPromise?.isCompleted == false) return EngineResultIsPending
 
     val fieldResult = fieldPromise?.get()
+    val valuePromise = getValue()
+    if (!valuePromise.isCompleted) {
+        val fieldError = fieldResult?.asError
+        return if (fieldError != null && isErrorForConsumer(fieldError)) {
+            ErrorEngineResult.of(EngineErrorData.of(fieldError.error))
+        } else {
+            EngineResultIsPending
+        }
+    }
+
+    val value = valuePromise.get()
+    val typePromise =
+        (value as? ObjectEngineResult)
+            ?.takeIf(ObjectEngineResult::isTypeCheckerResultSet)
+            ?.getTypeCheckerResult()
+    if (typePromise?.isCompleted == false) return EngineResultIsPending
     val typeResult = typePromise?.get()
     val combinedResult =
         when {
@@ -61,16 +70,15 @@ fun EngineResultCell.materializeCheckedValue(
         return ErrorEngineResult.of(EngineErrorData.of(error.error))
     }
 
-    val valuePromise = getValue()
-    if (!valuePromise.isCompleted) return EngineResultIsPending
-    return valuePromise.get()
+    return value
 }
 
 /**
  * Awaits and returns this cell's checked value.
  *
- * Claimed checker slots are awaited before the value slot so an applicable denial can return
- * without waiting for or consulting the raw value. Unclaimed checker slots default open.
+ * A claimed field-checker slot is awaited before the value slot so an applicable field denial can
+ * return without waiting for an unfinished raw value. Once a raw object is available, its claimed
+ * type-checker slot is also awaited before the value is returned. Unclaimed slots default open.
  */
 suspend fun EngineResultCell.awaitCheckedValue(
     isErrorForConsumer: (CheckerResult.Error) -> Boolean,
@@ -78,7 +86,6 @@ suspend fun EngineResultCell.awaitCheckedValue(
     val checkerPromises =
         buildList {
             if (isFieldCheckerResultSet()) add(getFieldCheckerResult())
-            if (isTypeCheckerResultSet()) add(getTypeCheckerResult())
         }
     coroutineScope {
         checkerPromises
@@ -93,7 +100,10 @@ suspend fun EngineResultCell.awaitCheckedValue(
     val attempt = materializeCheckedValue(isErrorForConsumer)
     if (attempt !== EngineResultIsPending) return attempt
 
-    getValue().awaitPreservingTerminalFailure()
+    val value = getValue().awaitPreservingTerminalFailure()
+    if (value is ObjectEngineResult && value.isTypeCheckerResultSet()) {
+        value.getTypeCheckerResult().awaitPreservingTerminalFailure()
+    }
     val completed = materializeCheckedValue(isErrorForConsumer)
     check(completed !== EngineResultIsPending) {
         "Completed checked-value slots produced a pending materialization attempt"

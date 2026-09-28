@@ -86,7 +86,8 @@ interface FragmentFreeFieldCheckerPublicationContract {
                     slot: CycleSlot,
                     writer: CycleTask,
                 ) {
-                    cells[(writer.path.last() as ObjectEngineResult.ObjectKey).field.name] = slot.cell
+                    cells[(writer.path.last() as ObjectEngineResult.ObjectKey).field.name] =
+                        requireNotNull(slot.cellOwner)
                 }
 
                 override fun cycleCheck(

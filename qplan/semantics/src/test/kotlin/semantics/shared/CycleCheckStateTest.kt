@@ -159,7 +159,7 @@ class CycleCheckStateTest {
             writer = fixture.task("first", CycleTaskKind.FIELD_CHECKER),
         )
         fixture.checker.registerWriter(
-            slot = fixture.cell("first").typeCheckerCycleSlot,
+            slot = fixture.target.typeCheckerCycleSlot,
             writer = fixture.task("first", CycleTaskKind.TYPE_CHECKER),
         )
     }

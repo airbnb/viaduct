@@ -217,19 +217,25 @@ internal suspend fun EngineResultCell.materializeCheckedValueForResolver(
     cycleChecker: CycleCheckState,
 ): EngineResult? {
     val hasFieldChecker = isFieldCheckerResultSet()
-    val hasTypeChecker = isTypeCheckerResultSet()
     if (hasFieldChecker) cycleChecker.cycleCheck(reader, fieldCheckerCycleSlot)
-    if (hasTypeChecker) cycleChecker.cycleCheck(reader, typeCheckerCycleSlot)
     if (hasFieldChecker) getFieldCheckerResult().await()
-    if (hasTypeChecker) getTypeCheckerResult().await()
+
+    suspend fun awaitTypeChecker(value: EngineResult?) {
+        if (value is ObjectEngineResult && value.isTypeCheckerResultSet()) {
+            cycleChecker.cycleCheck(reader, value.typeCheckerCycleSlot)
+            value.getTypeCheckerResult().await()
+        }
+    }
 
     cycleChecker.cycleCheck(reader, valueCycleSlot)
+    val valuePromise = getValue()
+    if (valuePromise.isCompleted) awaitTypeChecker(valuePromise.get())
     var attempt =
         materializeCheckedValue { error ->
             error.isErrorForResolver(CheckerResultContext(fieldDirectives))
         }
     if (attempt === EngineResultIsPending) {
-        getValue().await()
+        awaitTypeChecker(valuePromise.await())
         attempt =
             materializeCheckedValue { error ->
                 error.isErrorForResolver(CheckerResultContext(fieldDirectives))

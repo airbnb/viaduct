@@ -534,20 +534,37 @@ class MaterializeTest {
     fun `raw materialization skips unfinished checker slots`() =
         runBlocking {
             val world =
-                TestWorld.fromSDL("type Query { value: String! }").assumptions
+                TestWorld
+                    .fromSDL(
+                        """
+                        type Query { value: Value! }
+                        type Value { text: String! }
+                        """.trimIndent(),
+                    ).assumptions
             val key =
                 ObjectEngineResult.GroundKey.of(
                     world.schema.requireObjectField("Query", "value"),
                     emptyMap(),
                 )
+            val textKey =
+                ObjectEngineResult.GroundKey.of(
+                    world.schema.requireObjectField("Value", "text"),
+                    emptyMap(),
+                )
+            val value =
+                ObjectEngineResult.of(
+                    type = world.schema.requireType("Value") as ViaductSchema.Object,
+                    values = mapOf(textKey to "raw"),
+                    mutable = true,
+                )
             val result = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
             val cell = result.reserveCell(key)
-            cell.setValue("raw")
+            cell.setValue(value)
             val fieldChecker = cell.createFieldCheckerResultPromise()
-            val typeChecker = cell.createTypeCheckerResultPromise()
+            val typeChecker = value.createTypeCheckerResultPromise()
             val selections =
                 world
-                    .fragmentFrom("fragment ignored on Query { value }")
+                    .fragmentFrom("fragment ignored on Query { value { text } }")
                     .materializeSelections
 
             val materialized =
@@ -560,7 +577,8 @@ class MaterializeTest {
                     )
                 }
 
-            assertEquals("raw", materialized.get("value"))
+            val materializedValue = assertIs<EngineObjectData.Sync>(materialized.get("value"))
+            assertEquals("raw", materializedValue.get("text"))
             assertFalse(fieldChecker.isCompleted)
             assertFalse(typeChecker.isCompleted)
         }
@@ -619,6 +637,7 @@ class MaterializeTest {
             val deniedText =
                 ObjectEngineResult.of(
                     type = valueType,
+                    typeCheckerResult = MaterializationDenial(),
                     values = mapOf(textKey to "raw nested"),
                     fieldCheckerResults = mapOf(textKey to MaterializationDenial()),
                 )
@@ -631,7 +650,6 @@ class MaterializeTest {
                 ListEngineResult.of(
                     typeExpr = valuesKey.field.outputType.unwrapList()!!,
                     values = listOf(deniedText),
-                    typeCheckerResults = listOf(MaterializationDenial()),
                 )
             val result =
                 ObjectEngineResult.of(
