@@ -502,7 +502,15 @@ public class GraphQLSchemaParser {
 
     // Determine return type (always boxed since it appears inside CompletableFuture<> and
     // FieldResolverBase<> generic parameters)
-    String returnType = typeMapper.toBoxedJavaType(field.getType());
+    String globalIDTargetTypeName = SchemaAnalysis.INSTANCE.globalIdTargetTypeName(field);
+    String returnType =
+        globalIDTargetTypeName == null
+            ? typeMapper.toBoxedJavaType(field.getType())
+            : typeMapper.toGlobalIDJavaType(
+                field.getType(),
+                globalIDTargetTypeName,
+                field.getContainingDef() instanceof ViaductSchema.Interface
+                    && field.getName().equals("id"));
 
     // Object type (the type containing this field)
     String objectType = grtPackage + "." + typeName;
@@ -741,24 +749,15 @@ public class GraphQLSchemaParser {
     String baseTypeName =
         (compositeType || enumType || abstractType) ? baseTypeDef.getName() : null;
 
-    // Detect @idOf directive → field should be typed as GlobalID<T>
-    boolean globalIDType = false;
-    String idOfTypeName = SchemaAnalysis.INSTANCE.idOfTypeName(field);
-    if (idOfTypeName != null) {
-      globalIDType = true;
-      baseTypeName = idOfTypeName;
-      javaType = list ? "List<GlobalID<" + idOfTypeName + ">>" : "GlobalID<" + idOfTypeName + ">";
-    }
-
-    // Detect Node.id → GlobalID<ContainerType> (mirrors Kotlin's isGlobalID check)
-    if (idOfTypeName == null && field.getName().equals("id") && isNodeType(containerType)) {
-      globalIDType = true;
-      baseTypeName = containerType.getName();
-      boolean isInterface = containerType instanceof ViaductSchema.Interface;
+    String globalIDTargetTypeName = SchemaAnalysis.INSTANCE.globalIdTargetTypeName(field);
+    boolean globalIDType = globalIDTargetTypeName != null;
+    if (globalIDType) {
+      baseTypeName = globalIDTargetTypeName;
       javaType =
-          isInterface
-              ? "GlobalID<? extends " + containerType.getName() + ">"
-              : "GlobalID<" + containerType.getName() + ">";
+          typeMapper.toGlobalIDJavaType(
+              field.getType(),
+              globalIDTargetTypeName,
+              containerType instanceof ViaductSchema.Interface && field.getName().equals("id"));
     }
 
     String reflectedTypeName = getHasReflectedType(baseTypeDef) ? baseTypeDef.getName() : null;

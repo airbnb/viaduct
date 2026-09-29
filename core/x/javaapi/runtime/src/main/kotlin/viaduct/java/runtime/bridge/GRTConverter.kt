@@ -9,10 +9,12 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.errors.FrameworkException
+import viaduct.java.api.globalid.GlobalID
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.GraphQLObject
+import viaduct.service.api.spi.GlobalIDCodec
 
 /**
  * Utility functions for converting between Java GRT (GraphQL Representational Type) objects
@@ -27,11 +29,13 @@ private val logger = LoggerFactory.getLogger("viaduct.java.runtime.bridge.GRTCon
  * Java GRT objects (implementing [GraphQLObject]) now wrap [EngineObjectData.Sync] directly
  * (via [ObjectBase]). This function extracts the backing data without reflection.
  *
- * Lists are converted element-by-element. Scalars and nulls are returned as-is.
+ * Lists are converted element-by-element. GlobalIDs use the execution codec; plain scalars and
+ * nulls are returned as-is.
  */
 internal fun convertResult(
     result: Any?,
-    graphqlSchema: GraphQLSchema?
+    graphqlSchema: GraphQLSchema?,
+    globalIDCodec: GlobalIDCodec,
 ): Any? {
     return when (result) {
         null -> null
@@ -46,7 +50,8 @@ internal fun convertResult(
             "Resolver returned a GraphQLObject that does not extend ObjectBase: ${result.javaClass.name}. " +
                 "All Java GRT object types must extend ObjectBase."
         )
-        is List<*> -> result.map { convertResult(it, graphqlSchema) }
+        is List<*> -> result.map { convertResult(it, graphqlSchema, globalIDCodec) }
+        is GlobalID<*> -> globalIDCodec.serializeGlobalID(result)
         else -> result
     }
 }

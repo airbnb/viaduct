@@ -32,8 +32,27 @@ import viaduct.errors.TenantUsageException
 import viaduct.java.api.context.FieldExecutionContext
 import viaduct.java.api.internal.BaseBatchedFieldResolver
 import viaduct.java.api.resolvers.FieldValue
+import viaduct.java.api.types.NodeCompositeOutput
+import viaduct.service.api.spi.GlobalIDCodec
 
 class JavaFieldBatchResolverExecutorTest {
+    @Test
+    fun `batched typed ID result uses the execution codec`(): Unit =
+        runBlocking {
+            val codec = mockk<GlobalIDCodec> {
+                every { serialize("User", "42") } returns "custom:user:42"
+            }
+            val id = GlobalIDImpl(typeFromName<NodeCompositeOutput>("User"), "42")
+            val executor = executor { contexts ->
+                CompletableFuture.completedFuture(mapOf(contexts[0] to FieldValue.ofValue(id)))
+            }
+            val selector = selectors(1).single()
+
+            val result = executor.batchResolve(listOf(selector), engineContext(codec))[selector]
+
+            assertEquals("custom:user:42", result?.getOrNull())
+        }
+
     @Test
     fun `mixed outcomes retain selector identity and attribute only failed items`(): Unit =
         runBlocking {
@@ -216,10 +235,10 @@ class JavaFieldBatchResolverExecutorTest {
             )
         }
 
-    private fun engineContext(): EngineExecutionContext =
+    private fun engineContext(codec: GlobalIDCodec = mockk()): EngineExecutionContext =
         mockk {
             every { requestContext } returns null
             every { fullSchema } returns mockk()
-            every { globalIDCodec } returns mockk()
+            every { globalIDCodec } returns codec
         }
 }

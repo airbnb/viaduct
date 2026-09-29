@@ -118,7 +118,7 @@ class JavaFieldResolverExecutorImpl(
 
         // ── Framework→Tenant boundary: result conversion ──
         return handleFrameworkErrors("$resolverId: convertResult") {
-            convertResult(result, graphqlSchema)
+            convertResult(result, graphqlSchema, context.globalIDCodec)
         }
     }
 

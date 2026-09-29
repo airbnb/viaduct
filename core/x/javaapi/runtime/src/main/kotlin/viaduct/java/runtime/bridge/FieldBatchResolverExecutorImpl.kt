@@ -102,11 +102,14 @@ class FieldBatchResolverExecutorImpl(
         }
 
         return selectors.zip(javaContexts).associate { (selector, javaContext) ->
-            selector to unwrap(results[javaContext])
+            selector to unwrap(results[javaContext], context)
         }
     }
 
-    private suspend fun unwrap(fieldValue: Any?): Result<Any?> =
+    private suspend fun unwrap(
+        fieldValue: Any?,
+        context: EngineExecutionContext
+    ): Result<Any?> =
         resultOfSuspend(
             mapException = { error ->
                 if (error is PassthroughException || error is ErroneousFieldException) {
@@ -121,7 +124,7 @@ class FieldBatchResolverExecutorImpl(
             }
             val value = fieldValue.get()
             handleFrameworkErrors("$resolverId: convertResult") {
-                convertResult(value, graphqlSchema)
+                convertResult(value, graphqlSchema, context.globalIDCodec)
             }
         }
 
